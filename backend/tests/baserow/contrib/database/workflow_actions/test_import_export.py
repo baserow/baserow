@@ -5,7 +5,11 @@ import pytest
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.workflow_actions.handler import (
+    DatabaseWorkflowActionHandler,
+)
 from baserow.contrib.database.workflow_actions.models import (
+    CoreHTTPRequestWorkflowAction,
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
@@ -884,3 +888,60 @@ def test_duplicating_a_forward_reference(data_fixture):
     assert duplicated_open_url.url["formula"] == (
         f"get('previous_action.{duplicated_later.id}.id')"
     )
+
+
+@pytest.mark.django_db
+def test_export_leaves_behind_what_a_click_remembered(data_fixture):
+    """
+    An export travels to snapshots, duplicates and templates, and what a click
+    remembered of an external response describes this installation's data.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    service = data_fixture.create_core_http_request_service(integration=None)
+    service.sample_data = {"data": {"body": {"secret": "tKn-123"}}, "status": 200}
+    service.save()
+    data_fixture.create_database_workflow_action(
+        CoreHTTPRequestWorkflowAction, field=button_field, service=service
+    )
+
+    exported = field_type_registry.get_by_model(button_field).export_serialized(
+        button_field
+    )
+
+    exported_service = exported["workflow_actions"][0]["service"]
+    assert "sample_data" not in exported_service
+    assert "tKn-123" not in str(exported)
+
+
+@pytest.mark.django_db
+def test_duplicating_a_field_leaves_the_remembered_answer_behind(data_fixture):
+    """
+    Duplicating goes through the same export and import as a snapshot, so a
+    copy must arrive with the request configured and with nothing this
+    installation's endpoint happened to answer.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    service = data_fixture.create_core_http_request_service(
+        integration=None, url="'http://example.notexist/'"
+    )
+    service.sample_data = {"data": {"body": {"secret": "tKn-123"}}, "status": 200}
+    service.save()
+    data_fixture.create_database_workflow_action(
+        CoreHTTPRequestWorkflowAction, field=button_field, service=service
+    )
+
+    copy, _ = FieldHandler().duplicate_field(user, button_field)
+
+    copied_actions = list(
+        DatabaseWorkflowActionHandler().get_workflow_actions(copy.specific)
+    )
+    assert len(copied_actions) == 1
+    copied_service = copied_actions[0].service.specific
+    assert copied_service.url["formula"] == "'http://example.notexist/'"
+    assert copied_service.sample_data is None

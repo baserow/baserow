@@ -11,6 +11,19 @@ import { Page } from "@playwright/test";
 import { test, expect } from "../baserowTest";
 import { GridPage } from "../../pages/database/gridPage";
 import {
+  actionItem,
+  actionOrder,
+  addAction,
+  exactly,
+  expandAction,
+  explorer,
+  fieldHeader,
+  openFieldEditor,
+  pickExplorerNode,
+  pickTableOn,
+  saveField,
+} from "../../pages/database/buttonFieldEditor";
+import {
   setupGrid,
   resetRows,
   GridSetupResult,
@@ -94,17 +107,6 @@ let otherTable: Table;
 /** A second member of the workspace, for the tests about who a click runs as. */
 let otherUser: User;
 
-/** The header column of a non-primary field, by name. */
-function fieldHeader(page: Page, name: string) {
-  return page
-    .locator(".grid-view__right .grid-view__head .grid-view__column")
-    .filter({
-      has: page.locator(".grid-view__description-name", {
-        hasText: new RegExp(`^\\s*${name}\\s*$`),
-      }),
-    });
-}
-
 /**
  * A table's row in the sidebar, matched on the whole name so "Tickets" and
  * "Tickets 2" stay apart.
@@ -115,124 +117,6 @@ function sidebarTable(page: Page, name: string) {
       hasText: new RegExp(`^\\s*${name}\\s*$`),
     }),
   });
-}
-
-/** Opens a field's "Edit field" form from its header dropdown. */
-async function openFieldEditor(page: Page, name: string) {
-  // The Context self-hides when it does not fit, and the first click can land
-  // before the header has settled, so open it until the menu is really there.
-  const editItem = page.locator(".context__menu-item", {
-    hasText: "Edit field",
-  });
-  await expect(async () => {
-    await fieldHeader(page, name)
-      .locator(".grid-view__description-icon-trigger")
-      .click();
-    await expect(editItem).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 15_000 });
-  await editItem.click();
-  await expect(page.locator(".button-field-action-list")).toBeVisible();
-}
-
-/** Matches a whole label, so one name cannot select another that contains it. */
-function exactly(name: string) {
-  return new RegExp(`^\\s*${name}\\s*$`);
-}
-
-/** The data explorer that opens under a formula input. */
-function explorer(page: Page) {
-  return page.locator("[data-formula-input-context]:visible");
-}
-
-/** Walks the explorer, opening each node in turn and picking the last. */
-async function pickExplorerNode(page: Page, ...names: string[]) {
-  for (const name of names) {
-    await explorer(page)
-      .locator(".node-explorer-content__name", {
-        hasText: new RegExp(`^\\s*${name}\\s*$`),
-      })
-      .first()
-      .click();
-  }
-}
-
-/** One action's row in the editor's list. */
-function actionItem(page: Page, index: number) {
-  return page
-    .locator(".button-field-action-list .button-field-action-list__item")
-    .nth(index);
-}
-
-/** Adds an action of `type` at the end of the list. */
-/**
- * Opens an action's card. Saved actions load collapsed, so anything that
- * reaches into a form has to open it first, the way a user would.
- */
-async function expandAction(page: Page, index: number) {
-  const item = actionItem(page, index);
-  const form = item.locator(".button-field-action-list__form");
-  if (!(await form.isVisible())) {
-    await item.locator("[data-action-toggle]").click();
-    await expect(form).toBeVisible();
-  }
-}
-
-async function addAction(page: Page, type: string) {
-  const list = page.locator(".button-field-action-list");
-  const before = await list
-    .locator(".button-field-action-list__item")
-    .count();
-  // The explorer hides when the formula input loses focus, and it stays open
-  // over the list until then. The section heading is above the cards, so
-  // clicking it blurs the editor without the popup in the way.
-  await list.locator(".button-field-action-list__title").click();
-  await list.getByText("Add action").click();
-  const added = actionItem(page, before);
-  await added.locator(".button-field-action-list__type").click();
-  await page
-    .locator(".dropdown__items:visible")
-    .locator(".select__item-link", { hasText: exactly(type) })
-    .click();
-  return added;
-}
-
-/**
- * Points an action at a table. The database has to be chosen first: until it
- * is, the table dropdown has nothing to offer.
- */
-async function pickTableOn(
-  page: Page,
-  index: number,
-  database: string,
-  table: string,
-) {
-  await expandAction(page, index);
-  const dropdowns = actionItem(page, index).locator(
-    ".button-field-action-list__form .dropdown",
-  );
-  for (const [position, name] of [
-    [0, database],
-    [1, table],
-  ] as [number, string][]) {
-    await dropdowns.nth(position).click();
-    // Matched whole, or "Tickets" also picks up the "Tickets 2" the
-    // duplication test leaves behind.
-    await page
-      .locator(".dropdown__items:visible")
-      .locator(".select__item-link", { hasText: exactly(name) })
-      .click();
-  }
-}
-
-/**
- * Drags one action onto another's position. The sortable directive tracks
- * mousemove, so a single jump does not register as a drag.
- */
-/** The action type shown on each row of the list, in order. */
-async function actionOrder(page: Page) {
-  return await page
-    .locator(".button-field-action-list .button-field-action-list__type")
-    .allTextContents();
 }
 
 /**
@@ -278,10 +162,6 @@ async function dragAction(page: Page, from: number, to: number) {
 
     expect(await actionOrder(page)).not.toEqual(before);
   }).toPass({ timeout: 20_000 });
-}
-
-async function saveField(page: Page) {
-  await page.locator(".field-context button", { hasText: "Save" }).click();
 }
 
 test.describe("Button field", () => {
@@ -392,7 +272,11 @@ test.describe("Button field", () => {
     });
 
     // "Broken" has an action with no table, so dispatching it fails.
-    await createWorkflowAction(g.user, g.fieldByName["Broken"], "local_baserow_create_row");
+    await createWorkflowAction(
+      g.user,
+      g.fieldByName["Broken"],
+      "local_baserow_create_row",
+    );
 
     // "BadLink" points at a field that does not exist, so the URL never
     // resolves in the browser.
@@ -505,11 +389,17 @@ test.describe("Button field", () => {
 
     // "Chained" creates a row, then stamps the created row's id onto the
     // clicked one, so the second action can only be right by reading the first.
-    const chainedCreate = await createRowAction(g.user, g.fieldByName["Chained"], {
-      type: "local_baserow_create_row",
-      table: g.table,
-      fieldMappings: [{ field: g.fieldByName["Name"], value: "'Chained child'" }],
-    });
+    const chainedCreate = await createRowAction(
+      g.user,
+      g.fieldByName["Chained"],
+      {
+        type: "local_baserow_create_row",
+        table: g.table,
+        fieldMappings: [
+          { field: g.fieldByName["Name"], value: "'Chained child'" },
+        ],
+      },
+    );
     await createRowAction(g.user, g.fieldByName["Chained"], {
       type: "local_baserow_update_row",
       table: g.table,
@@ -530,7 +420,9 @@ test.describe("Button field", () => {
       {
         type: "local_baserow_create_row",
         table: g.table,
-        fieldMappings: [{ field: g.fieldByName["Name"], value: "'Linked child'" }],
+        fieldMappings: [
+          { field: g.fieldByName["Name"], value: "'Linked child'" },
+        ],
       },
     );
     await createOpenUrlAction(g.user, g.fieldByName["ChainedLink"], {
@@ -554,21 +446,22 @@ test.describe("Button field", () => {
     // "Stale" starts already stale: its URL action sits first and reads an
     // action that runs after it, which is the state a reorder leaves behind.
     // Created in this order so no drag is needed to get there.
-    const staleLink = await createOpenUrlAction(g.user, g.fieldByName["Stale"], {
-      url: "'/stale-unset'",
-      target: "self",
-    });
+    const staleLink = await createOpenUrlAction(
+      g.user,
+      g.fieldByName["Stale"],
+      {
+        url: "'/stale-unset'",
+        target: "self",
+      },
+    );
     const staleCreate = await createRowAction(g.user, g.fieldByName["Stale"], {
       type: "local_baserow_create_row",
       table: g.table,
       fieldMappings: [{ field: g.fieldByName["Name"], value: "'Stale child'" }],
     });
-    await getClient(g.user).patch(
-      `database/workflow_action/${staleLink.id}/`,
-      {
-        url: `concat('/stale-',get('previous_action.${staleCreate.id}.id'))`,
-      },
-    );
+    await getClient(g.user).patch(`database/workflow_action/${staleLink.id}/`, {
+      url: `concat('/stale-',get('previous_action.${staleCreate.id}.id'))`,
+    });
 
     // "ChainedCross" reads a row in a table the clicked row's grid has no
     // fields for, which is why each result carries its own field names.
@@ -856,7 +749,9 @@ test.describe("Button field", () => {
         g.user,
         g.fieldByName["Prunable"],
       );
-      expect(actions.map((action) => action.url.formula)).toEqual(["'/keep-me'"]);
+      expect(actions.map((action) => action.url.formula)).toEqual([
+        "'/keep-me'",
+      ]);
     }).toPass({ timeout: 15_000 });
   });
 
@@ -1323,7 +1218,10 @@ test.describe("Button field", () => {
 
     // The proof it is really wired up: the reconfigured action runs, and the
     // row it makes lands in the table the second call pointed it at.
-    await grid.fieldCellAt(0, RECONFIGURE_FIELD_INDEX).locator("button").click();
+    await grid
+      .fieldCellAt(0, RECONFIGURE_FIELD_INDEX)
+      .locator("button")
+      .click();
 
     await expect(async () => {
       expect(await listRows(g.user, g.table)).toHaveLength(2);
@@ -1800,10 +1698,7 @@ test.describe("Button field", () => {
     expect(clientIdSent).toEqual([]);
 
     await grid.goTo(g.database, g.table);
-    await grid
-      .fieldCellAt(0, CHAINABLE_FIELD_INDEX)
-      .locator("button")
-      .click();
+    await grid.fieldCellAt(0, CHAINABLE_FIELD_INDEX).locator("button").click();
     await expect(page).toHaveURL(/\/fresh-\d+$/);
   });
 

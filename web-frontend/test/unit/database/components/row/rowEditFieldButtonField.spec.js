@@ -259,6 +259,29 @@ describe('RowEditFieldButtonField', () => {
     expect(dispatch).not.toHaveBeenCalledWith('toast/error', expect.anything())
   })
 
+  test('a refused click says so, rather than looking like nothing happened', async () => {
+    // The shared error handler stays quiet on a 429: it only speaks for
+    // Baserow API errors, network errors and 404s. Without this the rate limit
+    // would refuse a click with no sign of it on screen.
+    const notifyIf = vi.fn()
+    client.post.mockRejectedValue(
+      Object.assign(new Error('boom'), {
+        handler: { notifyIf, isTooManyRequests: () => true },
+      })
+    )
+    const dispatch = vi.spyOn(testApp.store, 'dispatch')
+    const wrapper = await mountField()
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.rateLimitedTitle',
+      message: 'buttonField.rateLimitedMessage',
+    })
+    expect(notifyIf).not.toHaveBeenCalled()
+  })
+
   test('a failed dispatch leaves the button clickable', async () => {
     client.post.mockRejectedValue(new Error('boom'))
     const wrapper = await mountField()

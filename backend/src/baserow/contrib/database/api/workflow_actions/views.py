@@ -15,6 +15,7 @@ from baserow.api.decorators import (
     validate_body_custom_fields,
 )
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
+from baserow.api.exceptions import ThrottledAPIException
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
@@ -38,6 +39,10 @@ from baserow.contrib.database.api.workflow_actions.serializers import (
     DispatchWorkflowActionsSerializer,
     OrderWorkflowActionsSerializer,
     UpdateDatabaseWorkflowActionSerializer,
+)
+from baserow.contrib.database.api.workflow_actions.throttling import (
+    ButtonFieldDispatchUserRateThrottle,
+    ButtonFieldDispatchWorkspaceRateThrottle,
 )
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
@@ -370,6 +375,46 @@ class OrderDatabaseWorkflowActionsView(APIView):
 class DispatchDatabaseWorkflowActionsView(APIView):
     permission_classes = (IsAuthenticated,)
 
+    def _reserve_dispatch_budget(self, request, field: ButtonField) -> list:
+        """
+        Takes a slot from each rate limit guarding external clicks. A limit
+        that denies gives back what the earlier ones reserved, so a refused
+        click costs nothing.
+
+        Nothing is reserved for a button that only touches rows here, decided
+        from what it is configured to do rather than from what a click managed
+        to run, so a click that fails halfway is charged the same as one that
+        succeeds.
+
+        :param request: The click.
+        :param field: The button field being clicked.
+        :return: The throttles holding a slot.
+        """
+
+        reaches_outside = any(
+            workflow_action.get_type().is_external
+            for workflow_action in field.workflow_actions.all()
+        )
+        if not reaches_outside:
+            return []
+
+        throttles = [
+            ButtonFieldDispatchUserRateThrottle(),
+            ButtonFieldDispatchWorkspaceRateThrottle(field.table.database.workspace_id),
+        ]
+        reserved = []
+
+        for throttle in throttles:
+            try:
+                throttle.allow_request(request, self)
+            except ThrottledAPIException:
+                for already_reserved in reserved:
+                    already_reserved.release()
+                raise
+            reserved.append(throttle)
+
+        return reserved
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -422,9 +467,21 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
         row = RowHandler().get_row(request.user, field.table, data["row_id"])
 
-        dispatch = DatabaseWorkflowActionService().dispatch_workflow_actions(
-            request.user, field, row
-        )
+        # Reserved before the actions run, the only way a limit holds under a
+        # burst.
+        throttles = self._reserve_dispatch_budget(request, field)
+
+        try:
+            dispatch = DatabaseWorkflowActionService().dispatch_workflow_actions(
+                request.user, field, row
+            )
+        except WorkflowActionDispatchInProgress:
+            # Refused before anything ran, so the click reached nothing and
+            # costs nothing. A click that did run keeps what it spent, failed
+            # request included: the traffic is what the budget caps.
+            for throttle in throttles:
+                throttle.release()
+            raise
 
         # Nothing reads the names unless a client action runs. An action that
         # returned no row, a delete for instance, has none to give either.

@@ -13,9 +13,10 @@ describe('databaseWorkflowActionType registry', () => {
     testApp.afterEach()
   })
 
-  test('the four types are registered', () => {
+  test('every type is registered', () => {
     const types = testApp._app.$registry.getAll('databaseWorkflowActionType')
     expect(Object.keys(types).sort()).toEqual([
+      'http_request',
       'local_baserow_create_row',
       'local_baserow_delete_row',
       'local_baserow_update_row',
@@ -32,6 +33,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_create_row',
       'local_baserow_update_row',
       'local_baserow_delete_row',
+      'http_request',
     ])
   })
 
@@ -314,5 +316,77 @@ describe('OpenUrlWorkflowActionType', () => {
         title: 'openUrlWorkflowAction.invalidUrlTitle',
       })
     )
+  })
+})
+
+describe('external database workflow action types', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const typeFor = (type) =>
+    testApp._app.$registry.get('databaseWorkflowActionType', type)
+
+  test('they describe themselves from the service, not from a table', () => {
+    const actionType = typeFor('http_request')
+    const schema = {
+      type: 'object',
+      title: 'HTTPRequest12Schema',
+      properties: { status_code: { type: 'number' } },
+    }
+
+    expect(actionType.getDataSchema({}, { service: { schema } })).toEqual({
+      ...schema,
+      // The service names its schema for itself. The explorer shows the
+      // action's own label, the way every other action type does.
+      title: actionType.label,
+    })
+  })
+
+  test('an action nothing has clicked yet describes nothing', () => {
+    const actionType = typeFor('http_request')
+
+    // The endpoint has not answered yet, so the backend has no schema to build
+    // from. Contributing no node is what keeps the explorer honest.
+    expect(actionType.getDataSchema({}, { service: {} })).toBeNull()
+    expect(actionType.getDataSchema({}, {})).toBeNull()
+  })
+
+  test('a table fetch cannot describe them either', () => {
+    const actionType = typeFor('http_request')
+    const applicationContext = { tableFields: { 1: [{ id: 2, type: 'text' }] } }
+
+    // A row action would build its schema from these; an HTTP one must not.
+    expect(
+      actionType.getDataSchema(applicationContext, {
+        service: { table_id: 1 },
+      })
+    ).toBeNull()
+  })
+
+  test('it can be read by a later action', () => {
+    expect(typeFor('http_request').producesResult).toBe(true)
+  })
+
+  test('it offers no field mappings', () => {
+    expect(typeFor('http_request').mapsFields).toBe(false)
+  })
+
+  test('it resolves the shared service type and its form', () => {
+    for (const [actionType, serviceType] of [
+      ['http_request', 'http_request'],
+    ]) {
+      const type = typeFor(actionType)
+      expect(type.serviceType.getType()).toBe(serviceType)
+      expect(type.serviceType.formComponent).toBeTruthy()
+      expect(type.label).toBe(type.serviceType.name)
+      expect(type.icon).toBe(type.serviceType.icon)
+    }
   })
 })

@@ -266,6 +266,7 @@ class DatabaseConfig(AppConfig):
 
         from .workflow_actions.registries import database_workflow_action_type_registry
         from .workflow_actions.workflow_action_types import (
+            CoreHTTPRequestWorkflowActionType,
             LocalBaserowCreateRowWorkflowActionType,
             LocalBaserowDeleteRowWorkflowActionType,
             LocalBaserowUpdateRowWorkflowActionType,
@@ -282,6 +283,9 @@ class DatabaseConfig(AppConfig):
             LocalBaserowDeleteRowWorkflowActionType()
         )
         database_workflow_action_type_registry.register(OpenUrlWorkflowActionType())
+        database_workflow_action_type_registry.register(
+            CoreHTTPRequestWorkflowActionType()
+        )
 
         from .fields.field_aggregations import (
             AverageFieldAggregationType,

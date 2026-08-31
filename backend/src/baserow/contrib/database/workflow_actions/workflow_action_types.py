@@ -12,6 +12,7 @@ from baserow.contrib.database.api.workflow_actions.serializers import (
     DatabasePolymorphicServiceSerializer,
 )
 from baserow.contrib.database.workflow_actions.models import (
+    CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -21,6 +22,9 @@ from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
 )
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
+from baserow.contrib.integrations.core.service_types import (
+    CoreHTTPRequestServiceType,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
@@ -118,9 +122,14 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     ) -> Any:
         if prop_name == "service":
             service = workflow_action.service.specific
-            return service.get_type().export_serialized(
+            exported = service.get_type().export_serialized(
                 service, files_zip=files_zip, storage=storage, cache=cache
             )
+            # An export travels to snapshots, copies and templates, and what a
+            # click remembered describes this installation's data. Nothing
+            # needs it there: the editor rebuilds it from the next click.
+            exported.pop("sample_data", None)
+            return exported
 
         return super().serialize_property(
             workflow_action,
@@ -272,6 +281,16 @@ class LocalBaserowDeleteRowWorkflowActionType(DatabaseWorkflowServiceActionType)
     type = "local_baserow_delete_row"
     model_class = LocalBaserowDeleteRowWorkflowAction
     service_type = LocalBaserowDeleteRowServiceType.type
+
+
+class CoreHTTPRequestWorkflowActionType(DatabaseWorkflowServiceActionType):
+    type = "http_request"
+    model_class = CoreHTTPRequestWorkflowAction
+    service_type = CoreHTTPRequestServiceType.type
+
+    # What an endpoint answers with is unknowable until it has answered once.
+    captures_sample_data = True
+    is_external = True
 
 
 class OpenUrlWorkflowActionType(DatabaseWorkflowActionType):

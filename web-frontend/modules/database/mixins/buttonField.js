@@ -54,9 +54,16 @@ export default {
           this.previousActionResults(data)
         )
       } catch (error) {
-        // A handled error already carries its own message. Anything else, a
-        // network failure for instance, still needs a toast of its own.
-        if (error.handler) {
+        // The shared handler stays quiet on a 429, so a refused click would
+        // otherwise look like a click that did nothing.
+        if (error.handler?.isTooManyRequests?.()) {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('buttonField.rateLimitedTitle'),
+            message: this.$t('buttonField.rateLimitedMessage'),
+          })
+        } else if (error.handler) {
+          // A handled error already carries its own message. Anything else, a
+          // network failure for instance, still needs a toast of its own.
           notifyIf(error, 'workflowAction')
         } else {
           this.$store.dispatch('toast/error', {

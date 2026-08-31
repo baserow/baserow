@@ -106,7 +106,11 @@ export async function createDeleteRowAction(
   buttonField: Field,
   options: { table: Table; rowId: string },
 ): Promise<WorkflowAction> {
-  const action = await createWorkflowAction(user, buttonField, "local_baserow_delete_row");
+  const action = await createWorkflowAction(
+    user,
+    buttonField,
+    "local_baserow_delete_row",
+  );
   return await updateWorkflowAction(user, action, {
     service: {
       type: "local_baserow_delete_row",
@@ -127,4 +131,38 @@ export async function createOpenUrlAction(
     url: options.url,
     target: options.target ?? "self",
   });
+}
+
+/**
+ * An action that calls an endpoint outside Baserow. `url` is a formula, so a
+ * literal needs its own quotes and a value from the clicked row is read with
+ * `get('row.field_1')`.
+ */
+export async function createHttpRequestAction(
+  user: User,
+  buttonField: Field,
+  options: {
+    url: string;
+    method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+    timeout?: number;
+  },
+): Promise<WorkflowAction> {
+  const action = await createWorkflowAction(user, buttonField, "http_request");
+  return await updateWorkflowAction(user, action, {
+    service: {
+      type: "http_request",
+      http_method: options.method ?? "GET",
+      url: options.url,
+      timeout: options.timeout ?? 30,
+    },
+  });
+}
+
+/** What one action looks like to the API, including its service. */
+export async function getWorkflowAction(
+  user: User,
+  action: WorkflowAction,
+): Promise<any> {
+  const actions = await listWorkflowActions(user, action.field);
+  return actions.find((candidate) => candidate.id === action.id);
 }

@@ -4,6 +4,7 @@ from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
 from baserow.contrib.database.workflow_actions.models import (
+    CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -16,7 +17,7 @@ from baserow.core.services.exceptions import (
 )
 
 
-def test_the_four_types_are_registered():
+def test_every_type_is_registered():
     types = {t.type for t in database_workflow_action_type_registry.get_all()}
 
     assert types == {
@@ -24,6 +25,7 @@ def test_the_four_types_are_registered():
         "local_baserow_update_row",
         "local_baserow_delete_row",
         "open_url",
+        "http_request",
     }
 
 
@@ -54,6 +56,8 @@ def test_types_map_to_their_models_and_services():
         registry.get("local_baserow_delete_row").service_type
         == "local_baserow_delete_row"
     )
+    assert registry.get("http_request").model_class is CoreHTTPRequestWorkflowAction
+    assert registry.get("http_request").service_type == "http_request"
 
 
 @pytest.mark.django_db

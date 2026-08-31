@@ -1313,7 +1313,9 @@
   },
   "buttonField": {
     "dispatchErrorTitle": "Could not run the actions",
-    "dispatchErrorMessage": "Something went wrong while running the button's actions. Please try again."
+    "dispatchErrorMessage": "Something went wrong while running the button's actions. Please try again.",
+    "rateLimitedTitle": "Too many clicks",
+    "rateLimitedMessage": "This button has been clicked too often. Wait a moment and try again."
   },
   "rowEditFieldButtonField": {
     "createRowBefore": "The actions can be run after the row has been created."

@@ -6,6 +6,7 @@ import {
   LocalBaserowUpdateRowWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import { CoreHTTPRequestServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import {
@@ -453,6 +454,43 @@ export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowAct
     return this.app.$registry.get(
       'service',
       LocalBaserowDeleteRowWorkflowServiceType.getType()
+    )
+  }
+}
+
+/**
+ * Base for an action whose result comes from outside Baserow, so the service
+ * describes it rather than a table's fields.
+ */
+export class DatabaseExternalWorkflowActionType extends DatabaseWorkflowActionServiceType {
+  /**
+   * The service's own schema rather than the row shape the base builds. Null
+   * leaves the action out of the explorer instead of describing it wrongly.
+   */
+  getDataSchema(applicationContext, workflowAction) {
+    const schema = this.serviceType.getDataSchema(workflowAction.service || {})
+    if (!schema) {
+      return null
+    }
+    // The service names its schema for itself, `HTTPRequest12Schema`, which is
+    // what the explorer would show. Every other action shows its label.
+    return { ...schema, title: this.label }
+  }
+}
+
+export class CoreHTTPRequestWorkflowActionType extends DatabaseExternalWorkflowActionType {
+  static getType() {
+    return 'http_request'
+  }
+
+  getOrder() {
+    return 40
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreHTTPRequestServiceType.getType()
     )
   }
 }

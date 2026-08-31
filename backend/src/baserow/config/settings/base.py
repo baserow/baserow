@@ -331,9 +331,44 @@ BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
 # dies mid-click; normally the lock goes as soon as the sequence finishes. Raise
 # it if a button's actions can legitimately run for longer.
 DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS = int(
-    # Default TTL is 1 minute
-    os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS") or 60
+    # 2 minutes, which outlives the longest single request an HTTP action may
+    # ask for, but not a chain of several of them. A lock that expires mid
+    # click stops protecting the row, so raise this for a button whose actions
+    # together can run for longer.
+    os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS") or 120
 )
+# The most a click may remember of an external answer, so a large response
+# cannot bloat the field's configuration. Only the editor's copy is capped.
+DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES = int(
+    os.getenv("BASEROW_DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES") or 64 * 1024
+)
+# How often a button that reaches outside Baserow may be clicked. Both keys are
+# needed: an abuser can make workspaces, and one workspace should not drown the
+# rest. Local clicks are not counted. Leaving a variable empty keeps the
+# default; a single comma switches its limits off.
+try:
+    DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS")
+            or "30/m,300/h"
+        ).split(",")
+        if value.strip()
+    )
+    DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS")
+            or "120/m,1200/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        "BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS and "
+        "BASEROW_DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS must be a comma "
+        f"separated list of rate limits, for example '30/m,300/h'. {exc}"
+    ) from exc
 
 
 CELERY_SINGLETON_BACKEND_CLASS = (

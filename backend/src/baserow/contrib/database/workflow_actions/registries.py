@@ -34,6 +34,14 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     # hands back instead of running server side.
     is_frontend_only = False
 
+    # Set by a type whose result only a real answer can describe. A row action
+    # reads the target table's fields instead.
+    captures_sample_data = False
+
+    # Set by a type that reaches outside this installation. Only clicks that
+    # contain one spend the rate limit's budget.
+    is_external = False
+
     class SerializedDict(DatabaseWorkflowActionDict):
         pass
 

@@ -92,3 +92,33 @@ export async function deleteAllNonPrimaryFieldsFromTable(
   );
   await Promise.all(fields.map((f) => deleteField(user, f)));
 }
+
+/**
+ * Duplicates a field and waits for the copy to exist. Duplicating runs as a
+ * job, so the field is not there the moment the request returns.
+ */
+export async function duplicateField(
+  user: User,
+  field: Field,
+  table: Table,
+  options: { copyData?: boolean } = {},
+): Promise<Field> {
+  await getClient(user).post(`database/fields/${field.id}/duplicate/async/`, {
+    duplicate_data: options.copyData ?? false,
+  });
+
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const fields = await getFieldsForTable(user, table);
+    const copy = fields.find(
+      (candidate: Field) =>
+        candidate.id !== field.id && candidate.name.startsWith(field.name),
+    );
+    if (copy) {
+      return copy;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  throw new Error(`the copy of "${field.name}" never appeared`);
+}
