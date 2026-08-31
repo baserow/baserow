@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.ai.models import AIAgentService, AIOutputType
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_string
@@ -143,8 +144,16 @@ class AIAgentServiceType(ServiceType):
         ai_model = values.get("ai_generative_ai_model") or (
             instance.ai_generative_ai_model if instance else None
         )
+        integration_id = values.get("integration_id") or (
+            instance.integration_id if instance else None
+        )
+        selection_changed = instance is None or (
+            ai_type != instance.ai_generative_ai_type
+            or ai_model != instance.ai_generative_ai_model
+            or integration_id != instance.integration_id
+        )
 
-        if ai_type:
+        if ai_type and selection_changed:
             try:
                 ai_model_type = generative_ai_model_type_registry.get(ai_type)
             except GenerativeAITypeDoesNotExist as e:
@@ -152,29 +161,37 @@ class AIAgentServiceType(ServiceType):
                     {"ai_generative_ai_type": f"AI type '{ai_type}' does not exist."}
                 ) from e
 
-            # Get the integration to check available models
-            integration_id = values.get("integration_id") or (
-                instance.integration_id if instance else None
-            )
             if integration_id and ai_model:
                 integration = (
                     IntegrationHandler().get_integration(integration_id).specific
                 )
                 integration_type = AIIntegrationType()
-                provider_settings = integration_type.get_provider_settings(
-                    integration, ai_type
+                model_unavailable_error = DRFValidationError(
+                    {
+                        "ai_generative_ai_model": f"Model '{ai_model}' is not "
+                        f"available for provider '{ai_type}'."
+                    }
                 )
-                available_models = ai_model_type.call_get_enabled_models(
-                    workspace=integration.application.workspace,
-                    settings_override=provider_settings or None,
-                )
-
-                if ai_model not in available_models:
-                    raise DRFValidationError(
-                        {
-                            "ai_generative_ai_model": f"Model '{ai_model}' is not available for provider '{ai_type}'."
-                        }
+                if feature_flag_is_enabled(FF_AI_PROVIDERS):
+                    settings_override = (
+                        integration_type.get_integration_provider_settings(
+                            integration, ai_type
+                        )
                     )
+                    available_models = ai_model_type.get_enabled_models_for_feature(
+                        AI_PROVIDER_FEATURE_AI_AGENT,
+                        workspace=integration.application.workspace,
+                        settings_override=settings_override,
+                    )
+                    if ai_model not in available_models:
+                        raise model_unavailable_error
+                else:
+                    provider_settings = integration_type.get_provider_settings(
+                        integration, ai_type
+                    )
+                    available_models = provider_settings.get("models", [])
+                    if available_models and ai_model not in available_models:
+                        raise model_unavailable_error
 
         return super().prepare_values(values, user, instance)
 

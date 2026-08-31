@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.http import HttpRequest
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
@@ -21,6 +22,7 @@ from baserow.contrib.builder.workflow_actions.models import (
 )
 from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
@@ -1100,3 +1102,130 @@ def test_legacy_workspace_settings_are_materialized_when_publishing(
     # Settings should be available because they were materialized during export
     assert provider_settings["api_key"] == "sk-workspace-key"
     assert provider_settings["models"] == ["gpt-4"]
+
+
+@pytest.mark.django_db
+def test_prepare_values_accepts_database_backed_model_with_flag(data_fixture, settings):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="database-key"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="agent-model",
+        feature_types=[AI_PROVIDER_FEATURE_AI_AGENT],
+    )
+    integration = IntegrationService().create_integration(
+        user, AIIntegrationType(), application=application, ai_settings={}
+    )
+
+    values = AIAgentServiceType().prepare_values(
+        {
+            "integration_id": integration.id,
+            "ai_generative_ai_type": "openai",
+            "ai_generative_ai_model": "agent-model",
+        },
+        user,
+    )
+
+    assert values["ai_generative_ai_model"] == "agent-model"
+
+
+@pytest.mark.django_db
+def test_prepare_values_rejects_model_restricted_to_other_features(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="database-key"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="fields-only-model",
+        feature_types=["ai_fields"],
+    )
+    integration = IntegrationService().create_integration(
+        user, AIIntegrationType(), application=application, ai_settings={}
+    )
+
+    with pytest.raises(DRFValidationError):
+        AIAgentServiceType().prepare_values(
+            {
+                "integration_id": integration.id,
+                "ai_generative_ai_type": "openai",
+                "ai_generative_ai_model": "fields-only-model",
+            },
+            user,
+        )
+
+
+@pytest.mark.django_db
+def test_prepare_values_skips_validation_when_selection_unchanged(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = IntegrationService().create_integration(
+        user, AIIntegrationType(), application=application, ai_settings={}
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="stale-model",
+        ai_output_type="text",
+        ai_prompt="'Old prompt'",
+    )
+
+    values = AIAgentServiceType().prepare_values(
+        {
+            "integration_id": integration.id,
+            "ai_generative_ai_type": "openai",
+            "ai_generative_ai_model": "stale-model",
+            "ai_prompt": "'New prompt'",
+        },
+        user,
+        instance=service,
+    )
+
+    assert values["ai_prompt"] == "'New prompt'"
+
+
+@pytest.mark.django_db
+def test_prepare_values_validates_changed_selection_on_update(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="database-key"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="agent-model",
+        feature_types=[AI_PROVIDER_FEATURE_AI_AGENT],
+    )
+    integration = IntegrationService().create_integration(
+        user, AIIntegrationType(), application=application, ai_settings={}
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="agent-model",
+        ai_output_type="text",
+        ai_prompt="'Test'",
+    )
+
+    with pytest.raises(DRFValidationError):
+        AIAgentServiceType().prepare_values(
+            {"ai_generative_ai_model": "unknown-model"},
+            user,
+            instance=service,
+        )
