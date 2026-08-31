@@ -271,7 +271,8 @@ class AIAgentServiceType(ServiceType):
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The workspace context for the AI integration is missing."
                 )
-            available_models = ai_model_type.call_get_enabled_models(
+            available_models = ai_model_type.get_enabled_models_for_feature(
+                AI_PROVIDER_FEATURE_AI_AGENT,
                 workspace=workspace,
                 settings_override=settings_override,
             )
