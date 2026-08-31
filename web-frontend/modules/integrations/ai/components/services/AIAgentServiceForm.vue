@@ -151,6 +151,9 @@ import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationTypes'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
+import { AIAgentAIProviderModelFeatureType } from '@baserow/modules/integrations/ai/aiProviderModelFeatureTypes'
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'AIAgentServiceForm',
@@ -214,23 +217,26 @@ export default {
     workspace() {
       return this.$store.getters['workspace/get'](this.application.workspace.id)
     },
-    availableProviders() {
+    aiProvidersEnabled() {
+      return this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
+    },
+    workspaceEnabledModels() {
+      return getEnabledModelsForAIProviderFeature(
+        this.workspace,
+        AIAgentAIProviderModelFeatureType.getType(),
+        this.aiProvidersEnabled
+      )
+    },
+    baseAvailableProviders() {
       if (!this.integration) {
         return []
       }
 
-      const workspaceEnabled =
-        this.workspace?.generative_ai_models_enabled || {}
+      const workspaceEnabled = this.workspaceEnabledModels
       const integrationSettings = this.integration.ai_settings || {}
       const allProviders = this.$registry.getAll('generativeAIModel')
       return Object.keys(allProviders)
         .filter((type) => {
-          // Provider is available if it's configured at any level:
-          // 1. Has env vars (checked by backend when getting enabled models)
-          // 2. Set on workspace level
-          // 3. Set on integration level
-
-          // Check if provider has models in integration settings
           if (integrationSettings[type]) {
             const models = integrationSettings[type].models || []
             if (models.length > 0) {
@@ -238,12 +244,7 @@ export default {
             }
           }
 
-          // Check if provider has models in workspace settings
-          if (workspaceEnabled[type] && workspaceEnabled[type].length > 0) {
-            return true
-          }
-
-          return false
+          return workspaceEnabled[type] && workspaceEnabled[type].length > 0
         })
         .map((type) => {
           const modelType = this.$registry.get('generativeAIModel', type)
@@ -253,24 +254,44 @@ export default {
           }
         })
     },
-    availableModels() {
+    availableProviders() {
+      const providers = [...this.baseAvailableProviders]
+
+      const current = this.values.ai_generative_ai_type
+      if (
+        this.aiProvidersEnabled &&
+        current &&
+        !providers.some((provider) => provider.type === current)
+      ) {
+        const allProviders = this.$registry.getAll('generativeAIModel')
+        const modelType = allProviders[current]
+        providers.push({
+          type: current,
+          name: modelType ? modelType.getName() : current,
+        })
+      }
+      return providers
+    },
+    baseAvailableModels() {
       if (!this.integration || !this.values.ai_generative_ai_type) {
         return []
       }
 
       const integrationSettings = this.integration.ai_settings || {}
-      const workspaceEnabled =
-        this.workspace?.generative_ai_models_enabled || {}
-
-      // If provider is overridden in integration, use integration models.
-      if (integrationSettings[this.values.ai_generative_ai_type]) {
-        return (
-          integrationSettings[this.values.ai_generative_ai_type].models || []
-        )
+      const providerType = this.values.ai_generative_ai_type
+      if (integrationSettings[providerType]) {
+        return integrationSettings[providerType].models || []
       }
+      return this.workspaceEnabledModels[providerType] || []
+    },
+    availableModels() {
+      const models = this.baseAvailableModels
 
-      // Otherwise use workspace models
-      return workspaceEnabled[this.values.ai_generative_ai_type] || []
+      const current = this.values.ai_generative_ai_model
+      if (this.aiProvidersEnabled && current && !models.includes(current)) {
+        return [...models, current]
+      }
+      return models
     },
     maxTemperature() {
       if (!this.values.ai_generative_ai_type) {
@@ -303,7 +324,7 @@ export default {
     'values.integration_id'(newValue, oldValue) {
       if (oldValue && newValue !== oldValue) {
         // Check if current provider is still available
-        const availableProviderTypes = this.availableProviders.map(
+        const availableProviderTypes = this.baseAvailableProviders.map(
           (p) => p.type
         )
         if (
@@ -315,7 +336,7 @@ export default {
           this.values.ai_generative_ai_model = null
         } else if (this.values.ai_generative_ai_type) {
           // Provider still available, check if model is still available
-          const models = this.availableModels
+          const models = this.baseAvailableModels
           if (
             this.values.ai_generative_ai_model &&
             !models.includes(this.values.ai_generative_ai_model)
@@ -333,7 +354,7 @@ export default {
      */
     'values.ai_generative_ai_type'(newValue, oldValue) {
       if (oldValue && newValue !== oldValue) {
-        const models = this.availableModels
+        const models = this.baseAvailableModels
         this.values.ai_generative_ai_model =
           models.length > 0 ? models[0] : null
       }

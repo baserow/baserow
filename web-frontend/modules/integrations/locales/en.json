@@ -18,6 +18,10 @@
     "inheritingWorkspace": "Inheriting workspace AI settings",
     "overridingProviders": "Overriding {count} provider|Overriding {count} providers"
   },
+  "aiProviderModelFeature": {
+    "aiAgent": "AI agent",
+    "aiAgentDescription": "Run AI agent nodes in automations."
+  },
   "slackBotIntegrationType": {
     "slackBotSummary": "Slack Bot",
     "slackBotNoToken": "Slack Bot - Not configured"
