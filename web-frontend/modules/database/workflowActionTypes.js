@@ -584,4 +584,22 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
   getNewActionValues() {
     return { service: { use_instance_smtp_settings: true } }
   }
+
+  /**
+   * An instance can stop being able to send after the action was configured,
+   * and the click is then refused. The service says which it is, so the editor
+   * can say so where the action is rather than leaving it to a click.
+   */
+  getErrorMessage(workflowAction, applicationContext) {
+    const inherited = super.getErrorMessage(workflowAction, applicationContext)
+    if (inherited) {
+      return inherited
+    }
+    // Absent on an action this editor has not saved yet, which the backend
+    // refuses on create instead.
+    if (workflowAction.service?.instance_smtp_settings_enabled === false) {
+      return this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
+    }
+    return null
+  }
 }

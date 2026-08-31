@@ -5,6 +5,7 @@ from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
 
@@ -12,6 +13,12 @@ from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
+)
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
+)
+from baserow.contrib.database.workflow_actions.service import (
+    DatabaseWorkflowActionService,
 )
 from baserow.core.services.models import Service
 
@@ -634,3 +641,100 @@ def test_naming_the_service_type_the_action_already_uses_is_accepted(
 
     assert response.status_code == HTTP_200_OK, response.json()
     assert response.json()["service"]["table_id"] == table.id
+
+
+def _no_smtp(settings):
+    """An instance that keeps a backend which never delivers."""
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+
+@pytest.mark.django_db
+def test_creating_a_deactivated_type_is_refused_with_its_reason(
+    api_client, data_fixture, settings
+):
+    _no_smtp(settings)
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"type": "smtp_email"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_403_FORBIDDEN, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+    # The reason is what the editor shows, so it travels rather than a code.
+    assert "SMTP" in response.json()["detail"]
+    assert DatabaseWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_swapping_to_a_deactivated_type_is_refused_with_its_reason(
+    api_client, data_fixture, settings
+):
+    _no_smtp(settings)
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+
+    response = api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": action.id},
+        ),
+        {"type": "smtp_email"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_403_FORBIDDEN, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+    action.refresh_from_db()
+    assert action.get_type().type == "local_baserow_create_row"
+
+
+@pytest.mark.django_db
+def test_clicking_a_button_carrying_a_deactivated_type_is_refused(
+    api_client, data_fixture, settings
+):
+    """
+    An instance can stop being able to send after the action was configured, so
+    the click is refused as a whole rather than failing part way through it.
+    """
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    row = table.get_model().objects.create()
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("smtp_email"),
+        button_field,
+    )
+
+    _no_smtp(settings)
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_403_FORBIDDEN, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"

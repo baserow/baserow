@@ -23,15 +23,18 @@ function headerOf(message: any, name: string): string {
   return Array.isArray(values) ? values.join(", ") : (values ?? "");
 }
 
-// MailHog answers a page at a time, and a long lived catcher also holds every
-// signup and notification mail the rest of the suite sent, so the default page
-// is not wide enough to find a message by subject.
-const MESSAGE_PAGE_SIZE = 200;
-
-/** Every message the stack has sent, newest first. */
-export async function listEmails(): Promise<CapturedEmail[]> {
+/**
+ * The messages whose subject contains the given text, newest first.
+ *
+ * Asked of the catcher rather than paged through here: it holds every mail the
+ * rest of the suite sent, and against a dev stack whatever the developer had
+ * already captured, so the one being looked for can be arbitrarily far down.
+ */
+export async function findEmails(subject: string): Promise<CapturedEmail[]> {
   const response = await fetch(
-    `${apiUrl()}/api/v2/messages?limit=${MESSAGE_PAGE_SIZE}`,
+    `${apiUrl()}/api/v2/search?kind=containing&query=${encodeURIComponent(
+      subject,
+    )}`,
   );
   if (!response.ok) {
     throw new Error(
@@ -78,7 +81,7 @@ export async function waitForEmail(subject: string): Promise<CapturedEmail> {
   let found: CapturedEmail | undefined;
 
   await expect(async () => {
-    const emails = await listEmails();
+    const emails = await findEmails(subject);
     found = emails.find((email) => email.subject === subject);
     expect(found, `no email with subject "${subject}" arrived`).toBeTruthy();
   }).toPass({ timeout: 20_000 });

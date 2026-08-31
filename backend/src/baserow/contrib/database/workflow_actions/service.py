@@ -492,11 +492,15 @@ class DatabaseWorkflowActionService:
 
         # Refused as a whole: a sequence that cannot finish should not start.
         # After the permission check, since the reason describes how this
-        # installation is configured and only a dispatcher may see it. One
-        # check per type: it is the type that is unavailable, not the action.
-        for workflow_action_type in {
-            workflow_action.get_type() for workflow_action in workflow_actions
-        }:
+        # installation is configured and only a dispatcher may see it. Once per
+        # type, since it is the type that is unavailable rather than the
+        # action, and in the order the actions run, so a button carrying two of
+        # them names the same one every time.
+        checked_types = {}
+        for workflow_action in workflow_actions:
+            workflow_action_type = workflow_action.get_type()
+            checked_types.setdefault(workflow_action_type.type, workflow_action_type)
+        for workflow_action_type in checked_types.values():
             workflow_action_type.raise_if_deactivated(field.table.database.workspace)
 
         # Frontend-only actions can't be dispatched here; the caller runs them

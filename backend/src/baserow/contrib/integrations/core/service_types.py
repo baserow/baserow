@@ -859,11 +859,22 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
         }
 
+    # An installation with no SMTP server keeps a backend that writes the
+    # message somewhere local and reports that it sent it.
+    NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
+
     def _instance_smtp_is_available(self) -> bool:
-        return bool(
-            settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS
-            and getattr(settings, "EMAIL_HOST", "")
-        )
+        if not settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
+            return False
+
+        # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
+        # says nothing about whether this installation can send. What it does
+        # with a message it is given does, and a backend it does not name at
+        # all is one the service could not ask for.
+        backend = getattr(settings, "CELERY_EMAIL_BACKEND", None)
+        if not backend:
+            return False
+        return not any(name in backend for name in self.NON_DELIVERING_EMAIL_BACKENDS)
 
     def _should_use_instance_smtp(self, service: CoreSMTPEmailService) -> bool:
         return bool(

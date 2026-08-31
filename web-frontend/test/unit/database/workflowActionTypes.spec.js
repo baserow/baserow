@@ -1,6 +1,17 @@
 import { vi } from 'vitest'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import OpenUrlWorkflowActionForm from '@baserow/modules/database/components/field/OpenUrlWorkflowActionForm'
+
+// Read rather than imported: the i18n loader turns an imported locale file
+// into compiled message ASTs, which the copy below can't be read off of.
+const en = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'modules/database/locales/en.json'),
+    'utf8'
+  )
+)
 
 describe('databaseWorkflowActionType registry', () => {
   let testApp = null
@@ -418,5 +429,46 @@ describe('external database workflow action types', () => {
       expect(type.label).toBe(type.serviceType.name)
       expect(type.icon).toBe(type.serviceType.icon)
     }
+  })
+})
+
+describe('CoreSMTPEmailWorkflowActionType', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const emailType = () =>
+    testApp._app.$registry.get('databaseWorkflowActionType', 'smtp_email')
+
+  test('an instance that can no longer send is said so on the action', () => {
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      service: { instance_smtp_settings_enabled: false },
+    }
+
+    // `$t` returns the key in the test env, so the copy is pinned separately.
+    expect(emailType().getErrorMessage(action, {})).toBe(
+      'databaseWorkflowActionType.noInstanceSmtp'
+    )
+    expect(en.databaseWorkflowActionType.noInstanceSmtp).toContain(
+      'no SMTP server configured'
+    )
+  })
+
+  test('an instance that can send says nothing', () => {
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      service: { instance_smtp_settings_enabled: true },
+    }
+
+    expect(emailType().getErrorMessage(action, {})).toBeNull()
   })
 })

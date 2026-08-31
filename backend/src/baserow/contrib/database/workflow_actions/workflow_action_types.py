@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional
 from zipfile import ZipFile
 
-from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db.models import Manager, Prefetch, QuerySet
@@ -440,12 +439,6 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
     service_type = CoreSMTPEmailServiceType.type
     is_external = True
 
-    # An instance with no SMTP server keeps Django's own default backend, which
-    # writes the message somewhere local and reports that it sent. For a button
-    # that is worse than a failure: the click says it worked and nothing
-    # arrives.
-    NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
-
     def prepare_values(self, values, user, instance=None):
         """
         A database action carries no integration (ADR 006 section 5), so the
@@ -469,14 +462,7 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         """
 
         service_type = service_type_registry.get(self.service_type)
-        if not service_type._instance_smtp_is_available():
-            return True
-
-        # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
-        # says nothing about whether this installation can send. What it does
-        # with a message it is given does.
-        backend = getattr(settings, "CELERY_EMAIL_BACKEND", "") or ""
-        return any(name in backend for name in self.NON_DELIVERING_EMAIL_BACKENDS)
+        return not service_type._instance_smtp_is_available()
 
     def get_deactivated_reason(self, workspace) -> Optional[str]:
         if self.is_deactivated(workspace):
