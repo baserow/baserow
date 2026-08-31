@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -76,6 +76,23 @@ class AIIntegrationType(IntegrationType):
 
         return super().prepare_values(values, user)
 
+    def get_integration_provider_settings(
+        self, integration: AIIntegration, provider_type: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Return the integration-level settings override for a provider.
+
+        :param integration: The AI integration to read the override from.
+        :param provider_type: The generative AI provider type key.
+        :return: The override dictionary, or None when the provider is not
+            overridden on the integration.
+        """
+
+        provider_settings = integration.ai_settings.get(provider_type)
+        if isinstance(provider_settings, dict):
+            return provider_settings
+        return None
+
     def get_provider_settings(
         self, integration: AIIntegration, provider_type: str
     ) -> Dict[str, Any]:
@@ -91,11 +108,11 @@ class AIIntegrationType(IntegrationType):
             database-backed workspace inheritance should be used.
         """
 
-        # Check if provider has overrides in integration settings
-        if provider_type in integration.ai_settings:
-            provider_settings = integration.ai_settings[provider_type]
-            if isinstance(provider_settings, dict):
-                return provider_settings
+        provider_settings = self.get_integration_provider_settings(
+            integration, provider_type
+        )
+        if provider_settings is not None:
+            return provider_settings
 
         if feature_flag_is_enabled(FF_AI_PROVIDERS):
             return {}
