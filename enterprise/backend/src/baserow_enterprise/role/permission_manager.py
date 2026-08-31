@@ -315,16 +315,15 @@ class RolePermissionManagerType(PermissionManagerType):
         exception_ids_per_scope: Dict[Any, Set[int]],
     ) -> Set[int]:
         """
-        Resolves the exception and inclusion scope objects of a policy into the
-        final set of object ids. The scopes are applied from the highest scope
-        in the object hierarchy to the lowest, so that a lower scope wins over a
-        higher one.
+        Resolves the exception and inclusion scope objects of a policy into the final
+        set of object ids. The scopes are applied from the highest scope in the object
+        hierarchy to the lowest, so that a lower scope wins over a higher one.
 
-        :param exceptions: The scopes whose objects are an exception to the
-            policy default.
+        :param exceptions: The scopes whose objects are an exception to the policy
+            default.
         :param inclusions: The scopes whose objects follow the policy default.
-        :param exception_ids_per_scope: A dict mapping every scope to the object
-            ids it contains.
+        :param exception_ids_per_scope: A dict mapping every scope to the object ids it
+            contains.
         :return: The set of object ids that are an exception to the default.
         """
 
@@ -349,20 +348,18 @@ class RolePermissionManagerType(PermissionManagerType):
         workspaces: List[Workspace],
     ) -> Dict[int, Tuple[bool, List[int]]]:
         """
-        Computes the `(default, exception_ids)` filtering policy of the given
-        operation for every given workspace at once. The role assignments are
-        resolved for all the workspaces in one batch and the exception scopes of
-        all the workspaces are resolved into object ids with a single
-        `get_objects_in_scopes` call, so the number of queries is independent of
-        the number of workspaces.
+        Computes the `(default, exception_ids)` filtering policy of the given operation
+        for every given workspace at once. The role assignments are resolved for all the
+        workspaces in one batch and the exception scopes of all the workspaces are
+        resolved into object ids with a single `get_objects_in_scopes` call, so the
+        number of queries is independent of the number of workspaces.
 
         :param actor: The actor to compute the policies for.
         :param operation_type: The operation to compute the policies for.
         :param workspaces: The workspaces to compute the policies for.
-        :return: A dict mapping every workspace id to a `(default,
-            exception_ids)` tuple, where `default` is whether the operation is
-            allowed by default and `exception_ids` are the object ids that are
-            an exception to that default.
+        :return: A dict mapping every workspace id to a `(default, exception_ids)`
+            tuple, where `default` is whether the operation is allowed by default and
+            `exception_ids` are the object ids that are an exception to that default.
         """
 
         roles_per_scope_per_workspace = (
@@ -435,18 +432,18 @@ class RolePermissionManagerType(PermissionManagerType):
         self, actor, operation_name, queryset, workspaces
     ):
         """
-        Multi workspace version of `filter_queryset`. The policies of all the
-        RBAC enabled workspaces are computed in one batch and translated into a
+        Multi workspace version of `filter_queryset`. The policies of all the RBAC
+        enabled workspaces are computed in one batch and translated into a
         `WorkspaceFilterDecision` per workspace.
 
         :param actor: The actor whom we want to filter the queryset for.
-        :param operation_name: The operation name for which we want to filter
-            the queryset for.
-        :param queryset: The queryset to filter, containing rows of all the
-            given workspaces.
+        :param operation_name: The operation name for which we want to filter the
+            queryset for.
+        :param queryset: The queryset to filter, containing rows of all the given
+            workspaces.
         :param workspaces: The workspaces to decide for.
-        :return: A dict mapping workspace ids to decisions, or None if RBAC
-            isn't enabled for any of the workspaces.
+        :return: A dict mapping workspace ids to decisions, or None if RBAC isn't
+            enabled for any of the workspaces.
         """
 
         enabled_workspaces = [

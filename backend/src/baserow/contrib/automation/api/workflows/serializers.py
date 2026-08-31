@@ -46,8 +46,8 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_published_on(self, obj):
         try:
-            # Set by `AutomationWorkflowHandler.annotate_published_workflow_data`
-            # when many workflows are serialized at once.
+            # Set by `AutomationWorkflowHandler.annotate_published_workflow_data` when
+            # many workflows are serialized at once.
             published_on = obj.published_workflow_created_on
         except AttributeError:
             published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
