@@ -36,7 +36,7 @@ const props = defineProps({
   /**
    * Render the content with `renderInline` inside a `<span>` instead of parsing
    * block syntax into a `<div>`. Block syntax (headings, lists, tables...) then
-   * stays literal text, which is what single-line surfaces like labels, tags or
+   * stays literal text, which is what single-line surfaces like labels or
    * dropdown options want.
    */
   inline: {

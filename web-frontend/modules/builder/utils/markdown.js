@@ -100,8 +100,8 @@ export const createApplicationBuilderMarkdownRules = ({ builder, mode }) => ({
  * - `restrictedBlock`: block mode without the layout-breaking blocks (tables,
  *   code blocks, images, headings), for the notification toast description.
  * - `inline`: emphasis, strikethrough and inline code only, for selectable or
- *   truncated single-line content (option names, tags, table headers, toast
- *   title). Links are disabled, as these contexts are either already wrapped in
+ *   truncated single-line content (option names, table headers, toast title).
+ *   Links are disabled, as these contexts are either already wrapped in
  *   an `<a>`, or select something on click.
  * - `inlineLinks`: inline mode with links, for descriptive single-line content
  *   such as form field labels ("I agree to the [terms](...)").

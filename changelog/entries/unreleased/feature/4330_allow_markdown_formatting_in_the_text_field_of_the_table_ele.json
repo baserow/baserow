@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Allow Markdown formatting in more Application Builder texts: the Text field, Tags field and column headers of the Table element, form field labels, Choice element options, the notification toast and the File input help text.",
+    "message": "Allow Markdown formatting in more Application Builder texts: the Text field and column headers of the Table element, form field labels, Choice element options, the notification toast and the File input help text.",
     "issue_origin": "github",
     "issue_number": 4330,
     "domain": "builder",

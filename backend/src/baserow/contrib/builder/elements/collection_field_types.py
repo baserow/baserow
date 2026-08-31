@@ -237,15 +237,14 @@ class LinkCollectionFieldType(CollectionFieldType):
 
 class TagsCollectionFieldType(CollectionFieldType):
     type = "tags"
-    allowed_fields = ["values", "colors", "colors_is_formula", "format"]
-    serializer_field_names = ["values", "colors", "colors_is_formula", "format"]
+    allowed_fields = ["values", "colors", "colors_is_formula"]
+    serializer_field_names = ["values", "colors", "colors_is_formula"]
     simple_formula_fields = ["values"]
 
     class SerializedDict(TypedDict):
         values: BaserowFormulaObject
         colors_is_formula: bool
         colors: BaserowFormulaObject
-        format: str
 
     @property
     def serializer_field_overrides(self):
@@ -267,12 +266,6 @@ class TagsCollectionFieldType(CollectionFieldType):
                 required=False,
                 default=False,
                 help_text="Indicates whether the colors is a formula or not.",
-            ),
-            "format": serializers.ChoiceField(
-                choices=TextFormats.choices,
-                default=TextFormats.PLAIN,
-                required=False,
-                help_text="The format of the tag values.",
             ),
         }
 

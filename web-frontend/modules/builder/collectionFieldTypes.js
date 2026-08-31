@@ -263,7 +263,7 @@ export class TagsCollectionFieldType extends CollectionFieldType {
       value,
       color: colors[index % colors.length],
     }))
-    return { tags, format: field.format || TEXT_FORMAT_TYPES.PLAIN }
+    return { tags }
   }
 
   getOrder() {

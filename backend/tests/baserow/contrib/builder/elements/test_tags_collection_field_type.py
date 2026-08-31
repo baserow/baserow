@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import pytest
 
 from baserow.contrib.builder.elements.handler import ElementHandler
@@ -10,7 +8,6 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_RAW,
     BASEROW_FORMULA_MODE_SIMPLE,
 )
-from baserow.core.utils import MirrorDict
 
 
 @pytest.mark.django_db
@@ -82,7 +79,6 @@ def test_import_export_tags_collection_field_type(data_fixture):
             mode=BASEROW_FORMULA_MODE_SIMPLE,
         ),
         "colors_is_formula": True,
-        "format": "plain",
     }
 
     tags_without_formula = imported_table_element.fields.get(name="Colors as hex")
@@ -93,54 +89,9 @@ def test_import_export_tags_collection_field_type(data_fixture):
             mode=BASEROW_FORMULA_MODE_SIMPLE,
         ),
         "colors_is_formula": False,
-        "format": "plain",
         "colors": BaserowFormulaObject(
             formula="#d06060ff",
             version=BASEROW_FORMULA_VERSION_INITIAL,
             mode=BASEROW_FORMULA_MODE_RAW,
         ),
     }
-
-
-@pytest.mark.django_db
-def test_import_export_tags_collection_field_format(data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    page = data_fixture.create_builder_page(user=user)
-    table_element = data_fixture.create_builder_table_element(
-        page=page,
-        fields=[
-            {
-                "name": "Markdown tags",
-                "type": "tags",
-                "config": {
-                    "values": "'**a**,b'",
-                    "colors": "#d06060ff",
-                    "colors_is_formula": False,
-                    "format": "markdown",
-                },
-            },
-            {
-                "name": "Legacy tags",
-                "type": "tags",
-                # Exported before the `format` option existed.
-                "config": {
-                    "values": "'a,b'",
-                    "colors": "#d06060ff",
-                    "colors_is_formula": False,
-                },
-            },
-        ],
-    )
-
-    exported = table_element.get_type().export_serialized(table_element)
-    assert exported["fields"][0]["config"]["format"] == "markdown"
-    assert "format" not in exported["fields"][1]["config"]
-
-    id_mapping = defaultdict(lambda: MirrorDict())
-    imported_table_element = ElementHandler().import_element(page, exported, id_mapping)
-
-    markdown_tags = imported_table_element.fields.get(name="Markdown tags")
-    assert markdown_tags.config["format"] == "markdown"
-
-    legacy_tags = imported_table_element.fields.get(name="Legacy tags")
-    assert legacy_tags.config["format"] == "plain"
