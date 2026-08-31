@@ -1,4 +1,8 @@
-.markdown {
+// The inline rendering carries the `markdown` class too, so the block spacing
+// below must exclude it: its children are `<code>`/`<img>` boxes sitting on the
+// text baseline, where a top margin grows the line box and pushes the whole
+// line down instead of separating blocks.
+.markdown:not(.markdown--inline) {
   & > .ab-blockquote,
   & > .ab-code,
   & > .ab-heading,
@@ -15,7 +19,7 @@
   }
 }
 
-.markdown > *:first-child {
+.markdown:not(.markdown--inline) > *:first-child {
   margin-top: 0;
 }
 
