@@ -609,6 +609,50 @@ def test_get_published_workflow_ignores_newer_test_clone(data_fixture):
 
 
 @pytest.mark.django_db
+def test_annotate_published_workflow_data_matches_get_published_workflow(data_fixture):
+    handler = AutomationWorkflowHandler()
+
+    workflow_unpublished = data_fixture.create_automation_workflow()
+
+    workflow_published = data_fixture.create_automation_workflow()
+    handler.publish(workflow_published)
+
+    # Published twice: the latest publish must win.
+    workflow_republished = data_fixture.create_automation_workflow()
+    handler.publish(workflow_republished)
+    handler.publish(workflow_republished)
+
+    # A newer test clone must be ignored.
+    workflow_with_clone = data_fixture.create_automation_workflow()
+    handler.publish(workflow_with_clone)
+    handler._clone_workflow(workflow_with_clone, WorkflowState.TEST_CLONE)
+
+    workflows = [
+        workflow_unpublished,
+        workflow_published,
+        workflow_republished,
+        workflow_with_clone,
+    ]
+
+    annotated_by_id = {
+        workflow.id: workflow
+        for workflow in handler.annotate_published_workflow_data(
+            AutomationWorkflow.objects.filter(id__in=[w.id for w in workflows])
+        )
+    }
+
+    for workflow in workflows:
+        published = handler.get_published_workflow(workflow, with_cache=False)
+        annotated = annotated_by_id[workflow.id]
+        if published is None:
+            assert annotated.published_workflow_created_on is None
+            assert annotated.published_workflow_state is None
+        else:
+            assert annotated.published_workflow_created_on == published.created_on
+            assert annotated.published_workflow_state == published.state
+
+
+@pytest.mark.django_db
 def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)

@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
 from pathlib import Path
@@ -521,8 +522,29 @@ class CoreHandler:
         :return: The queryset, potentially filtered.
         """
 
-        if actor is None:
-            actor = AnonymousUser
+        workspaces = [workspace] if workspace is not None else []
+        return self.filter_queryset_for_workspaces(
+            actor, operation_name, queryset, workspaces
+        )
+
+    def _filter_queryset_without_workspace(
+        self,
+        actor: Actor,
+        operation_name: str,
+        queryset: QuerySet,
+    ) -> QuerySet:
+        """
+        Filters a queryset that has no workspace context, for example the list
+        of workspaces itself. Every permission manager gets a single opportunity
+        to filter the queryset globally via its `filter_queryset` method with
+        `workspace=None`.
+
+        :param actor: The actor whom we want to filter the queryset for.
+        :param operation_name: The list operation name we want the queryset to be
+            filtered for.
+        :param queryset: The queryset to filter.
+        :return: The queryset, potentially filtered.
+        """
 
         for permission_manager_name in settings.PERMISSION_MANAGERS:
             permission_manager_type = permission_manager_type_registry.get(
@@ -532,7 +554,7 @@ class CoreHandler:
                 continue
 
             filtered_queryset = permission_manager_type.filter_queryset(
-                actor, operation_name, queryset, workspace=workspace
+                actor, operation_name, queryset, workspace=None
             )
 
             if filtered_queryset is None:
@@ -550,6 +572,136 @@ class CoreHandler:
                 queryset = filtered_queryset
 
         return queryset
+
+    def filter_queryset_for_workspaces(
+        self,
+        actor: Actor,
+        operation_name: str,
+        queryset: QuerySet,
+        workspaces: List[Workspace],
+    ) -> QuerySet:
+        """
+        Multi workspace version of `filter_queryset`. Filters a queryset
+        containing rows of the given workspaces in a single pass by asking every
+        permission manager for a per workspace `WorkspaceFilterDecision` instead
+        of calling `filter_queryset` once per workspace. This keeps the number of
+        queries independent of the number of workspaces.
+
+        :param actor: The actor whom we want to filter the queryset for.
+        :param operation_name: The list operation name we want the queryset to be
+            filtered for.
+        :param queryset: The queryset to filter. It should contain objects that
+            are in the same `ObjectScopeType` as the one described in the
+            `OperationType` corresponding to the given `operation_name`, spanning
+            the given workspaces.
+        :param workspaces: The workspaces the rows of the queryset belong to. If
+            empty, there is no workspace context and the permission managers
+            filter the queryset globally instead. To keep the number of queries
+            independent of the number of workspaces, the workspace instances
+            should come from `get_enhanced_workspace_queryset` so their
+            memberships and templates are prefetched.
+        :return: The queryset, potentially filtered.
+        """
+
+        if actor is None:
+            actor = AnonymousUser
+
+        workspaces = list(workspaces)
+        if not workspaces:
+            return self._filter_queryset_without_workspace(
+                actor, operation_name, queryset
+            )
+
+        # Workspaces for which no permission manager gave a final (`stop` or
+        # `deny`) decision yet.
+        pending = {workspace.id: workspace for workspace in workspaces}
+        filters_per_workspace: Dict[int, List[Q]] = defaultdict(list)
+        denied_workspace_ids = set()
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            if not pending:
+                break
+
+            permission_manager_type = permission_manager_type_registry.get(
+                permission_manager_name
+            )
+            if not permission_manager_type.actor_is_supported(actor):
+                continue
+
+            # The full workspace list is passed, and not only the pending ones,
+            # because the queryset always spans all the workspaces and the
+            # default `filter_queryset_for_workspaces` fallback relies on the
+            # list matching the queryset. Decisions for already resolved
+            # workspaces are ignored below.
+            decisions = permission_manager_type.filter_queryset_for_workspaces(
+                actor, operation_name, queryset, workspaces
+            )
+
+            if not decisions:
+                continue
+
+            for workspace_id, decision in decisions.items():
+                if workspace_id not in pending:
+                    continue
+
+                if decision.deny:
+                    # Later managers can only further restrict the rows, so a
+                    # denied workspace is final.
+                    denied_workspace_ids.add(workspace_id)
+                    filters_per_workspace.pop(workspace_id, None)
+                    del pending[workspace_id]
+                    continue
+
+                if decision.q is not None:
+                    filters_per_workspace[workspace_id].append(decision.q)
+
+                if decision.stop:
+                    del pending[workspace_id]
+
+        if not filters_per_workspace and not denied_workspace_ids:
+            return queryset
+
+        if len(workspaces) == 1:
+            # With a single workspace the queryset only contains its rows, so
+            # the decisions can be applied directly, exactly like the
+            # per workspace `filter_queryset` chain used to do.
+            if denied_workspace_ids:
+                return queryset.none()
+            for q_filter in filters_per_workspace[workspaces[0].id]:
+                queryset = queryset.filter(q_filter)
+            return queryset
+
+        if len(denied_workspace_ids) == len(workspaces):
+            return queryset.none()
+
+        # The queryset rows are partitioned per workspace via the object scope of
+        # the operation, so the per workspace conditions can be combined into a
+        # single WHERE clause.
+        object_scope = operation_type_registry.get(operation_name).object_scope
+
+        unrestricted_workspaces = [
+            workspace
+            for workspace in workspaces
+            if workspace.id not in denied_workspace_ids
+            and workspace.id not in filters_per_workspace
+        ]
+
+        combined_filter = Q(pk__in=[])
+        if unrestricted_workspaces:
+            combined_filter |= object_scope.get_filter_for_scopes(
+                unrestricted_workspaces
+            )
+
+        workspaces_by_id = {workspace.id: workspace for workspace in workspaces}
+        for workspace_id, q_filters in filters_per_workspace.items():
+            workspace_filter = object_scope.get_filter_for_scopes(
+                [workspaces_by_id[workspace_id]]
+            )
+            for q_filter in q_filters:
+                workspace_filter &= q_filter
+            combined_filter |= workspace_filter
+
+        return queryset.filter(combined_filter)
 
     def get_workspace_for_update(self, workspace_id: int) -> WorkspaceForUpdate:
         return cast(
@@ -1437,13 +1589,32 @@ class CoreHandler:
         :return: A list of applications in the workspace.
         """
 
+        return self.list_applications_in_workspaces([workspace], base_queryset)
+
+    def list_applications_in_workspaces(
+        self,
+        workspaces: List[Workspace],
+        base_queryset: Optional[QuerySet] = None,
+    ) -> QuerySet[Application]:
+        """
+        Return a list of applications of multiple workspaces in a single
+        queryset. The result is ordered by workspace id first, regardless of
+        the order of the given workspaces, so it equals concatenating the per
+        workspace listings for workspaces sorted by id.
+
+        :param workspaces: The workspaces to list the applications from.
+        :param base_queryset: The base queryset from where to select the
+            applications.
+        :return: A queryset of applications in the workspaces.
+        """
+
         if base_queryset is None:
             base_queryset = Application.objects
 
         return (
-            base_queryset.filter(workspace=workspace, workspace__trashed=False)
+            base_queryset.filter(workspace__in=workspaces, workspace__trashed=False)
             .select_related("workspace")
-            .order_by("order", "id")
+            .order_by("workspace_id", "order", "id")
         )
 
     def filter_specific_applications(

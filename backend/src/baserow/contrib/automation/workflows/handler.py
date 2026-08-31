@@ -117,6 +117,18 @@ class AutomationWorkflowHandler:
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
 
+    def _get_published_workflow_cache_key(self, workflow_id: int) -> str:
+        return f"wa_published_workflow_{workflow_id}"
+
+    def _get_published_workflows_queryset(self) -> QuerySet[AutomationWorkflow]:
+        """
+        The workflows that count as a published version of another workflow.
+
+        :return: The queryset of published workflows.
+        """
+
+        return AutomationWorkflow.objects.exclude(state=WorkflowState.TEST_CLONE)
+
     def get_published_workflow(
         self, workflow: AutomationWorkflow, with_cache: bool = True
     ) -> Optional[AutomationWorkflow]:
@@ -135,7 +147,7 @@ class AutomationWorkflowHandler:
             workflow: AutomationWorkflow,
         ) -> Optional[AutomationWorkflow]:
             latest_published = (
-                AutomationWorkflow.objects.exclude(state=WorkflowState.TEST_CLONE)
+                self._get_published_workflows_queryset()
                 .filter(automation__published_from=workflow)
                 .order_by("-automation__id")
                 .first()
@@ -144,16 +156,44 @@ class AutomationWorkflowHandler:
 
         if with_cache:
             return local_cache.get(
-                f"wa_published_workflow_{workflow.id}",
+                self._get_published_workflow_cache_key(workflow.id),
                 lambda: _get_published_workflow(workflow),
             )
 
         return _get_published_workflow(workflow)
 
+    def annotate_published_workflow_data(
+        self, queryset: QuerySet[AutomationWorkflow]
+    ) -> QuerySet[AutomationWorkflow]:
+        """
+        Annotates every workflow in the queryset with the `created_on` and
+        `state` of its latest published workflow, selected exactly like
+        `get_published_workflow` does, so that serializing many workflows
+        doesn't execute a query per workflow.
+
+        :param queryset: The workflow queryset to annotate.
+        :return: The annotated queryset.
+        """
+
+        published_workflows = (
+            self._get_published_workflows_queryset()
+            .filter(automation__published_from=OuterRef("pk"))
+            .order_by("-automation__id")
+        )
+
+        return queryset.annotate(
+            published_workflow_created_on=Subquery(
+                published_workflows.values("created_on")[:1]
+            ),
+            published_workflow_state=Subquery(published_workflows.values("state")[:1]),
+        )
+
     def _invalidate_workflow_caches(self, workflow: AutomationWorkflow) -> None:
         original_workflow = workflow.get_original()
 
-        global_cache.invalidate(f"wa_published_workflow_{original_workflow.id}")
+        global_cache.invalidate(
+            self._get_published_workflow_cache_key(original_workflow.id)
+        )
         global_cache.invalidate(
             self._get_workflow_history_rate_limit_cache_key(original_workflow)
         )

@@ -38,6 +38,7 @@ from baserow.core.exceptions import (
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
 )
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -81,23 +82,21 @@ class AllApplicationsView(APIView):
         returned.
         """
 
-        workspaces = CoreService().list_workspaces(request.user).order_by("id")
+        workspaces = list(CoreService().list_workspaces(request.user).order_by("id"))
 
-        all_applications = []
-        for workspace in workspaces:
-            workspace_applications_qs = CoreService().list_applications_in_workspace(
-                request.user, workspace
-            )
-            all_applications += list(workspace_applications_qs.order_by("order", "id"))
+        all_applications = list(
+            CoreService().list_applications_in_workspaces(request.user, workspaces)
+        )
 
-        data = [
+        generative_ai_model_type_registry.prefetch_workspace_configuration(
+            [workspace.id for workspace in workspaces]
+        )
+
+        return Response(
             PolymorphicApplicationResponseSerializer(
-                application, context={"request": request}
+                all_applications, many=True, context={"request": request}
             ).data
-            for application in all_applications
-        ]
-
-        return Response(data)
+        )
 
 
 class ApplicationsView(APIView):
@@ -152,14 +151,11 @@ class ApplicationsView(APIView):
             request.user, workspace
         )
 
-        data = [
+        return Response(
             PolymorphicApplicationResponseSerializer(
-                application, context={"request": request}
+                applications, many=True, context={"request": request}
             ).data
-            for application in applications
-        ]
-
-        return Response(data)
+        )
 
     @extend_schema(
         parameters=[

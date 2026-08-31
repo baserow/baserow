@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
@@ -11,6 +12,7 @@ from baserow.core.models import Workspace
 from baserow.core.registries import (
     OperationType,
     PermissionManagerType,
+    WorkspaceFilterDecision,
     object_scope_type_registry,
     operation_type_registry,
     subject_type_registry,
@@ -287,26 +289,17 @@ class RolePermissionManagerType(PermissionManagerType):
         # Dispatch actual context object ids for each exceptions/inclusions scopes
         policy_per_operation_with_exception_ids = {}
         for operation_type in all_operations:
-            inclusions = policy_per_operation[operation_type.type]["inclusions"]
-            exclusions = policy_per_operation[operation_type.type]["exceptions"]
-            ordered_scope = sorted(
-                inclusions | exclusions,
-                key=lambda s: object_scope_type_registry.get_by_model(s).level,
-            )
-
             base_scope_type = (
                 operation_type.object_scope
                 if use_object_scope
                 else operation_type.context_scope
             )
 
-            # Gather all ids for all scopes of the exception list of this operation
-            exceptions_ids = set()
-            for scope in ordered_scope:
-                if scope in exclusions:
-                    exceptions_ids |= exception_ids_per_scope[base_scope_type][scope]
-                if scope in inclusions:
-                    exceptions_ids -= exception_ids_per_scope[base_scope_type][scope]
+            exceptions_ids = self._resolve_exception_ids(
+                policy_per_operation[operation_type.type]["exceptions"],
+                policy_per_operation[operation_type.type]["inclusions"],
+                exception_ids_per_scope[base_scope_type],
+            )
 
             policy_per_operation_with_exception_ids[operation_type.type] = {
                 "default": policy_per_operation[operation_type.type]["default"],
@@ -314,6 +307,101 @@ class RolePermissionManagerType(PermissionManagerType):
             }
 
         return policy_per_operation_with_exception_ids
+
+    def _resolve_exception_ids(
+        self,
+        exceptions: Set[Any],
+        inclusions: Set[Any],
+        exception_ids_per_scope: Dict[Any, Set[int]],
+    ) -> Set[int]:
+        """
+        Resolves the exception and inclusion scope objects of a policy into the
+        final set of object ids. The scopes are applied from the highest scope
+        in the object hierarchy to the lowest, so that a lower scope wins over a
+        higher one.
+
+        :param exceptions: The scopes whose objects are an exception to the
+            policy default.
+        :param inclusions: The scopes whose objects follow the policy default.
+        :param exception_ids_per_scope: A dict mapping every scope to the object
+            ids it contains.
+        :return: The set of object ids that are an exception to the default.
+        """
+
+        ordered_scopes = sorted(
+            exceptions | inclusions,
+            key=lambda s: object_scope_type_registry.get_by_model(s).level,
+        )
+
+        exception_ids = set()
+        for scope in ordered_scopes:
+            if scope in exceptions:
+                exception_ids |= exception_ids_per_scope[scope]
+            if scope in inclusions:
+                exception_ids -= exception_ids_per_scope[scope]
+
+        return exception_ids
+
+    def get_filter_policies_for_workspaces(
+        self,
+        actor: AbstractUser,
+        operation_type: OperationType,
+        workspaces: List[Workspace],
+    ) -> Dict[int, Tuple[bool, List[int]]]:
+        """
+        Computes the `(default, exception_ids)` filtering policy of the given
+        operation for every given workspace at once. The role assignments are
+        resolved for all the workspaces in one batch and the exception scopes of
+        all the workspaces are resolved into object ids with a single
+        `get_objects_in_scopes` call, so the number of queries is independent of
+        the number of workspaces.
+
+        :param actor: The actor to compute the policies for.
+        :param operation_type: The operation to compute the policies for.
+        :param workspaces: The workspaces to compute the policies for.
+        :return: A dict mapping every workspace id to a `(default,
+            exception_ids)` tuple, where `default` is whether the operation is
+            allowed by default and `exception_ids` are the object ids that are
+            an exception to that default.
+        """
+
+        roles_per_scope_per_workspace = (
+            RoleAssignmentHandler().get_roles_per_scope_for_workspaces(
+                workspaces, actor
+            )
+        )
+
+        base_scope_type = operation_type.object_scope
+
+        policy_per_workspace = {}
+        all_exception_scopes = set()
+        for workspace in workspaces:
+            default, exceptions, inclusions = self.get_operation_policy(
+                roles_per_scope_per_workspace[workspace.id],
+                operation_type,
+                use_object_scope=True,
+            )
+            policy_per_workspace[workspace.id] = (default, exceptions, inclusions)
+            all_exception_scopes |= exceptions | inclusions
+
+        # Resolve the exception scopes of all the workspaces into object ids at
+        # once.
+        exception_ids_per_scope = {
+            scope: {o.id for o in objects}
+            for scope, objects in base_scope_type.get_objects_in_scopes(
+                all_exception_scopes
+            ).items()
+        }
+
+        result = {}
+        for workspace in workspaces:
+            default, exceptions, inclusions = policy_per_workspace[workspace.id]
+            exception_ids = self._resolve_exception_ids(
+                exceptions, inclusions, exception_ids_per_scope
+            )
+            result[workspace.id] = (default, list(exception_ids))
+
+        return result
 
     def filter_queryset(self, actor, operation_name, queryset, workspace=None):
         """
@@ -326,15 +414,10 @@ class RolePermissionManagerType(PermissionManagerType):
 
         operation_type = operation_type_registry.get(operation_name)
 
-        permission_obj = self.get_permissions_object(
-            actor,
-            workspace,
-            for_operation_types=[operation_type],
-            use_object_scope=True,
+        policies = self.get_filter_policies_for_workspaces(
+            actor, operation_type, [workspace]
         )
-
-        default = permission_obj[operation_type.type]["default"]
-        exceptions = permission_obj[operation_type.type]["exceptions"]
+        default, exceptions = policies[workspace.id]
 
         # Finally filter the queryset with the exception filter.
         if default:
@@ -347,3 +430,50 @@ class RolePermissionManagerType(PermissionManagerType):
                 queryset = queryset.none()
 
         return queryset
+
+    def filter_queryset_for_workspaces(
+        self, actor, operation_name, queryset, workspaces
+    ):
+        """
+        Multi workspace version of `filter_queryset`. The policies of all the
+        RBAC enabled workspaces are computed in one batch and translated into a
+        `WorkspaceFilterDecision` per workspace.
+
+        :param actor: The actor whom we want to filter the queryset for.
+        :param operation_name: The operation name for which we want to filter
+            the queryset for.
+        :param queryset: The queryset to filter, containing rows of all the
+            given workspaces.
+        :param workspaces: The workspaces to decide for.
+        :return: A dict mapping workspace ids to decisions, or None if RBAC
+            isn't enabled for any of the workspaces.
+        """
+
+        enabled_workspaces = [
+            workspace for workspace in workspaces if self.is_enabled(workspace)
+        ]
+        if not enabled_workspaces:
+            return None
+
+        operation_type = operation_type_registry.get(operation_name)
+        policies = self.get_filter_policies_for_workspaces(
+            actor, operation_type, enabled_workspaces
+        )
+
+        decisions = {}
+        for workspace in enabled_workspaces:
+            default, exceptions = policies[workspace.id]
+            if default:
+                if exceptions:
+                    decisions[workspace.id] = WorkspaceFilterDecision(
+                        q=~Q(id__in=exceptions)
+                    )
+            else:
+                if exceptions:
+                    decisions[workspace.id] = WorkspaceFilterDecision(
+                        q=Q(id__in=exceptions)
+                    )
+                else:
+                    decisions[workspace.id] = WorkspaceFilterDecision(deny=True)
+
+        return decisions or None
