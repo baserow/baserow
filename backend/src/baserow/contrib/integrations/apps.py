@@ -23,6 +23,17 @@ class IntegrationsConfig(AppConfig):
         integration_type_registry.register(AIIntegrationType())
         integration_type_registry.register(SlackBotIntegrationType())
 
+        from baserow.contrib.integrations.ai.ai_provider_feature_types import (
+            AIAgentAIProviderModelFeatureType,
+        )
+        from baserow.core.ai_provider.registries import (
+            ai_provider_model_feature_type_registry,
+        )
+
+        ai_provider_model_feature_type_registry.register(
+            AIAgentAIProviderModelFeatureType()
+        )
+
         from baserow.contrib.integrations.local_baserow.service_types import (
             LocalBaserowAggregateRowsUserServiceType,
             LocalBaserowCreateRowsServiceType,
