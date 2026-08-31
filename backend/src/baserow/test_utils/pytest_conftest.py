@@ -839,8 +839,10 @@ def stub_check_permissions() -> callable:
         permission_manager_type_registry.registry[first_manager] = (
             stub_core_permission_manager
         )
-        yield stub_core_permission_manager
-        permission_manager_type_registry.registry = before
+        try:
+            yield stub_core_permission_manager
+        finally:
+            permission_manager_type_registry.registry = before
 
     return _perform_stub
 
