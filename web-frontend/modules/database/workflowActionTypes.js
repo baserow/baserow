@@ -122,6 +122,14 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     return false
   }
 
+  /**
+   * Mirrors the backend's `captures_sample_data`: a type whose result nothing
+   * can describe until a click has answered once.
+   */
+  get capturesSampleData() {
+    return false
+  }
+
   getFormProps({ workflowAction, database }) {
     return { workflowAction, database }
   }
@@ -485,6 +493,10 @@ export class CoreHTTPRequestWorkflowActionType extends DatabaseExternalWorkflowA
 
   getOrder() {
     return 40
+  }
+
+  get capturesSampleData() {
+    return true
   }
 
   get serviceType() {

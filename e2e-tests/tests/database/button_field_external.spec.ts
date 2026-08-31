@@ -310,6 +310,16 @@ test.describe("Button field, external actions", () => {
     await gridFor(page, g.user);
     await openFieldEditor(page, "Fresh");
 
+    // The request's own form says what a click would capture, rather than
+    // leaving the missing body unexplained.
+    await expandAction(page, 0);
+    await expect(
+      actionItem(page, 0).locator(".sample-data-viewer"),
+    ).toHaveCount(0);
+    await expect(actionItem(page, 0).locator(".alert")).toContainText(
+      "capture what the endpoint answers",
+    );
+
     // What a request always has is offered from the start; what the endpoint
     // sends back is not, because nothing knows its shape yet.
     await addAction(page, "Open URL");
@@ -346,6 +356,15 @@ test.describe("Button field, external actions", () => {
     // Reopened as whoever configures the field, which is who the editor is for.
     await gridFor(page, g.user);
     await openFieldEditor(page, "Captured");
+
+    // The answer is shown back in the action that made the request, so the
+    // note about capturing is gone.
+    await expandAction(page, 0);
+    await expect(
+      actionItem(page, 0).locator(".sample-data-viewer"),
+    ).toHaveCount(1);
+    await expect(actionItem(page, 0).locator(".alert")).toHaveCount(0);
+
     await addAction(page, "Open URL");
     await expandAction(page, 1);
     await actionItem(page, 1)

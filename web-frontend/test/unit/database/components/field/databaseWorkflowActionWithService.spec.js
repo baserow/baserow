@@ -1,7 +1,18 @@
 import flushPromises from 'flush-promises'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import DatabaseWorkflowActionWithService from '@baserow/modules/database/components/field/DatabaseWorkflowActionWithService'
 import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+
+// Read rather than imported: the i18n loader turns an imported locale file
+// into compiled message ASTs, which the copy below can't be read off of.
+const en = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'modules/database/locales/en.json'),
+    'utf8'
+  )
+)
 
 const WORKSPACE = { id: 1 }
 const OWN_DATABASE_ID = 100
@@ -411,5 +422,70 @@ describe('DatabaseWorkflowActionWithService', () => {
     expect(
       wrapper.findComponent({ name: 'LocalBaserowTableSelector' }).exists()
     ).toBe(true)
+  })
+
+  describe('what a click remembered', () => {
+    test('an HTTP action that nothing has clicked says so', async () => {
+      await seedApplications()
+
+      const wrapper = await mountAction('http_request', { url: 'x' })
+
+      // The endpoint has not answered, so there is no payload to show. Saying
+      // nothing here is what left the missing body unexplained.
+      expect(wrapper.findComponent({ name: 'SampleDataViewer' }).exists()).toBe(
+        false
+      )
+      const alert = wrapper.find('.alert')
+      expect(alert.exists()).toBe(true)
+      // `$t` returns the key in the test env, so the copy is pinned separately.
+      expect(alert.text()).toContain(
+        'databaseWorkflowActionWithService.nothingCapturedYet'
+      )
+      // The click runs the whole button, which is the part a preview elsewhere
+      // in Baserow has no reason to warn about.
+      expect(en.databaseWorkflowActionWithService.nothingCapturedYet).toContain(
+        "button's other actions run as well"
+      )
+    })
+
+    test('an HTTP action that has answered shows what came back', async () => {
+      await seedApplications()
+
+      const wrapper = await mountAction('http_request', {
+        url: 'x',
+        sample_data: { data: { body: { title: 'Sample' }, status_code: 200 } },
+      })
+
+      expect(wrapper.find('.alert').exists()).toBe(false)
+      const viewer = wrapper.findComponent({ name: 'SampleDataViewer' })
+      expect(viewer.exists()).toBe(true)
+      expect(viewer.props('sampleData')).toEqual({
+        data: { body: { title: 'Sample' }, status_code: 200 },
+      })
+    })
+
+    test('a stored error describes no shape, so it counts as nothing', async () => {
+      await seedApplications()
+
+      const wrapper = await mountAction('http_request', {
+        url: 'x',
+        sample_data: { _error: 'Invalid URL' },
+      })
+
+      expect(wrapper.findComponent({ name: 'SampleDataViewer' }).exists()).toBe(
+        false
+      )
+      expect(wrapper.find('.alert').exists()).toBe(true)
+    })
+
+    test('a row action is left alone: its shape comes from the table', async () => {
+      await seedApplications()
+
+      const wrapper = await mountAction('local_baserow_create_row')
+
+      expect(wrapper.find('.button-field-action-form__payload').exists()).toBe(
+        false
+      )
+    })
   })
 })

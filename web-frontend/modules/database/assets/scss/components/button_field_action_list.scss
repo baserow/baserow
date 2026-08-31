@@ -87,3 +87,21 @@
   font-size: 12px;
   padding: 0 12px 8px;
 }
+
+// What a click remembered, or a note saying no click has answered yet. Sits
+// under the service's own form, which brings no bottom margin of its own.
+.button-field-action-form__payload {
+  margin-top: 12px;
+
+  // Same reason as the error above: the popup has no max-width of its own, and
+  // a payload's longest line would otherwise stretch the whole editor.
+  max-width: 366px;
+
+  .sample-data-viewer__code {
+    pre,
+    code {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  }
+}
