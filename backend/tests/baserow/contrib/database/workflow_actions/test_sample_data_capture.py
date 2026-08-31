@@ -730,6 +730,7 @@ def test_a_refused_email_does_not_name_the_instance_mail_server(data_fixture, se
     """
 
     settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     settings.EMAIL_HOST = "smtp.internal.example"
     settings.EMAIL_PORT = 2525
     user = data_fixture.create_user()
@@ -747,15 +748,18 @@ def test_a_refused_email_does_not_name_the_instance_mail_server(data_fixture, se
     service.body = "'Hi'"
     service.save()
 
+    # Patched where the service really fails: `get_connection` only builds the
+    # backend, and the refusal happens when the message is sent. Anywhere else
+    # and the service's own message, which names the host, is never produced.
     with patch(
-        "baserow.contrib.integrations.core.service_types.get_connection"
-    ) as connection:
-        connection.side_effect = ConnectionRefusedError()
+        "django.core.mail.EmailMultiAlternatives.send",
+        side_effect=ConnectionRefusedError(),
+    ):
         with pytest.raises(WorkflowActionDispatchError) as raised:
             DatabaseWorkflowActionService().dispatch_workflow_actions(
                 user, button_field, row
             )
 
     assert raised.value.message == EXTERNAL_DISPATCH_FAILED_MESSAGE
-    assert "smtp.internal.example" not in raised.value.message
-    assert "2525" not in raised.value.message
+    # The message the service wrote, which the clicker must not be handed.
+    assert "smtp.internal.example:2525" in str(raised.value.__cause__)

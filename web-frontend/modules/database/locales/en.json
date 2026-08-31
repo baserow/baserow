@@ -1306,8 +1306,7 @@
     "label": "Label",
     "labelPlaceholder": "Open",
     "unresolvedReferenceTitle": "Action not saved",
-    "unresolvedReferenceMessage": "An action uses a result from an action that does not run before it. Move it back or remove the reference, then save again.",
-    "actionUnavailableTitle": "This action is not available"
+    "unresolvedReferenceMessage": "An action uses a result from an action that does not run before it. Move it back or remove the reference, then save again."
   },
   "databaseWorkflowActionWithService": {
     "nothingCapturedYet": "Click this button on a row to capture what the endpoint answers, so the actions after it can use its fields. The button's other actions run as well.",

@@ -466,12 +466,6 @@ class DatabaseWorkflowActionService:
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
 
-        # Refused as a whole: a sequence that cannot finish should not start.
-        for workflow_action in workflow_actions:
-            workflow_action.get_type().raise_if_deactivated(
-                field.table.database.workspace
-            )
-
         # Checked over every action, frontend-only included, so a click is
         # refused as a whole (ADR 006 section 7), and before the lock is taken,
         # so a refused user never holds it.
@@ -487,6 +481,15 @@ class DatabaseWorkflowActionService:
             workspace=field.table.database.workspace,
             raise_exception=True,
         )
+
+        # Refused as a whole: a sequence that cannot finish should not start.
+        # After the permission check, since the reason describes how this
+        # installation is configured and only a dispatcher may see it. One
+        # check per type: it is the type that is unavailable, not the action.
+        for workflow_action_type in {
+            workflow_action.get_type() for workflow_action in workflow_actions
+        }:
+            workflow_action_type.raise_if_deactivated(field.table.database.workspace)
 
         # Frontend-only actions can't be dispatched here; the caller runs them
         # in the browser.

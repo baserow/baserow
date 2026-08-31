@@ -27,7 +27,7 @@ import {
   createRowAction,
   listWorkflowActions,
 } from "../../fixtures/database/workflowAction";
-import { waitForEmail } from "../../fixtures/mail";
+import { deleteAllEmails, waitForEmail } from "../../fixtures/mail";
 import { User, createUser } from "../../fixtures/user";
 import { addUserToWorkspace } from "../../fixtures/workspace";
 
@@ -63,6 +63,10 @@ test.describe("Button field, email action", () => {
   test.use({ viewport: { width: 2200, height: 900 } });
 
   test.beforeAll(async () => {
+    // A catcher shared with a dev stack holds whatever the rest of the suite
+    // sent, and a message can only be found while it is on the first page.
+    await deleteAllEmails();
+
     g = await setupGrid({
       dbName: "Email DB",
       tableName: "Tickets",
@@ -128,15 +132,14 @@ test.describe("Button field, email action", () => {
     expect(email.body).toContain("Ticket Ada");
   });
 
-  test("a saved email action sends through the instance, with no integration", async ({
-    page,
-  }) => {
+  test("a saved email action sends through the instance, with no integration", async () => {
     const actions = await listWorkflowActions(
       g.user,
       g.fieldByName["MailChain"],
     );
     const email = actions.find((action) => action.type === "smtp_email");
 
+    expect(email, "the email action was not saved").toBeDefined();
     expect(email.service.use_instance_smtp_settings).toBe(true);
     expect(email.service.integration_id).toBeNull();
   });

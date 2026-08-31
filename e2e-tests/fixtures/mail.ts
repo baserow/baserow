@@ -22,9 +22,16 @@ function headerOf(message: any, name: string): string {
   return Array.isArray(values) ? values.join(", ") : (values ?? "");
 }
 
+// MailHog answers a page at a time, and a long lived catcher also holds every
+// signup and notification mail the rest of the suite sent, so the default page
+// is not wide enough to find a message by subject.
+const MESSAGE_PAGE_SIZE = 200;
+
 /** Every message the stack has sent, newest first. */
 export async function listEmails(): Promise<CapturedEmail[]> {
-  const response = await fetch(`${apiUrl()}/api/v2/messages`);
+  const response = await fetch(
+    `${apiUrl()}/api/v2/messages?limit=${MESSAGE_PAGE_SIZE}`,
+  );
   if (!response.ok) {
     throw new Error(
       `The mail catcher at ${apiUrl()} answered ${response.status}. Is it ` +
@@ -42,8 +49,17 @@ export async function listEmails(): Promise<CapturedEmail[]> {
   }));
 }
 
+/** Empties the catcher, so a run starts from a known state. */
 export async function deleteAllEmails(): Promise<void> {
-  await fetch(`${apiUrl()}/api/v1/messages`, { method: "DELETE" });
+  const response = await fetch(`${apiUrl()}/api/v1/messages`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `The mail catcher at ${apiUrl()} answered ${response.status} when asked ` +
+        `to empty itself.`,
+    );
+  }
 }
 
 /**
