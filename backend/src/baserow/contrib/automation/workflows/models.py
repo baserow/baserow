@@ -147,10 +147,10 @@ class AutomationWorkflow(
         """
         True if the workflow trigger can dispatch without waiting for an event.
 
-        Only the trigger's service type is needed for this, so instead of
-        loading the full specific node graph, the trigger is read from the
-        `automation_workflow_nodes` relation, which can be prefetched with the
-        base services when many workflows are checked at once.
+        Only the trigger's service type is needed for this, so instead of loading the
+        full specific node graph, the trigger is read from the
+        `automation_workflow_nodes` relation, which can be prefetched with the base
+        services when many workflows are checked at once.
 
         :return: True if the workflow can be immediately dispatched.
         """

@@ -166,10 +166,9 @@ class AutomationWorkflowHandler:
         self, queryset: QuerySet[AutomationWorkflow]
     ) -> QuerySet[AutomationWorkflow]:
         """
-        Annotates every workflow in the queryset with the `created_on` and
-        `state` of its latest published workflow, selected exactly like
-        `get_published_workflow` does, so that serializing many workflows
-        doesn't execute a query per workflow.
+        Annotates every workflow in the queryset with the `created_on` and `state` of
+        its latest published workflow, selected exactly like `get_published_workflow`
+        does, so that serializing many workflows doesn't execute a query per workflow.
 
         :param queryset: The workflow queryset to annotate.
         :return: The annotated queryset.
