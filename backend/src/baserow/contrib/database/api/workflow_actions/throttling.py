@@ -8,7 +8,9 @@ class ButtonFieldDispatchUserRateThrottle(RateLimitThrottle):
     Limits how often one user may click buttons that reach outside Baserow.
 
     Keyed on the user, not the button: they can spread their clicks over as
-    many buttons, tables and workspaces as they like.
+    many buttons, tables and workspaces as they like. Staff are exempt, as they
+    are from the other user rate limits here, so an instance admin can still
+    work while a limit is in force; the workspace limit still applies to them.
     """
 
     scope = "button_field_dispatch_user"

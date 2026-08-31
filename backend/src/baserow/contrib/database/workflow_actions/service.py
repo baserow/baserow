@@ -5,6 +5,7 @@ from typing import Any, List
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
+from django.db import transaction
 
 from loguru import logger
 from redis.exceptions import LockNotOwnedError
@@ -61,6 +62,13 @@ EXTERNAL_DISPATCH_FAILED_MESSAGE = "the request could not be completed"
 
 # Failures whose message is written for the clicker, and so is safe to return.
 # Anything else keeps its message server side.
+# What these say is about the values the action was handed, never about the
+# address it was pointed at, so an external action may repeat them as they are.
+ADDRESSLESS_DISPATCH_EXCEPTIONS = (
+    InvalidContextDispatchException,
+    InvalidContextContentDispatchException,
+)
+
 USER_FACING_DISPATCH_EXCEPTIONS = (
     ServiceImproperlyConfiguredDispatchException,
     InvalidContextDispatchException,
@@ -192,6 +200,25 @@ class DatabaseWorkflowActionService:
 
         return full_order
 
+    def _lock_ttl_for(self, server_actions: List[DatabaseWorkflowAction]) -> int:
+        """
+        How long the lock outlives the click that took it. The setting is a
+        floor rather than the answer: it covers a sequence of ordinary actions,
+        but a button may chain several requests that are each allowed to run
+        for as long as the whole default. A lock that expires mid sequence
+        stops protecting the row, which is what it is there for.
+
+        :param server_actions: The actions this click will run, in order.
+        :return: The TTL in seconds.
+        """
+
+        waiting_on = sum(
+            getattr(workflow_action.service.specific, "timeout", 0) or 0
+            for workflow_action in server_actions
+            if workflow_action.get_type().is_external
+        )
+        return max(settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS, waiting_on * 2)
+
     def _remember_result_shape(
         self, workflow_action: DatabaseWorkflowAction, result: DispatchResult
     ) -> None:
@@ -236,7 +263,11 @@ class DatabaseWorkflowActionService:
 
             service = workflow_action.service
             service.sample_data = sample_data
-            service.save(update_fields=["sample_data"])
+            # Its own savepoint: a value the column refuses would otherwise
+            # leave an enclosing transaction unusable for the actions after
+            # this one.
+            with transaction.atomic():
+                service.save(update_fields=["sample_data"])
         except Exception:
             # Never fail a click that already succeeded. What an endpoint can
             # answer with is not ours to predict: a NaN or a NUL byte encodes
@@ -246,6 +277,7 @@ class DatabaseWorkflowActionService:
             logger.warning(
                 "Could not remember the result of workflow action {action_id}.",
                 action_id=workflow_action.id,
+                exc_info=True,
             )
 
     def dispatch_workflow_actions(
@@ -333,7 +365,7 @@ class DatabaseWorkflowActionService:
         # each other.
         lock = cache.lock(
             f"button_dispatch_{field.id}_{row.id}",
-            timeout=settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS,
+            timeout=self._lock_ttl_for(server_actions),
         )
         # Never waits: a second click is refused rather than queued behind one
         # that is still running.
@@ -379,14 +411,19 @@ class DatabaseWorkflowActionService:
                             action_id=workflow_action.id,
                             field_id=field.id,
                         )
-                        if workflow_action.get_type().is_external:
-                            # Where the request went is the clicker's problem
-                            # to see, not a server error, but every message the
-                            # service writes names the address it failed on,
-                            # the URL with its query string included. Checked
-                            # before the user facing exceptions below, which is
-                            # what some of those failures arrive as. They get
-                            # the position and a message of our own instead.
+                        if workflow_action.get_type().is_external and not isinstance(
+                            exc, ADDRESSLESS_DISPATCH_EXCEPTIONS
+                        ):
+                            # A message about the address the action failed on
+                            # names the URL with its query string, or the
+                            # instance's own mail host. Those are for whoever
+                            # configured the button, not for whoever clicked
+                            # it, so the clicker gets the position and a
+                            # message of our own. Checked before the user
+                            # facing exceptions below, which is what a refused
+                            # connection arrives as. What the action was
+                            # *given* is safe to repeat: it says nothing about
+                            # where the request was going.
                             raise WorkflowActionDispatchError(
                                 workflow_action.id,
                                 EXTERNAL_DISPATCH_FAILED_MESSAGE,

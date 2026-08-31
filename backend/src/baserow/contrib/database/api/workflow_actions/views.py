@@ -64,7 +64,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import PermissionException, UserNotInWorkspace
 from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
@@ -449,6 +449,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 ]
             ),
             409: get_error_schema(["ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS"]),
+            429: get_error_schema(["ERROR_TOO_MANY_REQUESTS"]),
         },
     )
     @map_exceptions(
@@ -475,20 +476,25 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             dispatch = DatabaseWorkflowActionService().dispatch_workflow_actions(
                 request.user, field, row
             )
-        except WorkflowActionDispatchInProgress:
+        except (WorkflowActionDispatchInProgress, PermissionException):
             # Refused before anything ran, so the click reached nothing and
-            # costs nothing. A click that did run keeps what it spent, failed
-            # request included: the traffic is what the budget caps.
+            # costs nothing. Without this a member who may not dispatch could
+            # spend the whole workspace's budget on refusals. A click that did
+            # run keeps what it spent, failed request included: the traffic is
+            # what the budget caps.
             for throttle in throttles:
                 throttle.release()
             raise
 
-        # Nothing reads the names unless a client action runs. An action that
-        # returned no row, a delete for instance, has none to give either.
-        names_wanted = bool(dispatch.client_actions)
+        # The browser reads a result only to hand it to a client action. With
+        # none to run it needs neither the field names nor the result itself,
+        # and an answer from outside Baserow is not something to give a clicker
+        # who has no use for it: it carries whatever the endpoint sent back,
+        # response headers included.
+        results_wanted = bool(dispatch.client_actions)
 
         def field_names_for(dispatched):
-            if not names_wanted or not isinstance(dispatched.result.data, dict):
+            if not results_wanted or not isinstance(dispatched.result.data, dict):
                 return {}
             workflow_action = dispatched.workflow_action
             return workflow_action.get_type().get_result_field_names(workflow_action)
@@ -506,7 +512,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 # Every action runs synchronously inside the request. The field
                 # is here so an async one can report "dispatched" later.
                 "status": "completed",
-                "data": dispatched.result.data,
+                "data": dispatched.result.data if results_wanted else None,
                 "field_names": field_names_for(dispatched),
             }
             for dispatched in dispatch.dispatched

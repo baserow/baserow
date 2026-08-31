@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
 import pytest
@@ -5,6 +7,7 @@ from requests import exceptions as request_exceptions
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
     HTTP_409_CONFLICT,
     HTTP_429_TOO_MANY_REQUESTS,
 )
@@ -14,6 +17,7 @@ from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
 )
+from baserow.core.exceptions import PermissionException
 from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
@@ -234,6 +238,34 @@ def test_a_click_refused_by_the_lock_spends_nothing(api_client, data_fixture, se
         held.release()
 
     assert refused.status_code == HTTP_409_CONFLICT
+
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_a_click_refused_by_permissions_spends_nothing(
+    api_client, data_fixture, settings
+):
+    """
+    Otherwise a member who may not dispatch could spend the whole workspace's
+    budget on refusals, and lock out the members who may.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    def only_reading(self, checks, **kwargs):
+        raise PermissionException()
+
+    with patch(
+        "baserow.core.handler.CoreHandler.check_multiple_permissions", only_reading
+    ):
+        refused = _click(api_client, token, button_field, row)
+
+    assert refused.status_code == HTTP_401_UNAUTHORIZED
 
     with mock_advocate_request({"ok": True}):
         assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK

@@ -16,6 +16,9 @@ from baserow.contrib.database.workflow_actions.models import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.core.services.exceptions import (
+    InvalidContextContentDispatchException,
+)
 
 
 @contextmanager
@@ -300,3 +303,54 @@ def test_an_unsuccessful_answer_does_not_replace_what_was_learned(data_fixture):
 
     action.service.refresh_from_db()
     assert action.service.sample_data["data"]["body"] == {"title": "Sample Slide Show"}
+
+
+@pytest.mark.django_db
+def test_what_the_action_was_given_is_still_reported(data_fixture):
+    """
+    Only a message about the address is withheld. One about the values the
+    action was handed says nothing about where the request was going, and it
+    is the only thing telling the clicker what to fix.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _http_action(data_fixture, button_field, url="'http://example.notexist/'")
+
+    with patch(
+        "baserow.contrib.integrations.core.service_types."
+        "CoreHTTPRequestServiceType.dispatch_data",
+        side_effect=InvalidContextContentDispatchException("The body is not JSON"),
+    ):
+        with pytest.raises(WorkflowActionDispatchError) as raised:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    assert raised.value.message == "The body is not JSON"
+
+
+@pytest.mark.django_db
+def test_the_lock_outlives_every_request_the_click_may_wait_for(data_fixture):
+    """
+    A button may chain requests that are each allowed to wait as long as the
+    default TTL. A lock that expires mid sequence lets a second click run the
+    same actions concurrently, which is what it is there to stop.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    actions = []
+    for _ in range(2):
+        action = _http_action(data_fixture, button_field)
+        service = action.service.specific
+        service.timeout = 120
+        service.save()
+        actions.append(action)
+
+    ttl = DatabaseWorkflowActionService()._lock_ttl_for(actions)
+
+    assert ttl >= 240

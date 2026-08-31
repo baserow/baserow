@@ -331,10 +331,9 @@ BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
 # dies mid-click; normally the lock goes as soon as the sequence finishes. Raise
 # it if a button's actions can legitimately run for longer.
 DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS = int(
-    # 2 minutes, which outlives the longest single request an HTTP action may
-    # ask for, but not a chain of several of them. A lock that expires mid
-    # click stops protecting the row, so raise this for a button whose actions
-    # together can run for longer.
+    # A floor rather than the answer: a click whose actions may wait longer
+    # than this takes a lock sized to what they are allowed to wait for. Raise
+    # it for a button whose actions are slow for some other reason.
     os.getenv("BASEROW_DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS") or 120
 )
 # The most a click may remember of an external answer, so a large response

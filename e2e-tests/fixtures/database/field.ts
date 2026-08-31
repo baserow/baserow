@@ -107,12 +107,16 @@ export async function duplicateField(
     duplicate_data: options.copyData ?? false,
   });
 
+  // What the duplication job names the copy, so a field left behind by an
+  // earlier attempt, or one that merely starts with the same word, is not
+  // mistaken for it.
+  const copyName = `${field.name} 2`;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     const fields = await getFieldsForTable(user, table);
     const copy = fields.find(
       (candidate: Field) =>
-        candidate.id !== field.id && candidate.name.startsWith(field.name),
+        candidate.id !== field.id && candidate.name === copyName,
     );
     if (copy) {
       return copy;
@@ -120,5 +124,5 @@ export async function duplicateField(
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  throw new Error(`the copy of "${field.name}" never appeared`);
+  throw new Error(`no field named "${copyName}" appeared`);
 }
