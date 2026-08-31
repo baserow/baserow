@@ -69,6 +69,7 @@ def create_openai_db_provider(workspace, model_identifier="database-model"):
     model = AIProviderModel.objects.create(
         provider_config=provider,
         model_identifier=model_identifier,
+        feature_types=[AI_PROVIDER_FEATURE_AI_AGENT],
     )
     return provider, model
 
@@ -1261,8 +1262,8 @@ def test_dispatch_uses_database_provider_settings_with_flag(data_fixture, settin
         service.get_type().dispatch(service, FakeDispatchContext())
 
     call_kwargs = mock_prompt.call_args[1]
-    assert call_kwargs["settings_override"]["api_key"] == "database-key"
-    assert "agent-model" in call_kwargs["settings_override"]["models"]
+    assert call_kwargs["workspace"] == application.workspace
+    assert "settings_override" not in call_kwargs
 
 
 @pytest.mark.django_db
@@ -1290,8 +1291,48 @@ def test_dispatch_rejects_model_restricted_to_other_features(data_fixture, setti
         ai_prompt="'Test'",
     )
 
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
-        service.get_type().dispatch(service, FakeDispatchContext())
+    with patch(
+        "baserow.core.generative_ai.generative_ai_model_types.OpenAIGenerativeAIModelType.prompt"
+    ) as mock_prompt:
+        with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+        mock_prompt.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_dispatch_partial_blob_does_not_bypass_feature_gate(data_fixture, settings):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="database-key"
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="fields-only-model",
+        feature_types=["ai_fields"],
+    )
+    integration = IntegrationService().create_integration(
+        user,
+        AIIntegrationType(),
+        application=application,
+        ai_settings={"openai": {"models": ["fields-only-model"]}},
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="fields-only-model",
+        ai_output_type="text",
+        ai_prompt="'Test'",
+    )
+
+    with patch(
+        "baserow.core.generative_ai.generative_ai_model_types.OpenAIGenerativeAIModelType.prompt"
+    ) as mock_prompt:
+        with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+        mock_prompt.assert_not_called()
 
 
 @pytest.mark.django_db

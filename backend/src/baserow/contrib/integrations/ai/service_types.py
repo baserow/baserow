@@ -258,29 +258,37 @@ class AIAgentServiceType(ServiceType):
                 if workflow is not None:
                     workspace = workflow.get_original().automation.workspace
 
-        # This returns explicit integration settings, or the legacy workspace fallback
-        # while database-backed providers are disabled.
-        provider_settings = integration_type.get_provider_settings(
-            integration, service.ai_generative_ai_type
-        )
-        settings_override = provider_settings or None
-
         providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
         if providers_enabled:
-            if settings_override is None and workspace is None:
+            blob = integration_type.get_integration_provider_settings(
+                integration, service.ai_generative_ai_type
+            )
+            complete_blob = (
+                ai_model_type._get_complete_provider_settings(blob)
+                if blob is not None
+                else None
+            )
+            if complete_blob is None and workspace is None:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The workspace context for the AI integration is missing."
                 )
-            available_models = ai_model_type.get_enabled_models_for_feature(
-                AI_PROVIDER_FEATURE_AI_AGENT,
-                workspace=workspace,
-                settings_override=settings_override,
-            )
-            if service.ai_generative_ai_model not in available_models:
-                raise ServiceImproperlyConfiguredDispatchException(
-                    f"The AI model '{service.ai_generative_ai_model}' is not "
-                    f"available for provider '{service.ai_generative_ai_type}'."
+            if complete_blob is None:
+                available_models = ai_model_type.get_enabled_models_for_feature(
+                    AI_PROVIDER_FEATURE_AI_AGENT,
+                    workspace=workspace,
+                    settings_override=blob,
                 )
+                if service.ai_generative_ai_model not in available_models:
+                    raise ServiceImproperlyConfiguredDispatchException(
+                        f"Model '{service.ai_generative_ai_model}' is not available "
+                        f"for provider '{service.ai_generative_ai_type}'."
+                    )
+            settings_override = blob
+        else:
+            provider_settings = integration_type.get_provider_settings(
+                integration, service.ai_generative_ai_type
+            )
+            settings_override = provider_settings or None
 
         kwargs = {}
         if service.ai_temperature is not None:

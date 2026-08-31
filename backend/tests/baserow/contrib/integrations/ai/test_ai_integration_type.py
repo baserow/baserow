@@ -517,7 +517,10 @@ def test_get_integration_provider_settings_returns_blob_or_none(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_integration_provider_settings_ignores_workspace_settings(data_fixture):
+def test_get_integration_provider_settings_ignores_workspace_settings(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
