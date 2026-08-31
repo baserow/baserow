@@ -1,0 +1,11 @@
+{
+    "type": "breaking_change",
+    "message": "Added workspace permission checks to the data sync type properties endpoint",
+    "issue_origin": "github",
+    "issue_number": 5971,
+    "domain": "database",
+    "bullet_points": [
+        "Breaking change: the data sync type properties endpoint URL changed from `POST /api/database/data-sync/properties/` to `POST /api/database/data-sync/database/{database_id}/properties/` and now requires a `database_id` path parameter for workspace permission checks."
+    ],
+    "created_at": "2026-08-31"
+}

@@ -1272,7 +1272,7 @@ def get_all_ips(hostname: str) -> Set:
         return set()
 
 
-def is_hostname_safe(hostname: str) -> bool:
+def is_hostname_safe(hostname: str, allow_private: bool = False) -> bool:
     """
     Checks if the hostname resolves only to safe addresses.
 
@@ -1282,7 +1282,15 @@ def is_hostname_safe(hostname: str) -> bool:
     - Link-local (169.254.0.0/16, fe80::/10)
     - Reserved, multicast, etc.
 
+    When ``allow_private`` is False (the default), RFC 1918 private addresses
+    (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) are also rejected. The
+    ``BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS`` setting defaults to True for
+    backwards compatibility, so callers typically pass ``allow_private=True``.
+
     :param hostname: The hostname to check.
+    :param allow_private: When True, RFC 1918 private addresses are allowed
+        through. Loopback, link-local, and other unsafe ranges are always
+        blocked regardless of this flag.
     :return: True if all resolved IPs are safe.
     """
 
@@ -1303,6 +1311,9 @@ def is_hostname_safe(hostname: str) -> bool:
             or ip_obj.is_multicast
             or ip_obj.is_reserved
         ):
+            return False
+
+        if not allow_private and ip_obj.is_private:
             return False
 
     return True

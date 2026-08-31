@@ -1106,7 +1106,11 @@ def test_async_sync_data_sync_table(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_get_data_sync_properties_unauthorized(data_fixture, api_client):
-    url = reverse("api:database:data_sync:properties")
+    database = data_fixture.create_database_application()
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -1119,10 +1123,37 @@ def test_get_data_sync_properties_unauthorized(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+def test_get_data_sync_properties_no_workspace_permission(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    other_user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=other_user)
+
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
+    response = api_client.post(
+        url,
+        {
+            "type": "ical_calendar",
+            "ical_url": "https://baserow.io/ical.ics",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
 def test_get_data_sync_properties_invalid_data(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -1148,8 +1179,12 @@ def test_get_data_sync_properties(data_fixture, api_client):
     )
 
     user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {

@@ -165,7 +165,10 @@ class PostgreSQLDataSyncType(DataSyncType):
         cursor = None
         connection = None
 
-        if not settings.TESTS and not is_hostname_safe(instance.postgresql_host):
+        if not settings.TESTS and not is_hostname_safe(
+            instance.postgresql_host,
+            allow_private=settings.BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS,
+        ):
             raise SyncError("It's not allowed to connect to this hostname.")
 
         baserow_postgresql_connection = (

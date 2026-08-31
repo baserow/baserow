@@ -660,8 +660,12 @@ def test_sync_data_sync_table_private_address_blocked(enterprise_data_fixture):
 def test_get_data_sync_properties(enterprise_data_fixture, api_client):
     enterprise_data_fixture.enable_enterprise()
     user, token = enterprise_data_fixture.create_user_and_token()
+    database = enterprise_data_fixture.create_database_application(user=user)
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {

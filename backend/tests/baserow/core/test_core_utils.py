@@ -737,6 +737,23 @@ def test_is_hostname_safe():
     # Reserved addresses are not considered safe
     assert is_hostname_safe("240.0.0.1") is False  # IPv4 reserved
 
+    # Private addresses rejected by default
+    assert is_hostname_safe("10.0.0.1") is False
+    assert is_hostname_safe("172.16.0.1") is False
+    assert is_hostname_safe("192.168.1.1") is False
+
+    # Private addresses allowed when allow_private=True
+    assert is_hostname_safe("10.0.0.1", allow_private=True) is True
+    assert is_hostname_safe("172.16.0.1", allow_private=True) is True
+    assert is_hostname_safe("192.168.1.1", allow_private=True) is True
+
+    # Public address still allowed when allow_private=False
+    assert is_hostname_safe("12.33.56.1", allow_private=False) is True
+
+    # Unsafe addresses still blocked regardless of allow_private
+    assert is_hostname_safe("127.0.0.1", allow_private=True) is False
+    assert is_hostname_safe("0.0.0.0", allow_private=True) is False  # noqa: S104
+
 
 def test_are_hostnames_same():
     assert are_hostnames_same("localhost", "localhost") is True
