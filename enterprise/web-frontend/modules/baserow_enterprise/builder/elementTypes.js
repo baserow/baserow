@@ -71,8 +71,18 @@ export class AuthFormElementType extends ElementType {
     const loginOptions = userSourceType.getLoginOptions(userSource)
 
     const hasLoginOptions = Object.keys(loginOptions).length !== 0
+    const hasConfiguredProvider = userSource.auth_providers.some(
+      (authProvider) => {
+        const authProviderType = this.app.$registry.get(
+          'appAuthProvider',
+          authProvider.type
+        )
 
-    if (!hasLoginOptions) {
+        return authProviderType.isConfigured(authProvider, applicationContext)
+      }
+    )
+
+    if (!hasLoginOptions || !hasConfiguredProvider) {
       return this.app.$i18n.t('elementType.errorUserSourceHasNoLoginOption')
     }
 

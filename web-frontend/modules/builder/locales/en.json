@@ -176,6 +176,7 @@
     "errorImageUrlMissing": "Missing Image URL property",
     "errorNoWorkflowAction": "No workflow action configured",
     "errorOptionsMissing": "No option configured",
+    "errorOptionNameMissing": "An option is missing a name",
     "errorIframeUrlMissing": "Missing IFrame URL property",
     "errorIframeContentMissing": "Missing IFrame content",
     "errorNoMenuItem": "No menu item configured",
@@ -859,6 +860,7 @@
   "workflowActionTypes": {
     "notificationLabel": "Show Notification",
     "notificationDescription": "Show a notification message to the user.",
+    "errorNotificationContentMissing": "A notification requires a title or description",
     "openPageLabel": "Open Page",
     "openPageDescription": "Navigate the user to another page or URL.",
     "logoutLabel": "Logout",

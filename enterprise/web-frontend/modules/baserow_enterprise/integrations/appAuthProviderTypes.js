@@ -46,6 +46,14 @@ export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType
     return null
   }
 
+  isConfigured(authProvider, { mode } = {}) {
+    if (authProvider.password_field_id === undefined) {
+      return mode === 'preview' || mode === 'public'
+    }
+
+    return Boolean(authProvider.password_field_id)
+  }
+
   /**
    * We can create only one password provider.
    */

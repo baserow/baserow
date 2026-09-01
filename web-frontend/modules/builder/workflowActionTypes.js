@@ -50,6 +50,19 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
     return this.app.$i18n.t('workflowActionTypes.notificationDescription')
   }
 
+  getErrorMessage(workflowAction, applicationContext) {
+    if (
+      !workflowAction.title?.formula &&
+      !workflowAction.description?.formula
+    ) {
+      return this.app.$i18n.t(
+        'workflowActionTypes.errorNotificationContentMissing'
+      )
+    }
+
+    return super.getErrorMessage(workflowAction, applicationContext)
+  }
+
   execute({
     workflowAction: {
       title,

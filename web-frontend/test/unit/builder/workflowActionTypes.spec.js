@@ -112,6 +112,28 @@ describe('Builder workflow action types', () => {
     )
   })
 
+  test('requires a title or description for notification actions', () => {
+    const workflowActionType = testApp
+      .getRegistry()
+      .get('workflowAction', 'notification')
+    const workflowAction = {
+      type: 'notification',
+      title: {},
+      description: {},
+    }
+
+    expect(workflowActionType.getErrorMessage(workflowAction, {})).toBe(
+      'workflowActionTypes.errorNotificationContentMissing'
+    )
+
+    workflowAction.title = { formula: "'Title'" }
+    expect(workflowActionType.getErrorMessage(workflowAction, {})).toBeNull()
+
+    workflowAction.title = {}
+    workflowAction.description = { formula: "'Description'" }
+    expect(workflowActionType.getErrorMessage(workflowAction, {})).toBeNull()
+  })
+
   test('open page action is in error when saved page parameters are outdated', () => {
     const workflowActionType = testApp
       .getRegistry()

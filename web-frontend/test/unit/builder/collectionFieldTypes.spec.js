@@ -89,4 +89,48 @@ describe('Builder collection field types', () => {
       expect(fieldType.isInError({ field, builder })).toBe(false)
     })
   })
+
+  describe('ButtonCollectionFieldType getErrorMessage', () => {
+    test('requires an action for its own click event', () => {
+      const fieldType = testApp.getRegistry().get('collectionField', 'button')
+      const tableElementType = testApp.getRegistry().get('element', 'table')
+      const buttonField = { type: 'button', uid: 'first-button' }
+      const otherButtonField = { type: 'button', uid: 'second-button' }
+      const page = {
+        id: 1,
+        workflowActions: [
+          {
+            element_id: 50,
+            event: 'second-button_click',
+            order: 1,
+            type: 'notification',
+          },
+        ],
+      }
+      const element = {
+        id: 50,
+        type: 'table',
+        page_id: page.id,
+        fields: [buttonField, otherButtonField],
+      }
+      const builder = { id: 1, pages: [page] }
+
+      expect(
+        fieldType.getErrorMessage({ field: buttonField, element, builder })
+      ).toBe('elementType.errorNoWorkflowAction')
+      expect(tableElementType.getErrorMessage(element, { builder })).toBe(
+        'elementType.errorCollectionFieldInError'
+      )
+
+      page.workflowActions.push({
+        element_id: element.id,
+        event: 'first-button_click',
+        order: 2,
+        type: 'notification',
+      })
+      expect(
+        fieldType.getErrorMessage({ field: buttonField, element, builder })
+      ).toBeNull()
+    })
+  })
 })

@@ -1329,6 +1329,7 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
       )
       return collectionFieldType.isInError({
         field: collectionField,
+        element,
         builder,
       })
     })
@@ -1995,6 +1996,9 @@ export class ChoiceElementType extends FormElementType {
     if (element.option_type === CHOICE_OPTION_TYPES.MANUAL) {
       if (element.options.length === 0) {
         return this.app.$i18n.t('elementType.errorOptionsMissing')
+      }
+      if (element.options.some(({ name }) => !ensureString(name).trim())) {
+        return this.app.$i18n.t('elementType.errorOptionNameMissing')
       }
     } else if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
       if (element.formula_value === '') {

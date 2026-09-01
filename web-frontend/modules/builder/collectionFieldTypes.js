@@ -292,6 +292,22 @@ export class ButtonCollectionFieldType extends CollectionFieldType {
     return [ClickEvent]
   }
 
+  getErrorMessage({ field, element, builder }) {
+    const elementPage = this.app.$store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+    const workflowActions = this.app.$store.getters[
+      'builderWorkflowAction/getElementWorkflowActions'
+    ](elementPage, element.id)
+
+    if (!workflowActions.some(({ event }) => event === `${field.uid}_click`)) {
+      return this.app.$i18n.t('elementType.errorNoWorkflowAction')
+    }
+
+    return super.getErrorMessage({ field, element, builder })
+  }
+
   getProps(field, { resolveFormula, applicationContext }) {
     return { label: ensureString(resolveFormula(field.label)) }
   }

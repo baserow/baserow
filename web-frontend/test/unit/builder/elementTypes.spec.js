@@ -1148,6 +1148,31 @@ describe('elementTypes tests', () => {
     })
   })
 
+  describe('ChoiceElementType getErrorMessage tests', () => {
+    test('is in error when a manual option has an empty name', () => {
+      const elementType = testApp.$registry.get('element', 'choice')
+      const element = {
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
+        options: [
+          { id: 1, name: '', value: null },
+          { id: 2, name: 'Blank value', value: '' },
+        ],
+      }
+
+      expect(elementType.getErrorMessage(element, {})).toBe(
+        'elementType.errorOptionNameMissing'
+      )
+
+      element.options[0].name = '   '
+      expect(elementType.getErrorMessage(element, {})).toBe(
+        'elementType.errorOptionNameMissing'
+      )
+
+      element.options[0].name = 'Named option'
+      expect(elementType.getErrorMessage(element, {})).toBeNull()
+    })
+  })
+
   describe('ButtonElementType isInError tests', () => {
     test('Returns true if Button Element has no errors, but has misconfigured workflow actions.', () => {
       const page = {
