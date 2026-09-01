@@ -17,7 +17,7 @@ classifiers = []
 dependencies = [
     "django==5.2.16",
     "django-cors-headers==4.9.0",
-    "djangorestframework==3.16.1",
+    "djangorestframework==3.17.2",
     "djangorestframework-simplejwt==5.5.1",
     "psycopg2-binary==2.9.11",
     "Faker==40.1.0",
