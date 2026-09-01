@@ -140,7 +140,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vitest": "^0.5.4",
     "globals": "^17.7.0",
-    "happy-dom": "^20.8.9",
+    "happy-dom": "^20.12.0",
     "node-mocks-http": "^1.18.1",
     "postcss-scss": "^4.0.9",
     "prettier": "^3.7.4",
