@@ -19,16 +19,17 @@ export function populateWorkspace(workspace) {
   return workspace
 }
 
-const appendRoleTranslations = (roles, registry) => {
-  const translationMap = Object.values(
-    registry.getAll('permissionManager')
-  ).reduce(
+export const getRoleTranslations = (registry) =>
+  Object.values(registry.getAll('permissionManager')).reduce(
     (translations, manager) => ({
       ...translations,
       ...manager.getRolesTranslations(),
     }),
     {}
   )
+
+const appendRoleTranslations = (roles, registry) => {
+  const translationMap = getRoleTranslations(registry)
   return roles.map((role) => {
     if (translationMap[role.uid]) {
       const { uid, ...rest } = role
