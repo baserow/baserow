@@ -5,7 +5,16 @@
 
     <div ref="app" class="layout">
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
+        <SidebarAllWorkspaces
+          v-if="sidebarType === 'all-workspaces'"
+          :workspaces="workspaces"
+          :selected-workspace="selectedWorkspace"
+          :collapsed="isCollapsed"
+          :width="col1Width"
+          @set-col1-width="col1Width = $event"
+        />
         <Sidebar
+          v-else
           :workspaces="workspaces"
           :selected-workspace="selectedWorkspace"
           :applications="applications"
@@ -72,6 +81,7 @@ import { useStore } from 'vuex'
 
 import Toasts from '@baserow/modules/core/components/toasts/Toasts.vue'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
+import SidebarAllWorkspaces from '@baserow/modules/core/components/sidebar/SidebarAllWorkspaces.vue'
 import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar.vue'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize.vue'
 import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour.vue'
@@ -101,6 +111,10 @@ const isCollapsed = computed(() => col1Width.value < 170)
 
 const route = useRoute()
 const router = useRouter()
+
+// Pages can render an alternative sidebar via
+// `definePageMeta({ sidebarType: 'all-workspaces' })`.
+const sidebarType = computed(() => route.meta.sidebarType ?? 'workspace')
 
 // Preserve authentication logic
 if (route.query.token) {

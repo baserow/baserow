@@ -83,12 +83,6 @@
         <DashboardVerifyEmail
           class="margin-top-0 margin-bottom-0"
         ></DashboardVerifyEmail>
-        <WorkspaceInvitation
-          v-for="invitation in workspaceInvitations"
-          :key="'invitation-' + invitation.id"
-          :invitation="invitation"
-          class="margin-top-0 margin-bottom-0"
-        ></WorkspaceInvitation>
         <div class="dashboard__extras">
           <div
             v-if="canCreateCreateApplication"
@@ -262,15 +256,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watch, watchEffect } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
 import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
+import { StoreItemLookupError } from '@baserow/modules/core/errors'
+
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import DashboardApplication from '@baserow/modules/core/components/dashboard/DashboardApplication'
-import WorkspaceInvitation from '@baserow/modules/core/components/workspace/WorkspaceInvitation'
 import TemplateCard from '@baserow/modules/core/components/template/TemplateCard'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -365,9 +360,15 @@ const { data: dashboardData, loading } = await usePageAsyncData(
     try {
       workspace = await $store.dispatch('workspace/selectById', workspaceId)
     } catch (e) {
+      // Only when the workspace is unknown the user is redirected to the all
+      // workspaces homepage after the async data resolves. Any other failure, like
+      // a transient permissions fetch error, must show the normal error page.
+      if (e instanceof StoreItemLookupError) {
+        return { workspaceNotFound: true }
+      }
       throw createError({
-        statusCode: 404,
-        message: 'Workspace not found.',
+        statusCode: 400,
+        message: 'Error loading dashboard.',
         data: {
           report: false,
         },
@@ -376,7 +377,6 @@ const { data: dashboardData, loading } = await usePageAsyncData(
     }
 
     try {
-      await $store.dispatch('auth/fetchWorkspaceInvitations')
       return await fetchWorkspaceExtraData(workspace)
     } catch {
       throw createError({
@@ -389,6 +389,19 @@ const { data: dashboardData, loading } = await usePageAsyncData(
       })
     }
   }
+)
+
+// The fetch doesn't block the navigation, so whether the workspace exists is
+// only known after the page has rendered. The redirect to the all workspaces
+// homepage must therefore happen from a watcher.
+watch(
+  dashboardData,
+  (value) => {
+    if (value?.workspaceNotFound) {
+      router.replace({ name: 'all-workspaces' })
+    }
+  },
+  { immediate: true }
 )
 
 /**
@@ -406,10 +419,6 @@ watchEffect(() => {
 useHead(() => ({
   title: $i18n.t('dashboard.title'),
 }))
-
-const workspaceInvitations = computed(
-  () => $store.getters['auth/getWorkspaceInvitations']
-)
 
 const getAllOfWorkspace = (ws) =>
   $store.getters['application/getAllOfWorkspace'](ws)

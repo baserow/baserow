@@ -123,9 +123,13 @@ const actions = {
   },
   async forceDelete({ commit }, { automation, workflow }) {
     if (workflow._?.selected) {
-      // Redirect back to the dashboard because the workflow doesn't exist anymore.
+      // Redirect back to the workspace homepage because the workflow page doesn't
+      // exist anymore.
       const router = useRouter()
-      await router.push({ name: 'dashboard' })
+      await router.push({
+        name: 'workspace',
+        params: { workspaceId: automation.workspace.id },
+      })
       await pageFinished(this.app)
       await nextTick()
       commit('UNSELECT')

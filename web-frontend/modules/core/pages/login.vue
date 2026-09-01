@@ -31,7 +31,7 @@ const router = useRouter()
 if (store.getters['settings/get'].show_admin_signup_page === true) {
   await navigateTo({ name: 'signup' })
 } else if (store.getters['auth/isAuthenticated']) {
-  await navigateTo({ name: 'dashboard' })
+  await navigateTo({ name: 'all-workspaces' })
 }
 
 // Data fetching - use token in key to avoid caching issues
