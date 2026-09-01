@@ -67,9 +67,9 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/root.vue'),
     children: [
       {
-        name: 'dashboard',
-        path: '/dashboard',
-        file: path.resolve(__dirname, 'pages/dashboard.vue'),
+        name: 'all-workspaces',
+        path: '/all-workspaces',
+        file: path.resolve(__dirname, 'pages/allWorkspaces.vue'),
       },
       {
         name: 'workspace',

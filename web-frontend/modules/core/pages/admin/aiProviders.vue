@@ -111,9 +111,13 @@ export default {
     AIProviderItem,
     AIProviderModelFormModal,
   },
-  layout: 'app',
-  middleware: ['staff', 'aiProvidersFeatureFlag'],
   setup() {
+    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
+    // `layout` and `middleware` component options.
+    definePageMeta({
+      layout: 'app',
+      middleware: ['staff', 'aiProvidersFeatureFlag'],
+    })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('aiProviderAdmin.title') })
   },

@@ -423,7 +423,9 @@ export const getters = {
 
     const uiContext = {
       applicationType: application?.type || null,
-      workspace: { id: workspace.id, name: workspace.name },
+      // The workspace can be missing on workspace agnostic pages like the all
+      // workspaces homepage.
+      workspace: workspace ? { id: workspace.id, name: workspace.name } : null,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }
 

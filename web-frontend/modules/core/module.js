@@ -184,11 +184,6 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'dashboardRedirect',
-      path: resolve('./middleware/dashboardRedirect'),
-    })
-
-    addRouteMiddleware({
       name: 'redirectCompletedOnboarding',
       path: resolve('./middleware/redirectCompletedOnboarding'),
     })

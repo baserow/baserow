@@ -34,7 +34,13 @@
 }
 
 .templates__install {
+  @include flex-align-items(12px);
+
   margin-left: auto;
+}
+
+.templates__install-workspace {
+  width: 220px;
 }
 
 .templates__sidebar {

@@ -261,7 +261,7 @@ export default {
     async complete() {
       this.creating = true
       const responses = {}
-      let route = { name: 'dashboard' }
+      let route = { name: 'all-workspaces' }
 
       const completeCallback = (message = null, component = null) => {
         this.message = message
@@ -279,7 +279,6 @@ export default {
             completeCallback
           )
         } catch (error) {
-          console.error(error)
           // Stop the creating process if any of the steps fail.
           this.creatingFailed = true
           return
@@ -307,7 +306,6 @@ export default {
                 responses
               )
             }
-            console.error(error)
             return
           }
         }
@@ -322,7 +320,7 @@ export default {
       await this.markAsComplete()
 
       // Clear all workspaces and application so that they're fetched again when
-      // navigating to the dashboard. This will make sure that everything is correctly
+      // navigating to the next page. This will make sure that everything is correctly
       // loaded.
       await this.$store.dispatch('workspace/clearAll')
       await this.$store.dispatch('application/clearAll')
@@ -330,8 +328,8 @@ export default {
       this.$router.push(route)
     },
     /**
-     * Mark the onboarding as completed, and redirect the user to the dashboard so
-     * that they can start working with their database.
+     * Mark the onboarding as completed so that the user is redirected to the all
+     * workspaces homepage instead of the onboarding the next time.
      */
     async markAsComplete() {
       try {
@@ -357,7 +355,6 @@ export default {
       } catch (error) {
         // Failing to offer an alternative must never block the user from leaving the
         // onboarding, so we're falling back on cancelling it.
-        console.error(error)
       }
 
       if (modal) {
@@ -404,11 +401,11 @@ export default {
       }
       await this.markAsComplete()
       // Clear all workspaces and application so that they're fetched again when
-      // navigating to the dashboard. This will make sure that everything is correctly
+      // navigating to the next page. This will make sure that everything is correctly
       // loaded.
       await this.$store.dispatch('workspace/clearAll')
       await this.$store.dispatch('application/clearAll')
-      this.$router.push({ name: 'dashboard' })
+      this.$router.push({ name: 'all-workspaces' })
     },
     isValid() {
       const form = this.$refs?.form

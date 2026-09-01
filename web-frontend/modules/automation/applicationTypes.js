@@ -75,7 +75,10 @@ export class AutomationApplicationType extends ApplicationType {
     ).some((workflow) => workflow._.selected)
 
     if (workflowSelected) {
-      $router.push({ name: 'dashboard' })
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
     }
   }
 

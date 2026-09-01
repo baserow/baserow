@@ -28,13 +28,48 @@
     }
   }
 
+  &.tooltip--right {
+    padding-top: 0;
+    padding-left: 8px;
+    transform: translateY(-50%);
+
+    &::after {
+      margin-left: 0;
+      margin-top: -6px;
+      top: 50%;
+      left: 0;
+      right: auto;
+      border-width: 6px 8px 6px 0;
+      border-color: transparent $palette-neutral-1200 transparent transparent;
+    }
+  }
+
+  &.tooltip--no-arrow {
+    padding: 0;
+
+    &::after {
+      display: none;
+    }
+  }
+
   &.tooltip--body {
     position: absolute;
     z-index: $z-index-tooltip;
+    animation: tooltip-fade-in 0.08s ease-out;
   }
 
   &.tooltip--center {
     transform: translateX(-50%);
+  }
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 

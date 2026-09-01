@@ -62,6 +62,9 @@
     "errorNoWorkspace": "You don’t have any workspaces.",
     "adminTools": "Admin tools",
     "home": "Home",
+    "allWorkspaces": "All workspaces",
+    "backToHome": "Back to home",
+    "templates": "Templates",
     "dashboard": "Dashboard",
     "trash": "Trash",
     "settings": "My settings",
@@ -401,7 +404,8 @@
     "title": "Templates"
   },
   "templateHeader": {
-    "use": "Use this template"
+    "use": "Use this template",
+    "selectWorkspace": "Choose workspace"
   },
   "trashSidebar": {
     "unnamedWorkspace": "Unnamed workspace {id}",
@@ -535,8 +539,8 @@
   "errorLayout": {
     "pageNotFoundTitle": "Page not found",
     "notFound": "The page you are looking for has not been found. This might be because URL is incorrect or that you don’t have permission to view this page.",
-    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the dashboard.",
-    "backDashboard": "Back to dashboard",
+    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the homepage.",
+    "backDashboard": "Back to home",
     "backLogin": "Back to login",
     "wrong": "Something went wrong",
     "refresh": "Refresh page"

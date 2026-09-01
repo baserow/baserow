@@ -112,7 +112,10 @@ export class BuilderApplicationType extends ApplicationType {
     ).some((page) => page._.selected)
 
     if (pageSelected) {
-      $router.push({ name: 'dashboard' })
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
     }
   }
 

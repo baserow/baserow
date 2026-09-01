@@ -246,10 +246,12 @@ export default {
       return this.$store.getters['notification/workspaceHasUnread'](workspaceId)
     },
     async selectWorkspace(workspace) {
-      if (workspace._.selected) {
-        return
+      // The workspace can still be selected while the user is on a workspace
+      // agnostic page, like the all workspaces homepage, so there must always be
+      // navigated to the workspace even if selecting can be skipped.
+      if (!workspace._.selected) {
+        await this.$store.dispatch('workspace/select', workspace)
       }
-      await this.$store.dispatch('workspace/select', workspace)
       await this.$router.push({
         name: 'workspace',
         params: { workspaceId: workspace.id },

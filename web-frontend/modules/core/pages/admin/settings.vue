@@ -269,6 +269,11 @@ import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
+definePageMeta({
+  layout: 'app',
+  middleware: 'staff',
+})
+
 const { $registry, $client, $baserowVersion, $i18n } = useNuxtApp()
 const { t: $t } = useI18n()
 const store = useStore()
