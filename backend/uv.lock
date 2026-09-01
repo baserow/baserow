@@ -421,7 +421,7 @@ requires-dist = [
     { name = "redis", specifier = "==6.4.0" },
     { name = "regex", specifier = "==2026.6.28" },
     { name = "requests", specifier = "==2.34.2" },
-    { name = "requests-futures", specifier = ">=1.0.2" },
+    { name = "requests-futures", specifier = ">=1.1.0" },
     { name = "requests-oauthlib", specifier = "==2.0.0" },
     { name = "rich", specifier = "==15.0.0" },
     { name = "sentry-sdk", specifier = "==2.52.0" },
@@ -3509,14 +3509,14 @@ wheels = [
 
 [[package]]
 name = "requests-futures"
-version = "1.0.2"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/88/f8/175b823241536ba09da033850d66194c372c65c38804847ac9cef0239542/requests_futures-1.0.2.tar.gz", hash = "sha256:6b7eb57940336e800faebc3dab506360edec9478f7b22dc570858ad3aa7458da", size = 10356, upload-time = "2024-11-15T22:14:51.988Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/30/9f/efe743156e717c8abc499526fd8b4c613847214cf0a8ec8741189f5a84f2/requests_futures-1.1.0.tar.gz", hash = "sha256:f839cf536e6638a6e0ca1cfd54ac761bf3bb2b5a7ecf9349557e53acc5244d36", size = 17945, upload-time = "2026-08-29T00:39:31.446Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/23/7c1096731c15c83826cb0dd42078b561a838aed44c36f370aeb815168106/requests_futures-1.0.2-py2.py3-none-any.whl", hash = "sha256:a3534af7c2bf670cd7aa730716e9e7d4386497554f87792be7514063b8912897", size = 7671, upload-time = "2024-11-15T22:14:50.255Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/55/a590f55d1273ce1a8a4d62aec8e1e92a484aa6374ffe87df2db334efd10b/requests_futures-1.1.0-py3-none-any.whl", hash = "sha256:c9bd8a88d27630a5b418a809f1a89d451d4bc4bdca87c07a50735ab6f66f423a", size = 10162, upload-time = "2026-08-29T00:39:30.175Z" },
 ]
 
 [[package]]
