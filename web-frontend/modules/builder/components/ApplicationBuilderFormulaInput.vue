@@ -111,7 +111,9 @@ const nodesHierarchy = computed(() => {
  * @returns {String} The expression string.
  */
 const formulaStr = computed(() => {
-  return currentValue.value.formula
+  // Legacy stored values can contain `formula: null`; `FormulaInputField`
+  // expects a string.
+  return currentValue.value.formula || ''
 })
 
 const dataSourceLoading = computed(() => {
