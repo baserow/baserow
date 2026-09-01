@@ -9,8 +9,8 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
-from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow.core.trash.handler import TrashHandler
+from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 @pytest.mark.django_db

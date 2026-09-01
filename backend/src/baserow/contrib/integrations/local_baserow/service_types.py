@@ -119,8 +119,8 @@ from baserow.core.formula.validator import (
     ensure_object,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace
 from baserow.core.integrations.models import Integration
+from baserow.core.models import Workspace
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
