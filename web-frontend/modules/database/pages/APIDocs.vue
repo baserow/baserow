@@ -14,7 +14,10 @@
         {{ $t('apiDocsComponent.selectApplicationTitle') }}
       </div>
       <APIDocsSelectDatabase :loading="loading" />
-      <nuxt-link :to="{ name: 'dashboard' }" class="select-application__back">
+      <nuxt-link
+        :to="{ name: 'all-workspaces' }"
+        class="select-application__back"
+      >
         <i class="iconoir-arrow-left"></i>
         {{ $t('apiDocsComponent.back') }}
       </nuxt-link>
@@ -49,10 +52,7 @@ import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
-import {
-  fetchWorkspacesAndApplications,
-  getWorkspaceCookie,
-} from '@baserow/modules/core/utils/workspace'
+import { fetchWorkspacesAndApplications } from '@baserow/modules/core/utils/workspace'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -74,9 +74,9 @@ const { loading: fetching } = await usePageAsyncData(
   'api-docs-databases',
   async () => {
     if ($store.getters['auth/isAuthenticated']) {
-      // Also selects the remembered workspace, like the middleware does, because
-      // the pages visited after this one skip that once the workspaces are loaded.
-      await fetchWorkspacesAndApplications(nuxtApp, getWorkspaceCookie(nuxtApp))
+      // This page has no workspace in the route, so only the workspaces and
+      // applications are fetched without selecting a workspace.
+      await fetchWorkspacesAndApplications(nuxtApp, null)
     }
     return true
   }

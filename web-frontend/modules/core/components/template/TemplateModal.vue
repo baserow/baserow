@@ -42,9 +42,12 @@ export default {
   components: { TemplateHeader, TemplateCategories, TemplatePreview },
   mixins: [modal],
   props: {
+    // When no workspace is provided, the user must choose the workspace to install
+    // the template into.
     workspace: {
       type: Object,
-      required: true,
+      required: false,
+      default: null,
     },
   },
   data() {

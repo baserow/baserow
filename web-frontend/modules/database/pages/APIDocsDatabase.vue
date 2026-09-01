@@ -38,7 +38,10 @@
     >
       <div class="api-docs__databases-inner">
         <APIDocsSelectDatabase :selected="database.id" />
-        <nuxt-link :to="{ name: 'dashboard' }" class="select-application__back">
+        <nuxt-link
+          :to="{ name: 'all-workspaces' }"
+          class="select-application__back"
+        >
           <i class="iconoir-arrow-left"></i>
           {{ $t('apiDocsDatabase.back') }}
         </nuxt-link>

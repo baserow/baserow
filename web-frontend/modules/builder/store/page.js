@@ -128,8 +128,12 @@ const actions = {
   async forceDelete({ commit }, { builder, page }) {
     if (page._.selected) {
       commit('UNSELECT')
-      // Redirect back to the dashboard because the page doesn't exist anymore.
-      await this.$router.push({ name: 'dashboard' })
+      // Redirect back to the workspace homepage because the builder page doesn't
+      // exist anymore.
+      await this.$router.push({
+        name: 'workspace',
+        params: { workspaceId: builder.workspace.id },
+      })
       await pageFinished(this.app)
       await nextTick()
     }
