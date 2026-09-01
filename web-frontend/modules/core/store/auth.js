@@ -10,7 +10,6 @@ import {
   unsetToken,
   unsetUserSessionCookie,
 } from '@baserow/modules/core/utils/auth'
-import { unsetWorkspaceCookie } from '@baserow/modules/core/utils/workspace'
 import { uuid } from '@baserow/modules/core/utils/string'
 
 export const state = () => ({
@@ -215,7 +214,6 @@ export const actions = {
   async forceLogoff({ commit }) {
     await unsetToken(this.app)
     await unsetUserSessionCookie(this.app)
-    await unsetWorkspaceCookie(this.app)
     commit('LOGOFF')
   },
   /**
@@ -256,7 +254,6 @@ export const actions = {
       if (error.response?.status === 401) {
         await unsetToken(this.app)
         await unsetUserSessionCookie(this.app)
-        await unsetWorkspaceCookie(this.app)
         if (getters.isAuthenticated) {
           dispatch('setUserSessionExpired', true)
         }
@@ -308,7 +305,6 @@ export const actions = {
   async setUserSessionExpired({ commit }, value) {
     await unsetToken(this.app)
     await unsetUserSessionCookie(this.app)
-    await unsetWorkspaceCookie(this.app)
     commit('SET_USER_SESSION_EXPIRED', value)
   },
   async fetchWorkspaceInvitations({ commit }) {

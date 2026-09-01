@@ -75,15 +75,20 @@ export default {
       const position = el.getAttribute('tooltip-position') || 'bottom'
       const topValue = parseInt(el.getAttribute('tooltip-top-value') || '2')
       const rectTooltip = el.tooltipElement.getBoundingClientRect()
+      // The arrow is drawn inside an 8px padding of the tooltip element. Without the
+      // arrow that padding is gone, so the tooltip must be placed closer to the
+      // target to keep a similar visible gap.
+      const noArrow = el.getAttribute('tooltip-no-arrow') !== null
+      const gap = noArrow ? 6 : 4
 
       switch (position) {
         case 'top':
           el.tooltipElement.style.top =
-            rect.top - topValue - rectTooltip.height + 'px'
+            rect.top - (noArrow ? 6 : topValue) - rectTooltip.height + 'px'
           el.tooltipElement.style.left = rect.left + rect.width / 2 + 'px'
           break
         case 'bottom-left':
-          el.tooltipElement.style.top = rect.bottom + 4 + 'px'
+          el.tooltipElement.style.top = rect.bottom + gap + 'px'
           el.tooltipElement.style.left = rect.right - rectTooltip.width + 'px'
           el.tooltipElement.style.setProperty(
             '--tooltip-cursor-position-right',
@@ -95,7 +100,7 @@ export default {
           )
           break
         case 'bottom-right':
-          el.tooltipElement.style.top = rect.bottom + 4 + 'px'
+          el.tooltipElement.style.top = rect.bottom + gap + 'px'
           el.tooltipElement.style.left = rect.left + 'px'
           el.tooltipElement.style.setProperty(
             '--tooltip-cursor-position-left',
@@ -107,7 +112,7 @@ export default {
           )
           break
         case 'bottom-cursor':
-          el.tooltipElement.style.top = rect.bottom + 4 + 'px'
+          el.tooltipElement.style.top = rect.bottom + gap + 'px'
           el.tooltipElement.style.left =
             Math.max(
               rect.left + 6,
@@ -116,8 +121,12 @@ export default {
             rectTooltip.width / 2 +
             'px'
           break
+        case 'right':
+          el.tooltipElement.style.top = rect.top + rect.height / 2 + 'px'
+          el.tooltipElement.style.left = rect.right + gap + 'px'
+          break
         default:
-          el.tooltipElement.style.top = rect.bottom + 4 + 'px'
+          el.tooltipElement.style.top = rect.bottom + gap + 'px'
           el.tooltipElement.style.left = rect.left + rect.width / 2 + 'px'
       }
     }
@@ -135,7 +144,27 @@ export default {
       }
     }
 
+    el.removeShowTimeout = () => {
+      if (el.tooltipShowTimeout) {
+        clearTimeout(el.tooltipShowTimeout)
+      }
+      el.tooltipShowTimeout = null
+    }
+
     el.tooltipMouseEnterEvent = (event) => {
+      el.removeShowTimeout()
+      const showDelay = parseInt(el.getAttribute('tooltip-show-delay') || '0')
+      if (showDelay > 0) {
+        el.tooltipShowTimeout = setTimeout(
+          () => el.tooltipOpen(event),
+          showDelay
+        )
+      } else {
+        el.tooltipOpen(event)
+      }
+    }
+
+    el.tooltipOpen = (event) => {
       switchToTooltip(el)
       const position = el.getAttribute('tooltip-position') || 'bottom'
       const hide = el.getAttribute('hide-tooltip')
@@ -150,6 +179,14 @@ export default {
         const classes = ['tooltip', 'tooltip--body']
         if (position === 'top') {
           classes.push('tooltip--top')
+        }
+
+        if (position === 'right') {
+          classes.push('tooltip--right')
+        }
+
+        if (el.getAttribute('tooltip-no-arrow') !== null) {
+          classes.push('tooltip--no-arrow')
         }
 
         if (position === 'top' || position === 'bottom') {
@@ -224,6 +261,7 @@ export default {
      * visible, if duration is > 0.
      */
     el.tooltipMoveLeaveEvent = () => {
+      el.removeShowTimeout()
       el.removeTimeout()
       el.tooltipTimeout = setTimeout(
         el.tooltipClose,
@@ -240,6 +278,7 @@ export default {
      * actually closing the tooltip here
      */
     el.tooltipClose = () => {
+      el.removeShowTimeout()
       el.removeTooltipOutsideClickCallback()
 
       if (el.tooltipElement) {
@@ -266,6 +305,10 @@ export default {
    * be destroyed if it wasn't already and all the events can be removed.
    */
   terminate(el) {
+    if (el.removeShowTimeout) {
+      el.removeShowTimeout()
+    }
+
     if (el.tooltipElement && el.tooltipElement.parentNode) {
       el.tooltipElement.parentNode.removeChild(el.tooltipElement)
     }

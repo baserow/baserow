@@ -66,12 +66,6 @@
         <DashboardVerifyEmail
           class="margin-top-0 margin-bottom-0"
         ></DashboardVerifyEmail>
-        <WorkspaceInvitation
-          v-for="invitation in workspaceInvitations"
-          :key="'invitation-' + invitation.id"
-          :invitation="invitation"
-          class="margin-top-0 margin-bottom-0"
-        ></WorkspaceInvitation>
         <div class="dashboard__extras">
           <div
             v-if="canCreateCreateApplication"
@@ -244,10 +238,11 @@ import { ref, computed, watchEffect } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
 import { useHead, useAsyncData } from '#imports'
 
+import { StoreItemLookupError } from '@baserow/modules/core/errors'
+
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import DashboardApplication from '@baserow/modules/core/components/dashboard/DashboardApplication'
-import WorkspaceInvitation from '@baserow/modules/core/components/workspace/WorkspaceInvitation'
 import TemplateCard from '@baserow/modules/core/components/template/TemplateCard'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -339,9 +334,15 @@ const {
     try {
       workspace = await $store.dispatch('workspace/selectById', workspaceId)
     } catch (e) {
+      // Only when the workspace is unknown the user is redirected to the all
+      // workspaces homepage after the async data resolves. Any other failure, like
+      // a transient permissions fetch error, must show the normal error page.
+      if (e instanceof StoreItemLookupError) {
+        return { workspaceNotFound: true }
+      }
       throw createError({
-        statusCode: 404,
-        message: 'Workspace not found.',
+        statusCode: 400,
+        message: 'Error loading dashboard.',
         data: {
           report: false,
         },
@@ -350,7 +351,6 @@ const {
     }
 
     try {
-      await $store.dispatch('auth/fetchWorkspaceInvitations')
       return await fetchWorkspaceExtraData(workspace)
     } catch {
       throw createError({
@@ -369,6 +369,10 @@ if (error.value) {
   throw error.value
 }
 
+if (dashboardData.value?.workspaceNotFound) {
+  await navigateTo({ name: 'all-workspaces' }, { replace: true })
+}
+
 /**
  * Hydrate local refs from the async data.
  * Keeps your existing `selectedWorkspace` and `workspaceComponentArguments`
@@ -384,10 +388,6 @@ watchEffect(() => {
 useHead(() => ({
   title: $i18n.t('dashboard.title'),
 }))
-
-const workspaceInvitations = computed(
-  () => $store.getters['auth/getWorkspaceInvitations']
-)
 
 const getAllOfWorkspace = (ws) =>
   $store.getters['application/getAllOfWorkspace'](ws)

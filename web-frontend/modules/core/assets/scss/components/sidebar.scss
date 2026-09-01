@@ -56,6 +56,18 @@
   }
 }
 
+.sidebar__workspaces-selector-link {
+  @include flex-align-items(10px);
+
+  flex: 1 1 auto;
+  min-width: 0;
+  color: $palette-neutral-1200;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
 .sidebar__workspaces-selector-selected-workspace {
   @extend %ellipsis;
 
@@ -240,16 +252,11 @@
   margin-right: 4px;
 }
 
-.sidebar__back-icon {
-  font-size: 14px;
-  color: $palette-neutral-700;
-}
-
 .sidebar__head {
   @include flex-align-items(15px);
 
   border-bottom: 1px solid $palette-neutral-200;
-  padding: 0 21px;
+  padding: 0 16px;
   height: 51px;
   color: $palette-neutral-1200;
   font-weight: 500;
@@ -261,17 +268,24 @@
 }
 
 .sidebar__back {
+  @include flex-align-items(0);
+
+  justify-content: center;
+  flex: 0 0 auto;
   width: 24px;
   height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: $palette-neutral-1200;
-
-  @include rounded($rounded-md);
+  border-radius: $rounded;
+  color: $palette-neutral-900;
+  font-size: 16px;
+  margin-left: -8px;
 
   &:hover {
-    background-color: rgba($palette-neutral-1300, 0.04);
+    background-color: rgba($palette-neutral-1300, 6%);
+    text-decoration: none;
+  }
+
+  .sidebar--collapsed & {
+    margin-left: 0;
   }
 }
 

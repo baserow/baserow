@@ -362,7 +362,7 @@ test.describe("Button field", () => {
 
     // "Link" only opens a URL, so the dispatch runs nothing server side.
     await createOpenUrlAction(g.user, g.fieldByName["Link"], {
-      url: "'/dashboard'",
+      url: "'/all-workspaces'",
       target: "self",
     });
 
@@ -427,7 +427,7 @@ test.describe("Button field", () => {
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'scrolled'" }],
     });
     await createOpenUrlAction(g.user, g.fieldByName["Deferred"], {
-      url: "'/dashboard'",
+      url: "'/all-workspaces'",
       target: "self",
     });
 
@@ -467,7 +467,7 @@ test.describe("Button field", () => {
     // "Reconfigure" starts as a link, so a test can retype it into a row
     // action and configure the new type in the same save.
     await createOpenUrlAction(g.user, g.fieldByName["Reconfigure"], {
-      url: "'/dashboard'",
+      url: "'/all-workspaces'",
       target: "self",
     });
 
@@ -687,8 +687,8 @@ test.describe("Button field", () => {
 
     // `open_url` is never dispatched server side. It comes back in
     // `client_actions` and the browser runs it, here in the same tab.
-    // `/dashboard` resolves to the user's default workspace, so accept either.
-    await expect(page).toHaveURL(/\/(dashboard|workspace\/\d+)/);
+    // `/all-workspaces` is the all workspaces homepage.
+    await expect(page).toHaveURL(/\/all-workspaces/);
   });
 
   test("actions added in the field editor are saved alongside the existing ones", async ({
@@ -1086,7 +1086,7 @@ test.describe("Button field", () => {
 
     // The `open_url` handed back by the dispatch still runs, in a browser
     // whose originating cell no longer exists.
-    await expect(page).toHaveURL(/\/(dashboard|workspace\/\d+)/);
+    await expect(page).toHaveURL(/\/all-workspaces/);
     expect(pageErrors).toEqual([]);
 
     const rows = await listRows(g.user, g.table);

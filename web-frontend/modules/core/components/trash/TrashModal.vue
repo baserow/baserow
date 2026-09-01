@@ -123,15 +123,20 @@ export default {
         // The initial or selected apps will not contain the trashed flag as they so
         // we must look them up in the workspaces fetched from the trash api.
         const applications = firstWorkspaceToShow.applications
+        // Must be normalized to `null` when not found because the store's selected
+        // application/workspace can be an empty object, and an `undefined` selection
+        // breaks the `=== null` checks that allow switching workspaces.
         if (this.initialApplication || this.initialWorkspace) {
           // When either of the initial props are set we have been opened via a context
           // menu shortcut.
           return this.initialApplication
-            ? applications.find((i) => i.id === this.initialApplication.id)
+            ? (applications.find((i) => i.id === this.initialApplication.id) ??
+                null)
             : null
         } else {
           return this.selectedApplication
-            ? applications.find((i) => i.id === this.selectedApplication.id)
+            ? (applications.find((i) => i.id === this.selectedApplication.id) ??
+                null)
             : null
         }
       }

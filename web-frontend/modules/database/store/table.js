@@ -201,8 +201,12 @@ export const actions = {
     })
 
     if (table._.selected) {
-      // Redirect back to the dashboard because the table doesn't exist anymore.
-      this.$router.push({ name: 'dashboard' })
+      // Redirect back to the workspace homepage because the table page doesn't
+      // exist anymore.
+      this.$router.push({
+        name: 'workspace',
+        params: { workspaceId: database.workspace.id },
+      })
     }
 
     commit('DELETE_ITEM', { database, id: table.id })

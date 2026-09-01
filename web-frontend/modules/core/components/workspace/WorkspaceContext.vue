@@ -201,7 +201,7 @@ export default {
           trash_item_id: this.workspace.id,
         })
         if (selected) {
-          await this.$router.push({ name: 'dashboard' })
+          await this.$router.push({ name: 'all-workspaces' })
           await pageFinished(this.nuxtApp)
           await nextTick()
         }

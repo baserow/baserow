@@ -190,9 +190,13 @@ import AdminDashboardService from '@baserow/modules/core/services/admin/dashboar
 
 export default {
   components: { ActiveUsers },
-  layout: 'app',
-  middleware: 'staff',
   setup() {
+    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
+    // `layout` and `middleware` component options.
+    definePageMeta({
+      layout: 'app',
+      middleware: 'staff',
+    })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('adminDashboard.title') })
   },

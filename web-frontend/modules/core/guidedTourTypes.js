@@ -237,6 +237,12 @@ export class SidebarGuidedTourType extends GuidedTourType {
   }
 
   isActive() {
-    return true
+    // The tour highlights elements of the workspace specific sidebar, so it must
+    // only start on pages that render that sidebar, and not on the all workspaces
+    // homepage for example. Use the `routeMounted` because that gives us the route
+    // that's actually mounted, making sure that the selector elements have been
+    // rendered.
+    const route = this.app.$store.getters['routeMounted/routeMounted']
+    return !!route && (route.meta?.sidebarType ?? 'workspace') === 'workspace'
   }
 }

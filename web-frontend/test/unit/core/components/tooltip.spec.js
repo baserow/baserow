@@ -53,6 +53,83 @@ describe('Tooltip directive', () => {
     expect(document.querySelector('.tooltip')).toBeTruthy()
   })
 
+  it('applies the right position and no arrow classes', async () => {
+    const PositionedComponent = {
+      template: `
+        <ButtonText
+          v-tooltip="'hello'"
+          tooltip-position="right"
+          tooltip-no-arrow
+        >test</ButtonText>
+      `,
+      components: { ButtonText },
+      directives: { tooltip },
+    }
+    const wrapper = shallowMount(PositionedComponent)
+
+    await wrapper.findComponent(ButtonText).trigger('mouseenter')
+
+    const element = document.querySelector('.tooltip')
+    expect(element.classList.contains('tooltip--right')).toBe(true)
+    expect(element.classList.contains('tooltip--no-arrow')).toBe(true)
+  })
+
+  describe('with a show delay', () => {
+    const DelayedComponent = {
+      template: `
+        <ButtonText v-tooltip="'hello'" tooltip-show-delay="500">
+          test
+        </ButtonText>
+      `,
+      components: { ButtonText },
+      directives: { tooltip },
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('only shows the tooltip after the delay', async () => {
+      const wrapper = shallowMount(DelayedComponent)
+      const buttonText = wrapper.findComponent(ButtonText)
+
+      await buttonText.trigger('mouseenter')
+      expect(document.querySelector('.tooltip')).toBeFalsy()
+
+      vi.advanceTimersByTime(499)
+      expect(document.querySelector('.tooltip')).toBeFalsy()
+
+      vi.advanceTimersByTime(1)
+      expect(document.querySelector('.tooltip')).toBeTruthy()
+    })
+
+    it('never shows the tooltip when leaving before the delay', async () => {
+      const wrapper = shallowMount(DelayedComponent)
+      const buttonText = wrapper.findComponent(ButtonText)
+
+      await buttonText.trigger('mouseenter')
+      await buttonText.trigger('mouseleave')
+
+      vi.runAllTimers()
+      expect(document.querySelector('.tooltip')).toBeFalsy()
+    })
+
+    it('never shows the tooltip when unmounted before the delay', async () => {
+      const wrapper = shallowMount(DelayedComponent)
+      const buttonText = wrapper.findComponent(ButtonText)
+
+      await buttonText.trigger('mouseenter')
+      wrapper.unmount()
+
+      vi.runAllTimers()
+      expect(document.querySelector('.tooltip')).toBeFalsy()
+    })
+  })
+
   afterEach(() => {
     const tooltips = document.querySelectorAll('.tooltip')
     tooltips.forEach((tooltip) => tooltip.remove())

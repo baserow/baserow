@@ -50,6 +50,7 @@ class UserWorkspaceInvitationSerializer(serializers.ModelSerializer):
 
     invited_by = serializers.SerializerMethodField()
     workspace = serializers.SerializerMethodField()
+    workspace_id = serializers.IntegerField(read_only=True)
     email_exists = serializers.SerializerMethodField()
 
     class Meta:
@@ -58,6 +59,7 @@ class UserWorkspaceInvitationSerializer(serializers.ModelSerializer):
             "id",
             "invited_by",
             "workspace",
+            "workspace_id",
             "email",
             "created_on",
             "email_exists",
