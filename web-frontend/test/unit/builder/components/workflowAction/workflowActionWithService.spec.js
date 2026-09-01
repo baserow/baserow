@@ -35,7 +35,7 @@ describe('WorkflowActionWithService', () => {
     const workflowAction = { id: 1, type, service }
     return testApp.mount(WorkflowActionWithService, {
       props: { workflowAction, defaultValues: workflowAction },
-      provide: { builder },
+      provide: { builder, workspace: { id: 1 } },
     })
   }
 
@@ -97,6 +97,61 @@ describe('WorkflowActionWithService', () => {
 
     expect(wrapper.vm.values.service.integration_id).toBe(INTEGRATION_ID)
     expect(wrapper.vm.values.service.table_id).toBe(1)
+  })
+
+  test('a service change does not re-apply a stale schema after the server refreshes it', async () => {
+    // Read-only backend fields (schema, context data, sample data) must always
+    // come from the latest `workflowAction.service`. Buffering them re-injected
+    // a stale schema on the next edit, which tore down and rebuilt the whole
+    // field mapping list (a visible flicker).
+    await seedIntegration()
+
+    const schemaV1 = { type: 'object', properties: {} }
+    const schemaV2 = {
+      type: 'object',
+      properties: { field_1: { metadata: { id: 1, name: 'Name' } } },
+    }
+
+    const wrapper = await mountAction('create_row', {
+      integration_id: INTEGRATION_ID,
+      table_id: 1,
+      schema: schemaV1,
+    })
+
+    const serviceForm = wrapper.findComponent({
+      name: 'LocalBaserowUpsertRowServiceForm',
+    })
+
+    // A first edit buffers the current (v1) service.
+    await serviceForm.vm.$emit('values-changed', { field_mappings: [] })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.values.service.schema).toEqual(schemaV1)
+
+    // The server responds and refreshes the action's service with a new schema.
+    const refreshed = {
+      id: 1,
+      type: 'create_row',
+      service: {
+        integration_id: INTEGRATION_ID,
+        table_id: 1,
+        schema: schemaV2,
+      },
+    }
+    await wrapper.setProps({
+      workflowAction: refreshed,
+      defaultValues: refreshed,
+    })
+
+    // A follow-up edit must carry the fresh schema, not the buffered stale one.
+    await serviceForm.vm.$emit('values-changed', {
+      field_mappings: [{ field_id: 1, enabled: true }],
+    })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.values.service.schema).toEqual(schemaV2)
+    // The editable change is still buffered.
+    expect(wrapper.vm.values.service.field_mappings).toEqual([
+      { field_id: 1, enabled: true },
+    ])
   })
 
   test('an action that picks no integration is left alone', async () => {
