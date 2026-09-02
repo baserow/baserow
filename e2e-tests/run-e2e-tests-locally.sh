@@ -26,8 +26,11 @@ if [ -z "${E2E_HTTP_STUB_URL:-}" ]; then
         export E2E_HTTP_STUB_URL="https://httpbin.org"
     fi
 fi
-# The dev stack's MailHog, which docker-compose.dev.yml already runs.
-export E2E_MAIL_API_URL="${E2E_MAIL_API_URL:-http://localhost:8025}"
+# The dev stack's MailHog, which the dev environment already runs. Its API port
+# is BASEROW_MAILHOG_WEB_PORT: 8025 for the default instance, 8035 and 8045 for
+# the alternates in .env.local-dev.example. Export that variable, or
+# E2E_MAIL_API_URL itself, when the stack under test is not the default one.
+export E2E_MAIL_API_URL="${E2E_MAIL_API_URL:-http://localhost:${BASEROW_MAILHOG_WEB_PORT:-8025}}"
 # What the dev backend was started with, which this script cannot set for it.
 # The tests that click until they are refused are skipped without it.
 export E2E_BUTTON_RATE_LIMIT="${E2E_BUTTON_RATE_LIMIT:-}"

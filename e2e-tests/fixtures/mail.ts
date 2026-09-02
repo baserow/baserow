@@ -74,8 +74,10 @@ export async function deleteEmail(id: string): Promise<void> {
 }
 
 /**
- * Waits for a message with the given subject. Sending goes through Celery, so
- * it does not land the moment the click returns.
+ * Waits for a message with the given subject. The action sends the message
+ * itself while the click is being answered, but the catcher has to accept it
+ * over SMTP and index it before its API lists it, so it is not there the
+ * instant the click returns.
  */
 export async function waitForEmail(subject: string): Promise<CapturedEmail> {
   let found: CapturedEmail | undefined;

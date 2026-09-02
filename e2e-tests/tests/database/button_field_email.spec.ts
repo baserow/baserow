@@ -37,6 +37,10 @@ const MAIL_FIELD_INDEX = 1;
 const MAIL_CHAIN_FIELD_INDEX = 2;
 
 let g: GridSetupResult;
+// The catcher keeps what every worker sent, and against a dev stack whatever
+// the developer captured before, so a fixed subject would find someone else's
+// message. Set once for the button `beforeAll` configures.
+let chainSubject: string;
 
 /** Something short and unique, so parallel workers cannot read each other's mail. */
 function token() {
@@ -77,9 +81,10 @@ test.describe("Button field, email action", () => {
 
     // "MailChain" sends, then writes, so an action that returns no row must
     // not break the ones after it.
+    chainSubject = `Chained ${token()}`;
     await createEmailAction(g.user, g.fieldByName["MailChain"], {
       to: "'chain@example.com'",
-      subject: "'Chained send'",
+      subject: `'${chainSubject}'`,
       body: "'Sent before the row was written'",
     });
     await createRowAction(g.user, g.fieldByName["MailChain"], {
@@ -123,11 +128,15 @@ test.describe("Button field, email action", () => {
     await grid.fieldCellAt(0, MAIL_FIELD_INDEX).locator("button").click();
 
     const email = await waitForEmail(subject);
-    expect(email.to).toContain(recipient);
-    // The body is a formula over the clicked row, not a fixed string.
-    expect(email.body).toContain("Ticket Ada");
-
-    await deleteEmail(email.id);
+    try {
+      expect(email.to).toContain(recipient);
+      // The body is a formula over the clicked row, not a fixed string.
+      expect(email.body).toContain("Ticket Ada");
+    } finally {
+      // In a `finally`, or a failed assertion leaves the message behind for
+      // every later run to read.
+      await deleteEmail(email.id);
+    }
   });
 
   test("a saved email action sends through the instance, with no integration", async () => {
@@ -154,5 +163,14 @@ test.describe("Button field, email action", () => {
     await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
       "after the email",
     );
+    // The row being written only says the sequence carried on. Whether the
+    // send before it reached anything is a question for the catcher.
+    const email = await waitForEmail(chainSubject);
+    try {
+      expect(email.to).toContain("chain@example.com");
+      expect(email.body).toContain("Sent before the row was written");
+    } finally {
+      await deleteEmail(email.id);
+    }
   });
 });
