@@ -115,7 +115,7 @@ baserow = "baserow.manage:main"
 [dependency-groups]
 dev = [
     "pre-commit>=4.0.0",
-    "ruff>=0.8.0",
+    "ruff>=0.16.5",
     "pytest==9.0.3",
     "pytest-django==4.12.0",
     "pytest-env==1.2.0",
