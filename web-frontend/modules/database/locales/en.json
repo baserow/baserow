@@ -1319,7 +1319,10 @@
     "staleReference": "This action uses a result from an action that no longer runs before it.",
     "unreadableReference": "This action uses a result from an action that no longer returns one.",
     "noInstanceSmtp": "This Baserow instance has no SMTP server configured, so a button cannot send email.",
-    "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email."
+    "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email.",
+    "slackOk": "OK",
+    "slackChannel": "Channel",
+    "slackTs": "Message timestamp"
   },
   "openUrlWorkflowActionForm": {
     "url": "URL",

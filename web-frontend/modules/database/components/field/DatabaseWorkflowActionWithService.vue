@@ -34,6 +34,27 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
+// A database has no single entry point the way a builder does, so its
+// integrations are fetched the first time an action asks for them. Keyed by
+// database id, so several actions of one field share one request.
+const integrationFetches = new Map()
+
+function fetchIntegrationsOnce(store, database) {
+  if (!integrationFetches.has(database.id)) {
+    integrationFetches.set(
+      database.id,
+      store
+        .dispatch('integration/fetch', { application: database })
+        .catch((error) => {
+          // Let the next opener try again rather than never listing them.
+          integrationFetches.delete(database.id)
+          throw error
+        })
+    )
+  }
+  return integrationFetches.get(database.id)
+}
+
 export default {
   name: 'DatabaseWorkflowActionWithService',
   components: { SampleDataViewer },
@@ -149,6 +170,11 @@ export default {
         this.fetchMappableFields(tableId)
       },
     },
+  },
+  created() {
+    if (this.workflowActionType.needsIntegration) {
+      fetchIntegrationsOnce(this.$store, this.database)
+    }
   },
   methods: {
     /**

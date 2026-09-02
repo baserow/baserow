@@ -73,17 +73,51 @@ describe('DatabaseWorkflowActionWithService', () => {
     })
   }
 
-  const mountAction = async (type = 'local_baserow_create_row', service = {}) =>
+  const mountAction = async (
+    type = 'local_baserow_create_row',
+    service = {},
+    database = { id: OWN_DATABASE_ID, workspace: WORKSPACE }
+  ) =>
     testApp.mount(DatabaseWorkflowActionWithService, {
       props: {
         workflowAction: { id: 1, type, service },
-        database: { id: OWN_DATABASE_ID, workspace: WORKSPACE },
+        database,
         defaultValues: { service },
       },
       global: {
         provide: { workspace: WORKSPACE },
       },
     })
+
+  test('a slack action fetches the bots of its database and offers them', async () => {
+    await seedApplications()
+    testApp.mock
+      .onGet(`application/${OWN_DATABASE_ID}/integrations/`)
+      .reply(200, [{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
+
+    // The store's own object, as the table page hands it down, so the list
+    // the fetch fills is the one the form reads.
+    const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
+    const wrapper = await mountAction('slack_write_message', {}, database)
+    await flushPromises()
+
+    // Fetched once, for the field's own database, and nothing else.
+    expect(testApp.mock.history.get.map((request) => request.url)).toEqual([
+      `application/${OWN_DATABASE_ID}/integrations/`,
+    ])
+    const dropdown = wrapper.findComponent({ name: 'IntegrationDropdown' })
+    expect(dropdown.exists()).toBe(true)
+    expect(dropdown.props('integrations').map((i) => i.name)).toEqual(['Bot'])
+  })
+
+  test('a row action fetches no integrations', async () => {
+    await seedApplications()
+
+    await mountAction('local_baserow_create_row')
+    await flushPromises()
+
+    expect(testApp.mock.history.get).toHaveLength(0)
+  })
 
   test('the service form gets the workspace databases', async () => {
     await seedApplications()

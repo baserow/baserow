@@ -10,6 +10,7 @@ import {
   CoreHTTPRequestServiceType,
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import {
@@ -136,6 +137,15 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
   /** Extra props for a type that narrows what the shared form offers. */
   get serviceFormProps() {
     return {}
+  }
+
+  /**
+   * Whether the form offers an integration dropdown, and so needs the
+   * database's integrations fetched for it. A button's actions carry none
+   * unless the type says which ones it can (ADR 006 section 5).
+   */
+  get needsIntegration() {
+    return false
   }
 
   getFormProps({ workflowAction, database }) {
@@ -604,5 +614,52 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
     return instanceSmtp.unavailable_reason === 'turned_off'
       ? this.app.$i18n.t('databaseWorkflowActionType.instanceSmtpTurnedOff')
       : this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
+  }
+}
+
+export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflowActionType {
+  static getType() {
+    return 'slack_write_message'
+  }
+
+  getOrder() {
+    return 60
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      SlackWriteMessageServiceType.getType()
+    )
+  }
+
+  /** The bot is the credential the message goes out through. */
+  get needsIntegration() {
+    return true
+  }
+
+  /**
+   * What `chat.postMessage` answers with whatever the message: mirrors the
+   * backend's `generate_schema`, so a later action can point at the
+   * message timestamp before anything is saved.
+   */
+  get baselineDataSchema() {
+    return {
+      type: 'object',
+      properties: {
+        ok: {
+          type: 'boolean',
+          title: this.app.$i18n.t('databaseWorkflowActionType.slackOk'),
+        },
+        channel: {
+          type: 'string',
+          title: this.app.$i18n.t('databaseWorkflowActionType.slackChannel'),
+        },
+        ts: {
+          type: 'string',
+          title: this.app.$i18n.t('databaseWorkflowActionType.slackTs'),
+        },
+      },
+    }
   }
 }

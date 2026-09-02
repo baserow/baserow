@@ -32,6 +32,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_delete_row',
       'local_baserow_update_row',
       'open_url',
+      'slack_write_message',
       'smtp_email',
     ])
   })
@@ -47,6 +48,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_delete_row',
       'http_request',
       'smtp_email',
+      'slack_write_message',
     ])
   })
 
@@ -445,10 +447,35 @@ describe('external database workflow action types', () => {
     expect(typeFor('http_request').serviceFormProps).toEqual({})
   })
 
+  test('an unsaved slack message already says what it will answer with', () => {
+    const actionType = typeFor('slack_write_message')
+
+    // Slack answers with the same three things whatever the message, so the
+    // action after it can point at the message timestamp before saving.
+    for (const workflowAction of [{ service: {} }, {}]) {
+      const schema = actionType.getDataSchema({}, workflowAction)
+      expect(Object.keys(schema.properties)).toEqual(['ok', 'channel', 'ts'])
+      expect(schema.properties.ok.type).toBe('boolean')
+      expect(schema.properties.ts.type).toBe('string')
+      expect(schema.title).toBe(actionType.label)
+    }
+  })
+
+  test('slack keeps the integration dropdown, the others do not need one', () => {
+    // A Slack bot is the credential the action sends through, so its form
+    // must offer the dropdown and the editor must fetch what it can list.
+    expect(typeFor('slack_write_message').serviceFormProps).toEqual({})
+    expect(typeFor('slack_write_message').needsIntegration).toBe(true)
+    expect(typeFor('smtp_email').needsIntegration).toBe(false)
+    expect(typeFor('http_request').needsIntegration).toBe(false)
+    expect(typeFor('local_baserow_create_row').needsIntegration).toBe(false)
+  })
+
   test('each resolves the shared service type and its form', () => {
     for (const [actionType, serviceType] of [
       ['http_request', 'http_request'],
       ['smtp_email', 'smtp_email'],
+      ['slack_write_message', 'slack_write_message'],
     ]) {
       const type = typeFor(actionType)
       expect(type.serviceType.getType()).toBe(serviceType)

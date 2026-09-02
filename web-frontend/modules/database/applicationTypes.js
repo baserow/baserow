@@ -92,6 +92,8 @@ export class DatabaseApplicationType extends ApplicationType {
     return {
       ...super.populate(application),
       tables,
+      // Filled by the button field editor when an action needs one.
+      integrations: application.integrations || [],
     }
   }
 

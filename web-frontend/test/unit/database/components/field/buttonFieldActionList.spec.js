@@ -80,6 +80,7 @@ describe('ButtonFieldActionList', () => {
       'local_baserow_delete_row',
       'http_request',
       'smtp_email',
+      'slack_write_message',
     ])
     // `$t` returns the key in the test env, so the name is checked against
     // the key the type uses and the copy itself is pinned separately.
