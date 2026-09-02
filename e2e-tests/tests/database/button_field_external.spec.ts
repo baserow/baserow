@@ -20,6 +20,7 @@ import {
   explorer,
   openFieldEditor,
   pickExplorerNode,
+  saveField,
 } from "../../pages/database/buttonFieldEditor";
 import {
   setupGrid,
@@ -70,6 +71,7 @@ const FRESH_FIELD_INDEX = 8;
 const CAPTURED_FIELD_INDEX = 9;
 const LIMITED_FIELD_INDEX = 10;
 const DUPLICATE_FIELD_INDEX = 11;
+const SESSION_FIELD_INDEX = 12;
 
 let g: GridSetupResult;
 let httpAction: WorkflowAction;
@@ -128,6 +130,9 @@ test.describe("Button field, external actions", () => {
         { name: "Captured", type: "button", settings: { label: "Captured" } },
         { name: "Limited", type: "button", settings: { label: "Limited" } },
         { name: "Duplicate", type: "button", settings: { label: "Duplicate" } },
+        // Built through the editor by the same-session test; `beforeAll`
+        // gives it no actions on purpose.
+        { name: "Session", type: "button", settings: { label: "Session" } },
       ],
     });
 
@@ -410,6 +415,94 @@ test.describe("Button field, external actions", () => {
         hasText: HTTP_ACTION,
       }),
     ).toHaveCount(1);
+  });
+
+  test("a request built and clicked in one session describes itself throughout", async ({
+    page,
+  }) => {
+    /**
+     * Both halves of the explorer's lifecycle, without ever leaving the page.
+     * Every other test here navigates or reloads between the steps, which
+     * reaches the backend again and hides what the editor is holding.
+     */
+
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const grid = await gridFor(page, g.user);
+
+    await openFieldEditor(page, "Session");
+
+    // An HTTP action that has never been saved: it starts with no service at
+    // all, so there is nothing for a schema to be read from.
+    await addAction(page, HTTP_ACTION);
+    await expandAction(page, 0);
+    await actionItem(page, 0)
+      .locator(".formula-input-field__editor")
+      .first()
+      .click();
+    await page.keyboard.type(`${STUB}/json`);
+
+    // The action after it is offered what a request always answers with,
+    // before either of them has been saved.
+    await addAction(page, "Open URL");
+    await expandAction(page, 1);
+    // Opened in a new tab, or the click below navigates away from the editor
+    // this test still has to reopen.
+    await actionItem(page, 1)
+      .locator(".segment-control__button", { hasText: "New tab" })
+      .click();
+    await actionItem(page, 1)
+      .locator(".formula-input-field__editor")
+      .first()
+      .click();
+
+    await expect(explorer(page)).toBeVisible();
+    await httpNode(page).click();
+    await expect(explorerNode(page, "Status code")).toHaveCount(1);
+    await expect(explorerNode(page, "Raw body")).toHaveCount(1);
+    // Only a real answer can describe the body, so it is not offered yet.
+    await expect(explorerNode(page, "Body")).toHaveCount(0);
+
+    // Referenced rather than only looked at, so the saved action really uses
+    // the node the explorer offered.
+    await pickExplorerNode(page, "Status code");
+    await saveField(page);
+    await expect(page.locator(".button-field-action-list")).toBeHidden();
+
+    const button = grid.fieldCellAt(0, SESSION_FIELD_INDEX).locator("button");
+    await button.click();
+    await expect(button).not.toHaveClass(/button--loading/, {
+      timeout: 30_000,
+    });
+    await expect(page.locator(".toast")).toHaveCount(0);
+
+    // Reopened with no navigation and no reload, so the answer can only be
+    // here because the editor read the actions again.
+    await openFieldEditor(page, "Session");
+    await expandAction(page, 0);
+    await expect(
+      actionItem(page, 0).locator(".sample-data-viewer"),
+    ).toHaveCount(1);
+
+    await expandAction(page, 1);
+    await actionItem(page, 1)
+      .locator(".formula-input-field__editor")
+      .first()
+      .click();
+    await expect(explorer(page)).toBeVisible();
+    // The formula already names this node, so the explorer may open it on its
+    // own. Clicking regardless would fold it back up, and the node list is
+    // still settling when the popup first appears.
+    await expect(async () => {
+      if ((await explorerNode(page, "Body").count()) === 0) {
+        await httpNode(page).click();
+      }
+      await expect(explorerNode(page, "Body")).toHaveCount(1);
+    }).toPass({ timeout: 15_000 });
+
+    // The stub's own keys, so this is the answer the click just got rather
+    // than the shape the action started with.
+    await pickExplorerNode(page, "Body", "slideshow");
+    await expect(explorerNode(page, "title")).toHaveCount(1);
   });
 
   // C. Chaining through an action that reaches outside
