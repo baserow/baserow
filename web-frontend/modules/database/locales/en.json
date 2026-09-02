@@ -1315,6 +1315,8 @@
   },
   "databaseWorkflowActionType": {
     "openUrl": "Open URL",
+    "sendEmail": "Send email",
+    "deleteRow": "Delete a row",
     "noUrl": "Enter a URL to open.",
     "staleReference": "This action uses a result from an action that no longer runs before it.",
     "unreadableReference": "This action uses a result from an action that no longer returns one.",

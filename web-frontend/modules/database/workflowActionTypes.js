@@ -11,6 +11,7 @@ import {
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
+import slackLogo from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import {
@@ -105,6 +106,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
 
   get icon() {
     return this.serviceType.icon
+  }
+
+  /** A logo drawn in place of a glyph, for the types the design gives one. */
+  get image() {
+    return null
   }
 
   get serviceType() {
@@ -420,7 +426,12 @@ export class LocalBaserowCreateRowWorkflowActionType extends DatabaseWorkflowAct
   }
 
   getOrder() {
-    return 10
+    return 30
+  }
+
+  /** The design draws this one circled (Figma 5206:9610). */
+  get icon() {
+    return 'iconoir-add-circle'
   }
 
   get mapsFields() {
@@ -441,7 +452,7 @@ export class LocalBaserowUpdateRowWorkflowActionType extends DatabaseWorkflowAct
   }
 
   getOrder() {
-    return 20
+    return 40
   }
 
   get mapsFields() {
@@ -462,7 +473,12 @@ export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowAct
   }
 
   getOrder() {
-    return 30
+    return 50
+  }
+
+  /** A button deletes the clicked row, so singular, as the design says. */
+  get label() {
+    return this.app.$i18n.t('databaseWorkflowActionType.deleteRow')
   }
 
   /**
@@ -521,7 +537,7 @@ export class CoreHTTPRequestWorkflowActionType extends DatabaseExternalWorkflowA
   }
 
   getOrder() {
-    return 40
+    return 10
   }
 
   get capturesSampleData() {
@@ -576,7 +592,15 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
   }
 
   getOrder() {
-    return 50
+    return 20
+  }
+
+  get icon() {
+    return 'iconoir-mail'
+  }
+
+  get label() {
+    return this.app.$i18n.t('databaseWorkflowActionType.sendEmail')
   }
 
   get serviceType() {
@@ -624,6 +648,15 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
 
   getOrder() {
     return 60
+  }
+
+  /** Drawn with the Slack logo rather than a glyph, as the design says. */
+  get icon() {
+    return null
+  }
+
+  get image() {
+    return slackLogo
   }
 
   get serviceType() {

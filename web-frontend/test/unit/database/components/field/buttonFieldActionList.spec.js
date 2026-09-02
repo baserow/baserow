@@ -75,11 +75,11 @@ describe('ButtonFieldActionList', () => {
 
     expect(items.map((item) => item.props('value'))).toEqual([
       'open_url',
+      'http_request',
+      'smtp_email',
       'local_baserow_create_row',
       'local_baserow_update_row',
       'local_baserow_delete_row',
-      'http_request',
-      'smtp_email',
       'slack_write_message',
     ])
     // `$t` returns the key in the test env, so the name is checked against
@@ -87,6 +87,10 @@ describe('ButtonFieldActionList', () => {
     expect(items[0].props('name')).toBe('databaseWorkflowActionType.openUrl')
     expect(en.databaseWorkflowActionType.openUrl).toBe('Open URL')
     expect(items[0].props('icon')).toBe('iconoir-link')
+    // Slack is drawn with its logo, which the item takes as an image.
+    const slack = items[items.length - 1]
+    expect(slack.props('icon')).toBeNull()
+    expect(slack.props('image')).toMatch(/svg/)
   })
 
   test('a type this instance cannot run is offered but not choosable', async () => {

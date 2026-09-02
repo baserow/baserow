@@ -43,13 +43,54 @@ describe('databaseWorkflowActionType registry', () => {
     )
     expect(ordered.map((type) => type.getType())).toEqual([
       'open_url',
+      'http_request',
+      'smtp_email',
       'local_baserow_create_row',
       'local_baserow_update_row',
       'local_baserow_delete_row',
-      'http_request',
-      'smtp_email',
       'slack_write_message',
     ])
+  })
+
+  test('each type shows the icon and label the design gives it', () => {
+    // Figma "New direction", node 5206:9610. `$t` returns the key here, so
+    // the copy is pinned against the locale file separately.
+    const registry = testApp._app.$registry
+    const expected = {
+      open_url: ['iconoir-link', 'databaseWorkflowActionType.openUrl'],
+      http_request: ['iconoir-cloud-upload', 'serviceType.coreHTTPRequest'],
+      smtp_email: ['iconoir-mail', 'databaseWorkflowActionType.sendEmail'],
+      local_baserow_create_row: [
+        'iconoir-add-circle',
+        'serviceType.localBaserowCreateRow',
+      ],
+      local_baserow_update_row: [
+        'iconoir-edit-pencil',
+        'serviceType.localBaserowUpdateRow',
+      ],
+      local_baserow_delete_row: [
+        'iconoir-bin',
+        'databaseWorkflowActionType.deleteRow',
+      ],
+    }
+    for (const [type, [icon, label]] of Object.entries(expected)) {
+      const actionType = registry.get('databaseWorkflowActionType', type)
+      expect([type, actionType.icon]).toEqual([type, icon])
+      expect([type, actionType.label]).toEqual([type, label])
+      expect(actionType.image).toBeFalsy()
+    }
+    expect(en.databaseWorkflowActionType.sendEmail).toBe('Send email')
+    expect(en.databaseWorkflowActionType.deleteRow).toBe('Delete a row')
+
+    // Slack is the one drawn with its own logo rather than a glyph.
+    const slack = registry.get(
+      'databaseWorkflowActionType',
+      'slack_write_message'
+    )
+    expect(slack.icon).toBeNull()
+    // Vite inlines the asset in tests, so only the format is checkable.
+    expect(slack.image).toMatch(/svg/)
+    expect(slack.label).toBe('serviceType.slackWriteMessage')
   })
 
   test('each type resolves a service type with a form component', () => {
@@ -63,7 +104,7 @@ describe('databaseWorkflowActionType registry', () => {
       expect(actionType.serviceType).toBeTruthy()
       expect(actionType.serviceType.formComponent).toBeTruthy()
       expect(actionType.label).toBeTruthy()
-      expect(actionType.icon).toBeTruthy()
+      expect(actionType.icon || actionType.image).toBeTruthy()
     }
   })
 
@@ -480,8 +521,6 @@ describe('external database workflow action types', () => {
       const type = typeFor(actionType)
       expect(type.serviceType.getType()).toBe(serviceType)
       expect(type.serviceType.formComponent).toBeTruthy()
-      expect(type.label).toBe(type.serviceType.name)
-      expect(type.icon).toBe(type.serviceType.icon)
     }
   })
 })

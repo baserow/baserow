@@ -60,6 +60,7 @@
                 v-for="actionType in availableActionTypes"
                 :key="actionType.getType()"
                 :icon="actionType.icon"
+                :image="actionType.image"
                 :name="actionType.label"
                 :value="actionType.getType()"
                 :description="deactivatedReasonFor(actionType)"
