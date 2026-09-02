@@ -1,8 +1,13 @@
 /**
- * Checks whether a workspace or application matches the all workspaces search
- * query. The name is matched case insensitively as a substring. A query consisting
- * of digits only additionally matches the id by prefix, so that typing `12` already
- * finds id `123` while the user is still typing.
+ * Checks whether an item matches a search query. The name is matched case
+ * insensitively as a substring. A query consisting of digits only additionally
+ * matches the id by prefix, so that typing `12` already finds id `123` while the
+ * user is still typing.
+ *
+ * @param {string} name The name of the item.
+ * @param {number|string} id The id of the item.
+ * @param {string} rawQuery The query as typed by the user.
+ * @returns {boolean} Whether the item matches.
  */
 export function matchesQuery(name, id, rawQuery) {
   const query = rawQuery.trim().toLowerCase()
@@ -48,6 +53,10 @@ function toLowerCaseWithOffsets(text) {
  * query, so that matches can be highlighted without `v-html`. Uses the same
  * lowercasing as `matchesQuery`, so everything that matches is also highlighted,
  * and always returns segments that concatenate back to the original text.
+ *
+ * @param {string} text The text to highlight in.
+ * @param {string} rawQuery The query as typed by the user.
+ * @returns {Array<{text: string, matched: boolean}>} The segments in order.
  */
 export function splitHighlight(text, rawQuery) {
   const query = rawQuery.trim().toLowerCase()
@@ -86,12 +95,4 @@ export function splitHighlight(text, rawQuery) {
   }
 
   return segments
-}
-
-/**
- * Selecting none or all of the application types both mean the user isn't
- * filtering, so the label and the filtering must agree on that rule.
- */
-export function isTypeFilterActive(selectedTypes, applicationTypeCount) {
-  return selectedTypes.length > 0 && selectedTypes.length < applicationTypeCount
 }

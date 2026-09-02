@@ -23,6 +23,11 @@ user_response_schema = {
                 "description": "An ISO 639 language code (with optional variant) "
                 "selected by the user. Ex: en-GB.",
             },
+            "preferences": {
+                # Documented by the preferences endpoint, whose serializer is
+                # generated from the registered preference types.
+                "$ref": "#/components/schemas/UserPreferences",
+            },
         },
     },
 }

@@ -32,7 +32,7 @@
       <div class="application-card__meta">
         {{ getApplicationTypeName(application) }}
         <span class="application-card__meta-separator">&#8226;</span>
-        {{ $t('allWorkspaces.created') }} {{ humanCreatedAt }}
+        {{ dateMeta }}
       </div>
     </div>
 
@@ -58,6 +58,10 @@
 import application from '@baserow/modules/core/mixins/application'
 import SearchHighlight from '@baserow/modules/core/components/SearchHighlight'
 import { getHumanPeriodAgoCount } from '@baserow/modules/core/utils/date'
+import {
+  SORT_BY_CREATED,
+  SORT_BY_LAST_VIEWED,
+} from '@baserow/modules/core/utils/allWorkspaces'
 
 export default {
   name: 'AllWorkspacesApplicationCard',
@@ -77,17 +81,42 @@ export default {
       required: false,
       default: '',
     },
+    sortBy: {
+      type: String,
+      required: false,
+      default: SORT_BY_LAST_VIEWED,
+    },
   },
   emits: ['click'],
   computed: {
-    humanCreatedAt() {
-      const { period, count } = getHumanPeriodAgoCount(
-        this.application.created_on
-      )
-      return this.$t(`datetime.${period}Ago`, { count })
+    dateMeta() {
+      // The creation date only matters while sorting by it; every other sort
+      // shows when the user last opened the application.
+      if (this.sortBy === SORT_BY_CREATED) {
+        return this.$t('common.createdAgo', {
+          ago: this.humanAgo(this.application.created_on),
+        })
+      }
+      if (!this.application.last_viewed) {
+        return this.$t('common.neverViewed')
+      }
+      return this.$t('common.viewedAgo', {
+        ago: this.humanAgo(this.application.last_viewed),
+      })
     },
   },
   methods: {
+    humanAgo(dateTime) {
+      const { period, count } = getHumanPeriodAgoCount(dateTime)
+      // Same wording as the `timeAgo` mixin for moments that are seconds old,
+      // which a just opened application always is.
+      if (period === 'seconds') {
+        return this.$t(
+          count <= 5 ? 'datetime.justNow' : 'datetime.lessThanMinuteAgo'
+        )
+      }
+      return this.$t(`datetime.${period}Ago`, { count })
+    },
     select() {
       // Clicking inside the name while it's being renamed inline must not
       // open the application.

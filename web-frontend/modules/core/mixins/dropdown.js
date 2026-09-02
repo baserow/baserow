@@ -189,9 +189,9 @@ export default {
       fixedItemsImmutable: this.fixedItems,
       reactiveMultiple: { value: this.multiple }, // Used for provide
       isDropdown: true, // Used for dropdown items to retrieve the parent dropdown component
-      selectedName: this.multiple ? [] : '',
-      selectedIcon: null,
-      selectedImage: null,
+      // Bumped whenever the registered items change, because the array holding
+      // them is deliberately not reactive.
+      dropdownItemsVersion: 0,
       hideCleanupFunctions: [], // Store cleanup functions to call on hide
     }
   },
@@ -204,6 +204,38 @@ export default {
     // Support both Vue 2 (value) and Vue 3 (modelValue)
     currentValue() {
       return this.modelValue !== undefined ? this.modelValue : this.value
+    },
+    /**
+     * The items only register themselves once mounted, which never happens during
+     * server side rendering. Until then their props are read from the default
+     * slot, so the first render and the server rendered HTML already show the
+     * selected value.
+     */
+    dropdownItems() {
+      this.dropdownItemsVersion
+      const registered = this.getDropdownItemComponents()
+      if (registered.length > 0) {
+        // A fresh array, because a computed that returns the same reference
+        // doesn't notify its dependents even though the version was bumped.
+        return [...registered]
+      }
+      const flatten = (vnodes) =>
+        vnodes.flatMap((vnode) =>
+          Array.isArray(vnode.children) ? flatten(vnode.children) : [vnode]
+        )
+      const vnodes = this.$slots.default ? flatten(this.$slots.default()) : []
+      return vnodes
+        .filter((vnode) => vnode.props?.value !== undefined)
+        .map((vnode) => vnode.props)
+    },
+    selectedName() {
+      return this.getSelectedProperty(this.currentValue, 'name')
+    },
+    selectedIcon() {
+      return this.getSelectedProperty(this.currentValue, 'icon')
+    },
+    selectedImage() {
+      return this.getSelectedProperty(this.currentValue, 'image')
     },
     realTabindex() {
       // We don't want to be able focus if the dropdown is disabled or if we have
@@ -267,6 +299,7 @@ export default {
       if (!this.registeredDropdownItems.includes(item)) {
         this.registeredDropdownItems.push(item)
         this.hasDropdownItem = true
+        this.dropdownItemsVersion++
       }
     },
     // Method to unregister a dropdown item
@@ -275,6 +308,7 @@ export default {
       if (index !== -1) {
         this.registeredDropdownItems.splice(index, 1)
         this.hasDropdownItem = this.registeredDropdownItems.length > 0
+        this.dropdownItemsVersion++
       }
     },
     /**
@@ -531,8 +565,7 @@ export default {
      */
     getSelectedProperty(value, property) {
       const get = (value, property) => {
-        for (const i in this.getDropdownItemComponents()) {
-          const item = this.getDropdownItemComponents()[i]
+        for (const item of this.dropdownItems) {
           if (_.isEqual(item.value, value)) {
             return item[property]
           }
@@ -541,7 +574,11 @@ export default {
       }
 
       if (this.multiple) {
-        return value.map((valueItem) => get(valueItem, property))
+        // Evaluated during the first render, before a parent's watcher has had
+        // the chance to normalize a `null` value into an array.
+        return Array.isArray(value)
+          ? value.map((valueItem) => get(valueItem, property))
+          : []
       } else {
         return get(value, property)
       }
@@ -559,13 +596,11 @@ export default {
       )
     },
     /**
-     * Updates the selected display properties (name, icon, image) from dropdown items.
-     * Called when value changes or dropdown items are added/removed.
+     * Makes the selected display properties (name, icon, image) recompute from
+     * the dropdown items, for changes the reactivity system can't observe.
      */
     updateSelectedProperties() {
-      this.selectedName = this.getSelectedProperty(this.currentValue, 'name')
-      this.selectedIcon = this.getSelectedProperty(this.currentValue, 'icon')
-      this.selectedImage = this.getSelectedProperty(this.currentValue, 'image')
+      this.dropdownItemsVersion++
     },
     /**
      * Force refresh of selected display values. Called by watchers, mounted hook,

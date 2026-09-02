@@ -24,7 +24,14 @@
     "friday": "Friday",
     "saturday": "Saturday",
     "sunday": "Sunday",
-    "value": "value"
+    "value": "value",
+    "created": "Created",
+    "lastViewed": "Last viewed",
+    "nameAsc": "Name (A-Z)",
+    "nameDesc": "Name (Z-A)",
+    "neverViewed": "Never viewed",
+    "createdAgo": "Created {ago}",
+    "viewedAgo": "Viewed {ago}"
   },
   "action": {
     "close": "Close",

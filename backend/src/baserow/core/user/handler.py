@@ -1,7 +1,7 @@
 import hashlib
 import hmac as hmac_module
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
@@ -76,6 +76,7 @@ from .exceptions import (
     UserIsLastAdmin,
     UserNotFound,
 )
+from .registries import user_preference_type_registry
 from .signals import user_password_changed
 from .tasks import share_onboarding_details_with_baserow
 from .utils import normalize_email_address
@@ -377,6 +378,43 @@ class UserHandler:
         user_updated.send(self, performed_by=user, user=user)
 
         return user
+
+    def get_user_preferences(self, user: AbstractUser) -> Dict[str, Any]:
+        """
+        :param user: The user to get the preferences of.
+        :return: A value for every registered preference type: the stored one when
+            the user changed it, the type's default otherwise. Stored keys whose
+            type is no longer registered are left out.
+        """
+
+        try:
+            stored = user.profile.preferences
+        except UserProfile.DoesNotExist:
+            # Users created outside `create_user`, like with `createsuperuser`.
+            stored = {}
+        return {
+            key: stored.get(key, default)
+            for key, default in user_preference_type_registry.get_defaults().items()
+        }
+
+    def update_user_preferences(
+        self, user: AbstractUser, preferences: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Stores the provided preferences, keeping the ones that are not provided.
+        The values are expected to be validated against the registered types
+        already, which the API serializer does.
+
+        :param user: The user to update the preferences of.
+        :param preferences: The changed values keyed by preference type.
+        :return: All preferences of the user, see `get_user_preferences`.
+        """
+
+        profile, _ = UserProfile.objects.select_for_update().get_or_create(user=user)
+        profile.preferences = {**profile.preferences, **preferences}
+        profile.save(update_fields=["preferences"])
+        user.profile = profile
+        return self.get_user_preferences(user)
 
     @staticmethod
     def _get_password_state_hash(user: AbstractUser) -> str:

@@ -52,6 +52,20 @@
       ></DropdownItem>
     </Dropdown>
 
+    <Dropdown
+      class="all-workspaces__sort"
+      :model-value="sortBy"
+      :show-search="false"
+      @update:model-value="$emit('update:sortBy', $event)"
+    >
+      <DropdownItem
+        v-for="option in sortOptions"
+        :key="option.value"
+        :name="option.name"
+        :value="option.value"
+      ></DropdownItem>
+    </Dropdown>
+
     <span ref="viewContextLink">
       <ButtonIcon
         type="secondary"
@@ -124,7 +138,13 @@
 <script>
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import { isMac } from '@baserow/modules/core/utils/events'
-import { isTypeFilterActive } from '@baserow/modules/core/utils/allWorkspacesSearch'
+import {
+  isTypeFilterActive,
+  SORT_BY_CREATED,
+  SORT_BY_LAST_VIEWED,
+  SORT_BY_NAME_ASC,
+  SORT_BY_NAME_DESC,
+} from '@baserow/modules/core/utils/allWorkspaces'
 
 export default {
   name: 'AllWorkspacesHeader',
@@ -142,15 +162,28 @@ export default {
       type: String,
       required: true,
     },
+    sortBy: {
+      type: String,
+      required: true,
+    },
   },
   emits: [
     'update:search',
     'update:selectedTypes',
     'update:viewMode',
+    'update:sortBy',
     'collapse-all',
     'expand-all',
   ],
   computed: {
+    sortOptions() {
+      return [
+        { value: SORT_BY_CREATED, name: this.$t('common.created') },
+        { value: SORT_BY_LAST_VIEWED, name: this.$t('common.lastViewed') },
+        { value: SORT_BY_NAME_ASC, name: this.$t('common.nameAsc') },
+        { value: SORT_BY_NAME_DESC, name: this.$t('common.nameDesc') },
+      ]
+    },
     searchActive() {
       return this.search.trim() !== ''
     },

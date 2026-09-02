@@ -34,6 +34,8 @@ export const state = () => ({
   userSessionExpired: false,
   workspaceInvitations: [],
   umreadUserNotificationCount: 0,
+  // What the backend last confirmed, so a failed change can be undone.
+  confirmedPreferences: {},
 })
 
 export const mutations = {
@@ -61,6 +63,7 @@ export const mutations = {
     state.permissions = permissions
 
     state.user = user
+    state.confirmedPreferences = { ...(user?.preferences ?? {}) }
     // Additional entries in the response payload could have been added via the
     // backend user data registry. We want to store them in the `additional` state so
     // that it can be used by other modules.
@@ -81,6 +84,9 @@ export const mutations = {
   },
   SET_ADDITIONAL_DATA(state, additional) {
     state.additional = additional
+  },
+  SET_CONFIRMED_PREFERENCES(state, values) {
+    state.confirmedPreferences = { ...state.confirmedPreferences, ...values }
   },
   LOGOFF(state) {
     state.token = null
@@ -285,6 +291,56 @@ export const actions = {
     commit('UPDATE_USER_DATA', data)
     this.app.$bus.$emit('user-data-updated', data)
   },
+  /**
+   * Changes one or more user preferences. The store is updated optimistically,
+   * requests are sent one at a time in dispatch order so the backend ends up
+   * with the latest value, and a request whose values were superseded before it
+   * was sent is skipped. A failed request rolls its keys back to the last value
+   * the backend confirmed, unless a newer change already replaced them.
+   */
+  async updateUserPreferences({ state, getters, commit, dispatch }, values) {
+    const keys = Object.keys(values)
+    const userId = getters.getUserId
+    const pickKeys = (source) =>
+      Object.fromEntries(keys.map((key) => [key, source[key]]))
+    // A response must not touch the store of another session.
+    const stillApplies = () =>
+      getters.isAuthenticated &&
+      getters.getUserId === userId &&
+      keys.every((key) => getters.getUserPreference(key) === values[key])
+    const apply = (source) =>
+      dispatch('forceUpdateUserData', {
+        user: {
+          preferences: { ...getters.getUserPreferences, ...pickKeys(source) },
+        },
+      })
+
+    apply(values)
+    const write = (this._preferenceWrite ?? Promise.resolve())
+      .catch(() => {})
+      .then(async () => {
+        if (!stillApplies()) {
+          return null
+        }
+        try {
+          const { data } = await AuthService(this.$client).updatePreferences(
+            values
+          )
+          commit('SET_CONFIRMED_PREFERENCES', pickKeys(data))
+          if (stillApplies()) {
+            apply(data)
+          }
+          return data
+        } catch (error) {
+          if (stillApplies()) {
+            apply(state.confirmedPreferences)
+          }
+          throw error
+        }
+      })
+    this._preferenceWrite = write
+    return await write
+  },
   setUserData({ commit, dispatch }, data) {
     commit('SET_USER_DATA', data)
     dispatch(
@@ -379,6 +435,12 @@ export const getters = {
   },
   getCompletedGuidedTour(state) {
     return state?.user?.completed_guided_tours || []
+  },
+  getUserPreferences(state) {
+    return state?.user?.preferences || {}
+  },
+  getUserPreference: (state, getters) => (key) => {
+    return getters.getUserPreferences[key]
   },
   getUntrustedClientSessionId(state) {
     return state.untrustedClientSessionId

@@ -21,7 +21,6 @@
     "clearSearch": "Clear search",
     "membersCount": "0 members | 1 member | {count} members",
     "itemsCount": "0 items | 1 item | {count} items",
-    "created": "Created",
     "moreElements": "{count} more element | {count} more elements",
     "noApplications": "No builders yet",
     "noFilterMatches": "No items match the selected types.",

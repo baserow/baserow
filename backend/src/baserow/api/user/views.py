@@ -132,6 +132,7 @@ from .serializers import (
     TokenObtainPairWithUserSerializer,
     TokenRefreshWithUserSerializer,
     TokenVerifyWithUserSerializer,
+    UserPreferencesSerializer,
     UserSerializer,
     VerifyEmailAddressSerializer,
     log_in_user,
@@ -630,6 +631,30 @@ class AccountView(APIView):
             request.user, **data
         )
         return Response(AccountSerializer(user).data)
+
+
+class UserPreferencesView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        tags=["User"],
+        request=UserPreferencesSerializer,
+        operation_id="update_user_preferences",
+        description=(
+            "Changes one or more preferences of the authenticated user, such as "
+            "the default sort order of a listing page. Preferences that are not "
+            "provided keep their value. Responds with all preferences."
+        ),
+        responses={
+            200: UserPreferencesSerializer,
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+        },
+    )
+    @transaction.atomic
+    @validate_body(UserPreferencesSerializer)
+    def patch(self, request, data):
+        preferences = UserHandler().update_user_preferences(request.user, data)
+        return Response(preferences)
 
 
 class SendVerifyEmailView(APIView):
