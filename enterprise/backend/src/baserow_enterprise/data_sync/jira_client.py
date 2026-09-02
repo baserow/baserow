@@ -102,7 +102,7 @@ def _approximate_total(jira: Jira, jql: str) -> int:
             return int(result.get("count") or 0)
         return 0
     except (HTTPError, RequestException) as e:
-        logger.debug("Could not fetch Jira approximate count: %s", e)
+        logger.debug("Could not fetch Jira approximate count: {}", e)
         return 0
 
 

@@ -91,7 +91,7 @@ class AppAuthProviderType(
         if not user_info.email_verified:
             logger.warning(
                 "Rejecting Builder SSO login — provider reported email as "
-                "unverified (provider_id=%s)",
+                "unverified (provider_id={})",
                 auth_provider.id,
             )
             raise UnverifiedEmailFromProvider()

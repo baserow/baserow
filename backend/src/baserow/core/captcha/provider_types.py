@@ -46,7 +46,7 @@ class CloudflareTurnstileCaptchaProviderType(CaptchaProviderType):
 
         if not result.get("success"):
             error_codes = result.get("error-codes", [])
-            logger.warning("Cloudflare Turnstile verification failed: %s", error_codes)
+            logger.warning("Cloudflare Turnstile verification failed: {}", error_codes)
             raise CaptchaVerificationFailed("Captcha verification failed.")
 
         return True
