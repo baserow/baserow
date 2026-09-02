@@ -187,6 +187,38 @@ describe('FormattedText', () => {
     expect(push).toHaveBeenCalledWith('/terms')
   })
 
+  test('routes internal links through the router when nested markup is clicked', async () => {
+    const push = vi
+      .spyOn(useNuxtApp().$router, 'push')
+      .mockImplementation(() => Promise.resolve())
+    const wrapper = await mountComponent({
+      content: '[**terms**](/terms)',
+      format: 'markdown',
+      preset: 'inlineLinks',
+    })
+
+    const event = click(wrapper, 'a.ab-link strong')
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(push).toHaveBeenCalledWith('/terms')
+  })
+
+  test('ignores clicks outside links', async () => {
+    const push = vi
+      .spyOn(useNuxtApp().$router, 'push')
+      .mockImplementation(() => Promise.resolve())
+    const wrapper = await mountComponent({
+      content: '**bold** [terms](/terms)',
+      format: 'markdown',
+      preset: 'inlineLinks',
+    })
+
+    const event = click(wrapper, 'strong')
+
+    expect(event.defaultPrevented).toBe(false)
+    expect(push).not.toHaveBeenCalled()
+  })
+
   test('leaves external links to the browser', async () => {
     const push = vi
       .spyOn(useNuxtApp().$router, 'push')

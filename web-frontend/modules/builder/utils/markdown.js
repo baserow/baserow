@@ -212,8 +212,11 @@ export const handleMarkdownClick = (event, { mode, router }) => {
     event.preventDefault()
     return
   }
-  if (event.target.classList.contains('ab-link')) {
-    const url = event.target.getAttribute('href')
+  // The click target can be nested markup inside the link, e.g. the `<strong>`
+  // of `[**terms**](/terms)`, so look up the closest link instead.
+  const link = event.target.closest('a.ab-link')
+  if (link) {
+    const url = link.getAttribute('href')
 
     if (url.startsWith('/')) {
       event.preventDefault()
