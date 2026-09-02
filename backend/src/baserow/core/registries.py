@@ -1585,6 +1585,80 @@ class EmailContextRegistry(Registry[EmailContextType]):
         return context
 
 
+class LastViewedItemType(Instance, ModelInstanceMixin):
+    """
+    A leaf item whose "last viewed" moments are tracked per user, like a view or a
+    builder page. Only leaves are registered: applications and workspaces derive
+    their value from their children.
+    """
+
+    def get_queryset_for_user(self, user_id: int) -> QuerySet:
+        """
+        Resolves an item that is about to be recorded as viewed. It must leave out
+        trashed items, items under a trashed parent and items in workspaces the
+        user is not a member of, because the "loaded" endpoints also serve template
+        previews. Use `select_related` for what the getters below need.
+
+        :param user_id: The id of the user that opened the item.
+        :return: The items the user can have viewed.
+        """
+
+        raise NotImplementedError
+
+    def get_application_id(self, instance) -> int:
+        """
+        :param instance: An item fetched with `get_queryset_for_user`.
+        :return: The id of the application the item belongs to.
+        """
+
+        raise NotImplementedError
+
+    def get_workspace_id(self, instance) -> int:
+        """
+        :param instance: An item fetched with `get_queryset_for_user`.
+        :return: The id of the workspace the item belongs to.
+        """
+
+        raise NotImplementedError
+
+    def get_existing_item_ids_queryset(self) -> QuerySet:
+        """
+        Items that still exist in any state. Trashed items are intentionally
+        included because they can be restored; the rows disappear once an item is
+        permanently deleted, see `get_item_ids_of_permanently_deleted`.
+
+        :return: The queryset used to detect stale last viewed rows.
+        """
+
+        manager = getattr(self.model_class, "objects_and_trash", None)
+        if manager is None:
+            manager = self.model_class.objects
+        return manager.all()
+
+    def get_item_ids_of_permanently_deleted(
+        self, trash_item_type: str, trash_item
+    ) -> Iterable[int]:
+        """
+        Called right before any trash item is permanently deleted, so the rows of
+        the items of this type that disappear with it can be removed. Parents
+        cascade at the database level without a signal per child, which is why a
+        type may have to answer for its parents too.
+
+        :param trash_item_type: The type of the `TrashableItemType` being deleted.
+        :param trash_item: The instance being deleted.
+        :return: The ids of the items of this type that are gone, empty when the
+            deletion is unrelated.
+        """
+
+        return []
+
+
+class LastViewedItemTypeRegistry(
+    Registry[LastViewedItemType], ModelRegistryMixin[Any, LastViewedItemType]
+):
+    name = "last_viewed_item"
+
+
 # A default plugin and application registry is created here, this is the one that is
 # used throughout the whole Baserow application. To add a new plugin or application use
 # these registries.
@@ -1596,6 +1670,9 @@ permission_manager_type_registry: PermissionManagerTypeRegistry = (
     PermissionManagerTypeRegistry()
 )
 object_scope_type_registry: ObjectScopeTypeRegistry = ObjectScopeTypeRegistry()
+last_viewed_item_type_registry: LastViewedItemTypeRegistry = (
+    LastViewedItemTypeRegistry()
+)
 subject_type_registry: SubjectTypeRegistry = SubjectTypeRegistry()
 operation_type_registry: OperationTypeRegistry = OperationTypeRegistry()
 serialization_processor_registry: SerializationProcessorRegistry = (

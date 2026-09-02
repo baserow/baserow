@@ -23,6 +23,7 @@ from .abuse_reports.models import AbuseReport
 from .action.models import Action
 from .ai_provider.models import AIProviderConfig, AIProviderModel
 from .integrations.models import Integration
+from .last_viewed.models import UserLastViewedItem
 from .mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
@@ -37,6 +38,7 @@ from .services.models import Service
 
 __all__ = [
     "Settings",
+    "UserLastViewedItem",
     "Workspace",
     "WorkspaceUser",
     "WorkspaceInvitation",

@@ -793,6 +793,16 @@ class ViewType(
             have been updated.
         """
 
+    def after_field_options_loaded(self, view: "View", user: AbstractUser) -> None:
+        """
+        Called after the field options of the view have been served to the user.
+        For view types whose editor has no rows endpoint this request is the one
+        that means the user opened the view, so they can broadcast that here.
+
+        :param view: The view whose field options were loaded.
+        :param user: The user that requested them.
+        """
+
     def after_fields_type_change(self, fields: List["Field"]) -> None:
         """
         This hook is called after the type of a field has changed and gives the

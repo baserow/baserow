@@ -468,6 +468,7 @@ def broadcast_application_created(
         PolymorphicApplicationResponseSerializer,
     )
     from baserow.core.handler import CoreHandler
+    from baserow.core.last_viewed.handler import LastViewedHandler
     from baserow.core.models import Application, WorkspaceUser
     from baserow.core.operations import ReadApplicationOperationType
 
@@ -495,12 +496,21 @@ def broadcast_application_created(
     ]
 
     users_in_workspace_id_map = {user.id: user for user in users_in_workspace}
+    # Payloads are per user, so the restore of a trashed application can carry
+    # the value the user had before.
+    last_viewed_per_user = LastViewedHandler.get_last_viewed_per_user_and_application(
+        [application.id], user_ids
+    )
 
     payload_map = {}
     for user_id in user_ids:
         user = users_in_workspace_id_map[user_id]
         application_serialized = PolymorphicApplicationResponseSerializer(
-            application, context={"user": user}
+            application,
+            context={
+                "user": user,
+                "last_viewed_per_application": last_viewed_per_user.get(user_id, {}),
+            },
         ).data
 
         payload_map[str(user_id)] = {

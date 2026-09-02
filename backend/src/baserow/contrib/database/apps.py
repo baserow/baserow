@@ -832,6 +832,13 @@ class DatabaseConfig(AppConfig):
         object_scope_type_registry.register(TokenObjectScopeType())
         object_scope_type_registry.register(DatabaseWorkflowActionObjectScopeType())
 
+        from baserow.contrib.database.views.last_viewed_types import (
+            DatabaseViewLastViewedItemType,
+        )
+        from baserow.core.registries import last_viewed_item_type_registry
+
+        last_viewed_item_type_registry.register(DatabaseViewLastViewedItemType())
+
         from baserow.contrib.database.views.operations import (
             CanReceiveNotificationOnSubmitFormViewOperationType,
             ReadViewDefaultValuesOperationType,

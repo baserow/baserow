@@ -650,6 +650,20 @@ export class RealTimeHandler {
       }
     })
 
+    this.registerEvent('last_viewed_updated', ({ store }, data) => {
+      const application = store.getters['application/get'](data.application_id)
+      if (
+        application !== undefined &&
+        (!application.last_viewed ||
+          Date.parse(data.last_viewed) > Date.parse(application.last_viewed))
+      ) {
+        store.dispatch('application/forceUpdate', {
+          application,
+          data: { last_viewed: data.last_viewed },
+        })
+      }
+    })
+
     this.registerEvent('application_deleted', ({ store }, data) => {
       const application = store.getters['application/get'](data.application_id)
       if (application !== undefined) {

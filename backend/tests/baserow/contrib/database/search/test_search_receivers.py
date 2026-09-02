@@ -199,7 +199,11 @@ def test_schedule_update_search_data_is_triggered_on_first_view_load(
 
     assert mock.call_count == 0
     view_loaded.send(
-        sender=grid_view, view=grid_view, table=table_1, table_model=table_1.get_model()
+        user=user,
+        sender=grid_view,
+        view=grid_view,
+        table=table_1,
+        table_model=table_1.get_model(),
     )
     assert mock.call_count == 1
     assert mock.call_args_list[0][0][0].id == table_1.id

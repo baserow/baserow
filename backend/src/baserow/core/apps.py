@@ -536,6 +536,7 @@ class CoreConfig(AppConfig):
 
             patch_user_model_str()
 
+        import baserow.core.last_viewed.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401
         from baserow.core.telemetry.telemetry import setup_logging
 

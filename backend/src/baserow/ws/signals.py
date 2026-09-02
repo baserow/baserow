@@ -19,6 +19,7 @@ from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs import signals as jobs_signals
+from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.models import Application, WorkspaceUser
 from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
@@ -232,11 +233,17 @@ def workspace_restored(sender, workspace_user, user, **kwargs):
         applications_qs,
         workspace=workspace_user.workspace,
     )
-    applications_qs = specific_iterator(applications_qs)
+    applications_qs = list(specific_iterator(applications_qs))
+    context = {
+        "user": workspace_user.user,
+        "last_viewed_per_application": (
+            LastViewedHandler.get_last_viewed_per_application(
+                workspace_user.user, [a.id for a in applications_qs]
+            )
+        ),
+    }
     applications = [
-        PolymorphicApplicationResponseSerializer(
-            application, context={"user": workspace_user.user}
-        ).data
+        PolymorphicApplicationResponseSerializer(application, context=context).data
         for application in applications_qs
     ]
 

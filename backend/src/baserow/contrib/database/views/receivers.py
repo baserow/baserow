@@ -11,6 +11,9 @@ from baserow.contrib.database.rows.signals import (
     rows_updated,
 )
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.views.last_viewed_types import (
+    DatabaseViewLastViewedItemType,
+)
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.signals import (
     view_filter_created,
@@ -19,8 +22,10 @@ from baserow.contrib.database.views.signals import (
     view_filter_group_deleted,
     view_filter_group_updated,
     view_filter_updated,
+    view_loaded,
     view_updated,
 )
+from baserow.core.last_viewed.handler import LastViewedHandler
 
 from .handler import ViewSubscriptionHandler
 
@@ -94,3 +99,10 @@ def notify_field_updated(sender, field, related_fields, user, **kwargs):
 @receiver(field_deleted)
 def notify_field_deleted(sender, field_id, field, related_fields, user, **kwargs):
     _notify_tables_of_fields_updated_or_deleted(field, related_fields, user, **kwargs)
+
+
+@receiver(view_loaded)
+def view_loaded_mark_last_viewed(sender, view, user, **kwargs):
+    LastViewedHandler.schedule_mark_viewed(
+        user, DatabaseViewLastViewedItemType.type, view.id
+    )
