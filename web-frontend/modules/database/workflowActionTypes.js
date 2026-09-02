@@ -586,6 +586,25 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
   }
 
   /**
+   * An email answers with whether it went out and nothing else, so the shape
+   * is known before anything is sent. Without it an action added here is
+   * missing from the next action's explorer until the field is saved and
+   * reopened. Matches what the backend builds for the saved service.
+   */
+  get baselineDataSchema() {
+    return {
+      type: 'object',
+      properties: {
+        success: {
+          type: 'boolean',
+          title: 'Success',
+          description: 'Whether the email was sent successfully',
+        },
+      },
+    }
+  }
+
+  /**
    * Why this installation cannot send, read from the settings the editor
    * already has rather than from the action. An action being configured has
    * not been saved yet and carries no service to ask, so without this the

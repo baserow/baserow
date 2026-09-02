@@ -382,6 +382,33 @@ describe('external database workflow action types', () => {
     }
   })
 
+  test('an unsaved email already says what it will answer with', () => {
+    const actionType = typeFor('smtp_email')
+
+    // An email answers with whether it went out and nothing else, so the
+    // action after it can read that before anything is saved.
+    for (const workflowAction of [{ service: {} }, {}]) {
+      const schema = actionType.getDataSchema({}, workflowAction)
+      expect(Object.keys(schema.properties)).toEqual(['success'])
+      expect(schema.properties.success.type).toBe('boolean')
+      expect(schema.title).toBe(actionType.label)
+    }
+  })
+
+  test('a saved email is described by its own service', () => {
+    const actionType = typeFor('smtp_email')
+    const schema = {
+      type: 'object',
+      title: 'SMTPEmail12Schema',
+      properties: { success: { type: 'boolean', title: 'Success' } },
+    }
+
+    expect(actionType.getDataSchema({}, { service: { schema } })).toEqual({
+      ...schema,
+      title: actionType.label,
+    })
+  })
+
   test('a table fetch cannot describe them either', () => {
     const actionType = typeFor('http_request')
     const applicationContext = { tableFields: { 1: [{ id: 2, type: 'text' }] } }
