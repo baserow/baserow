@@ -43,6 +43,7 @@ def test_get_automation_application(api_client, data_fixture):
             "name": workspace.name,
             "generative_ai_models_enabled": {},
         },
+        "last_viewed": None,
         "workflows": [
             {
                 "automation_id": automation.id,
@@ -99,6 +100,7 @@ def test_list_automation_applications(api_client, data_fixture):
                 "name": workspace.name,
                 "generative_ai_models_enabled": {},
             },
+            "last_viewed": None,
             "workflows": [
                 {
                     "automation_id": automation.id,

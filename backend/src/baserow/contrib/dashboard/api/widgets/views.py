@@ -25,6 +25,7 @@ from baserow.api.utils import (
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
 from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
+from baserow.contrib.dashboard.signals import dashboard_loaded
 from baserow.contrib.dashboard.widgets.actions import (
     CreateWidgetActionType,
     DeleteWidgetActionType,
@@ -100,7 +101,14 @@ class WidgetsView(APIView):
         """
 
         widgets = WidgetService().get_widgets(request.user, dashboard_id)
-        return Response(serialize_widgets(widgets))
+        data = serialize_widgets(widgets)
+
+        # The frontend requests the widgets exactly once per dashboard visit.
+        dashboard_loaded.send(
+            sender=self, dashboard_id=int(dashboard_id), user=request.user
+        )
+
+        return Response(data)
 
     @extend_schema(
         parameters=[
