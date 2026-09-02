@@ -11,10 +11,29 @@ from baserow.core.models import Application
 from baserow.core.registries import application_type_registry
 
 
+class LastViewedField(serializers.DateTimeField):
+    """
+    Read from the per user context instead of the instance. Not a
+    `SerializerMethodField` because read only fields are always documented as
+    required, while responses that are not for a specific user leave the key out.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(required=False, allow_null=True, source="*", **kwargs)
+
+    def to_representation(self, instance):
+        value = self.context.get("last_viewed_per_application", {}).get(instance.id)
+        return super().to_representation(value) if value else None
+
+
 class ApplicationSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     workspace = WorkspaceSerializer(
         help_text="The workspace that the application belongs to."
+    )
+    last_viewed = LastViewedField(
+        help_text="When the requesting user last opened something in this "
+        "application, or null if never. Only present in responses to a user."
     )
 
     class Meta:
@@ -26,12 +45,22 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "type",
             "workspace",
             "created_on",
+            "last_viewed",
         )
         extra_kwargs = {"id": {"read_only": True}}
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
         return application_type_registry.get_by_model(instance.specific_class).type
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Only the views that know the requesting user provide the values. Anything
+        # else (realtime payloads, jobs) leaves the key out rather than sending a
+        # `null` that would overwrite what the client already knows.
+        if "last_viewed_per_application" not in self.context:
+            data.pop("last_viewed", None)
+        return data
 
 
 class PolymorphicApplicationResponseSerializer(PolymorphicSerializer):

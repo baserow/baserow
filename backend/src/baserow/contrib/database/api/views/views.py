@@ -1866,7 +1866,9 @@ class ViewFieldOptionsView(APIView):
             raise ViewDoesNotSupportFieldOptions(
                 "The view type does not have a `field_options_serializer_class`"
             ) from exc
-        return Response(serializer_class(view).data)
+        response = Response(serializer_class(view).data)
+        view_type.after_field_options_loaded(view, request.user)
+        return response
 
     @extend_schema(
         parameters=[

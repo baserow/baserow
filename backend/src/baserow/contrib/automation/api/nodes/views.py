@@ -74,6 +74,9 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_loaded,
+)
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 
 AUTOMATION_NODES_TAG = "Automation nodes"
@@ -187,6 +190,10 @@ class AutomationNodesView(APIView):
             ).data
             for node in nodes
         ]
+
+        automation_workflow_loaded.send(
+            sender=self, workflow=workflow, user=request.user
+        )
 
         return Response(data)
 

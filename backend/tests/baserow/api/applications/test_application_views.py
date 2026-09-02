@@ -6,6 +6,7 @@ from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
@@ -19,6 +20,7 @@ from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandl
 from baserow.contrib.database.models import Database
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.models import Template
 from baserow.core.operations import ListApplicationsWorkspaceOperationType
 from baserow.core.registries import application_type_registry
@@ -732,3 +734,49 @@ def test_anon_user_can_list_apps_of_app_in_template_workspace(
     tables = response_json[0]["tables"]
     assert len(tables) == 1
     assert tables[0]["id"] == table.id
+
+
+@pytest.mark.django_db
+def test_applications_expose_last_viewed_of_requesting_user(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(users=[user, other_user])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view_1 = data_fixture.create_grid_view(table=table)
+    view_2 = data_fixture.create_grid_view(table=table)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+
+    with freeze_time("2026-01-01T12:00:00Z"):
+        LastViewedHandler.mark_viewed(user.id, "database_view", view_1.id)
+    with freeze_time("2026-01-02T12:00:00Z"):
+        LastViewedHandler.mark_viewed(user.id, "database_view", view_2.id)
+        LastViewedHandler.mark_viewed(other_user.id, "dashboard", dashboard.id)
+
+    def last_viewed_by_id(response):
+        return {app["id"]: app["last_viewed"] for app in response.json()}
+
+    for url in (
+        reverse("api:applications:list"),
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+    ):
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        assert last_viewed_by_id(response) == {
+            database.id: "2026-01-02T12:00:00Z",
+            dashboard.id: None,
+        }
+
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {other_token}")
+        assert response.status_code == HTTP_200_OK
+        assert last_viewed_by_id(response) == {
+            database.id: None,
+            dashboard.id: "2026-01-02T12:00:00Z",
+        }
+
+    response = api_client.get(
+        reverse("api:applications:item", kwargs={"application_id": database.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["last_viewed"] == "2026-01-02T12:00:00Z"

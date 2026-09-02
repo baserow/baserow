@@ -160,7 +160,8 @@ async def test_workspace_restored_applications_arent_leaked(data_fixture):
 
     workspace_restored_message = await get_message(communicator, "group_restored")
     assert workspace_restored_message is not None
+    # Restore payloads are personal and carry the user's `last_viewed`.
     assert workspace_restored_message["applications"] == [
-        PolymorphicApplicationResponseSerializer(database).data
+        {**PolymorphicApplicationResponseSerializer(database).data, "last_viewed": None}
     ]
     await communicator.disconnect()

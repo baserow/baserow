@@ -41,6 +41,13 @@ class BuilderConfig(AppConfig):
         object_scope_type_registry.register(BuilderDataSourceObjectScopeType())
         object_scope_type_registry.register(BuilderWorkflowActionScopeType())
 
+        from baserow.contrib.builder.pages.last_viewed_types import (
+            BuilderPageLastViewedItemType,
+        )
+        from baserow.core.registries import last_viewed_item_type_registry
+
+        last_viewed_item_type_registry.register(BuilderPageLastViewedItemType())
+
         from baserow.contrib.builder.operations import (
             ListDomainsBuilderOperationType,
             ListPagesBuilderOperationType,
@@ -384,6 +391,7 @@ class BuilderConfig(AppConfig):
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
+        import baserow.contrib.builder.pages.receivers  # noqa: F401
         import baserow.contrib.builder.signals  # noqa: F403, F401
         import baserow.contrib.builder.ws.signals  # noqa: F403, F401
         from baserow.core.search.registries import workspace_search_registry
