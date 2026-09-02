@@ -942,24 +942,47 @@ class AutomationWorkflowHandler:
         )
 
         error = "This workflow took too long and was timed out."
-
-        workflow_history_ids = list(
-            AutomationWorkflowHistory.objects.filter(
-                status=HistoryStatusChoices.STARTED,
-                started_on__lt=max_history_date,
-            ).values_list("id", flat=True)
+        cancelled_error = (
+            "Cancellation was requested and the run was force-stopped after timing out."
         )
 
+        timed_out_histories = AutomationWorkflowHistory.objects.filter(
+            status=HistoryStatusChoices.STARTED,
+            started_on__lt=max_history_date,
+        ).values_list("id", "cancellation_requested_on")
+
+        # A run whose cancellation was requested but never noticed by the runner
+        # (hung node, dead worker) resolves as cancelled rather than as a generic
+        # timeout error, which is what the requester was waiting for.
+        cancelled_history_ids = []
+        errored_history_ids = []
+        for history_id, cancellation_requested_on in timed_out_histories:
+            if cancellation_requested_on is not None:
+                cancelled_history_ids.append(history_id)
+            else:
+                errored_history_ids.append(history_id)
+
+        workflow_history_ids = cancelled_history_ids + errored_history_ids
         if not workflow_history_ids:
             return
 
-        AutomationWorkflowHistory.objects.filter(
-            id__in=workflow_history_ids,
-        ).update(
-            status=HistoryStatusChoices.ERROR,
-            message=error,
-            completed_on=now,
-        )
+        if cancelled_history_ids:
+            AutomationWorkflowHistory.objects.filter(
+                id__in=cancelled_history_ids,
+            ).update(
+                status=HistoryStatusChoices.CANCELLED,
+                message=cancelled_error,
+                completed_on=now,
+            )
+
+        if errored_history_ids:
+            AutomationWorkflowHistory.objects.filter(
+                id__in=errored_history_ids,
+            ).update(
+                status=HistoryStatusChoices.ERROR,
+                message=error,
+                completed_on=now,
+            )
 
         AutomationNodeHistory.objects.filter(
             workflow_history_id__in=workflow_history_ids,
