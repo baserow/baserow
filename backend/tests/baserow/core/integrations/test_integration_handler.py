@@ -14,6 +14,7 @@ from baserow.core.integrations.registries import (
     IntegrationType,
     integration_type_registry,
 )
+from baserow.core.registries import application_type_registry
 
 
 def pytest_generate_tests(metafunc):
@@ -42,9 +43,13 @@ def test_create_integration(data_fixture, integration_type: IntegrationType):
 
 
 @pytest.mark.django_db
-def test_create_integration_bad_application(data_fixture):
+def test_create_integration_bad_application(data_fixture, monkeypatch):
+    # Every registered application type supports integrations now, so the
+    # guard is exercised by turning one off.
     user = data_fixture.create_user()
     application = data_fixture.create_database_application(user=user)
+    application_type = application_type_registry.get("database")
+    monkeypatch.setattr(application_type, "supports_integrations", False)
 
     integration_type = integration_type_registry.get("local_baserow")
 

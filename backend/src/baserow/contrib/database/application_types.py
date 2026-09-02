@@ -29,6 +29,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import (
     ApplicationType,
@@ -67,6 +68,8 @@ class DatabaseApplicationType(ApplicationType):
     type = "database"
     model_class = Database
     serializer_mixins = [DatabaseSerializer]
+    # A button field's external action can carry one (ADR 006 section 5).
+    supports_integrations = True
     instance_serializer_class = DatabaseSerializer
     serializer_field_names = ["tables"]
     # Mark the request serializer field names as empty, otherwise
@@ -268,11 +271,23 @@ class DatabaseApplicationType(ApplicationType):
             tables, import_export_config, files_zip, storage, progress_builder
         )
 
+        serialized_integrations = [
+            IntegrationHandler().export_integration(
+                integration,
+                import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+            )
+            for integration in IntegrationHandler().get_integrations(database)
+        ]
+
         serialized = super().export_serialized(
             database, import_export_config, files_zip, storage
         )
         serialized.update(
-            **DatabaseExportSerializedStructure.database(tables=serialized_tables)
+            **DatabaseExportSerializedStructure.database(
+                tables=serialized_tables, integrations=serialized_integrations
+            )
         )
 
         return serialized
@@ -1036,6 +1051,19 @@ class DatabaseApplicationType(ApplicationType):
         )
 
         database = application.specific
+
+        # Before the tables: a button field's action remaps its integration
+        # through `id_mapping`. Absent from every export made before they
+        # were carried.
+        for serialized_integration in serialized_values.get("integrations", []):
+            IntegrationHandler().import_integration(
+                database,
+                serialized_integration,
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+            )
+
         if serialized_values["tables"]:
             self.import_tables_serialized(
                 database,
