@@ -14,8 +14,12 @@ export interface CapturedEmail {
   body: string;
 }
 
+/**
+ * The dev stack's MailHog by default, which is what a plain `yarn run test`
+ * runs against. `just e2e` and CI set the variable to their own catcher.
+ */
 function apiUrl(): string {
-  return process.env.E2E_MAIL_API_URL ?? "http://localhost:8075";
+  return process.env.E2E_MAIL_API_URL ?? "http://localhost:8025";
 }
 
 function headerOf(message: any, name: string): string {
