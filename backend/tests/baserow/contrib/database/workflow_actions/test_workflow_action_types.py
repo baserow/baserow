@@ -1,5 +1,8 @@
 from unittest.mock import patch
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.database.workflow_actions.exceptions import (
@@ -287,6 +290,38 @@ def test_an_api_client_cannot_store_an_action_that_can_never_send(
         user, action_type, button_field, service={"use_instance_smtp_settings": False}
     )
 
+    assert action.service.specific.use_instance_smtp_settings is True
+
+
+@pytest.mark.django_db
+def test_pinning_the_instance_server_costs_no_extra_write(data_fixture, settings):
+    """
+    The pin is part of what the create already writes rather than a save of
+    its own, even when the caller asked for the opposite.
+    """
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action_type = database_workflow_action_type_registry.get("smtp_email")
+
+    with CaptureQueriesContext(connection) as queries:
+        action = DatabaseWorkflowActionService().create_workflow_action(
+            user,
+            action_type,
+            button_field,
+            service={"use_instance_smtp_settings": False},
+        )
+
+    updates = [
+        query["sql"]
+        for query in queries.captured_queries
+        if query["sql"].startswith('UPDATE "integrations_coresmtpemailservice"')
+    ]
+
+    assert len(updates) == 1
     assert action.service.specific.use_instance_smtp_settings is True
 
 

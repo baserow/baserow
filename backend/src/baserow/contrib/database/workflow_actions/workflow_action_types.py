@@ -444,15 +444,15 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         A database action carries no integration (ADR 006 section 5), so the
         instance server is the only thing it can send through. Pinned here
         rather than in the form, or an API client could store an action that
-        can never send.
+        can never send. Written into what the base is about to save, so the
+        service is not saved a second time for it.
         """
 
-        values = super().prepare_values(values, user, instance)
-        service = values["service"]
-        if not service.use_instance_smtp_settings:
-            service.use_instance_smtp_settings = True
-            service.save(update_fields=["use_instance_smtp_settings"])
-        return values
+        values["service"] = {
+            **(values.get("service") or {}),
+            "use_instance_smtp_settings": True,
+        }
+        return super().prepare_values(values, user, instance)
 
     # What each reason the service gives means for a button, in the words the
     # API answers a refusal with.
