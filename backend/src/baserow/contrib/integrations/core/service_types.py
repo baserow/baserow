@@ -3,6 +3,7 @@ import io
 import json
 import re
 import socket
+import time
 import uuid
 from datetime import datetime
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
@@ -564,22 +565,33 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             for match in RE_FORMULA_FUNCTION.finditer(formula)
         )
 
-    def _read_response_within_limit(self, response) -> None:
+    def _read_response_within_limit(self, response, timeout: int) -> None:
         """
-        Pulls the body in with a ceiling on it, and hangs up on an endpoint
-        that goes past it. Buffering it whole and measuring afterwards is too
-        late: the memory is already spent. The ceiling is on what arrives after
-        decompression, so a small answer that unpacks into a big one is caught.
+        Pulls the body in with a ceiling on its size and a deadline on how long
+        it may take, and hangs up on an endpoint that goes past either.
+
+        Buffering it whole and measuring afterwards is too late: the memory is
+        already spent. The size ceiling is on what arrives after decompression,
+        so a small answer that unpacks into a big one is caught. The deadline
+        is wall clock, unlike the timeout Requests applies, which only starts
+        again on every byte: a server sending one every few seconds would
+        otherwise hold this open for as long as it liked.
 
         :param response: The streamed response.
+        :param timeout: How long the whole body may take to arrive, in seconds.
         :raises ServiceImproperlyConfiguredDispatchException: When the body is
             larger than the ceiling.
+        :raises requests.exceptions.Timeout: When it takes longer than the
+            deadline, which the caller answers the same way as any other
+            timeout.
         """
 
         max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES
 
         if not max_bytes:
             return
+
+        deadline = time.monotonic() + timeout
 
         content = bytearray()
 
@@ -590,6 +602,10 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     raise ServiceImproperlyConfiguredDispatchException(
                         f"The response is larger than the {max_bytes} bytes this "
                         f"installation accepts."
+                    )
+                if time.monotonic() > deadline:
+                    raise request_exceptions.Timeout(
+                        f"The response body took longer than {timeout} seconds."
                     )
         finally:
             response.close()
@@ -656,7 +672,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 stream=True,
                 **body_dict,
             )
-            self._read_response_within_limit(response)
+            self._read_response_within_limit(response, service.timeout)
 
         except ServiceImproperlyConfiguredDispatchException:
             # Too big. The message names no address, so it travels as it is

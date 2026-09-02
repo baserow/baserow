@@ -1,4 +1,5 @@
 import json
+import time
 from contextlib import contextmanager
 from unittest.mock import MagicMock, Mock, patch
 
@@ -891,3 +892,50 @@ def test_a_response_within_the_ceiling_is_read_whole(data_fixture, settings):
 
     assert mock_request.call_count == 1
     assert dispatch_data.data["body"] == {"title": "small"}
+
+
+@pytest.mark.django_db
+def test_a_response_that_drips_forever_is_hung_up_on(data_fixture, settings):
+    """
+    Requests treats a scalar timeout as inactivity, so it starts again on every
+    byte. A server sending one every so often would otherwise hold a worker,
+    and its dispatch lock, open for as long as it liked.
+    """
+
+    settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=1, http_method=HTTP_METHOD.GET
+    )
+    service_type = service.get_type()
+
+    def drip():
+        # Never enough to reach the size ceiling, and never finished.
+        while True:
+            time.sleep(0.1)
+            yield b"x"
+
+    mock_response = Mock()
+    mock_response.headers = {}
+    mock_response.status_code = 200
+    mock_response.iter_content.return_value = drip()
+
+    with patch("advocate.request", return_value=mock_response):
+        dispatch_data = service_type.dispatch(service, FakeDispatchContext())
+
+    # A deadline reached is reported the same way as any other timeout.
+    assert dispatch_data.data["status_code"] == 504
+    mock_response.close.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_a_response_that_arrives_in_time_is_not_hung_up_on(data_fixture, settings):
+    settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=30, http_method=HTTP_METHOD.GET
+    )
+    service_type = service.get_type()
+
+    with mock_advocate_request({"title": "quick"}):
+        dispatch_data = service_type.dispatch(service, FakeDispatchContext())
+
+    assert dispatch_data.data["body"] == {"title": "quick"}
