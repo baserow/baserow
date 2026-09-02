@@ -94,6 +94,7 @@
           :key="application.id"
           :application="application"
           :workspace="workspace"
+          :sort-by="sortBy"
           @click="$emit('select-application', application)"
         ></AllWorkspacesApplicationCard>
         <div
@@ -163,6 +164,7 @@ import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/W
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import SearchHighlight from '@baserow/modules/core/components/SearchHighlight'
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
+import { SORT_BY_LAST_VIEWED } from '@baserow/modules/core/utils/allWorkspaces'
 
 const COMPACT_APPLICATION_LIMIT = 3
 
@@ -213,6 +215,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    sortBy: {
+      type: String,
+      required: false,
+      default: SORT_BY_LAST_VIEWED,
     },
   },
   emits: ['toggle-collapsed', 'select-application'],
