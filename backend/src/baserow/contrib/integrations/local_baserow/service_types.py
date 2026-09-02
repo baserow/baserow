@@ -427,16 +427,19 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
                 "The selected table is trashed"
             )
 
-        # The integration may be missing, or trashed (excluded by the no-trash
-        # manager, so the relation resolves to None). Either way the service can't
-        # be dispatched until a live integration is assigned/restored. Report it as
-        # a configuration error rather than dereferencing a None integration.
+        # When an integration is assigned but has been trashed (excluded by the
+        # no-trash manager, so the relation resolves to None), the service can't be
+        # dispatched until it is restored. Report it as a configuration error rather
+        # than dereferencing a None integration. An *unset* integration is left to
+        # `get_acting_user`, which falls back to the dispatch context's actor (e.g. a
+        # database workflow action supplies the clicking user) and only refuses the
+        # dispatch when neither an integration nor an actor is available.
         if (
-            service.integration_id is None
-            or not Integration.objects.filter(id=service.integration_id).exists()
+            service.integration_id is not None
+            and not Integration.objects.filter(id=service.integration_id).exists()
         ):
             raise ServiceImproperlyConfiguredDispatchException(
-                "No integration selected"
+                "The integration used by this service has been trashed."
             )
 
         return super().resolve_service_formulas(service, dispatch_context)
