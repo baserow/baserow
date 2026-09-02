@@ -116,7 +116,7 @@ baserow = "baserow.manage:main"
 dev = [
     "pre-commit>=4.0.0",
     "ruff>=0.8.0",
-    "pytest==9.0.3",
+    "pytest==9.1.1",
     "pytest-django==4.12.0",
     "pytest-env==1.2.0",
     "pytest-asyncio==1.3.0",
