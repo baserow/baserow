@@ -8,7 +8,6 @@ import {
   getFilters,
   getOrderBy,
   getRowSortFunction,
-  serializeGroupBys,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
@@ -251,7 +250,6 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       orderBy: getOrderBy(view, adhocSorting),
-      groupBy: serializeGroupBys(view),
       filters: getFilters(view, adhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -297,7 +295,6 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       orderBy: getOrderBy(view, getters.getAdhocSorting),
-      groupBy: serializeGroupBys(view),
       filters: getFilters(view, getters.getAdhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId

@@ -140,6 +140,14 @@ class BaseExporterOptionsSerializer(serializers.Serializer):
         "by comma. By default a field is ordered in ascending (A-Z) order, but by "
         "prepending the field with a '-' it can be ordered descending (Z-A).",
     )
+    group_by = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        default=None,
+        help_text="Optionally the rows can be grouped by provided field ids separated "
+        "by comma. Group-by fields are ordered before sort fields.",
+    )
     fields = serializers.ListField(
         required=False,
         allow_null=True,

@@ -634,7 +634,7 @@ export function getOrderBy(view, adhocSorting) {
       return serialized
     }
     const sorts = view.sortings.map(serializeSort)
-    return sorts.length > 0 ? sorts.join(',') : null
+    return sorts.length > 0 ? sorts.join(',') : ''
   } else {
     return null
   }

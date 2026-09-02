@@ -25,6 +25,7 @@ from baserow.contrib.database.api.rows.serializers import (
     get_row_serializer_class,
 )
 from baserow.contrib.database.api.views.serializers import serialize_group_by_metadata
+from baserow.contrib.database.fields.field_sortings import serialize_sorts_to_string
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.registries import row_metadata_registry
@@ -107,9 +108,9 @@ def get_view_filtered_queryset(
     search_value = query_params.get("search")
     search_mode = query_params.get("search_mode")
 
-    has_adhoc_ordering = (order_by is not None and order_by != "") or (
-        group_by is not None and group_by != ""
-    )
+    has_adhoc_sorting = order_by is not None
+    has_adhoc_grouping = group_by is not None and group_by != ""
+    has_any_adhoc_ordering = has_adhoc_sorting or has_adhoc_grouping
 
     only_search_by_field_ids = None
     if hidden_field_ids:
@@ -122,7 +123,7 @@ def get_view_filtered_queryset(
     queryset = ViewHandler().get_queryset(
         user,
         view,
-        apply_sorts=not has_adhoc_ordering,
+        apply_sorts=not has_any_adhoc_ordering,
         apply_filters=not has_adhoc_filters,
         search=search_value,
         search_mode=search_mode,
@@ -130,9 +131,22 @@ def get_view_filtered_queryset(
         only_search_by_field_ids=only_search_by_field_ids,
     )
 
-    if has_adhoc_ordering:
+    if has_any_adhoc_ordering:
+        effective_group_by = group_by or ""
+        effective_order_by = order_by or ""
+
+        if not has_adhoc_grouping:
+            view_type = view_type_registry.get_by_model(view.specific_class)
+            if view_type.can_group_by:
+                effective_group_by = serialize_sorts_to_string(
+                    view.viewgroupby_set.all()
+                )
+
+        if not has_adhoc_sorting:
+            effective_order_by = serialize_sorts_to_string(view.viewsort_set.all())
+
         queryset = queryset.order_by_fields_string(
-            order_by or "", False, group_by_string=group_by
+            effective_order_by, False, group_by_string=effective_group_by or None
         )
 
     if has_adhoc_filters:

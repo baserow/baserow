@@ -1432,11 +1432,33 @@ def test_order_by_fields_string_with_group_by_string_uses_group_by_sort_order(
     )
 
     # With group_by_string for grouping + order_string for sorting:
-    # group-by fields come first in the ordering
+    # group-by fields come first in the ordering.
+    # Set text values such that sort-only would interleave the groups.
     text_field = data_fixture.create_text_field(table=table, name="Label")
+    model = table.get_model()
+
+    # row1 ({A,C}) = "Zebra", row2 ({B}) = "Middle", row3 ({A,C}) = "Alpha"
+    # Sort-only by text: Alpha(row3), Middle(row2), Zebra(row1)
+    # Group-by ms_field then sort by text:
+    #   group {A,C}: Alpha(row3), Zebra(row1) — adjacent
+    #   group {B}: Middle(row2)
+    handler = RowHandler()
+    handler.update_row_by_id(user, table, row1.id, {f"field_{text_field.id}": "Zebra"})
+    handler.update_row_by_id(user, table, row2.id, {f"field_{text_field.id}": "Middle"})
+    handler.update_row_by_id(user, table, row3.id, {f"field_{text_field.id}": "Alpha"})
+
     model = table.get_model()
     results = model.objects.all().order_by_fields_string(
         f"field_{text_field.id}",
         group_by_string=f"field_{ms_field.id}",
     )
-    assert len(results) == 3
+    result_ids = [r.id for r in results]
+    assert len(result_ids) == 3
+
+    # Group-by must keep {A,C} rows adjacent despite text ordering
+    idx1 = result_ids.index(row1.id)
+    idx3 = result_ids.index(row3.id)
+    assert abs(idx1 - idx3) == 1, (
+        f"Rows with same group-by set must be adjacent but were at "
+        f"positions {idx1} and {idx3}: {result_ids}"
+    )

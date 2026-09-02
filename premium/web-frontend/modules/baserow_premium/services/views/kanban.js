@@ -17,7 +17,6 @@ export default (client) => {
       publicUrl = false,
       publicAuthToken = null,
       orderBy = null,
-      groupBy = null,
       filters = {},
       limitLinkedItems = null,
     }) {
@@ -31,10 +30,6 @@ export default (client) => {
 
       if (orderBy !== null && orderBy !== '') {
         params.append('order_by', orderBy)
-      }
-
-      if (groupBy) {
-        params.append('group_by', groupBy)
       }
 
       if (includeFieldOptions) {

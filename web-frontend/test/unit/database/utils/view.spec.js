@@ -343,12 +343,12 @@ describe('getOrderBy', () => {
     expect(getOrderBy(view, true)).toBe('field_2')
   })
 
-  it('returns null when no sortings exist', () => {
+  it('returns empty string when no sortings exist', () => {
     const view = {
       sortings: [],
       group_bys: [{ field: 1, order: 'ASC', type: 'default' }],
     }
-    expect(getOrderBy(view, true)).toBeNull()
+    expect(getOrderBy(view, true)).toBe('')
   })
 
   it('serializes DESC and non-default sort type', () => {

@@ -9,7 +9,6 @@ import {
   getFilters,
   getOrderBy,
   getRowSortFunction,
-  serializeGroupBys,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
 import ViewService from '@baserow/modules/database/services/view'
@@ -338,7 +337,6 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
         orderBy: getOrderBy(view, adhocSorting),
-        groupBy: serializeGroupBys(view),
         filters: getFilters(view, adhocFiltering),
         ...initialRowArguments,
       })
@@ -424,7 +422,6 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           orderBy: getOrderBy(view, getters.getAdhocSorting),
-          groupBy: serializeGroupBys(view),
           filters: getFilters(view, getters.getAdhocFiltering),
         })
         // Don't do anything if the viewId does not match the current view viewId
@@ -535,7 +532,6 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
             orderBy: getOrderBy(view, adhocSorting),
-            groupBy: serializeGroupBys(view),
             filters: getFilters(view, adhocFiltering),
           })
 

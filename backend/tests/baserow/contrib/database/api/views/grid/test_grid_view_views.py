@@ -4115,7 +4115,7 @@ def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+    assert response_json["error"] == "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED"
 
 
 @pytest.mark.django_db
@@ -4263,7 +4263,7 @@ def test_list_rows_public_with_query_param_group_by_and_type(api_client, data_fi
     )
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+    assert response_json["error"] == "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED"
 
     response = api_client.get(
         f"{url}?group_by=field_{select_1.id}[order]",
