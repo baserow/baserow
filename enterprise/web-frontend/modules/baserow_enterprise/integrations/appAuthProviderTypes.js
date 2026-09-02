@@ -40,18 +40,11 @@ export class LocalBaserowPasswordAppAuthProviderType extends AppAuthProviderType
   }
 
   getLoginOptions(authProvider) {
-    if (authProvider.password_field_id) {
-      return {}
-    }
-    return null
+    return this.isConfigured(authProvider) ? {} : null
   }
 
-  isConfigured(authProvider, { mode } = {}) {
-    if (authProvider.password_field_id === undefined) {
-      return mode === 'preview' || mode === 'public'
-    }
-
-    return Boolean(authProvider.password_field_id)
+  isConfigured(authProvider) {
+    return authProvider.is_configured ?? Boolean(authProvider.password_field_id)
   }
 
   /**

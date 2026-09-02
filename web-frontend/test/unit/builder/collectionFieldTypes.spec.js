@@ -98,22 +98,32 @@ describe('Builder collection field types', () => {
       const otherButtonField = { type: 'button', uid: 'second-button' }
       const page = {
         id: 1,
+        shared: false,
+        dataSources: [
+          {
+            id: 1,
+            type: 'local_baserow_list_rows',
+          },
+        ],
         workflowActions: [
           {
             element_id: 50,
             event: 'second-button_click',
             order: 1,
             type: 'notification',
+            title: { formula: "'Notification'" },
           },
         ],
       }
+      const sharedPage = { id: 2, shared: true, dataSources: [] }
       const element = {
         id: 50,
         type: 'table',
         page_id: page.id,
+        data_source_id: 1,
         fields: [buttonField, otherButtonField],
       }
-      const builder = { id: 1, pages: [page] }
+      const builder = { id: 1, pages: [page, sharedPage] }
 
       expect(
         fieldType.getErrorMessage({ field: buttonField, element, builder })
@@ -127,10 +137,12 @@ describe('Builder collection field types', () => {
         event: 'first-button_click',
         order: 2,
         type: 'notification',
+        title: { formula: "'Notification'" },
       })
       expect(
         fieldType.getErrorMessage({ field: buttonField, element, builder })
       ).toBeNull()
+      expect(tableElementType.getErrorMessage(element, { builder })).toBeNull()
     })
   })
 })

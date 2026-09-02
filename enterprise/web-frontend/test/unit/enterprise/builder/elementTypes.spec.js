@@ -51,18 +51,34 @@ describe('Enterprise builder element types', () => {
       ).toBeNull()
     })
 
-    test('accepts a password provider with an unknown field in public mode', () => {
+    test('accepts a configured password provider with a redacted field publicly', () => {
       expect(
         getAuthFormErrorMessage(
           [
             {
               type: 'local_baserow_password',
               password_field_id: undefined,
+              is_configured: true,
             },
           ],
           { mode: 'public' }
         )
       ).toBeNull()
+    })
+
+    test('reports an error for an unconfigured password provider publicly', () => {
+      expect(
+        getAuthFormErrorMessage(
+          [
+            {
+              type: 'local_baserow_password',
+              password_field_id: undefined,
+              is_configured: false,
+            },
+          ],
+          { mode: 'public' }
+        )
+      ).toBe('elementType.errorUserSourceHasNoLoginOption')
     })
 
     test.each([
@@ -96,7 +112,7 @@ describe('Enterprise builder element types', () => {
       )
     })
 
-    test('requires a password field for a local password provider in editing mode', () => {
+    test('uses the public configuration state when its password field is redacted', () => {
       const appAuthProviderType = useNuxtApp().$registry.get(
         'appAuthProvider',
         'local_baserow_password'
@@ -112,11 +128,29 @@ describe('Enterprise builder element types', () => {
         true
       )
       expect(
-        appAuthProviderType.isConfigured(
-          { password_field_id: undefined },
-          { mode: 'public' }
-        )
+        appAuthProviderType.isConfigured({
+          password_field_id: undefined,
+          is_configured: true,
+        })
       ).toBe(true)
+      expect(
+        appAuthProviderType.isConfigured({
+          password_field_id: undefined,
+          is_configured: false,
+        })
+      ).toBe(false)
+      expect(
+        appAuthProviderType.getLoginOptions({
+          password_field_id: undefined,
+          is_configured: true,
+        })
+      ).toEqual({})
+      expect(
+        appAuthProviderType.getLoginOptions({
+          password_field_id: undefined,
+          is_configured: false,
+        })
+      ).toBeNull()
     })
   })
 

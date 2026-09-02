@@ -1321,6 +1321,16 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
    */
   getErrorMessage(element, applicationContext) {
     const { builder } = applicationContext
+    const elementPage = this.app.$store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+    const workflowActions = this.app.$store.getters[
+      'builderWorkflowAction/getElementWorkflowActions'
+    ](elementPage, element.id)
+    const workflowActionEvents = new Set(
+      workflowActions.map(({ event }) => event)
+    )
 
     const hasCollectionFieldInError = element.fields.some((collectionField) => {
       const collectionFieldType = this.app.$registry.get(
@@ -1331,6 +1341,7 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
         field: collectionField,
         element,
         builder,
+        workflowActionEvents,
       })
     })
 
