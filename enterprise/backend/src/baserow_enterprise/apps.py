@@ -366,6 +366,9 @@ class BaserowEnterpriseConfig(AppConfig):
         connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments()
 
         from baserow.core.notifications.registries import notification_type_registry
+        from baserow_enterprise.application_users.notification_types import (
+            ApplicationUserLimitNotificationType,
+        )
         from baserow_enterprise.data_scanner.notification_types import (
             DataScanNewResultsNotificationType,
         )
@@ -381,6 +384,7 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
         notification_type_registry.register(DataScanNewResultsNotificationType())
+        notification_type_registry.register(ApplicationUserLimitNotificationType())
 
         from baserow_enterprise.views.operations import (
             ListenToAllRestrictedViewEventsOperationType,

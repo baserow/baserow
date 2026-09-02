@@ -15,6 +15,7 @@ from rest_framework.status import HTTP_200_OK
 
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import IsNotAdminError
+from baserow.core.registries import plugin_registry
 from baserow_premium.license.exceptions import (
     FeaturesNotAvailableError,
     InvalidLicenseError,
@@ -29,6 +30,8 @@ from baserow_premium.license.exceptions import (
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.license.models import License, LicenseUser
+from baserow_premium.license.plugin import LicensePlugin
+from baserow_premium.plugins import PremiumPlugin
 
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"
@@ -1134,7 +1137,16 @@ def test_add_active_licenses_to_settings(api_client, data_fixture):
             cached_untrusted_instance_wide=True,
         )
 
-        response = api_client.get(reverse("api:settings:get"))
+        # Force the self-hosted license plugin so environments whose plugin grants
+        # extra instance wide license types (e.g. SaaS) don't leak into the
+        # response.
+        premium_plugin = plugin_registry.get_by_type(PremiumPlugin)
+        with patch.object(
+            premium_plugin,
+            "get_license_plugin",
+            lambda cache_queries=False: LicensePlugin(cache_queries),
+        ):
+            response = api_client.get(reverse("api:settings:get"))
         assert response.status_code == HTTP_200_OK
         response_json = response.json()
         assert len(response_json.keys()) > 1
@@ -1143,7 +1155,9 @@ def test_add_active_licenses_to_settings(api_client, data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_premium.license.registries.BuilderHandler.aggregate_user_source_counts")
+@patch(
+    "baserow_premium.license.registries.ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
 def test_premium_license_builder_usage_license_extra_info(
     mock_aggregate_user_source_counts, premium_data_fixture
 ):

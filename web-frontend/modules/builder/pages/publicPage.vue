@@ -168,24 +168,12 @@ const {
       )
     }
 
-    // Auth providers can get error code from the URL parameters
-    for (const userSource of builder.user_sources) {
-      for (const authProvider of userSource.auth_providers) {
-        const authError = $registry
-          .get('appAuthProvider', authProvider.type)
-          .handleError(userSource, authProvider, route)
-        if (authError) {
-          throw createError({
-            statusCode: authError.code,
-            message: authError.message,
-            data: {
-              report: false,
-            },
-            fatal: true,
-          })
-        }
-      }
-    }
+    // An SSO login error (e.g. the application user limit being reached) is reported
+    // back through a query parameter. It is intentionally not handled here so it
+    // doesn't take over the whole page with a fatal error: the auth form element
+    // renders it inline when the landing page has one, mirroring the email/password
+    // login flow, and `PublicPageContent` falls back to a toast for the flows that
+    // land on a page without an auth form, like an IdP deep link.
 
     const found = resolveApplicationRoute(
       store.getters['page/getVisiblePages'](builder),

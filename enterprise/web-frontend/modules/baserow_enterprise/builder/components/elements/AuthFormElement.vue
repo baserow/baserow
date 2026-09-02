@@ -1,5 +1,6 @@
 <template>
   <div v-if="hasAtLeastOneLoginOption" :style="fullStyle">
+    <Error :error="error"></Error>
     <template v-for="appAuthType in appAuthProviderTypes">
       <div
         v-if="hasAtLeastOneProvider(appAuthType)"
@@ -29,6 +30,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import element from '@baserow/modules/builder/mixins/element'
+import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { mapActions } from 'vuex'
 
@@ -110,6 +112,9 @@ export default {
       )
     },
   },
+  mounted() {
+    this.showLoginErrorFromQueryParams()
+  },
   watch: {
     userSource: {
       handler(newValue) {
@@ -140,6 +145,24 @@ export default {
       return (
         this.appAuthProviderPerTypes[authProviderType.getType()]?.length > 0
       )
+    },
+    /**
+     * When an SSO login fails, the provider redirects back here with an error code
+     * in a query parameter. Surface it inline near the auth form (like the
+     * email/password flow) instead of letting it become a full page error. Consuming
+     * the parameter here also tells `PublicPageContent` that the error has been
+     * displayed, so it doesn't show its fallback toast on top of it.
+     */
+    showLoginErrorFromQueryParams() {
+      if (this.isEditMode || !this.selectedUserSource) {
+        return
+      }
+      const message = consumeLoginError(this.$registry, [
+        this.selectedUserSource,
+      ])
+      if (message) {
+        this.showError(this.$t('loginError.title'), message)
+      }
     },
     async beforeLogin() {
       if (this.isAuthenticated) {

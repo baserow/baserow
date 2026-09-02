@@ -719,10 +719,32 @@ class LocalBaserowUserSourceType(UserSourceType):
             self.get_user_role(user, user_source),
         )
 
+    def get_or_create_user(
+        self, user_source: LocalBaserowUserSource, email: str, name: str
+    ):
+        """
+        Creates the user if it doesn't exist yet and refuses the sign in when the
+        workspace is over the application user limit. This covers the SSO
+        auto-provisioning path, where the row may be created before we know the
+        workspace is over the limit.
+        """
+
+        from baserow_enterprise.application_users.usage import (
+            raise_if_over_application_user_login_limit,
+        )
+
+        user, created = super().get_or_create_user(user_source, email, name)
+        raise_if_over_application_user_login_limit(user_source)
+        return user, created
+
     def authenticate(self, user_source: LocalBaserowUserSource, **kwargs):
         """
         Authenticates using the given credentials. It uses the password auth provider.
         """
+
+        from baserow_enterprise.application_users.usage import (
+            raise_if_over_application_user_login_limit,
+        )
 
         self.is_configured(user_source, raise_exception=True)
 
@@ -737,11 +759,16 @@ class LocalBaserowUserSourceType(UserSourceType):
         if not auth_provider.get_type().is_configured(auth_provider):
             raise UserSourceImproperlyConfigured()
 
-        return auth_provider.get_type().authenticate(
+        user = auth_provider.get_type().authenticate(
             auth_provider,
             kwargs.get("email", ""),
             kwargs.get("password", ""),
         )
+
+        # Refuse the login when the workspace is over the application user limit.
+        raise_if_over_application_user_login_limit(user_source)
+
+        return user
 
     def _get_cached_user_count(
         self, user_source: LocalBaserowUserSource

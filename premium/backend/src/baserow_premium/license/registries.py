@@ -1,11 +1,17 @@
 import abc
 import dataclasses
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
-from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
+from baserow_premium.application_user_usage.constants import (
+    DEFAULT_APPLICATION_USERS_LIMIT,
+)
+from baserow_premium.application_user_usage.handler import ApplicationUserUsageHandler
+from baserow_premium.application_user_usage.utils import (
+    get_instance_wide_application_user_count,
+)
 from baserow_premium.license.models import License
 
 
@@ -166,7 +172,9 @@ class LicenseType(abc.ABC, Instance):
         """
 
         # Count the total number of application users in this instance
-        total_application_users_taken = BuilderHandler().aggregate_user_source_counts()
+        total_application_users_taken = (
+            ApplicationUserUsageHandler().aggregate_user_source_counts()
+        )
 
         # If there are no user source users, just exit early here.
         if not total_application_users_taken:
@@ -195,19 +203,45 @@ class LicenseType(abc.ABC, Instance):
         :return: A summary of the builder usage.
         """
 
-        from baserow.contrib.builder.handler import BuilderHandler
-
         return BuilderUsageSummary(
-            application_users_taken=BuilderHandler().aggregate_user_source_counts(
-                workspace
+            application_users_taken=(
+                ApplicationUserUsageHandler().aggregate_user_source_counts(workspace)
             )
         )
 
-    def handle_application_user_overflow(
-        self, application_users_taken: int, license_object: License
-    ):
-        # TODO: send a notification, we are over limit.
-        ...
+    def get_application_user_usage_and_limit(
+        self, workspace: Workspace
+    ) -> Tuple[int, int]:
+        """
+        Returns the current application user usage and limit for the given workspace
+        as a `(usage, limit)` tuple.
+
+        The default implementation is the self-hosted truth: the limit is the sum of
+        the `application_users` of all active licenses that define one, because
+        every license row is an independent capacity grant that stacks with the
+        others, falling back to the default limit when none of them define one.
+        Usage is the instance-wide application user count.
+
+        :param workspace: The workspace a new application user would belong to.
+        :return: A `(usage, limit)` tuple.
+        """
+
+        total_limit = 0
+        has_limit = False
+        for license_object in License.objects.all():
+            if not license_object.valid_payload or not license_object.is_active:
+                continue
+            if license_object.application_users is None:
+                continue
+            has_limit = True
+            total_limit += license_object.application_users
+
+        # No active license carries an `application_users` limit, because the license
+        # predates v1.32 and has no such field.
+        if not has_limit:
+            total_limit = DEFAULT_APPLICATION_USERS_LIMIT
+
+        return get_instance_wide_application_user_count(), total_limit
 
 
 class LicenseTypeRegistry(Registry[LicenseType]):

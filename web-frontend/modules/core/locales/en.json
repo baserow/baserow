@@ -906,6 +906,11 @@
     "descriptionHelper": "Please describe in detail why you believe this page is abusive.",
     "descriptionPlaceholder": "For example: this page pretends to be a login page of another company and asks visitors for their password."
   },
+  "applicationUserLimitNotification": {
+    "titleWarning": "{workspaceName} has used {threshold} of its application user limit.",
+    "titleReached": "{workspaceName} has reached its application user limit. Please upgrade.",
+    "titleReachedEnforced": "{workspaceName} has reached its application user limit. New users can't sign in until you upgrade."
+  },
   "emailNotifications": {
     "title": "Email notifications",
     "label": "Mentions, comments and other notifications",

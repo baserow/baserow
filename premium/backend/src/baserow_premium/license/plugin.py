@@ -1,4 +1,4 @@
-from typing import Dict, Generator, List, Optional, Set
+from typing import Dict, Generator, List, Optional, Set, Tuple
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
@@ -6,6 +6,12 @@ from django.db.models import Q, QuerySet
 
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
+from baserow_premium.application_user_usage.constants import (
+    DEFAULT_APPLICATION_USERS_LIMIT,
+)
+from baserow_premium.application_user_usage.utils import (
+    get_instance_wide_application_user_count,
+)
 from baserow_premium.license.cache import (
     get_cached_instance_wide_licenses,
     set_cached_instance_wide_licenses,
@@ -274,6 +280,44 @@ class LicensePlugin:
             )
         else:
             return None
+
+    def get_application_user_usage_and_limit_for_workspace(
+        self, workspace: Workspace
+    ) -> Tuple[int, Optional[int]]:
+        """
+        Returns the application user usage and limit for the given workspace as a
+        `(usage, limit)` tuple by asking the most important (the license type with
+        the highest order) license type with an active license.
+
+        This implementation always resolves a numeric limit: an unlicensed install
+        gets the default one.
+
+        :param workspace: The workspace to resolve the usage and limit for.
+        :return: A `(usage, limit)` tuple.
+        """
+
+        # Unlike seats, application user capacity can be granted by licenses that
+        # aren't instance wide (e.g. premium), so resolve the most relevant license
+        # type from all active license rows instead of only the instance wide ones.
+        active_license_types = [
+            license_object.license_type
+            for license_object in License.objects.all()
+            if license_object.valid_payload and license_object.is_active
+        ]
+        if not active_license_types:
+            # There is no license type to ask, so resolve the default here. Usage is
+            # the instance wide count, matching how the licensed path counts it.
+            return (
+                get_instance_wide_application_user_count(),
+                DEFAULT_APPLICATION_USERS_LIMIT,
+            )
+
+        most_relevant_license_type = max(
+            active_license_types, key=lambda license_type: license_type.order
+        )
+        return most_relevant_license_type.get_application_user_usage_and_limit(
+            workspace
+        )
 
     def get_seat_usage_for_specific_users(
         self, user_ids: List[int]

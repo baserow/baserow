@@ -13,8 +13,6 @@ from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.telemetry.utils import baserow_trace_handler
-from baserow.core.user_sources.handler import UserSourceHandler
-from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 USED_PROPERTIES_CACHE_KEY_PREFIX = "used_properties_for_page"
@@ -142,23 +140,3 @@ class BuilderHandler:
 
         applications = Builder.objects.exclude(domains__published_to=None)
         return applications.filter(workspace=workspace) if workspace else applications
-
-    def aggregate_user_source_counts(
-        self,
-        workspace: Optional[Workspace] = None,
-    ) -> int:
-        """
-        The builder implementation of the `UserSourceHandler.aggregate_user_counts`
-        method, we need it to only count user sources in published applications.
-
-        :param workspace: If provided, only count user sources in published
-            applications within this workspace.
-        :return: The total number of user sources in published applications.
-        """
-
-        queryset = UserSourceHandler().get_user_sources(
-            base_queryset=UserSource.objects.filter(
-                application__in=self.get_published_applications(workspace)
-            )
-        )
-        return UserSourceHandler().aggregate_user_counts(workspace, queryset)

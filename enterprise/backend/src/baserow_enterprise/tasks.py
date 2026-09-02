@@ -7,6 +7,10 @@ from baserow.contrib.database.table.tasks import (
     unsubscribe_subject_from_tables_currently_subscribed_to,
 )
 from baserow.core.user_sources.handler import UserSourceHandler
+from baserow_enterprise.application_users.tasks import (
+    check_application_user_limits,
+    setup_periodic_application_user_tasks,
+)
 from baserow_enterprise.audit_log.tasks import (
     clean_up_audit_log_entries,
     setup_periodic_audit_log_tasks,
@@ -70,6 +74,8 @@ def unsubscribe_subject_from_tables_currently_subscribed_to_task(
 
 
 __all__ = [
+    "check_application_user_limits",
+    "setup_periodic_application_user_tasks",
     "clean_up_audit_log_entries",
     "setup_periodic_audit_log_tasks",
     "sync_periodic_data_sync",

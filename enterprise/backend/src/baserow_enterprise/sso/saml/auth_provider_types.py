@@ -37,6 +37,9 @@ class SamlAuthProviderTypeMixin:
     class SamlSerializedDict(TypedDict):
         metadata: Dict
         is_verified: bool
+        email_attr_key: str
+        first_name_attr_key: str
+        last_name_attr_key: str
 
     saml_allowed_fields: List[str] = [
         "metadata",

@@ -28,13 +28,14 @@ from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.api.integrations.common.sso.saml.serializers import (
     CommonSAMLResponseSerializer,
 )
+from baserow_enterprise.api.sso.saml.errors import ERROR_SAML_INVALID_LOGIN_REQUEST
 from baserow_enterprise.api.sso.serializers import BaseSsoLoginRequestSerializer
 from baserow_enterprise.api.sso.utils import (
     SsoErrorCode,
     get_valid_frontend_url,
     map_sso_exceptions,
-    urlencode_query_params,
 )
+from baserow_enterprise.application_users.exceptions import ApplicationUserLimitReached
 from baserow_enterprise.integrations.common.sso.saml.handler import (
     SamlAppAuthProviderHandler,
 )
@@ -71,15 +72,16 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
         {
             UserSourceDoesNotExist: ERROR_USER_SOURCE_DOES_NOT_EXIST,
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
-            InvalidSamlRequest: SsoErrorCode.INVALID_SAML_REQUEST,
+            InvalidSamlRequest: ERROR_SAML_INVALID_LOGIN_REQUEST,
         }
     )
     def post(
         self,
         request: Request,
     ) -> HttpResponseRedirect:
-        user = None
+        user_source_id = None
         application_urls = None
+        origin = None
         error_raised = {"code": None}
 
         logger.debug("SAML ACS response payload: {0}", request.data)
@@ -97,6 +99,9 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
                 RequestBodyValidationException: SsoErrorCode.INVALID_SAML_RESPONSE,
                 UserSourceDoesNotExist: SsoErrorCode.INVALID_SAML_REQUEST,
                 UserSourceImproperlyConfigured: SsoErrorCode.INVALID_SAML_REQUEST,
+                ApplicationUserLimitReached: (
+                    SsoErrorCode.APPLICATION_USER_LIMIT_REACHED
+                ),
             },
             on_error=on_error,
         ):
@@ -115,12 +120,23 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
                 application.specific
             )
 
+            base_queryset = SamlAppAuthProviderModel.objects.filter(
+                user_source__application=application,
+            )
+
+            # The auth provider is resolved before signing the user in, because the
+            # error redirect below needs the user source id and the sign in can fail.
+            auth_provider = (
+                SamlAppAuthProviderHandler.get_saml_auth_provider_from_saml_response(
+                    data["SAMLResponse"], base_queryset=base_queryset
+                )
+            )
+            user_source_id = auth_provider.user_source_id
+
             user = SamlAppAuthProviderHandler.sign_in_user_from_saml_response(
                 data["SAMLResponse"],
                 {},
-                base_queryset=SamlAppAuthProviderModel.objects.filter(
-                    user_source__application=application,
-                ),
+                base_queryset=base_queryset,
             )
 
             query_params = data.get("saml_request_data", {})
@@ -140,14 +156,19 @@ class SamlAppAuthProviderAssertionConsumerServiceView(APIView):
             return redirect(redirect_url)
 
         # If we are here it means that an error was raised so error_raised["code"] is
-        # not empty
-        if not application_urls or not user:
-            raise InvalidSamlRequest(f"Something when wrong {error_raised['code']}")
+        # not empty. Without the application urls or the user source we don't know
+        # where to redirect the user to, so we return an API error instead.
+        if not application_urls or not user_source_id:
+            raise InvalidSamlRequest(f"Something went wrong {error_raised['code']}")
 
-        # We redirect to the default frontend url with an error code
-        error_url = urlencode_query_params(
-            application_urls[0],
-            {f"saml_error__{user.user_source.id}": error_raised["code"].value},
+        # Redirect back to the page the login was initiated from with an error code,
+        # so the auth form can render the error inline (mirroring the success redirect
+        # and the plain email/password login flow) instead of a full page error.
+        error_url = get_valid_frontend_url(
+            origin,
+            {f"saml_error__{user_source_id}": error_raised["code"].value},
+            default_frontend_urls=application_urls,
+            allow_any_path=False,
         )
         return redirect(error_url)
 
@@ -241,10 +262,12 @@ class SamlAppAuthProviderBaserowInitiatedSingleSignOn(APIView):
             )
             return redirect(idp_sign_in_url)
 
-        # We redirect to the default frontend url with an error code as an error
-        # happened
-        error_url = urlencode_query_params(
-            application_urls[0],
+        # Redirect back to the page the login was initiated from with an error code,
+        # so the auth form can render the error inline instead of a full page error.
+        error_url = get_valid_frontend_url(
+            request.GET.get("original"),
             {f"saml_error__{user_source.id}": error_raised["code"].value},
+            default_frontend_urls=application_urls,
+            allow_any_path=False,
         )
         return redirect(error_url)

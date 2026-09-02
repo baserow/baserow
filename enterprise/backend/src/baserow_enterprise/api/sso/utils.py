@@ -25,6 +25,7 @@ class SsoErrorCode(Enum):
     DIFFERENT_PROVIDER = "errorDifferentProvider"
     GROUP_INVITATION_EMAIL_MISMATCH = "errorWorkspaceInvitationEmailMismatch"
     SIGNUP_DISABLED = "errorSignupDisabled"
+    APPLICATION_USER_LIMIT_REACHED = "errorApplicationUserLimitReached"
 
 
 class map_sso_exceptions(ContextDecorator):
