@@ -212,9 +212,7 @@ export default {
      * configured, which is what `errorFor` covers.
      */
     deactivatedReasonFor(actionType) {
-      return (
-        actionType.isDeactivatedReason({ workspace: this.workspace }) ?? null
-      )
+      return actionType.isDeactivatedReason({ workspace: this.workspace })
     },
     errorFor(action) {
       const key = workflowActionKey(action)

@@ -478,6 +478,10 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
       instance_smtp: instanceSmtp,
     })
 
+  // What the action list passes: the base type only asks about deactivation
+  // when it knows the workspace.
+  const context = { workspace: { id: 1 } }
+
   test('an instance that cannot send is said so before the action is saved', () => {
     withInstanceSmtp({ available: false, unavailable_reason: 'no_server' })
 
@@ -486,7 +490,7 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
     const action = { id: 1, type: 'smtp_email' }
 
     // `$t` returns the key in the test env, so the copy is pinned separately.
-    expect(emailType().getErrorMessage(action, {})).toBe(
+    expect(emailType().getErrorMessage(action, context)).toBe(
       'databaseWorkflowActionType.noInstanceSmtp'
     )
     expect(en.databaseWorkflowActionType.noInstanceSmtp).toContain(
@@ -497,9 +501,9 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
   test('sending turned off by an administrator says that instead', () => {
     withInstanceSmtp({ available: false, unavailable_reason: 'turned_off' })
 
-    expect(emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, {})).toBe(
-      'databaseWorkflowActionType.instanceSmtpTurnedOff'
-    )
+    expect(
+      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, context)
+    ).toBe('databaseWorkflowActionType.instanceSmtpTurnedOff')
     expect(en.databaseWorkflowActionType.instanceSmtpTurnedOff).toContain(
       'turned off'
     )
@@ -509,7 +513,7 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
     withInstanceSmtp({ available: true, unavailable_reason: null })
 
     expect(
-      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, {})
+      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, context)
     ).toBeNull()
   })
 
@@ -517,7 +521,7 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
     testApp.store.commit('settings/SET_SETTINGS', {})
 
     expect(
-      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, {})
+      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, context)
     ).toBeNull()
   })
 })

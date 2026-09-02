@@ -120,8 +120,25 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
     return super.getErrorMessage({ service })
   }
 
+  /**
+   * An email answers with whether it went out and nothing else, so the shape
+   * is known before the service is saved. Without it an action added in an
+   * editor is missing from the next action's explorer until a save and
+   * reopen. Matches what the backend builds for the saved service.
+   */
   getDataSchema(service) {
-    return service.schema
+    return (
+      service.schema || {
+        type: 'object',
+        properties: {
+          success: {
+            type: 'boolean',
+            title: 'Success',
+            description: 'Whether the email was sent successfully',
+          },
+        },
+      }
+    )
   }
 
   get formComponent() {
