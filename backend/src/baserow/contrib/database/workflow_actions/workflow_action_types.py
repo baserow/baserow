@@ -35,6 +35,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.db import specific_queryset
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.models import Workspace
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -439,7 +440,12 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
     service_type = CoreSMTPEmailServiceType.type
     is_external = True
 
-    def prepare_values(self, values, user, instance=None):
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[WorkflowAction] = None,
+    ) -> Dict[str, Any]:
         """
         A database action carries no integration (ADR 006 section 5), so the
         instance server is the only thing it can send through. Pinned here
@@ -467,7 +473,7 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         ),
     }
 
-    def is_deactivated(self, workspace) -> bool:
+    def is_deactivated(self, workspace: Workspace) -> bool:
         """
         A database action carries no integration, so the instance SMTP server
         is the only way it can send. Without one, refuse it up front rather
@@ -480,7 +486,7 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         service_type = service_type_registry.get(self.service_type)
         return not service_type.instance_smtp_is_available()
 
-    def get_deactivated_reason(self, workspace) -> Optional[str]:
+    def get_deactivated_reason(self, workspace: Workspace) -> Optional[str]:
         """
         Which of the two ways to be unable to send this installation is in.
 

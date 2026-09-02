@@ -56,6 +56,7 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         type is refused on create, on a type swap, and on click.
 
         :param workspace: The workspace the button field belongs to.
+        :return: True when the type cannot be used.
         """
 
         return False
@@ -66,11 +67,19 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         available.
 
         :param workspace: The workspace the button field belongs to.
+        :return: The reason in words, or `None` when the type can be used.
         """
 
         return None
 
     def raise_if_deactivated(self, workspace: Workspace) -> None:
+        """
+        Refuses the type where it cannot be used, with the reason it gives.
+
+        :param workspace: The workspace the button field belongs to.
+        :raises WorkflowActionTypeDeactivated: When the type is deactivated.
+        """
+
         if self.is_deactivated(workspace):
             raise WorkflowActionTypeDeactivated(
                 self.get_deactivated_reason(workspace)
