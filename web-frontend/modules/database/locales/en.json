@@ -1318,7 +1318,8 @@
     "noUrl": "Enter a URL to open.",
     "staleReference": "This action uses a result from an action that no longer runs before it.",
     "unreadableReference": "This action uses a result from an action that no longer returns one.",
-    "noInstanceSmtp": "This Baserow instance has no SMTP server configured, so a button cannot send email."
+    "noInstanceSmtp": "This Baserow instance has no SMTP server configured, so a button cannot send email.",
+    "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email."
   },
   "openUrlWorkflowActionForm": {
     "url": "URL",

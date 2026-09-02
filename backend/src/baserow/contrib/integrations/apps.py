@@ -83,4 +83,11 @@ class IntegrationsConfig(AppConfig):
 
         service_type_registry.register(AIAgentServiceType())
 
+        from baserow.api.settings.registries import settings_data_registry
+        from baserow.contrib.integrations.core.settings_data_types import (
+            InstanceSMTPSettingsDataType,
+        )
+
+        settings_data_registry.register(InstanceSMTPSettingsDataType())
+
         import baserow.contrib.integrations.signals  # noqa: F403, F401

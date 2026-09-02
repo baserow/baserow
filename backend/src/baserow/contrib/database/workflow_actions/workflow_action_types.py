@@ -454,23 +454,43 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
             service.save(update_fields=["use_instance_smtp_settings"])
         return values
 
+    # What each reason the service gives means for a button, in the words the
+    # API answers a refusal with.
+    DEACTIVATED_REASONS = {
+        CoreSMTPEmailServiceType.INSTANCE_SMTP_TURNED_OFF: (
+            "Sending through this Baserow instance's own SMTP server is turned "
+            "off, so a button cannot send email."
+        ),
+        CoreSMTPEmailServiceType.INSTANCE_SMTP_NO_SERVER: (
+            "This Baserow instance has no SMTP server configured, so a button "
+            "cannot send email."
+        ),
+    }
+
     def is_deactivated(self, workspace) -> bool:
         """
         A database action carries no integration, so the instance SMTP server
         is the only way it can send. Without one, refuse it up front rather
         than failing on every click.
+
+        :param workspace: The workspace the button field belongs to.
+        :return: True when this installation cannot send at all.
         """
 
         service_type = service_type_registry.get(self.service_type)
-        return not service_type._instance_smtp_is_available()
+        return not service_type.instance_smtp_is_available()
 
     def get_deactivated_reason(self, workspace) -> Optional[str]:
-        if self.is_deactivated(workspace):
-            return (
-                "This Baserow instance has no SMTP server configured, so a "
-                "button cannot send email."
-            )
-        return None
+        """
+        Which of the two ways to be unable to send this installation is in.
+
+        :param workspace: The workspace the button field belongs to.
+        :return: The reason in words, or `None` when it can send.
+        """
+
+        service_type = service_type_registry.get(self.service_type)
+        reason = service_type.instance_smtp_unavailable_reason()
+        return self.DEACTIVATED_REASONS.get(reason)
 
 
 class OpenUrlWorkflowActionType(DatabaseWorkflowActionType):

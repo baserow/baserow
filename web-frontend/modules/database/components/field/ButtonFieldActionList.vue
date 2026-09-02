@@ -62,6 +62,8 @@
                 :icon="actionType.icon"
                 :name="actionType.label"
                 :value="actionType.getType()"
+                :description="deactivatedReasonFor(actionType)"
+                :disabled="Boolean(deactivatedReasonFor(actionType))"
               ></DropdownItem>
             </Dropdown>
           </div>
@@ -203,6 +205,16 @@ export default {
   methods: {
     actionKey(action) {
       return workflowActionKey(action)
+    },
+    /**
+     * Why this installation cannot run a type at all, shown on the option
+     * rather than found out by saving. Nothing to do with how an action is
+     * configured, which is what `errorFor` covers.
+     */
+    deactivatedReasonFor(actionType) {
+      return (
+        actionType.isDeactivatedReason({ workspace: this.workspace }) ?? null
+      )
     },
     errorFor(action) {
       const key = workflowActionKey(action)

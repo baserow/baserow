@@ -586,20 +586,36 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
   }
 
   /**
+   * Why this installation cannot send, read from the settings the editor
+   * already has rather than from the action. An action being configured has
+   * not been saved yet and carries no service to ask, so without this the
+   * first thing to say so would be the refusal on save.
+   *
+   * @returns The reason in the reader's language, or null when it can send.
+   */
+  isDeactivatedReason() {
+    const instanceSmtp =
+      this.app.$store.getters['settings/get']?.instance_smtp || {}
+    // Absent on an installation older than the flag, which is left alone: a
+    // click still says what went wrong.
+    if (instanceSmtp.available !== false) {
+      return null
+    }
+    return instanceSmtp.unavailable_reason === 'turned_off'
+      ? this.app.$i18n.t('databaseWorkflowActionType.instanceSmtpTurnedOff')
+      : this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
+  }
+
+  /**
    * An instance can stop being able to send after the action was configured,
-   * and the click is then refused. The service says which it is, so the editor
-   * can say so where the action is rather than leaving it to a click.
+   * and the click is then refused. Said where the action is rather than left
+   * to a click.
    */
   getErrorMessage(workflowAction, applicationContext) {
     const inherited = super.getErrorMessage(workflowAction, applicationContext)
     if (inherited) {
       return inherited
     }
-    // Absent on an action this editor has not saved yet, which the backend
-    // refuses on create instead.
-    if (workflowAction.service?.instance_smtp_settings_enabled === false) {
-      return this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
-    }
-    return null
+    return this.isDeactivatedReason()
   }
 }

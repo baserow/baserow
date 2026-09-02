@@ -446,12 +446,17 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
   const emailType = () =>
     testApp._app.$registry.get('databaseWorkflowActionType', 'smtp_email')
 
-  test('an instance that can no longer send is said so on the action', () => {
-    const action = {
-      id: 1,
-      type: 'smtp_email',
-      service: { instance_smtp_settings_enabled: false },
-    }
+  const withInstanceSmtp = (instanceSmtp) =>
+    testApp.store.commit('settings/SET_SETTINGS', {
+      instance_smtp: instanceSmtp,
+    })
+
+  test('an instance that cannot send is said so before the action is saved', () => {
+    withInstanceSmtp({ available: false, unavailable_reason: 'no_server' })
+
+    // An action being configured has no service yet, so the reason cannot
+    // come from one.
+    const action = { id: 1, type: 'smtp_email' }
 
     // `$t` returns the key in the test env, so the copy is pinned separately.
     expect(emailType().getErrorMessage(action, {})).toBe(
@@ -462,13 +467,30 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
     )
   })
 
-  test('an instance that can send says nothing', () => {
-    const action = {
-      id: 1,
-      type: 'smtp_email',
-      service: { instance_smtp_settings_enabled: true },
-    }
+  test('sending turned off by an administrator says that instead', () => {
+    withInstanceSmtp({ available: false, unavailable_reason: 'turned_off' })
 
-    expect(emailType().getErrorMessage(action, {})).toBeNull()
+    expect(emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, {})).toBe(
+      'databaseWorkflowActionType.instanceSmtpTurnedOff'
+    )
+    expect(en.databaseWorkflowActionType.instanceSmtpTurnedOff).toContain(
+      'turned off'
+    )
+  })
+
+  test('an instance that can send says nothing', () => {
+    withInstanceSmtp({ available: true, unavailable_reason: null })
+
+    expect(
+      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, {})
+    ).toBeNull()
+  })
+
+  test('an installation older than the flag is left to the click', () => {
+    testApp.store.commit('settings/SET_SETTINGS', {})
+
+    expect(
+      emailType().getErrorMessage({ id: 1, type: 'smtp_email' }, {})
+    ).toBeNull()
   })
 })

@@ -207,6 +207,46 @@ def test_email_is_refused_when_the_instance_only_prints_what_it_is_given(
 
 
 @pytest.mark.django_db
+def test_each_way_of_being_unable_to_send_says_which_one_it_is(data_fixture, settings):
+    """
+    An administrator who turned instance sending off reads that, rather than
+    being told this installation has no mail server at all.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    workspace = table.database.workspace
+    action_type = database_workflow_action_type_registry.get("smtp_email")
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    assert "turned off" in action_type.get_deactivated_reason(workspace)
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    assert "no SMTP server" in action_type.get_deactivated_reason(workspace)
+
+
+@pytest.mark.django_db
+def test_a_backend_whose_path_merely_contains_a_local_one_still_sends(
+    data_fixture, settings
+):
+    """
+    The names are matched as whole path segments. A custom backend living in a
+    module such as `myapp.console_relay` sends for real, and reading its path
+    as a substring would turn the email action off for that installation.
+    """
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "myapp.console_relay.EmailBackend"
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    action_type = database_workflow_action_type_registry.get("smtp_email")
+
+    assert action_type.is_deactivated(table.database.workspace) is False
+
+
+@pytest.mark.django_db
 def test_email_is_offered_when_the_instance_can_send(data_fixture, settings):
     settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
     settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

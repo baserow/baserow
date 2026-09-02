@@ -228,7 +228,7 @@ class CoreSMTPEmailService(Service):
 
     @property
     def instance_smtp_settings_enabled(self) -> bool:
-        return self.get_type()._instance_smtp_is_available()
+        return self.get_type().instance_smtp_is_available()
 
 
 class CoreRouterService(Service):

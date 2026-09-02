@@ -88,6 +88,28 @@ describe('ButtonFieldActionList', () => {
     expect(items[0].props('icon')).toBe('iconoir-link')
   })
 
+  test('a type this instance cannot run is offered but not choosable', async () => {
+    // Otherwise the only thing saying so is the refusal on save.
+    testApp.store.commit('settings/SET_SETTINGS', {
+      instance_smtp: { available: false, unavailable_reason: 'no_server' },
+    })
+    const wrapper = await mountList([{ type: null }])
+
+    const items = wrapper
+      .findComponent({ name: 'Dropdown' })
+      .findAllComponents({ name: 'DropdownItem' })
+    const email = items.find((item) => item.props('value') === 'smtp_email')
+
+    expect(email.props('disabled')).toBe(true)
+    expect(email.props('description')).toBe(
+      'databaseWorkflowActionType.noInstanceSmtp'
+    )
+    // Every other type is left alone.
+    expect(items[0].props('disabled')).toBe(false)
+
+    testApp.store.commit('settings/SET_SETTINGS', {})
+  })
+
   test('a row with no type shows the placeholder and no form', async () => {
     const wrapper = await mountList([{ type: null }])
 

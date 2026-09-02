@@ -814,7 +814,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         return {
             "use_instance_smtp_settings": serializers.BooleanField(
                 required=False,
-                default=self._instance_smtp_is_available(),
+                default=self.instance_smtp_is_available(),
                 help_text=CoreSMTPEmailService._meta.get_field(
                     "use_instance_smtp_settings"
                 ).help_text,
@@ -863,22 +863,46 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     # message somewhere local and reports that it sent it.
     NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
 
-    def _instance_smtp_is_available(self) -> bool:
+    # Why this installation cannot send through its own server. Returned as a
+    # code rather than a sentence, so each caller can word it for its own
+    # reader and translate it.
+    INSTANCE_SMTP_TURNED_OFF = "turned_off"
+    INSTANCE_SMTP_NO_SERVER = "no_server"
+
+    def instance_smtp_unavailable_reason(self) -> Optional[str]:
+        """
+        Why a service cannot send through this installation's own mail server.
+
+        :return: One of the `INSTANCE_SMTP_*` codes, or `None` when it can.
+        """
+
         if not settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
-            return False
+            return self.INSTANCE_SMTP_TURNED_OFF
 
         # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
         # says nothing about whether this installation can send. What it does
         # with a message it is given does, and a backend it does not name at
         # all is one the service could not ask for.
-        backend = getattr(settings, "CELERY_EMAIL_BACKEND", None)
-        if not backend:
-            return False
-        return not any(name in backend for name in self.NON_DELIVERING_EMAIL_BACKENDS)
+        backend = getattr(settings, "CELERY_EMAIL_BACKEND", None) or ""
+        segments = backend.split(".")
+        if not backend or any(
+            name in segments for name in self.NON_DELIVERING_EMAIL_BACKENDS
+        ):
+            return self.INSTANCE_SMTP_NO_SERVER
+        return None
+
+    def instance_smtp_is_available(self) -> bool:
+        """
+        Whether a service can send through this installation's own mail server.
+
+        :return: True when nothing stands in the way of sending.
+        """
+
+        return self.instance_smtp_unavailable_reason() is None
 
     def _should_use_instance_smtp(self, service: CoreSMTPEmailService) -> bool:
         return bool(
-            service.use_instance_smtp_settings and self._instance_smtp_is_available()
+            service.use_instance_smtp_settings and self.instance_smtp_is_available()
         )
 
     def requires_integration(self, service: CoreSMTPEmailService) -> bool:
@@ -892,7 +916,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 "use_instance_smtp_settings",
                 instance.use_instance_smtp_settings if instance else True,
             )
-            if self._instance_smtp_is_available()
+            if self.instance_smtp_is_available()
             else False
         )
 
