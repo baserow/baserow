@@ -17,6 +17,10 @@ class DatabaseWorkflowAction(WorkflowAction, OrderableMixin):
     """
 
     order = models.PositiveIntegerField()
+
+    # Overrides `TrashableModelMixin.trashed` solely to add `db_default` so the
+    # column keeps a database-level default (mirrors `BuilderWorkflowAction`).
+    trashed = models.BooleanField(default=False, db_default=False, db_index=True)
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",

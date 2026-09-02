@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('builder', '0076_iframeelement_allow_same_origin'),
+        ('builder', '0077_builder_breakpoints'),
     ]
 
     operations = [
