@@ -429,6 +429,9 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             .prefetch_related("headers", "query_params", "form_data")
         )
 
+    def max_dispatch_seconds(self, service: CoreHTTPRequestService) -> int:
+        return service.timeout or 0
+
     def get_schema_name(self, service: CoreHTTPRequestService) -> str:
         return f"HTTPRequest{service.id}Schema"
 
@@ -926,6 +929,12 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         values["use_instance_smtp_settings"] = use_instance_smtp_settings
 
         return values
+
+    def max_dispatch_seconds(self, service: CoreSMTPEmailService) -> int:
+        # The timeout is per socket operation rather than for the send as a
+        # whole: connecting, the handshake and the message each get it. Three
+        # of them is what a send waits for at worst.
+        return SMTP_EMAIL_TIMEOUT * 3
 
     def get_schema_name(self, service: CoreSMTPEmailService) -> str:
         return f"SMTPEmail{service.id}Schema"

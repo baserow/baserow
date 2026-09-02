@@ -103,6 +103,19 @@ class ServiceType(
 
         return dispatch_type in self.dispatch_types
 
+    def max_dispatch_seconds(self, service: Service) -> int:
+        """
+        The longest a dispatch of this service can take before it gives up. A
+        caller holding a lock over the dispatch needs it, since a lock that
+        expires while the service is still waiting stops protecting anything.
+
+        :param service: The service about to be dispatched.
+        :return: The number of seconds, 0 when the service does not wait on
+            anything outside this installation.
+        """
+
+        return 0
+
     def get_integration_type(self):
         from baserow.core.integrations.registries import integration_type_registry
 

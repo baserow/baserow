@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from smtplib import SMTPNotSupportedError
 from unittest.mock import Mock, patch
 
+from django.conf import settings
+
 import pytest
 from loguru import logger
 from requests import exceptions as request_exceptions
@@ -20,6 +22,7 @@ from baserow.contrib.database.workflow_actions.service import (
     EXTERNAL_DISPATCH_FAILED_MESSAGE,
     DatabaseWorkflowActionService,
 )
+from baserow.contrib.integrations.core.constants import SMTP_EMAIL_TIMEOUT
 
 
 @contextmanager
@@ -720,6 +723,31 @@ def test_the_reason_the_last_click_left_is_replaced_by_the_next_one(data_fixture
     reason = action.service.sample_data["_error"]
     assert "timed out" in reason
     assert "404" not in reason
+
+
+@pytest.mark.django_db
+def test_the_lock_outlives_a_click_that_only_sends_email(data_fixture):
+    """
+    An email service carries no timeout of its own, but a send waits on its
+    mail server all the same. Counting it as instant leaves the lock at the
+    default while the click is still sending, and a second click then runs the
+    same actions and sends the same mail again.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    actions = [
+        data_fixture.create_database_workflow_action(
+            CoreSMTPEmailWorkflowAction, field=button_field
+        )
+        for _ in range(5)
+    ]
+
+    ttl = DatabaseWorkflowActionService()._lock_ttl_for(actions)
+
+    assert ttl > settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS
+    assert ttl >= 5 * SMTP_EMAIL_TIMEOUT
 
 
 @pytest.mark.django_db
