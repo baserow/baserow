@@ -557,6 +557,41 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             for match in RE_FORMULA_FUNCTION.finditer(formula)
         )
 
+    def _read_response_within_limit(self, response) -> None:
+        """
+        Pulls the body in with a ceiling on it, and hangs up on an endpoint
+        that goes past it. Buffering it whole and measuring afterwards is too
+        late: the memory is already spent. The ceiling is on what arrives after
+        decompression, so a small answer that unpacks into a big one is caught.
+
+        :param response: The streamed response.
+        :raises ServiceImproperlyConfiguredDispatchException: When the body is
+            larger than the ceiling.
+        """
+
+        max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES
+
+        if not max_bytes:
+            return
+
+        content = bytearray()
+
+        try:
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                content += chunk
+                if len(content) > max_bytes:
+                    raise ServiceImproperlyConfiguredDispatchException(
+                        f"The response is larger than the {max_bytes} bytes this "
+                        f"installation accepts."
+                    )
+        finally:
+            response.close()
+
+        # What `response.json()` and `response.text` read, so the rest of the
+        # dispatch is unchanged.
+        response._content = bytes(content)
+        response._content_consumed = True
+
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -610,9 +645,16 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 headers=headers,
                 params=query_params,
                 timeout=service.timeout,
+                # `_read_response_within_limit` pulls the body in, in chunks.
+                stream=True,
                 **body_dict,
             )
+            self._read_response_within_limit(response)
 
+        except ServiceImproperlyConfiguredDispatchException:
+            # Too big. The message names no address, so it travels as it is
+            # rather than as an unknown error.
+            raise
         except (UnacceptableAddressException, ConnectionError) as e:
             raise UnexpectedDispatchException(
                 f"Invalid URL: {resolved_values['url']}"

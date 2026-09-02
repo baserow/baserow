@@ -3,8 +3,10 @@ from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
-from django.db.models import Prefetch, QuerySet
+from django.db.models import Manager, Prefetch, QuerySet
 
+from rest_framework import serializers
+from rest_framework.exceptions import ErrorDetail
 from rest_framework.fields import empty
 
 from baserow.api.services.serializers import PolymorphicServiceRequestSerializer
@@ -61,13 +63,37 @@ class DefaultTypedServiceRequestSerializer(PolymorphicServiceRequestSerializer):
         super().__init__(*args, **kwargs)
 
     def run_validation(self, data=empty) -> Any:
-        if isinstance(data, dict) and not data.get("type"):
-            data = {**data, "type": self.service_type_name}
+        if isinstance(data, dict):
+            supplied_type = data.get("type")
+            if not supplied_type:
+                data = {**data, "type": self.service_type_name}
+            elif supplied_type != self.service_type_name:
+                # The action type already fixes which service backs it, so a
+                # different type here only picks the serializer, and whatever
+                # it accepted is then dropped without a word. Refused rather
+                # than corrected, so the caller hears about it.
+                raise serializers.ValidationError(
+                    {
+                        "type": [
+                            ErrorDetail(
+                                f"This action is always backed by a "
+                                f"'{self.service_type_name}' service, so "
+                                f"'{supplied_type}' cannot be used here.",
+                                code="invalid",
+                            )
+                        ]
+                    }
+                )
         return super().run_validation(data)
 
 
 class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     service_type = None  # Must be implemented by subclasses.
+
+    # Service values that shape the answer a click remembers. Changing one
+    # makes an earlier capture describe a request no longer being made, so it
+    # is dropped. Only read by a type that sets `captures_sample_data`.
+    sample_data_shaping_fields: List[str] = []
 
     serializer_field_names = ["service"]
     serializer_field_overrides = {
@@ -204,12 +230,51 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
+        if instance and self._reshapes_the_request(service, prepared_service_values):
+            # Saved by `update_service` below, in the same write.
+            service.sample_data = None
         ServiceHandler().update_service(
             service_type, service, **prepared_service_values
         )
 
         values["service"] = service
         return super().prepare_values(values, user, instance)
+
+    def _reshapes_the_request(
+        self, service: Service, prepared_service_values: Dict[str, Any]
+    ) -> bool:
+        """
+        Whether this update changes what the answer will look like, which is
+        what makes an earlier capture stale. Read before the update, while the
+        service still holds the values it is replacing.
+
+        :param service: The service as it is stored right now.
+        :param prepared_service_values: What the update is about to set. A
+            value the caller left out is not compared: it is not changing.
+        :return: True when a captured answer no longer describes this request.
+        """
+
+        if not self.captures_sample_data or not service.sample_data:
+            return False
+
+        for name in self.sample_data_shaping_fields:
+            if name not in prepared_service_values:
+                continue
+
+            stored = getattr(service, name)
+            supplied = prepared_service_values[name]
+
+            if isinstance(stored, Manager):
+                # A related row, such as a header or a query parameter.
+                stored = [{"key": row.key, "value": row.value} for row in stored.all()]
+                supplied = [
+                    {"key": row["key"], "value": row["value"]} for row in supplied or []
+                ]
+
+            if stored != supplied:
+                return True
+
+        return False
 
     def formula_generator(
         self, workflow_action: WorkflowAction
@@ -291,6 +356,25 @@ class CoreHTTPRequestWorkflowActionType(DatabaseWorkflowServiceActionType):
     # What an endpoint answers with is unknowable until it has answered once.
     captures_sample_data = True
     is_external = True
+
+    # Everything that decides which request goes out. `timeout` is left out:
+    # it changes how long the answer may take, not what is in it.
+    sample_data_shaping_fields = [
+        "http_method",
+        "url",
+        "body_type",
+        "body_content",
+        "headers",
+        "query_params",
+        "form_data",
+    ]
+
+    def result_describes_shape(self, result: DispatchResult) -> bool:
+        data = result.data if isinstance(result.data, dict) else {}
+        status_code = data.get("status_code")
+        # An error page describes the failure, not the endpoint, and would
+        # replace the shape a working click learned.
+        return isinstance(status_code, int) and 200 <= status_code < 300
 
 
 class OpenUrlWorkflowActionType(DatabaseWorkflowActionType):

@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 import pytest
+from loguru import logger
 from requests import exceptions as request_exceptions
 
 from baserow.contrib.database.fields.operations import UpdateFieldOperationType
@@ -15,9 +16,6 @@ from baserow.contrib.database.workflow_actions.models import (
 )
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
-)
-from baserow.core.services.exceptions import (
-    InvalidContextContentDispatchException,
 )
 
 
@@ -33,6 +31,11 @@ def mock_advocate_request(body=None, status_code=200, raise_exception=None):
     mock_response.text = str(body)
     mock_response.headers = {"Content-Type": "application/json"}
     mock_response.status_code = status_code
+    # The service streams the body in so it can stop an endpoint that
+    # sends more than this installation accepts.
+    mock_response.iter_content.return_value = iter(
+        [str(mock_response.text or "").encode()]
+    )
 
     with patch("advocate.request") as mock_request:
 
@@ -317,19 +320,23 @@ def test_what_the_action_was_given_is_still_reported(data_fixture):
     table, _ = _table_with_name(data_fixture, user)
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
-    _http_action(data_fixture, button_field, url="'http://example.notexist/'")
+    action = _http_action(data_fixture, button_field, url="'http://example.notexist/'")
 
-    with patch(
-        "baserow.contrib.integrations.core.service_types."
-        "CoreHTTPRequestServiceType.dispatch_data",
-        side_effect=InvalidContextContentDispatchException("The body is not JSON"),
-    ):
-        with pytest.raises(WorkflowActionDispatchError) as raised:
-            DatabaseWorkflowActionService().dispatch_workflow_actions(
-                user, button_field, row
-            )
+    # Configured rather than raised by hand, so the failure is the one the
+    # service really produces. Nothing is mocked: the body is refused before
+    # the request is built, so no call leaves the process.
+    service = action.service.specific
+    service.http_method = "POST"
+    service.body_type = "json"
+    service.body_content = "'not json{'"
+    service.save()
 
-    assert raised.value.message == "The body is not JSON"
+    with pytest.raises(WorkflowActionDispatchError) as raised:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert raised.value.message == "The body is not a valid JSON"
 
 
 @pytest.mark.django_db
@@ -354,3 +361,174 @@ def test_the_lock_outlives_every_request_the_click_may_wait_for(data_fixture):
     ttl = DatabaseWorkflowActionService()._lock_ttl_for(actions)
 
     assert ttl >= 240
+
+
+@pytest.mark.django_db
+def test_pointing_the_action_somewhere_else_forgets_the_old_answer(data_fixture):
+    """
+    The editor offers the actions after this one the paths it learned from the
+    last click. Left in place after the URL changed, those paths describe an
+    endpoint the button no longer calls, and an action using one writes an
+    empty value into the row without saying anything.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"title": "Sample Slide Show"}):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    action.service.refresh_from_db()
+    assert action.service.sample_data is not None
+
+    action = CoreHTTPRequestWorkflowAction.objects.get(pk=action.pk)
+    DatabaseWorkflowActionService().update_workflow_action(
+        user, action, service={"url": {"formula": "'http://example.notexist/uuid'"}}
+    )
+
+    action.service.refresh_from_db()
+    assert action.service.sample_data is None
+
+
+@pytest.mark.django_db
+def test_changing_a_header_forgets_the_old_answer(data_fixture):
+    """
+    Not only the URL decides what comes back. A header, a query parameter, the
+    method and the body all shape the answer, and a related row changing counts
+    the same as the URL changing.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"title": "Sample Slide Show"}):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    action.service.refresh_from_db()
+    assert action.service.sample_data is not None
+
+    action = CoreHTTPRequestWorkflowAction.objects.get(pk=action.pk)
+    DatabaseWorkflowActionService().update_workflow_action(
+        user,
+        action,
+        service={
+            "headers": [{"key": "Accept", "value": {"formula": "'text/csv'"}}],
+        },
+    )
+
+    action.service.refresh_from_db()
+    assert action.service.sample_data is None
+
+
+@pytest.mark.django_db
+def test_a_change_that_does_not_reshape_the_request_keeps_the_answer(data_fixture):
+    """
+    The timeout says how long the answer may take, not what it contains, so it
+    does not cost the editor the schema it has.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"title": "Sample Slide Show"}):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    action = CoreHTTPRequestWorkflowAction.objects.get(pk=action.pk)
+    DatabaseWorkflowActionService().update_workflow_action(
+        user, action, service={"timeout": 45}
+    )
+
+    action.service.refresh_from_db()
+    assert action.service.sample_data["data"]["body"] == {"title": "Sample Slide Show"}
+
+
+@pytest.mark.django_db
+def test_an_unchanged_answer_is_not_written_again(data_fixture):
+    """
+    Clicking is a manual path and the blob is big enough for Postgres to TOAST
+    it, so rewriting the same answer on every click is a real write for
+    nothing. The editor only reads it to build a schema.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"title": "Sample Slide Show"}):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+        with patch("baserow.core.services.models.Service.save", autospec=True) as saved:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    assert saved.call_count == 0
+
+    # A different answer is still written.
+    with mock_advocate_request({"title": "Something else"}):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    service = CoreHTTPRequestWorkflowAction.objects.get(
+        field=button_field
+    ).service.specific
+    assert service.sample_data["data"]["body"] == {"title": "Something else"}
+
+
+@pytest.mark.django_db
+def test_a_failed_request_is_not_logged_with_the_address_it_used(data_fixture):
+    """
+    The clicker is told nothing about the address, but the log line was written
+    before that and carried the failure itself. Loguru prints the frame locals
+    beside it, so the URL's query string and the request headers went with it,
+    which is exactly where an API key sits.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _http_action(
+        data_fixture,
+        button_field,
+        url="'http://example.notexist/p?token=sk-SUPERSECRET'",
+    )
+
+    written = []
+    sink_id = logger.add(written.append, level="DEBUG", diagnose=True, backtrace=True)
+    try:
+        with mock_advocate_request(
+            raise_exception=request_exceptions.ConnectionError(
+                "Failed to reach http://example.notexist/p?token=sk-SUPERSECRET"
+            )
+        ):
+            with pytest.raises(WorkflowActionDispatchError):
+                DatabaseWorkflowActionService().dispatch_workflow_actions(
+                    user, button_field, row
+                )
+    finally:
+        logger.remove(sink_id)
+
+    logged = "".join(written)
+    assert "sk-SUPERSECRET" not in logged
+    assert "example.notexist" not in logged
+    # It still says which action failed, which is what an operator needs.
+    assert str(button_field.id) in logged

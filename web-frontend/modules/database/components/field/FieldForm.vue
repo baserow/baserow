@@ -387,6 +387,11 @@ export default {
     }
   },
   methods: {
+    /** Tells a sub-form it is being looked at again, in case the server has
+     * changed what it holds. */
+    onShow() {
+      this.$refs.childForm?.onShow?.()
+    },
     async submit(deep) {
       this.dbIndexError = false
       this.fieldConstraintError = null

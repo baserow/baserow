@@ -212,6 +212,22 @@ export default {
       }
     },
     /**
+     * Re-reads the field's actions. A click changes them: an external action
+     * remembers the answer it got. This sub-form is not remounted when the
+     * field is opened again, so without this the captured body stays missing
+     * until the page is reloaded.
+     */
+    async onShow() {
+      if (!this.defaultValues.id || this.defaultValues.type !== 'button') {
+        return
+      }
+      try {
+        await this.fetchWorkflowActions(this.defaultValues.id)
+      } catch (error) {
+        notifyIf(error, 'field')
+      }
+    },
+    /**
      * Puts the ids the server just handed out onto the buffered actions they
      * belong to, so a save that stopped half way can be retried without
      * creating a second copy of everything the first attempt made.

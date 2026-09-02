@@ -367,21 +367,29 @@ flowchart TD
     D --> E["after_import hooks run;<br/>unconfigured external integrations<br/>surface as reconfigure states"]
 ```
 
-In v1 there is nothing to strip and nothing to reconfigure, because database services
-have no integration. When external integrations arrive, exports strip their credentials
-as today, and their buttons render disabled with an error indicator pointing at the
-integration to reconfigure, reusing the error state the builder already shows for
-misconfigured actions rather than inventing a database-specific one.
+Nothing is reconfigured on import, because database services have no integration. When
+external integrations arrive, their buttons render disabled with an error indicator
+pointing at the integration to reconfigure, reusing the error state the builder already
+shows for misconfigured actions rather than inventing a database-specific one.
+
+**Secrets reach an export before integrations do.** The first phrasing of this section
+tied credential stripping to the arrival of external integrations. That is not where the
+line falls. An HTTP request action has no integration, and its key lives in the service's
+own headers, so a button carrying `Authorization: Bearer …` exports that header in clear
+text, and it travels wherever the export travels: snapshots, duplicates, workspace
+exports, templates. The builder exports its HTTP headers the same way, so this is not
+something the button field introduces, but it is here as soon as an external *action*
+ships rather than an external *integration*.
 
 **Constraint discovered in implementation.** Actions are serialized from
 `FieldType.export_serialized`, which receives only the field: no `files_zip`, no
 `storage`, and no `import_export_config`. The action export path therefore cannot carry
-files, and cannot apply `exclude_sensitive_data`. This is harmless in v1, since Local
-Baserow services have neither files nor credentials. It does mean the commitment above
-that "exports strip their credentials as today" cannot be honoured through this path
-once external integrations arrive; widening `FieldType.export_serialized` to take the
-same arguments the builder's export path already receives is a prerequisite for that
-work.
+files, and cannot apply `exclude_sensitive_data`, so it could not strip a header even if
+`CoreHTTPRequestServiceType` declared one as sensitive, which it does not. Widening
+`FieldType.export_serialized` to take the same arguments the builder's export path
+already receives, and declaring the HTTP service's headers sensitive, are both
+prerequisites for closing this. Until then, a button's own captured answer is stripped on
+export and its headers are not.
 
 ### 7. What kind of field is a button, and who may click it
 

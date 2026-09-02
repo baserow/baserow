@@ -1,6 +1,6 @@
 import json
 from dataclasses import fields as dataclass_fields
-from typing import Any, List
+from typing import Any, Callable, List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -52,6 +52,7 @@ from baserow.core.services.exceptions import (
     PermissionDeniedDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.types import DispatchResult
 from baserow.core.types import PermissionCheck
@@ -60,14 +61,10 @@ from baserow.core.types import PermissionCheck
 # names the URL it could not reach, which is where an API key would be.
 EXTERNAL_DISPATCH_FAILED_MESSAGE = "the request could not be completed"
 
-# Failures whose message is written for the clicker, and so is safe to return.
-# Anything else keeps its message server side.
-# What these say is about the values the action was handed, never about the
-# address it was pointed at, so an external action may repeat them as they are.
-ADDRESSLESS_DISPATCH_EXCEPTIONS = (
-    InvalidContextDispatchException,
-    InvalidContextContentDispatchException,
-)
+# Failures whose message can name where the request was going. An external
+# action never repeats these to the clicker. Listed rather than excluded, so a
+# new failure stays readable until it is known to name an address.
+ADDRESS_BEARING_DISPATCH_EXCEPTIONS = (UnexpectedDispatchException,)
 
 USER_FACING_DISPATCH_EXCEPTIONS = (
     ServiceImproperlyConfiguredDispatchException,
@@ -234,16 +231,15 @@ class DatabaseWorkflowActionService:
         :param result: What it returned.
         """
 
-        if not workflow_action.get_type().captures_sample_data:
+        workflow_action_type = workflow_action.get_type()
+
+        if not workflow_action_type.captures_sample_data:
             return
 
-        # An endpoint that answered 404 with an error page, or timed out, still
-        # counts as a successful dispatch and describes nothing. Overwriting
-        # with it would drop the shape an earlier click learned, and with it
-        # every explorer node the actions after this one point at.
-        data = result.data if isinstance(result.data, dict) else {}
-        status_code = data.get("status_code")
-        if not isinstance(status_code, int) or not 200 <= status_code < 300:
+        # The type decides: a 404 error page is still a successful dispatch
+        # and describes nothing, and a type with no status code answers this
+        # differently. Keeping it would drop the shape an earlier click learned.
+        if not workflow_action_type.result_describes_shape(result):
             return
 
         sample_data = {
@@ -262,6 +258,12 @@ class DatabaseWorkflowActionService:
                 return
 
             service = workflow_action.service
+            # Compared after a JSON round trip, so re-encoding alone is not a
+            # change. An unchanged answer is not worth the write: the blob is
+            # TOASTed and every click would pay for a savepoint.
+            if service.sample_data == json.loads(encoded):
+                return
+
             service.sample_data = sample_data
             # Its own savepoint: a value the column refuses would otherwise
             # leave an enclosing transaction unusable for the actions after
@@ -280,8 +282,27 @@ class DatabaseWorkflowActionService:
                 exc_info=True,
             )
 
+    def get_dispatch_snapshot(self, field: ButtonField) -> List[DatabaseWorkflowAction]:
+        """
+        The actions a click is about to run, read once so what it is charged
+        for and what it runs are the same list. Reading it twice lets a
+        configuration change land in between.
+
+        No permission check: `dispatch_workflow_actions` makes them all.
+
+        :param field: The clicked button field.
+        :return: Its actions, in the order they run.
+        """
+
+        return list(self.handler.get_workflow_actions(field))
+
     def dispatch_workflow_actions(
-        self, user: AbstractUser, field: ButtonField, row: Any
+        self,
+        user: AbstractUser,
+        field: ButtonField,
+        row: Any,
+        workflow_actions: Optional[List[DatabaseWorkflowAction]] = None,
+        on_external_dispatch: Optional[Callable[[DatabaseWorkflowAction], None]] = None,
     ) -> WorkflowActionsDispatchResult:
         """
         Runs the server-side actions in order as the given user, and hands the
@@ -294,6 +315,11 @@ class DatabaseWorkflowActionService:
         :param user: The user who clicked.
         :param field: The clicked button field.
         :param row: The clicked row.
+        :param workflow_actions: The actions to run, from
+            `get_dispatch_snapshot`. Read here when the caller has none.
+        :param on_external_dispatch: Called just before each action that
+            reaches outside Baserow, so the caller learns what the click really
+            sent rather than what the button is configured to send.
         :raises WorkflowActionDispatchInProgress: When a click is already running
             for this field and row.
         :raises WorkflowActionDispatchError: When an action fails with a message
@@ -313,7 +339,8 @@ class DatabaseWorkflowActionService:
             context=field,
         )
 
-        workflow_actions = list(self.handler.get_workflow_actions(field))
+        if workflow_actions is None:
+            workflow_actions = self.get_dispatch_snapshot(field)
 
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
@@ -400,30 +427,47 @@ class DatabaseWorkflowActionService:
                     # Each action reads the clicked row itself, so it sees what
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
+                    if workflow_action.get_type().is_external and on_external_dispatch:
+                        # Before the request, not after: a failed request
+                        # still left the instance.
+                        on_external_dispatch(workflow_action)
                     try:
                         result = self.handler.dispatch_workflow_action(
                             workflow_action, dispatch_context
                         )
                     except Exception as exc:
-                        logger.exception(
-                            "Workflow action {action_id} of button field "
-                            "{field_id} failed while dispatching.",
-                            action_id=workflow_action.id,
-                            field_id=field.id,
+                        names_an_address = workflow_action.get_type().is_external and (
+                            isinstance(exc, ADDRESS_BEARING_DISPATCH_EXCEPTIONS)
                         )
-                        if workflow_action.get_type().is_external and not isinstance(
-                            exc, ADDRESSLESS_DISPATCH_EXCEPTIONS
-                        ):
-                            # A message about the address the action failed on
-                            # names the URL with its query string, or the
-                            # instance's own mail host. Those are for whoever
+                        if names_an_address:
+                            # The failure carries the resolved URL, and
+                            # loguru prints the frame locals beside it, which
+                            # hold the request headers. An API key lives in
+                            # both, so only the ids and the class are logged.
+                            logger.error(
+                                "Workflow action {action_id} of button field "
+                                "{field_id} failed while reaching outside "
+                                "Baserow with {exception}. The failure itself "
+                                "is not logged: it names the address and what "
+                                "was sent with it.",
+                                action_id=workflow_action.id,
+                                field_id=field.id,
+                                exception=type(exc).__name__,
+                            )
+                        else:
+                            logger.exception(
+                                "Workflow action {action_id} of button field "
+                                "{field_id} failed while dispatching.",
+                                action_id=workflow_action.id,
+                                field_id=field.id,
+                            )
+                        if names_an_address:
+                            # Where the request was going is for whoever
                             # configured the button, not for whoever clicked
                             # it, so the clicker gets the position and a
                             # message of our own. Checked before the user
-                            # facing exceptions below, which is what a refused
-                            # connection arrives as. What the action was
-                            # *given* is safe to repeat: it says nothing about
-                            # where the request was going.
+                            # facing exceptions below, which a refused
+                            # connection is one of.
                             raise WorkflowActionDispatchError(
                                 workflow_action.id,
                                 EXTERNAL_DISPATCH_FAILED_MESSAGE,

@@ -269,3 +269,115 @@ def test_a_click_refused_by_permissions_spends_nothing(
 
     with mock_advocate_request({"ok": True}):
         assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_every_request_on_a_button_spends_its_own_slot(
+    api_client, data_fixture, settings
+):
+    """
+    A slot per click would let one button carrying ten requests send ten for
+    the price of one, so a `30/m` limit would really allow three hundred.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=2),
+    )
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    _add_http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"ok": True}):
+        first = _click(api_client, token, button_field, row)
+        second = _click(api_client, token, button_field, row)
+
+    assert first.status_code == HTTP_200_OK
+    # The two requests of the first click used the whole budget.
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.django_db
+def test_a_button_is_refused_when_it_cannot_afford_all_its_requests(
+    api_client, data_fixture, settings
+):
+    """
+    Reserved before anything runs, so a button that cannot pay for its whole
+    sequence does not send half of it and then stop.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    _add_http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"ok": True}) as request:
+        refused = _click(api_client, token, button_field, row)
+
+    assert refused.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert request.call_count == 0
+
+
+@pytest.mark.django_db
+def test_a_click_that_stopped_before_its_request_gives_the_slot_back(
+    api_client, data_fixture, settings
+):
+    """
+    A local action failing first means no request left the instance, so there
+    is nothing to charge for. Charging anyway would let one broken row action
+    lock the clicker out of every button they have.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    broken = _add_row_action(data_fixture, button_field, table)
+    service = broken.service.specific
+    service.table = None
+    service.save()
+    _add_http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"ok": True}) as request:
+        failed = _click(api_client, token, button_field, row)
+
+    assert failed.status_code == HTTP_400_BAD_REQUEST
+    assert request.call_count == 0
+
+    # Nothing was spent, so the one external click is still there.
+    service.table = table
+    service.save()
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_a_click_that_failed_after_its_request_still_spends_it(
+    api_client, data_fixture, settings
+):
+    """
+    The request already left the instance, so repeating the click repeats the
+    traffic. Giving the slot back would make that traffic free.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    _add_row_action(data_fixture, button_field, table)
+
+    with patch(
+        "baserow.contrib.integrations.local_baserow.service_types."
+        "LocalBaserowUpsertRowServiceType.dispatch_data",
+        side_effect=PermissionException(),
+    ):
+        with mock_advocate_request({"ok": True}) as request:
+            failed = _click(api_client, token, button_field, row)
+
+    assert failed.status_code == HTTP_401_UNAUTHORIZED
+    assert request.call_count == 1
+
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_429_TOO_MANY_REQUESTS
+        )

@@ -542,3 +542,95 @@ def test_create_refuses_a_reference_naming_no_action(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert "must name the action to read" in str(response.json())
+
+
+@pytest.mark.django_db
+def test_creating_with_a_service_type_the_action_does_not_use_is_refused(
+    api_client, data_fixture
+):
+    """
+    The action type already fixes which service backs it, so a different type
+    here only picks the serializer the values are checked against. The service
+    is then created as the action's own type anyway and everything the other
+    serializer accepted is dropped, so the caller would get a 200 and a
+    misconfigured action.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {
+            "type": "http_request",
+            "service": {
+                "type": "local_baserow_upsert_row",
+                "table_id": table.id,
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert "local_baserow_upsert_row" in str(response.json())
+    assert DatabaseWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_updating_with_a_service_type_the_action_does_not_use_is_refused(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+
+    response = api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": action.id},
+        ),
+        {"service": {"type": "http_request", "url": "'http://example.notexist/'"}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert "http_request" in str(response.json())
+
+
+@pytest.mark.django_db
+def test_naming_the_service_type_the_action_already_uses_is_accepted(
+    api_client, data_fixture
+):
+    """Only a type that disagrees with the action is refused."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {
+            "type": "local_baserow_create_row",
+            "service": {
+                "type": "local_baserow_upsert_row",
+                "table_id": table.id,
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["service"]["table_id"] == table.id

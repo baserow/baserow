@@ -193,6 +193,10 @@ export default {
     },
     onShow() {
       this.showDescription = this.$refs.form.isDescriptionFieldNotEmpty()
+      // Skipped while a failed save is still holding the user's edits.
+      if (!this.actionsFailed) {
+        this.$refs.form?.onShow?.()
+      }
     },
 
     showDescriptionField(evt) {

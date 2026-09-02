@@ -472,11 +472,22 @@ export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowAct
  */
 export class DatabaseExternalWorkflowActionType extends DatabaseWorkflowActionServiceType {
   /**
+   * The parts of the answer that are there whatever the endpoint replies. An
+   * action that was only just added has no saved service, so without this it
+   * is missing from the explorer until the field is saved and reopened.
+   */
+  get baselineDataSchema() {
+    return null
+  }
+
+  /**
    * The service's own schema rather than the row shape the base builds. Null
    * leaves the action out of the explorer instead of describing it wrongly.
    */
   getDataSchema(applicationContext, workflowAction) {
-    const schema = this.serviceType.getDataSchema(workflowAction.service || {})
+    const schema =
+      this.serviceType.getDataSchema(workflowAction.service || {}) ||
+      this.baselineDataSchema
     if (!schema) {
       return null
     }
@@ -497,6 +508,40 @@ export class CoreHTTPRequestWorkflowActionType extends DatabaseExternalWorkflowA
 
   get capturesSampleData() {
     return true
+  }
+
+  /**
+   * Every request answers with these, clicked or not. The body is left out:
+   * only a real answer says what is in it. Matches what the backend builds
+   * for a service with nothing captured.
+   */
+  get baselineDataSchema() {
+    return {
+      type: 'object',
+      properties: {
+        raw_body: { type: 'string', title: 'Raw body' },
+        headers: {
+          type: 'object',
+          title: 'Headers',
+          properties: {
+            'Content-Type': {
+              type: 'string',
+              description: 'The MIME type of the response body',
+            },
+            'Content-Length': {
+              type: 'number',
+              description:
+                'The length of the response body in octets (8-bit bytes)',
+            },
+            ETag: {
+              type: 'string',
+              description: 'An identifier for a specific version of a resource',
+            },
+          },
+        },
+        status_code: { type: 'number', title: 'Status code' },
+      },
+    }
   }
 
   get serviceType() {

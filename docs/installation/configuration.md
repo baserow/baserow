@@ -287,7 +287,10 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 
 | Name                                                       | Description                                                                                                                                                          | Defaults |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| BASEROW\_DATABASE\_BUTTON\_DISPATCH\_LOCK\_TTL\_SECONDS    | How long a button field click holds its lock, so a second click on the same button and row is refused while the first is still running. Raise it if a button's actions can legitimately run for longer. | 60       |
+| BASEROW\_DATABASE\_BUTTON\_DISPATCH\_LOCK\_TTL\_SECONDS    | How long a button field click holds its lock, so a second click on the same button and row is refused while the first is still running. It is a floor: a click whose actions may wait longer than this takes a lock sized to what they are allowed to wait for. Raise it if a button's actions can legitimately run for longer for some other reason. | 120      |
+| BASEROW\_DATABASE\_BUTTON\_SAMPLE\_DATA\_MAX\_BYTES       | The most a click may remember of an answer from outside Baserow, in bytes. The editor keeps it so it can describe that answer to the actions after it. A bigger answer still reaches the person who clicked; only the editor's copy is dropped. | 65536    |
+| BASEROW\_DATABASE\_BUTTON\_DISPATCH\_USER\_RATE\_LIMITS   | How often one user may click buttons that reach outside Baserow, as a comma separated list of rate limits, for example `30/m,300/h`. Staff are exempt. Leaving the variable empty keeps the default; a single comma switches the limit off. | 30/m,300/h |
+| BASEROW\_DATABASE\_BUTTON\_DISPATCH\_WORKSPACE\_RATE\_LIMITS | How often one workspace's buttons may reach outside Baserow, in the same format. Every member shares this budget, staff included, so one workspace cannot drown the rest. Leaving the variable empty keeps the default; a single comma switches the limit off. | 120/m,1200/h |
 
 ### Backend Application Builder Configuration
 | Name                      | Description                                                                                                              | Defaults |
@@ -305,6 +308,7 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 | SENTRY\_MONITOR\_BEAT\_TASKS | Automatically create Sentry cron monitors for the celery beat periodic tasks, so missed or failed runs are reported. Only used when Sentry is enabled for the backend. Note that every periodic task gets its own cron monitor, which can count towards your Sentry quota. | true              |
 | SENTRY\_EXCLUDE\_BEAT\_TASKS | Comma separated list of regexes matched against the beat schedule entry names to exclude them from the cron monitors. Baserow's periodic tasks are unnamed beat entries, so their entry names end with `()`, e.g. `baserow.core.usage.tasks.run_calculate_storage()`. Use a pattern like `baserow\.core\.usage\.tasks\.run_calculate_storage.*`. | "" (empty string) |
 | BASEROW\_OSS\_ONLY           | If not empty, it will only start the MIT licensed open source version, without premium and enterprise.                                                                               | "" (empty string) |
+| BASEROW\_INTEGRATIONS\_HTTP\_MAX\_RESPONSE\_BYTES | The most an HTTP request service will read of an answer, in bytes. It is read while the body arrives, so an endpoint cannot decide how much memory a worker spends, and a small compressed answer that unpacks into a huge one is stopped too. Used by the Application Builder, automations and button fields. Set it to 0 to switch the ceiling off. | 33554432 |
 
 ### User file upload Configuration
 

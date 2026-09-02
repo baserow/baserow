@@ -508,16 +508,26 @@ test.describe("Button field, external actions", () => {
 
     // The cell disables itself while its request is in flight, so a second
     // click in the same session never reaches the server. Another session is
-    // what the lock is for, and a slow request widens the window enough to hit.
-    await grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button").click();
-
+    // what the lock is for.
     const other = await browser.newContext({
       viewport: { width: 3600, height: 900 },
     });
     const otherPage = await other.newPage();
     const otherGrid = new GridPage(otherPage, clicker);
+    // Both pages are ready before either clicks, or the first request spends
+    // the second session's setup running and can be over before it competes.
     await otherGrid.goTo(g.database, g.table);
-    await otherGrid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button").click();
+
+    const button = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+    const otherButton = otherGrid
+      .fieldCellAt(0, SLOW_FIELD_INDEX)
+      .locator("button");
+
+    await button.click();
+    // The cell says when its request is really in flight, which is what the
+    // second click has to land inside.
+    await expect(button).toHaveClass(/button--loading/);
+    await otherButton.click();
 
     await expect(otherPage.locator(".toast")).toBeVisible({ timeout: 20_000 });
     await other.close();
@@ -531,9 +541,20 @@ test.describe("Button field, external actions", () => {
 
     // The lock is keyed on the field and the row together, so a slow request
     // on one button must leave the other alone.
-    await grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button").click();
-    await grid.fieldCellAt(0, SLOW_TWO_FIELD_INDEX).locator("button").click();
+    const first = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+    const second = grid.fieldCellAt(0, SLOW_TWO_FIELD_INDEX).locator("button");
 
+    await first.click();
+    // It has to land while the first is still running, or the two locks are
+    // never asked to exist at once.
+    await expect(first).toHaveClass(/button--loading/);
+    await second.click();
+
+    // Both have to come back before an absent toast means anything.
+    await expect(first).not.toHaveClass(/button--loading/, { timeout: 30_000 });
+    await expect(second).not.toHaveClass(/button--loading/, {
+      timeout: 30_000,
+    });
     await expect(page.locator(".toast")).toHaveCount(0);
   });
 
@@ -555,11 +576,7 @@ test.describe("Button field, external actions", () => {
       expect(saved.service.sample_data).toBeTruthy();
     }).toPass({ timeout: 20_000 });
 
-    const copy = await duplicateField(
-      g.user,
-      g.fieldByName["Duplicate"],
-      g.table,
-    );
+    const copy = await duplicateField(g.user, g.fieldByName["Duplicate"]);
 
     const copied = await listWorkflowActions(g.user, copy);
     expect(copied).toHaveLength(1);

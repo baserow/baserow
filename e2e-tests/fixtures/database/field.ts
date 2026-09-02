@@ -96,33 +96,37 @@ export async function deleteAllNonPrimaryFieldsFromTable(
 /**
  * Duplicates a field and waits for the copy to exist. Duplicating runs as a
  * job, so the field is not there the moment the request returns.
+ *
+ * The job is followed rather than the table's field list. The name the copy is
+ * expected to take can already belong to a field an earlier test left behind,
+ * and a failed job would only ever be reported as a copy that never appeared.
  */
 export async function duplicateField(
   user: User,
   field: Field,
-  table: Table,
   options: { copyData?: boolean } = {},
 ): Promise<Field> {
-  await getClient(user).post(`database/fields/${field.id}/duplicate/async/`, {
-    duplicate_data: options.copyData ?? false,
-  });
+  const client = getClient(user);
+  const job: any = await client.post(
+    `database/fields/${field.id}/duplicate/async/`,
+    { duplicate_data: options.copyData ?? false },
+  );
 
-  // What the duplication job names the copy, so a field left behind by an
-  // earlier attempt, or one that merely starts with the same word, is not
-  // mistaken for it.
-  const copyName = `${field.name} 2`;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
-    const fields = await getFieldsForTable(user, table);
-    const copy = fields.find(
-      (candidate: Field) =>
-        candidate.id !== field.id && candidate.name === copyName,
-    );
-    if (copy) {
-      return copy;
+    const poll: any = await client.get(`jobs/${job.data.id}/`);
+    if (poll.data.state === "failed") {
+      throw new Error(
+        `Duplicating "${field.name}" failed: ${
+          poll.data.human_readable_error || ""
+        }`,
+      );
+    }
+    if (poll.data.state === "finished") {
+      return poll.data.duplicated_field as Field;
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  throw new Error(`no field named "${copyName}" appeared`);
+  throw new Error(`Duplicating "${field.name}" did not finish in time`);
 }

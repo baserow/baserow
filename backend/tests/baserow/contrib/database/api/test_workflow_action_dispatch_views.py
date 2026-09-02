@@ -603,3 +603,50 @@ def test_actions_sharing_an_order_are_told_apart_by_position(api_client, data_fi
     assert body["results"][0]["order"] == body["client_actions"][0]["order"]
     assert body["results"][0]["position"] == 1
     assert body["client_actions"][0]["position"] == 2
+
+
+@pytest.mark.django_db
+def test_a_result_no_client_action_can_read_is_not_sent(api_client, data_fixture):
+    """
+    Configuring a button needs more permission than clicking one, so the person
+    who clicks may never have been allowed to see how it was set up. A result
+    the browser has no client action to hand it to is therefore not sent at
+    all: it carries whatever the action returned, and for a request that is the
+    endpoint's reply and its response headers.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, before = _button_with_create_action(
+        data_fixture, user
+    )
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction,
+        field=button_field,
+        url={"formula": "'https://example.com'", "mode": "simple"},
+    )
+    after = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = after.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=name_field, value="'Grace'", enabled=True)
+
+    response = api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    results = {r["workflow_action_id"]: r for r in response.json()["results"]}
+    # The open URL sits between them and can only read what ran before it.
+    assert results[before.id]["data"]["Name"] == "Ada"
+    assert results[after.id]["data"] is None
+    assert results[after.id]["field_names"] == {}
+    # Both still ran: it is only the answer that is withheld.
+    assert table.get_model().objects.count() == 3

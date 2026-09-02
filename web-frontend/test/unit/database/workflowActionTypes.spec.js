@@ -349,13 +349,24 @@ describe('external database workflow action types', () => {
     })
   })
 
-  test('an action nothing has clicked yet describes nothing', () => {
+  test('an action nothing has clicked yet still offers what never changes', () => {
     const actionType = typeFor('http_request')
 
-    // The endpoint has not answered yet, so the backend has no schema to build
-    // from. Contributing no node is what keeps the explorer honest.
-    expect(actionType.getDataSchema({}, { service: {} })).toBeNull()
-    expect(actionType.getDataSchema({}, {})).toBeNull()
+    // A request always answers with a status code, a raw body and headers,
+    // whatever the endpoint replies. Offering nothing at all would leave a
+    // freshly added action out of the explorer until the field is saved and
+    // opened again, so the action after it could point at nothing.
+    for (const workflowAction of [{ service: {} }, {}]) {
+      const schema = actionType.getDataSchema({}, workflowAction)
+      expect(Object.keys(schema.properties).sort()).toEqual([
+        'headers',
+        'raw_body',
+        'status_code',
+      ])
+      // Only a real answer can say what is in the body.
+      expect(schema.properties.body).toBeUndefined()
+      expect(schema.title).toBe(actionType.label)
+    }
   })
 
   test('a table fetch cannot describe them either', () => {
@@ -363,11 +374,10 @@ describe('external database workflow action types', () => {
     const applicationContext = { tableFields: { 1: [{ id: 2, type: 'text' }] } }
 
     // A row action would build its schema from these; an HTTP one must not.
-    expect(
-      actionType.getDataSchema(applicationContext, {
-        service: { table_id: 1 },
-      })
-    ).toBeNull()
+    const schema = actionType.getDataSchema(applicationContext, {
+      service: { table_id: 1 },
+    })
+    expect(schema.properties.field_2).toBeUndefined()
   })
 
   test('it can be read by a later action', () => {

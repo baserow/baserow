@@ -1296,6 +1296,13 @@ INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
 BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS = str_to_bool(
     os.getenv("BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS") or "true"
 )
+# The most an HTTP request service will read of an answer, measured while the
+# body arrives so an endpoint cannot decide how much memory a worker spends.
+# Empty switches the ceiling off.
+INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = int(
+    os.getenv("BASEROW_INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES") or 32 * 1024 * 1024
+)
+
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.

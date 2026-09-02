@@ -87,7 +87,12 @@ export default {
      */
     sampleData() {
       const sample = this.defaultValues.service?.sample_data
-      return sample && !sample._error ? sample : null
+      if (!sample || sample._error) {
+        return null
+      }
+      // What is stored is the whole dispatch result. The explorer's paths
+      // start inside its `data`, so the viewer shows what they name.
+      return sample.data ?? null
     },
     // Delete row has no field mappings, so its form takes neither prop.
     supportsFieldMappings() {

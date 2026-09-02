@@ -459,9 +459,27 @@ describe('DatabaseWorkflowActionWithService', () => {
       expect(wrapper.find('.alert').exists()).toBe(false)
       const viewer = wrapper.findComponent({ name: 'SampleDataViewer' })
       expect(viewer.exists()).toBe(true)
+      // What is stored is the whole dispatch result. The viewer gets what is
+      // inside its `data` wrapper, so the paths it shows are the ones the
+      // explorer offers: `body`, `headers`, `raw_body`, `status_code`.
       expect(viewer.props('sampleData')).toEqual({
-        data: { body: { title: 'Sample' }, status_code: 200 },
+        body: { title: 'Sample' },
+        status_code: 200,
       })
+    })
+
+    test('an answer with nothing inside its wrapper counts as nothing', async () => {
+      await seedApplications()
+
+      const wrapper = await mountAction('http_request', {
+        url: 'x',
+        sample_data: { status: 'completed' },
+      })
+
+      expect(wrapper.findComponent({ name: 'SampleDataViewer' }).exists()).toBe(
+        false
+      )
+      expect(wrapper.find('.alert').exists()).toBe(true)
     })
 
     test('a stored error describes no shape, so it counts as nothing', async () => {
