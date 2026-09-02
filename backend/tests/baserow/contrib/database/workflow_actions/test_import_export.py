@@ -10,6 +10,7 @@ from baserow.contrib.database.workflow_actions.handler import (
 )
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
+    CoreSMTPEmailWorkflowAction,
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
@@ -1070,3 +1071,118 @@ def test_a_workspace_export_strips_the_key_and_still_imports(data_fixture):
     assert not imported_service.query_params.get().value.get("formula")
     # The request still travels; only what authorizes it is left behind.
     assert imported_service.url["formula"] == "'http://example.notexist/'"
+
+
+def _button_that_sends_email(data_fixture, table, name_field, button_name="btn"):
+    """A button whose email names a field of its own table in every formula."""
+
+    button_field = data_fixture.create_button_field(table=table, name=button_name)
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None,
+        use_instance_smtp_settings=True,
+        to_emails=f"get('row.field_{name_field.id}')",
+        subject=f"concat('Hello ', get('row.field_{name_field.id}'))",
+        body=f"get('row.field_{name_field.id}')",
+    )
+    data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field, service=service
+    )
+    return button_field
+
+
+@pytest.mark.django_db
+def test_duplicate_table_remaps_the_field_an_email_reads(data_fixture):
+    """
+    Recipient, subject and body are formulas on the service itself. Left
+    pointing at the original table's field, the copy would send whatever the
+    source row holds (ADR 006 section 6).
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _button_that_sends_email(data_fixture, table, name_field)
+
+    duplicated_table = TableHandler().duplicate_table(user, table)
+    duplicated_name_field = duplicated_table.field_set.get(name="Name")
+    duplicated_button = duplicated_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_button)
+    service = action.specific.service.specific
+
+    assert duplicated_name_field.id != name_field.id
+    reference = f"get('row.field_{duplicated_name_field.id}')"
+    assert service.to_emails["formula"] == reference
+    assert service.body["formula"] == reference
+    # Reprinted from the parsed formula, so the space after the comma goes.
+    assert service.subject["formula"] == f"concat('Hello ',{reference})"
+    # A copy sends through the instance server too, since a database action
+    # has no integration to send through.
+    assert service.use_instance_smtp_settings is True
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_email_action_survives_an_application_export_import(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _button_that_sends_email(data_fixture, table, name_field)
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_table = imported[0].table_set.get(name=table.name)
+    imported_name_field = imported_table.field_set.get(name="Name")
+    imported_button = imported_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
+    service = action.specific.service.specific
+
+    assert imported_name_field.id != name_field.id
+    assert service.to_emails["formula"] == f"get('row.field_{imported_name_field.id}')"
+    assert service.subject["formula"] == (
+        f"concat('Hello ',get('row.field_{imported_name_field.id}'))"
+    )
+    assert service.use_instance_smtp_settings is True
+    assert service.integration_id is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_email_action_is_imported_even_where_it_cannot_send(data_fixture, settings):
+    """
+    An export travels between installations, and whether one can send is a
+    deploy setting rather than something the export carries. The action is kept
+    as configured and refused where it is used, so moving the copy to an
+    installation with a mail server needs no repair.
+    """
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _button_that_sends_email(data_fixture, table, name_field)
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_table = imported[0].table_set.get(name=table.name)
+    imported_button = imported_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
+
+    assert action.specific.get_type().type == "smtp_email"
+    assert action.specific.get_type().is_deactivated(imported_workspace) is True
