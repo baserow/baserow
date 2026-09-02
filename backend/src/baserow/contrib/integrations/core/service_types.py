@@ -105,6 +105,12 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     model_class = CoreHTTPRequestService
     dispatch_types = [DispatchTypes.ACTION]
 
+    # Where an API key on a request lives. This service has no integration, so
+    # there is nowhere else for one to be kept. Which header holds it is not
+    # knowable, so the whole list goes rather than a guess at the secret one,
+    # and the import leaves the service to be reconfigured.
+    sensitive_fields = ["headers", "query_params"]
+
     allowed_fields = [
         "http_method",
         "url",
@@ -355,9 +361,10 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         Responsible for creating related data (headers, query params, form_data).
         """
 
-        headers = serialized_values.pop("headers", [])
-        query_params = serialized_values.pop("query_params", [])
-        form_data = serialized_values.pop("form_data", [])
+        # `None` rather than missing when an export stripped them as sensitive.
+        headers = serialized_values.pop("headers", None) or []
+        query_params = serialized_values.pop("query_params", None) or []
+        form_data = serialized_values.pop("form_data", None) or []
 
         service = super().create_instance_from_serialized(
             serialized_values,

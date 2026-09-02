@@ -138,6 +138,35 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         service_type = service_type_registry.get_by_model(pytest_params["service"])
         return {"service": service_type.export_serialized(pytest_params["service"])}
 
+    def export_serialized(
+        self,
+        instance: WorkflowAction,
+        import_export_config: Optional[Any] = None,
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Blanks whatever the backing service calls sensitive. `serialize_property`
+        is where the service is exported, and it is never handed the config, so
+        the stripping happens here instead.
+
+        A key on an HTTP action lives in the service's own headers rather than
+        in an integration, so without this it travels with every export.
+        """
+
+        exported = super().export_serialized(
+            instance, import_export_config, files_zip, storage, cache
+        )
+
+        if getattr(import_export_config, "exclude_sensitive_data", False):
+            service = exported.get("service") or {}
+            for prop_name in instance.service.specific.get_type().sensitive_fields:
+                if prop_name in service:
+                    service[prop_name] = None
+
+        return exported
+
     def serialize_property(
         self,
         workflow_action: WorkflowAction,

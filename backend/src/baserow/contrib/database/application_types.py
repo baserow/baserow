@@ -128,7 +128,11 @@ class DatabaseApplicationType(ApplicationType):
                 field = f.specific
                 specific_fields.append(field)
                 field_type = field_type_registry.get_by_model(field)
-                serialized_fields.append(field_type.export_serialized(field))
+                serialized_fields.append(
+                    field_type.export_serialized(
+                        field, import_export_config=import_export_config
+                    )
+                )
 
             table_cache: Dict[str, Any] = {
                 f"fields_by_id_{table.id}": {f.id: f for f in specific_fields},

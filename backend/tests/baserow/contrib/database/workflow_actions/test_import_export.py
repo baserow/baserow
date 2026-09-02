@@ -945,3 +945,114 @@ def test_duplicating_a_field_leaves_the_remembered_answer_behind(data_fixture):
     copied_service = copied_actions[0].service.specific
     assert copied_service.url["formula"] == "'http://example.notexist/'"
     assert copied_service.sample_data is None
+
+
+def _button_with_authorized_request(data_fixture, table):
+    button_field = data_fixture.create_button_field(table=table)
+    service = data_fixture.create_core_http_request_service(
+        integration=None, url="'http://example.notexist/'"
+    )
+    service.headers.create(
+        key="Authorization", value={"formula": "'Bearer sk-SUPERSECRET'"}
+    )
+    service.query_params.create(key="token", value={"formula": "'qp-SUPERSECRET'"})
+    data_fixture.create_database_workflow_action(
+        CoreHTTPRequestWorkflowAction, field=button_field, service=service
+    )
+    return button_field
+
+
+@pytest.mark.django_db
+def test_an_export_does_not_carry_the_key_a_request_sends(data_fixture):
+    """
+    An HTTP action has no integration, so its key lives in the service's own
+    headers and query parameters. Without stripping it travels wherever the
+    export goes: snapshots, workspace exports, templates.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = _button_with_authorized_request(data_fixture, table)
+
+    exported = field_type_registry.get_by_model(button_field).export_serialized(
+        button_field,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False, exclude_sensitive_data=True
+        ),
+    )
+
+    assert "sk-SUPERSECRET" not in str(exported)
+    assert "qp-SUPERSECRET" not in str(exported)
+    exported_service = exported["workflow_actions"][0]["service"]
+    assert exported_service["headers"] is None
+    assert exported_service["query_params"] is None
+    # The request itself still travels; only what authorizes it is left behind.
+    assert exported_service["url"]["formula"] == "'http://example.notexist/'"
+
+
+@pytest.mark.django_db
+def test_an_export_that_may_keep_secrets_keeps_them(data_fixture):
+    """
+    Duplicating a field and snapshotting a database stay inside the
+    installation, so the copy has to keep working.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = _button_with_authorized_request(data_fixture, table)
+
+    copy, _ = FieldHandler().duplicate_field(user, button_field)
+
+    copied_action = DatabaseWorkflowActionHandler().get_workflow_actions(copy.specific)[
+        0
+    ]
+    copied_service = copied_action.service.specific
+    assert [h.key for h in copied_service.headers.all()] == ["Authorization"]
+    assert copied_service.headers.get().value["formula"] == "'Bearer sk-SUPERSECRET'"
+    assert copied_service.query_params.get().key == "token"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_workspace_export_strips_the_key_and_still_imports(data_fixture):
+    """
+    The whole path, the way a workspace export really runs it: the config has
+    to reach the field, and the import has to read a stripped header list as
+    "none of them" rather than fall over.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    button_field = _button_with_authorized_request(data_fixture, table)
+    button_field.name = "btn"
+    button_field.save()
+
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(
+        workspace,
+        BytesIO(),
+        ImportExportConfig(include_permission_data=False, exclude_sensitive_data=True),
+    )
+
+    assert "sk-SUPERSECRET" not in str(exported)
+    assert "qp-SUPERSECRET" not in str(exported)
+
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace,
+        exported,
+        BytesIO(),
+        ImportExportConfig(include_permission_data=False),
+        None,
+    )
+
+    imported_field = (
+        imported[0].table_set.get(name=table.name).field_set.get(name="btn").specific
+    )
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_field)
+    imported_service = action.specific.service.specific
+    assert imported_service.headers.count() == 0
+    assert imported_service.query_params.count() == 0
+    # The request still travels; only what authorizes it is left behind.
+    assert imported_service.url["formula"] == "'http://example.notexist/'"

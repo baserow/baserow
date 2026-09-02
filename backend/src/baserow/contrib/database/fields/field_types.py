@@ -3522,8 +3522,12 @@ class LinkRowFieldType(
             cache[queryset_name] = get_random_objects_iterator()
         return []
 
-    def export_serialized(self, field):
-        serialized = super().export_serialized(field, False)
+    def export_serialized(
+        self, field, include_allowed_fields=True, import_export_config=None
+    ):
+        serialized = super().export_serialized(
+            field, False, import_export_config=import_export_config
+        )
         serialized["link_row_table_id"] = field.link_row_table_id
         serialized["link_row_related_field_id"] = field.link_row_related_field_id
         serialized["link_row_limit_selection_view_id"] = (
@@ -8132,11 +8136,18 @@ class ButtonFieldType(ReadOnlyFieldType):
         return None if rich_value else ""
 
     def export_serialized(
-        self, field: ButtonField, include_allowed_fields: bool = True
+        self,
+        field: ButtonField,
+        include_allowed_fields: bool = True,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Dict[str, Any]:
-        serialized = super().export_serialized(field, include_allowed_fields)
+        serialized = super().export_serialized(
+            field, include_allowed_fields, import_export_config=import_export_config
+        )
+        # Passed on: an action's service can hold an API key, and only the
+        # config says whether this export is allowed to carry it.
         serialized["workflow_actions"] = [
-            action.get_type().export_serialized(action)
+            action.get_type().export_serialized(action, import_export_config)
             for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
         ]
         return serialized

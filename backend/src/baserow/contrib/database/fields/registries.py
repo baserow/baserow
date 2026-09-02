@@ -1111,7 +1111,10 @@ class FieldType(
         return serialized
 
     def export_serialized(
-        self, field: Field, include_allowed_fields: bool = True
+        self,
+        field: Field,
+        include_allowed_fields: bool = True,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Dict[str, Any]:
         """
         Exports the field to a serialized dict that can be imported by the
@@ -1120,6 +1123,9 @@ class FieldType(
         :param field: The field instance that must be exported.
         :param include_allowed_fields: Indicates whether or not the allowed fields
             should automatically be added to the serialized object.
+        :param import_export_config: What the export is for. A field carrying
+            something secret reads `exclude_sensitive_data` from it; the
+            callers that duplicate rather than export leave it out.
         :return: The exported field in as serialized dict.
         """
 
