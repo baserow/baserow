@@ -184,7 +184,8 @@ class SamlAuthProviderHandler:
             name = email
 
         logger.debug("Extracted user info: {0} {1} {2}", email, name, saml_request_data)
-        # SAML assertions are IdP-signed; email is implicitly verified.
+        # SAML signature authenticates the IdP, not email ownership.
+        # Admins must configure their IdP to require verified email addresses.
         return UserInfo(email, name, **saml_request_data)
 
     @classmethod

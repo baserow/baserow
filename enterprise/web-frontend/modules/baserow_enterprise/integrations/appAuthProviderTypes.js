@@ -205,6 +205,14 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
     return found
   }
 
+  handleError(userSource, authProvider, route) {
+    const queryParamName = `oidc_error__${userSource.id}`
+    const errorCode = route.query[queryParamName]
+    if (errorCode) {
+      return { message: this.app.$i18n.t(`loginError.${errorCode}`), code: 500 }
+    }
+  }
+
   handleServerError(vueComponentInstance, error) {
     if (error.handler.code !== 'ERROR_REQUEST_BODY_VALIDATION') return false
 

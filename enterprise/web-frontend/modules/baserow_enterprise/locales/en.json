@@ -252,7 +252,8 @@
     "firstNameAttrKey": "First name",
     "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
     "lastNameAttrKey": "Last name",
-    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'."
+    "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'.",
+    "emailVerificationNotice": "Ensure your identity provider requires verified email addresses before authenticating users. SAML signatures authenticate the provider, not email ownership."
   },
   "createSettingsAuthProviderModal": {
     "title": "Add a new {type}"
@@ -403,7 +404,8 @@
     "lastNameAttrKey": "Last Name",
     "firstNameAttrKeyHelper": "The first name of the user or the full name if 'Last name' is not provided.",
     "lastNameAttrKeyHelper": "Last name of the user (optional). Clear this value to provide the full name via 'First name'.",
-    "callbackUrl": "Callback URL"
+    "callbackUrl": "Callback URL",
+    "emailVerificationNotice": "Ensure your identity provider requires verified email addresses before authenticating users. Baserow trusts the email address reported by the provider."
   },
   "loginButton": {
     "continueWith": "Continue with"

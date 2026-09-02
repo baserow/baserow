@@ -150,19 +150,17 @@ def test_unverified_email_rejects_binding_to_existing_account(enterprise_data_fi
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
-def test_unverified_email_allows_new_account_creation(enterprise_data_fixture):
+def test_unverified_email_rejects_new_account_creation(enterprise_data_fixture):
     auth_provider = enterprise_data_fixture.create_saml_auth_provider(
         domain="test1.com"
     )
 
     user_info = UserInfo("newuser@acme.com", "New User", email_verified=False)
 
-    user, created = auth_provider.get_type().get_or_create_user_and_sign_in(
-        auth_provider, user_info
-    )
-    assert created is True
-    assert user.email == "newuser@acme.com"
-    assert user.profile.email_verified is False
+    with pytest.raises(UnverifiedEmailFromProvider):
+        auth_provider.get_type().get_or_create_user_and_sign_in(
+            auth_provider, user_info
+        )
 
 
 @pytest.mark.django_db()
@@ -179,7 +177,11 @@ def test_verified_email_sets_profile_email_verified(enterprise_data_fixture):
     )
     assert created is True
 
-    # Profile email_verified is not set during creation, only on subsequent sign-in
+    # Provider confirmed email, so profile should already be verified at creation
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified is True
+
+    # Reset to test that subsequent sign-in also promotes it
     user.profile.email_verified = False
     user.profile.save(update_fields=["email_verified"])
 
@@ -216,7 +218,7 @@ def test_verified_email_allows_same_provider_login(enterprise_data_fixture):
 
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
-def test_unverified_email_on_already_bound_provider_still_works(
+def test_unverified_email_on_already_bound_provider_is_rejected(
     enterprise_data_fixture,
 ):
     auth_provider = enterprise_data_fixture.create_saml_auth_provider(
@@ -231,11 +233,10 @@ def test_unverified_email_on_already_bound_provider_still_works(
     assert created is True
 
     # Same provider, same user, but email_verified=False this time.
-    # Should still work because user is already bound to this provider.
+    # Should be rejected even though user is already bound to this provider.
     user_info_unverified = UserInfo("user@acme.com", "User", email_verified=False)
 
-    user2, created2 = auth_provider.get_type().get_or_create_user_and_sign_in(
-        auth_provider, user_info_unverified
-    )
-    assert created2 is False
-    assert user2.id == user.id
+    with pytest.raises(UnverifiedEmailFromProvider):
+        auth_provider.get_type().get_or_create_user_and_sign_in(
+            auth_provider, user_info_unverified
+        )

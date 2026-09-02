@@ -86,13 +86,20 @@ class AuthProviderType(BaseAuthProviderType):
         :raises DeactivatedUserException: If the user exists but has been
             disabled from an admin.
         :raises UnverifiedEmailFromProvider: If the provider reports the
-            email as unverified and the user is not yet bound to this
-            provider.
+            email as unverified.
         :raises DifferentAuthProvider: If the user exists but has been
             created using a different auth provider.
         :return: The user that was created or retrieved and a boolean flag set
             to True if the user has been created, False otherwise.
         """
+
+        if not user_info.email_verified:
+            logger.warning(
+                "Rejecting SSO login — provider reported email as unverified "
+                "(provider_id={})",
+                auth_provider.id,
+            )
+            raise UnverifiedEmailFromProvider()
 
         try:
             user = self.get_user_and_sign_in(auth_provider, user_info)
@@ -114,9 +121,6 @@ class AuthProviderType(BaseAuthProviderType):
         :param user_info: The user info to use to get the user.
         :raises DeactivatedUserException: If the user exists but has been
             disabled from an admin.
-        :raises UnverifiedEmailFromProvider: If the provider reports the
-            email as unverified and the user is not yet bound to this
-            provider.
         :raises DifferentAuthProvider: If the user exists but has been
             created using a different auth provider.
         :return: a user instance.
@@ -131,14 +135,6 @@ class AuthProviderType(BaseAuthProviderType):
         is_first_login_with_this_provider = not auth_provider.users.filter(
             id=user.id
         ).exists()
-
-        if is_first_login_with_this_provider and not user_info.email_verified:
-            logger.warning(
-                "Rejecting SSO binding — provider reported email as unverified "
-                "(provider_id={})",
-                auth_provider.id,
-            )
-            raise UnverifiedEmailFromProvider()
 
         is_original_provider_check_needed = (
             not settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT
@@ -187,6 +183,7 @@ class AuthProviderType(BaseAuthProviderType):
             language=user_info.language,
             workspace_invitation_token=user_info.workspace_invitation_token,
             auth_provider=auth_provider,
+            email_verified=user_info.email_verified,
         )
 
     def export_serialized(self) -> Dict[str, Any]:

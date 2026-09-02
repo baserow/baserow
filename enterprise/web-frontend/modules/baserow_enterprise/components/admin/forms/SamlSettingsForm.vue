@@ -1,5 +1,9 @@
 <template>
   <form @submit.prevent="submit">
+    <Alert type="info-neutral" class="margin-bottom-2">
+      {{ $t('samlSettingsForm.emailVerificationNotice') }}
+    </Alert>
+
     <FormGroup
       small-label
       required

@@ -3,8 +3,11 @@ from typing import TYPE_CHECKING, Any, Callable, List, Tuple, Type, Union
 
 from django.contrib.auth.models import AbstractUser
 
+from loguru import logger
+
 from baserow.core.app_auth_providers.exceptions import IncompatibleUserSourceType
 from baserow.core.app_auth_providers.types import AppAuthProviderTypeDict
+from baserow.core.auth_provider.exceptions import UnverifiedEmailFromProvider
 from baserow.core.auth_provider.registries import BaseAuthProviderType
 from baserow.core.auth_provider.types import AuthProviderModelSubClass, UserInfo
 from baserow.core.registry import EasyImportExportMixin, PublicCustomFieldsInstanceMixin
@@ -80,7 +83,18 @@ class AppAuthProviderType(
         """
         Get or create a user for the given UserInfo. Calls the related userSource
         get_or_create_user.
+
+        :raises UnverifiedEmailFromProvider: If the provider reports the
+            email as unverified.
         """
+
+        if not user_info.email_verified:
+            logger.warning(
+                "Rejecting Builder SSO login — provider reported email as "
+                "unverified (provider_id=%s)",
+                auth_provider.id,
+            )
+            raise UnverifiedEmailFromProvider()
 
         user_source = auth_provider.user_source.specific
         return user_source.get_type().get_or_create_user(
