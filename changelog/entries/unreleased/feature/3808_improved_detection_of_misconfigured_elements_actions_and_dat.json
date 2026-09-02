@@ -1,5 +1,5 @@
 {
-    "type": "bug",
+    "type": "feature",
     "message": "Improved detection of misconfigured elements, actions, and data sources in Application Builder.",
     "issue_origin": "github",
     "issue_number": 3808,
