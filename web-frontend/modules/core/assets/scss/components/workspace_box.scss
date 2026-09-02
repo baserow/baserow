@@ -1,0 +1,158 @@
+%all-workspaces-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.workspace-box {
+  border: 1px solid $palette-neutral-200;
+  background-color: $white;
+
+  @include rounded($rounded-lg);
+  @include elevation($elevation-low);
+}
+
+.workspace-box__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 20px;
+}
+
+.workspace-box__avatar-link {
+  display: flex;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.workspace-box__title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.workspace-box__name-row {
+  min-width: 0;
+
+  @include flex-align-items(8px);
+}
+
+.workspace-box__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+  cursor: pointer;
+
+  @extend %ellipsis;
+}
+
+.workspace-box__unread {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 100%;
+  background-color: $palette-blue-500;
+}
+
+// 18px line height + the two 1px borders make the chip exactly 20px tall.
+.workspace-box__role {
+  padding: 0 8px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $white;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  color: $palette-neutral-900;
+  white-space: nowrap;
+
+  @include rounded($rounded-md);
+}
+
+.workspace-box__meta {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: $palette-neutral-900;
+
+  @extend %ellipsis;
+}
+
+.workspace-box__meta-separator {
+  margin: 0 4px;
+  color: $palette-neutral-400;
+}
+
+.workspace-box__actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+
+  @include flex-align-items(8px);
+}
+
+.workspace-box__action {
+  flex: 0 0 auto;
+}
+
+@media screen and (max-width: 1024px) {
+  .workspace-box__action--collapsible {
+    display: none;
+  }
+}
+
+// The small button icon is 24px while tiny buttons are 26px, but the design
+// wants all header actions equally tall.
+.workspace-box__more {
+  width: $button-tiny-height;
+  height: $button-tiny-height;
+}
+
+.workspace-box__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  font-size: 16px;
+  color: $palette-neutral-900;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+
+  &.workspace-box__chevron--collapsed {
+    transform: rotate(180deg);
+  }
+}
+
+.workspace-box__body {
+  padding: 0 20px 20px;
+
+  @extend %all-workspaces-grid;
+}
+
+.workspace-box__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px 24px;
+  text-align: center;
+}
+
+.workspace-box__empty-filter {
+  padding: 0 20px 20px;
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.workspace-box__empty-image {
+  width: 110px;
+}
+
+.workspace-box__empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}

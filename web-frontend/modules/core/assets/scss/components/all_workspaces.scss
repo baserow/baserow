@@ -1,0 +1,127 @@
+.all-workspaces {
+  padding: 24px 32px;
+}
+
+.all-workspaces__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.all-workspaces__title {
+  margin: 0 auto 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+
+  @extend %ellipsis;
+}
+
+.all-workspaces__search {
+  position: relative;
+  flex: 0 1 260px;
+  min-width: 180px;
+}
+
+.all-workspaces__search-shortcut {
+  position: absolute;
+  top: calc(50% - 8px);
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+
+  kbd {
+    min-width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background-color: $palette-neutral-100;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    color: $palette-neutral-700;
+  }
+}
+
+.all-workspaces__items-filter {
+  width: 130px;
+
+  // The panel must not be constrained to the narrow trigger width.
+  .dropdown__items {
+    right: auto;
+    min-width: 200px;
+  }
+}
+
+.all-workspaces__header-divider {
+  width: 1px;
+  height: 20px;
+  background-color: $palette-neutral-200;
+}
+
+@media screen and (max-width: 900px) {
+  .all-workspaces__search {
+    flex-basis: 100%;
+    order: 10;
+  }
+
+  .all-workspaces__header-divider {
+    display: none;
+  }
+}
+
+.all-workspaces__boxes {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.all-workspaces__section {
+  margin-bottom: 32px;
+}
+
+// The global typography strips the top margin of first-child headings, so the
+// vertical rhythm between sections lives on the section block instead.
+.all-workspaces__section-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-900;
+}
+
+.all-workspaces__grid {
+  @extend %all-workspaces-grid;
+}
+
+.all-workspaces__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 64px 24px;
+  border: 1px dashed $palette-neutral-400;
+  text-align: center;
+
+  @include rounded($rounded-md);
+}
+
+.all-workspaces__empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.all-workspaces__empty-description {
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.all-workspaces__empty-action {
+  margin-top: 8px;
+}
