@@ -312,7 +312,8 @@ def test_enhance_queryset(data_fixture, django_assert_num_queries):
     # query 1: fetch all automations
     # query 2: fetch all workflows
     # query 3: fetch all notification recipients for prefetched workflows
-    expected_queries = 3
+    # query 4: fetch all nodes with their services for prefetched workflows
+    expected_queries = 4
     with django_assert_num_queries(expected_queries):
         [
             sorted(recipient.id for recipient in workflow.notification_recipients.all())

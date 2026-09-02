@@ -49,6 +49,41 @@ User = get_user_model()
 ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
 
 
+def roles_per_scope_cache_key(
+    subject_type_name: str, actor_id: int, workspace_id: int, include_trash: bool
+) -> str:
+    """
+    The request local cache key of the resolved `get_roles_per_scope` result. Shared
+    between the single workspace and the multi workspace resolution so one can prime the
+    cache of the other.
+
+    :param subject_type_name: The type name of the actor's subject type.
+    :param actor_id: The id of the actor the roles are resolved for.
+    :param workspace_id: The id of the workspace the roles are resolved in.
+    :param include_trash: Whether the roles were resolved including trash.
+    :return: The cache key.
+    """
+
+    return (
+        f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_get_roles_per_scope_"
+        f"{subject_type_name}_{actor_id}_{workspace_id}_{include_trash}"
+    )
+
+
+def team_subjects_cache_key(subject_type_name: str, actor_ids: List[int]) -> str:
+    """
+    The request local cache key of the team subjects of the given actors. Workspace
+    independent, so it's shared across all workspaces in a request.
+
+    :param subject_type_name: The type name of the actors' subject type.
+    :param actor_ids: The ids of the actors the team subjects belong to.
+    :return: The cache key.
+    """
+
+    joined_actor_ids = "_".join(str(actor_id) for actor_id in actor_ids)
+    return f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{subject_type_name}_{joined_actor_ids}"
+
+
 def _clear_role_assignments_from_local_cache():
     """
     Simple helper to clear the local cache for role assignments when needed.
@@ -312,9 +347,6 @@ class RoleAssignmentHandler:
         """
 
         actor_subject_type = subject_type_registry.get_by_model(actor)
-        actor_cache_key = (
-            f"{actor_subject_type.type}_{actor.id}_{workspace.id}_{include_trash}"
-        )
 
         def _get_roles_per_scope():
             return self.get_roles_per_scope_for_actors(
@@ -322,7 +354,9 @@ class RoleAssignmentHandler:
             )[actor]
 
         return local_cache.get(
-            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_get_roles_per_scope_{actor_cache_key}",
+            roles_per_scope_cache_key(
+                actor_subject_type.type, actor.id, workspace.id, include_trash
+            ),
             _get_roles_per_scope,
         )
 
@@ -370,7 +404,7 @@ class RoleAssignmentHandler:
             return users_teams_qs.values_list("team_id", "subject_id")
 
         teams_subjects = local_cache.get(
-            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{actors_cache_key}",
+            team_subjects_cache_key(actor_subject_type.type, [a.id for a in actors]),
             _get_teams_subjects,
         )
 
@@ -560,6 +594,300 @@ class RoleAssignmentHandler:
                 roles_per_scope_per_user[actor].append((scope_cache[key], value))
 
         return roles_per_scope_per_user
+
+    def _get_role_assignment_rows_per_workspace(
+        self, workspaces: List[Workspace], subjects_q: Q
+    ) -> Dict[int, List[Tuple[int, int, int, int, int, int]]]:
+        """
+        Returns, for every given workspace, its role assignment rows matching the given
+        subject filter (excluding the internal roles) as plain tuples `(id,
+        subject_type_id, subject_id, role_id, scope_type_id, scope_id)`, fetched with a
+        single query for all the workspaces.
+
+        :param workspaces: The workspaces to get the role assignment rows for.
+        :param subjects_q: The filter selecting the subjects the rows must belong to.
+        :return: A dict mapping every workspace id to its rows.
+        """
+
+        rows_per_workspace = {workspace.id: [] for workspace in workspaces}
+        rows = (
+            RoleAssignment.objects.filter(workspace__in=workspaces)
+            .filter(subjects_q)
+            .exclude(
+                role__uid__in=[
+                    NO_ROLE_LOW_PRIORITY_ROLE_UID,
+                    *INTERNAL_ROLE_UIDS,
+                ]
+            )
+            .values_list(
+                "workspace_id",
+                "id",
+                "subject_type_id",
+                "subject_id",
+                "role_id",
+                "scope_type_id",
+                "scope_id",
+            )
+        )
+        for workspace_id, *row in rows:
+            rows_per_workspace[workspace_id].append(tuple(row))
+
+        return rows_per_workspace
+
+    def get_roles_per_scope_for_workspaces(
+        self,
+        workspaces: List[Workspace],
+        actor: AbstractUser,
+        include_trash=False,
+    ) -> Dict[int, List[Tuple[ScopeObject, List[Role]]]]:
+        """
+        Multi workspace version of `get_roles_per_scope` for a single actor. It computes
+        the same result as calling `get_roles_per_scope(workspace, actor)` per
+        workspace, but with a number of queries that is independent of the number of
+        workspaces: one role assignment query, one team subject query, one scope
+        hydration query per distinct scope content type across all the workspaces and at
+        most one workspace user query for the workspaces that don't have their members
+        prefetched.
+
+        The per workspace results are primed into the same request local cache keys
+        `get_roles_per_scope` reads from, so later single workspace calls in the same
+        request are free.
+
+        :param workspaces: The workspaces to get the roles per scope for.
+        :param actor: The actor for whom we want the roles.
+        :param include_trash: If true, the trashed workspace users are taken into
+            account for the workspace level role.
+        :return: A dict mapping every workspace id to a list of (scope, roles) tuples,
+            ordered from the highest scope in the object hierarchy (the workspace itself
+            first) to the lowest.
+        """
+
+        actor_subject_type = subject_type_registry.get_by_model(actor)
+
+        # The whole batch is memoized per request because it's called once per filtered
+        # operation with the same workspaces.
+        workspace_ids_key = "_".join(
+            str(workspace.id) for workspace in sorted(workspaces, key=lambda w: w.id)
+        )
+        return local_cache.get(
+            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_get_roles_per_scope_for_workspaces_"
+            f"{actor_subject_type.type}_{actor.id}_{workspace_ids_key}_{include_trash}",
+            lambda: self._get_roles_per_scope_for_workspaces(
+                workspaces, actor, actor_subject_type, include_trash
+            ),
+        )
+
+    def _get_roles_per_scope_for_workspaces(
+        self,
+        workspaces: List[Workspace],
+        actor: AbstractUser,
+        actor_subject_type: SubjectType,
+        include_trash: bool,
+    ) -> Dict[int, List[Tuple[ScopeObject, List[Role]]]]:
+        """
+        Computes the result of `get_roles_per_scope_for_workspaces`, which memoizes it
+        per request. See that method for the parameter and return value documentation.
+        """
+
+        content_types = ContentType.objects.get_for_models(
+            actor_subject_type.model_class, Team, Workspace
+        )
+        actor_content_type = content_types[actor_subject_type.model_class]
+        team_content_type = content_types[Team]
+        workspace_content_type = content_types[Workspace]
+
+        def _get_teams_subjects():
+            return TeamSubject.objects.filter(
+                subject_type=actor_content_type,
+                subject_id__in=[actor.id],
+            ).values_list("team_id", "subject_id")
+
+        # Same cache key as `get_roles_per_scope_for_actors` with a single actor so
+        # both paths share the request local team subject cache.
+        teams_subjects = local_cache.get(
+            team_subjects_cache_key(actor_subject_type.type, [actor.id]),
+            _get_teams_subjects,
+        )
+        actor_team_ids = {team_id for team_id, _ in teams_subjects}
+
+        subjects_q = Q(subject_type=actor_content_type, subject_id=actor.id) | Q(
+            subject_type=team_content_type, subject_id__in=actor_team_ids
+        )
+        rows_per_workspace = self._get_role_assignment_rows_per_workspace(
+            workspaces, subjects_q
+        )
+
+        # The equivalents, computed in Python from registry data, of the
+        # `scope_type_order` and `role_priority` annotations used by
+        # `get_roles_per_scope_for_actors`.
+        scope_level_by_content_type_id = {
+            ContentType.objects.get_for_model(scope_type.model_class).id: (
+                scope_type.level
+            )
+            for scope_type in [
+                object_scope_type_registry.get(name)
+                for name in ROLE_ASSIGNABLE_OBJECT_MAP
+            ]
+            if scope_type.type != CoreObjectScopeType.type
+        }
+        role_priority_by_content_type_id = {
+            ContentType.objects.get_for_model(subject_type.model_class).id: order
+            for order, subject_type in enumerate(
+                [
+                    subject_type_registry.get(subject_name)
+                    for subject_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY
+                ]
+            )
+        }
+
+        user_permissions_per_workspace = self._get_user_permissions_per_workspace(
+            workspaces, actor, include_trash
+        )
+
+        scopes_to_query = defaultdict(set)
+        roles_by_scope_per_workspace = {}
+
+        for workspace in workspaces:
+            workspace_scope_param = (workspace_content_type.id, workspace.id)
+
+            # Order the rows exactly like the single workspace query does.
+            relevant_rows = []
+            for row in rows_per_workspace[workspace.id]:
+                (
+                    row_id,
+                    subject_type_id,
+                    subject_id,
+                    role_id,
+                    scope_type_id,
+                    scope_id,
+                ) = row
+                role_priority = role_priority_by_content_type_id.get(subject_type_id, 0)
+                scope_type_order = scope_level_by_content_type_id.get(scope_type_id, 0)
+                relevant_rows.append(
+                    (scope_type_order, scope_id, role_priority, subject_id, row_id, row)
+                )
+            relevant_rows.sort()
+
+            # The workspace entry must be first to keep the result ordered from the
+            # highest scope to the lowest.
+            roles_by_scope = {workspace_scope_param: []}
+            priorities_by_scope = {}
+
+            for _, _, role_priority, _, _, row in relevant_rows:
+                _, _, _, role_id, scope_type_id, scope_id = row
+                scope_param = (scope_type_id, scope_id)
+                role = self.get_role_by_id(role_id)
+
+                scopes_to_query[scope_type_id].add(scope_id)
+
+                if not roles_by_scope.get(scope_param, []):
+                    roles_by_scope[scope_param] = [role]
+                    priorities_by_scope[scope_param] = role_priority
+                elif (
+                    priorities_by_scope[scope_param] == role_priority
+                    and role not in roles_by_scope[scope_param]
+                ):
+                    roles_by_scope[scope_param].append(role)
+
+            if actor_subject_type.type == UserSubjectType.type:
+                permissions = user_permissions_per_workspace.get(workspace.id)
+                workspace_level_role = self.get_role_by_uid(
+                    permissions if permissions is not None else NO_ACCESS_ROLE_UID,
+                    use_fallback=True,
+                )
+                if workspace_level_role.uid == NO_ROLE_LOW_PRIORITY_ROLE_UID:
+                    # Low priority role -> use the team role or NO_ACCESS if no team
+                    # role.
+                    if not roles_by_scope.get(workspace_scope_param):
+                        roles_by_scope[workspace_scope_param] = [
+                            self.get_role_by_uid(NO_ACCESS_ROLE_UID)
+                        ]
+                else:
+                    roles_by_scope[workspace_scope_param] = [workspace_level_role]
+
+            roles_by_scope_per_workspace[workspace.id] = roles_by_scope
+
+        # Hydrate all the scopes of all the workspaces at once, one query per distinct
+        # scope content type.
+        scope_cache = {}
+        for content_type_id, content_ids in scopes_to_query.items():
+            for scope in self.get_scopes(content_type_id, content_ids):
+                scope_cache[(content_type_id, scope.id)] = scope
+
+        result = {}
+        for workspace in workspaces:
+            workspace_scope_param = (workspace_content_type.id, workspace.id)
+            scope_cache[workspace_scope_param] = workspace
+
+            roles_per_scope = []
+            for key, value in roles_by_scope_per_workspace[workspace.id].items():
+                # Scopes missing from the cache belong to snapshotted applications
+                # that aren't accessible to the user, so they can safely be
+                # ignored, like `get_roles_per_scope_for_actors` does.
+                if key not in scope_cache:
+                    continue
+                roles_per_scope.append((scope_cache[key], value))
+
+            # Prime the request local cache `get_roles_per_scope` reads from. If it
+            # was already computed earlier in the request, the existing value wins to
+            # stay consistent.
+            result[workspace.id] = local_cache.get(
+                roles_per_scope_cache_key(
+                    actor_subject_type.type, actor.id, workspace.id, include_trash
+                ),
+                roles_per_scope,
+            )
+
+        return result
+
+    def _get_user_permissions_per_workspace(
+        self,
+        workspaces: List[Workspace],
+        actor: AbstractUser,
+        include_trash: bool,
+    ) -> Dict[int, str]:
+        """
+        Returns the `WorkspaceUser.permissions` value of the actor per workspace id,
+        reading from the prefetched `workspaceuser_set` when available so no query is
+        needed on the listing path.
+
+        :param workspaces: The workspaces to get the permissions value in.
+        :param actor: The user to get the permissions value for.
+        :param include_trash: If true, the trashed workspace users are taken into
+            account.
+        :return: A dict mapping the workspace id to the permissions value for every
+            workspace the actor is a member of.
+        """
+
+        if include_trash:
+            workspace_users = WorkspaceUser.objects_and_trash.filter(
+                workspace__in=workspaces, user_id=actor.id
+            )
+            return {wu.workspace_id: wu.permissions for wu in workspace_users}
+
+        permissions_per_workspace = {}
+        workspaces_to_query = []
+        for workspace in workspaces:
+            prefetched = getattr(workspace, "_prefetched_objects_cache", {})
+            if "workspaceuser_set" in prefetched:
+                for workspace_user in workspace.workspaceuser_set.all():
+                    if workspace_user.user_id == actor.id:
+                        permissions_per_workspace[workspace.id] = (
+                            workspace_user.permissions
+                        )
+            else:
+                workspaces_to_query.append(workspace)
+
+        if workspaces_to_query:
+            workspace_users = WorkspaceUser.objects.filter(
+                workspace__in=workspaces_to_query, user_id=actor.id
+            )
+            for workspace_user in workspace_users:
+                permissions_per_workspace[workspace_user.workspace_id] = (
+                    workspace_user.permissions
+                )
+
+        return permissions_per_workspace
 
     def get_computed_roles(
         self, roles_per_scopes, context: Any, cache: Optional[Dict] = None

@@ -611,6 +611,10 @@ class TriggerServiceTypeMixin(ABC):
         """
         Whether this trigger can be dispatched immediately without waiting for an
         external event.
+
+        The given service can be a base `Service` instance instead of the
+        specific one, so implementations must not rely on fields of the specific
+        model and should ideally return a constant.
         """
 
         return False

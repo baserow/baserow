@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Made listing all applications fast for users with access to many workspaces",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-31"
+}

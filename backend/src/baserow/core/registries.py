@@ -610,14 +610,66 @@ class ApplicationType(
     ) -> QuerySet["Application"]:
         """
         Same as `enhance_queryset` but also filters the queryset based on the user's
-        permissions.
+        permissions. This is the single workspace variant of
+        `enhance_and_filter_queryset_for_workspaces`, which is the method
+        application types should override.
 
         :param queryset: The queryset to enhance and filter.
         :param user: The user that is trying to access the queryset.
         :param workspace: The workspace that the queryset is related to.
+        :return: The enhanced and filtered queryset.
         """
 
+        if (
+            type(self).enhance_and_filter_queryset_for_workspaces
+            is not ApplicationType.enhance_and_filter_queryset_for_workspaces
+        ):
+            return self.enhance_and_filter_queryset_for_workspaces(
+                queryset, user, [workspace]
+            )
+
+        # Without a multi workspace override there is nothing to delegate to. Returning
+        # the queryset directly also keeps an application type that only overrides this
+        # method and calls super() working without recursing back into it via the multi
+        # workspace fallback.
         return queryset
+
+    def enhance_and_filter_queryset_for_workspaces(
+        self,
+        queryset: QuerySet["Application"],
+        user: "AbstractUser",
+        workspaces: List["Workspace"],
+    ) -> Union[QuerySet["Application"], List["Application"]]:
+        """
+        Multi workspace version of `enhance_and_filter_queryset`, called when
+        applications of multiple workspaces are listed in one pass so the enhancement
+        can batch its nested permission filtering across all the workspaces at once.
+
+        :param queryset: The queryset to enhance and filter, containing applications of
+            all the given workspaces.
+        :param user: The user that is trying to access the queryset.
+        :param workspaces: The workspaces the queryset is related to.
+        :return: The enhanced and filtered queryset, or a list of applications when the
+            per workspace fallback was used.
+        """
+
+        if (
+            type(self).enhance_and_filter_queryset
+            is ApplicationType.enhance_and_filter_queryset
+        ):
+            return queryset
+
+        # An application type that only overrides the single workspace
+        # `enhance_and_filter_queryset` keeps working through this per workspace
+        # fallback, only without the performance benefit of batching.
+        applications = []
+        for workspace in workspaces:
+            applications.extend(
+                self.enhance_and_filter_queryset(
+                    queryset.filter(workspace=workspace), user, workspace
+                )
+            )
+        return applications
 
     def get_application_urls(self, application: "Application") -> list[str]:
         """
@@ -674,6 +726,42 @@ class ApplicationTypeRegistry(
     name = "application"
     does_not_exist_exception_class = ApplicationTypeDoesNotExist
     already_registered_exception_class = ApplicationTypeAlreadyRegistered
+
+
+@dataclasses.dataclass(frozen=True)
+class WorkspaceFilterDecision:
+    """
+    The decision of a permission manager for one workspace when filtering a
+    queryset across multiple workspaces at once. See
+    `PermissionManagerType.filter_queryset_for_workspaces`.
+    """
+
+    q: Optional[Q] = None
+    """
+    An extra filter to apply to the rows belonging to this workspace. `None` means the
+    manager doesn't restrict the rows of this workspace.
+
+    All decisions are combined into a single `filter` call, so the Q must be self
+    contained, like a filter on the row ids or a subquery. A condition spanning a multi
+    valued relation can behave differently than it would with a sequential `filter`
+    call and must be expressed as a subquery instead.
+    """
+
+    deny: bool = False
+    """
+    If True, none of this workspace's rows are visible. A denied workspace is final: no
+    later permission manager is consulted for it.
+    """
+
+    stop: bool = False
+    """
+    If True, no later permission manager is consulted for this workspace, like the
+    `(queryset, True)` return value of `filter_queryset`.
+    """
+
+
+WORKSPACE_FILTER_ALLOW_ALL = WorkspaceFilterDecision(stop=True)
+WORKSPACE_FILTER_DENY_ALL = WorkspaceFilterDecision(deny=True)
 
 
 class PermissionManagerType(abc.ABC, Instance):
@@ -828,6 +916,96 @@ class PermissionManagerType(abc.ABC, Instance):
         :param workspace: An optional workspace into which the operation takes place.
         :return: The queryset potentially filtered.
         """
+
+    def filter_queryset_for_workspaces(
+        self,
+        actor: Actor,
+        operation_name: str,
+        queryset: QuerySet,
+        workspaces: List["Workspace"],
+    ) -> Optional[Dict[int, WorkspaceFilterDecision]]:
+        """
+        Multi workspace version of `filter_queryset` used by
+        `CoreHandler().filter_queryset_for_workspaces()` when a queryset spanning
+        multiple workspaces must be filtered in one pass. Instead of returning a
+        queryset, it returns a `WorkspaceFilterDecision` per workspace id. Workspaces
+        omitted from the result are not restricted by this manager. Returning `None`
+        means the manager has no opinion at all.
+
+        Like `filter_queryset`, a permission manager can only ever restrict the rows,
+        never add any. A denied workspace is therefore final and later managers aren't
+        consulted for it anymore.
+
+        The default implementation delegates to the single workspace `filter_queryset`
+        per workspace so existing permission managers keep working unchanged, only
+        without the performance benefit of batching. A `filter_queryset` returning the
+        exact queryset object it received is interpreted as "no restriction"; returning
+        an equal but cloned queryset is interpreted as a restriction and translated into
+        a subquery.
+
+        :param actor: The actor whom we want to filter the queryset for.
+        :param operation_name: The operation name for which we want to filter the
+            queryset for.
+        :param queryset: The base queryset, containing rows of all the given workspaces,
+            the decisions apply to.
+        :param workspaces: The workspaces to decide for.
+        :return: A dict mapping workspace ids to decisions, or None.
+        """
+
+        # `filter_queryset` can also be assigned on the instance, tests do this for
+        # example, so the implementation can't be detected on the class alone.
+        filter_queryset = self.filter_queryset
+        if (
+            getattr(filter_queryset, "__func__", filter_queryset)
+            is PermissionManagerType.filter_queryset
+        ):
+            # The manager doesn't implement `filter_queryset`, so there is
+            # nothing to fall back to.
+            return None
+
+        object_scope = operation_type_registry.get(operation_name).object_scope
+
+        decisions = {}
+        for workspace in workspaces:
+            if len(workspaces) == 1:
+                # A single workspace queryset only contains that workspace's rows, so it
+                # can be passed as is, exactly like `filter_queryset` always received
+                # it.
+                workspace_queryset = queryset
+            else:
+                # Restrict the queryset to the workspace so the translated condition
+                # below stays bounded to that workspace's rows.
+                workspace_queryset = queryset.filter(
+                    object_scope.get_filter_for_scopes([workspace])
+                )
+            result = self.filter_queryset(
+                actor, operation_name, workspace_queryset, workspace=workspace
+            )
+
+            if result is None:
+                continue
+
+            if isinstance(result, tuple):
+                filtered_queryset, stop = result
+            else:
+                filtered_queryset, stop = result, False
+
+            if filtered_queryset is workspace_queryset:
+                if stop:
+                    decisions[workspace.id] = WORKSPACE_FILTER_ALLOW_ALL
+                continue
+
+            if filtered_queryset.query.is_empty():
+                decisions[workspace.id] = WorkspaceFilterDecision(deny=True, stop=stop)
+            else:
+                # The permission managers only ever restrict the queryset, so the
+                # filtered result can safely be translated into an extra condition on
+                # this workspace's rows.
+                decisions[workspace.id] = WorkspaceFilterDecision(
+                    q=Q(pk__in=filtered_queryset.values("pk")), stop=stop
+                )
+
+        return decisions or None
 
     def get_roles(self) -> List:
         """

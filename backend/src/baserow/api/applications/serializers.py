@@ -93,6 +93,4 @@ class InstallTemplateJobApplicationsSerializer(serializers.JSONField):
                 pk__in=application_ids, workspace__trashed=False
             )
         )
-        return [
-            PolymorphicApplicationResponseSerializer(app).data for app in applications
-        ]
+        return PolymorphicApplicationResponseSerializer(applications, many=True).data

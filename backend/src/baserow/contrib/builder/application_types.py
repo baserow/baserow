@@ -573,21 +573,21 @@ class BuilderApplicationType(ApplicationType):
         enhanced_queryset = self._get_base_enhanced_queryset(queryset)
         return enhanced_queryset.prefetch_related("page_set")
 
-    def enhance_and_filter_queryset(
+    def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet[Builder],
         user: AbstractUser,
-        workspace: Workspace,
+        workspaces: List[Workspace],
     ) -> QuerySet[Builder]:
         enhanced_queryset = self._get_base_enhanced_queryset(queryset)
         return enhanced_queryset.prefetch_related(
             Prefetch(
                 "page_set",
-                queryset=CoreHandler().filter_queryset(
+                queryset=CoreHandler().filter_queryset_for_workspaces(
                     user,
                     ListPagesBuilderOperationType.type,
                     Page.objects.select_related("builder__workspace").all(),
-                    workspace=workspace,
+                    workspaces,
                 ),
                 to_attr="pages",
             ),
