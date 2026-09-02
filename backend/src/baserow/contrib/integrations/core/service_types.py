@@ -872,9 +872,28 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     INSTANCE_SMTP_TURNED_OFF = "turned_off"
     INSTANCE_SMTP_NO_SERVER = "no_server"
 
+    def instance_smtp_is_available(self) -> bool:
+        """
+        Whether a service may send through this installation's own mail
+        server. The setting and a host are what the Application Builder and
+        automations have always gone by; what the backend does with a message
+        is left to callers that must know it is delivered, see
+        `instance_smtp_unavailable_reason`.
+
+        :return: True when the instance server may be used.
+        """
+
+        return bool(
+            settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS
+            and getattr(settings, "EMAIL_HOST", "")
+        )
+
     def instance_smtp_unavailable_reason(self) -> Optional[str]:
         """
-        Why a service cannot send through this installation's own mail server.
+        Why a message handed to this installation's own server would not be
+        delivered. Stricter than `instance_smtp_is_available`: a backend that
+        only prints the message counts as having no server. For a caller with
+        no integration to fall back on, such as a button field's action.
 
         :return: One of the `INSTANCE_SMTP_*` codes, or `None` when it can.
         """
@@ -893,15 +912,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         ):
             return self.INSTANCE_SMTP_NO_SERVER
         return None
-
-    def instance_smtp_is_available(self) -> bool:
-        """
-        Whether a service can send through this installation's own mail server.
-
-        :return: True when nothing stands in the way of sending.
-        """
-
-        return self.instance_smtp_unavailable_reason() is None
 
     def _should_use_instance_smtp(self, service: CoreSMTPEmailService) -> bool:
         return bool(
@@ -930,11 +940,14 @@ class CoreSMTPEmailServiceType(CoreServiceType):
 
         return values
 
+    # The timeout is per socket operation rather than for the send as a whole,
+    # and a send is a conversation: connect, greeting, EHLO, STARTTLS, EHLO
+    # again, AUTH, MAIL FROM, one RCPT per recipient, DATA, the body, QUIT.
+    # Sized for a handful of recipients on a relay that is slow at every step.
+    SMTP_SEND_SOCKET_OPERATIONS = 15
+
     def max_dispatch_seconds(self, service: CoreSMTPEmailService) -> int:
-        # The timeout is per socket operation rather than for the send as a
-        # whole: connecting, the handshake and the message each get it. Three
-        # of them is what a send waits for at worst.
-        return SMTP_EMAIL_TIMEOUT * 3
+        return SMTP_EMAIL_TIMEOUT * self.SMTP_SEND_SOCKET_OPERATIONS
 
     def get_schema_name(self, service: CoreSMTPEmailService) -> str:
         return f"SMTPEmail{service.id}Schema"

@@ -326,6 +326,38 @@ def test_pinning_the_instance_server_costs_no_extra_write(data_fixture, settings
 
 
 @pytest.mark.django_db
+def test_editing_an_action_while_the_instance_cannot_send_keeps_the_pin(
+    data_fixture, settings
+):
+    """
+    An update is not refused the way a create is, and the service type drops
+    the instance server while it is unavailable. The action has to come out of
+    that edit still pinned, or it fails on every click once sending is back.
+    """
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.EMAIL_HOST = "smtp.example.com"
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action_type = database_workflow_action_type_registry.get("smtp_email")
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user, action_type, button_field
+    )
+
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
+    action = DatabaseWorkflowActionService().update_workflow_action(
+        user, action, service={"subject": "'Hello again'"}
+    )
+
+    service = action.service.specific
+    assert service.subject["formula"] == "'Hello again'"
+    assert service.use_instance_smtp_settings is True
+    assert service.integration_id is None
+
+
+@pytest.mark.django_db
 def test_a_deactivated_type_cannot_be_swapped_to_either(data_fixture, settings):
     settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
     user = data_fixture.create_user()

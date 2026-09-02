@@ -458,7 +458,17 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
             **(values.get("service") or {}),
             "use_instance_smtp_settings": True,
         }
-        return super().prepare_values(values, user, instance)
+        values = super().prepare_values(values, user, instance)
+
+        # The service type drops the pin while the instance cannot send, and
+        # an update is not refused the way a create is. Left that way, the
+        # action would fail on every click once sending is back. Only a write
+        # in that case: the ordinary one is a single save above.
+        service = values["service"]
+        if not service.use_instance_smtp_settings:
+            service.use_instance_smtp_settings = True
+            service.save(update_fields=["use_instance_smtp_settings"])
+        return values
 
     # What each reason the service gives means for a button, in the words the
     # API answers a refusal with.
@@ -483,8 +493,7 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         :return: True when this installation cannot send at all.
         """
 
-        service_type = service_type_registry.get(self.service_type)
-        return not service_type.instance_smtp_is_available()
+        return self.get_deactivated_reason(workspace) is not None
 
     def get_deactivated_reason(self, workspace: Workspace) -> Optional[str]:
         """

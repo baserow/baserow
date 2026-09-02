@@ -280,15 +280,16 @@ class DatabaseWorkflowActionService:
         :return: The TTL in seconds.
         """
 
-        waiting_on = 0
-        for workflow_action in server_actions:
-            if not workflow_action.get_type().is_external:
-                continue
-            # Asked of the service rather than read off a `timeout` field, or
-            # a service that waits without carrying one, such as an email,
-            # counts as instant and leaves the lock too short for it.
-            service = workflow_action.service.specific
-            waiting_on += service.get_type().max_dispatch_seconds(service)
+        # The service type owns the number: an email waits on its server
+        # without carrying a timeout field of its own.
+        services = [
+            workflow_action.service.specific
+            for workflow_action in server_actions
+            if workflow_action.get_type().is_external
+        ]
+        waiting_on = sum(
+            service.get_type().max_dispatch_seconds(service) for service in services
+        )
         return max(settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS, waiting_on * 2)
 
     def _remember_result_shape(
