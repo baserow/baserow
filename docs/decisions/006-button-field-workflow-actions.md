@@ -322,6 +322,16 @@ feature: with it off, or with no mail server configured, the editor offers the a
 disabled and says which of the two it is. An installation that wants per-action
 credentials is the revisit trigger for attaching an integration here.
 
+**Amendment (phase 4c, September 2026).** External integrations attach on the database
+application itself, which the generic integration API already supports once the
+application type declares `supports_integrations`. Each database action type names the
+integration types it accepts in an `allowed_integration_types` allow-list, empty for the
+row actions, and both saving and dispatching refuse anything else, so a Local Baserow
+integration still cannot be attached to any button action. An attached integration must
+belong to the field's own database and be readable by the person configuring the button.
+The ownership step above stays open; until it lands, sharing is application-level as in
+the builder.
+
 In practice v1 registers only local row actions, so it has nothing to auto-create, copy,
 or manage, and no integrations settings UI. The builder keeps its behavior: a builder
 service without an integration is a normal half-configured state that fails cleanly
@@ -384,15 +394,14 @@ as today, and their buttons render disabled with an error indicator pointing at 
 integration to reconfigure, reusing the error state the builder already shows for
 misconfigured actions rather than inventing a database-specific one.
 
-**Constraint discovered in implementation.** Actions are serialized from
-`FieldType.export_serialized`, which receives only the field: no `files_zip`, no
-`storage`, and no `import_export_config`. The action export path therefore cannot carry
-files, and cannot apply `exclude_sensitive_data`. This is harmless in v1, since Local
-Baserow services have neither files nor credentials. It does mean the commitment above
-that "exports strip their credentials as today" cannot be honoured through this path
-once external integrations arrive; widening `FieldType.export_serialized` to take the
-same arguments the builder's export path already receives is a prerequisite for that
-work.
+**Constraint discovered in implementation, since resolved.** Actions are serialized from
+`FieldType.export_serialized`, which at first received only the field: no `files_zip`, no
+`storage`, and no `import_export_config`, so the action export path could not apply
+`exclude_sensitive_data`. Phase 4a widened it to the same arguments the builder's export
+path receives. Phase 4c added the database's integrations to the application export,
+imported before its tables so an action's `integration_id` remaps through `id_mapping`;
+an integration outside the field's own database, or of a type the action does not allow,
+is dropped on import and the action shows as unconfigured.
 
 ### 7. What kind of field is a button, and who may click it
 
