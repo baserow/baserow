@@ -220,19 +220,25 @@ class BuilderPreviewExchangeView(APIView):
     def _is_same_site(self, preview_hostname, backend_hostname):
         """Decide whether browser cookie rules see both hosts as one site.
 
-        Equal hosts are the same site. Local development treats ``localhost``
-        and ``127.0.0.1`` as equivalent; otherwise the comparison uses the
-        registrable domain, so sibling hosts such as ``api.example.com`` and
-        ``preview.example.com`` are treated as the same site.
+        Equal hosts are the same site. Local development treats ``localhost``,
+        its subdomains, and ``127.0.0.1`` as equivalent; otherwise the comparison
+        uses the registrable domain, so sibling hosts such as ``api.example.com``
+        and ``preview.example.com`` are treated as the same site.
         """
 
         if not preview_hostname or not backend_hostname:
             return False
         if preview_hostname == backend_hostname:
             return True
-        if preview_hostname in {"localhost", "127.0.0.1"}:
-            return backend_hostname in {"localhost", "127.0.0.1"}
-        if backend_hostname in {"localhost", "127.0.0.1"}:
+        preview_is_local = preview_hostname == "127.0.0.1" or (
+            preview_hostname == "localhost" or preview_hostname.endswith(".localhost")
+        )
+        backend_is_local = backend_hostname == "127.0.0.1" or (
+            backend_hostname == "localhost" or backend_hostname.endswith(".localhost")
+        )
+        if preview_is_local:
+            return backend_is_local
+        if backend_is_local:
             return False
 
         return self._registrable_domain(preview_hostname) == self._registrable_domain(

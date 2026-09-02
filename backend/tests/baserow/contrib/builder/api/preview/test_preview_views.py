@@ -342,6 +342,40 @@ def test_exchange_uses_lax_insecure_cookie_for_same_site_http_preview(
 
 
 @pytest.mark.django_db
+def test_exchange_uses_lax_insecure_cookie_for_localhost_subdomain_preview(
+    api_client, data_fixture, settings
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    settings.PUBLIC_BACKEND_URL = "http://localhost:8000"
+    settings.BUILDER_PREVIEW_URL = "http://ab-preview.localhost:3000"
+
+    grant_response = api_client.post(
+        preview_grant_url(builder.id),
+        {"path": "/"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    preview_token = parse_qs(urlparse(grant_response.json()["url"]).query)[
+        BUILDER_PREVIEW_TOKEN_QUERY_PARAM
+    ][0]
+
+    response = api_client.get(
+        preview_exchange_url(preview_token),
+        {
+            "redirect": (
+                f"http://ab-preview.localhost:3000/builder/preview/{builder.id}/"
+            )
+        },
+    )
+
+    cookie = response.cookies[get_builder_preview_cookie_name()]
+    assert response.status_code == HTTP_302_FOUND
+    assert cookie["samesite"] == "Lax"
+    assert not cookie["secure"]
+
+
+@pytest.mark.django_db
 def test_exchange_uses_none_secure_cookie_for_cross_site_preview(
     api_client, data_fixture, settings
 ):
