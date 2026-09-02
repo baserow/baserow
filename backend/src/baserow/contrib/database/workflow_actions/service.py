@@ -193,7 +193,11 @@ class DatabaseWorkflowActionService:
 
         workflow_action_type.raise_if_deactivated(field.table.database.workspace)
 
-        prepared_values = workflow_action_type.prepare_values(kwargs, user)
+        # The type reads the field to know which database an integration
+        # may come from.
+        prepared_values = workflow_action_type.prepare_values(
+            {**kwargs, "field": field}, user
+        )
         workflow_action = self.handler.create_workflow_action(
             workflow_action_type, field=field, **prepared_values
         )
@@ -224,7 +228,9 @@ class DatabaseWorkflowActionService:
                 kwargs["type"]
             )
             workflow_action_type.raise_if_deactivated(field.table.database.workspace)
-            prepared_values = workflow_action_type.prepare_values(kwargs, user)
+            prepared_values = workflow_action_type.prepare_values(
+                {**kwargs, "field": field}, user
+            )
             workflow_action = self.handler.change_workflow_action_type(
                 workflow_action, workflow_action_type, **prepared_values
             )

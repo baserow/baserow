@@ -365,5 +365,30 @@ def test_slack_write_message_generate_schema(data_fixture):
                 "type": "boolean",
                 "title": "OK",
             },
+            "channel": {
+                "type": "string",
+                "title": "Channel",
+            },
+            "ts": {
+                "type": "string",
+                "title": "Message timestamp",
+            },
         },
     }
+
+
+@pytest.mark.django_db
+def test_slack_write_message_generate_schema_respects_allowed_fields(data_fixture):
+    service = data_fixture.create_slack_write_message_service()
+
+    schema = service.get_type().generate_schema(service, allowed_fields=["ts"])
+
+    assert list(schema["properties"]) == ["ts"]
+
+
+@pytest.mark.django_db
+def test_slack_write_message_waits_as_long_as_its_request(data_fixture):
+    # A lock held over the dispatch has to outlive the request timeout.
+    service = data_fixture.create_slack_write_message_service()
+
+    assert service.get_type().max_dispatch_seconds(service) == 10

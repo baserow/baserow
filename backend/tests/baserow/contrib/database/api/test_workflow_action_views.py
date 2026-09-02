@@ -115,10 +115,10 @@ def test_create_still_takes_the_service_type_when_it_is_given(api_client, data_f
 
 
 @pytest.mark.django_db
-def test_create_ignores_a_supplied_integration(api_client, data_fixture):
-    """A service tied to an integration dispatches as that integration's
-    `authorized_user` instead of as the clicker, so the id must never be
-    accepted here (ADR 006 section 5)."""
+def test_create_refuses_a_local_baserow_integration(api_client, data_fixture):
+    """A service tied to a Local Baserow integration dispatches as that
+    integration's `authorized_user` instead of as the clicker, so the id must
+    never be accepted here (ADR 006 section 5)."""
 
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -144,13 +144,13 @@ def test_create_ignores_a_supplied_integration(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_200_OK, response.json()
-    action = LocalBaserowCreateRowWorkflowAction.objects.get(id=response.json()["id"])
-    assert action.service.integration_id is None
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION"
+    assert not LocalBaserowCreateRowWorkflowAction.objects.exists()
 
 
 @pytest.mark.django_db
-def test_update_ignores_a_supplied_integration(api_client, data_fixture):
+def test_update_refuses_a_local_baserow_integration(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
@@ -178,7 +178,8 @@ def test_update_ignores_a_supplied_integration(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION"
     action.refresh_from_db()
     assert action.service.integration_id is None
 

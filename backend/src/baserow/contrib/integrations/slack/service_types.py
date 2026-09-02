@@ -19,6 +19,8 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 
+SLACK_REQUEST_TIMEOUT_SECONDS = 10
+
 
 class SlackWriteMessageServiceType(ServiceType):
     type = "slack_write_message"
@@ -104,7 +106,7 @@ class SlackWriteMessageServiceType(ServiceType):
                     "channel": f"#{service.channel}",
                     "text": resolved_values["text"],
                 },
-                timeout=10,
+                timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
             )
             response_data = response.json()
         except request_exceptions.RequestException as e:
@@ -140,6 +142,12 @@ class SlackWriteMessageServiceType(ServiceType):
     def dispatch_transform(self, data):
         return DispatchResult(data=data)
 
+    def max_dispatch_seconds(self, service: SlackWriteMessageService) -> int:
+        return SLACK_REQUEST_TIMEOUT_SECONDS
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).select_related("integration")
+
     def get_schema_name(self, service: SlackWriteMessageService) -> str:
         return f"SlackWriteMessage{service.id}Schema"
 
@@ -157,16 +165,18 @@ class SlackWriteMessageServiceType(ServiceType):
         :return: A dictionary representing the JSON schema of the service.
         """
 
-        properties = {}
-        if allowed_fields is None or "ok" in allowed_fields:
-            properties.update(
-                **{
-                    "ok": {
-                        "type": "boolean",
-                        "title": _("OK"),
-                    },
-                }
-            )
+        # What `chat.postMessage` answers with that a later step can use:
+        # `ts` is the message reference for threading and updating.
+        all_properties = {
+            "ok": {"type": "boolean", "title": _("OK")},
+            "channel": {"type": "string", "title": _("Channel")},
+            "ts": {"type": "string", "title": _("Message timestamp")},
+        }
+        properties = {
+            name: prop
+            for name, prop in all_properties.items()
+            if allowed_fields is None or name in allowed_fields
+        }
         return {
             "title": self.get_schema_name(service),
             "type": "object",

@@ -15,10 +15,12 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
+    SlackWriteMessageWorkflowAction,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFieldMapping,
 )
+from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.snapshots.handler import SnapshotHandler
@@ -1299,3 +1301,121 @@ def test_an_email_action_is_imported_even_where_it_cannot_send(data_fixture, set
 
     assert action.specific.get_type().type == "smtp_email"
     assert action.specific.get_type().is_deactivated(imported_workspace) is True
+
+
+def _button_that_posts_to_slack(data_fixture, table, name_field, button_name="btn"):
+    """A button whose Slack action uses a bot of its own database."""
+
+    bot = data_fixture.create_integration(
+        SlackBotIntegration,
+        application=table.database,
+        name="Bot",
+        token="xoxb-secret",
+    )
+    button_field = data_fixture.create_button_field(table=table, name=button_name)
+    service = data_fixture.create_slack_write_message_service(
+        integration=bot,
+        channel="general",
+        text=f"get('row.field_{name_field.id}')",
+    )
+    data_fixture.create_database_workflow_action(
+        SlackWriteMessageWorkflowAction, field=button_field, service=service
+    )
+    return button_field, bot
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_slack_action_survives_an_application_export_import(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _, bot = _button_that_posts_to_slack(data_fixture, table, name_field)
+
+    config = ImportExportConfig(
+        include_permission_data=False, exclude_sensitive_data=False
+    )
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_table = imported[0].table_set.get(name=table.name)
+    imported_name_field = imported_table.field_set.get(name="Name")
+    imported_button = imported_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
+    service = action.specific.service.specific
+    (imported_bot,) = imported[0].integrations.all()
+
+    assert imported_bot.id != bot.id
+    assert service.integration_id == imported_bot.id
+    assert service.text["formula"] == f"get('row.field_{imported_name_field.id}')"
+    assert service.channel == "general"
+
+
+@pytest.mark.django_db
+def test_duplicating_a_database_points_the_slack_action_at_the_copied_bot(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _, bot = _button_that_posts_to_slack(data_fixture, table, name_field)
+
+    duplicated = CoreHandler().duplicate_application(user, database)
+
+    duplicated_button = (
+        duplicated.table_set.get(name=table.name).field_set.get(name="btn").specific
+    )
+    (action,) = DatabaseWorkflowAction.objects.filter(field=duplicated_button)
+    (copied_bot,) = duplicated.integrations.all()
+
+    assert copied_bot.id != bot.id
+    assert action.specific.service.integration_id == copied_bot.id
+    assert copied_bot.specific.token == "xoxb-secret"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_imported_action_drops_an_integration_outside_its_database(data_fixture):
+    """
+    An export made elsewhere names its integration by a number, and that
+    number can be someone else's integration here.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _button_that_posts_to_slack(data_fixture, table, name_field)
+    other_database = data_fixture.create_database_application(workspace=workspace)
+    stranger = data_fixture.create_integration(
+        SlackBotIntegration, application=other_database, name="Theirs", token="x"
+    )
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    (exported_database,) = [e for e in exported if e["id"] == database.id]
+    exported_database["integrations"] = []
+    (button,) = [
+        f
+        for t in exported_database["tables"]
+        for f in t["fields"]
+        if f["name"] == "btn"
+    ]
+    button["workflow_actions"][0]["service"]["integration_id"] = stranger.id
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, [exported_database], BytesIO(), config, None
+    )
+
+    imported_button = (
+        imported[0].table_set.get(name=table.name).field_set.get(name="btn").specific
+    )
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
+    assert action.specific.service.integration_id is None
