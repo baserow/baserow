@@ -9,6 +9,7 @@
       <SampleDataViewer
         v-if="sampleData"
         :sample-data="sampleData"
+        :is-error="capturedNothing"
         :modal-title="
           $t('databaseWorkflowActionWithService.payloadModalTitle', {
             actionLabel: workflowActionType.label,
@@ -85,10 +86,20 @@ export default {
      * buffered values: nothing in this editor can produce it. A stored error
      * describes no shape, so it counts as nothing captured.
      */
+    /** Why the last click described nothing, when that is what happened. */
+    capturedNothing() {
+      return Boolean(this.defaultValues.service?.sample_data?._error)
+    },
     sampleData() {
       const sample = this.defaultValues.service?.sample_data
-      if (!sample || sample._error) {
+      if (!sample) {
         return null
+      }
+      // A click that answered 404, timed out, or came back too big leaves the
+      // reason instead of a shape. Shown in place of the note asking for a
+      // click that has already happened.
+      if (sample._error) {
+        return sample._error
       }
       // What is stored is the whole dispatch result. The explorer's paths
       // start inside its `data`, so the viewer shows what they name.

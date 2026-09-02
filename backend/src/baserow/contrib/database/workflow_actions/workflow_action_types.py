@@ -398,12 +398,24 @@ class CoreHTTPRequestWorkflowActionType(DatabaseWorkflowServiceActionType):
         "form_data",
     ]
 
-    def result_describes_shape(self, result: DispatchResult) -> bool:
+    def unusable_result_reason(self, result: DispatchResult) -> Optional[str]:
         data = result.data if isinstance(result.data, dict) else {}
         status_code = data.get("status_code")
+
+        if isinstance(status_code, int) and 200 <= status_code < 300:
+            return None
+
         # An error page describes the failure, not the endpoint, and would
-        # replace the shape a working click learned.
-        return isinstance(status_code, int) and 200 <= status_code < 300
+        # replace the shape a working click learned. The status code says
+        # nothing about the address, so it is safe to repeat.
+        if status_code == 504:
+            return "The last click timed out before the endpoint answered."
+        if isinstance(status_code, int):
+            return (
+                f"The last click was answered with {status_code}, which "
+                f"describes the failure rather than the endpoint."
+            )
+        return "The last click was not answered with anything describable."
 
 
 class OpenUrlWorkflowActionType(DatabaseWorkflowActionType):

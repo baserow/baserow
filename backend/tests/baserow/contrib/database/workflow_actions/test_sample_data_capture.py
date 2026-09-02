@@ -163,8 +163,69 @@ def test_an_oversized_answer_is_not_remembered(data_fixture, settings):
             user, button_field, row
         )
 
+    # The reason is kept rather than a shape, so the editor stops asking for a
+    # click that has already happened. It describes nothing, so the schema is
+    # not built from it.
     action.service.refresh_from_db()
-    assert action.service.sample_data is None
+    assert "32 bytes" in action.service.sample_data["_error"]
+    service = action.service.specific
+    assert service.get_type().generate_schema(service)["properties"].get("body") is None
+
+
+@pytest.mark.django_db
+def test_the_editor_is_told_when_a_click_answered_with_an_error(data_fixture):
+    """
+    A 404, or a timeout, is a successful dispatch that describes nothing. The
+    note asking for a click would otherwise stay exactly as it was, so nobody
+    could tell the click had happened.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(
+        data_fixture, button_field, url="'http://example.notexist/p?token=shhh'"
+    )
+
+    with mock_advocate_request({"error": "not found"}, status_code=404):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    action.service.refresh_from_db()
+    reason = action.service.sample_data["_error"]
+    assert "404" in reason
+    # Whoever clicks may not be allowed to see how the button was set up.
+    assert "token=shhh" not in reason
+    assert "example.notexist" not in reason
+
+
+@pytest.mark.django_db
+def test_a_failed_click_does_not_replace_an_answer_already_learned(data_fixture):
+    """
+    A shape an earlier click learned is worth more than an explanation of the
+    latest one: every action pointing at that shape would break with it.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"title": "Sample Slide Show"}):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    with mock_advocate_request({"error": "not found"}, status_code=404):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    action.service.refresh_from_db()
+    assert "_error" not in action.service.sample_data
+    assert action.service.sample_data["data"]["body"] == {"title": "Sample Slide Show"}
 
 
 @pytest.mark.django_db

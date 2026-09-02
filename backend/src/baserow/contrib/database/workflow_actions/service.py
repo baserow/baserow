@@ -239,7 +239,9 @@ class DatabaseWorkflowActionService:
         # The type decides: a 404 error page is still a successful dispatch
         # and describes nothing, and a type with no status code answers this
         # differently. Keeping it would drop the shape an earlier click learned.
-        if not workflow_action_type.result_describes_shape(result):
+        unusable = workflow_action_type.unusable_result_reason(result)
+        if unusable:
+            self._remember_nothing_was_captured(workflow_action, unusable)
             return
 
         sample_data = {
@@ -249,12 +251,15 @@ class DatabaseWorkflowActionService:
         try:
             encoded = json.dumps(sample_data)
 
-            if (
-                len(encoded.encode("utf-8"))
-                > settings.DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES
-            ):
+            max_bytes = settings.DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES
+            if len(encoded.encode("utf-8")) > max_bytes:
                 # A big response still reached the clicker; it is only its
                 # shape that the editor goes without.
+                self._remember_nothing_was_captured(
+                    workflow_action,
+                    f"The last click was answered with more than the "
+                    f"{max_bytes} bytes this installation keeps.",
+                )
                 return
 
             service = workflow_action.service
@@ -295,6 +300,40 @@ class DatabaseWorkflowActionService:
         """
 
         return list(self.handler.get_workflow_actions(field))
+
+    def _remember_nothing_was_captured(
+        self, workflow_action: DatabaseWorkflowAction, reason: str
+    ) -> None:
+        """
+        Leaves the editor a note saying why the last click described nothing,
+        rather than letting it keep asking for a click that has already
+        happened.
+
+        Only written when there is nothing to lose. A shape an earlier click
+        learned is worth more than an explanation of the latest one, and every
+        action pointing at that shape would break with it.
+
+        :param workflow_action: The action that just ran.
+        :param reason: What to tell whoever opens the editor. Says nothing
+            about the address the action was pointed at.
+        """
+
+        service = workflow_action.service
+
+        if service.sample_data:
+            return
+
+        try:
+            service.sample_data = {"_error": reason}
+            # Its own savepoint, for the same reason the capture below has one.
+            with transaction.atomic():
+                service.save(update_fields=["sample_data"])
+        except Exception:
+            logger.warning(
+                "Could not record why workflow action {action_id} captured nothing.",
+                action_id=workflow_action.id,
+                exc_info=True,
+            )
 
     def dispatch_workflow_actions(
         self,

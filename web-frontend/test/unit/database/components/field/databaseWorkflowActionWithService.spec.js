@@ -482,18 +482,23 @@ describe('DatabaseWorkflowActionWithService', () => {
       expect(wrapper.find('.alert').exists()).toBe(true)
     })
 
-    test('a stored error describes no shape, so it counts as nothing', async () => {
+    test('a click that captured nothing says why', async () => {
       await seedApplications()
 
       const wrapper = await mountAction('http_request', {
         url: 'x',
-        sample_data: { _error: 'Invalid URL' },
+        sample_data: { _error: 'The last click was answered with 404.' },
       })
 
-      expect(wrapper.findComponent({ name: 'SampleDataViewer' }).exists()).toBe(
-        false
+      // Shown in place of the note asking for a click that has already
+      // happened, which would otherwise stay exactly as it was.
+      const viewer = wrapper.findComponent({ name: 'SampleDataViewer' })
+      expect(viewer.exists()).toBe(true)
+      expect(viewer.props('sampleData')).toBe(
+        'The last click was answered with 404.'
       )
-      expect(wrapper.find('.alert').exists()).toBe(true)
+      expect(viewer.props('isError')).toBe(true)
+      expect(wrapper.find('.alert').exists()).toBe(false)
     })
 
     test('a row action is left alone: its shape comes from the table', async () => {

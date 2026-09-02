@@ -60,18 +60,21 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
 
         return {}
 
-    def result_describes_shape(self, result: DispatchResult) -> bool:
+    def unusable_result_reason(self, result: DispatchResult) -> Optional[str]:
         """
-        Whether what the action returned is worth remembering as the shape the
-        actions after it read from. Only asked of a type that sets
-        `captures_sample_data`, since what a failure looks like is its own: an
-        HTTP request answers 404 with an error page and still dispatches.
+        Why what the action returned describes no shape, in words the editor
+        can show. Only asked of a type that sets `captures_sample_data`, since
+        what a failure looks like is its own: an HTTP request answers 404 with
+        an error page and still dispatches.
+
+        Must say nothing about the address the action was pointed at, which is
+        for whoever configured the button rather than whoever clicked it.
 
         :param result: What the action returned.
-        :return: True when the result describes the answer's real shape.
+        :return: The reason, or `None` when the result describes a real shape.
         """
 
-        return True
+        return None
 
     def dispatch(
         self,

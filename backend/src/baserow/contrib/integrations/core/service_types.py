@@ -429,11 +429,16 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         properties = {}
 
-        if (allowed_fields is None or "body" in allowed_fields) and service.sample_data:
+        # A stored failure is a message rather than an answer, so it
+        # describes no shape. Without this the body would come back as an
+        # empty object.
+        sample_data = service.sample_data
+        if sample_data and "_error" in sample_data:
+            sample_data = None
+
+        if (allowed_fields is None or "body" in allowed_fields) and sample_data:
             schema_builder = SchemaBuilder()
-            schema_builder.add_object(
-                service.sample_data.get("data", {}).get("body", {})
-            )
+            schema_builder.add_object(sample_data.get("data", {}).get("body", {}))
             schema = schema_builder.to_schema()
 
             properties |= {
@@ -455,10 +460,10 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         if allowed_fields is None or "headers" in allowed_fields:
             schema = {}
-            if service.sample_data:
+            if sample_data:
                 schema_builder = SchemaBuilder()
                 schema_builder.add_object(
-                    service.sample_data.get("data", {}).get("headers", {})
+                    sample_data.get("data", {}).get("headers", {})
                 )
                 schema = schema_builder.to_schema()
 
