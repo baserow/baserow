@@ -1081,13 +1081,20 @@ class Table(
 
         if use_cache:
             # We don't need to refresh the version if it has already been refreshed for
-            # this session.
-            local_cache.get(
-                f"database_table_model_{self.id}_refreshed",
-                lambda: self.refresh_from_db(fields=["version"]),
+            # this session. The refreshed value is used for every `Table` instance
+            # of this table seen during the session, because instances unpickled
+            # from another table's cached field attrs (e.g. `link_row_table`) can
+            # carry an outdated version that would otherwise defeat the cache.
+            def _refresh_version():
+                self.refresh_from_db(fields=["version"])
+                return self.version
+
+            version = local_cache.get(
+                f"database_table_model_{self.id}_refreshed", _refresh_version
             )
-            field_attrs = get_cached_model_field_attrs(self)
+            field_attrs = get_cached_model_field_attrs(self, version)
         else:
+            version = None
             field_attrs = None
 
         if field_attrs is None:
@@ -1101,7 +1108,7 @@ class Table(
             )
 
             if use_cache:
-                set_cached_model_field_attrs(self, field_attrs)
+                set_cached_model_field_attrs(self, field_attrs, version)
         else:
             # We found cached model fields, they will have a cached creation_counter
             # attribute each used to compare model fields to do django
