@@ -74,6 +74,7 @@ from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
+    ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
@@ -106,11 +107,14 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     model_class = CoreHTTPRequestService
     dispatch_types = [DispatchTypes.ACTION]
 
-    # Where an API key on a request lives. This service has no integration, so
-    # there is nowhere else for one to be kept. Which header holds it is not
-    # knowable, so the whole list goes rather than a guess at the secret one,
-    # and the import leaves the service to be reconfigured.
-    sensitive_fields = ["headers", "query_params"]
+    # Where a credential on a request can sit. This service has no integration,
+    # so there is nowhere else for one to be kept, and which header or field
+    # holds it is not knowable: every value goes rather than a guess at the
+    # secret one. The keys stay, so an import says what has to be entered
+    # again. `url` is not here, since blanking it leaves an action that names
+    # nothing at all; a key in its query string is the one placement an export
+    # still carries.
+    sensitive_fields = ["headers", "query_params", "form_data", "body_content"]
 
     allowed_fields = [
         "http_method",
@@ -362,10 +366,18 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         Responsible for creating related data (headers, query params, form_data).
         """
 
-        # `None` rather than missing when an export stripped them as sensitive.
-        headers = serialized_values.pop("headers", None) or []
-        query_params = serialized_values.pop("query_params", None) or []
-        form_data = serialized_values.pop("form_data", None) or []
+        # An export that stripped these leaves the keys with a `None` value,
+        # so the row is kept and the value comes back as an empty formula for
+        # somebody to fill in.
+        def rows_of(prop_name):
+            return [
+                {**row, "value": row.get("value") or {}}
+                for row in (serialized_values.pop(prop_name, None) or [])
+            ]
+
+        headers = rows_of("headers")
+        query_params = rows_of("query_params")
+        form_data = rows_of("form_data")
 
         service = super().create_instance_from_serialized(
             serialized_values,
@@ -584,18 +596,19 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         :param response: The streamed response.
         :param timeout: How long the whole body may take to arrive, in seconds.
-        :raises ServiceImproperlyConfiguredDispatchException: When the body is
-            larger than the ceiling.
+        :raises ResponseTooLargeDispatchException: When the body is larger than
+            the ceiling.
         :raises requests.exceptions.Timeout: When it takes longer than the
             deadline, which the caller answers the same way as any other
             timeout.
         """
 
-        max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES
-
-        if not max_bytes:
-            return
-
+        # Read whatever the ceiling is set to. Returning early with the ceiling
+        # off would leave the body unread under `stream=True`, so `response
+        # .json()` would pull it in later, outside the block that maps a
+        # truncated or corrupt answer onto a message the caller can use, and
+        # the deadline below would never be armed either.
+        max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES or None
         deadline = time.monotonic() + timeout
 
         content = bytearray()
@@ -603,8 +616,8 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         try:
             for chunk in response.iter_content(chunk_size=64 * 1024):
                 content += chunk
-                if len(content) > max_bytes:
-                    raise ServiceImproperlyConfiguredDispatchException(
+                if max_bytes is not None and len(content) > max_bytes:
+                    raise ResponseTooLargeDispatchException(
                         f"The response is larger than the {max_bytes} bytes this "
                         f"installation accepts."
                     )

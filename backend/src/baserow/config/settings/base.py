@@ -1298,7 +1298,7 @@ BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS = str_to_bool(
 )
 # The most an HTTP request service will read of an answer, measured while the
 # body arrives so an endpoint cannot decide how much memory a worker spends.
-# Empty switches the ceiling off.
+# Zero reads it whole, with only the timeout bounding it.
 INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = int(
     os.getenv("BASEROW_INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES") or 32 * 1024 * 1024
 )

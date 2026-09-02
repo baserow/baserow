@@ -542,8 +542,20 @@ def test_an_unchanged_answer_is_not_written_again(data_fixture):
 
     assert saved.call_count == 0
 
-    # A different answer is still written.
+    # Nor when only the values change. Every response header comes back with
+    # the answer, and `Date` alone moves every second, so comparing values
+    # would rewrite the blob on nearly every click.
     with mock_advocate_request({"title": "Something else"}):
+        with patch("baserow.core.services.models.Service.save", autospec=True) as again:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    assert again.call_count == 0
+
+    # A differently shaped answer is written: that is the part the editor
+    # describes to the actions after this one.
+    with mock_advocate_request({"title": "Something else", "extra": 1}):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
@@ -551,7 +563,10 @@ def test_an_unchanged_answer_is_not_written_again(data_fixture):
     service = CoreHTTPRequestWorkflowAction.objects.get(
         field=button_field
     ).service.specific
-    assert service.sample_data["data"]["body"] == {"title": "Something else"}
+    assert service.sample_data["data"]["body"] == {
+        "title": "Something else",
+        "extra": 1,
+    }
 
 
 @pytest.mark.django_db

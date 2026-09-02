@@ -95,6 +95,18 @@ function httpNode(page: Page) {
     .first();
 }
 
+/** Where a field's column sits in the grid, counting from the first one. */
+async function columnIndexOf(page: Page, name: string): Promise<number> {
+  const names = await page
+    .locator(".grid-view__right .grid-view__head .grid-view__description-name")
+    .allTextContents();
+  const index = names.findIndex((each) => each.trim() === name);
+  if (index === -1) {
+    throw new Error(`no column named "${name}" in [${names.join(", ")}]`);
+  }
+  return index;
+}
+
 /** A node in the explorer, matched on its whole name. */
 function explorerNode(page: Page, name: string) {
   return explorer(page).locator(".node-explorer-content__name", {
@@ -681,8 +693,13 @@ test.describe("Button field, external actions", () => {
     // The copy is a working button, not a broken one: it answers for itself
     // the first time somebody clicks it.
     await gridFor(page, clicker);
-    const copyIndex = DUPLICATE_FIELD_INDEX + 1;
-    await grid.fieldCellAt(0, copyIndex).locator("button").click();
+    // Found by name rather than by an offset from the original: the copy sorts
+    // after every field the setup made, so any field added to `beforeAll`
+    // later would sit between the two and be clicked instead.
+    await grid
+      .fieldCellAt(0, await columnIndexOf(page, copy.name))
+      .locator("button")
+      .click();
     await expect(async () => {
       const after = await listWorkflowActions(g.user, copy);
       expect(after[0].service.sample_data).toBeTruthy();

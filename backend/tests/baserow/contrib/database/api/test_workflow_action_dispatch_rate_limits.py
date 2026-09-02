@@ -298,12 +298,14 @@ def test_every_request_on_a_button_spends_its_own_slot(
 
 
 @pytest.mark.django_db
-def test_a_button_is_refused_when_it_cannot_afford_all_its_requests(
+def test_a_button_carrying_more_requests_than_the_budget_still_works(
     api_client, data_fixture, settings
 ):
     """
-    Reserved before anything runs, so a button that cannot pay for its whole
-    sequence does not send half of it and then stop.
+    A click takes a slot per external action, but never more than the limit
+    could ever hold. Without the cap the slot past the limit is always refused,
+    so a button with more requests than the budget could never be clicked at
+    all, and waiting would not help.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
@@ -313,10 +315,47 @@ def test_a_button_is_refused_when_it_cannot_afford_all_its_requests(
     _add_http_action(data_fixture, button_field)
 
     with mock_advocate_request({"ok": True}) as request:
-        refused = _click(api_client, token, button_field, row)
+        first = _click(api_client, token, button_field, row)
+        second = _click(api_client, token, button_field, row)
 
-    assert refused.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert first.status_code == HTTP_200_OK
+    assert request.call_count == 2
+    # It still costs the whole budget, so the limit keeps counting clicks.
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+
+
+@pytest.mark.django_db
+def test_a_request_that_was_never_built_is_not_charged(
+    api_client, data_fixture, settings
+):
+    """
+    The formulas are resolved inside the dispatch, so a body that is not valid
+    JSON fails before anything is sent. Charging for it would let one
+    misconfigured button lock its clicker out of every external button they
+    have.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    action = _add_http_action(data_fixture, button_field)
+    service = action.service.specific
+    service.http_method = "POST"
+    service.body_type = "json"
+    service.body_content = "'not json{'"
+    service.save()
+
+    with mock_advocate_request({"ok": True}) as request:
+        failed = _click(api_client, token, button_field, row)
+
+    assert failed.status_code == HTTP_400_BAD_REQUEST
     assert request.call_count == 0
+
+    # Nothing left the instance, so the budget is untouched.
+    service.body_type = "none"
+    service.save()
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
 
 
 @pytest.mark.django_db

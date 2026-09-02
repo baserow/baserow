@@ -18,6 +18,14 @@ class ServiceImproperlyConfiguredDispatchException(DispatchException):
     """Raised when trying to dispatch a service that is not fully configured."""
 
 
+class ResponseTooLargeDispatchException(ServiceImproperlyConfiguredDispatchException):
+    """
+    Raised when a service refused an answer for its size. Unlike its parent it
+    is raised after the request has gone out, so a caller counting outbound
+    traffic still counts it.
+    """
+
+
 class InvalidContextDispatchException(DispatchException):
     """
     Raised when trying to dispatch a service and the dispatch context is invalid.

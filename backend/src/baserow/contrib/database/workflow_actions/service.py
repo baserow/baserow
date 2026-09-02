@@ -50,6 +50,7 @@ from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
     PermissionDeniedDispatchException,
+    ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
     UnexpectedDispatchException,
@@ -66,6 +67,32 @@ EXTERNAL_DISPATCH_FAILED_MESSAGE = "the request could not be completed"
 # new failure stays readable until it is known to name an address.
 ADDRESS_BEARING_DISPATCH_EXCEPTIONS = (UnexpectedDispatchException,)
 
+# Failures a service raises before it can send anything: a formula it could not
+# resolve, or a body it refused to build. Nothing left the instance, so a click
+# that ends on one of these is not charged for outbound traffic.
+DID_NOT_REACH_OUT_EXCEPTIONS = (
+    InvalidContextDispatchException,
+    InvalidContextContentDispatchException,
+    ServiceImproperlyConfiguredDispatchException,
+)
+
+
+def reached_outside(exc: Exception) -> bool:
+    """
+    Whether a failed external action had already sent its request.
+
+    :param exc: What the action failed with.
+    :return: True when the request went out, so the click owes for it.
+    """
+
+    # A subclass of the configuration failures above, but raised on the answer
+    # rather than before the request, so it is charged like any other.
+    if isinstance(exc, ResponseTooLargeDispatchException):
+        return True
+
+    return not isinstance(exc, DID_NOT_REACH_OUT_EXCEPTIONS)
+
+
 USER_FACING_DISPATCH_EXCEPTIONS = (
     ServiceImproperlyConfiguredDispatchException,
     InvalidContextDispatchException,
@@ -74,6 +101,35 @@ USER_FACING_DISPATCH_EXCEPTIONS = (
     TriggerServiceNotDispatchable,
     DoesNotExist,
 )
+
+
+def _shape_of(value: Any) -> Any:
+    """
+    What an answer looks like with its values taken out, so two answers that
+    differ only in what they contain compare equal.
+
+    :param value: Any part of a remembered answer.
+    :return: The same structure with every leaf replaced by its type name.
+    """
+
+    if isinstance(value, dict):
+        return {key: _shape_of(each) for key, each in sorted(value.items())}
+    if isinstance(value, list):
+        return [_shape_of(each) for each in value]
+    return type(value).__name__
+
+
+def _describes_the_same_shape(stored: Any, fresh: Any) -> bool:
+    """
+    :param stored: What the service remembers, as it comes out of the column.
+    :param fresh: What this click would remember.
+    :return: True when the editor would build the same schema from either.
+    """
+
+    if not stored or "_error" in stored:
+        return False
+
+    return _shape_of(stored) == _shape_of(json.loads(json.dumps(fresh, default=str)))
 
 
 class DatabaseWorkflowActionService:
@@ -249,7 +305,11 @@ class DatabaseWorkflowActionService:
         }
 
         try:
-            encoded = json.dumps(sample_data)
+            # `ensure_ascii=False`, or the cap measures escape sequences
+            # rather than what the column holds: a Japanese answer inflates
+            # about twofold and a Cyrillic or emoji one threefold, so an
+            # answer well under the limit would be refused for its alphabet.
+            encoded = json.dumps(sample_data, ensure_ascii=False)
 
             max_bytes = settings.DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES
             if len(encoded.encode("utf-8")) > max_bytes:
@@ -263,10 +323,13 @@ class DatabaseWorkflowActionService:
                 return
 
             service = workflow_action.service
-            # Compared after a JSON round trip, so re-encoding alone is not a
-            # change. An unchanged answer is not worth the write: the blob is
-            # TOASTed and every click would pay for a savepoint.
-            if service.sample_data == json.loads(encoded):
+            # Compared on shape rather than on values. The answer carries every
+            # response header, and `Date` alone changes every second, so a
+            # comparison of the whole thing would almost never match and every
+            # click would rewrite a TOASTed blob for nothing. The editor reads
+            # this only to build a schema, so a differently shaped answer is
+            # the only one worth the write.
+            if _describes_the_same_shape(service.sample_data, sample_data):
                 return
 
             service.sample_data = sample_data
@@ -281,10 +344,11 @@ class DatabaseWorkflowActionService:
             # here and is then refused by the column it is written to, and by
             # this point the request has left and earlier actions have already
             # written their rows.
-            logger.warning(
+            # `opt(exception=True)`, not `exc_info`: loguru does not read the
+            # latter, so the type, message and traceback would all be lost.
+            logger.opt(exception=True).warning(
                 "Could not remember the result of workflow action {action_id}.",
                 action_id=workflow_action.id,
-                exc_info=True,
             )
 
     def get_dispatch_snapshot(self, field: ButtonField) -> List[DatabaseWorkflowAction]:
@@ -329,10 +393,9 @@ class DatabaseWorkflowActionService:
             with transaction.atomic():
                 service.save(update_fields=["sample_data"])
         except Exception:
-            logger.warning(
+            logger.opt(exception=True).warning(
                 "Could not record why workflow action {action_id} captured nothing.",
                 action_id=workflow_action.id,
-                exc_info=True,
             )
 
     def dispatch_workflow_actions(
@@ -466,23 +529,29 @@ class DatabaseWorkflowActionService:
                     # Each action reads the clicked row itself, so it sees what
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
-                    if workflow_action.get_type().is_external and on_external_dispatch:
-                        # Before the request, not after: a failed request
-                        # still left the instance.
-                        on_external_dispatch(workflow_action)
+                    is_external = workflow_action.get_type().is_external
                     try:
                         result = self.handler.dispatch_workflow_action(
                             workflow_action, dispatch_context
                         )
                     except Exception as exc:
-                        names_an_address = workflow_action.get_type().is_external and (
-                            isinstance(exc, ADDRESS_BEARING_DISPATCH_EXCEPTIONS)
+                        if (
+                            is_external
+                            and on_external_dispatch
+                            and reached_outside(exc)
+                        ):
+                            on_external_dispatch(workflow_action)
+                        names_an_address = is_external and isinstance(
+                            exc, ADDRESS_BEARING_DISPATCH_EXCEPTIONS
                         )
-                        if names_an_address:
-                            # The failure carries the resolved URL, and
-                            # loguru prints the frame locals beside it, which
-                            # hold the request headers. An API key lives in
-                            # both, so only the ids and the class are logged.
+                        if is_external:
+                            # Decided by where the action reaches rather than
+                            # by which failure it is. Loguru prints the frame
+                            # locals beside the traceback, and the frame that
+                            # resolved the formulas holds the URL and every
+                            # resolved header value whatever went wrong after
+                            # it. So an external action never logs its own
+                            # exception, only the ids and the class.
                             logger.error(
                                 "Workflow action {action_id} of button field "
                                 "{field_id} failed while reaching outside "
@@ -519,6 +588,8 @@ class DatabaseWorkflowActionService:
                                 positions[workflow_action.id],
                             ) from exc
                         raise
+                    if is_external and on_external_dispatch:
+                        on_external_dispatch(workflow_action)
                     if may_configure:
                         self._remember_result_shape(workflow_action, result)
 

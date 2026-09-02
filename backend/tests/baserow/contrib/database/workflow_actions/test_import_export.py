@@ -956,6 +956,10 @@ def _button_with_authorized_request(data_fixture, table):
         key="Authorization", value={"formula": "'Bearer sk-SUPERSECRET'"}
     )
     service.query_params.create(key="token", value={"formula": "'qp-SUPERSECRET'"})
+    service.form_data.create(key="secret", value={"formula": "'fd-SUPERSECRET'"})
+    service.body_type = "raw"
+    service.body_content = {"formula": "'body-SUPERSECRET'"}
+    service.save()
     data_fixture.create_database_workflow_action(
         CoreHTTPRequestWorkflowAction, field=button_field, service=service
     )
@@ -981,11 +985,17 @@ def test_an_export_does_not_carry_the_key_a_request_sends(data_fixture):
         ),
     )
 
-    assert "sk-SUPERSECRET" not in str(exported)
-    assert "qp-SUPERSECRET" not in str(exported)
+    # Every placement a credential can take, not only the header the review
+    # found it in.
+    for secret in ("sk-", "qp-", "fd-", "body-"):
+        assert f"{secret}SUPERSECRET" not in str(exported)
     exported_service = exported["workflow_actions"][0]["service"]
-    assert exported_service["headers"] is None
-    assert exported_service["query_params"] is None
+    assert exported_service["form_data"] == [{"key": "secret", "value": None}]
+    assert exported_service["body_content"] is None
+    # The names stay, so an import says what has to be entered again. Blanking
+    # the whole list would take the headers that hold no secret with it.
+    assert exported_service["headers"] == [{"key": "Authorization", "value": None}]
+    assert exported_service["query_params"] == [{"key": "token", "value": None}]
     # The request itself still travels; only what authorizes it is left behind.
     assert exported_service["url"]["formula"] == "'http://example.notexist/'"
 
@@ -1036,8 +1046,8 @@ def test_a_workspace_export_strips_the_key_and_still_imports(data_fixture):
         ImportExportConfig(include_permission_data=False, exclude_sensitive_data=True),
     )
 
-    assert "sk-SUPERSECRET" not in str(exported)
-    assert "qp-SUPERSECRET" not in str(exported)
+    for secret in ("sk-", "qp-", "fd-", "body-"):
+        assert f"{secret}SUPERSECRET" not in str(exported)
 
     imported, _ = core_handler.import_applications_to_workspace(
         imported_workspace,
@@ -1052,7 +1062,11 @@ def test_a_workspace_export_strips_the_key_and_still_imports(data_fixture):
     )
     (action,) = DatabaseWorkflowAction.objects.filter(field=imported_field)
     imported_service = action.specific.service.specific
-    assert imported_service.headers.count() == 0
-    assert imported_service.query_params.count() == 0
+    # The rows survive with their names and an empty value, so the button says
+    # what it needs rather than quietly sending a different request.
+    assert [h.key for h in imported_service.headers.all()] == ["Authorization"]
+    assert not imported_service.headers.get().value.get("formula")
+    assert [q.key for q in imported_service.query_params.all()] == ["token"]
+    assert not imported_service.query_params.get().value.get("formula")
     # The request still travels; only what authorizes it is left behind.
     assert imported_service.url["formula"] == "'http://example.notexist/'"

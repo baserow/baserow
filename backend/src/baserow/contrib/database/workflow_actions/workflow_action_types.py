@@ -162,7 +162,20 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         if getattr(import_export_config, "exclude_sensitive_data", False):
             service = exported.get("service") or {}
             for prop_name in instance.service.specific.get_type().sensitive_fields:
-                if prop_name in service:
+                if prop_name not in service:
+                    continue
+                rows = service[prop_name]
+                if isinstance(rows, list):
+                    # Only the value is dropped. Blanking the whole list would
+                    # take `Content-Type` and `api-version` with the key, and
+                    # the imported button would send a different request while
+                    # looking configured. Keeping the names says what has to be
+                    # entered again, which is what the data sync types do.
+                    service[prop_name] = [
+                        {**row, "value": None} if isinstance(row, dict) else row
+                        for row in rows
+                    ]
+                else:
                     service[prop_name] = None
 
         return exported

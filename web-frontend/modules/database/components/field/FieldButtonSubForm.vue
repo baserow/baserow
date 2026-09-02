@@ -216,16 +216,55 @@ export default {
      * remembers the answer it got. This sub-form is not remounted when the
      * field is opened again, so without this the captured body stays missing
      * until the page is reloaded.
+     *
+     * Only what a click captured is taken from the answer, so an edit made
+     * and then clicked away from survives: nothing listens for the context
+     * being hidden, so the buffered list is still here on the next open, and
+     * replacing it would drop that edit without a word. Skipped while the
+     * first read is still in flight, since `mounted` and the context's own
+     * `shown` both land on the first open.
      */
     async onShow() {
-      if (!this.defaultValues.id || this.defaultValues.type !== 'button') {
+      if (
+        !this.defaultValues.id ||
+        this.defaultValues.type !== 'button' ||
+        this.loadingActions
+      ) {
         return
       }
       try {
-        await this.fetchWorkflowActions(this.defaultValues.id)
+        const { data } = await WorkflowActionService(this.$client).fetchAll(
+          this.defaultValues.id
+        )
+        this.serverActions = data
+        this.adoptCapturedAnswers(data)
       } catch (error) {
         notifyIf(error, 'field')
       }
+    },
+    /**
+     * Copies what a click remembered onto the buffered actions, matched by id.
+     * The editor cannot change either of these, so nothing anybody typed is
+     * overwritten.
+     */
+    adoptCapturedAnswers(serverActions) {
+      const captured = new Map(
+        serverActions
+          .filter((action) => action.service)
+          .map((action) => [
+            action.id,
+            {
+              sample_data: action.service.sample_data,
+              schema: action.service.schema,
+            },
+          ])
+      )
+      this.localActions = this.localActions.map((action) => {
+        const answer = captured.get(action.id)
+        return answer && action.service
+          ? { ...action, service: { ...action.service, ...answer } }
+          : action
+      })
     },
     /**
      * Puts the ids the server just handed out onto the buffered actions they

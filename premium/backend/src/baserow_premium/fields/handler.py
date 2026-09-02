@@ -14,6 +14,7 @@ from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.registries import ImportExportConfig
 from baserow_premium.prompts import get_generate_formula_prompt
 
 from .ai_file import AIFile
@@ -82,10 +83,19 @@ class AIFieldHandler:
         if ai_model not in ai_models:
             raise ModelDoesNotBelongToType(model_name=ai_model)
 
+        # The schema leaves this installation for a third party model, so it is
+        # serialized the way an export is. A button field's actions can carry
+        # an API key in their headers, and reading a formula field needs far
+        # less permission than configuring a button does.
+        prompt_config = ImportExportConfig(
+            include_permission_data=False, exclude_sensitive_data=True
+        )
         table_schema = []
         for field in specific_iterator(table.field_set.all()):
             field_type = field_type_registry.get_by_model(field)
-            table_schema.append(field_type.export_serialized(field))
+            table_schema.append(
+                field_type.export_serialized(field, import_export_config=prompt_config)
+            )
 
         table_schema_json = json.dumps(table_schema, indent=4)
         message = get_generate_formula_prompt().format(
