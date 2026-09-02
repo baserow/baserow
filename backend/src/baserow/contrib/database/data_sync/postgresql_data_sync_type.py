@@ -18,7 +18,7 @@ from baserow.core.psycopg import psycopg, sql
 from baserow.core.utils import (
     ChildProgressBuilder,
     are_hostnames_same,
-    is_hostname_safe,
+    resolve_and_validate_hostname,
 )
 
 from .exceptions import SyncError
@@ -164,12 +164,19 @@ class PostgreSQLDataSyncType(DataSyncType):
     def _connection(self, instance):
         cursor = None
         connection = None
+        hostaddr = None
 
-        if not settings.TESTS and not is_hostname_safe(
-            instance.postgresql_host,
-            allow_private=settings.BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS,
-        ):
-            raise SyncError("It's not allowed to connect to this hostname.")
+        if not settings.TESTS:
+            try:
+                validated_ips = resolve_and_validate_hostname(
+                    instance.postgresql_host,
+                    allow_private=settings.BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS,
+                )
+            except ValueError:
+                raise SyncError("It's not allowed to connect to this hostname.")
+            # Use the first validated IP for the actual connection to prevent
+            # DNS rebinding (TOCTOU between validation and connect).
+            hostaddr = next(iter(validated_ips))
 
         baserow_postgresql_connection = (
             settings.BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE
@@ -185,14 +192,19 @@ class PostgreSQLDataSyncType(DataSyncType):
         if baserow_postgresql_connection or data_sync_blacklist:
             raise SyncError("It's not allowed to connect to this hostname.")
         try:
-            connection = psycopg.connect(
+            connect_kwargs = dict(
                 host=instance.postgresql_host,
                 dbname=instance.postgresql_database,
                 user=instance.postgresql_username,
                 password=instance.postgresql_password,
                 port=instance.postgresql_port,
                 sslmode=instance.postgresql_sslmode,
+                connect_timeout=10,
+                options="-c statement_timeout=30000",
             )
+            if hostaddr:
+                connect_kwargs["hostaddr"] = hostaddr
+            connection = psycopg.connect(**connect_kwargs)
             cursor = connection.cursor()
             yield cursor
         except psycopg.OperationalError:

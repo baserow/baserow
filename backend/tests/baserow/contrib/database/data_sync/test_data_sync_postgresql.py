@@ -507,6 +507,43 @@ def test_postgresql_data_sync_get_properties_private_host_rejected(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_postgresql_data_sync_sync_private_host_rejected(
+    data_fixture, create_postgresql_test_table
+):
+    """Syncing an existing data sync that points at a private host fails
+    gracefully when BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS is False."""
+
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    data_sync.postgresql_host = "192.168.1.1"
+    data_sync.save(update_fields=["postgresql_host"])
+
+    with override_settings(TESTS=False, BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=False):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    assert data_sync.last_error == "It's not allowed to connect to this hostname."
+
+
+@pytest.mark.django_db(transaction=True)
 def test_postgresql_data_sync_table_connect_to_same_database(data_fixture):
     default_database = settings.DATABASES["default"]
     user = data_fixture.create_user()

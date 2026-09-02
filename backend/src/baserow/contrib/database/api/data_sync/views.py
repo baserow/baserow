@@ -345,10 +345,10 @@ class DataSyncTypePropertiesView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,

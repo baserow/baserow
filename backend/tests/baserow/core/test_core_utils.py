@@ -31,6 +31,7 @@ from baserow.core.utils import (
     remove_duplicates,
     remove_invalid_surrogate_characters,
     remove_special_characters,
+    resolve_and_validate_hostname,
     set_allowed_attrs,
     sha256_hash,
     split_comma_separated_string,
@@ -753,6 +754,64 @@ def test_is_hostname_safe():
     # Unsafe addresses still blocked regardless of allow_private
     assert is_hostname_safe("127.0.0.1", allow_private=True) is False
     assert is_hostname_safe("0.0.0.0", allow_private=True) is False  # noqa: S104
+
+    # CGNAT (100.64.0.0/10) blocked when allow_private=False
+    assert is_hostname_safe("100.64.0.1") is False
+    assert is_hostname_safe("100.127.255.254") is False
+    assert is_hostname_safe("100.64.0.1", allow_private=True) is True
+
+    # Site-local IPv6 (fec0::/10) always blocked
+    assert is_hostname_safe("fec0::1") is False
+    assert is_hostname_safe("fec0::1", allow_private=True) is False
+
+    # IPv4-mapped IPv6 with private embedded IPv4
+    with patch("baserow.core.utils.get_all_ips", return_value={"::ffff:10.0.0.1"}):
+        assert is_hostname_safe("mapped-private.test") is False
+        assert is_hostname_safe("mapped-private.test", allow_private=True) is True
+
+    # IPv4-mapped IPv6 with public embedded IPv4
+    with patch("baserow.core.utils.get_all_ips", return_value={"::ffff:8.8.8.8"}):
+        assert is_hostname_safe("mapped-public.test") is True
+
+    # IPv4-mapped IPv6 with loopback embedded IPv4
+    with patch("baserow.core.utils.get_all_ips", return_value={"::ffff:127.0.0.1"}):
+        assert is_hostname_safe("mapped-loopback.test") is False
+        assert is_hostname_safe("mapped-loopback.test", allow_private=True) is False
+
+    # Mixed DNS results: one public + one private → unsafe
+    with patch("baserow.core.utils.get_all_ips", return_value={"8.8.8.8", "10.0.0.1"}):
+        assert is_hostname_safe("mixed.test") is False
+        assert is_hostname_safe("mixed.test", allow_private=True) is True
+
+
+def test_resolve_and_validate_hostname():
+    # Public IP returns resolved set
+    result = resolve_and_validate_hostname("8.8.8.8")
+    assert "8.8.8.8" in result
+
+    # Private IP raises ValueError by default
+    with pytest.raises(ValueError):
+        resolve_and_validate_hostname("192.168.1.1")
+
+    # Private IP allowed with allow_private=True
+    result = resolve_and_validate_hostname("192.168.1.1", allow_private=True)
+    assert "192.168.1.1" in result
+
+    # Unresolvable hostname raises ValueError
+    with pytest.raises(ValueError):
+        resolve_and_validate_hostname("this-hostname-definitely-does-not-exist.invalid")
+
+    # CGNAT blocked by default
+    with pytest.raises(ValueError):
+        resolve_and_validate_hostname("100.64.0.1")
+
+    # CGNAT allowed with allow_private=True
+    result = resolve_and_validate_hostname("100.64.0.1", allow_private=True)
+    assert "100.64.0.1" in result
+
+    # Loopback always blocked
+    with pytest.raises(ValueError):
+        resolve_and_validate_hostname("127.0.0.1", allow_private=True)
 
 
 def test_are_hostnames_same():

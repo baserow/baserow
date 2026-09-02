@@ -1123,7 +1123,7 @@ def test_get_data_sync_properties_unauthorized(data_fixture, api_client):
 
 
 @pytest.mark.django_db
-def test_get_data_sync_properties_no_workspace_permission(data_fixture, api_client):
+def test_get_data_sync_properties_non_member_denied(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
     other_user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=other_user)
@@ -1143,6 +1143,42 @@ def test_get_data_sync_properties_no_workspace_permission(data_fixture, api_clie
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_get_data_sync_properties_permission_denied_no_external_call(
+    data_fixture, api_client
+):
+    """When permission is denied, no external network call should be made."""
+
+    from unittest.mock import patch
+
+    from baserow.core.exceptions import PermissionException
+
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
+
+    with patch(
+        "baserow.core.handler.CoreHandler.check_permissions",
+        side_effect=PermissionException(user),
+    ):
+        response = api_client.post(
+            url,
+            {
+                "type": "ical_calendar",
+                "ical_url": "https://attacker.example.com/ical.ics",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert len(responses.calls) == 0
 
 
 @pytest.mark.django_db

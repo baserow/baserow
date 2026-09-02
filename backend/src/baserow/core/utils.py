@@ -1272,6 +1272,74 @@ def get_all_ips(hostname: str) -> Set:
         return set()
 
 
+def _is_ip_unsafe(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Return True if the IP belongs to a category that is always blocked."""
+
+    if (
+        ip_obj.is_unspecified
+        or ip_obj.is_loopback
+        or ip_obj.is_link_local
+        or ip_obj.is_multicast
+        or ip_obj.is_reserved
+    ):
+        return True
+
+    if isinstance(ip_obj, ipaddress.IPv6Address):
+        # Python incorrectly reports fec0::/10 as is_global=True.
+        if ip_obj.is_site_local:
+            return True
+        # Validate the embedded IPv4 inside mapped addresses (::ffff:x.x.x.x).
+        if ip_obj.ipv4_mapped and _is_ip_unsafe(ip_obj.ipv4_mapped):
+            return True
+
+    return False
+
+
+def resolve_and_validate_hostname(
+    hostname: str, allow_private: bool = False
+) -> Set[str]:
+    """
+    Resolves the hostname and validates all IPs are safe. Returns the set of
+    validated IP address strings.
+
+    Unsafe addresses include wildcard, loopback, link-local, multicast,
+    reserved, and site-local IPv6. When ``allow_private`` is False, non-global
+    addresses (RFC 1918, CGNAT 100.64.0.0/10, etc.) are also rejected.
+
+    :param hostname: The hostname to resolve and check.
+    :param allow_private: When True, private/non-global addresses are allowed.
+        Loopback, link-local, and other unsafe ranges are always blocked.
+    :return: Set of validated IP address strings.
+    :raises ValueError: If the hostname cannot be resolved or any IP is unsafe.
+    """
+
+    ips = get_all_ips(hostname)
+    if not ips:
+        raise ValueError(f"Could not resolve hostname: {hostname}")
+
+    for ip in ips:
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+        except ValueError:
+            raise ValueError(f"Invalid IP address: {ip}")
+
+        if _is_ip_unsafe(ip_obj):
+            raise ValueError(f"Unsafe IP address: {ip}")
+
+        if not allow_private and not ip_obj.is_global:
+            raise ValueError(f"Non-global IP address: {ip}")
+
+        if (
+            not allow_private
+            and isinstance(ip_obj, ipaddress.IPv6Address)
+            and ip_obj.ipv4_mapped
+            and not ip_obj.ipv4_mapped.is_global
+        ):
+            raise ValueError(f"Non-global mapped IPv4 in address: {ip}")
+
+    return ips
+
+
 def is_hostname_safe(hostname: str, allow_private: bool = False) -> bool:
     """
     Checks if the hostname resolves only to safe addresses.
@@ -1280,43 +1348,25 @@ def is_hostname_safe(hostname: str, allow_private: bool = False) -> bool:
     - Wildcard (0.0.0.0, ::)
     - Loopback (127.0.0.0/8, ::1)
     - Link-local (169.254.0.0/16, fe80::/10)
+    - Site-local IPv6 (fec0::/10)
     - Reserved, multicast, etc.
 
-    When ``allow_private`` is False (the default), RFC 1918 private addresses
-    (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) are also rejected. The
-    ``BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS`` setting defaults to True for
-    backwards compatibility, so callers typically pass ``allow_private=True``.
+    When ``allow_private`` is False (the default), non-global addresses are
+    also rejected. This covers RFC 1918 ranges, CGNAT (100.64.0.0/10), and
+    other non-globally-routable addresses.
 
     :param hostname: The hostname to check.
-    :param allow_private: When True, RFC 1918 private addresses are allowed
+    :param allow_private: When True, private/non-global addresses are allowed
         through. Loopback, link-local, and other unsafe ranges are always
         blocked regardless of this flag.
     :return: True if all resolved IPs are safe.
     """
 
-    ips = get_all_ips(hostname)
-    if not ips:
+    try:
+        resolve_and_validate_hostname(hostname, allow_private)
+        return True
+    except ValueError:
         return False
-
-    for ip in ips:
-        try:
-            ip_obj = ipaddress.ip_address(ip)
-        except ValueError:
-            return False
-
-        if (
-            ip_obj.is_unspecified  # wildcard
-            or ip_obj.is_loopback
-            or ip_obj.is_link_local
-            or ip_obj.is_multicast
-            or ip_obj.is_reserved
-        ):
-            return False
-
-        if not allow_private and ip_obj.is_private:
-            return False
-
-    return True
 
 
 def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
