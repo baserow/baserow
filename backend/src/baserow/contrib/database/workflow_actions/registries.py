@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -46,6 +46,13 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     # Set by a type that reaches outside this installation. Only clicks that
     # contain one spend the rate limit's budget.
     is_external = False
+
+    # Integration types an action of this type may carry. Empty for the row
+    # and frontend-only actions: an integration's `authorized_user` outranks
+    # the clicker, so a Local Baserow one is never accepted (ADR 006
+    # section 5). The database application reads these to decide which
+    # integrations it will hold at all.
+    allowed_integration_types: List[str] = []
 
     class SerializedDict(DatabaseWorkflowActionDict):
         pass

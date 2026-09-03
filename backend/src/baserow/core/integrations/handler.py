@@ -145,7 +145,7 @@ class IntegrationHandler:
             application.specific_class
         )
 
-        if not application_type.supports_integrations:
+        if not application_type.supports_integration_type(integration_type):
             raise ApplicationOperationNotSupported()
 
         if before:

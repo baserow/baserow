@@ -70,6 +70,27 @@ class DatabaseApplicationType(ApplicationType):
     serializer_mixins = [DatabaseSerializer]
     # A button field's external action can carry one (ADR 006 section 5).
     supports_integrations = True
+
+    def supports_integration_type(self, integration_type) -> bool:
+        """
+        Only what a button's actions can actually carry. Read from the action
+        types themselves, so the two cannot drift, and so an integration
+        holding an `authorized_user` cannot be created on a database at all
+        (ADR 006 section 5) rather than merely being refused by the action.
+
+        :param integration_type: The type in question.
+        :return: True when some database action type accepts it.
+        """
+
+        from .workflow_actions.registries import (
+            database_workflow_action_type_registry,
+        )
+
+        return any(
+            integration_type.type in action_type.allowed_integration_types
+            for action_type in database_workflow_action_type_registry.get_all()
+        )
+
     instance_serializer_class = DatabaseSerializer
     serializer_field_names = ["tables"]
     # Mark the request serializer field names as empty, otherwise
