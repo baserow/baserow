@@ -365,6 +365,17 @@ export const FormulaInsertionExtension = Extension.create({
 
           return true
         },
+      insertFormulaFragment:
+        (content) =>
+        ({ commands }) => {
+          // ZWS-bracketed like the other insert commands; ZWSManagementExtension
+          // removes any consecutive ZWS this may create.
+          commands.insertContent([zwsTextJSON(), ...content, zwsTextJSON()])
+
+          commands.focus()
+
+          return true
+        },
       insertOperator:
         (node) =>
         ({ editor, commands }) => {

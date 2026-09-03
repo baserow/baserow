@@ -59,6 +59,8 @@ import {
   RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { Timedelta } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
+import * as runtimeFormulaTypes from '@baserow/modules/core/runtimeFormulaTypes'
+import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 import { expect } from 'vitest'
 
 /** Tests for the RuntimeConcat class. */
@@ -2755,5 +2757,38 @@ describe('RuntimeToDatetime', () => {
     const formulaType = new RuntimeToDatetime()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toBe(expected)
+  })
+})
+
+/**
+ * Every runtime formula type feeds the help tooltip in the formula editor,
+ * which renders all of its examples and lets the user insert them. Keep the
+ * examples present and syntactically valid.
+ */
+describe('runtime formula type examples', () => {
+  const { RuntimeFormulaFunction } = runtimeFormulaTypes
+  const formulaTypes = Object.values(runtimeFormulaTypes).filter(
+    (candidate) =>
+      typeof candidate === 'function' &&
+      candidate !== RuntimeFormulaFunction &&
+      candidate.prototype instanceof RuntimeFormulaFunction
+  )
+
+  test('finds the runtime formula types to check', () => {
+    expect(formulaTypes.length).toBeGreaterThan(0)
+  })
+
+  test.each(
+    formulaTypes.map((FormulaType) => [FormulaType.getType(), FormulaType])
+  )('%s defines parsable examples', (type, FormulaType) => {
+    const examples = new FormulaType().getExamples()
+
+    expect(examples.length).toBeGreaterThan(0)
+    for (const example of examples) {
+      expect(typeof example.formula).toBe('string')
+      expect(example.formula).not.toBe('')
+      expect(typeof example.result).toBe('string')
+      expect(() => parseBaserowFormula(example.formula)).not.toThrow()
+    }
   })
 })

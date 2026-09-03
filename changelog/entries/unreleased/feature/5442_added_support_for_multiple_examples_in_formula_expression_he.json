@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added support for multiple examples in formula expression help tooltip.",
+    "issue_origin": "github",
+    "issue_number": 5442,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-03"
+}

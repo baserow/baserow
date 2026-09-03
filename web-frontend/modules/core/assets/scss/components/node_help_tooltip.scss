@@ -42,6 +42,46 @@
 
     @extend %mb-16;
   }
+
+  &__examples {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    // Fits three examples, including the extra padding of the clickable
+    // variant. Longer lists scroll.
+    max-height: 260px;
+    overflow-y: auto;
+
+    // Clickable examples carry their own padding so the hover background can
+    // bleed past the snippet. Offset the container by the same amount so the
+    // snippets stay aligned with the label above.
+    &--clickable {
+      margin: 0 -6px;
+      padding: 0 6px;
+    }
+  }
+
+  &__example--clickable {
+    cursor: pointer;
+    padding: 6px;
+
+    @include rounded($rounded);
+
+    &:hover {
+      background: $palette-neutral-200;
+    }
+
+    .node-help-tooltip__example-code {
+      pointer-events: none;
+    }
+  }
+
+  &__examples-hint {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: $palette-neutral-700;
+  }
 }
 
 .node-help-tooltip-context {

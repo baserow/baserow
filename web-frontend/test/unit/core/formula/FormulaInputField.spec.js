@@ -198,6 +198,19 @@ describe('FormulaInputField validates on display', () => {
     const wrapper = await mountField('$formula: now()')
     expect(wrapper.emitted('update:invalid').at(-1)).toEqual([true])
   })
+
+  it('does not flag an incomplete formula in a read-only field', async () => {
+    // Read-only fields display snippets such as the help tooltip's `get()`
+    // example, which is deliberately missing its path.
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'get()', mode: 'advanced', readOnly: true },
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.isFormulaInvalid).toBe(false)
+    expect(wrapper.find('.formula-input-field--error').exists()).toBe(false)
+    expect(wrapper.emitted('update:invalid')).toBeUndefined()
+  })
 })
 
 describe('FormulaInputField mode changes', () => {
@@ -239,5 +252,71 @@ describe('FormulaInputField mode changes', () => {
       false
     )
     expect(wrapper.emitted('input').at(-1)).toEqual(['now()'])
+  })
+})
+
+// ── Help tooltip example insertion ──────────────────────────────────
+// Clicking an example in the Data Explorer's help tooltip inserts that
+// example's formula into the editor at the cursor.
+
+describe('FormulaInputField example insertion', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  const example = { formula: "upper('hello')", result: "'HELLO'" }
+
+  /** The editor text without the zero-width spaces used for cursor slots. */
+  function editorText(wrapper) {
+    return wrapper
+      .find('.formula-input-field')
+      .text()
+      .replace(/\u200b/g, '')
+  }
+
+  it('inserts the example into an empty advanced-mode field', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: '', mode: 'advanced' },
+    })
+    expect(wrapper.emitted('input')).toBeUndefined()
+
+    wrapper.vm.handleExampleSelected(example)
+    await wrapper.vm.$nextTick()
+
+    expect(editorText(wrapper)).toBe("upper('hello')")
+    expect(wrapper.emitted('input').at(-1)).toEqual(["upper('hello')"])
+  })
+
+  it('inserts the example at the cursor', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'lower()', mode: 'advanced' },
+    })
+    // Place the cursor in the (empty) argument slot of `lower(`: ZWS (1),
+    // function node (1), so position 3 sits right after the function name.
+    wrapper.vm.editor.commands.setTextSelection(3)
+
+    wrapper.vm.handleExampleSelected(example)
+    await wrapper.vm.$nextTick()
+
+    expect(editorText(wrapper)).toBe("lower(upper('hello'))")
+    expect(wrapper.emitted('input').at(-1)).toEqual(["lower(upper('hello'))"])
+  })
+
+  it('ignores examples in simple mode', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: '', mode: 'simple' },
+    })
+
+    wrapper.vm.handleExampleSelected(example)
+    await wrapper.vm.$nextTick()
+
+    expect(editorText(wrapper)).toBe('')
+    expect(wrapper.emitted('input')).toBeUndefined()
   })
 })

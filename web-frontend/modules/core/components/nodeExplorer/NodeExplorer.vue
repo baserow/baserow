@@ -28,6 +28,7 @@
               :allow-node-selection="allowNodeSelection"
               @reset-search="resetSearch"
               @node-selected="$emit('node-selected', $event)"
+              @example-click="$emit('example-click', $event)"
               @toggle="toggleNode"
             />
           </Tab>
@@ -43,6 +44,7 @@
             :allow-node-selection="allowNodeSelection"
             @reset-search="resetSearch"
             @node-selected="$emit('node-selected', $event)"
+            @example-click="$emit('example-click', $event)"
             @toggle="toggleNode"
           />
         </template>
@@ -96,7 +98,7 @@ export default {
       validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
   },
-  emits: ['node-selected', 'node-toggled', 'node-unselected'],
+  emits: ['node-selected', 'node-toggled', 'node-unselected', 'example-click'],
   data() {
     return {
       activeTabIndex: 0,

@@ -35,11 +35,13 @@
       :enabled-modes="enabledModes"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
+      @example-click="handleExampleSelected"
       @mode-changed="handleModeChange"
       @mousedown="onContextMouseDown"
     />
 
     <NodeHelpTooltip
+      v-if="!readOnly"
       ref="nodeHelpTooltip"
       :node="hoveredFunctionNode"
       :nodes-hierarchy="nodesHierarchy"
@@ -336,17 +338,24 @@ export default {
             this.$refs.formulaInputExplorerContext?.hide()
           },
         }),
-        FunctionHelpTooltipExtension.configure({
-          functionDefinitions: this.formulaRegistry.definitions,
-          onShowTooltip: (el, node) => {
-            this.hoveredFunctionNode = node
-            this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
-          },
-          onHideTooltip: () => {
-            this.$refs.nodeHelpTooltip?.hide()
-            this.hoveredFunctionNode = null
-          },
-        }),
+        // Read-only fields are display-only snippets (e.g. the examples
+        // rendered inside `NodeHelpTooltip` itself), so they must not spawn
+        // their own hover help tooltip.
+        ...(this.readOnly
+          ? []
+          : [
+              FunctionHelpTooltipExtension.configure({
+                functionDefinitions: this.formulaRegistry.definitions,
+                onShowTooltip: (el, node) => {
+                  this.hoveredFunctionNode = node
+                  this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
+                },
+                onHideTooltip: () => {
+                  this.$refs.nodeHelpTooltip?.hide()
+                  this.hoveredFunctionNode = null
+                },
+              }),
+            ]),
         ...this.formulaComponents,
       ]
 
@@ -523,6 +532,15 @@ export default {
      * renders without any error styling until the field is touched.
      */
     validateFormula(formula) {
+      // Read-only fields are display-only snippets (e.g. the examples in the
+      // help tooltip) that never show an error context, so don't paint them
+      // as errors either: an example may deliberately be incomplete, like
+      // `get()` without a path.
+      if (this.readOnly) {
+        this.isFormulaInvalid = false
+        this.formulaErrorContext = { scope: null, title: '', message: '' }
+        return true
+      }
       const functions = new RuntimeFunctionCollection(this.$registry)
       // Validate the syntax, and assuming it's valid, then validate the arguments.
       const validationResult = isFormulaValid(
@@ -574,6 +592,22 @@ export default {
           this.editor.commands.insertDataComponent(path)
           break
       }
+    },
+    /**
+     * Inserts a clicked help-tooltip example at the cursor. Only advanced
+     * mode can host the function nodes examples parse into; the explorer's
+     * function tab (and thus a clickable tooltip) only exists in that mode.
+     */
+    handleExampleSelected(example) {
+      if (this.mode !== 'advanced') {
+        return
+      }
+      const content = this.toContent(example.formula)
+      const fragment = content?.content?.[0]?.content
+      if (!fragment) {
+        return
+      }
+      this.editor.commands.insertFormulaFragment(fragment)
     },
     onContextMouseDown() {
       this.editor?.commands.handleContextMouseDown()

@@ -38,6 +38,7 @@
           :allow-node-selection="allowNodeSelection"
           @click="$emit('node-selected', $event)"
           @toggle="$emit('toggle', $event)"
+          @example-click="$emit('example-click', $event)"
         />
       </div>
     </div>
@@ -88,6 +89,12 @@ export default {
       validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
   },
-  emits: ['node-selected', 'reset-search', 'toggle', 'update:modelValue'],
+  emits: [
+    'node-selected',
+    'example-click',
+    'reset-search',
+    'toggle',
+    'update:modelValue',
+  ],
 }
 </script>
