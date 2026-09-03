@@ -272,3 +272,57 @@ def test_a_slack_refusal_reaches_the_clicker_without_the_token(data_fixture):
 
     assert "invited to channel #general" in str(raised.value)
     assert "xoxb-secret" not in str(raised.value)
+
+
+@pytest.mark.django_db
+def test_a_refused_integration_answers_the_same_whatever_it_is(data_fixture):
+    """
+    The refusal must not say whether the id names something, or what type it
+    is, or the endpoint becomes a way to enumerate the whole installation.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    stranger = data_fixture.create_user()
+    elsewhere = data_fixture.create_database_application(user=stranger)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+
+    reasons = set()
+    for integration_id in [
+        _bot(data_fixture, elsewhere).id,  # someone else's, of the right type
+        data_fixture.create_local_baserow_integration(
+            user=user, application=button_field.table.database, authorized_user=user
+        ).id,  # this database's, of a refused type
+        99999999,  # names nothing at all
+    ]:
+        with pytest.raises(WorkflowActionInvalidIntegration) as raised:
+            action_type.prepare_values(
+                {"service": {"integration_id": integration_id}, "field": button_field},
+                user,
+                None,
+            )
+        reasons.add(str(raised.value))
+
+    assert len(reasons) == 1, f"the refusals differ and can be told apart: {reasons}"
+
+
+@pytest.mark.django_db
+def test_dispatching_refuses_a_bot_of_another_database(data_fixture):
+    """
+    The guard on dispatch reads the same rule as the one on save, so a service
+    that reached this state some other way still cannot post.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    elsewhere = data_fixture.create_database_application(user=user)
+    action = data_fixture.create_database_workflow_action(
+        SlackWriteMessageWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.integration = _bot(data_fixture, elsewhere)
+    service.save()
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+        action_type.dispatch(action, None)

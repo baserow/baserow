@@ -43,10 +43,9 @@ from baserow.contrib.integrations.slack.service_types import (
 )
 from baserow.core.db import specific_queryset
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
-from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
-from baserow.core.integrations.service import IntegrationService
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
@@ -306,9 +305,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         )
         service = created_instance.service
         integration = service.integration
-        if integration is not None and (
-            integration.get_type().type not in self.allowed_integration_types
-            or integration.application_id != created_instance.field.table.database_id
+        if integration is not None and not self._integration_is_usable(
+            integration, created_instance.field
         ):
             service.integration = None
             service.save(update_fields=["integration"])
@@ -349,6 +347,24 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         values["service"] = service
         return super().prepare_values(values, user, instance)
 
+    def _integration_is_usable(self, integration: Integration, field) -> bool:
+        """
+        The one rule every path reads: an integration a button may carry is of
+        a type this action accepts, and belongs to the field's own database.
+        Kept in one place so the guards on save, on import and on dispatch
+        cannot drift apart.
+
+        :param integration: The integration in question.
+        :param field: The button field the action belongs to.
+        :return: True when this action may carry it.
+        """
+
+        return (
+            field is not None
+            and integration.get_type().type in self.allowed_integration_types
+            and integration.application_id == field.table.database_id
+        )
+
     def _check_integration(
         self, integration_id: int, user: AbstractUser, field
     ) -> None:
@@ -356,8 +372,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         Refuses an integration this type may not carry. `integration_id` is
         writable, and the service type resolves it without a permission check,
         so this is where a button is kept from using what its editor could not
-        see: the integration must be of an allowed type, belong to the field's
-        own database, and be readable by the user.
+        see: the integration must be usable by this action, and readable by
+        the user.
 
         :param integration_id: The integration the caller wants to attach.
         :param user: The user configuring the action.
@@ -365,27 +381,30 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         :raises WorkflowActionInvalidIntegration: When it cannot be attached.
         """
 
-        try:
-            integration = IntegrationHandler().get_integration(integration_id)
-        except IntegrationDoesNotExist:
+        integration = None
+        if field is not None:
+            # Scoped to the field's own database, so an id naming someone
+            # else's integration reads the same as one naming nothing.
+            integration = Integration.objects.filter(
+                id=integration_id, application_id=field.table.database_id
+            ).first()
+
+        if integration is None or not self._integration_is_usable(integration, field):
+            # One answer for every way of being wrong. Saying which would let
+            # a caller walk the ids and learn what this installation holds.
             raise WorkflowActionInvalidIntegration(
-                f"The integration with ID {integration_id} does not exist."
+                "This action cannot use that integration. It must be one the "
+                "action accepts, from the database of the button field."
             )
 
-        # What is wrong with the request comes first, so a refused type
-        # answers the same whoever owns the integration.
-        if integration.get_type().type not in self.allowed_integration_types:
-            raise WorkflowActionInvalidIntegration(
-                "This action cannot use an integration of that type."
-            )
-
-        if field is None or integration.application_id != field.table.database_id:
-            raise WorkflowActionInvalidIntegration(
-                "The integration must belong to the database of the button field."
-            )
-
-        # Raises when the user may not read it.
-        IntegrationService().get_integration(user, integration_id)
+        # Raises when the user may not read it, checked against the row
+        # already in hand rather than reading it a second time.
+        CoreHandler().check_permissions(
+            user,
+            ReadIntegrationOperationType.type,
+            workspace=field.table.database.workspace,
+            context=integration,
+        )
 
     def _reshapes_the_request(
         self, service: Service, prepared_service_values: Dict[str, Any]
@@ -469,16 +488,14 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     ) -> DispatchResult:
         service = workflow_action.service.specific
         # A database service runs as the dispatch actor, never as an
-        # integration's `authorized_user` (ADR 006 section 5). The same
-        # allow-list as on save, so a service that somehow carries a refused
-        # type still cannot run.
-        if (
-            service.integration_id is not None
-            and service.integration.get_type().type
-            not in self.allowed_integration_types
+        # integration's `authorized_user` (ADR 006 section 5). The same rule
+        # as on save and on import, so a service that reached this state some
+        # other way still cannot run.
+        if service.integration_id is not None and not self._integration_is_usable(
+            service.integration, workflow_action.field
         ):
             raise ServiceImproperlyConfiguredDispatchException(
-                "A database service cannot use an integration of this type."
+                "A database service cannot use this integration."
             )
         return ServiceHandler().dispatch_service(service, dispatch_context)
 
