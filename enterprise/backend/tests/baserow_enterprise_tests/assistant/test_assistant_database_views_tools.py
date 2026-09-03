@@ -1,4 +1,5 @@
 import pytest
+from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.views.models import View, ViewFilter
 from baserow_enterprise.assistant.tools.database.tools import (
@@ -72,7 +73,8 @@ def test_create_grid_view(data_fixture):
 
     assert len(response["created_views"]) == 1
     assert response["created_views"][0]["name"] == "Grid View"
-    assert View.objects.filter(name="Grid View").exists()
+    grid = View.objects.get(name="Grid View").specific
+    assert grid.row_height_size == "medium"
 
 
 @pytest.mark.django_db
@@ -849,3 +851,102 @@ def test_create_multiple_select_is_none_of_filter(data_fixture):
     assert ViewFilter.objects.filter(
         view=view, field=field, type="multiple_select_has_not"
     ).exists()
+
+
+@pytest.mark.django_db
+def test_create_views_bad_cover_field_asks_the_model_to_retry(data_fixture):
+    # A bad field id must come back as a retry prompt naming the valid fields.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Photos")
+    data_fixture.create_text_field(table=table, name="Caption")
+
+    ctx = make_test_ctx(user, workspace)
+
+    with pytest.raises(ModelRetry) as exc_info:
+        create_views(
+            ctx,
+            table_id=table.id,
+            views=[ViewItemCreate(name="Gallery", type="gallery", cover_field_id=0)],
+            thought="test",
+        )
+
+    message = str(exc_info.value)
+    assert "Gallery" in message
+    assert "Caption" in message
+
+
+@pytest.mark.django_db
+def test_create_views_wrong_field_type_asks_the_model_to_retry(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Tasks")
+    text_field = data_fixture.create_text_field(table=table, name="Status")
+
+    ctx = make_test_ctx(user, workspace)
+
+    with pytest.raises(ModelRetry) as exc_info:
+        create_views(
+            ctx,
+            table_id=table.id,
+            views=[
+                ViewItemCreate(
+                    name="Board", type="kanban", column_field_id=text_field.id
+                )
+            ],
+            thought="test",
+        )
+
+    assert "Single Select" in str(exc_info.value)
+
+
+@pytest.mark.django_db
+def test_create_form_view_skips_incompatible_fields(data_fixture):
+    """Prod class: enabling a formula field used to abort the whole call."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    formula = data_fixture.create_formula_field(
+        table=table, name="Computed", formula="'x'"
+    )
+
+    ctx = make_test_ctx(user, workspace)
+    response = create_views(
+        ctx,
+        thought="test",
+        table_id=table.id,
+        views=[
+            ViewItemCreate(
+                name="Signup",
+                public=False,
+                type="form",
+                field_options=[
+                    FormFieldOption(
+                        field_id=name.id,
+                        name="Name",
+                        description="",
+                        required=True,
+                        order=1,
+                    ),
+                    FormFieldOption(
+                        field_id=formula.id,
+                        name="Computed",
+                        description="",
+                        required=False,
+                        order=2,
+                    ),
+                ],
+            )
+        ],
+    )
+
+    created = response["created_views"][0]
+    assert "Computed" in created["skipped_fields"]
+    form = View.objects.get(name="Signup").specific
+    enabled = form.active_field_options.all()
+    assert [fo.field_id for fo in enabled] == [name.id]

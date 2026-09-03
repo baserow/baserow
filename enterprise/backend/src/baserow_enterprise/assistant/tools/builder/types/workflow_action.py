@@ -66,6 +66,14 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "delete_row": ("table_id", "row_id"),
 }
 
+# Fields that carry a database ID when given as an int; refs stay strings.
+_ID_FIELDS: tuple[str, ...] = (
+    "element",
+    "navigate_to_page_id",
+    "table_id",
+    "data_source",
+)
+
 
 def _strip_formula_prefix(value: str) -> str:
     """
@@ -331,10 +339,30 @@ _UPDATE_FORMULAS: dict[str, Any] = {
 
 class ActionCreate(BaseModel):
     """
-    Flat model for creating a workflow action.
+    One workflow action, attached to an element (event "click") or to a form
+    container (event "submit").
 
-    All type-specific fields are optional — a ``@model_validator``
-    enforces the correct required fields per type.
+    ``type`` and ``element`` are always required. Each type also needs:
+    - notification: title
+    - open_page: navigate_to_page_id
+    - create_row: table_id, field_values
+    - update_row: table_id, row_id, field_values
+    - delete_row: table_id, row_id
+    - refresh_data_source: data_source
+    - logout: nothing more
+
+    Send all of them in the same call: a call missing any of them is rejected
+    in full, and every retry costs a round trip. Numeric IDs must come from a
+    tool result; string refs must name an item created in this same call.
+    0, null and invented IDs fail.
+
+    The tag in parentheses on a field description names the types that field
+    applies to; leave every other field unset. No key outside this model is
+    accepted.
+
+    open_page navigates to a page of this application only — no action opens
+    an external URL. External navigation is a property of the link element
+    (navigation_type, navigate_to_url, link_variant), not of an action.
     """
 
     type: ActionType = Field(..., description="Action type.")
@@ -388,10 +416,25 @@ class ActionCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _check_required(self):
-        for field_name in _REQUIRED_FIELDS.get(self.type, ()):
-            if getattr(self, field_name) is None:
-                raise ValueError(f"'{field_name}' is required for type '{self.type}'.")
+    def _check_required(self) -> "ActionCreate":
+        required = _REQUIRED_FIELDS.get(self.type, ())
+        missing = [name for name in required if getattr(self, name) is None]
+        if missing:
+            raise ValueError(
+                f"Type '{self.type}' requires all of: {', '.join(required)}. "
+                f"Missing: {', '.join(missing)}. Send every required field in a "
+                f"single call. If a value is not known yet, create or look up the "
+                f"resource it refers to first, or choose a type that does not "
+                f"require it."
+            )
+        for name in _ID_FIELDS:
+            value = getattr(self, name, None)
+            if isinstance(value, int) and value <= 0:
+                raise ValueError(
+                    f"'{name}' is {value}, which is never a valid ID. Use an ID "
+                    f"returned by an earlier tool result, or a string ref to an "
+                    f"item created in this same call."
+                )
         return self
 
     # -- ORM helpers --------------------------------------------------------
