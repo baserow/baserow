@@ -47,11 +47,14 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     # contain one spend the rate limit's budget.
     is_external = False
 
-    # Integration types an action of this type may carry. Empty for the row
-    # and frontend-only actions: an integration's `authorized_user` outranks
-    # the clicker, so a Local Baserow one is never accepted (ADR 006
-    # section 5). The database application reads these to decide which
-    # integrations it will hold at all.
+    # Integration types an action of this type may carry. Empty unless the
+    # action needs a credential to do its work: a row action acts as the
+    # clicker, an HTTP request carries its own headers, and email sends
+    # through the instance's own server. A Local Baserow integration is
+    # never accepted by any of them, because its `authorized_user` replaces
+    # the clicker as the acting user (ADR 006 section 5). The database
+    # application reads these to decide which integrations it will hold at
+    # all.
     allowed_integration_types: List[str] = []
 
     class SerializedDict(DatabaseWorkflowActionDict):
