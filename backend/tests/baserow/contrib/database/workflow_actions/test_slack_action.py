@@ -326,3 +326,41 @@ def test_dispatching_refuses_a_bot_of_another_database(data_fixture):
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         action_type.dispatch(action, None)
+
+
+@pytest.mark.django_db
+def test_editing_an_action_still_checks_the_integration_it_already_carries(
+    data_fixture,
+):
+    """
+    Someone who may edit the field but not read the bot must not be able to
+    retarget it by editing only the channel and the message. The check has to
+    run on every save, not just the one that attaches the id.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+    refused = PermissionException("cannot read this integration")
+
+    # The id is not resent: only the channel and the message are.
+    with patch(
+        "baserow.contrib.database.workflow_actions.workflow_action_types."
+        "CoreHandler.check_permissions",
+        side_effect=refused,
+    ):
+        with pytest.raises(PermissionException) as raised:
+            action_type.prepare_values(
+                {"service": {"channel": "board-private", "text": "'psst'"}},
+                user,
+                action,
+            )
+
+    assert raised.value is refused

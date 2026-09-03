@@ -109,13 +109,6 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     # is dropped. Only read by a type that sets `captures_sample_data`.
     sample_data_shaping_fields: List[str] = []
 
-    # Integration types a service of this action may carry. Empty for the
-    # row actions: an integration's `authorized_user` outranks the clicker,
-    # so a Local Baserow one is never accepted (ADR 006 section 5). External
-    # ones carry a credential rather than a user, and a type names the ones
-    # it can use.
-    allowed_integration_types: List[str] = []
-
     serializer_field_names = ["service"]
     serializer_field_overrides = {
         "service": DatabasePolymorphicServiceSerializer(
@@ -331,9 +324,15 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             service = instance.service.specific
 
         service_values = values.pop("service", None) or {}
-        if service_values.get("integration_id") is not None:
+        # The one it is being given, or the one it already carries: an edit
+        # that resends neither must not be a way to drive a credential the
+        # editor may not read.
+        integration_id = service_values.get("integration_id")
+        if integration_id is None and instance is not None:
+            integration_id = service.integration_id
+        if integration_id is not None:
             field = values.get("field") or (instance.field if instance else None)
-            self._check_integration(service_values["integration_id"], user, field)
+            self._check_integration(integration_id, user, field)
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
