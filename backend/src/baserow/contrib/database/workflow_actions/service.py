@@ -46,6 +46,7 @@ from baserow.contrib.database.workflow_actions.types import (
 from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
+    AddressNotAllowedDispatchException,
     DoesNotExist,
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
@@ -74,6 +75,9 @@ DID_NOT_REACH_OUT_EXCEPTIONS = (
     InvalidContextDispatchException,
     InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    # The address itself was refused, by Advocate rather than by the endpoint,
+    # so nothing was sent even though the message names where it was going.
+    AddressNotAllowedDispatchException,
 )
 
 
@@ -338,17 +342,21 @@ class DatabaseWorkflowActionService:
             # this one.
             with transaction.atomic():
                 service.save(update_fields=["sample_data"])
-        except Exception:
+        except Exception as exc:
             # Never fail a click that already succeeded. What an endpoint can
             # answer with is not ours to predict: a NaN or a NUL byte encodes
             # here and is then refused by the column it is written to, and by
             # this point the request has left and earlier actions have already
             # written their rows.
-            # `opt(exception=True)`, not `exc_info`: loguru does not read the
-            # latter, so the type, message and traceback would all be lost.
-            logger.opt(exception=True).warning(
-                "Could not remember the result of workflow action {action_id}.",
+            # Not the exception itself: loguru prints the frame locals beside
+            # the traceback, and this frame holds the answer, response headers
+            # included. Only the class of the failure is logged.
+            logger.warning(
+                "Could not remember the result of workflow action "
+                "{action_id}: {exception}. The failure itself is not logged: "
+                "the frame holds what the endpoint answered with.",
                 action_id=workflow_action.id,
+                exception=type(exc).__name__,
             )
 
     def get_dispatch_snapshot(self, field: ButtonField) -> List[DatabaseWorkflowAction]:
@@ -373,9 +381,11 @@ class DatabaseWorkflowActionService:
         rather than letting it keep asking for a click that has already
         happened.
 
-        Only written when there is nothing to lose. A shape an earlier click
+        Only written when there is no shape to lose. A shape an earlier click
         learned is worth more than an explanation of the latest one, and every
-        action pointing at that shape would break with it.
+        action pointing at that shape would break with it. An earlier
+        explanation is replaced, though: a 404 followed by a timeout has to
+        stop describing the 404 as the last click.
 
         :param workflow_action: The action that just ran.
         :param reason: What to tell whoever opens the editor. Says nothing
@@ -383,12 +393,18 @@ class DatabaseWorkflowActionService:
         """
 
         service = workflow_action.service
+        stored = service.sample_data
+        note = {"_error": reason}
 
-        if service.sample_data:
+        if stored and not (isinstance(stored, dict) and "_error" in stored):
+            return
+
+        if stored == note:
+            # The same click again. Nothing to rewrite.
             return
 
         try:
-            service.sample_data = {"_error": reason}
+            service.sample_data = note
             # Its own savepoint, for the same reason the capture below has one.
             with transaction.atomic():
                 service.save(update_fields=["sample_data"])

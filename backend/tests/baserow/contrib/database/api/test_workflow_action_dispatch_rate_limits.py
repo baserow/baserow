@@ -12,6 +12,7 @@ from rest_framework.status import (
     HTTP_429_TOO_MANY_REQUESTS,
 )
 
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
@@ -298,14 +299,15 @@ def test_every_request_on_a_button_spends_its_own_slot(
 
 
 @pytest.mark.django_db
-def test_a_button_carrying_more_requests_than_the_budget_still_works(
+def test_a_button_carrying_more_requests_than_the_budget_is_refused(
     api_client, data_fixture, settings
 ):
     """
-    A click takes a slot per external action, but never more than the limit
-    could ever hold. Without the cap the slot past the limit is always refused,
-    so a button with more requests than the budget could never be clicked at
-    all, and waiting would not help.
+    Capping the reservation at what the limit holds would let the click send
+    every one of its requests for the price of the limit, which is the burst
+    the limit exists to stop. Such a button cannot be clicked inside the budget
+    at all, so it is refused rather than undercharged, and the answer says
+    waiting will not help.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
@@ -315,13 +317,47 @@ def test_a_button_carrying_more_requests_than_the_budget_still_works(
     _add_http_action(data_fixture, button_field)
 
     with mock_advocate_request({"ok": True}) as request:
-        first = _click(api_client, token, button_field, row)
-        second = _click(api_client, token, button_field, row)
+        refused = _click(api_client, token, button_field, row)
 
-    assert first.status_code == HTTP_200_OK
-    assert request.call_count == 2
-    # It still costs the whole budget, so the limit keeps counting clicks.
-    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert refused.status_code == HTTP_429_TOO_MANY_REQUESTS
+    # Nothing was sent, so the burst never happened.
+    assert request.call_count == 0
+    assert "fewer" in refused.json()["detail"]
+
+    # And the refusal spent nothing, so a button the budget can hold still
+    # works for the same clicker.
+    smaller = data_fixture.create_button_field(table=table, label="Go")
+    _add_http_action(data_fixture, smaller)
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, smaller, row).status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_an_address_refused_before_the_send_gives_the_slot_back(
+    api_client, data_fixture, settings
+):
+    """
+    Advocate rejects an address without sending anything, so no traffic left
+    the instance. Charging for it would let one button pointed at a private
+    address lock its clicker out of every other one.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    with mock_advocate_request(
+        raise_exception=UnacceptableAddressException("127.0.0.1")
+    ) as request:
+        refused = _click(api_client, token, button_field, row)
+
+    assert refused.status_code == HTTP_400_BAD_REQUEST
+    assert request.call_count == 1
+
+    # Nothing was sent, so the one external click is still there.
+    with mock_advocate_request({"ok": True}):
+        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
 
 
 @pytest.mark.django_db

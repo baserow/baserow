@@ -635,6 +635,12 @@ test.describe("Button field, external actions", () => {
     await otherButton.click();
 
     await expect(otherPage.locator(".toast")).toBeVisible({ timeout: 20_000 });
+
+    // The first request is still in flight. Waiting for it keeps it out of
+    // the teardown and out of the test after this one.
+    await expect(button).not.toHaveClass(/button--loading/, {
+      timeout: 30_000,
+    });
     await other.close();
   });
 

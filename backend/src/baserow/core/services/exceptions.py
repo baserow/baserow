@@ -14,6 +14,15 @@ class UnexpectedDispatchException(DispatchException):
     """Raised when trying to dispatch a service and an unexpected error happens."""
 
 
+class AddressNotAllowedDispatchException(UnexpectedDispatchException):
+    """
+    Raised when a service was refused the address it was pointed at, before
+    anything was sent. Its message names that address, so it stays hidden from
+    whoever triggered the dispatch, but no traffic left the instance and a
+    caller counting outbound traffic does not count it.
+    """
+
+
 class ServiceImproperlyConfiguredDispatchException(DispatchException):
     """Raised when trying to dispatch a service that is not fully configured."""
 

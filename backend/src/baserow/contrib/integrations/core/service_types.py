@@ -73,6 +73,7 @@ from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
+    AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
     ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
@@ -696,7 +697,13 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             # Too big. The message names no address, so it travels as it is
             # rather than as an unknown error.
             raise
-        except (UnacceptableAddressException, ConnectionError) as e:
+        except UnacceptableAddressException as e:
+            # Refused before anything was sent, so a caller counting outbound
+            # traffic must not count it.
+            raise AddressNotAllowedDispatchException(
+                f"Invalid URL: {resolved_values['url']}"
+            ) from e
+        except ConnectionError as e:
             raise UnexpectedDispatchException(
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
@@ -707,7 +714,15 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
-            logger.exception("Error while dispatching HTTP request")
+            # Not `logger.exception`: loguru prints the frame locals beside the
+            # traceback, and this frame holds the URL, every resolved header
+            # and the body. Only the class of the failure is logged.
+            logger.error(
+                "Error while dispatching HTTP request: {exception}. The "
+                "failure itself is not logged: it names the address and what "
+                "was sent with it.",
+                exception=type(e).__name__,
+            )
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         try:

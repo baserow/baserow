@@ -395,6 +395,8 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         :param workflow_actions: The snapshot the click will run.
         :return: One list of throttles per external action, each holding a
             slot.
+        :raises ThrottledAPIException: When the click is over a limit, or
+            carries more external actions than one could ever hold.
         """
 
         external_count = sum(
@@ -429,29 +431,45 @@ class DispatchDatabaseWorkflowActionsView(APIView):
 
     def _slots_to_take(self, throttle, request, external_count: int) -> int:
         """
-        How many slots one click may take from a limit.
+        How many slots one click takes from a limit: one for every action of
+        it that reaches outside Baserow.
 
-        Capped at what the limit could ever hold, or a button carrying more
-        requests than the budget allows could never be clicked at all: the
-        reservations are taken one at a time, so the one past the limit is
-        always refused and the click is denied for good rather than until the
-        window moves. Past that point the limit is back to counting clicks,
-        which is the most it can say about a button that large.
+        A button carrying more of them than the limit could ever hold is
+        refused instead. Capping the reservation would be worse than counting
+        it wrong: the click would still send every one of its requests, so the
+        limit would be paying for a burst of any size it likes, which is the
+        one thing it exists to stop. Such a button cannot be clicked inside
+        the budget at all, and waiting does not change that, so the answer
+        says so rather than pretending the next window will help.
 
         :param throttle: The limit being asked.
         :param request: The click.
         :param external_count: How many actions of it reach outside Baserow.
+        :raises ThrottledAPIException: When the button carries more external
+            actions than the limit could ever hold.
         :return: The number of slots to reserve.
         """
 
         rate_limits = tuple(throttle.get_rate_limits(request) or ())
 
-        if not rate_limits:
-            # Switched off, so `allow_request` is a no-op and one is enough to
-            # keep the bookkeeping the same shape.
+        if not rate_limits or throttle.get_cache_key(request) is None:
+            # Switched off, or the caller is exempt, so `allow_request` is a
+            # no-op and one is enough to keep the bookkeeping the same shape.
             return 1
 
-        return min(external_count, min(rate.number_of_calls for rate in rate_limits))
+        capacity = min(rate.number_of_calls for rate in rate_limits)
+
+        if external_count > capacity:
+            raise ThrottledAPIException(
+                detail=(
+                    f"This button sends {external_count} requests outside "
+                    f"Baserow, and this installation allows at most "
+                    f"{capacity}. Waiting will not help: it has to carry "
+                    f"fewer of them."
+                )
+            )
+
+        return external_count
 
     def _release_dispatch_budget(self, reservations: List[list], keep: int = 0) -> None:
         """

@@ -608,3 +608,112 @@ def test_a_failed_request_is_not_logged_with_the_address_it_used(data_fixture):
     assert "example.notexist" not in logged
     # It still says which action failed, which is what an operator needs.
     assert str(button_field.id) in logged
+
+
+@pytest.mark.django_db
+def test_a_transport_failure_of_no_known_kind_is_not_logged_either(data_fixture):
+    """
+    The service logs its own unknown failures, inside the frame that holds the
+    URL, the resolved headers and the body, and that log line runs before the
+    caller's protection can apply. A transport that fails with something other
+    than a `RequestException` reaches it.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(
+        data_fixture,
+        button_field,
+        url="'http://example.notexist/p?token=sk-SUPERSECRET'",
+    )
+    action.service.specific.headers.create(
+        key="Authorization", value="'Bearer sk-HEADERSECRET'"
+    )
+
+    written = []
+    sink_id = logger.add(written.append, level="DEBUG", diagnose=True, backtrace=True)
+    try:
+        with mock_advocate_request(raise_exception=OSError("socket gave up")):
+            with pytest.raises(WorkflowActionDispatchError):
+                DatabaseWorkflowActionService().dispatch_workflow_actions(
+                    user, button_field, row
+                )
+    finally:
+        logger.remove(sink_id)
+
+    logged = "".join(written)
+    assert "sk-SUPERSECRET" not in logged
+    assert "sk-HEADERSECRET" not in logged
+    assert "example.notexist" not in logged
+    # It still says which action failed, which is what an operator needs.
+    assert str(button_field.id) in logged
+
+
+@pytest.mark.django_db
+def test_an_answer_that_cannot_be_kept_is_not_logged_with_the_answer(data_fixture):
+    """
+    Keeping the shape can fail on what the endpoint answered with: a NUL byte
+    encodes here and is then refused by the column it is written to. The frame
+    holds the whole answer, response headers included, so the failure itself
+    cannot be logged.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(data_fixture, button_field)
+
+    written = []
+    sink_id = logger.add(written.append, level="DEBUG", diagnose=True, backtrace=True)
+    try:
+        # The NUL is what the column refuses; the secret is what must
+        # not be logged when it does.
+        with mock_advocate_request({"secret": "sk-ANSWERSECRET", "nul": "a\u0000b"}):
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+    finally:
+        logger.remove(sink_id)
+
+    # The click succeeded; only its shape was lost.
+    action.service.refresh_from_db()
+    assert action.service.sample_data is None
+
+    logged = "".join(written)
+    assert "sk-ANSWERSECRET" not in logged
+    # The action is still named, so an operator can find what failed.
+    assert str(action.id) in logged
+
+
+@pytest.mark.django_db
+def test_the_reason_the_last_click_left_is_replaced_by_the_next_one(data_fixture):
+    """
+    A shape is worth keeping, an explanation is not: a 404 followed by a
+    timeout has to stop describing the 404 as the last click.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _http_action(data_fixture, button_field)
+
+    with mock_advocate_request({"error": "not found"}, status_code=404):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    action.service.refresh_from_db()
+    assert "404" in action.service.sample_data["_error"]
+
+    with mock_advocate_request(raise_exception=request_exceptions.Timeout()):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    action.service.refresh_from_db()
+    reason = action.service.sample_data["_error"]
+    assert "timed out" in reason
+    assert "404" not in reason
