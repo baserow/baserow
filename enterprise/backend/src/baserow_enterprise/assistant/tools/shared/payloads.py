@@ -6,7 +6,8 @@ from pydantic_ai import ModelRetry
 
 
 def require_payload(tool_name: str, arg_name: str, items: Any) -> None:
-    """Reject a call that named a target but carried nothing to act on.
+    """
+    Reject a call that named a target but carried nothing to act on.
 
     An empty success result would let a dropped payload read as done work.
 

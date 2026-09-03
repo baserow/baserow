@@ -1,4 +1,10 @@
 from .agents import get_formula_generator
+from .errors import (
+    ToolInputError,
+    permission_denied_result,
+    raise_if_permission_denied,
+    return_permission_error,
+)
 from .formula_utils import (
     EMPTY_FORMULA,
     FORMULA_PREFIX,
@@ -33,5 +39,9 @@ __all__ = [
     "create_example_from_json_schema",
     "BaseFormulaContext",
     "get_formula_generator",
+    "ToolInputError",
+    "permission_denied_result",
+    "raise_if_permission_denied",
+    "return_permission_error",
     "require_payload",
 ]

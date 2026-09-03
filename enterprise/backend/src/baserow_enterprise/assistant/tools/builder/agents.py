@@ -24,6 +24,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.signals import workflow_action_updated
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.utils import to_path
+from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     create_example_from_json_schema,
@@ -352,7 +353,8 @@ def update_element_formulas(
     element_mapping: dict[str, tuple[Any, ElementItemCreate]],
     tool_helpers: "ToolHelpers",
 ) -> list[str]:
-    """Generate and apply formulas for elements that need them.
+    """
+    Generate and apply formulas for elements that need them.
 
     :param user: The user whose element permissions apply.
     :param page: The page containing the elements.
@@ -410,6 +412,7 @@ def update_element_formulas(
                         if generated:
                             el_create.update_with_formulas(user, orm_element, generated)
                     except Exception as exc:
+                        raise_if_permission_denied(exc)
                         logger.error(
                             "Failed to generate formulas for element {}: {}",
                             orm_element.id,
@@ -429,7 +432,8 @@ def update_data_source_formulas(
     ds_pairs: list[tuple[Any, DataSourceCreate]],
     tool_helpers: "ToolHelpers",
 ) -> list[str]:
-    """Generate and apply formulas for data sources that need them.
+    """
+    Generate and apply formulas for data sources that need them.
 
     :param user: The user whose data-source permissions apply.
     :param page: The page containing the data sources.
@@ -462,6 +466,7 @@ def update_data_source_formulas(
                         if generated:
                             ds_create.update_with_formulas(user, orm_ds, generated)
                     except Exception as exc:
+                        raise_if_permission_denied(exc)
                         logger.error(
                             "Failed to generate formulas for data source {}: {}",
                             orm_ds.id,
@@ -472,6 +477,7 @@ def update_data_source_formulas(
                             f"'{ds_create.name}': {exc}"
                         )
         except Exception as exc:
+            raise_if_permission_denied(exc)
             logger.error(
                 "Error processing data source {} for formulas: {}", orm_ds.id, exc
             )
@@ -543,6 +549,7 @@ def update_single_data_source_formulas(
                         **service_kwargs,
                     )
         except Exception as exc:
+            raise_if_permission_denied(exc)
             logger.exception(
                 "Failed to generate formulas for data source {}: {}",
                 orm_ds.id,
@@ -622,6 +629,7 @@ def update_single_element_formulas(
                         if kwargs:
                             UpdateElementActionType.do(user, orm_element, kwargs)
                 except Exception as exc:
+                    raise_if_permission_denied(exc)
                     logger.exception(
                         "Failed to generate formulas for element {}: {}",
                         orm_element.id,
@@ -638,7 +646,8 @@ def update_workflow_action_formulas(
     action_pairs: list[tuple[Any, ActionCreate]],
     tool_helpers: "ToolHelpers",
 ) -> list[str]:
-    """Generate and apply formulas for workflow actions that need them.
+    """
+    Generate and apply formulas for workflow actions that need them.
 
     :param user: The user whose workflow-action permissions apply.
     :param page: The page containing the workflow actions.
@@ -688,6 +697,7 @@ def update_workflow_action_formulas(
                             None, workflow_action=orm_action, user=user
                         )
                     except Exception as exc:
+                        raise_if_permission_denied(exc)
                         logger.error(
                             "Failed to generate formulas for action {}: {}",
                             orm_action.id,
@@ -697,6 +707,7 @@ def update_workflow_action_formulas(
                             f"Formula generation failed for action on '{ref}': {exc}"
                         )
         except Exception as exc:
+            raise_if_permission_denied(exc)
             logger.error(
                 "Error processing action {} for formulas: {}", orm_action.id, exc
             )
