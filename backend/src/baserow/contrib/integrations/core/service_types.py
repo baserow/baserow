@@ -3,7 +3,6 @@ import io
 import json
 import re
 import socket
-import time
 import uuid
 from datetime import datetime
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
@@ -59,7 +58,10 @@ from baserow.contrib.integrations.core.models import (
     HTTPQueryParam,
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
-from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.contrib.integrations.utils import (
+    get_http_request_function,
+    read_response_within_limit,
+)
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
@@ -76,7 +78,6 @@ from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
     RemoteRefusedDispatchException,
-    ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
@@ -591,53 +592,13 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     def _read_response_within_limit(self, response, timeout: int) -> None:
         """
         Pulls the body in with a ceiling on its size and a deadline on how long
-        it may take, and hangs up on an endpoint that goes past either.
-
-        Buffering it whole and measuring afterwards is too late: the memory is
-        already spent. The size ceiling is on what arrives after decompression,
-        so a small answer that unpacks into a big one is caught. The deadline
-        is wall clock, unlike the timeout Requests applies, which only starts
-        again on every byte: a server sending one every few seconds would
-        otherwise hold this open for as long as it liked.
+        it may take. Shared with every other service that reaches outside.
 
         :param response: The streamed response.
         :param timeout: How long the whole body may take to arrive, in seconds.
-        :raises ResponseTooLargeDispatchException: When the body is larger than
-            the ceiling.
-        :raises requests.exceptions.Timeout: When it takes longer than the
-            deadline, which the caller answers the same way as any other
-            timeout.
         """
 
-        # Read whatever the ceiling is set to. Returning early with the ceiling
-        # off would leave the body unread under `stream=True`, so `response
-        # .json()` would pull it in later, outside the block that maps a
-        # truncated or corrupt answer onto a message the caller can use, and
-        # the deadline below would never be armed either.
-        max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES or None
-        deadline = time.monotonic() + timeout
-
-        content = bytearray()
-
-        try:
-            for chunk in response.iter_content(chunk_size=64 * 1024):
-                content += chunk
-                if max_bytes is not None and len(content) > max_bytes:
-                    raise ResponseTooLargeDispatchException(
-                        f"The response is larger than the {max_bytes} bytes this "
-                        f"installation accepts."
-                    )
-                if time.monotonic() > deadline:
-                    raise request_exceptions.Timeout(
-                        f"The response body took longer than {timeout} seconds."
-                    )
-        finally:
-            response.close()
-
-        # What `response.json()` and `response.text` read, so the rest of the
-        # dispatch is unchanged.
-        response._content = bytes(content)
-        response._content_consumed = True
+        read_response_within_limit(response, timeout)
 
     def dispatch_data(
         self,

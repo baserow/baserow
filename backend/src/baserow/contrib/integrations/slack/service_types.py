@@ -10,13 +10,17 @@ from rest_framework import serializers
 from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.integrations.slack.integration_types import SlackBotIntegrationType
 from baserow.contrib.integrations.slack.models import SlackWriteMessageService
-from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.contrib.integrations.utils import (
+    get_http_request_function,
+    read_response_within_limit,
+)
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.validator import ensure_string
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     RemoteRefusedDispatchException,
+    ResponseTooLargeDispatchException,
     UnexpectedDispatchException,
 )
 from baserow.core.services.registries import DispatchTypes, ServiceType
@@ -115,8 +119,17 @@ class SlackWriteMessageServiceType(ServiceType):
                     "text": resolved_values["text"],
                 },
                 timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
+                # `read_response_within_limit` pulls the body in, in chunks,
+                # so a slow or oversized answer cannot outlive the lock this
+                # service's `max_dispatch_seconds` sizes.
+                stream=True,
             )
+            read_response_within_limit(response, SLACK_REQUEST_TIMEOUT_SECONDS)
             response_data = response.json()
+        except ResponseTooLargeDispatchException:
+            # Too big. The message names no address, so it travels as it is
+            # rather than as an unknown error.
+            raise
         except UnacceptableAddressException as e:
             # Refused before anything was sent, so a caller counting outbound
             # traffic must not count it. The HTTP service answers the same.

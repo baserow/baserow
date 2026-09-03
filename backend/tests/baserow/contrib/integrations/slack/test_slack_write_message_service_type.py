@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -26,7 +27,9 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
+    ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.helpers import AnyInt
@@ -63,6 +66,9 @@ def test_dispatch_slack_write_message_basic(data_fixture):
         "ts": "1503435956.000247",
         "message": {"text": "Hello from Baserow!", "username": "baserow_bot"},
     }
+    # The service streams the body in, so it can stop an endpoint
+    # that sends more than this installation accepts.
+    mock_response.iter_content.return_value = iter([b"{}"])
 
     mock_request = Mock(return_value=mock_response)
 
@@ -81,6 +87,7 @@ def test_dispatch_slack_write_message_basic(data_fixture):
                 "text": "Hello from Baserow!",
             },
             timeout=10,
+            stream=True,
         )
 
     # Unwrapped like the HTTP and email services, so `ok`, `channel` and
@@ -136,6 +143,9 @@ def test_dispatch_slack_write_message_api_errors(
         "ok": False,
         "error": error_code,
     }
+    # The service streams the body in, so it can stop an endpoint
+    # that sends more than this installation accepts.
+    mock_response.iter_content.return_value = iter([b"{}"])
 
     mock_request = Mock(return_value=mock_response)
 
@@ -198,6 +208,9 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
         "channel": "C123456",
         "ts": "1503435956.000247",
     }
+    # The service streams the body in, so it can stop an endpoint
+    # that sends more than this installation accepts.
+    mock_response.iter_content.return_value = iter([b"{}"])
     mock_request = Mock(return_value=mock_response)
 
     with patch(
@@ -215,6 +228,7 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
                 "text": "User John has joined!",
             },
             timeout=10,
+            stream=True,
         )
 
 
@@ -424,6 +438,9 @@ def test_slack_write_message_posts_to_the_configured_api(data_fixture):
     )
     mock_response = Mock()
     mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.2"}
+    # The service streams the body in, so it can stop an endpoint
+    # that sends more than this installation accepts.
+    mock_response.iter_content.return_value = iter([b"{}"])
     mock_request = Mock(return_value=mock_response)
 
     with patch(
@@ -454,6 +471,9 @@ def test_slack_write_message_refusal_without_an_error_code(data_fixture):
     )
     answered = Mock()
     answered.json.return_value = {"message": "forbidden"}
+    # The service streams the body in, so it can stop an endpoint
+    # that sends more than this installation accepts.
+    answered.iter_content.return_value = iter([b"{}"])
 
     with patch(
         "baserow.contrib.integrations.slack.service_types.get_http_request_function",
@@ -524,6 +544,9 @@ def test_slack_write_message_answer_that_is_not_an_object(data_fixture, body):
     )
     answered = Mock()
     answered.json.return_value = body
+    # The service streams the body in, so it can stop an endpoint
+    # that sends more than this installation accepts.
+    answered.iter_content.return_value = iter([b"{}"])
 
     with patch(
         "baserow.contrib.integrations.slack.service_types.get_http_request_function",
@@ -545,3 +568,70 @@ def test_slack_write_message_does_not_log_what_the_request_carried():
     source = Path(service_types_module.__file__).read_text()
 
     assert "logger.exception(" not in source
+
+
+def _streamed(body, chunks=None):
+    """A response the service can pull in the way it pulls a real one."""
+
+    answered = Mock()
+    answered.json.return_value = body
+    answered.iter_content.return_value = iter(
+        chunks if chunks is not None else [json.dumps(body).encode()]
+    )
+    return answered
+
+
+@pytest.mark.django_db
+def test_slack_write_message_refuses_an_answer_past_the_ceiling(data_fixture, settings):
+    """
+    The endpoint is configurable, so its answer is not bounded by Slack's own
+    limits. Buffering it whole and measuring afterwards spends the memory
+    first.
+    """
+
+    settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024
+    service = data_fixture.create_slack_write_message_service(
+        integration=data_fixture.create_integration(
+            SlackBotIntegration, token="xoxb-test"
+        ),
+        channel="general",
+        text="'hi'",
+    )
+    flood = _streamed({"ok": True}, chunks=iter([b"x" * 512] * 10))
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=Mock(return_value=flood),
+    ):
+        with pytest.raises(ResponseTooLargeDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_slack_write_message_hangs_up_on_a_body_that_drips(data_fixture):
+    """
+    The request timeout restarts on every byte, so a server sending one every
+    few seconds would hold the dispatch open past the lock that guards the
+    row. The deadline is wall clock.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        integration=data_fixture.create_integration(
+            SlackBotIntegration, token="xoxb-test"
+        ),
+        channel="general",
+        text="'hi'",
+    )
+
+    def drip():
+        yield b"{"
+        # Past the service's own deadline, without ever going quiet.
+        with patch("time.monotonic", return_value=time.monotonic() + 3600):
+            yield b'"ok": true}'
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=Mock(return_value=_streamed({"ok": True}, chunks=drip())),
+    ):
+        with pytest.raises(UnexpectedDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
