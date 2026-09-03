@@ -19,7 +19,11 @@ from baserow_enterprise.assistant.assistant import (
     get_model_string,
 )
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
+from baserow_enterprise.assistant.models import (
+    AssistantChat,
+    AssistantChatMessage,
+    AssistantChatPrediction,
+)
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.types import (
     AiMessage,
@@ -188,6 +192,28 @@ class TestAssistantChatHistory:
         assistant = Assistant(chat)
         history = async_to_sync(assistant._load_message_history)()
         assert history is None
+
+    def test_save_ai_response_persists_posthog_trace_id(self, enterprise_data_fixture):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test Chat"
+        )
+        human_message = AssistantChatMessage.objects.create(
+            chat=chat,
+            role=AssistantChatMessage.Role.HUMAN,
+            content="Create a table",
+        )
+        assistant = Assistant(chat)
+        assistant._telemetry.trace_id = "trace-123"
+
+        async_to_sync(assistant._save_ai_response)(human_message, "Done")
+
+        prediction = AssistantChatPrediction.objects.get(human_message=human_message)
+        assert prediction.prediction == {
+            "answer": "Done",
+            "posthog_trace_id": "trace-123",
+        }
 
     def test_load_message_history_deserializes_and_compacts(
         self, enterprise_data_fixture
@@ -386,6 +412,22 @@ class TestAssistantLicenseTier:
     def test_agent_system_prompt_includes_grounding_guardrail(self):
         assert "Use `search_user_docs` first" in AGENT_SYSTEM_PROMPT
         assert "Never invent plan names" in AGENT_SYSTEM_PROMPT
+
+    def test_agent_system_prompt_covers_production_regressions(self):
+        assert AGENT_SYSTEM_PROMPT.index("<contracts>") < AGENT_SYSTEM_PROMPT.index(
+            "<rules>"
+        )
+        assert "call create_builders first and build on the ID it returns" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "Never invent, guess, or carry over an ID from a different resource" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "Baserow IDs start at 1, so 0 is never an ID" in AGENT_SYSTEM_PROMPT
+        assert "For database formula creation or repair, call generate_formula" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "Never return or save a handwritten formula" in AGENT_SYSTEM_PROMPT
 
 
 @pytest.mark.django_db
@@ -967,3 +1009,24 @@ class TestGetModelString:
         assert get_model_string("google-vertex:gemini-2.0-flash") == (
             "google-cloud:gemini-2.0-flash"
         )
+
+
+class TestMainAgentOutputValidator:
+    def test_tool_call_printed_as_text_is_sent_back(self):
+        from pydantic_ai import ModelRetry
+
+        from baserow_enterprise.assistant.agents import _text_must_not_be_a_tool_call
+
+        payload = '{"name": "create_rows_in_table_9", "arguments": {"rows": []}}'
+        with pytest.raises(ModelRetry):
+            _text_must_not_be_a_tool_call(None, payload)
+
+        fenced = f"```json\n{payload}\n```"
+        with pytest.raises(ModelRetry):
+            _text_must_not_be_a_tool_call(None, fenced)
+
+    def test_regular_answers_pass_through(self):
+        from baserow_enterprise.assistant.agents import _text_must_not_be_a_tool_call
+
+        answer = 'Created the table. The field {"name": ...} maps to your schema.'
+        assert _text_must_not_be_a_tool_call(None, answer) == answer

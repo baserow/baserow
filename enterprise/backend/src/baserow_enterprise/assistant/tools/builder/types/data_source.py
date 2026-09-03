@@ -27,7 +27,18 @@ if TYPE_CHECKING:
 # Data source sort
 # ---------------------------------------------------------------------------
 
-DataSourceType = Literal["list_rows", "get_row"]
+DataSourceType = Literal[
+    "list_rows",
+    "get_row",
+    "local_baserow_list_rows",
+    "local_baserow_get_row",
+]
+
+# list_data_sources reports registered names; the tables below key on short forms.
+_CANONICAL_TO_SHORT_TYPE = {
+    "local_baserow_list_rows": "list_rows",
+    "local_baserow_get_row": "get_row",
+}
 
 
 class DataSourceSort(BaseModel):
@@ -75,6 +86,13 @@ class DataSourceCreate(BaseModel):
     Type-specific fields are optional — a ``@model_validator`` enforces
     the correct required fields per type.
     """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_registered_type(cls, data):
+        if isinstance(data, dict) and data.get("type") in _CANONICAL_TO_SHORT_TYPE:
+            data["type"] = _CANONICAL_TO_SHORT_TYPE[data["type"]]
+        return data
 
     ref: str = Field(..., description="Reference ID for this data source.")
     name: str = Field(..., description="Human-readable name.")
@@ -126,7 +144,8 @@ class DataSourceCreate(BaseModel):
         Delegates to a per-type matcher in ``_STRUCTURAL_MATCH``.
         """
 
-        if self.type != existing.type:
+        existing_type = _CANONICAL_TO_SHORT_TYPE.get(existing.type, existing.type)
+        if self.type != existing_type:
             return False
         matcher = _STRUCTURAL_MATCH.get(self.type)
         return matcher(self, existing) if matcher else False

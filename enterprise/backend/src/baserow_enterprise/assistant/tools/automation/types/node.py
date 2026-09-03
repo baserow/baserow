@@ -140,17 +140,66 @@ class AutomationFieldValue(BaseModel):
 _PERIODIC_KEYS = {"interval", "minute", "hour", "day_of_week", "day_of_month"}
 
 
+# list_nodes reports registered names, but dispatch tables key on short aliases.
+CANONICAL_TO_SHORT_TYPE = {
+    "local_baserow_rows_created": "rows_created",
+    "local_baserow_rows_updated": "rows_updated",
+    "local_baserow_rows_deleted": "rows_deleted",
+    "local_baserow_create_row": "create_row",
+    "local_baserow_update_row": "update_row",
+    "local_baserow_delete_row": "delete_row",
+}
+
+
+def _fold_type_alias(data):
+    """Rewrite a registered node type to the short form the dispatch tables use."""
+
+    if isinstance(data, dict) and data.get("type") in CANONICAL_TO_SHORT_TYPE:
+        data["type"] = CANONICAL_TO_SHORT_TYPE[data["type"]]
+    return data
+
+
+# Row-action service types differ from the short node names the tables key on.
+_SERVICE_TO_DISPATCH_TYPE = {
+    "local_baserow_upsert_row": "update_row",
+    "local_baserow_delete_row": "delete_row",
+}
+
+
+def _service_dispatch_type(service: "Service | None") -> str | None:
+    if service is None:
+        return None
+    service_type = service.get_type().type
+    return _SERVICE_TO_DISPATCH_TYPE.get(service_type, service_type)
+
+
+ROW_TRIGGER_TYPES = frozenset(
+    {
+        "rows_created",
+        "rows_updated",
+        "rows_deleted",
+        "local_baserow_rows_created",
+        "local_baserow_rows_updated",
+        "local_baserow_rows_deleted",
+    }
+)
+
+
 class TriggerNodeCreate(BaseModel):
     """Create a trigger node in a workflow."""
 
     ref: str = Field(..., description="Temporary reference ID for creation.")
     label: str = Field(..., description="Display name.")
+    # Registered names are accepted too: the model echoes what list_nodes returned.
     type: Literal[
         "periodic",
         "http_trigger",
         "rows_updated",
         "rows_created",
         "rows_deleted",
+        "local_baserow_rows_updated",
+        "local_baserow_rows_created",
+        "local_baserow_rows_deleted",
     ]
 
     periodic_interval: Optional[PeriodicTriggerSettings] = Field(
@@ -161,6 +210,11 @@ class TriggerNodeCreate(BaseModel):
         default=None,
         description="(rows_*) Table to monitor.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_registered_type(cls, data):
+        return _fold_type_alias(data)
 
     @model_validator(mode="before")
     @classmethod
@@ -180,7 +234,7 @@ class TriggerNodeCreate(BaseModel):
     def _validate_trigger_settings(self):
         if self.type == "periodic" and self.periodic_interval is None:
             raise ValueError("periodic trigger requires periodic_interval")
-        if self.type in ("rows_created", "rows_updated", "rows_deleted"):
+        if self.type in ROW_TRIGGER_TYPES:
             if self.rows_triggers_settings is None:
                 raise ValueError(f"{self.type} trigger requires rows_triggers_settings")
         return self
@@ -197,10 +251,7 @@ class TriggerNodeCreate(BaseModel):
                 )
             return values
 
-        if (
-            self.type in ["rows_created", "rows_updated", "rows_deleted"]
-            and self.rows_triggers_settings
-        ):
+        if self.type in ROW_TRIGGER_TYPES and self.rows_triggers_settings:
             return self.rows_triggers_settings.model_dump()
 
         return {}
@@ -219,6 +270,7 @@ class TriggerNodeItem(TriggerNodeCreate):
 # Action node
 # ---------------------------------------------------------------------------
 
+# Registered names are accepted too: the model echoes what list_nodes returned.
 ActionNodeType = Literal[
     "router",
     "smtp_email",
@@ -227,11 +279,19 @@ ActionNodeType = Literal[
     "update_row",
     "delete_row",
     "ai_agent",
+    "local_baserow_create_row",
+    "local_baserow_update_row",
+    "local_baserow_delete_row",
 ]
 
 
 class ActionNodeCreate(BaseModel):
     """Flat model for creating an action node: type + type-specific fields."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_registered_type(cls, data):
+        return _fold_type_alias(data)
 
     ref: str = Field(..., description="Temporary reference ID for creation.")
     label: str = Field(..., description="Display name.")
@@ -366,11 +426,12 @@ class ActionNodeCreate(BaseModel):
 
         fn = _APPLY_DIRECT.get(self.type)
         if fn is not None:
-            fn(self, service)
+            fn(self, service.specific)
 
     def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
         """Write generated formulas back to the ORM service."""
 
+        service = service.specific
         fn = _UPDATE_FORMULAS.get(self.type)
         if fn is not None:
             fn(self, service, formulas)
@@ -389,9 +450,9 @@ def _router_to_orm(n: ActionNodeCreate) -> dict[str, Any]:
 
 def _email_to_orm(n: ActionNodeCreate) -> dict[str, Any]:
     return {
-        "to_email": literal_or_placeholder(n.to_emails),
-        "cc_email": literal_or_placeholder(n.cc_emails),
-        "bcc_email": literal_or_placeholder(n.bcc_emails),
+        "to_emails": literal_or_placeholder(n.to_emails),
+        "cc_emails": literal_or_placeholder(n.cc_emails),
+        "bcc_emails": literal_or_placeholder(n.bcc_emails),
         "subject": literal_or_placeholder(n.subject),
         "body": literal_or_placeholder(n.body),
         "body_type": f"'{n.body_type}'",
@@ -667,7 +728,9 @@ class NodeUpdate(BaseModel):
 
     def to_update_service_dict(self, current_type: str) -> dict[str, Any] | None:
         """Build a service kwargs dict from non-None fields. Returns None if no service fields set."""
-        builder = _TO_UPDATE_SERVICE.get(current_type)
+        builder = _TO_UPDATE_SERVICE.get(
+            _SERVICE_TO_DISPATCH_TYPE.get(current_type, current_type)
+        )
         if builder is None:
             return None
         result = builder(self)
@@ -675,20 +738,19 @@ class NodeUpdate(BaseModel):
 
     def get_formulas_to_update(self, orm_node: AutomationNode) -> dict[str, str] | None:
         """Return a {key: description} dict of formulas to generate, or None."""
-        fn = _GET_UPDATE_FORMULAS.get(
-            orm_node.service.get_type().type if orm_node.service else None
-        )
+        fn = _GET_UPDATE_FORMULAS.get(_service_dispatch_type(orm_node.service))
         return fn(self, orm_node) if fn else None
 
     def apply_direct_values(self, service: Service):
         """Apply literal (non-$formula) values directly to the service."""
-        fn = _APPLY_UPDATE_DIRECT.get(service.get_type().type if service else None)
+        fn = _APPLY_UPDATE_DIRECT.get(_service_dispatch_type(service))
         if fn is not None:
-            fn(self, service)
+            fn(self, service.specific)
 
     def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
         """Write generated formulas back to the ORM service."""
-        stype = service.get_type().type if service else None
+        stype = _service_dispatch_type(service)
+        service = service.specific
         fn = _UPDATE_FORMULAS.get(stype)
         if fn is not None:
             # Reuse the existing dispatch (expects ActionNodeCreate-like but works for our purposes)
@@ -703,11 +765,11 @@ class NodeUpdate(BaseModel):
 def _email_update_service(n: "NodeUpdate") -> dict[str, Any]:
     d = {}
     if n.to_emails is not None:
-        d["to_email"] = literal_or_placeholder(n.to_emails)
+        d["to_emails"] = literal_or_placeholder(n.to_emails)
     if n.cc_emails is not None:
-        d["cc_email"] = literal_or_placeholder(n.cc_emails)
+        d["cc_emails"] = literal_or_placeholder(n.cc_emails)
     if n.bcc_emails is not None:
-        d["bcc_email"] = literal_or_placeholder(n.bcc_emails)
+        d["bcc_emails"] = literal_or_placeholder(n.bcc_emails)
     if n.subject is not None:
         d["subject"] = literal_or_placeholder(n.subject)
     if n.body is not None:
@@ -785,7 +847,7 @@ def _slack_update_formulas(
     return None
 
 
-def _row_action_update_formulas(
+def _get_row_action_update_formulas(
     n: "NodeUpdate", orm_node: AutomationNode
 ) -> dict[str, str] | None:
     from baserow_enterprise.assistant.tools.shared.formula_utils import (
@@ -822,9 +884,9 @@ def _ai_agent_update_formulas(
 _GET_UPDATE_FORMULAS: dict[str, Callable] = {
     "smtp_email": _email_update_formulas,
     "slack_write_message": _slack_update_formulas,
-    "create_row": _row_action_update_formulas,
-    "update_row": _row_action_update_formulas,
-    "delete_row": _row_action_update_formulas,
+    "create_row": _get_row_action_update_formulas,
+    "update_row": _get_row_action_update_formulas,
+    "delete_row": _get_row_action_update_formulas,
     "ai_agent": _ai_agent_update_formulas,
 }
 

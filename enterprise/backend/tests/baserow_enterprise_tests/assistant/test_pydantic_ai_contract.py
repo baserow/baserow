@@ -282,8 +282,22 @@ def test_formula_generation_agent_skips_tool_calls_once_output_succeeds():
         tool_calls.append(x)
         return "tracked"
 
+    def get_formula_type(table_id: int, field_name: str, formula: str) -> str:
+        return "text"
+
     def func(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        # The output validator only accepts formulas get_formula_type validated.
         if len(messages) == 1:
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="get_formula_type",
+                        args={"table_id": 1, "field_name": "f", "formula": "'ok'"},
+                        tool_call_id="0",
+                    ),
+                ]
+            )
+        if len(messages) == 3:
             return ModelResponse(
                 parts=[
                     ToolCallPart(
@@ -304,7 +318,7 @@ def test_formula_generation_agent_skips_tool_calls_once_output_succeeds():
             )
         return ModelResponse(parts=[TextPart(content="done")])
 
-    toolset = FunctionToolset([Tool(track_tool)])
+    toolset = FunctionToolset([Tool(track_tool), Tool(get_formula_type)])
     result = formula_generation_agent.run_sync(
         "generate a formula",
         model=FunctionModel(func),

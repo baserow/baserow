@@ -321,7 +321,10 @@ class Assistant:
         await AssistantChatPrediction.objects.acreate(
             human_message=human_msg,
             ai_response=ai_msg,
-            prediction={"answer": answer},
+            prediction={
+                "answer": answer,
+                "posthog_trace_id": self._telemetry.trace_id,
+            },
         )
         return AiMessage(
             id=ai_msg.id,

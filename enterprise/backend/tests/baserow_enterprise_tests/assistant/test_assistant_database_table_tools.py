@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.formula.registries import formula_function_registry
@@ -507,8 +508,8 @@ def test_generate_formula_invalid_formula(data_fixture):
 
         ctx = make_test_ctx(user, workspace)
 
-        # Verify exception is raised
-        with pytest.raises(Exception) as exc_info:
+        # A generation failure is recoverable: it must become a retry prompt.
+        with pytest.raises(ModelRetry) as exc_info:
             generate_formula(
                 ctx,
                 thought="test",
@@ -517,7 +518,6 @@ def test_generate_formula_invalid_formula(data_fixture):
                 save_to_field=True,
             )
 
-        assert "Error generating formula:" in str(exc_info.value)
         assert "Formula syntax error: invalid expression" in str(exc_info.value)
 
         # Verify no field was created
