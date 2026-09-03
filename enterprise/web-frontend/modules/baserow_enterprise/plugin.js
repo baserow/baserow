@@ -42,6 +42,7 @@ import {
 import {
   AuthFormElementType,
   FileInputElementType,
+  GraphElementType,
 } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
@@ -75,6 +76,7 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
+  BuilderGraphElementPaidFeature,
   CodeRunnerPaidFeature,
   CoBrandingPaidFeature,
   DataScannerPaidFeature,
@@ -209,6 +211,7 @@ export default defineNuxtPlugin({
 
     $registry.register('element', new AuthFormElementType(context))
     $registry.register('element', new FileInputElementType(context))
+    $registry.register('element', new GraphElementType(context))
 
     $registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
     $registry.register('dataSync', new PostgreSQLDataSyncType(context))
@@ -261,6 +264,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'paidFeature',
       new BuilderFileInputElementPaidFeature(context)
+    )
+    $registry.register(
+      'paidFeature',
+      new BuilderGraphElementPaidFeature(context)
     )
     $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
     $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))

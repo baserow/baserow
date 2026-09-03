@@ -431,6 +431,8 @@
     "builderBrandingContent": "White label the branding of your application by removing the 'Made with Baserow' branding in the footer of your application.",
     "builderFileInputElement": "File input element",
     "builderFileInputElementContent": "The file input element allows you to add a field to your application pages for uploading files. Give your users the ability to store important documents or images.",
+    "builderGraphElement": "Graph element",
+    "builderGraphElementContent": "Display formula-driven data as a graph in application pages.",
     "builderCustomCode": "Custom code for applications",
     "builderCustomCodeContent": "You can add custom CSS/JavaScript code to further customize the look and behaviour of your application. For example, you can integrate external services like analytics or social media.",
     "codeRunner": "Code runner",
@@ -790,8 +792,31 @@
     "crossoriginTypeCredentials": "Use credentials"
   },
   "elementType": {
+    "graph": "Graph",
+    "graphDescription": "Display formula-driven data as a graph.",
     "errorUserSourceHasNoLoginOption": "The selected user source has no login option",
     "errorUserSourceMissing": "No user source selected"
+  },
+  "graphElementForm": {
+    "labels": "Labels",
+    "labelsHelper": "The formula must resolve to an array. Each item becomes one label on the graph.",
+    "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+    "seriesList": "Series",
+    "series": "Series {number}",
+    "addSeries": "Add series",
+    "seriesLabel": "Series label",
+    "seriesLabelPlaceholder": "'Revenue'",
+    "seriesValues": "Values",
+    "seriesValuesHelper": "The formula must resolve to one numeric value per label.",
+    "seriesValuesPlaceholder": "to_array('10,20,30')",
+    "chartType": "Chart type",
+    "seriesColor": "Color",
+    "barChart": "Bar",
+    "lineChart": "Line"
+  },
+  "graphElement": {
+    "series": "Series {number}",
+    "noData": "No graph data"
   },
   "fieldPermissionsMenuItem": {
     "label": "Edit field permissions"

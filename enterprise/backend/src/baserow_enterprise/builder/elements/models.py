@@ -4,7 +4,7 @@ from django.db.models import SET_NULL
 
 from baserow.contrib.builder.constants import TextFormats
 from baserow.contrib.builder.elements.models import Element, FormElement
-from baserow.core.formula.field import FormulaField
+from baserow.core.formula.field import FormulaField, JSONFormulaField
 
 
 class AuthFormElement(Element):
@@ -77,4 +77,17 @@ class FileInputElement(FormElement):
     preview = models.BooleanField(
         default=False,
         help_text="Whether to show a preview of image files.",
+    )
+
+
+class GraphElement(Element):
+    labels = FormulaField(
+        default="",
+        blank=True,
+        help_text="A formula resolving to the graph labels.",
+    )
+    series = JSONFormulaField(
+        default=list,
+        properties=["label", "values"],
+        help_text="The series shown in the graph.",
     )

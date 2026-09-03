@@ -1,5 +1,6 @@
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import Chart from '@baserow_premium/dashboard/components/widget/Chart'
+import { getDashboardChartData } from '@baserow_premium/dashboard/chartData'
 
 describe('Premium dashboard Chart component', () => {
   let testApp = null
@@ -12,44 +13,60 @@ describe('Premium dashboard Chart component', () => {
     await testApp.afterEach()
   })
 
-  const mountComponent = async ({
-    dataSourceData,
-    dataSource = {},
-    seriesConfig = [{ series_id: 1, series_chart_type: 'BAR' }],
-  }) => {
-    return await testApp.mount(Chart, {
-      props: {
-        dataSource: {
-          type: 'local_baserow_grouped_aggregate_rows',
-          aggregation_series: [
-            { id: 1, field_id: 10, aggregation_type: 'sum' },
-          ],
-          aggregation_group_bys: [],
-          schema: {
-            items: {
-              properties: {
-                field_10_sum: {
-                  title: 'Amount sum',
-                  metadata: {
-                    display_name: 'Amount sum',
-                    source_field: {
-                      display_name: 'Amount',
-                    },
-                    aggregation: {
-                      type: 'sum',
-                    },
-                  },
-                },
+  const dataSource = (overrides = {}) => ({
+    type: 'local_baserow_grouped_aggregate_rows',
+    aggregation_series: [{ id: 1, field_id: 10, aggregation_type: 'sum' }],
+    aggregation_group_bys: [],
+    schema: {
+      items: {
+        properties: {
+          field_10_sum: {
+            title: 'Amount sum',
+            metadata: {
+              display_name: 'Amount sum',
+              source_field: {
+                display_name: 'Amount',
+              },
+              aggregation: {
+                type: 'sum',
               },
             },
           },
-          context_data: {
-            fields: {},
-          },
-          ...dataSource,
         },
-        dataSourceData,
-        seriesConfig,
+      },
+    },
+    context_data: {
+      fields: {},
+    },
+    ...overrides,
+  })
+
+  const chartData = ({
+    source = dataSource(),
+    data = {},
+    seriesConfig = [{ series_id: 1, series_chart_type: 'BAR' }],
+  } = {}) => {
+    return getDashboardChartData({
+      dataSource: source,
+      dataSourceData: {
+        results: [
+          {
+            field_10_sum: 20,
+          },
+        ],
+        ...data,
+      },
+      seriesConfig,
+      $registry: testApp.$registry,
+      $t: (key) => key,
+    })
+  }
+
+  const mountComponent = async ({ data, options = null }) => {
+    return await testApp.mount(Chart, {
+      props: {
+        data,
+        options,
       },
       global: {
         stubs: {
@@ -68,9 +85,9 @@ describe('Premium dashboard Chart component', () => {
     })
   }
 
-  test('renders chart data from grouped aggregation results', async () => {
-    const wrapper = await mountComponent({
-      dataSourceData: {
+  test('builds chart data from grouped aggregation results', async () => {
+    const data = chartData({
+      data: {
         results: [
           {
             'Amount sum': 20,
@@ -79,17 +96,15 @@ describe('Premium dashboard Chart component', () => {
       },
     })
 
-    expect(wrapper.find('.chart__no-data').exists()).toBe(false)
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.labels).toEqual([''])
-    expect(chartData.datasets[0].type).toBe('bar')
-    expect(chartData.datasets[0].data).toEqual([20])
-    expect(chartData.datasets[0].label).toBe('Amount (viewAggregationType.sum)')
+    expect(data.labels).toEqual([''])
+    expect(data.datasets[0].type).toBe('bar')
+    expect(data.datasets[0].data).toEqual([20])
+    expect(data.datasets[0].label).toBe('Amount (viewAggregationType.sum)')
   })
 
-  test('renders chart data using source field metadata from result fields', async () => {
-    const wrapper = await mountComponent({
-      dataSource: {
+  test('builds chart data when the grouped aggregation schema only exposes result fields', async () => {
+    const data = chartData({
+      source: dataSource({
         schema: {
           items: {
             properties: {
@@ -108,8 +123,8 @@ describe('Premium dashboard Chart component', () => {
             },
           },
         },
-      },
-      dataSourceData: {
+      }),
+      data: {
         results: [
           {
             'Amount sum': 20,
@@ -118,17 +133,15 @@ describe('Premium dashboard Chart component', () => {
       },
     })
 
-    expect(wrapper.find('.chart__no-data').exists()).toBe(false)
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.labels).toEqual([''])
-    expect(chartData.datasets[0].type).toBe('bar')
-    expect(chartData.datasets[0].data).toEqual([20])
-    expect(chartData.datasets[0].label).toBe('Amount (viewAggregationType.sum)')
+    expect(data.labels).toEqual([''])
+    expect(data.datasets[0].type).toBe('bar')
+    expect(data.datasets[0].data).toEqual([20])
+    expect(data.datasets[0].label).toBe('Amount (viewAggregationType.sum)')
   })
 
-  test('renders chart label from schema property display name when source field metadata is missing', async () => {
-    const wrapper = await mountComponent({
-      dataSource: {
+  test('builds chart label from schema property display name when source field metadata is missing', async () => {
+    const data = chartData({
+      source: dataSource({
         schema: {
           items: {
             properties: {
@@ -141,8 +154,8 @@ describe('Premium dashboard Chart component', () => {
             },
           },
         },
-      },
-      dataSourceData: {
+      }),
+      data: {
         results: [
           {
             'Amount total': 20,
@@ -151,18 +164,17 @@ describe('Premium dashboard Chart component', () => {
       },
     })
 
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.datasets[0].label).toBe(
+    expect(data.datasets[0].label).toBe(
       'Amount total (viewAggregationType.sum)'
     )
   })
 
-  test('renders no-grouping chart data as a single-row list when group config is missing', async () => {
-    const wrapper = await mountComponent({
-      dataSource: {
+  test('builds no-grouping chart data as a single-row list when group config is missing', async () => {
+    const data = chartData({
+      source: dataSource({
         aggregation_group_bys: undefined,
-      },
-      dataSourceData: {
+      }),
+      data: {
         results: [
           {
             'Amount sum': 20,
@@ -171,16 +183,37 @@ describe('Premium dashboard Chart component', () => {
       },
     })
 
-    expect(wrapper.find('.chart__no-data').exists()).toBe(false)
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.labels).toEqual([''])
-    expect(chartData.datasets[0].type).toBe('bar')
-    expect(chartData.datasets[0].data).toEqual([20])
+    expect(data.labels).toEqual([''])
+    expect(data.datasets[0].type).toBe('bar')
+    expect(data.datasets[0].data).toEqual([20])
   })
 
-  test('renders no-grouping pie chart data as series slices', async () => {
+  test('renders chart data with merged options', async () => {
     const wrapper = await mountComponent({
-      dataSource: {
+      data: {
+        labels: ['A'],
+        datasets: [{ type: 'line', label: 'Series', data: [10] }],
+      },
+      options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: '#ff0000',
+            },
+          },
+        },
+      },
+    })
+
+    const chart = wrapper.findComponent({ name: 'Bar' })
+    expect(chart.props('data').labels).toEqual(['A'])
+    expect(chart.props('options').plugins.legend.labels.color).toBe('#ff0000')
+    expect(chart.props('options').plugins.legend.position).toBe('bottom')
+  })
+
+  test('builds no-grouping pie chart data as series slices', async () => {
+    const data = chartData({
+      source: dataSource({
         aggregation_series: [
           { id: 1, field_id: 10, aggregation_type: 'sum' },
           { id: 2, field_id: 12, aggregation_type: 'sum' },
@@ -216,8 +249,8 @@ describe('Premium dashboard Chart component', () => {
             },
           },
         },
-      },
-      dataSourceData: {
+      }),
+      data: {
         results: [
           {
             'Amount sum': 20,
@@ -231,19 +264,19 @@ describe('Premium dashboard Chart component', () => {
       ],
     })
 
-    const chartData = wrapper.findComponent({ name: 'Pie' }).props('data')
-    expect(chartData.labels).toEqual([
+    expect(data.labels).toEqual([
       'Amount (viewAggregationType.sum)',
       'Revenue (viewAggregationType.sum)',
     ])
-    expect(chartData.datasets).toHaveLength(1)
-    expect(chartData.datasets[0].data).toEqual([20, 10])
-    expect(chartData.datasets[0].backgroundColor).toBeInstanceOf(Array)
+    expect(data.datasets).toHaveLength(1)
+    expect(data.datasets[0].type).toBe('pie')
+    expect(data.datasets[0].data).toEqual([20, 10])
+    expect(data.datasets[0].backgroundColor).toBeInstanceOf(Array)
   })
 
-  test('renders grouped chart data from human result property names', async () => {
-    const wrapper = await mountComponent({
-      dataSource: {
+  test('builds grouped chart data from human result property names', async () => {
+    const data = chartData({
+      source: dataSource({
         aggregation_group_bys: [{ field_id: 11 }],
         schema: {
           items: {
@@ -277,8 +310,8 @@ describe('Premium dashboard Chart component', () => {
             },
           },
         },
-      },
-      dataSourceData: {
+      }),
+      data: {
         results: [
           {
             'Amount sum': 20,
@@ -288,14 +321,13 @@ describe('Premium dashboard Chart component', () => {
       },
     })
 
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.labels).toEqual(['Hardware'])
-    expect(chartData.datasets[0].data).toEqual([20])
+    expect(data.labels).toEqual(['Hardware'])
+    expect(data.datasets[0].data).toEqual([20])
   })
 
-  test('renders grouped single select labels from human result property names', async () => {
-    const wrapper = await mountComponent({
-      dataSource: {
+  test('builds grouped single select labels from human result property names', async () => {
+    const data = chartData({
+      source: dataSource({
         aggregation_group_bys: [{ field_id: 11 }],
         schema: {
           items: {
@@ -333,8 +365,8 @@ describe('Premium dashboard Chart component', () => {
             },
           },
         },
-      },
-      dataSourceData: {
+      }),
+      data: {
         results: [
           {
             'Amount sum': 20,
@@ -348,29 +380,19 @@ describe('Premium dashboard Chart component', () => {
       },
     })
 
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.labels).toEqual(['Hardware', 'Software'])
-    expect(chartData.datasets[0].data).toEqual([20, 10])
+    expect(data.labels).toEqual(['Hardware', 'Software'])
+    expect(data.datasets[0].data).toEqual([20, 10])
   })
 
-  test('renders chart data from technical result property names as a fallback', async () => {
-    const wrapper = await mountComponent({
-      dataSourceData: {
-        results: [
-          {
-            field_10_sum: 20,
-          },
-        ],
-      },
-    })
+  test('builds chart data from technical result property names as a fallback', async () => {
+    const data = chartData()
 
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.datasets[0].data).toEqual([20])
+    expect(data.datasets[0].data).toEqual([20])
   })
 
-  test('renders grouped labels from technical group-by property names as a fallback', async () => {
-    const wrapper = await mountComponent({
-      dataSource: {
+  test('builds grouped labels from technical group-by property names as a fallback', async () => {
+    const data = chartData({
+      source: dataSource({
         aggregation_group_bys: [{ field_id: 11 }],
         schema: {
           items: {
@@ -415,8 +437,8 @@ describe('Premium dashboard Chart component', () => {
             },
           },
         },
-      },
-      dataSourceData: {
+      }),
+      data: {
         results: [
           {
             'Amount sum': 20,
@@ -427,8 +449,7 @@ describe('Premium dashboard Chart component', () => {
       },
     })
 
-    const chartData = wrapper.findComponent({ name: 'Bar' }).props('data')
-    expect(chartData.labels).toEqual(['Hardware'])
-    expect(chartData.datasets[0].data).toEqual([20])
+    expect(data.labels).toEqual(['Hardware'])
+    expect(data.datasets[0].data).toEqual([20])
   })
 })
