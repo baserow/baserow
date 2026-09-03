@@ -18,6 +18,30 @@ INBOUND_EMAIL_DEDUPE_TIMEOUT_SECONDS = 60 * 60 * 48
 
 INBOUND_EMAIL_TOKEN_REGEX = re.compile(r"^[0-9a-f]{32}$")
 
+# The catch-all sub-address separator configured on the receiving mail server
+# (mox's LocalpartCatchallSeparator). Everything after it in the localpart is an
+# optional recipient "tag": `token+tag@domain` still routes to the `token`
+# trigger, and `tag` is exposed in the payload so a workflow can branch on it.
+INBOUND_EMAIL_CATCHALL_SEPARATOR = "+"
+
+
+def split_catchall_localpart(address: str) -> "tuple[str, str]":
+    """
+    Splits an email address into its base localpart and sub-address tag on the
+    catch-all separator, e.g. `abc+sales@d` -> `("abc", "sales")`. The base is
+    lowercased (trigger tokens are lowercase hex) so it can be matched against a
+    token; the tag is returned as received so a router can match it exactly. The
+    tag is empty when the address has no separator.
+
+    :param address: The full email address.
+    :return: A `(base_localpart, tag)` tuple.
+    """
+
+    localpart = (address or "").rpartition("@")[0]
+    base, separator, tag = localpart.partition(INBOUND_EMAIL_CATCHALL_SEPARATOR)
+    return base.lower(), (tag if separator else "")
+
+
 HANDLE_STATUS_ACCEPTED = "accepted"
 HANDLE_STATUS_DUPLICATE = "duplicate"
 HANDLE_STATUS_DISCARDED = "discarded"
@@ -81,6 +105,8 @@ class InboundEmail:
             "to": [address.to_payload() for address in self.to],
             "cc": [address.to_payload() for address in self.cc],
             "reply_to": [address.to_payload() for address in self.reply_to],
+            "rcpt_to": self.rcpt_to,
+            "recipient_tag": split_catchall_localpart(self.rcpt_to)[1],
             "subject": self.subject,
             "body_text": self.body_text,
             "body_html": self.body_html,
@@ -203,13 +229,16 @@ class InboundEmailHandler:
         domain = settings.INBOUND_EMAIL_DOMAIN.lower()
         tokens = []
         for candidate in candidates:
-            localpart, _, candidate_domain = (candidate or "").lower().rpartition("@")
+            candidate_domain = (candidate or "").rpartition("@")[2].lower()
+            # Strip any `+tag` sub-address so `token+tag@domain` resolves to the
+            # `token` trigger; the tag is surfaced separately in the payload.
+            token, _ = split_catchall_localpart(candidate)
             if (
                 candidate_domain == domain
-                and INBOUND_EMAIL_TOKEN_REGEX.match(localpart)
-                and localpart not in tokens
+                and INBOUND_EMAIL_TOKEN_REGEX.match(token)
+                and token not in tokens
             ):
-                tokens.append(localpart)
+                tokens.append(token)
 
         return tokens
 

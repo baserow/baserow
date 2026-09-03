@@ -2272,6 +2272,7 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
                 name="Sample sender", address="sender@example.com"
             ),
             to=[InboundEmailAddress(address=service.email_address or "")],
+            rcpt_to=service.email_address or "",
             subject="Sample email subject",
             body_text="This is a sample email body.",
             body_html="<p>This is a sample email body.</p>",
@@ -2312,6 +2313,8 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
                 "title": _("Reply to"),
                 "items": email_address_schema,
             },
+            "rcpt_to": {"type": "string", "title": _("Recipient")},
+            "recipient_tag": {"type": "string", "title": _("Recipient tag")},
             "subject": {"type": "string", "title": _("Subject")},
             "body_text": {"type": "string", "title": _("Body (text)")},
             "body_html": {"type": "string", "title": _("Body (HTML)")},
