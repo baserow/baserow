@@ -42,6 +42,7 @@ from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
 )
 from baserow.core.db import specific_queryset
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
@@ -287,23 +288,59 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     ) -> WorkflowAction:
         """
         Drops an integration the imported action may not carry: one of a type
-        this action does not allow, or one outside the field's own database,
-        which an export made elsewhere could name by a number that happens to
-        exist here. The action then says what it needs, as an unconfigured one
-        does.
+        this action does not allow, one outside the field's own database, which
+        an export made elsewhere could name by a number that happens to exist
+        here, or one the person asking for the copy may not read. The action
+        then says what it needs, as an unconfigured one does.
+
+        `copied_by` is set on the paths where a person copies an existing
+        action in place, a duplicated field or a changed field type, since
+        those never pass through the endpoint that checks the credential. A
+        whole-application import carries its own integrations and has no such
+        actor.
         """
 
+        copied_by = kwargs.pop("copied_by", None)
         created_instance = super().import_serialized(
             parent, serialized_values, id_mapping, files_zip, storage, cache, **kwargs
         )
         service = created_instance.service
         integration = service.integration
-        if integration is not None and not self._integration_is_usable(
-            integration, created_instance.field
+        if integration is not None and not self._may_carry_integration(
+            integration, created_instance.field, copied_by
         ):
             service.integration = None
             service.save(update_fields=["integration"])
         return created_instance
+
+    def _may_carry_integration(
+        self, integration: Integration, field, copied_by: Optional[AbstractUser]
+    ) -> bool:
+        """
+        Whether an imported action keeps the integration it came with: it has
+        to be usable by this action, and readable by whoever asked for the
+        copy when there is one.
+
+        :param integration: The integration the copy came with.
+        :param field: The button field the copy belongs to.
+        :param copied_by: Who asked for the copy, when a person did.
+        :return: True when the copy keeps it.
+        """
+
+        if not self._integration_is_usable(integration, field):
+            return False
+        if copied_by is None:
+            return True
+        try:
+            CoreHandler().check_permissions(
+                copied_by,
+                ReadIntegrationOperationType.type,
+                workspace=field.table.database.workspace,
+                context=integration,
+            )
+        except PermissionException:
+            return False
+        return True
 
     def prepare_values(
         self,

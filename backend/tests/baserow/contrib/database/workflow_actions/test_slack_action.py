@@ -2,11 +2,13 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionInvalidIntegration,
 )
 from baserow.contrib.database.workflow_actions.models import (
+    DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     SlackWriteMessageWorkflowAction,
 )
@@ -18,6 +20,8 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -364,3 +368,57 @@ def test_editing_an_action_still_checks_the_integration_it_already_carries(
             )
 
     assert raised.value is refused
+
+
+@pytest.mark.django_db
+def test_duplicating_a_field_drops_a_bot_the_duplicator_cannot_read(data_fixture):
+    """
+    Duplication copies the action without going through the endpoint that
+    checks permissions, so without a check here it hands someone a button
+    that posts through a credential they may not read.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    real = CoreHandler.check_permissions
+
+    def deny_only_reading_the_integration(self, actor, operation_name, *args, **kwargs):
+        if operation_name == ReadIntegrationOperationType.type:
+            raise PermissionException("cannot read this integration")
+        return real(self, actor, operation_name, *args, **kwargs)
+
+    with patch.object(
+        CoreHandler, "check_permissions", deny_only_reading_the_integration
+    ):
+        duplicated, _ = FieldHandler().duplicate_field(user, button_field)
+
+    (copied,) = DatabaseWorkflowAction.objects.filter(field=duplicated)
+    assert copied.specific.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_duplicating_a_field_keeps_a_bot_the_duplicator_can_read(data_fixture):
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    duplicated, _ = FieldHandler().duplicate_field(user, button_field)
+
+    (copied,) = DatabaseWorkflowAction.objects.filter(field=duplicated)
+    assert copied.specific.service.integration_id == bot.id
