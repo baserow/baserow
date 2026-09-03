@@ -180,6 +180,30 @@ export async function createEmailAction(
   });
 }
 
+/**
+ * An action that posts to Slack through a bot of the button's own database.
+ * `text` is a formula, so a literal needs its own quotes.
+ */
+export async function createSlackAction(
+  user: User,
+  buttonField: Field,
+  options: { integrationId: number; channel: string; text: string },
+): Promise<WorkflowAction> {
+  const action = await createWorkflowAction(
+    user,
+    buttonField,
+    "slack_write_message",
+  );
+  return await updateWorkflowAction(user, action, {
+    service: {
+      type: "slack_write_message",
+      integration_id: options.integrationId,
+      channel: options.channel,
+      text: options.text,
+    },
+  });
+}
+
 /** What one action looks like to the API, including its service. */
 export async function getWorkflowAction(
   user: User,
