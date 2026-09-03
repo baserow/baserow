@@ -49,3 +49,9 @@
   border: 1px solid #d7d8d9;
   background: #f7f7f7;
 }
+
+.create-widget-card--disabled {
+  cursor: wait;
+  opacity: 0.6;
+  pointer-events: none;
+}

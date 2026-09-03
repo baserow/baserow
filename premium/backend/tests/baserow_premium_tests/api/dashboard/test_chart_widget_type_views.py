@@ -11,6 +11,25 @@ from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowTableServiceAggregationSeries,
 )
 
+CHART_GRID_LAYOUT = {
+    "default_width": 3,
+    "default_height": 9,
+    "min_width": 3,
+    "min_height": 8,
+    "max_width": 6,
+    "max_height": 16,
+}
+
+
+def chart_grid_fields(width=3, height=9):
+    return {
+        "grid_x": 0,
+        "grid_y": 0,
+        "grid_width": width,
+        "grid_height": height,
+        "grid_layout": CHART_GRID_LAYOUT,
+    }
+
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
@@ -42,6 +61,7 @@ def test_create_chart_widget(api_client, premium_data_fixture):
         "dashboard_id": dashboard.id,
         "order": "1.00000000000000000000",
         "type": "chart",
+        **chart_grid_fields(),
         "series_config": [],
         "default_series_chart_type": "BAR",
     }
@@ -78,6 +98,7 @@ def test_create_chart_widget_default_line(api_client, premium_data_fixture):
         "dashboard_id": dashboard.id,
         "order": "1.00000000000000000000",
         "type": "chart",
+        **chart_grid_fields(),
         "series_config": [],
         "default_series_chart_type": "LINE",
     }
@@ -133,6 +154,7 @@ def test_get_widgets_with_chart_widget(api_client, premium_data_fixture):
             "data_source_id": data_source.id,
             "order": "1.00000000000000000000",
             "type": "chart",
+            **chart_grid_fields(width=6),
             "series_config": [
                 {
                     "series_id": series_1.id,
@@ -302,6 +324,7 @@ def test_update_widget_preserve_chart_config(api_client, premium_data_fixture):
         "data_source_id": data_source.id,
         "order": "1.00000000000000000000",
         "type": "chart",
+        **chart_grid_fields(width=6),
         "series_config": [
             {
                 "series_id": series_1.id,

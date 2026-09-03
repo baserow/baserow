@@ -88,6 +88,7 @@ from baserow.contrib.dashboard.widgets.operations import (
     ListWidgetsOperationType,
     ReadWidgetOperationType,
     RestoreWidgetOperationType,
+    UpdateWidgetLayoutOperationType,
     UpdateWidgetOperationType,
 )
 from baserow.contrib.database.airtable.operations import (
@@ -584,6 +585,8 @@ default_roles[BUILDER_ROLE_UID].extend(
         GetIncludingPublicValuesOperationType,
         CreateWidgetOperationType,
         UpdateWidgetOperationType,
+        # A layout mutation can reposition every widget after a collision.
+        UpdateWidgetLayoutOperationType,
         DeleteWidgetOperationType,
         RestoreWidgetOperationType,
         CreateDashboardDataSourceOperationType,

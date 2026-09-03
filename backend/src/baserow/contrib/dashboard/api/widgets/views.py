@@ -8,7 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from baserow.api.decorators import map_exceptions, validate_body_custom_fields
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_body,
+    validate_body_custom_fields,
+)
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -25,10 +29,12 @@ from baserow.contrib.dashboard.widgets.actions import (
     CreateWidgetActionType,
     DeleteWidgetActionType,
     UpdateWidgetActionType,
+    UpdateWidgetLayoutActionType,
 )
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
     WidgetImproperlyConfigured,
+    WidgetLayoutInvalid,
     WidgetTypeDoesNotExist,
 )
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
@@ -37,13 +43,22 @@ from baserow.contrib.dashboard.widgets.service import WidgetService
 from .errors import (
     ERROR_WIDGET_DOES_NOT_EXIST,
     ERROR_WIDGET_IMPROPERLY_CONFIGURED,
+    ERROR_WIDGET_LAYOUT_INVALID,
     ERROR_WIDGET_TYPE_DOES_NOT_EXIST,
 )
 from .serializers import (
     CreateWidgetSerializer,
+    UpdateWidgetLayoutSerializer,
     UpdateWidgetSerializer,
     WidgetSerializer,
 )
+
+
+def serialize_widgets(widgets):
+    return [
+        widget_type_registry.get_serializer(widget, WidgetSerializer).data
+        for widget in widgets
+    ]
 
 
 class WidgetsView(APIView):
@@ -85,11 +100,7 @@ class WidgetsView(APIView):
         """
 
         widgets = WidgetService().get_widgets(request.user, dashboard_id)
-        data = [
-            widget_type_registry.get_serializer(widget, WidgetSerializer).data
-            for widget in widgets
-        ]
-        return Response(data)
+        return Response(serialize_widgets(widgets))
 
     @extend_schema(
         parameters=[
@@ -247,3 +258,55 @@ class WidgetView(APIView):
 
         DeleteWidgetActionType.do(request.user, widget_id)
         return Response(status=204)
+
+
+class WidgetLayoutView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="dashboard_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the dashboard whose widget layout is updated.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Dashboard widgets"],
+        operation_id="update_dashboard_widget_layout",
+        description=(
+            "Atomically updates and vertically compacts the layout of every dashboard "
+            "widget visible to the current user."
+        ),
+        request=UpdateWidgetLayoutSerializer,
+        responses={
+            200: DiscriminatorCustomFieldsMappingSerializer(
+                widget_type_registry, WidgetSerializer, many=True
+            ),
+            400: get_error_schema(
+                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_WIDGET_LAYOUT_INVALID"]
+            ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
+            404: get_error_schema(["ERROR_DASHBOARD_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            DashboardDoesNotExist: ERROR_DASHBOARD_DOES_NOT_EXIST,
+            WidgetLayoutInvalid: ERROR_WIDGET_LAYOUT_INVALID,
+        }
+    )
+    @validate_body(UpdateWidgetLayoutSerializer)
+    def patch(self, request, data: Dict, dashboard_id: int):
+        UpdateWidgetLayoutActionType.do(
+            request.user,
+            dashboard_id,
+            data["widgets"],
+        )
+        # Keep the complete response shape for frontends loaded before the grid
+        # rollout; current clients merge only the canonical geometry they need.
+        widgets = WidgetService().get_widgets(request.user, dashboard_id)
+        return Response(serialize_widgets(widgets))

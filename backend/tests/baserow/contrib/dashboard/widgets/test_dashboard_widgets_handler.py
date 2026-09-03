@@ -7,6 +7,7 @@ import pytest
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+from baserow.contrib.dashboard.widgets.layout import WidgetLayoutHandler
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
 
@@ -196,7 +197,55 @@ def test_create_widget(data_fixture):
     assert widget.title == "New widget title"
     assert widget.description == "My desc"
     assert widget.content_type == ContentType.objects.get_for_model(SummaryWidget)
+    assert (widget.grid_x, widget.grid_y) == (0, 0)
+    assert (widget.grid_width, widget.grid_height) == (2, 4)
     assert Widget.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_create_widget_uses_the_first_available_grid_position(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    left_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    right_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    for widget, grid_x in ((left_widget, 0), (right_widget, 4)):
+        widget.grid_x = grid_x
+        widget.grid_y = 0
+        widget.grid_width = 2
+        widget.grid_height = 4
+        widget.save(update_fields=["grid_x", "grid_y", "grid_width", "grid_height"])
+
+    widget = WidgetHandler().create_widget(
+        widget_type_registry.get("summary"),
+        dashboard=dashboard,
+        title="New widget title",
+    )
+
+    assert (widget.grid_x, widget.grid_y) == (2, 0)
+    assert (widget.grid_width, widget.grid_height) == (2, 4)
+
+
+@pytest.mark.django_db
+def test_create_widget_skips_a_grid_gap_that_is_too_small(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    left_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    right_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    for widget, grid_x, grid_width in (
+        (left_widget, 0, 2),
+        (right_widget, 3, 3),
+    ):
+        widget.grid_x = grid_x
+        widget.grid_y = 0
+        widget.grid_width = grid_width
+        widget.grid_height = 4
+        widget.save(update_fields=["grid_x", "grid_y", "grid_width", "grid_height"])
+
+    widget = WidgetHandler().create_widget(
+        widget_type_registry.get("summary"),
+        dashboard=dashboard,
+        title="New widget title",
+    )
+
+    assert (widget.grid_x, widget.grid_y) == (0, 4)
 
 
 @pytest.mark.django_db
@@ -226,3 +275,56 @@ def test_delete_widget(data_fixture):
     assert Widget.objects.count() == 0
 
     assert DashboardDataSource.objects.filter(id=data_source_id).count() == 0
+
+
+@pytest.mark.django_db
+def test_widget_layout_handler_preserves_columns_and_fills_vertical_gaps(
+    data_fixture,
+):
+    dashboard = data_fixture.create_dashboard_application()
+    first_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    second_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    third_widget = data_fixture.create_summary_widget(dashboard=dashboard)
+
+    first_widget.grid_x = 0
+    first_widget.grid_y = 0
+    first_widget.grid_width = 2
+    first_widget.grid_height = 4
+    second_widget.grid_x = 2
+    second_widget.grid_y = 4
+    second_widget.grid_width = 4
+    second_widget.grid_height = 4
+    third_widget.grid_x = 0
+    third_widget.grid_y = 8
+    third_widget.grid_width = 2
+    third_widget.grid_height = 4
+    for widget in (first_widget, second_widget, third_widget):
+        widget.save(update_fields=["grid_x", "grid_y", "grid_width", "grid_height"])
+
+    layout = WidgetLayoutHandler(
+        [first_widget, second_widget, third_widget]
+    ).compacted_layout
+
+    assert layout == [
+        {
+            "id": first_widget.id,
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+        {
+            "id": second_widget.id,
+            "grid_x": 2,
+            "grid_y": 0,
+            "grid_width": 4,
+            "grid_height": 4,
+        },
+        {
+            "id": third_widget.id,
+            "grid_x": 0,
+            "grid_y": 4,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+    ]

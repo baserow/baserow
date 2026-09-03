@@ -1,6 +1,5 @@
-import { WidgetType } from '@baserow/modules/dashboard/widgetTypes'
+import { DataSourceWidgetType } from '@baserow/modules/dashboard/widgetTypes'
 import ChartWidget from '@baserow_premium/dashboard/components/widget/ChartWidget'
-import PieChartWidget from '@baserow_premium/dashboard/components/widget/PieChartWidget'
 import ChartWidgetSettings from '@baserow_premium/dashboard/components/widget/ChartWidgetSettings'
 import ChartBarWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_bar.svg?url'
 import ChartLineWidgetSvg from '@baserow_premium/assets/images/dashboard/widgets/chart_widget_line.svg?url'
@@ -10,7 +9,7 @@ import PremiumFeatures from '@baserow_premium/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { ChartPaidFeature } from '@baserow_premium/paidFeatures'
 
-export class ChartWidgetType extends WidgetType {
+export class ChartWidgetType extends DataSourceWidgetType {
   static getType() {
     return 'chart'
   }
@@ -83,14 +82,6 @@ export class ChartWidgetType extends WidgetType {
     }
   }
 
-  isLoading(widget, data) {
-    const dataSourceId = widget.data_source_id
-    if (data[dataSourceId] && Object.keys(data[dataSourceId]).length !== 0) {
-      return false
-    }
-    return true
-  }
-
   isAvailable(workspaceId) {
     return this.app.$hasFeature(PremiumFeatures.PREMIUM, workspaceId)
   }
@@ -103,7 +94,7 @@ export class ChartWidgetType extends WidgetType {
   }
 }
 
-export class PieChartWidgetType extends WidgetType {
+export class PieChartWidgetType extends ChartWidgetType {
   static getType() {
     return 'pie_chart'
   }
@@ -114,14 +105,6 @@ export class PieChartWidgetType extends WidgetType {
 
   get createWidgetImage() {
     return ChartPieWidgetSvg
-  }
-
-  get component() {
-    return PieChartWidget
-  }
-
-  get settingsComponent() {
-    return ChartWidgetSettings
   }
 
   get variations() {
@@ -144,54 +127,6 @@ export class PieChartWidgetType extends WidgetType {
         },
         dropdownIcon: 'baserow-icon-donut-chart',
       },
-    ]
-  }
-
-  async dataSourceUpdated(widget, data) {
-    // If widget series configuration is missing for any existing
-    // series we will create a series configuration reflecting the
-    // proper defaults.
-    const dataSourceSeriesIds = data.aggregation_series.map(
-      (series) => series.id
-    )
-    const widgetConfSeriesIds = widget.series_config.map(
-      (conf) => conf.series_id
-    )
-    const missingConfIds = dataSourceSeriesIds.filter(
-      (element) => !widgetConfSeriesIds.includes(element)
-    )
-    if (missingConfIds.length > 0) {
-      const values = JSON.parse(JSON.stringify(widget))
-      const originalValues = JSON.parse(JSON.stringify(widget))
-      const seriesConfig = {
-        series_id: missingConfIds[0],
-        series_chart_type: widget.default_series_chart_type,
-      }
-      values.series_config.push(seriesConfig)
-      await this.app.$store.dispatch(`dashboardApplication/updateWidget`, {
-        widgetId: widget.id,
-        values,
-        originalValues,
-      })
-    }
-  }
-
-  isLoading(widget, data) {
-    const dataSourceId = widget.data_source_id
-    if (data[dataSourceId] && Object.keys(data[dataSourceId]).length !== 0) {
-      return false
-    }
-    return true
-  }
-
-  isAvailable(workspaceId) {
-    return this.app.$hasFeature(PremiumFeatures.PREMIUM, workspaceId)
-  }
-
-  getDeactivatedModal() {
-    return [
-      PaidFeaturesModal,
-      { 'initial-selected-type': ChartPaidFeature.getType() },
     ]
   }
 }

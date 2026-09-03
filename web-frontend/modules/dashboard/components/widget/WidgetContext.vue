@@ -4,7 +4,6 @@
       <li v-if="canBeDeleted" class="context__menu-item">
         <a
           class="context__menu-item-link context__menu-item-link--delete"
-          :class="{ 'context__menu-item-link--loading': isDeleteInProgress }"
           @click="deleteWidget()"
         >
           <i class="context__menu-item-icon iconoir-bin"></i>
@@ -17,7 +16,6 @@
 
 <script>
 import context from '@baserow/modules/core/mixins/context'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'WidgetContext',
@@ -32,11 +30,7 @@ export default {
       required: true,
     },
   },
-  data() {
-    return {
-      isDeleteInProgress: false,
-    }
-  },
+  emits: ['delete-widget'],
   computed: {
     canBeDeleted() {
       return this.$hasPermission(
@@ -47,17 +41,8 @@ export default {
     },
   },
   methods: {
-    async deleteWidget() {
-      this.isDeleteInProgress = true
-      try {
-        await this.$store.dispatch(
-          'dashboardApplication/deleteWidget',
-          this.widget.id
-        )
-      } catch (error) {
-        notifyIf(error, 'dashboard')
-      }
-      this.isDeleteInProgress = false
+    deleteWidget() {
+      this.$emit('delete-widget', this.widget.id)
       if (this.$refs.context) {
         this.hide()
       }

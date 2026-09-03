@@ -30,7 +30,15 @@
 }
 
 .dashboard-app__content-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
   margin-bottom: 24px;
+}
+
+.dashboard-app__content-header-main {
+  min-width: 0;
 }
 
 .dashboard-app__title {

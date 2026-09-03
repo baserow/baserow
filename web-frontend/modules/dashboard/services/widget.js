@@ -11,6 +11,11 @@ export default (client) => {
     update(widgetId, values = {}) {
       return client.patch(`/dashboard/widgets/${widgetId}/`, values)
     },
+    updateLayout(dashboardId, widgets) {
+      return client.patch(`/dashboard/${dashboardId}/widgets/layout/`, {
+        widgets,
+      })
+    },
     delete(widgetId) {
       return client.delete(`/dashboard/widgets/${widgetId}/`)
     },

@@ -11,7 +11,7 @@ from baserow.contrib.dashboard.types import WidgetDict
 from baserow.contrib.dashboard.widgets.exceptions import WidgetImproperlyConfigured
 from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.dashboard.widgets.registries import WidgetType
-from baserow.contrib.dashboard.widgets.types import UpdatedWidget
+from baserow.contrib.dashboard.widgets.types import UpdatedWidget, WidgetGridLayout
 from baserow.core.services.registries import service_type_registry
 from baserow_premium.api.dashboard.widgets.serializers import (
     ChartSeriesConfigSerializer,
@@ -34,6 +34,14 @@ from baserow_premium.license.handler import LicenseHandler
 class ChartWidgetType(WidgetType):
     type = "chart"
     model_class = ChartWidget
+    grid_layout = WidgetGridLayout(
+        default_width=3,
+        default_height=9,
+        min_width=3,
+        min_height=8,
+        max_width=6,
+        max_height=16,
+    )
     serializer_field_names = [
         "data_source_id",
         "series_config",
@@ -245,6 +253,14 @@ class ChartWidgetType(WidgetType):
 class PieChartWidgetType(WidgetType):
     type = "pie_chart"
     model_class = PieChartWidget
+    grid_layout = WidgetGridLayout(
+        default_width=3,
+        default_height=9,
+        min_width=3,
+        min_height=8,
+        max_width=6,
+        max_height=16,
+    )
     serializer_field_names = [
         "data_source_id",
         "series_config",

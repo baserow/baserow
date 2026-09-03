@@ -1,15 +1,16 @@
 .dashboard-chart-widget {
-  // nothing
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 .dashboard-chart-widget__content {
-  height: 280px;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .dashboard-chart-widget__loading {
-  height: 341px;
-
-  .dashboard-chart-widget--with-header-description & {
-    height: 362.8px;
-  }
+  flex: 1 1 auto;
 }

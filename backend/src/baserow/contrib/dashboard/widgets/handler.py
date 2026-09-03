@@ -4,7 +4,7 @@ from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.contrib.dashboard.models import Dashboard
-from baserow.contrib.dashboard.types import WidgetDict
+from baserow.contrib.dashboard.types import WidgetDict, WidgetImportDict
 from baserow.contrib.dashboard.widgets.registries import (
     WidgetType,
     widget_type_registry,
@@ -15,6 +15,8 @@ from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import extract_allowed
 
 from .exceptions import WidgetDoesNotExist
+from .grid_layout import get_first_available_grid_position
+from .layout import WidgetLayoutHandler
 from .models import Widget
 from .types import UpdatedWidget, WidgetForUpdate
 
@@ -108,10 +110,125 @@ class WidgetHandler:
 
         return widgets
 
+    def get_widgets_for_update(self, dashboard: Dashboard) -> list[Widget]:
+        """Returns all active dashboard widgets locked for a layout mutation."""
+
+        return list(
+            Widget.objects.select_related(
+                "dashboard", "dashboard__workspace", "content_type"
+            )
+            .filter(dashboard=dashboard)
+            .select_for_update(of=("self",))
+            .order_by("id")
+        )
+
+    def get_last_grid_y(self, dashboard: Dashboard) -> int:
+        """Returns the first free row after every active widget in a dashboard."""
+
+        return max(
+            (
+                grid_y + grid_height
+                for grid_y, grid_height in Widget.objects.filter(
+                    dashboard=dashboard
+                ).values_list("grid_y", "grid_height")
+            ),
+            default=0,
+        )
+
+    def get_first_available_grid_position(
+        self,
+        widgets: Iterable[Widget],
+        grid_width: int,
+        grid_height: int,
+    ) -> tuple[int, int]:
+        """Returns the first row-major position where a widget can fit.
+
+        New widgets use their type's default dimensions. Scanning the canonical
+        six-column grid from top to bottom and left to right lets a widget fill an
+        existing compatible gap without moving any other widget.
+        """
+
+        return get_first_available_grid_position(
+            (WidgetLayoutHandler.from_widget(widget) for widget in widgets),
+            grid_width,
+            grid_height,
+        )
+
+    def initialize_uninitialized_widget_grid_layouts(
+        self, widgets: list[Widget]
+    ) -> None:
+        """Initializes layouts written by an application version without the grid.
+
+        During a zero-downtime deployment, an older application process omits the
+        grid fields when it creates a widget. The database defaults cannot encode
+        widget-type-specific dimensions, so those widgets are marked as uninitialized
+        and placed below the canonical layout by the first current process that sees
+        them.
+        """
+
+        uninitialized_widgets = [
+            widget for widget in widgets if not widget.grid_layout_initialized
+        ]
+        if not uninitialized_widgets:
+            return
+
+        next_grid_y = max(
+            (
+                widget.grid_y + widget.grid_height
+                for widget in widgets
+                if widget.grid_layout_initialized
+            ),
+            default=0,
+        )
+        for widget in sorted(
+            uninitialized_widgets, key=lambda widget: (widget.order, widget.id)
+        ):
+            grid_layout = widget.get_type().get_grid_layout()
+            widget.grid_x = 0
+            widget.grid_y = next_grid_y
+            widget.grid_width = grid_layout.default_width
+            widget.grid_height = grid_layout.default_height
+            widget.grid_layout_initialized = True
+            widget.save(
+                update_fields=[
+                    "grid_x",
+                    "grid_y",
+                    "grid_width",
+                    "grid_height",
+                    "grid_layout_initialized",
+                    "updated_on",
+                ]
+            )
+            next_grid_y += grid_layout.default_height
+
+    def place_restored_widget_at_bottom(self, widget: Widget) -> None:
+        """Places a restored widget after the active dashboard layout.
+
+        A widget can have been deleted while the remaining layout compacted. Restoring
+        it at its old coordinates could therefore overlap an active widget. Generic
+        trash restores preserve the current dashboard and append the widget instead;
+        undo actions subsequently apply their recorded layout delta.
+        """
+
+        grid_y = max(
+            (
+                other_grid_y + other_grid_height
+                for other_grid_y, other_grid_height in Widget.objects.filter(
+                    dashboard=widget.dashboard
+                )
+                .exclude(id=widget.id)
+                .values_list("grid_y", "grid_height")
+            ),
+            default=0,
+        )
+        widget.grid_y = grid_y
+        widget.save(update_fields=["grid_y", "updated_on"])
+
     def create_widget(
         self,
         widget_type: WidgetType,
         dashboard: Dashboard,
+        existing_widgets: Iterable[Widget] | None = None,
         **kwargs,
     ) -> Widget:
         """
@@ -125,12 +242,28 @@ class WidgetHandler:
 
         order = Widget.get_last_order(dashboard)
         allowed_values = extract_allowed(kwargs, widget_type.allowed_fields)
+        grid_layout = widget_type.get_grid_layout()
+        if existing_widgets is None:
+            existing_widgets = Widget.objects.filter(dashboard=dashboard)
+        grid_x, grid_y = self.get_first_available_grid_position(
+            existing_widgets,
+            grid_layout.default_width,
+            grid_layout.default_height,
+        )
 
         allowed_values["dashboard"] = dashboard
         allowed_values = widget_type.prepare_value_for_db(allowed_values)
 
         model_class = cast(Widget, widget_type.model_class)
-        widget = model_class(order=order, **allowed_values)
+        widget = model_class(
+            order=order,
+            grid_x=grid_x,
+            grid_y=grid_y,
+            grid_width=grid_layout.default_width,
+            grid_height=grid_layout.default_height,
+            grid_layout_initialized=True,
+            **allowed_values,
+        )
         widget._ensure_content_type_is_set()
         widget.full_clean()
         widget.save()
@@ -203,7 +336,7 @@ class WidgetHandler:
     def import_widget(
         self,
         dashboard: Dashboard,
-        serialized_widget: WidgetDict,
+        serialized_widget: WidgetImportDict,
         id_mapping: dict[str, dict[int, int]],
         files_zip: ExportZipFile | None = None,
         storage: Storage | None = None,
@@ -222,6 +355,22 @@ class WidgetHandler:
         """
 
         widget_type = widget_type_registry.get(serialized_widget["type"])
+        grid_fields = ("grid_x", "grid_y", "grid_width", "grid_height")
+
+        # Exports created before the grid layout was introduced do not carry
+        # geometry. Place those widgets one below another using the defaults of
+        # their type, instead of relying on the model defaults and overlapping
+        # every imported widget at (0, 0).
+        if not all(field in serialized_widget for field in grid_fields):
+            grid_layout = widget_type.get_grid_layout()
+            serialized_widget = {
+                **serialized_widget,
+                "grid_x": 0,
+                "grid_y": self.get_last_grid_y(dashboard),
+                "grid_width": grid_layout.default_width,
+                "grid_height": grid_layout.default_height,
+            }
+
         widget = widget_type.import_serialized(
             dashboard,
             serialized_widget,

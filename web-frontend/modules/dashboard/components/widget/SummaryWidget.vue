@@ -1,35 +1,6 @@
 <template>
-  <div
-    class="dashboard-summary-widget"
-    :class="{
-      'dashboard-summary-widget--with-header-description': widget.description,
-    }"
-  >
+  <div class="dashboard-summary-widget">
     <template v-if="!loading">
-      <div class="widget__header widget__header--no-border">
-        <div class="widget__header-main">
-          <div class="widget__header-title-wrapper">
-            <div class="widget__header-title">{{ widget.title }}</div>
-
-            <Badge
-              v-if="dataSourceMisconfigured"
-              color="red"
-              indicator
-              rounded
-              >{{ $t('widget.fixConfiguration') }}</Badge
-            >
-          </div>
-          <div v-if="widget.description" class="widget__header-description">
-            {{ widget.description }}
-          </div>
-        </div>
-        <WidgetContextMenu
-          v-if="isEditMode"
-          :widget="widget"
-          :dashboard="dashboard"
-          @delete-widget="$emit('delete-widget', $event)"
-        ></WidgetContextMenu>
-      </div>
       <div
         class="widget__content dashboard-summary-widget__summary"
         :class="{
@@ -45,16 +16,9 @@
 </template>
 
 <script>
-import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/WidgetContextMenu'
-
 export default {
   name: 'SummaryWidget',
-  components: { WidgetContextMenu },
   props: {
-    dashboard: {
-      type: Object,
-      required: true,
-    },
     widget: {
       type: Object,
       required: true,
@@ -70,7 +34,6 @@ export default {
       default: false,
     },
   },
-  emits: ['delete-widget'],
   computed: {
     dataSource() {
       return this.$store.getters[
@@ -81,11 +44,6 @@ export default {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/getDataForDataSource`
       ](this.dataSource?.id)
-    },
-    isEditMode() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/isEditMode`
-      ]
     },
     result() {
       if (this.dataSource) {
