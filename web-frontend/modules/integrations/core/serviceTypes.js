@@ -345,6 +345,21 @@ export class CoreInboundEmailTriggerServiceType extends TriggerServiceTypeMixin(
     return service.sample_data?.data?.body_html || null
   }
 
+  /**
+   * The trigger is only usable when the instance has an inbound email domain
+   * and webhook secret configured. When it isn't, the type stays visible in the
+   * add-node menu but is shown disabled with this reason.
+   */
+  isDeactivatedReason() {
+    // Availability is driven by the instance's inbound email domain, exposed to
+    // the frontend as public runtime config. The webhook secret is enforced on
+    // the backend and never exposed here, so the domain is used as the proxy.
+    if (!this.app.$config.public.baserowInboundEmailDomain) {
+      return this.app.$i18n.t('serviceType.inboundEmailTriggerDeactivated')
+    }
+    return null
+  }
+
   getOrder() {
     return 8.5
   }

@@ -51,6 +51,7 @@
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
     "inboundEmailTrigger": "Start workflow by email",
     "inboundEmailTriggerDescription": "Triggered when an email is received on the generated email address.",
+    "inboundEmailTriggerDeactivated": "Inbound email is not configured on this Baserow instance.",
     "coreManualTrigger": "Manual trigger",
     "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow.",
     "coreHTTPRequest": "Send an HTTP request",

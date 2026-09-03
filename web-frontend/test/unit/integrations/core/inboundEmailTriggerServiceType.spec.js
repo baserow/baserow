@@ -39,3 +39,27 @@ describe('CoreInboundEmailTriggerServiceType sample data', () => {
     expect(serviceType.getSampleDataHtml({})).toBe(null)
   })
 })
+
+describe('CoreInboundEmailTriggerServiceType deactivation', () => {
+  const makeType = (domain) =>
+    new CoreInboundEmailTriggerServiceType({
+      app: {
+        $i18n: { t: (key) => key },
+        $config: { public: { baserowInboundEmailDomain: domain } },
+      },
+    })
+
+  test('is deactivated with a reason when inbound email is unconfigured', () => {
+    const serviceType = makeType('')
+    expect(serviceType.isDeactivatedReason()).toBe(
+      'serviceType.inboundEmailTriggerDeactivated'
+    )
+    expect(serviceType.isDeactivated({})).toBe(true)
+  })
+
+  test('is active when inbound email is configured', () => {
+    const serviceType = makeType('inbound.example.com')
+    expect(serviceType.isDeactivatedReason()).toBe(null)
+    expect(serviceType.isDeactivated({})).toBe(false)
+  })
+})
