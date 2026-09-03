@@ -1,4 +1,9 @@
+import json
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
+
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
@@ -19,6 +24,7 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
@@ -42,13 +48,17 @@ def _bot(data_fixture, database):
 
 
 def _slack_answer(**overrides):
-    response = Mock()
-    response.json.return_value = {
+    body = {
         "ok": True,
         "channel": "C123",
         "ts": "1503435956.000247",
         **overrides,
     }
+    response = Mock()
+    response.json.return_value = body
+    # The service streams the body in, so it can stop an endpoint that sends
+    # more than this installation accepts.
+    response.iter_content.return_value = iter([json.dumps(body).encode()])
     return Mock(return_value=response)
 
 
@@ -162,7 +172,7 @@ def test_dispatching_refuses_a_row_service_carrying_a_bot(data_fixture):
     action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
-        action_type.dispatch(action, None)
+        action_type.dispatch(action, SimpleNamespace(field=button_field))
 
 
 @pytest.mark.django_db
@@ -329,7 +339,7 @@ def test_dispatching_refuses_a_bot_of_another_database(data_fixture):
     action_type = database_workflow_action_type_registry.get("slack_write_message")
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
-        action_type.dispatch(action, None)
+        action_type.dispatch(action, SimpleNamespace(field=button_field))
 
 
 @pytest.mark.django_db
@@ -422,3 +432,77 @@ def test_duplicating_a_field_keeps_a_bot_the_duplicator_can_read(data_fixture):
 
     (copied,) = DatabaseWorkflowAction.objects.filter(field=duplicated)
     assert copied.specific.service.integration_id == bot.id
+
+
+@pytest.mark.django_db
+def test_an_imported_action_survives_an_integration_id_that_is_not_a_number(
+    data_fixture,
+):
+    """
+    Nothing coerces the value on the import path the way the endpoint's
+    serializer does, so a hand-edited export must not fail the job with a
+    database error.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+    exported = action_type.export_serialized(action)
+    exported["service"]["integration_id"] = "not-a-number"
+
+    with deferred_callback_context():
+        imported = action_type.import_serialized(button_field, exported, {})
+
+    assert imported.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_a_click_does_not_read_the_field_again_for_every_action(data_fixture):
+    """
+    The dispatch already holds the field and hands it to the context. Reading
+    it back through each action costs two cold queries apiece, inside the lock
+    that guards the row.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    table = button_field.table
+    bot = _bot(data_fixture, table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    for _ in range(3):
+        DatabaseWorkflowActionService().create_workflow_action(
+            user,
+            action_type,
+            button_field,
+            service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+        )
+    row = table.get_model().objects.create()
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=_slack_answer(),
+    ):
+        with CaptureQueriesContext(connection) as queries:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    # The guard reads the field and then its table for every action, so this
+    # grows with the number of actions unless it uses the one the context
+    # already holds.
+    read_the_field = [
+        q
+        for q in queries.captured_queries
+        if '"database_field"' in q["sql"] or '"database_table"' in q["sql"]
+    ]
+    assert len(read_the_field) <= 2, (
+        f"the field and its table were read {len(read_the_field)} times for "
+        f"three actions: " + "\n".join(q["sql"][:120] for q in read_the_field)
+    )

@@ -274,6 +274,13 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         integration_id = id_mapping.get("integrations", {}).get(
             integration_id, integration_id
         )
+        try:
+            integration_id = int(integration_id)
+        except (TypeError, ValueError):
+            # Nothing coerces this the way the endpoint's serializer does, so
+            # a hand-edited export would otherwise fail the import job with a
+            # database error rather than an action that says what it needs.
+            return None
         return Integration.objects.filter(id=integration_id).first()
 
     def import_serialized(
@@ -528,7 +535,11 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         # as on save and on import, so a service that reached this state some
         # other way still cannot run.
         if service.integration_id is not None and not self._integration_is_usable(
-            service.integration, workflow_action.field
+            # The field the dispatch is for, which the context already holds.
+            # Reading it back through the action costs two cold queries per
+            # action, inside the lock that guards the row.
+            service.integration,
+            dispatch_context.field,
         ):
             raise ServiceImproperlyConfiguredDispatchException(
                 "A database service cannot use this integration."

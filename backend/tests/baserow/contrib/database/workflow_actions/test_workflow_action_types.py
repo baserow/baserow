@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.db import connection
@@ -146,8 +147,8 @@ def test_dispatching_refuses_a_service_carrying_an_integration(data_fixture):
     action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
-        # The guard runs before the context is used.
-        action_type.dispatch(action, None)
+        # The guard reads the field the dispatch is for from the context.
+        action_type.dispatch(action, SimpleNamespace(field=action.field))
 
 
 @pytest.mark.django_db
