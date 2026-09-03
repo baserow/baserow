@@ -485,6 +485,10 @@ def test_verify_totp_code_view(api_client, data_fixture):
                 "id": user.id,
                 "is_staff": False,
                 "language": "en",
+                "preferences": {
+                    "all_workspaces_sort_by": "last_viewed",
+                    "all_workspaces_view_mode": "expanded",
+                },
                 "username": user.email,
             },
             "user_notifications": {"unread_count": 0},
@@ -565,6 +569,10 @@ def test_verify_totp_backup_code_view(api_client, data_fixture):
             "id": user.id,
             "is_staff": False,
             "language": "en",
+            "preferences": {
+                "all_workspaces_sort_by": "last_viewed",
+                "all_workspaces_view_mode": "expanded",
+            },
             "username": user.email,
         },
         "user_notifications": {"unread_count": 0},

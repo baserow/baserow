@@ -242,6 +242,13 @@ class UserProfile(models.Model):
         blank=True,
         null=True,
     )
+    preferences = models.JSONField(
+        default=dict,
+        db_default={},
+        blank=True,
+        help_text="Values of the registered user preference types, keyed by type. "
+        "Only explicitly changed preferences are stored here.",
+    )
 
     def iat_before_last_password_change(self, iat: int) -> bool:
         """

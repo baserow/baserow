@@ -446,6 +446,15 @@ class CoreConfig(AppConfig):
         user_data_registry.register(GlobalPermissionsDataType())
         user_data_registry.register(UnreadUserNotificationsCountPermissionsDataType())
 
+        from baserow.core.preference_types import (
+            AllWorkspacesSortByPreferenceType,
+            AllWorkspacesViewModePreferenceType,
+        )
+        from baserow.core.user.registries import user_preference_type_registry
+
+        user_preference_type_registry.register(AllWorkspacesSortByPreferenceType())
+        user_preference_type_registry.register(AllWorkspacesViewModePreferenceType())
+
         from baserow.core.auth_provider.auth_provider_types import (
             PasswordAuthProviderType,
         )

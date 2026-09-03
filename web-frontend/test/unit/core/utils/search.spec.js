@@ -1,10 +1,9 @@
 import {
-  isTypeFilterActive,
   matchesQuery,
   splitHighlight,
-} from '@baserow/modules/core/utils/allWorkspacesSearch'
+} from '@baserow/modules/core/utils/search'
 
-describe('allWorkspacesSearch utils', () => {
+describe('search utils', () => {
   describe('matchesQuery', () => {
     test('matches the name case insensitively as a substring', () => {
       expect(matchesQuery('Dexter Industries', 1, 'dex')).toBe(true)
@@ -89,18 +88,6 @@ describe('allWorkspacesSearch utils', () => {
         { text: 'İ', matched: true },
         { text: 'stanbul', matched: false },
       ])
-    })
-  })
-
-  describe('isTypeFilterActive', () => {
-    test('is inactive when none or all types are selected', () => {
-      expect(isTypeFilterActive([], 4)).toBe(false)
-      expect(isTypeFilterActive(['a', 'b', 'c', 'd'], 4)).toBe(false)
-    })
-
-    test('is active for a partial selection', () => {
-      expect(isTypeFilterActive(['a'], 4)).toBe(true)
-      expect(isTypeFilterActive(['a', 'b', 'c'], 4)).toBe(true)
     })
   })
 })

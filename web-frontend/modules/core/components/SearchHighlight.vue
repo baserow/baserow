@@ -10,7 +10,7 @@
 </template>
 
 <script>
-import { splitHighlight } from '@baserow/modules/core/utils/allWorkspacesSearch'
+import { splitHighlight } from '@baserow/modules/core/utils/search'
 
 export default {
   name: 'SearchHighlight',

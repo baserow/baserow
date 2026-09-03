@@ -45,7 +45,7 @@ exports[`ChoiceElement > as default 1`] = `
             >
               <!--v-if-->
               <ul
-                class="select__items prevent-scroll"
+                class="select__items"
                 style="display: none;"
                 tabindex="-1"
               >
