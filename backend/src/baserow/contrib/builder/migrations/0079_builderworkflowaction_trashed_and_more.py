@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('builder', '0077_builder_breakpoints'),
+        ('builder', '0078_checkboxelement_label_format_and_more'),
     ]
 
     operations = [
