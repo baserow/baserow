@@ -4,6 +4,7 @@ from contextlib import aclosing
 from urllib.request import Request
 from uuid import uuid4
 
+from django.db import DEFAULT_DB_ALIAS
 from django.http import StreamingHttpResponse
 
 from asgiref.sync import sync_to_async
@@ -28,6 +29,7 @@ from baserow.api.sessions import (
     set_client_undo_redo_action_group_id,
     set_untrusted_client_session_id_from_request_or_raise_if_invalid,
 )
+from baserow.config.db_routers import set_db_alias
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow_enterprise.assistant.assistant import set_assistant_cancellation_key
@@ -186,6 +188,7 @@ class AssistantChatView(APIView):
                     "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
                 ]
             ),
+            404: get_error_schema(["ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"]),
         },
     )
     @validate_body(AssistantMessageRequestSerializer, return_validated=True)
@@ -193,6 +196,7 @@ class AssistantChatView(APIView):
         {
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            AssistantChatDoesNotExist: ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST,
             AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
             AssistantConfiguredModelNotAvailableError: (
                 ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE
@@ -211,6 +215,11 @@ class AssistantChatView(APIView):
         :return: A streaming response containing assistant events.
         """
 
+        # The selected model and its credentials are security-sensitive execution
+        # inputs. Read them from primary so a replica cannot revive a just-disabled
+        # model or superseded credential for the lifetime of this streamed request.
+        set_db_alias(DEFAULT_DB_ALIAS)
+
         ui_context = UIContext.from_validate_request(request, data["ui_context"])
         workspace_id = ui_context.workspace.id
         workspace = CoreHandler().get_workspace(workspace_id)
@@ -221,10 +230,12 @@ class AssistantChatView(APIView):
             context=workspace,
         )
 
+        handler = AssistantHandler()
+        chat = handler.get_existing_chat(request.user, workspace, chat_uuid)
         model_profile = resolve_assistant_model(workspace=workspace)
         check_lm_ready_or_raise(model_profile=model_profile)
-        handler = AssistantHandler()
-        chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
+        if chat is None:
+            chat, _ = handler.get_or_create_chat(request.user, workspace, chat_uuid)
 
         # Clearing the user websocket_id will make sure real-time updates are sent
         chat.user.web_socket_id = None
@@ -443,6 +454,10 @@ class AssistantOnboardingPromptSuggestionsView(APIView):
         :param data: The validated onboarding answers and requested language.
         :return: A response containing the generated prompt suggestions.
         """
+
+        # This endpoint executes the instance-selected model without performing a
+        # write first, so explicitly avoid resolving it from a lagging replica.
+        set_db_alias(DEFAULT_DB_ALIAS)
 
         model_profile = resolve_assistant_model()
         check_lm_ready_or_raise(model_profile=model_profile)

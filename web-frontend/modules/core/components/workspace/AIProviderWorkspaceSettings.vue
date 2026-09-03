@@ -151,6 +151,7 @@ import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIPro
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
 import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
+import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 
 export default {
   name: 'AIProviderWorkspaceSettings',
@@ -415,14 +416,9 @@ export default {
         }
         return true
       } catch (error) {
-        const modelInUse =
-          error.response?.data?.error === 'ERROR_AI_PROVIDER_MODEL_IN_USE'
         this.$store.dispatch('toast/error', {
           title: this.$t('aiProviderAdmin.actionError'),
-          message: modelInUse
-            ? this.$t('aiProviderAdmin.modelInUseError')
-            : error.response?.data?.detail?.message ||
-              error.response?.data?.detail,
+          message: aiProviderErrorMessage(error),
         })
         return false
       } finally {

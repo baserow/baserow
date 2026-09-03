@@ -25,7 +25,17 @@ def test_model_text_and_tool_calling(
     max_tokens: int,
     timeout_seconds: float = AI_PROVIDER_TEST_TIMEOUT_SECONDS,
 ) -> None:
-    """Make a time-bounded live request which must call a tool and return text."""
+    """Make a time-bounded live request which must call a tool and return text.
+
+    :param model: The pydantic-ai model to probe.
+    :param max_tokens: The token ceiling of the probe request.
+    :param timeout_seconds: The wall-clock budget for the whole probe.
+    :return: None.
+    :raises ModelToolCallingNotSupportedError: If the model declines or fails to call
+        the test tool.
+    :raises ModelTextResponseNotSupportedError: If the model returns no text output.
+    :raises TimeoutError: If the probe exceeds ``timeout_seconds``.
+    """
 
     async def run_test() -> None:
         async with asyncio.timeout(timeout_seconds):

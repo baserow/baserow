@@ -14,7 +14,13 @@ class AIProviderModelFeatureType(Instance):
     required_model_capabilities = (AI_PROVIDER_MODEL_CAPABILITY_TEXT,)
 
     def get_workspace_availability(self, workspace, state=None) -> dict:
-        """Return the client-facing effective availability for this feature."""
+        """Return the client-facing effective availability for this feature.
+
+        :param workspace: The workspace scope, or None for the instance scope.
+        :param state: An already-loaded state for the scope, avoiding a reload.
+        :return: ``is_enabled`` plus, for default-model features, the resolved
+            ``state`` the scope ended up in.
+        """
 
         if not self.supports_default_model:
             return {"is_enabled": True}
@@ -46,7 +52,12 @@ class AIProviderModelFeatureTypeRegistry(Registry[AIProviderModelFeatureType]):
         ]
 
     def get_required_model_capabilities(self, feature_types: list[str]) -> list[str]:
-        """Return the ordered capabilities needed by the selected features."""
+        """Return the ordered capabilities needed by the selected features.
+
+        :param feature_types: The persisted feature identifiers of one model, which
+            may name a feature no longer registered by this installation.
+        :return: The capabilities the model must pass, always including text.
+        """
 
         required = {AI_PROVIDER_MODEL_CAPABILITY_TEXT}
         for feature_type in feature_types:
@@ -69,7 +80,12 @@ class AIProviderModelFeatureTypeRegistry(Registry[AIProviderModelFeatureType]):
         feature_types: list[str],
         capability_results: dict[str, dict],
     ) -> list[dict]:
-        """Derive user-facing feature results from reusable capability probes."""
+        """Derive user-facing feature results from reusable capability probes.
+
+        :param feature_types: The features the tested model is eligible for.
+        :param capability_results: The per-capability probe outcome of that model.
+        :return: One entry per feature, failing when a capability it needs failed.
+        """
 
         results = []
         for feature_type in feature_types:
@@ -101,6 +117,13 @@ class AIProviderModelFeatureTypeRegistry(Registry[AIProviderModelFeatureType]):
         return results
 
     def get_workspace_availability(self, workspace, state=None) -> dict[str, dict]:
+        """Return the effective availability of every feature in one scope.
+
+        :param workspace: The workspace scope, or None for the instance scope.
+        :param state: An already-loaded state for the scope, avoiding a reload.
+        :return: The per-feature availability, keyed by feature type.
+        """
+
         from .resolution import get_ai_provider_state
 
         if state is None:

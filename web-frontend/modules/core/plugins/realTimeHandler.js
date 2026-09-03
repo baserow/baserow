@@ -3,6 +3,7 @@ import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import {
   FIRST_CONNECT_CURSOR,
   NO_REPLAY_AVAILABLE,
+  retryRealtimeRecovery,
 } from '@baserow/modules/core/plugins/realtimeProtocol'
 import { useRuntimeConfig } from '#imports'
 
@@ -525,7 +526,58 @@ export class RealTimeHandler {
       store.dispatch('auth/forceUpdateUserData', data.user_data)
     })
 
-    this.registerEvent('ai_provider_updated', ({ store }, data) => {
+    this.registerEvent('ai_provider_updated', async ({ store }, data) => {
+      if (data.requires_refresh === true) {
+        const recoveries = []
+        if (data.refresh_workspace_availability === true) {
+          recoveries.push(
+            retryRealtimeRecovery(async () => {
+              if (!store.getters['workspace/isLoaded']) {
+                throw new Error('Workspace state is not loaded yet.')
+              }
+              await store.dispatch('workspace/refreshAllGenerativeAIModels', {
+                realtimeRecovery: true,
+              })
+            })
+          )
+        }
+
+        if (
+          data.workspace_id === null &&
+          data.model_availability_updated === true
+        ) {
+          recoveries.push(
+            retryRealtimeRecovery(() =>
+              store.dispatch('settings/load', { realtimeRecovery: true })
+            )
+          )
+        }
+
+        const providerScopeIsActive = () =>
+          (store.getters['aiProvider/hasLoaded'] ||
+            store.getters['aiProvider/isLoading']) &&
+          store.getters['aiProvider/getWorkspaceId'] === data.workspace_id
+        if (
+          data.refresh_provider_settings === true &&
+          providerScopeIsActive()
+        ) {
+          recoveries.push(
+            retryRealtimeRecovery(() => {
+              if (!providerScopeIsActive()) {
+                return undefined
+              }
+              return store.dispatch('aiProvider/fetchInitial', {
+                workspaceId: data.workspace_id,
+                realtimeRecovery: true,
+              })
+            })
+          )
+        }
+
+        await Promise.all(recoveries)
+        return
+      }
+
       if (data.instance_ai_features !== undefined) {
         store.dispatch(
           'settings/forceUpdateAIFeatures',
@@ -543,23 +595,21 @@ export class RealTimeHandler {
         })
       }
 
-      if (store.getters['aiProvider/hasLoaded']) {
-        const workspaceId = store.getters['aiProvider/getWorkspaceId']
-        const providers =
-          workspaceId === null
-            ? data.instance_ai_providers
-            : data.ai_providers_by_workspace?.[workspaceId]
-        const featureSettings =
-          workspaceId === null
-            ? data.instance_ai_provider_feature_settings
-            : data.ai_provider_feature_settings_by_workspace?.[workspaceId]
-        if (providers !== undefined) {
-          store.dispatch('aiProvider/replaceFromRealtime', {
-            workspaceId,
-            providers,
-            featureSettings,
-          })
-        }
+      const workspaceId = store.getters['aiProvider/getWorkspaceId']
+      const providers =
+        workspaceId === null
+          ? data.instance_ai_providers
+          : data.ai_providers_by_workspace?.[workspaceId]
+      const featureSettings =
+        workspaceId === null
+          ? data.instance_ai_provider_feature_settings
+          : data.ai_provider_feature_settings_by_workspace?.[workspaceId]
+      if (providers !== undefined) {
+        store.dispatch('aiProvider/replaceFromRealtime', {
+          workspaceId,
+          providers,
+          featureSettings,
+        })
       }
     })
 

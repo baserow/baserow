@@ -3,7 +3,8 @@ Centralized model configuration and per-model settings for all agents.
 
 Contains:
 - ``resolve_assistant_model()``: Freezes model selection for one logical request.
-- ``check_lm_ready_or_raise()``: Quick connectivity check.
+- ``ResolvedAssistantModelProfile``: The frozen selection, able to build the model.
+- ``check_lm_ready_or_raise()``: Cached live compatibility check of that selection.
 - ``get_model_settings(model, role)``: Per-model, per-role settings.
 
 Usage::
@@ -25,6 +26,7 @@ from typing import Literal
 
 from django.conf import settings
 
+from loguru import logger
 from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
@@ -319,29 +321,14 @@ def resolve_assistant_model(
 def get_model_string(
     model: str | None = None, workspace: Workspace | None = None
 ) -> str:
-    """
-    Returns the model string for the pydantic-ai agent.
+    """Return the normalized model string for compatibility with existing callers.
 
-    :param model: The language model to use. If None, the default model from
-        settings will be used.
-    :param workspace: The workspace scope, or ``None`` for the instance scope.
-    :return: A model string compatible with pydantic-ai.
+    :param model: An explicit model identifier, or None to resolve the configured model.
+    :param workspace: The workspace scope, or None for the instance scope.
+    :return: A model string compatible with Pydantic AI.
     """
 
     return resolve_assistant_model(workspace=workspace, model=model).model_string
-
-
-def get_assistant_model(
-    workspace: Workspace | None = None, model: str | None = None
-) -> Model:
-    """Create a retrying model from one resolved assistant profile.
-
-    :param workspace: The workspace scope, or ``None`` for the instance scope.
-    :param model: An explicit model identifier that bypasses persisted selection.
-    :return: A retrying Pydantic AI model using the resolved credentials.
-    """
-
-    return resolve_assistant_model(workspace=workspace, model=model).create_model()
 
 
 def _model_readiness_cache_key(
@@ -420,6 +407,8 @@ def _check_process_local_model_ready(
             raise
 
         with _process_local_model_readiness_cache_lock:
+            # Legacy credentials come from the environment and cannot change while
+            # the process lives, so a success never needs re-probing here.
             _process_local_model_readiness_cache[model_string] = (float("inf"), True)
         return True
 
@@ -470,7 +459,18 @@ def check_lm_ready_or_raise(
                     test_model_text_and_tool_calling(
                         model, max_tokens=AI_PROVIDER_TEST_MAX_TOKENS
                     )
-                except Exception:
+                except Exception as exc:
+                    provider = model_profile.database_model.provider_config
+                    logger.warning(
+                        "[assistant] Compatibility probe failed for model '{}': {}",
+                        model_string,
+                        AIProviderHandler.sanitize_test_error(
+                            exc,
+                            AIProviderHandler.secret_values(
+                                provider.api_key, provider.extra_settings
+                            ),
+                        ),
+                    )
                     return False
                 else:
                     return True

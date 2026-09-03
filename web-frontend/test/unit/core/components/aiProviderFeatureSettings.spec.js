@@ -31,23 +31,27 @@ describe('AIProviderFeatureSettings', () => {
     if (key === 'aiProviderAdmin.kumaInheritedUnavailable') {
       return 'selected model unavailable in this workspace'
     }
+    if (key === 'aiProviderAdmin.modelScopeInstance') {
+      return 'Instance'
+    }
+    if (key === 'aiProviderAdmin.modelScopeWorkspace') {
+      return 'Workspace'
+    }
     return key
   }
 
-  const mountComponent = (legacyModel = '', props = {}) =>
-    testApp.mount(AIProviderFeatureSettings, {
+  const mountComponent = (legacyModel = '', props = {}) => {
+    // The component asks the feature type for its environment model, so the
+    // registered Kuma type is what has to report the value under test.
+    vi.spyOn(
+      testApp.$registry.get('aiProviderModelFeature', 'kuma'),
+      'getLegacyModel'
+    ).mockReturnValue(legacyModel)
+    return testApp.mount(AIProviderFeatureSettings, {
       props,
-      global: {
-        mocks: {
-          $config: {
-            public: {
-              baserowEnterpriseAssistantLlmModel: legacyModel,
-            },
-          },
-          $t: translate,
-        },
-      },
+      global: { mocks: { $t: translate } },
     })
+  }
 
   beforeEach(() => {
     testApp = new TestApp()
@@ -104,9 +108,15 @@ describe('AIProviderFeatureSettings', () => {
 
     const wrapper = await testApp.mount(AIProviderFeatureSettings)
 
-    expect(wrapper.vm.modelOptions('kuma')).toEqual([
-      { id: 2, name: 'OpenAI · shared-model' },
-      { id: 3, name: 'OpenAI · kuma-only-model' },
+    expect(wrapper.vm.modelGroups('kuma')).toEqual([
+      {
+        id: 1,
+        name: 'OpenAI',
+        models: [
+          { id: 2, name: 'shared-model' },
+          { id: 3, name: 'kuma-only-model' },
+        ],
+      },
     ])
 
     await wrapper.vm.updateSelection(setting, 'model:3')
@@ -158,27 +168,78 @@ describe('AIProviderFeatureSettings', () => {
     testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
       {
         feature_type: 'kuma',
-        mode: 'disabled',
-        state: 'disabled',
-        model: null,
+        mode: 'model',
+        state: 'overridden',
+        model: { id: 20 },
         inherited_model: null,
       },
     ])
 
-    const wrapper = await testApp.mount(AIProviderFeatureSettings, {
-      props: { workspaceId: 42 },
-    })
+    const wrapper = await mountComponent('', { workspaceId: 42 })
 
-    expect(wrapper.vm.modelOptions('kuma')).toEqual([
-      {
-        id: 10,
-        name: 'OpenAI · gpt-5.6 · aiProviderAdmin.modelScopeWorkspace',
-      },
-      {
-        id: 20,
-        name: 'OpenAI · gpt-5.6 · aiProviderAdmin.modelScopeInstance',
-      },
-    ])
+    const dropdown = wrapper.find('.dropdown')
+    expect(dropdown.find('.dropdown__selected-text').text()).toBe(
+      'OpenAI · Instance · gpt-5.6'
+    )
+
+    await dropdown.find('.dropdown__selected').trigger('click')
+    const modelRows = dropdown.findAll('.dropdown-section .select__item')
+    expect(
+      modelRows.map((row) => row.find('.select__item-name-text').text())
+    ).toEqual(['gpt-5.6', 'gpt-5.6'])
+
+    const search = dropdown.find('.select__search-input')
+    await search.setValue('Instance')
+    await search.trigger('keyup')
+
+    expect(modelRows[0].classes()).toContain('hidden')
+    expect(modelRows[1].classes()).toContain('visible')
+
+    testApp.store.commit('aiProvider/UPDATE_MODEL', {
+      id: 20,
+      model_identifier: 'gpt-5.7',
+      is_enabled: true,
+      feature_types: ['kuma'],
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(dropdown.find('.dropdown__selected-text').text()).toBe(
+      'OpenAI · Instance · gpt-5.7'
+    )
+  })
+
+  test('keeps each dropdown disabled until its own save resolves', async () => {
+    const settings = ['kuma', 'ai_fields'].map((featureType) => ({
+      feature_type: featureType,
+      mode: 'disabled',
+      state: 'disabled',
+      model: null,
+      inherited_model: null,
+    }))
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', null)
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', settings)
+    const resolvers = {}
+    vi.spyOn(testApp.store, 'dispatch').mockImplementation(
+      (action, payload) =>
+        new Promise((resolve) => {
+          resolvers[payload.featureType] = resolve
+        })
+    )
+
+    const wrapper = await mountComponent()
+    const first = wrapper.vm.updateSelection(settings[0], 'legacy')
+    const second = wrapper.vm.updateSelection(settings[1], 'legacy')
+
+    expect(wrapper.vm.savingFeatures).toEqual(['kuma', 'ai_fields'])
+
+    resolvers.ai_fields()
+    await second
+    // The slower save must still hold its own dropdown disabled.
+    expect(wrapper.vm.savingFeatures).toEqual(['kuma'])
+
+    resolvers.kuma()
+    await first
+    expect(wrapper.vm.savingFeatures).toEqual([])
   })
 
   test('shows and enables the configured legacy environment model', async () => {
@@ -346,6 +407,25 @@ describe('AIProviderFeatureSettings', () => {
     const wrapper = await mountComponent('groq:legacy-model', {
       workspaceId: 42,
     })
+    const inheritOption = wrapper.find('.select__item')
+
+    expect(inheritOption.text()).toBe('Use instance setting — Disabled')
+    expect(inheritOption.classes()).not.toContain('disabled')
+  })
+
+  test('allows inheriting an explicitly disabled instance without a legacy model', async () => {
+    const setting = {
+      feature_type: 'kuma',
+      mode: 'model',
+      state: 'overridden',
+      model: { id: 30 },
+      inherited_model: null,
+      inherited_state: 'disabled',
+    }
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [setting])
+
+    const wrapper = await mountComponent('', { workspaceId: 42 })
     const inheritOption = wrapper.find('.select__item')
 
     expect(inheritOption.text()).toBe('Use instance setting — Disabled')

@@ -12,7 +12,7 @@ from baserow.core.ai_provider.constants import (
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow_enterprise.assistant.model_profiles import (
     ResolvedAssistantModelProfile,
-    get_model_string,
+    resolve_assistant_model,
 )
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.toolset import InlineRefsToolset
@@ -50,13 +50,16 @@ def test_create_eval_assistant_passes_model_and_profile_name(data_fixture):
 
     assert result[-1] is toolset
     assert result[1].tool_helpers.model_profile.model_string == "openai:test-model"
-    assert get_model_string(workspace=workspace) == "openai:database-model"
+    assert (
+        resolve_assistant_model(workspace=workspace).model_string
+        == "openai:database-model"
+    )
     build_toolset.assert_called_once()
     assert build_toolset.call_args.kwargs == {
         "user": user,
         "workspace": workspace,
         "model": result[3],
-        "model_name": "openai:test-model",
+        "model_profile": result[1].tool_helpers.model_profile,
         "deps": result[1],
     }
     assert not isinstance(result[3], str)
@@ -81,7 +84,7 @@ def test_eval_tool_arg_repair_owns_the_concrete_model_lifecycle(data_fixture):
             InlineRefsToolset(
                 inner,
                 model=kwargs["model"],
-                model_name=kwargs["model_name"],
+                model_profile=kwargs["model_profile"],
             ),
             "database",
             "application",

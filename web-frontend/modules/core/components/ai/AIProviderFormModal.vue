@@ -126,6 +126,11 @@ import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProvi
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
 import modal from '@baserow/modules/core/mixins/modal'
 
+const defaultFeatureTypes = (registry) =>
+  registry
+    .getOrderedList('aiProviderModelFeature')
+    .map((feature) => feature.getType())
+
 export default {
   name: 'AIProviderFormModal',
   components: { AIProviderModelCombobox, AIProviderModelFeatureSelector },
@@ -139,9 +144,6 @@ export default {
   data() {
     const providerType =
       this.provider?.provider_type || this.providerTypes[0]?.type
-    const defaultFeatureTypes = this.$registry
-      .getOrderedList('aiProviderModelFeature')
-      .map((feature) => feature.getType())
     return {
       loading: false,
       providerTypeError: '',
@@ -158,7 +160,12 @@ export default {
       extraSettings: { ...(this.provider?.extra_settings || {}) },
       models: this.provider
         ? []
-        : [{ model_identifier: '', feature_types: defaultFeatureTypes }],
+        : [
+            {
+              model_identifier: '',
+              feature_types: defaultFeatureTypes(this.$registry),
+            },
+          ],
     }
   },
   computed: {
@@ -212,15 +219,10 @@ export default {
     },
   },
   methods: {
-    defaultFeatureTypes() {
-      return this.$registry
-        .getOrderedList('aiProviderModelFeature')
-        .map((feature) => feature.getType())
-    },
     emptyModel() {
       return {
         model_identifier: '',
-        feature_types: this.defaultFeatureTypes(),
+        feature_types: defaultFeatureTypes(this.$registry),
       }
     },
     addModel() {

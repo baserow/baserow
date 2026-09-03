@@ -61,6 +61,7 @@
 import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProviderModelCombobox'
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
 import modal from '@baserow/modules/core/mixins/modal'
+import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 
 export default {
   name: 'AIProviderModelFormModal',
@@ -176,19 +177,17 @@ export default {
         this.$emit('saved', result)
         this.hide()
       } catch (error) {
-        const errorCode = error.response?.data?.error
-        const detail = error.response?.data?.detail
-        const errorMessage = detail?.message || detail
-        if (errorCode === 'ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED') {
+        const errorMessage = aiProviderErrorMessage(error)
+        if (
+          error.response?.data?.error ===
+          'ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED'
+        ) {
           this.modelIdentifierError = errorMessage
           return
         }
         this.$store.dispatch('toast/error', {
           title: this.$t('aiProviderAdmin.saveModelError'),
-          message:
-            errorCode === 'ERROR_AI_PROVIDER_MODEL_IN_USE'
-              ? this.$t('aiProviderAdmin.modelInUseError')
-              : errorMessage,
+          message: errorMessage,
         })
       } finally {
         this.loading = false

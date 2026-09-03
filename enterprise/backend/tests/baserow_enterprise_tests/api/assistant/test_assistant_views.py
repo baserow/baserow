@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from django.core.cache import cache
+from django.db import DEFAULT_DB_ALIAS
 from django.test import override_settings
 from django.urls import reverse
 
@@ -206,17 +207,78 @@ def test_cannot_send_message_without_valid_workspace(
 
     # Test with workspace user doesn't belong to
     workspace = enterprise_data_fixture.create_workspace()
-    rsp = api_client.post(
-        reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
-        data={
-            "content": "Hello AI",
-            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+    with patch(
+        "baserow_enterprise.api.assistant.views.set_db_alias"
+    ) as mock_set_db_alias:
+        rsp = api_client.post(
+            reverse("assistant:chat_messages", kwargs={"chat_uuid": chat_uuid}),
+            data={
+                "content": "Hello AI",
+                "ui_context": {
+                    "workspace": {"id": workspace.id, "name": workspace.name}
+                },
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    mock_set_db_alias.assert_called_once_with(DEFAULT_DB_ALIAS)
+    assert rsp.status_code == 400
+    assert rsp.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow_enterprise.api.assistant.views.check_lm_ready_or_raise")
+@patch("baserow_enterprise.api.assistant.views.resolve_assistant_model")
+def test_cannot_reuse_chat_uuid_from_another_workspace(
+    mock_resolve_model,
+    mock_check_lm,
+    api_client,
+    enterprise_data_fixture,
+    enable_enterprise,
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    chat_workspace = enterprise_data_fixture.create_workspace(user=user)
+    requested_workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=chat_workspace)
+    url = reverse("assistant:chat_messages", kwargs={"chat_uuid": chat.uuid})
+    request_data = {
+        "content": "Hello AI",
+        "ui_context": {
+            "workspace": {
+                "id": requested_workspace.id,
+                "name": requested_workspace.name,
+            }
         },
+    }
+
+    response = api_client.post(
+        url,
+        data=request_data,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert rsp.status_code == 400
-    assert rsp.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
+    mock_resolve_model.assert_not_called()
+    mock_check_lm.assert_not_called()
+    assert not AssistantChatMessage.objects.filter(chat=chat).exists()
+
+    chat_workspace.workspaceuser_set.get(user=user).delete()
+    response = api_client.post(
+        url,
+        data=request_data,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
+    mock_resolve_model.assert_not_called()
+    mock_check_lm.assert_not_called()
+    assert not AssistantChatMessage.objects.filter(chat=chat).exists()
 
 
 @pytest.mark.django_db()
@@ -248,6 +310,7 @@ def test_send_message_creates_chat_if_not_exists(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -309,6 +372,7 @@ def test_send_message_closes_assistant_stream_on_early_close(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     lifecycle_events = []
@@ -362,6 +426,7 @@ def test_send_message_does_not_construct_assistant_before_stream_consumption(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     response = api_client.post(
@@ -414,6 +479,7 @@ def test_send_message_streams_response(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1002,6 +1068,7 @@ def test_send_message_streams_sources_from_tools(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1096,6 +1163,7 @@ def test_send_message_streams_thinking_messages_during_tool_execution(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1187,6 +1255,7 @@ def test_send_message_generates_chat_title_on_first_message(
     mock_chat.workspace = workspace
     mock_chat.user = user
     mock_chat.title = ""  # Empty title for new chat
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1265,6 +1334,7 @@ def test_send_message_does_not_generate_title_on_subsequent_messages(
     mock_chat.workspace = workspace
     mock_chat.user = user
     mock_chat.title = "Existing Chat Title"  # Already has title
+    mock_handler.get_existing_chat.return_value = mock_chat
     mock_handler.get_or_create_chat.return_value = (mock_chat, False)
 
     # Mock the assistant
@@ -1336,6 +1406,7 @@ def test_send_message_handles_ai_error_in_streaming(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1414,6 +1485,7 @@ def test_send_message_with_minimal_ui_context(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1488,6 +1560,7 @@ def test_send_message_with_database_builder_context(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1573,6 +1646,7 @@ def test_send_message_with_application_builder_context(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1681,6 +1755,7 @@ def test_send_message_with_automation_context(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant
@@ -1757,6 +1832,7 @@ def test_send_message_with_dashboard_context(
     mock_chat.uuid = chat_uuid
     mock_chat.workspace = workspace
     mock_chat.user = user
+    mock_handler.get_existing_chat.return_value = None
     mock_handler.get_or_create_chat.return_value = (mock_chat, True)
 
     # Mock the assistant

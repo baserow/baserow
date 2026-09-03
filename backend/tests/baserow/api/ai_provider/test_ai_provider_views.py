@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.db import DEFAULT_DB_ALIAS
 from django.shortcuts import reverse
 
 import pytest
@@ -950,6 +951,28 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
 
 
 @pytest.mark.django_db
+def test_testing_models_pins_provider_reads_to_primary(
+    api_client, staff_headers, enabled_ai_providers
+):
+    with (
+        patch("baserow.api.ai_provider.views.set_db_alias") as set_db_alias,
+        patch(
+            "baserow.api.ai_provider.views.AIProviderService.test_models",
+            return_value=[],
+        ),
+    ):
+        response = api_client.post(
+            reverse("api:ai_provider:test_models"),
+            {"model_ids": [1]},
+            format="json",
+            **staff_headers,
+        )
+
+    assert response.status_code == HTTP_200_OK
+    set_db_alias.assert_called_once_with(DEFAULT_DB_ALIAS)
+
+
+@pytest.mark.django_db
 def test_a_single_saved_model_uses_the_same_test_endpoint(
     api_client, staff_headers, enabled_ai_providers
 ):
@@ -1150,3 +1173,35 @@ def test_discovery_filters_do_not_reject_manual_google_model_identifiers(
         "gemini-2.0-flash",
         "gemini-future-custom-model",
     ]
+
+
+@pytest.mark.django_db
+def test_model_in_use_error_names_the_model_and_the_features_using_it(
+    api_client, staff_headers, enabled_ai_providers
+):
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-key"
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="glm5.2:cloud",
+        feature_types=["kuma"],
+    )
+    api_client.put(
+        reverse("api:ai_provider:feature_item", kwargs={"feature_type": "kuma"}),
+        {"mode": "model", "model_id": model.id},
+        format="json",
+        **staff_headers,
+    )
+
+    response = api_client.patch(
+        reverse("api:ai_provider:model_item", kwargs={"model_id": model.id}),
+        {"feature_types": []},
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_IN_USE"
+    assert "glm5.2:cloud" in response.json()["detail"]
+    assert "kuma" in response.json()["detail"]

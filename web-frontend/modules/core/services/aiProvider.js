@@ -1,16 +1,20 @@
+import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
+
 export default (client, workspaceId = null) => {
-  const config = () =>
-    workspaceId === null ? {} : { params: { workspace_id: workspaceId } }
+  const config = (realtimeRecovery = false) => ({
+    ...(workspaceId === null ? {} : { params: { workspace_id: workspaceId } }),
+    ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
+  })
 
   return {
-    fetchAll() {
-      return client.get('/ai-providers/', config())
+    fetchAll(realtimeRecovery = false) {
+      return client.get('/ai-providers/', config(realtimeRecovery))
     },
     fetchTypes() {
       return client.get('/ai-providers/types/', config())
     },
-    fetchFeatureSettings() {
-      return client.get('/ai-providers/features/', config())
+    fetchFeatureSettings(realtimeRecovery = false) {
+      return client.get('/ai-providers/features/', config(realtimeRecovery))
     },
     updateFeatureSetting(featureType, values) {
       return client.put(

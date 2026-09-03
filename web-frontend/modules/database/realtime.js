@@ -1,3 +1,4 @@
+import { retryRealtimeRecovery } from '@baserow/modules/core/plugins/realtimeProtocol'
 import { clone } from '@baserow/modules/core/utils/object'
 import { anyFieldsNeedFetch } from '@baserow/modules/database/store/field'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
@@ -14,9 +15,22 @@ import {
 export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('ai_provider_updated', async ({ store }, data) => {
     if (data.model_availability_updated && store.getters['field/isLoaded']) {
-      await Promise.allSettled([
-        store.dispatch('field/refreshLoadedFieldErrors'),
-      ])
+      if (
+        data.requires_refresh === true &&
+        data.refresh_workspace_availability === true
+      ) {
+        await retryRealtimeRecovery(() =>
+          store.dispatch('field/refreshLoadedFieldErrors', {
+            realtimeRecovery: true,
+          })
+        )
+      } else {
+        await Promise.allSettled([
+          store.dispatch('field/refreshLoadedFieldErrors', {
+            realtimeRecovery: true,
+          }),
+        ])
+      }
     }
   })
 
@@ -26,7 +40,9 @@ export const registerRealtimeEvents = (realtime) => {
       store.getters['field/isLoaded']
     ) {
       await Promise.allSettled([
-        store.dispatch('field/refreshLoadedFieldErrors'),
+        store.dispatch('field/refreshLoadedFieldErrors', {
+          realtimeRecovery: true,
+        }),
       ])
     }
   })

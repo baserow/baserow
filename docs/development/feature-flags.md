@@ -64,6 +64,11 @@ just b manage migrate_ai_provider_settings --scope workspace --apply
    the settings-write pause. This prevents one generation from resolving legacy
    settings while another resolves the imported database settings. Wildcard
    installations can now restore `FEATURE_FLAGS=*`.
+6. Republish any Application Builder site or Automation workflow that uses an AI
+   integration without its own provider override. Publications created before the
+   switch contain a snapshot of the inherited legacy workspace settings; republishing
+   replaces that snapshot with live database-backed workspace inheritance. Explicit
+   per-integration provider overrides remain self-contained and do not need this step.
 
 The command never prints credentials and preserves provider types already configured
 at the selected scope, so both imports are safe to run again — only missing

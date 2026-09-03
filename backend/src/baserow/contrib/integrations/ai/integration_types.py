@@ -7,6 +7,7 @@ from rest_framework import serializers
 from baserow.api.utils import validate_data
 from baserow.api.workspaces.serializers import get_generative_ai_settings_serializer
 from baserow.contrib.integrations.ai.models import AIIntegration
+from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application
@@ -15,9 +16,10 @@ from baserow.core.models import Application
 class AIIntegrationType(IntegrationType):
     """
     Integration type for connecting to generative AI providers. Allows users to either
-    inherit workspace-level AI settings (default) or override them per integration. If
-    a provider key is not present in ai_settings, it inherits from workspace settings.
-    If present, it overrides with the specified values.
+    inherit workspace-level AI settings (default) or override them per integration.
+    Explicit overrides are returned here. Otherwise, the database provider resolver
+    owns inheritance while that feature is enabled, and legacy workspace JSON remains
+    the fallback while it is disabled.
     """
 
     type = "ai"
@@ -78,8 +80,15 @@ class AIIntegrationType(IntegrationType):
         self, integration: AIIntegration, provider_type: str
     ) -> Dict[str, Any]:
         """
-        Get all settings for a specific provider, either from integration
-        settings or from workspace settings as fallback.
+        Get explicit settings for a provider, or its legacy workspace fallback.
+
+        With database providers enabled, an empty result deliberately tells the
+        generative AI model type to resolve the live workspace provider itself.
+
+        :param integration: The AI integration whose provider settings are requested.
+        :param provider_type: The generative AI provider type.
+        :return: Explicit or legacy provider settings, or an empty dictionary when
+            database-backed workspace inheritance should be used.
         """
 
         # Check if provider has overrides in integration settings
@@ -87,6 +96,9 @@ class AIIntegrationType(IntegrationType):
             provider_settings = integration.ai_settings[provider_type]
             if isinstance(provider_settings, dict):
                 return provider_settings
+
+        if feature_flag_is_enabled(FF_AI_PROVIDERS):
+            return {}
 
         # Fall back to workspace settings
         workspace = integration.application.workspace
@@ -137,9 +149,17 @@ class AIIntegrationType(IntegrationType):
         cache=None,
     ):
         """
-        Export the AI integration with materialized settings. When publishing, copy
-        workspace-level AI settings into the integration so it doesn't depend on
-        workspace (which will be None in published workflows).
+        Export the AI integration, materializing inherited legacy settings if needed.
+
+        Published applications recover their original workspace at dispatch time when
+        database providers are enabled, so only legacy JSON settings need to be copied.
+
+        :param instance: The integration to export.
+        :param import_export_config: Export behavior, including publishing state.
+        :param files_zip: Optional archive receiving exported files.
+        :param storage: Optional storage backend.
+        :param cache: Optional export cache.
+        :return: The serialized integration values.
         """
 
         serialized = super().export_serialized(
@@ -150,10 +170,13 @@ class AIIntegrationType(IntegrationType):
             cache=cache,
         )
 
-        # When publishing (is_publishing=True), materialize workspace settings into the
-        # integration so published workflows don't lose access to settings. This is
-        # because the published workflow does not have access to the workspace.
-        if import_export_config and import_export_config.is_publishing:
+        # Legacy published applications cannot recover workspace JSON at dispatch
+        # time, so materialize it while that resolver is still in use.
+        if (
+            import_export_config
+            and import_export_config.is_publishing
+            and not feature_flag_is_enabled(FF_AI_PROVIDERS)
+        ):
             workspace = instance.application.workspace
             if workspace and workspace.generative_ai_models_settings:
                 materialized_settings = dict(serialized.get("ai_settings", {}))

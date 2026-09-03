@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.integrations.ai.integration_types import AIIntegrationType
 from baserow.contrib.integrations.ai.models import AIAgentService, AIOutputType
+from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_string
 from baserow.core.generative_ai.exceptions import (
@@ -145,7 +146,7 @@ class AIAgentServiceType(ServiceType):
 
         if ai_type:
             try:
-                generative_ai_model_type_registry.get(ai_type)
+                ai_model_type = generative_ai_model_type_registry.get(ai_type)
             except GenerativeAITypeDoesNotExist as e:
                 raise DRFValidationError(
                     {"ai_generative_ai_type": f"AI type '{ai_type}' does not exist."}
@@ -163,9 +164,12 @@ class AIAgentServiceType(ServiceType):
                 provider_settings = integration_type.get_provider_settings(
                     integration, ai_type
                 )
-                available_models = provider_settings.get("models", [])
+                available_models = ai_model_type.call_get_enabled_models(
+                    workspace=integration.application.workspace,
+                    settings_override=provider_settings or None,
+                )
 
-                if available_models and ai_model not in available_models:
+                if ai_model not in available_models:
                     raise DRFValidationError(
                         {
                             "ai_generative_ai_model": f"Model '{ai_model}' is not available for provider '{ai_type}'."
@@ -222,23 +226,50 @@ class AIAgentServiceType(ServiceType):
         ai_model_type = generative_ai_model_type_registry.get(
             service.ai_generative_ai_type
         )
-        workspace = service.integration.application.workspace
         integration = service.integration.specific
         integration_type = AIIntegrationType()
+        workspace = integration.application.workspace
 
-        # Always get provider settings (which handles fallback to workspace settings).
-        # This ensures that published workflows can access settings correctly.
+        # Published applications have no direct workspace. Their dispatch contexts
+        # retain a path to the original Builder or Automation workspace.
+        if workspace is None:
+            page = getattr(dispatch_context, "page", None)
+            if page is not None:
+                workspace = page.builder.get_workspace()
+            else:
+                workflow = getattr(dispatch_context, "workflow", None)
+                if workflow is not None:
+                    workspace = workflow.get_original().automation.workspace
+
+        # This returns explicit integration settings, or the legacy workspace fallback
+        # while database-backed providers are disabled.
         provider_settings = integration_type.get_provider_settings(
             integration, service.ai_generative_ai_type
         )
+        settings_override = provider_settings or None
+
+        providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
+        if providers_enabled:
+            if settings_override is None and workspace is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The workspace context for the AI integration is missing."
+                )
+            available_models = ai_model_type.call_get_enabled_models(
+                workspace=workspace,
+                settings_override=settings_override,
+            )
+            if service.ai_generative_ai_model not in available_models:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"The AI model '{service.ai_generative_ai_model}' is not "
+                    f"available for provider '{service.ai_generative_ai_type}'."
+                )
 
         kwargs = {}
         if service.ai_temperature is not None:
             kwargs["temperature"] = service.ai_temperature
 
-        # Always pass provider settings (which may be from integration or workspace)
-        if provider_settings:
-            kwargs["settings_override"] = provider_settings
+        if settings_override is not None:
+            kwargs["settings_override"] = settings_override
 
         try:
             if service.ai_output_type == AIOutputType.CHOICE:

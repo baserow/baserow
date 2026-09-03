@@ -40,17 +40,13 @@ describe('AIProviderWorkspaceSettings', () => {
       .spyOn(testApp.store, 'dispatch')
       .mockResolvedValue(undefined)
 
+    vi.spyOn(
+      testApp.$registry.get('aiProviderModelFeature', 'kuma'),
+      'getLegacyModel'
+    ).mockReturnValue('groq:legacy-model')
+
     const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
       props: { workspace: { id: 42 } },
-      global: {
-        mocks: {
-          $config: {
-            public: {
-              baserowEnterpriseAssistantLlmModel: 'groq:legacy-model',
-            },
-          },
-        },
-      },
     })
     await flushPromises()
 

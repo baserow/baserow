@@ -25,6 +25,9 @@ from baserow_enterprise.assistant.deps import AgentMode
 
 if TYPE_CHECKING:
     from baserow_enterprise.assistant.deps import AssistantDeps
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
 
 # ---------------------------------------------------------------------------
 # Schema utilities
@@ -125,10 +128,17 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
        and rarely succeeds).
     """
 
-    def __init__(self, inner: AbstractToolset[AgentDepsT], model: Any, model_name: str):
+    def __init__(
+        self,
+        inner: AbstractToolset[AgentDepsT],
+        model: Any,
+        model_profile: "ResolvedAssistantModelProfile",
+    ):
         self._inner = inner
+        # The already-created model, so the fixer reuses this request's client
+        # instead of building another one from the profile.
         self._model = model
-        self._model_name = model_name
+        self._model_profile = model_profile
         self._original_validators: dict[str, Any] = {}
         self._schemas: dict[str, dict] = {}
 
@@ -155,7 +165,7 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         new = InlineRefsToolset(
             self._inner.visit_and_replace(visitor),
             model=self._model,
-            model_name=self._model_name,
+            model_profile=self._model_profile,
         )
         return new
 
@@ -227,12 +237,9 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
                 instructions=_FIXER_PROMPT,
                 name="fix_agent",
             )
-            from baserow_enterprise.assistant.model_profiles import (
-                UTILITY,
-                get_model_settings,
-            )
+            from baserow_enterprise.assistant.model_profiles import UTILITY
 
-            fixer_settings = get_model_settings(self._model_name, UTILITY)
+            fixer_settings = self._model_profile.get_settings(UTILITY)
             result = await run_agent_with_model(
                 fix_agent,
                 prompt,

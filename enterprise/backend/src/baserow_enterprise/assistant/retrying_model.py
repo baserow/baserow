@@ -303,7 +303,7 @@ _PROVIDER_FACTORIES: dict[str, Callable[[str, dict[str, str | None]], Model]] = 
     "groq": _make_groq,
     "anthropic": _make_anthropic,
     "ollama": _make_ollama,
-    # Both spellings resolve here; get_model_string() normalises them for sub-agents.
+    # Both spellings resolve here; resolve_assistant_model() normalises them.
     "google-gla": _make_google,
     "google": _make_google,
     "google-vertex": _make_google_vertex,

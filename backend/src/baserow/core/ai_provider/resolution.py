@@ -42,13 +42,19 @@ class ScopedAIProviderState:
         return self.workspace.id if self.workspace is not None else None
 
     def get_feature_setting(self, feature_type: str) -> AIProviderFeatureSetting | None:
-        """Return this scope's own setting, without falling back to the instance."""
+        """Return this scope's own setting, without falling back to the instance.
+
+        :param feature_type: The feature whose scoped setting is requested.
+        :return: The setting explicitly stored for this scope, or None.
+        """
 
         return self.feature_settings.get(feature_type)
 
     def get_instance_feature_setting(
         self, feature_type: str
     ) -> AIProviderFeatureSetting | None:
+        """Return the instance-wide setting a workspace scope may inherit."""
+
         return self.instance_feature_settings.get(feature_type)
 
 
@@ -155,7 +161,8 @@ def get_ai_provider_state(
         return load_ai_provider_state(workspaces)[workspace_id]
 
     return local_cache.get(
-        f"{AI_PROVIDER_STATE_LOCAL_CACHE_KEY}:{workspace_id or 'instance'}",
+        f"{AI_PROVIDER_STATE_LOCAL_CACHE_KEY}:"
+        f"{workspace_id if workspace_id is not None else 'instance'}",
         load_scope,
     )
 

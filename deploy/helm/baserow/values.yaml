@@ -22,7 +22,7 @@
 ## @param global.baserow.domain Configure the domain for the frontend application.
 ## @param global.baserow.backendDomain Configure the domain for the backend application.
 ## @param global.baserow.objectsDomain Configure the domain for the external facing minio api.
-## @param global.baserow.assistantLLMModel Configure the legacy fallback model for the AI assistant.
+## @param global.baserow.assistantLLMModel Configure the environment-based model for the AI assistant. When database-backed AI providers are enabled, it is the fallback.
 ## @param global.baserow.containerSecurityContext.enabled Enabled containers' Security Context
 ## @param global.baserow.containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
 ## @param global.baserow.containerSecurityContext.runAsUser Set containers' Security Context runAsUser

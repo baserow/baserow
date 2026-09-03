@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.db import IntegrityError
 from django.utils import timezone
@@ -35,7 +35,11 @@ from baserow.core.ai_provider.models import (
     AIProviderModel,
 )
 from baserow.core.ai_provider.registries import (
+    AIProviderModelFeatureType,
     ai_provider_model_feature_type_registry,
+)
+from baserow.core.generative_ai.capabilities import (
+    ModelTextResponseNotSupportedError,
 )
 from baserow.core.generative_ai.generative_ai_model_types import (
     GoogleGenerativeAIModelType,
@@ -107,7 +111,7 @@ def test_update_model_does_not_misreport_unexpected_integrity_error():
 
 
 def test_test_error_sanitization_redacts_overlapping_secrets_longest_first():
-    message = AIProviderHandler._sanitize_test_error(
+    message = AIProviderHandler.sanitize_test_error(
         Exception("failed with secret-token and secret"),
         ["secret", "secret-token", "", "secret-token"],
     )
@@ -117,7 +121,7 @@ def test_test_error_sanitization_redacts_overlapping_secrets_longest_first():
 
 
 def test_test_error_sanitization_ignores_empty_secrets_and_truncates():
-    message = AIProviderHandler._sanitize_test_error(
+    message = AIProviderHandler.sanitize_test_error(
         Exception("x" * 1001),
         [""],
     )
@@ -126,7 +130,7 @@ def test_test_error_sanitization_ignores_empty_secrets_and_truncates():
 
 
 def test_secret_values_ignores_non_string_extra_settings():
-    values = AIProviderHandler._secret_values(
+    values = AIProviderHandler.secret_values(
         "api-key",
         {
             "host": "secret-host",
@@ -665,6 +669,34 @@ def test_inherited_state_reports_why_an_instance_selection_is_unusable(data_fixt
 
 
 @pytest.mark.django_db
+def test_in_use_error_names_the_model_an_inherited_provider_resolves_through(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    instance_provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-key"
+    )
+    instance_model = AIProviderModel.objects.create(
+        provider_config=instance_provider,
+        model_identifier="instance-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=instance_model,
+    )
+
+    with pytest.raises(AIProviderModelInUse) as exc_info:
+        AIProviderHandler.set_workspace_provider_enabled(
+            workspace, instance_provider, False
+        )
+
+    assert exc_info.value.model_identifier == "instance-model"
+    assert exc_info.value.feature_types == [AI_PROVIDER_FEATURE_KUMA]
+
+
+@pytest.mark.django_db
 def test_selected_feature_model_cannot_be_made_unusable():
     provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
     model = AIProviderModel.objects.create(
@@ -773,3 +805,84 @@ def test_feature_selection_with_stale_model_raises_domain_error(
             AI_PROVIDER_FEATURE_MODE_MODEL,
             model=model,
         )
+
+
+def test_tool_capability_failure_redacts_secrets_from_the_reported_error():
+    """
+    Both capability errors reach the admin UI, so neither may carry a credential
+    the provider echoed back in its exception message.
+    """
+
+    model_type = MagicMock()
+    model_type.get_ai_model.return_value = MagicMock()
+
+    with patch(
+        "baserow.core.ai_provider.handler.test_model_text_and_tool_calling",
+        side_effect=ModelTextResponseNotSupportedError(
+            "connection to https://api.example.com?key=super-secret failed",
+            tool_called=False,
+        ),
+    ):
+        results = AIProviderHandler._test_text_and_tools(
+            model_type,
+            "model",
+            settings_override={"api_key": "super-secret", "models": ["model"]},
+            secret_values=["super-secret"],
+        )
+
+    for capability in (
+        AI_PROVIDER_MODEL_CAPABILITY_TEXT,
+        AI_PROVIDER_MODEL_CAPABILITY_TOOLS,
+    ):
+        assert results[capability]["status"] == AIProviderModel.TestStatus.FAILURE
+        assert "super-secret" not in results[capability]["error"]
+        assert "[redacted]" in results[capability]["error"]
+
+
+@pytest.mark.django_db
+def test_in_use_error_pairs_the_named_model_with_only_its_own_features(monkeypatch):
+    """
+    One provider can serve two features through two different models; the reported
+    features must be the ones actually using the reported model.
+    """
+
+    class FirstFeatureType(AIProviderModelFeatureType):
+        type = "first_feature"
+        supports_default_model = True
+
+    class SecondFeatureType(AIProviderModelFeatureType):
+        type = "second_feature"
+        supports_default_model = True
+
+    monkeypatch.setattr(
+        ai_provider_model_feature_type_registry,
+        "registry",
+        {
+            "first_feature": FirstFeatureType(),
+            "second_feature": SecondFeatureType(),
+        },
+    )
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    first_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="first-model",
+        feature_types=["first_feature"],
+    )
+    second_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="second-model",
+        feature_types=["second_feature"],
+    )
+    AIProviderHandler.update_feature_setting(
+        "first_feature", AI_PROVIDER_FEATURE_MODE_MODEL, model=first_model
+    )
+    AIProviderHandler.update_feature_setting(
+        "second_feature", AI_PROVIDER_FEATURE_MODE_MODEL, model=second_model
+    )
+
+    with pytest.raises(AIProviderModelInUse) as exc_info:
+        AIProviderHandler.delete_provider(provider)
+
+    assert exc_info.value.model_identifier == "first-model"
+    assert exc_info.value.feature_types == ["first_feature"]
+    assert second_model.id

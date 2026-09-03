@@ -12,4 +12,8 @@ export class AIFieldsAIProviderModelFeatureType extends AIProviderModelFeatureTy
   getDescription() {
     return this.$t('aiProviderModelFeature.aiFieldsDescription')
   }
+
+  getOrder() {
+    return 10
+  }
 }

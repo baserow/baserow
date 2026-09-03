@@ -1,3 +1,4 @@
+from django.db import DEFAULT_DB_ALIAS
 from django.shortcuts import reverse
 
 import pytest
@@ -64,6 +65,7 @@ def test_suggestions_returns_the_generated_suggestions(
         "baserow_enterprise.api.assistant.views.check_lm_ready_or_raise",
         return_value=None,
     )
+    set_db_alias = mocker.patch("baserow_enterprise.api.assistant.views.set_db_alias")
     run_sync = make_run_sync_mock(mocker)
 
     response = api_client.post(
@@ -77,6 +79,7 @@ def test_suggestions_returns_the_generated_suggestions(
     suggestions = response.json()["suggestions"]
     assert len(suggestions) == 4
     assert suggestions[0] == {"name": "Name 0", "prompt": "Prompt 0"}
+    set_db_alias.assert_called_once_with(DEFAULT_DB_ALIAS)
 
     assert run_sync.call_args.args[0] is not None
     user_prompt = run_sync.call_args.args[1]

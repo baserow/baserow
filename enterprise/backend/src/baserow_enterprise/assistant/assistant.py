@@ -173,7 +173,6 @@ class Assistant:
         self._model_profile = model_profile or resolve_assistant_model(
             workspace=self._workspace
         )
-        self._model_string = self._model_profile.model_string
         self._model = self._model_profile.create_model()
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
@@ -190,7 +189,7 @@ class Assistant:
                 user=self._user,
                 workspace=self._workspace,
                 model=self._model,
-                model_name=self._model_string,
+                model_profile=self._model_profile,
                 deps=self._deps,
             )
         )

@@ -1,5 +1,7 @@
 from typing import Dict, List, Union
 
+from django.conf import settings
+from django.db import DEFAULT_DB_ALIAS
 from django.db.models import Q, QuerySet, Value
 from django.http import QueryDict
 
@@ -8,6 +10,27 @@ from baserow.api.exceptions import (
     InvalidSortDirectionException,
     UnknownFieldProvided,
 )
+from baserow.config.db_routers import set_db_alias
+
+
+class RealtimeRecoveryPrimaryReadMixin:
+    """
+    Pins authenticated realtime recovery reads to the primary database.
+
+    Realtime refresh markers are emitted after a primary-database snapshot. Reading
+    their replacement data from a lagging replica could otherwise restore stale state
+    in the client. Authentication is deliberately completed before honoring the header
+    so anonymous callers cannot opt arbitrary public reads into primary traffic.
+    """
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if (
+            request.method == "GET"
+            and request.headers.get(settings.REALTIME_RECOVERY_HEADER) == "true"
+            and request.user.is_authenticated
+        ):
+            set_db_alias(DEFAULT_DB_ALIAS)
 
 
 class UnknownFieldRaisesExceptionSerializerMixin:

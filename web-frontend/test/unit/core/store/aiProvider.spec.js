@@ -53,11 +53,15 @@ describe('AI provider store', () => {
 
   test('fetchInitial loads providers and supported types', async () => {
     const committed = []
+    const storeState = makeState()
     await actions.fetchInitial.call(
       { $client: {} },
       {
-        commit: (type, payload) => committed.push([type, payload]),
-        state: makeState(),
+        commit: (type, payload) => {
+          mutations[type](storeState, payload)
+          committed.push([type, payload])
+        },
+        state: storeState,
       }
     )
 
@@ -76,6 +80,23 @@ describe('AI provider store', () => {
     expect(committed.at(-1)).toEqual(['SET_LOADING', false])
   })
 
+  test('fetchInitial marks dynamic recovery reads as primary-backed', async () => {
+    const storeState = makeState()
+
+    await actions.fetchInitial.call(
+      { $client: {} },
+      {
+        commit: (type, payload) => mutations[type](storeState, payload),
+        state: storeState,
+      },
+      { workspaceId: 42, realtimeRecovery: true }
+    )
+
+    expect(service.fetchAll).toHaveBeenCalledWith(true)
+    expect(service.fetchFeatureSettings).toHaveBeenCalledWith(true)
+    expect(service.fetchTypes).toHaveBeenCalledWith()
+  })
+
   test('fetchInitial claims the new scope before it awaits', async () => {
     const committed = []
     const storeState = makeState()
@@ -86,7 +107,10 @@ describe('AI provider store', () => {
     await actions.fetchInitial.call(
       { $client: {} },
       {
-        commit: (type, payload) => committed.push([type, payload]),
+        commit: (type, payload) => {
+          mutations[type](storeState, payload)
+          committed.push([type, payload])
+        },
         state: storeState,
       },
       { workspaceId: 42 }
@@ -111,7 +135,7 @@ describe('AI provider store', () => {
       })
     )
     const commit = (type, payload) => {
-      if (type === 'SET_WORKSPACE_ID') storeState.workspaceId = payload
+      mutations[type](storeState, payload)
       committed.push([type, payload])
     }
     const committed = []
@@ -174,9 +198,11 @@ describe('AI provider store', () => {
   })
 
   test('refresh replaces provider state without reloading provider types', async () => {
-    const commit = vi.fn()
     const storeState = makeState()
     storeState.loaded = true
+    const commit = vi.fn((type, payload) =>
+      mutations[type](storeState, payload)
+    )
 
     const providers = await actions.refresh.call(
       { $client: {} },
@@ -211,20 +237,143 @@ describe('AI provider store', () => {
         featureSettings: [{ feature_type: 'kuma', mode: 'model' }],
       }
     )
-    expect(commit).toHaveBeenCalledTimes(2)
+    expect(commit).toHaveBeenCalledTimes(4)
+    expect(commit).toHaveBeenCalledWith('BUMP_PROVIDERS_REVISION')
+    expect(commit).toHaveBeenCalledWith('BUMP_FEATURE_SETTINGS_REVISION')
     expect(commit).toHaveBeenCalledWith('SET_PROVIDERS', [{ id: 42 }])
     expect(commit).toHaveBeenCalledWith('SET_FEATURE_SETTINGS', [
       { feature_type: 'kuma', mode: 'model' },
     ])
   })
 
+  test('a stale same-scope refresh cannot overwrite a newer realtime snapshot', async () => {
+    const storeState = makeState()
+    storeState.loaded = true
+    storeState.workspaceId = 42
+    storeState.providers = [{ id: 'initial' }]
+    storeState.featureSettings = [{ feature_type: 'kuma', mode: 'disabled' }]
+    const commit = (type, payload) => mutations[type](storeState, payload)
+    let resolveProviders
+    let resolveFeatureSettings
+    service.fetchAll.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveProviders = resolve
+      })
+    )
+    service.fetchFeatureSettings.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFeatureSettings = resolve
+      })
+    )
+
+    const staleRefresh = actions.refresh.call(
+      { $client: {} },
+      { commit, state: storeState }
+    )
+    actions.replaceFromRealtime(
+      { commit, state: storeState },
+      {
+        workspaceId: 42,
+        providers: [{ id: 'realtime' }],
+        featureSettings: [{ feature_type: 'kuma', mode: 'model' }],
+      }
+    )
+    resolveProviders({ data: [{ id: 'stale-http' }] })
+    resolveFeatureSettings({
+      data: [{ feature_type: 'kuma', mode: 'legacy' }],
+    })
+    await staleRefresh
+
+    expect(storeState.providers).toEqual([{ id: 'realtime' }])
+    expect(storeState.featureSettings).toEqual([
+      { feature_type: 'kuma', mode: 'model' },
+    ])
+  })
+
+  test('realtime only supersedes the initial dataset it includes', async () => {
+    const storeState = makeState()
+    storeState.workspaceId = 42
+    const commit = (type, payload) => mutations[type](storeState, payload)
+    let resolveProviders
+    let resolveFeatureSettings
+    service.fetchAll.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveProviders = resolve
+      })
+    )
+    service.fetchFeatureSettings.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFeatureSettings = resolve
+      })
+    )
+
+    const initialFetch = actions.fetchInitial.call(
+      { $client: {} },
+      { commit, state: storeState },
+      { workspaceId: 42 }
+    )
+    actions.replaceFromRealtime(
+      { commit, state: storeState },
+      { workspaceId: 42, providers: [{ id: 'realtime' }] }
+    )
+    resolveProviders({ data: [{ id: 'stale-http' }] })
+    resolveFeatureSettings({
+      data: [{ feature_type: 'kuma', mode: 'legacy' }],
+    })
+    await initialFetch
+
+    expect(storeState.providers).toEqual([{ id: 'realtime' }])
+    expect(storeState.featureSettings).toEqual([
+      { feature_type: 'kuma', mode: 'legacy' },
+    ])
+  })
+
+  test('a local mutation supersedes an older same-scope refresh', async () => {
+    const storeState = makeState()
+    storeState.loaded = true
+    storeState.workspaceId = 42
+    storeState.providers = [{ id: 1, is_active: true }]
+    const commit = (type, payload) => mutations[type](storeState, payload)
+    let resolveProviders
+    let resolveFeatureSettings
+    service.fetchAll.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveProviders = resolve
+      })
+    )
+    service.fetchFeatureSettings.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFeatureSettings = resolve
+      })
+    )
+
+    const staleRefresh = actions.refresh.call(
+      { $client: {} },
+      { commit, state: storeState }
+    )
+    await actions.update.call(
+      { $client: {} },
+      { commit, state: storeState },
+      { providerId: 1, values: { is_active: false }, workspaceId: 42 }
+    )
+    resolveProviders({ data: [{ id: 1, is_active: true }] })
+    resolveFeatureSettings({ data: [] })
+    await staleRefresh
+
+    expect(storeState.providers).toEqual([{ id: 1, is_active: false }])
+  })
+
   test('workspace actions scope all requests to the workspace', async () => {
     const committed = []
+    const initialState = makeState()
     await actions.fetchInitial.call(
       { $client: {} },
       {
-        commit: (type, payload) => committed.push([type, payload]),
-        state: makeState(),
+        commit: (type, payload) => {
+          mutations[type](initialState, payload)
+          committed.push([type, payload])
+        },
+        state: initialState,
       },
       { workspaceId: 42 }
     )
@@ -276,11 +425,9 @@ describe('AI provider store', () => {
     const storeState = makeState()
     storeState.workspaceId = 42
     storeState.loaded = true
+    const commit = (type, payload) => mutations[type](storeState, payload)
 
-    await actions.refresh.call(
-      { $client: {} },
-      { commit: vi.fn(), state: storeState }
-    )
+    await actions.refresh.call({ $client: {} }, { commit, state: storeState })
 
     expect(aiProviderService).toHaveBeenCalledWith({}, 42)
   })
@@ -386,7 +533,10 @@ describe('AI provider store', () => {
     )
 
     expect(service.testModels).toHaveBeenCalledWith(values)
-    expect(committed).toEqual([['UPDATE_MODEL_TEST_RESULTS', results]])
+    expect(committed).toEqual([
+      ['BUMP_PROVIDERS_REVISION', undefined],
+      ['UPDATE_MODEL_TEST_RESULTS', results],
+    ])
 
     const state = makeState()
     state.providers = [

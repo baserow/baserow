@@ -292,6 +292,8 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         organization = self.get_organization(workspace, settings_override)
         base_url = self.get_base_url(workspace, settings_override)
         provider = OpenAIProvider(api_key=api_key, base_url=base_url)
+        # No provider takes an organization, and passing our own client would move
+        # its lifecycle out of the provider.
         provider.client.organization = organization
         return OpenAIResponsesModel(model_name, provider=provider)
 
@@ -738,6 +740,8 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         api_key = self.get_api_key(workspace, settings_override)
         organization = self.get_organization(workspace, settings_override)
         provider = OpenRouterProvider(api_key=api_key)
+        # No provider takes an organization, and passing our own client would move
+        # its lifecycle out of the provider.
         provider.client.organization = organization
         return OpenAIChatModel(model_name, provider=provider)
 

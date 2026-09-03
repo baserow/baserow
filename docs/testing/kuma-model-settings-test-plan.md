@@ -693,5 +693,3 @@ and verify nothing from this feature leaks into the old path:
   (4.6).
 - Removing a model's **AI fields** eligibility silently empties the AI field form's
   dropdowns rather than explaining itself (6.3).
-
-

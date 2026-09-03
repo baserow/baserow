@@ -27,6 +27,9 @@ if TYPE_CHECKING:
 
     from baserow.core.models import Workspace
     from baserow_enterprise.assistant.deps import AssistantDeps
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
 
 
 class AssistantToolType(Instance):
@@ -79,7 +82,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         user: "AbstractUser",
         workspace: "Workspace",
         model: Any,
-        model_name: str,
+        model_profile: "ResolvedAssistantModelProfile",
         deps: "AssistantDeps",
     ) -> tuple[AbstractToolset, str, str, str, str]:
         """
@@ -87,8 +90,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
 
         :param user: The requesting user.
         :param workspace: The current workspace.
-        :param model: The resolved pydantic-ai model.
-        :param model_name: The provider-prefixed model identifier used for profiles.
+        :param model: The pydantic-ai model already created for this request.
+        :param model_profile: The frozen model resolution the request runs on.
         :param deps: The assistant deps (used for mode-aware filtering).
         :return: ``(toolset, database_manifest, application_manifest,
             automation_manifest, explain_manifest)``.
@@ -165,7 +168,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         manifests["explain"] = generate_tool_manifest_compact(explain_groups)
 
         return (
-            InlineRefsToolset(mode_aware, model=model, model_name=model_name),
+            InlineRefsToolset(mode_aware, model=model, model_profile=model_profile),
             manifests["database"],
             manifests["application"],
             manifests["automation"],

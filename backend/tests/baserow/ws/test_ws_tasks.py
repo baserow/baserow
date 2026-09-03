@@ -1,7 +1,9 @@
+from contextlib import contextmanager
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import DEFAULT_DB_ALIAS, connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from asgiref.sync import sync_to_async
@@ -11,9 +13,16 @@ from channels.testing import WebsocketCommunicator
 from baserow.config.asgi import application
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_KUMA
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.models import (
+    AIProviderConfig,
+    AIProviderFeatureSetting,
+    AIProviderModel,
+    AIProviderWorkspaceOverride,
+)
 from baserow.core.ai_provider.registries import (
     ai_provider_model_feature_type_registry,
 )
+from baserow.core.db import IsolationLevel
 from baserow.core.models import WORKSPACE_USER_PERMISSION_MEMBER
 from baserow.ws.tasks import (
     broadcast_ai_provider_instance_update,
@@ -123,6 +132,88 @@ def test_workspace_ai_provider_metadata_update_only_notifies_permitted_users(
 
 
 @pytest.mark.django_db
+def test_oversized_workspace_ai_provider_payloads_use_permission_scoped_markers(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        user=member,
+        workspace=workspace,
+        permissions=WORKSPACE_USER_PERMISSION_MEMBER,
+    )
+
+    with (
+        patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_MAX_ENVELOPE_BYTES", 1),
+        patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast,
+    ):
+        broadcast_ai_provider_update(workspace.id, True)
+
+    payloads_by_user = {
+        user_id: call.args[1]
+        for call in mock_broadcast.call_args_list
+        for user_id in call.args[0]
+    }
+    assert payloads_by_user[member.id] == {
+        "type": "ai_provider_updated",
+        "model_availability_updated": True,
+        "requires_refresh": True,
+        "workspace_id": workspace.id,
+        "refresh_workspace_availability": True,
+        "refresh_provider_settings": False,
+    }
+    assert payloads_by_user[admin.id] == {
+        **payloads_by_user[member.id],
+        "refresh_provider_settings": True,
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_ai_provider_renderer_is_primary_repeatable_and_cross_worker_locked(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    events = []
+
+    @contextmanager
+    def tracked_snapshot():
+        events.append("snapshot_entered")
+        yield
+        events.append("snapshot_exited")
+
+    with (
+        patch("django.core.cache.cache.lock") as mock_cache_lock,
+        patch(
+            "baserow.config.db_routers.set_db_alias",
+            return_value=DEFAULT_DB_ALIAS,
+        ) as mock_set_db_alias,
+        patch(
+            "baserow.core.db.transaction_atomic", return_value=tracked_snapshot()
+        ) as mock_atomic,
+        patch(
+            "baserow.ws.tasks.broadcast_to_users",
+            side_effect=lambda *_args, **_kwargs: events.append("sent"),
+        ),
+    ):
+        broadcast_ai_provider_update(workspace.id, True)
+
+    lock = mock_cache_lock.return_value
+    lock.acquire.assert_called_once_with()
+    lock.reacquire.assert_called()
+    lock.release.assert_called_once_with()
+    mock_set_db_alias.assert_called_with(DEFAULT_DB_ALIAS)
+    mock_atomic.assert_called_once_with(
+        using=DEFAULT_DB_ALIAS,
+        isolation_level=IsolationLevel.REPEATABLE_READ,
+    )
+    assert events.index("snapshot_exited") < events.index("sent")
+
+
+@pytest.mark.django_db
 def test_instance_ai_provider_update_schedules_bounded_workspace_batches(
     data_fixture,
 ):
@@ -190,6 +281,40 @@ def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(
             setting["feature_type"]
             for setting in payload["instance_ai_provider_feature_settings"]
         ] == ["kuma"]
+
+
+@pytest.mark.django_db
+def test_oversized_instance_provider_payload_uses_staff_only_refresh_marker(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    staff = data_fixture.create_user(is_staff=True)
+    data_fixture.create_user()
+
+    with (
+        patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_MAX_ENVELOPE_BYTES", 1),
+        patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast,
+    ):
+        broadcast_ai_provider_instance_update(True)
+
+    public_call = next(
+        call
+        for call in mock_broadcast.call_args_list
+        if call.kwargs.get("send_to_all_users") is True
+    )
+    assert "instance_ai_features" in public_call.args[1]
+
+    staff_call = next(
+        call for call in mock_broadcast.call_args_list if staff.id in call.args[0]
+    )
+    assert staff_call.args[1] == {
+        "type": "ai_provider_updated",
+        "model_availability_updated": True,
+        "requires_refresh": True,
+        "workspace_id": None,
+        "refresh_workspace_availability": False,
+        "refresh_provider_settings": True,
+    }
 
 
 @pytest.mark.django_db
@@ -821,3 +946,84 @@ def test_cleanup_task_runs_when_recording_enabled():
     cleanup_old_realtime_events()
 
     assert not RealtimeEvent.objects.filter(id=old_id).exists()
+
+
+@pytest.mark.django_db
+def test_workspace_ai_provider_broadcast_reuses_the_loaded_provider_state(
+    data_fixture, settings
+):
+    """
+    The broadcast loads every scope up front, so serializing the providers of a
+    workspace must not go back to the provider tables per workspace.
+    """
+
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.BASEROW_USE_LOCAL_CACHE = False
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+
+    with patch("baserow.ws.tasks.broadcast_to_users"):
+        with CaptureQueriesContext(connection) as queries:
+            broadcast_ai_provider_update(workspace.id, True)
+
+    provider_tables = {
+        AIProviderConfig._meta.db_table,
+        AIProviderModel._meta.db_table,
+        AIProviderFeatureSetting._meta.db_table,
+        AIProviderWorkspaceOverride._meta.db_table,
+    }
+    provider_queries = [
+        query["sql"]
+        for query in queries.captured_queries
+        if any(table in query["sql"] for table in provider_tables)
+    ]
+    assert len(provider_queries) == 4, provider_queries
+
+
+@pytest.mark.django_db
+def test_broadcast_keeps_instance_disabled_providers_and_models_private(
+    data_fixture, settings
+):
+    """
+    A workspace must never learn about an instance provider its admin disabled, nor
+    about the individual models disabled on an active one.
+    """
+
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    inactive_provider = AIProviderHandler.create_provider(
+        "anthropic",
+        api_key="hidden-secret",
+        models_data=[{"model_identifier": "hidden-model"}],
+    )
+    AIProviderHandler.update_provider(inactive_provider, is_active=False)
+    active_provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+    disabled_model = AIProviderModel.objects.create(
+        provider_config=active_provider,
+        model_identifier="disabled-model",
+        is_enabled=False,
+    )
+
+    with patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast:
+        broadcast_ai_provider_update(workspace.id, True)
+
+    payload = next(
+        call.args[1]
+        for call in mock_broadcast.call_args_list
+        if "ai_providers_by_workspace" in call.args[1]
+    )
+    providers = payload["ai_providers_by_workspace"][str(workspace.id)]
+
+    assert [provider["provider_type"] for provider in providers] == ["openai"]
+    assert [model["model_identifier"] for model in providers[0]["models"]] == ["gpt-5"]
+    assert disabled_model.id not in [model["id"] for model in providers[0]["models"]]

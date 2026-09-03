@@ -28,7 +28,8 @@ describe('database realtime AI provider updates', () => {
     )
 
     expect(store.dispatch).toHaveBeenCalledWith(
-      'field/refreshLoadedFieldErrors'
+      'field/refreshLoadedFieldErrors',
+      { realtimeRecovery: true }
     )
   })
 
@@ -51,6 +52,30 @@ describe('database realtime AI provider updates', () => {
     expect(store.dispatch).not.toHaveBeenCalled()
   })
 
+  test('uses primary recovery for an oversized availability marker', async () => {
+    const handlers = getHandlers()
+    const store = {
+      getters: {
+        'field/isLoaded': true,
+      },
+      dispatch: vi.fn().mockResolvedValue(),
+    }
+
+    await handlers.ai_provider_updated(
+      { store },
+      {
+        model_availability_updated: true,
+        requires_refresh: true,
+        refresh_workspace_availability: true,
+      }
+    )
+
+    expect(store.dispatch).toHaveBeenCalledWith(
+      'field/refreshLoadedFieldErrors',
+      { realtimeRecovery: true }
+    )
+  })
+
   test('refreshes cached field errors when workspace AI settings change', async () => {
     const handlers = getHandlers()
     const store = {
@@ -68,7 +93,8 @@ describe('database realtime AI provider updates', () => {
     )
 
     expect(store.dispatch).toHaveBeenCalledWith(
-      'field/refreshLoadedFieldErrors'
+      'field/refreshLoadedFieldErrors',
+      { realtimeRecovery: true }
     )
   })
 

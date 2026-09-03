@@ -34,7 +34,6 @@ from baserow_enterprise.assistant.exceptions import (
 from baserow_enterprise.assistant.model_profiles import (
     _clear_process_local_model_readiness_cache,
     check_lm_ready_or_raise,
-    get_assistant_model,
     get_model_string,
     resolve_assistant_model,
 )
@@ -1055,20 +1054,20 @@ class TestAssistantCancellation:
 
 
 @pytest.mark.django_db
-class TestGetModelString:
+class TestResolveAssistantModel:
     """Test the model string conversion logic."""
 
     @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="groq/llama-3.3-70b")
     def test_replaces_slash_with_colon(self):
-        assert get_model_string() == "groq:llama-3.3-70b"
+        assert resolve_assistant_model().model_string == "groq:llama-3.3-70b"
 
     @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="openai/gpt-4")
     def test_openai_model(self):
-        assert get_model_string() == "openai:gpt-4"
+        assert resolve_assistant_model().model_string == "openai:gpt-4"
 
     @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="gpt-4o")
     def test_bare_model_defaults_to_openai(self):
-        assert get_model_string() == "openai:gpt-4o"
+        assert resolve_assistant_model().model_string == "openai:gpt-4o"
 
     def test_unconfigured_database_feature_keeps_legacy_fallback(
         self, data_fixture, settings
@@ -1077,7 +1076,10 @@ class TestGetModelString:
         settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "groq:legacy-model"
         workspace = data_fixture.create_workspace()
 
-        assert get_model_string(workspace=workspace) == "groq:legacy-model"
+        assert (
+            resolve_assistant_model(workspace=workspace).model_string
+            == "groq:legacy-model"
+        )
 
     def test_process_local_readiness_is_cached_per_process_not_globally(self):
         _clear_process_local_model_readiness_cache()
@@ -1131,20 +1133,28 @@ class TestGetModelString:
             _clear_process_local_model_readiness_cache()
 
     def test_explicit_model_overrides_setting(self):
-        assert get_model_string("groq/custom-model") == "groq:custom-model"
+        assert (
+            resolve_assistant_model(model="groq/custom-model").model_string
+            == "groq:custom-model"
+        )
+
+    def test_get_model_string_compatibility_wrapper_accepts_positional_args(self):
+        workspace = MagicMock()
+
+        assert get_model_string("groq/custom-model", workspace) == "groq:custom-model"
 
     def test_google_gla_prefix_is_normalised(self):
         """Sub-agents pass this string straight to pydantic-ai's infer_model,
         which only accepts its own provider names."""
 
-        assert get_model_string("google-gla:gemini-2.0-flash") == (
-            "google:gemini-2.0-flash"
-        )
+        assert resolve_assistant_model(
+            model="google-gla:gemini-2.0-flash"
+        ).model_string == ("google:gemini-2.0-flash")
 
     def test_google_vertex_prefix_is_normalised(self):
-        assert get_model_string("google-vertex:gemini-2.0-flash") == (
-            "google-cloud:gemini-2.0-flash"
-        )
+        assert resolve_assistant_model(
+            model="google-vertex:gemini-2.0-flash"
+        ).model_string == ("google-cloud:gemini-2.0-flash")
 
     def test_uses_instance_model_and_workspace_override(self, data_fixture, settings):
         settings.FEATURE_FLAGS = ["ai-providers"]
@@ -1173,7 +1183,10 @@ class TestGetModelString:
             model=instance_model,
         )
 
-        assert get_model_string(workspace=workspace) == "openai:instance-model"
+        assert (
+            resolve_assistant_model(workspace=workspace).model_string
+            == "openai:instance-model"
+        )
 
         AIProviderHandler.update_feature_setting(
             AI_PROVIDER_FEATURE_KUMA,
@@ -1181,7 +1194,10 @@ class TestGetModelString:
             workspace=workspace,
             model=workspace_model,
         )
-        assert get_model_string(workspace=workspace) == "anthropic:workspace-model"
+        assert (
+            resolve_assistant_model(workspace=workspace).model_string
+            == "anthropic:workspace-model"
+        )
 
     @pytest.mark.parametrize(
         ("provider_type", "model_identifier"),
@@ -1216,9 +1232,11 @@ class TestGetModelString:
             model=model,
         )
 
-        assistant_model = get_assistant_model(workspace=workspace).wrapped
+        assistant_model = (
+            resolve_assistant_model(workspace=workspace).create_model().wrapped
+        )
 
-        assert get_model_string(workspace=workspace) == (
+        assert resolve_assistant_model(workspace=workspace).model_string == (
             f"{provider_type}:{model_identifier}"
         )
         assert assistant_model.system == provider_type
@@ -1239,7 +1257,7 @@ class TestGetModelString:
         )
 
         with pytest.raises(AssistantModelDisabledError, match="disabled"):
-            get_model_string(workspace=workspace)
+            resolve_assistant_model(workspace=workspace).model_string
 
     def test_database_model_readiness_failure_has_database_specific_error(
         self, data_fixture, settings

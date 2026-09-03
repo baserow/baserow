@@ -1096,7 +1096,6 @@
     "noFeatureModels": "No eligible models are available. Edit a model and choose which features may use it.",
     "featureSettingError": "The AI feature setting could not be saved.",
     "featureSettingErrorDescription": "Refresh the page and choose an available model.",
-    "modelInUseError": "Choose another model for the AI feature before changing this provider or model.",
     "modelDiscoveryHelp": "Choose a model from the list or enter any custom identifier.",
     "modelDiscoveryUnavailable": "Known model suggestions are unavailable. Enter an identifier manually.",
     "modelDiscoveryEmpty": "No known models for this provider. Enter an identifier manually.",

@@ -21,7 +21,7 @@
       </div>
       <Dropdown
         :value="selection(setting)"
-        :disabled="savingFeature === setting.feature_type"
+        :disabled="savingFeatures.includes(setting.feature_type)"
         :show-search="true"
         :aria-label="
           $t('aiProviderAdmin.featureModelLabel', {
@@ -30,6 +30,11 @@
         "
         @input="updateSelection(setting, $event)"
       >
+        <template #selectedValue>
+          <span class="dropdown__selected-text" :title="selectedLabel(setting)">
+            {{ selectedLabel(setting) }}
+          </span>
+        </template>
         <DropdownItem
           v-if="
             setting.state === 'invalid' &&
@@ -37,9 +42,9 @@
               (setting.mode === 'model' && workspaceId !== null))
           "
           :name="
-            legacyModel
+            legacyModel(setting)
               ? $t('aiProviderAdmin.kumaInvalidFallback', {
-                  model: legacyModelDisplay,
+                  model: legacyModelDisplay(setting),
                 })
               : $t('aiProviderAdmin.kumaInvalidNoFallback')
           "
@@ -47,10 +52,10 @@
           disabled
         />
         <DropdownItem
-          v-if="workspaceId === null"
-          :name="legacyModelLabel(true)"
+          v-if="workspaceId === null && supportsLegacyModel(setting)"
+          :name="legacyModelLabel(setting, true)"
           value="legacy"
-          :disabled="!legacyModel"
+          :disabled="!legacyModel(setting)"
         />
         <DropdownItem
           v-if="workspaceId !== null"
@@ -66,12 +71,23 @@
           "
           value="disabled"
         />
-        <DropdownItem
-          v-for="option in modelOptions(setting.feature_type)"
-          :key="option.id"
-          :name="option.name"
-          :value="`model:${option.id}`"
-        />
+        <DropdownSection
+          v-for="group in modelGroups(setting.feature_type)"
+          :key="group.id"
+          :title="group.name"
+        >
+          <DropdownItem
+            v-for="option in group.models"
+            :key="option.id"
+            :name="`${group.name} · ${option.name}`"
+            :value="`model:${option.id}`"
+            :indented="true"
+          >
+            <span class="select__item-name-text" :title="option.name">
+              {{ option.name }}
+            </span>
+          </DropdownItem>
+        </DropdownSection>
       </Dropdown>
     </div>
     <p v-if="!hasEligibleModels" class="ai-provider-feature-settings__hint">
@@ -87,7 +103,7 @@ export default {
     workspaceId: { type: Number, default: null },
   },
   data() {
-    return { savingFeature: null }
+    return { savingFeatures: [] }
   },
   computed: {
     settings() {
@@ -100,14 +116,8 @@ export default {
     },
     hasEligibleModels() {
       return this.settings.some(
-        (setting) => this.modelOptions(setting.feature_type).length > 0
+        (setting) => this.modelGroups(setting.feature_type).length > 0
       )
-    },
-    legacyModel() {
-      return this.$config.public.baserowEnterpriseAssistantLlmModel || ''
-    },
-    legacyModelDisplay() {
-      return this.legacyModel || this.$t('aiProviderAdmin.kumaLegacyEmpty')
     },
   },
   methods: {
@@ -122,6 +132,17 @@ export default {
     featureDescription(type) {
       return this.feature(type)?.getDescription() || ''
     },
+    supportsLegacyModel(setting) {
+      return this.feature(setting.feature_type)?.supportsLegacyModel() || false
+    },
+    legacyModel(setting) {
+      return this.feature(setting.feature_type)?.getLegacyModel() || ''
+    },
+    legacyModelDisplay(setting) {
+      return (
+        this.legacyModel(setting) || this.$t('aiProviderAdmin.kumaLegacyEmpty')
+      )
+    },
     providerName(provider) {
       const providerTypes = this.$store.getters['aiProvider/getTypes'](
         this.workspaceId
@@ -131,29 +152,27 @@ export default {
           ?.name || provider.provider_type
       )
     },
-    modelOptions(featureType) {
+    providerLabel(provider) {
+      const scope =
+        this.workspaceId === null
+          ? null
+          : provider.read_only
+            ? this.$t('aiProviderAdmin.modelScopeInstance')
+            : this.$t('aiProviderAdmin.modelScopeWorkspace')
+      return [this.providerName(provider), scope].filter(Boolean).join(' · ')
+    },
+    modelGroups(featureType) {
       return this.providers.flatMap((provider) => {
         if (!provider.is_active) return []
-        return provider.models
+        const models = provider.models
           .filter(
             (model) =>
               model.is_enabled &&
               (model.feature_types || []).includes(featureType)
           )
-          .map((model) => ({
-            id: model.id,
-            name: [
-              this.providerName(provider),
-              model.model_identifier,
-              this.workspaceId === null
-                ? null
-                : provider.read_only
-                  ? this.$t('aiProviderAdmin.modelScopeInstance')
-                  : this.$t('aiProviderAdmin.modelScopeWorkspace'),
-            ]
-              .filter(Boolean)
-              .join(' · '),
-          }))
+          .map((model) => ({ id: model.id, name: model.model_identifier }))
+        if (models.length === 0) return []
+        return [{ id: provider.id, name: this.providerLabel(provider), models }]
       })
     },
     selection(setting) {
@@ -170,14 +189,45 @@ export default {
       }
       return setting.mode
     },
+    selectedLabel(setting) {
+      const selection = this.selection(setting)
+      if (selection.startsWith('model:')) {
+        const modelId = Number(selection.slice(6))
+        for (const group of this.modelGroups(setting.feature_type)) {
+          const model = group.models.find(
+            (candidate) => candidate.id === modelId
+          )
+          if (model) {
+            return `${group.name} · ${model.name}`
+          }
+        }
+        return setting.model?.model_identifier || ''
+      }
+      if (selection === 'invalid') {
+        return this.legacyModel(setting)
+          ? this.$t('aiProviderAdmin.kumaInvalidFallback', {
+              model: this.legacyModelDisplay(setting),
+            })
+          : this.$t('aiProviderAdmin.kumaInvalidNoFallback')
+      }
+      if (selection === 'legacy') {
+        return this.legacyModelLabel(setting, true)
+      }
+      if (selection === 'inherit') {
+        return this.inheritLabel(setting)
+      }
+      return this.workspaceId === null
+        ? this.$t('aiProviderAdmin.kumaDisabled')
+        : this.$t('aiProviderAdmin.kumaDisabledInWorkspace')
+    },
     inheritedState(setting) {
       if (setting.inherited_state !== undefined) {
         return setting.inherited_state
       }
       // A rolling deployment can still be serving a backend that omits the field.
       // Infer only what the instance-wide availability flag can prove.
-      return setting.feature_type === 'kuma' &&
-        this.$store.getters['settings/get'].kuma?.is_enabled === false
+      return this.$store.getters['settings/get'][setting.feature_type]
+        ?.is_enabled === false
         ? 'disabled'
         : 'unconfigured'
     },
@@ -199,28 +249,30 @@ export default {
       if (inheritedState === 'invalid') {
         return this.$t('aiProviderAdmin.kumaInheritedUnavailable')
       }
-      if (setting.feature_type === 'kuma') {
-        return this.legacyModelLabel()
+      if (this.supportsLegacyModel(setting)) {
+        return this.legacyModelLabel(setting)
       }
       return this.$t('aiProviderAdmin.kumaNotConfigured')
     },
-    legacyModelLabel(includeAction = false) {
+    legacyModelLabel(setting, includeAction = false) {
       return this.$t(
         includeAction
           ? 'aiProviderAdmin.kumaUseLegacy'
           : 'aiProviderAdmin.kumaLegacyFallback',
-        { model: this.legacyModelDisplay }
+        { model: this.legacyModelDisplay(setting) }
       )
     },
     inheritDisabled(setting) {
       // The backend refuses to inherit a selection this workspace cannot resolve.
-      if (this.inheritedState(setting) === 'invalid') {
+      const inheritedState = this.inheritedState(setting)
+      if (inheritedState === 'invalid') {
         return true
       }
       return (
-        setting.feature_type === 'kuma' &&
+        inheritedState === 'unconfigured' &&
+        this.supportsLegacyModel(setting) &&
         !setting.inherited_model &&
-        !this.legacyModel
+        !this.legacyModel(setting)
       )
     },
     inheritLabel(setting) {
@@ -233,7 +285,7 @@ export default {
       const values = selection.startsWith('model:')
         ? { mode: 'model', model_id: Number(selection.slice(6)) }
         : { mode: selection }
-      this.savingFeature = setting.feature_type
+      this.savingFeatures.push(setting.feature_type)
       try {
         await this.$store.dispatch('aiProvider/updateFeatureSetting', {
           featureType: setting.feature_type,
@@ -246,7 +298,9 @@ export default {
           message: this.$t('aiProviderAdmin.featureSettingErrorDescription'),
         })
       } finally {
-        this.savingFeature = null
+        this.savingFeatures = this.savingFeatures.filter(
+          (featureType) => featureType !== setting.feature_type
+        )
       }
     },
   },

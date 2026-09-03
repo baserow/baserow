@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.db import DEFAULT_DB_ALIAS
 from django.shortcuts import reverse
 
 import pytest
@@ -41,6 +42,31 @@ def test_get_settings(api_client):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["email_verification"] == "no_verification"
+
+
+@pytest.mark.django_db
+def test_realtime_recovery_only_pins_authenticated_settings_reads(
+    api_client, data_fixture
+):
+    _user, token = data_fixture.create_user_and_token()
+    recovery_header = {"HTTP_X_BASEROW_REALTIME_RECOVERY": "true"}
+
+    with patch(
+        "baserow.api.mixins.set_db_alias",
+        return_value=DEFAULT_DB_ALIAS,
+    ) as mock_set_db_alias:
+        response = api_client.get(
+            reverse("api:settings:get"),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+            **recovery_header,
+        )
+        assert response.status_code == HTTP_200_OK
+        mock_set_db_alias.assert_called_with(DEFAULT_DB_ALIAS)
+
+        mock_set_db_alias.reset_mock()
+        response = api_client.get(reverse("api:settings:get"), **recovery_header)
+        assert response.status_code == HTTP_200_OK
+        mock_set_db_alias.assert_not_called()
 
 
 @pytest.mark.django_db

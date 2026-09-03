@@ -86,12 +86,14 @@ class AIProviderHandler:
     def _workspace_provider_config(
         provider: AIProviderConfig,
         workspace_enabled: bool = True,
+        models: list[AIProviderModel] | None = None,
     ) -> WorkspaceAIProviderConfig:
         """
         Build the secret-safe provider representation used by workspace APIs.
 
         :param provider: The owned or inherited provider to represent.
         :param workspace_enabled: Whether an inherited provider is enabled here.
+        :param models: The models to expose, when the caller already narrowed them.
         :return: The explicit workspace-scoped provider representation.
         """
 
@@ -101,7 +103,7 @@ class AIProviderHandler:
             provider_type=provider.provider_type,
             extra_settings={} if inherited else provider.extra_settings,
             is_active=provider.is_active and workspace_enabled,
-            models=list(provider.models.all()),
+            models=list(provider.models.all()) if models is None else models,
             workspace_enabled=workspace_enabled,
             read_only=inherited,
         )
@@ -157,13 +159,18 @@ class AIProviderHandler:
     def list_providers(
         cls,
         workspace: Workspace | None = None,
+        state: ScopedAIProviderState | None = None,
     ) -> list[AIProviderConfig | WorkspaceAIProviderConfig]:
         """
         List providers visible in an instance or workspace scope.
 
         :param workspace: The workspace scope, or None for the instance scope.
+        :param state: An already-loaded state for the scope, avoiding a reload.
         :return: Instance providers or secret-safe workspace representations.
         """
+
+        if state is not None:
+            return cls._providers_from_state(state)
 
         queryset = AIProviderConfig.objects.prefetch_related("models").order_by("id")
         if workspace is None:
@@ -182,6 +189,38 @@ class AIProviderHandler:
                 provider, provider.id not in disabled_provider_ids
             )
             for provider in inherited
+        ]
+        return sorted(providers, key=lambda provider: provider.id)
+
+    @classmethod
+    def _providers_from_state(
+        cls, state: ScopedAIProviderState
+    ) -> list[AIProviderConfig | WorkspaceAIProviderConfig]:
+        """
+        Build the same visible provider list from an already-loaded scope.
+
+        The state holds every row of the scope unfiltered, so the instance-privacy
+        filters that ``_inherited_scope``/``_models_prefetch`` apply in SQL have to
+        be applied here instead.
+
+        :param state: The loaded state of the instance or workspace scope.
+        :return: Instance providers or secret-safe workspace representations.
+        """
+
+        if state.workspace is None:
+            return sorted(state.instance_providers.values(), key=lambda p: p.id)
+
+        providers = [
+            cls._workspace_provider_config(provider)
+            for provider in state.owned_providers.values()
+        ] + [
+            cls._workspace_provider_config(
+                provider,
+                provider.id not in state.disabled_instance_provider_ids,
+                models=[model for model in provider.models.all() if model.is_enabled],
+            )
+            for provider in state.instance_providers.values()
+            if provider.is_active
         ]
         return sorted(providers, key=lambda provider: provider.id)
 
@@ -608,21 +647,26 @@ class AIProviderHandler:
             if setting.feature_type in registered_feature_types
         ]
         if workspace is not None and provider.workspace_id is None:
-            used_features = {
-                resolution["feature_type"]
+            used_models = {
+                resolution["feature_type"]: resolution["model"]
                 for resolution in cls.list_feature_settings(workspace)
                 if resolution["model"] is not None
                 and resolution["model"].provider_config_id == provider.id
             }
         else:
-            used_features = {setting.feature_type for setting in provider_settings}
-        if used_features:
-            model_identifier = (
-                provider_settings[0].model.model_identifier
-                if provider_settings
-                else provider.provider_type
+            used_models = {
+                setting.feature_type: setting.model for setting in provider_settings
+            }
+        if used_models:
+            model = used_models[sorted(used_models)[0]]
+            raise AIProviderModelInUse(
+                model.model_identifier,
+                sorted(
+                    feature_type
+                    for feature_type, used in used_models.items()
+                    if used.id == model.id
+                ),
             )
-            raise AIProviderModelInUse(model_identifier, sorted(used_features))
 
     @staticmethod
     def _is_feature_model_available(
@@ -630,6 +674,15 @@ class AIProviderHandler:
         feature_type: str,
         state: ScopedAIProviderState,
     ) -> bool:
+        """
+        Check whether a feature can resolve through a model in one scope.
+
+        :param model: The selected model, or None when nothing is selected.
+        :param feature_type: The feature the model must be eligible for.
+        :param state: The already-loaded provider state of the scope.
+        :return: Whether the model is enabled, eligible and reachable in the scope.
+        """
+
         if model is None or not model.is_enabled:
             return False
         if feature_type not in model.feature_types:
@@ -652,6 +705,16 @@ class AIProviderHandler:
         workspace: Workspace | None = None,
         state: ScopedAIProviderState | None = None,
     ) -> list[dict[str, Any]]:
+        """
+        Resolve the effective default-model setting of every feature in a scope.
+
+        :param workspace: The workspace scope, or None for the instance scope.
+        :param state: An already-loaded state for the scope, avoiding a reload.
+        :return: One entry per default-model feature, holding its ``feature_type``,
+            selection ``mode``, effective ``model``, resolved ``state`` and the
+            instance-level ``inherited_model``/``inherited_state`` it falls back to.
+        """
+
         if state is None:
             state = get_ai_provider_state(workspace)
         workspace = state.workspace
@@ -921,7 +984,7 @@ class AIProviderHandler:
         except Exception as exc:
             return {
                 "status": AI_PROVIDER_TEST_STATUS_FAILURE,
-                "error": cls._sanitize_test_error(exc, secret_values),
+                "error": cls.sanitize_test_error(exc, secret_values),
             }
         return {"status": AI_PROVIDER_TEST_STATUS_SUCCESS, "error": ""}
 
@@ -955,14 +1018,14 @@ class AIProviderHandler:
                 AI_PROVIDER_MODEL_CAPABILITY_TEXT: text_result,
                 AI_PROVIDER_MODEL_CAPABILITY_TOOLS: {
                     "status": AI_PROVIDER_TEST_STATUS_FAILURE,
-                    "error": cls._sanitize_test_error(exc, secret_values),
+                    "error": cls.sanitize_test_error(exc, secret_values),
                 },
             }
         except ModelTextResponseNotSupportedError as exc:
             return {
                 AI_PROVIDER_MODEL_CAPABILITY_TEXT: {
                     "status": AI_PROVIDER_TEST_STATUS_FAILURE,
-                    "error": cls._sanitize_test_error(exc, secret_values),
+                    "error": cls.sanitize_test_error(exc, secret_values),
                 },
                 AI_PROVIDER_MODEL_CAPABILITY_TOOLS: {
                     "status": (
@@ -970,11 +1033,15 @@ class AIProviderHandler:
                         if exc.tool_called
                         else AI_PROVIDER_TEST_STATUS_FAILURE
                     ),
-                    "error": "" if exc.tool_called else str(exc),
+                    "error": (
+                        ""
+                        if exc.tool_called
+                        else cls.sanitize_test_error(exc, secret_values)
+                    ),
                 },
             }
         except Exception as exc:
-            error = cls._sanitize_test_error(exc, secret_values)
+            error = cls.sanitize_test_error(exc, secret_values)
             failed = {"status": AI_PROVIDER_TEST_STATUS_FAILURE, "error": error}
             return {
                 AI_PROVIDER_MODEL_CAPABILITY_TEXT: failed,
@@ -1004,7 +1071,7 @@ class AIProviderHandler:
                 provider.provider_type,
                 model.model_identifier,
                 settings_override,
-                cls._secret_values(provider.api_key, provider.extra_settings),
+                cls.secret_values(provider.api_key, provider.extra_settings),
                 model.id,
                 model.feature_types,
             )
@@ -1025,13 +1092,13 @@ class AIProviderHandler:
         return results
 
     @staticmethod
-    def _secret_values(api_key: str, extra_settings: dict[str, Any]) -> list[str]:
+    def secret_values(api_key: str, extra_settings: dict[str, Any]) -> list[str]:
         return [api_key] + [
             value for value in extra_settings.values() if isinstance(value, str)
         ]
 
     @staticmethod
-    def _sanitize_test_error(exc: Exception, secret_values: list[str]) -> str:
+    def sanitize_test_error(exc: Exception, secret_values: list[str]) -> str:
         message = get_user_friendly_error_message(exc)
         # Replace longer overlapping secrets first. Otherwise replacing a short
         # secret can leave the remainder of a longer secret visible.

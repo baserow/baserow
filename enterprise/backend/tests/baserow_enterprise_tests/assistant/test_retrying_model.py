@@ -698,7 +698,7 @@ class TestResolveModel:
     def test_google_cloud_prefix_still_routes_through_the_vertex_factory(
         self, monkeypatch
     ):
-        """get_model_string() normalises "google-vertex" to "google-cloud";
+        """resolve_assistant_model() normalises "google-vertex" to "google-cloud";
         _resolve_model must keep routing it to Baserow's own
         _make_google_vertex factory (with its per-call httpx client) rather
         than falling through to pydantic-ai's infer_model."""
@@ -712,7 +712,7 @@ class TestResolveModel:
         assert isinstance(model._provider, GoogleCloudProvider)
 
     def test_legacy_google_vertex_prefix_still_resolves(self, monkeypatch):
-        """A model string that was never re-normalised by get_model_string()
+        """A model string that was never re-normalised by resolve_assistant_model()
         (e.g. one saved before this fix) must keep working."""
 
         monkeypatch.setenv("GOOGLE_API_KEY", "test-key")

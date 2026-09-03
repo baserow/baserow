@@ -12,4 +12,16 @@ export class KumaAIProviderModelFeatureType extends AIProviderModelFeatureType {
   getDescription() {
     return this.$t('aiProviderModelFeature.kumaDescription')
   }
+
+  getOrder() {
+    return 20
+  }
+
+  supportsLegacyModel() {
+    return true
+  }
+
+  getLegacyModel() {
+    return this.app.$config.public.baserowEnterpriseAssistantLlmModel || ''
+  }
 }

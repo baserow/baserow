@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
 from rest_framework.permissions import IsAuthenticated
@@ -16,6 +16,8 @@ from baserow.api.errors import (
     ERROR_USER_INVALID_GROUP_PERMISSIONS,
     ERROR_USER_NOT_IN_GROUP,
 )
+from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
+from baserow.config.db_routers import set_db_alias
 from baserow.core.ai_provider.exceptions import (
     AIProviderDoesNotExist,
     AIProviderFeatureModelNotAvailable,
@@ -86,6 +88,24 @@ def _invalid_settings_error(
     )
 
 
+def _model_in_use_error(exc: AIProviderModelInUse) -> tuple[str, int, str]:
+    features = ", ".join(exc.feature_types)
+    # apply_exception_mapping calls .format() on the detail, so braces must be escaped.
+    detail = (
+        (
+            f"The model '{exc.model_identifier}' is selected by these AI features: "
+            f"{features}. Choose another model for them first."
+        )
+        .replace("{", "{{")
+        .replace("}", "}}")
+    )
+    return (
+        ERROR_AI_PROVIDER_MODEL_IN_USE[0],
+        ERROR_AI_PROVIDER_MODEL_IN_USE[1],
+        detail,
+    )
+
+
 EXCEPTION_MAP = {
     AIProviderDoesNotExist: ERROR_AI_PROVIDER_DOES_NOT_EXIST,
     AIProviderModelDoesNotExist: ERROR_AI_PROVIDER_MODEL_DOES_NOT_EXIST,
@@ -93,7 +113,7 @@ EXCEPTION_MAP = {
     AIProviderTypeAlreadyConfigured: ERROR_AI_PROVIDER_TYPE_ALREADY_CONFIGURED,
     AIProviderModelAlreadyConfigured: ERROR_AI_PROVIDER_MODEL_ALREADY_CONFIGURED,
     AIProviderIsReadOnly: ERROR_AI_PROVIDER_IS_READ_ONLY,
-    AIProviderModelInUse: ERROR_AI_PROVIDER_MODEL_IN_USE,
+    AIProviderModelInUse: _model_in_use_error,
     AIProviderFeatureModelNotAvailable: ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE,
     AIProviderFeatureModeNotAllowed: ERROR_AI_PROVIDER_FEATURE_MODE_NOT_ALLOWED,
     AIProviderModelFeatureTypeDoesNotExist: ERROR_AI_PROVIDER_MODEL_FEATURE_TYPE_DOES_NOT_EXIST,
@@ -146,7 +166,7 @@ def _serialize_feature_settings(settings, workspace_id: int | None, many=False):
     ).data
 
 
-class AIProviderFeaturesView(APIView):
+class AIProviderFeaturesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -190,7 +210,7 @@ class AIProviderFeatureView(APIView):
         return Response(_serialize_feature_settings(setting, workspace_id))
 
 
-class AIProvidersView(APIView):
+class AIProvidersView(RealtimeRecoveryPrimaryReadMixin, APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -372,6 +392,7 @@ class AIProviderModelsTestView(APIView):
     @map_exceptions(EXCEPTION_MAP)
     @validate_body(AIProviderModelsTestRequestSerializer, return_validated=True)
     def post(self, request, data):
+        set_db_alias(DEFAULT_DB_ALIAS)
         _ensure_feature_enabled()
         results = AIProviderService.test_models(
             request.user, workspace_id=_get_workspace_id(request), **data

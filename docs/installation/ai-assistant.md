@@ -63,6 +63,12 @@ to drain before ending the pause; otherwise different process generations can re
 different settings, or a workspace can change its legacy JSON after the command reads
 it.
 
+After the switch, republish each Application Builder site or Automation workflow that
+uses an AI integration without its own provider override. Older publications contain
+a snapshot of the inherited legacy workspace settings, while a new publication uses
+the live database-backed workspace provider. Integrations with an explicit provider
+override remain self-contained and do not need to be republished for this reason.
+
 This command imports Baserow's legacy AI provider configuration; it does not
 import `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` or the provider-native credentials
 used by Kuma. The assistant therefore stays on its legacy fallback until an

@@ -1,4 +1,5 @@
 import baseService from '@baserow/modules/core/crudTable/baseService'
+import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
 
 export default (client) => {
   return Object.assign(
@@ -8,8 +9,11 @@ export default (client) => {
       false
     ),
     {
-      fetchAll() {
-        return client.get('/workspaces/')
+      fetchAll(realtimeRecovery = false) {
+        return client.get(
+          '/workspaces/',
+          realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}
+        )
       },
       order(order) {
         return client.post('/workspaces/order/', {

@@ -53,6 +53,8 @@ export const state = () => ({
   items: [],
   selected: {},
   userIdsInSelected: new Set(),
+  aiModelRevisions: {},
+  aiFeatureRevisions: {},
 })
 
 export const mutations = {
@@ -88,6 +90,22 @@ export const mutations = {
   UPDATE_ITEM(state, { id, values }) {
     const index = state.items.findIndex((item) => item.id === id)
     Object.assign(state.items[index], state.items[index], values)
+  },
+  BUMP_AI_MODEL_REVISIONS(state, workspaceIds) {
+    for (const workspaceId of workspaceIds) {
+      state.aiModelRevisions[workspaceId] =
+        (state.aiModelRevisions[workspaceId] || 0) + 1
+    }
+  },
+  BUMP_AI_FEATURE_REVISIONS(state, workspaceIds) {
+    for (const workspaceId of workspaceIds) {
+      state.aiFeatureRevisions[workspaceId] =
+        (state.aiFeatureRevisions[workspaceId] || 0) + 1
+    }
+  },
+  CLEAR_AI_REVISIONS(state) {
+    state.aiModelRevisions = {}
+    state.aiFeatureRevisions = {}
   },
   ORDER_ITEMS(state, order) {
     state.items.forEach((workspace) => {
@@ -195,6 +213,7 @@ export const actions = {
    */
   clearAll({ commit, dispatch }) {
     commit('SET_ITEMS', [])
+    commit('CLEAR_AI_REVISIONS')
     commit('UNSELECT')
     commit('SET_LOADED', false)
     return dispatch('application/clearAll', undefined, { root: true })
@@ -210,12 +229,34 @@ export const actions = {
    */
   async fetchAll({ commit, dispatch, state }) {
     const { $client } = this
+    const requestModelRevisions = { ...state.aiModelRevisions }
+    const requestFeatureRevisions = { ...state.aiFeatureRevisions }
     commit('SET_LOADING', true)
 
     try {
       const { data } = await WorkspaceService($client).fetchAll()
+      const workspaces = data.map((workspace) => {
+        const current = state.items.find((item) => item.id === workspace.id)
+        if (current === undefined) {
+          return workspace
+        }
+        if (
+          state.aiModelRevisions[workspace.id] !==
+          requestModelRevisions[workspace.id]
+        ) {
+          workspace.generative_ai_models_enabled =
+            current.generative_ai_models_enabled
+        }
+        if (
+          state.aiFeatureRevisions[workspace.id] !==
+          requestFeatureRevisions[workspace.id]
+        ) {
+          workspace.ai_features = current.ai_features
+        }
+        return workspace
+      })
       commit('SET_LOADED', true)
-      commit('SET_ITEMS', data)
+      commit('SET_ITEMS', workspaces)
     } catch (error) {
       commit('SET_ITEMS', [])
     }
@@ -242,6 +283,10 @@ export const actions = {
     if (getters.get(workspaceId) === undefined) {
       return
     }
+    commit('BUMP_AI_MODEL_REVISIONS', [workspaceId])
+    if (aiFeatures !== undefined) {
+      commit('BUMP_AI_FEATURE_REVISIONS', [workspaceId])
+    }
     commit('UPDATE_ITEM', {
       id: workspaceId,
       values: {
@@ -254,22 +299,54 @@ export const actions = {
    * Refreshes enabled AI models for every locally loaded workspace without
    * replacing local UI and permission state.
    */
-  async refreshAllGenerativeAIModels({ commit, getters }) {
+  async refreshAllGenerativeAIModels({ commit, getters, state }, options = {}) {
     const { $client } = this
-    const { data } = await WorkspaceService($client).fetchAll()
+    const workspaceIds = state.items.map((workspace) => workspace.id)
+    commit('BUMP_AI_MODEL_REVISIONS', workspaceIds)
+    commit('BUMP_AI_FEATURE_REVISIONS', workspaceIds)
+    const requestModelRevisions = Object.fromEntries(
+      workspaceIds.map((workspaceId) => [
+        workspaceId,
+        state.aiModelRevisions[workspaceId],
+      ])
+    )
+    const requestFeatureRevisions = Object.fromEntries(
+      workspaceIds.map((workspaceId) => [
+        workspaceId,
+        state.aiFeatureRevisions[workspaceId],
+      ])
+    )
+    const { data } = await WorkspaceService($client).fetchAll(
+      options?.realtimeRecovery === true
+    )
 
     for (const refreshedWorkspace of data) {
-      if (getters.get(refreshedWorkspace.id) === undefined) {
+      if (
+        getters.get(refreshedWorkspace.id) === undefined ||
+        requestModelRevisions[refreshedWorkspace.id] === undefined
+      ) {
         continue
       }
-      commit('UPDATE_ITEM', {
-        id: refreshedWorkspace.id,
-        values: {
-          generative_ai_models_enabled:
-            refreshedWorkspace.generative_ai_models_enabled || {},
-          ai_features: refreshedWorkspace.ai_features || {},
-        },
-      })
+      const values = {}
+      if (
+        state.aiModelRevisions[refreshedWorkspace.id] ===
+        requestModelRevisions[refreshedWorkspace.id]
+      ) {
+        values.generative_ai_models_enabled =
+          refreshedWorkspace.generative_ai_models_enabled || {}
+      }
+      if (
+        state.aiFeatureRevisions[refreshedWorkspace.id] ===
+        requestFeatureRevisions[refreshedWorkspace.id]
+      ) {
+        values.ai_features = refreshedWorkspace.ai_features || {}
+      }
+      if (Object.keys(values).length > 0) {
+        commit('UPDATE_ITEM', {
+          id: refreshedWorkspace.id,
+          values,
+        })
+      }
     }
     return data
   },

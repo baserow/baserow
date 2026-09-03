@@ -28,6 +28,7 @@ from baserow.api.import_export.errors import (
 from baserow.api.import_export.serializers import ImportResourceSerializer
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
+from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -91,7 +92,7 @@ class ListExportWorkspaceApplicationsSerializer(serializers.Serializer):
     results = ExportApplicationsJobType().response_serializer_class(many=True)
 
 
-class WorkspacesView(APIView):
+class WorkspacesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(

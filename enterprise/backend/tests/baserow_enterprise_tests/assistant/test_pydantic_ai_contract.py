@@ -323,7 +323,7 @@ def test_google_provider_names_pydantic_ai_accepts():
     """Sub-agents (tools/database/agents.py, tools/shared/agents.py,
     tools/toolset.py) pass their model string straight to pydantic-ai's own
     infer_model, bypassing Baserow's _resolve_model, so the names
-    get_model_string() emits must exist in the real provider registry."""
+    resolve_assistant_model() emits must exist in the real provider registry."""
 
     from pydantic_ai.providers import infer_provider_class
 

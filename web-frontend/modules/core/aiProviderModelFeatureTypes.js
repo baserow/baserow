@@ -25,4 +25,20 @@ export class AIProviderModelFeatureType extends Registerable {
   getDescription() {
     return ''
   }
+
+  /**
+   * Whether this feature can fall back to a model configured through an
+   * environment variable when nothing is selected in the database.
+   */
+  supportsLegacyModel() {
+    return false
+  }
+
+  /**
+   * The environment-variable model this feature falls back to, empty when none
+   * is configured.
+   */
+  getLegacyModel() {
+    return ''
+  }
 }

@@ -16,6 +16,7 @@ export const state = () => ({
   loading: false,
   loaded: null,
   items: [],
+  errorRefreshGeneration: 0,
 })
 
 export const mutations = {
@@ -46,6 +47,9 @@ export const mutations = {
     state.loaded = value
       ? { tableId: value.tableId, viewId: value.viewId }
       : value
+  },
+  SET_ERROR_REFRESH_GENERATION(state, value) {
+    state.errorRefreshGeneration = value
   },
   ADD_ITEM(state, item) {
     state.items.push(item)
@@ -97,20 +101,27 @@ export const actions = {
    * Refreshes computed field errors for the table cached in the field store.
    * This preserves the existing field objects and view state.
    */
-  async refreshLoadedFieldErrors({ state, commit }) {
+  async refreshLoadedFieldErrors(
+    { state, commit },
+    { realtimeRecovery = false } = {}
+  ) {
     if (!state.loaded) {
       return
     }
 
     const loaded = { ...state.loaded }
+    const requestGeneration = state.errorRefreshGeneration + 1
+    commit('SET_ERROR_REFRESH_GENERATION', requestGeneration)
     const { $client } = this
     const { data } = await FieldService($client).fetchAll(
       loaded.tableId,
-      loaded.viewId
+      loaded.viewId,
+      realtimeRecovery
     )
 
     if (
       !state.loaded ||
+      state.errorRefreshGeneration !== requestGeneration ||
       state.loaded.tableId !== loaded.tableId ||
       state.loaded.viewId !== loaded.viewId
     ) {
@@ -135,9 +146,13 @@ export const actions = {
    * Fetches all the fields of a given table. The is mostly called when the user
    * selects a different table.
    */
-  async fetchAll({ commit, getters, dispatch }, { table, viewId = null }) {
+  async fetchAll(
+    { commit, getters, dispatch, state },
+    { table, viewId = null }
+  ) {
     const { $registry, $client } = this
     commit('SET_LOADING', true)
+    commit('SET_ERROR_REFRESH_GENERATION', state.errorRefreshGeneration + 1)
     commit('UNSELECT', {})
 
     try {

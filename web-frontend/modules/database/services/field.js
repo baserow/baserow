@@ -1,9 +1,13 @@
 import { getUndoRedoActionRequestConfig } from '@baserow/modules/database/utils/action'
+import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
 
 export default (client) => {
   return {
-    fetchAll(tableId, viewId) {
-      const config = { params: {} }
+    fetchAll(tableId, viewId, realtimeRecovery = false) {
+      const config = {
+        params: {},
+        ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
+      }
 
       if (viewId) {
         config.params.view = viewId

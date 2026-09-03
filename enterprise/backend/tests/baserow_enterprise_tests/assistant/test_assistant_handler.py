@@ -2,12 +2,43 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from baserow_enterprise.assistant.exceptions import AssistantChatDoesNotExist
 from baserow_enterprise.assistant.handler import AssistantHandler
 from baserow_enterprise.assistant.models import (
     AssistantChat,
     AssistantChatMessage,
     AssistantChatPrediction,
 )
+
+
+@pytest.mark.django_db
+def test_get_or_create_chat_rejects_uuid_from_another_workspace(
+    enterprise_data_fixture,
+):
+    user = enterprise_data_fixture.create_user()
+    chat_workspace = enterprise_data_fixture.create_workspace(user=user)
+    requested_workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=chat_workspace)
+
+    with pytest.raises(AssistantChatDoesNotExist):
+        AssistantHandler().get_or_create_chat(user, requested_workspace, chat.uuid)
+
+
+@pytest.mark.django_db
+def test_get_or_create_chat_rejects_uuid_from_another_user(
+    enterprise_data_fixture,
+):
+    owner = enterprise_data_fixture.create_user()
+    requester = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(
+        user=owner, members=[requester]
+    )
+    chat = AssistantChat.objects.create(user=owner, workspace=workspace)
+
+    with pytest.raises(AssistantChatDoesNotExist):
+        AssistantHandler().get_or_create_chat(requester, workspace, chat.uuid)
+
+    assert AssistantChat.objects.filter(uuid=chat.uuid).count() == 1
 
 
 @pytest.mark.asyncio

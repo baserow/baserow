@@ -3,8 +3,9 @@ Tests for GenerateAIValuesJob creation, validation, and job limiting.
 """
 
 from io import BytesIO
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
+from django.db import DEFAULT_DB_ALIAS
 from django.test.utils import override_settings
 
 import pytest
@@ -22,7 +23,35 @@ from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 from baserow_premium.fields.ai_field_output_types import ChoiceAIFieldOutputType
 from baserow_premium.fields.exceptions import AIFieldPromptInvalidError
+from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import GenerateAIValuesJob
+
+
+def test_run_refreshes_provider_state_from_primary_before_loading_the_field():
+    calls = Mock()
+    job_type = GenerateAIValuesJobType()
+    job = Mock(field_id=123)
+    calls.get_field.side_effect = RuntimeError("stop after the read boundary")
+
+    with (
+        patch(
+            "baserow_premium.fields.job_types.set_db_alias",
+            calls.set_db_alias,
+        ),
+        patch(
+            "baserow_premium.fields.job_types.clear_ai_provider_state_cache",
+            calls.clear_ai_provider_state_cache,
+        ),
+        patch.object(job_type, "_get_field", calls.get_field),
+        pytest.raises(RuntimeError, match="stop after the read boundary"),
+    ):
+        job_type.run(job, Mock())
+
+    assert calls.mock_calls == [
+        call.set_db_alias(DEFAULT_DB_ALIAS),
+        call.clear_ai_provider_state_cache(),
+        call.get_field(123),
+    ]
 
 
 @pytest.mark.django_db

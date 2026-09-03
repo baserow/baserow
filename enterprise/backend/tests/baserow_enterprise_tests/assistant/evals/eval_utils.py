@@ -226,7 +226,7 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
             user=user,
             workspace=workspace,
             model=resolved_model,
-            model_name=model_profile.model_string,
+            model_profile=model_profile,
             deps=deps,
         )
     )
