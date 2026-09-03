@@ -195,7 +195,54 @@ def test_a_click_posts_the_resolved_text_through_the_bot(data_fixture):
     assert call["headers"] == {"Authorization": "Bearer xoxb-secret"}
     assert call["params"] == {"channel": "#general", "text": "Hello Ada"}
     (dispatched,) = result.dispatched
-    assert dispatched.result.data["data"]["ts"] == "1503435956.000247"
+    assert dispatched.result.data["ts"] == "1503435956.000247"
+
+
+@pytest.mark.django_db
+def test_a_later_action_can_write_the_message_timestamp(data_fixture):
+    # What the explorer offers under the Slack action has to be where the
+    # provider reads it, or the second action fails on every click.
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    table = button_field.table
+    ts_field = data_fixture.create_text_field(table=table, name="Slack ts")
+    bot = _bot(data_fixture, table.database)
+    slack_type = database_workflow_action_type_registry.get("slack_write_message")
+    slack_action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        slack_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+    update_type = database_workflow_action_type_registry.get("local_baserow_update_row")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        update_type,
+        button_field,
+        service={
+            "table_id": table.id,
+            "row_id": "get('row.id')",
+            "field_mappings": [
+                {
+                    "field_id": ts_field.id,
+                    "value": f"get('previous_action.{slack_action.id}.ts')",
+                    "enabled": True,
+                }
+            ],
+        },
+    )
+    row = table.get_model().objects.create()
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=_slack_answer(),
+    ):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{ts_field.id}") == "1503435956.000247"
 
 
 @pytest.mark.django_db

@@ -140,7 +140,9 @@ class SlackWriteMessageServiceType(ServiceType):
         return {"data": response_data}
 
     def dispatch_transform(self, data):
-        return DispatchResult(data=data)
+        # Unwrapped like the HTTP and email services, so the answer sits where
+        # `generate_schema` says a later step can read it.
+        return DispatchResult(data=data["data"])
 
     def max_dispatch_seconds(self, service: SlackWriteMessageService) -> int:
         return SLACK_REQUEST_TIMEOUT_SECONDS

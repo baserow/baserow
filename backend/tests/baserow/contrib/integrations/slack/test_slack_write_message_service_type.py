@@ -73,8 +73,11 @@ def test_dispatch_slack_write_message_basic(data_fixture):
             timeout=10,
         )
 
-    assert dispatch_data.data["data"]["ok"] is True
-    assert "channel" in dispatch_data.data["data"]
+    # Unwrapped like the HTTP and email services, so `ok`, `channel` and
+    # `ts` sit where the schema says a later step can read them.
+    assert dispatch_data.data["ok"] is True
+    assert dispatch_data.data["channel"] == "C123456"
+    assert dispatch_data.data["ts"] == "1503435956.000247"
 
 
 @pytest.mark.django_db
