@@ -13,6 +13,9 @@ import pytest
 
 from baserow_enterprise.assistant.evals import registry, runner
 from baserow_enterprise.assistant.evals.types import EvalCase
+from baserow_enterprise.management.commands import (
+    assistant_eval_runner as eval_runner_command,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -294,12 +297,27 @@ class TestResultsEndpoint:
                 "name": "baseline",
                 "createdAt": "2026-08-25T10:00:00Z",
                 "metadata": {"model": "m", "git_branch": "b", "git_commit": "c"},
+                "repetitions": 2,
                 "runCount": 2,
+                "expectedRunCount": 2,
                 "averageRunLatencyMs": 6000.0,
                 "costSummary": {"total": {"cost": 0.05, "tokens": 120000}},
                 "annotationSummaries": [
-                    {"annotationName": "passed", "meanScore": 0.8},
-                    {"annotationName": "answer_quality", "meanScore": None},
+                    {
+                        "annotationName": "checklist",
+                        "meanScore": 0.9,
+                        "scoreCount": 2,
+                    },
+                    {
+                        "annotationName": "passed",
+                        "meanScore": 0.8,
+                        "scoreCount": 2,
+                    },
+                    {
+                        "annotationName": "answer_quality",
+                        "meanScore": None,
+                        "scoreCount": 0,
+                    },
                 ],
             }
         ]
@@ -312,7 +330,17 @@ class TestResultsEndpoint:
         assert dataset["name"] == "kuma-database"
         assert dataset["case_count"] == 1
         experiment = dataset["experiments"][0]
-        assert experiment["scores"] == {"passed": 0.8}
+        assert experiment["scores"] == {"checklist": 0.9, "passed": 0.8}
+        assert experiment["run_count"] == 2
+        assert experiment["expected_run_count"] == 2
+        assert experiment["repetitions"] == 2
+        assert experiment["scored_run_count"] == 2
+        assert experiment["score_counts"] == {
+            "checklist": 2,
+            "passed": 2,
+            "answer_quality": 0,
+        }
+        assert experiment["complete"] is True
         assert experiment["git_label"] == "b@c"
         assert experiment["time_s"] == 12.0
         assert experiment["cost"] == 0.05
@@ -320,6 +348,52 @@ class TestResultsEndpoint:
         assert experiment["link"] == (
             "http://localhost:6060/datasets/ds-node-1/compare?experimentId=exp-1"
         )
+
+    @pytest.mark.parametrize(
+        ("score_counts", "scored_run_count"),
+        [
+            ({"checklist": 1, "passed": 2}, 1),
+            ({"checklist": 2, "passed": 1}, 1),
+            ({"checklist": 0, "passed": 0}, 0),
+        ],
+        ids=("partial-checklist", "partial-passed", "all-skipped"),
+    )
+    def test_results_json_marks_incomplete_without_all_mandatory_scores(
+        self, monkeypatch, score_counts, scored_run_count
+    ):
+        _register_case("database/list-tables")
+        monkeypatch.setattr(runner, "_dataset_ids", {"kuma-database": "ds-node-1"})
+        summaries = [
+            {
+                "id": "exp-1",
+                "name": "candidate",
+                "runCount": 2,
+                "expectedRunCount": 2,
+                "annotationSummaries": [
+                    {
+                        "annotationName": name,
+                        "meanScore": 1.0 if count else None,
+                        "scoreCount": count,
+                    }
+                    for name, count in score_counts.items()
+                ],
+            }
+        ]
+        monkeypatch.setattr(runner, "_experiment_summaries", lambda node_id: summaries)
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/results.json")
+
+        experiment = json.loads(body)["datasets"][0]["experiments"][0]
+        assert experiment["run_count"] == 2
+        assert experiment["expected_run_count"] == 2
+        assert experiment["scored_run_count"] == scored_run_count
+        assert experiment["score_counts"] == score_counts
+        assert experiment["complete"] is False
+
+    def test_results_summary_query_requests_completeness_counts(self):
+        assert "expectedRunCount" in runner._EXPERIMENT_SUMMARIES_QUERY
+        assert "scoreCount" in runner._EXPERIMENT_SUMMARIES_QUERY
 
     def test_results_json_falls_back_to_frozen_baseline_totals(self, monkeypatch):
         _register_case("database/list-tables")
@@ -368,6 +442,47 @@ class TestResultsEndpoint:
         _status, _headers, body = _call_wsgi(app, "GET", "/")
 
         assert b'data-tab="__results"' in body
+
+    def test_results_tab_compares_across_repetition_counts(self):
+        """A --runs 3 experiment must still show deltas against a 1-pass
+        baseline: means compare directly, totals are divided by repetitions."""
+
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        page = body.decode("utf-8")
+        assert (
+            "experiment.expected_run_count === baseline.expected_run_count" not in page
+        )
+        assert (
+            "var comparable = experimentComplete && baseline && baseline.complete;"
+            in page
+        )
+        assert "candidate.repetitions" in page
+        assert 'perPass(experiment, "time_s")' in page
+        assert 'perPass(baseline, "cost")' in page
+        assert "time and cost shown per pass" in page
+
+    def test_results_tab_requires_full_metric_coverage_on_both_sides(self):
+        """answer_quality only compares when the judge scored every run in both
+        the experiment and the baseline, not merely the same number of runs."""
+
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        page = body.decode("utf-8")
+        assert (
+            "experiment.score_counts[metric] === experiment.expected_run_count" in page
+        )
+        assert "baseline.score_counts[metric] === baseline.expected_run_count" in page
+        assert (
+            "experiment.score_counts[metric] === baseline.score_counts[metric]"
+            not in page
+        )
 
 
 class TestDocsEndpoint:
@@ -636,15 +751,48 @@ class TestSubmitRunWorker:
         assert state.status == "done"
 
 
+class TestKnowledgeBaseStartup:
+    def test_syncs_a_capable_empty_knowledge_base(self):
+        handler = MagicMock()
+        handler.can_have_knowledge_base.return_value = True
+        handler.can_search.return_value = False
+
+        with patch.object(
+            eval_runner_command, "KnowledgeBaseHandler", return_value=handler
+        ):
+            eval_runner_command.sync_knowledge_base_if_needed()
+
+        handler.sync_knowledge_base.assert_called_once_with()
+
+    def test_does_not_sync_an_already_searchable_knowledge_base(self):
+        handler = MagicMock()
+        handler.can_have_knowledge_base.return_value = True
+        handler.can_search.return_value = True
+
+        with patch.object(
+            eval_runner_command, "KnowledgeBaseHandler", return_value=handler
+        ):
+            eval_runner_command.sync_knowledge_base_if_needed()
+
+        handler.sync_knowledge_base.assert_not_called()
+
+
 @pytest.mark.django_db
 class TestAssistantEvalRunnerCommand:
     @pytest.fixture(autouse=True)
     def _no_baseline_import(self):
-        with patch(
-            "baserow_enterprise.management.commands.assistant_eval_runner."
-            "import_baseline"
-        ) as mock_import:
+        with (
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "import_baseline"
+            ) as mock_import,
+            patch(
+                "baserow_enterprise.management.commands.assistant_eval_runner."
+                "sync_knowledge_base_if_needed"
+            ) as mock_sync_knowledge_base,
+        ):
             self.mock_import_baseline = mock_import
+            self.mock_sync_knowledge_base = mock_sync_knowledge_base
             yield
 
     def test_startup_imports_the_baseline(self):
@@ -731,6 +879,7 @@ class TestAssistantEvalRunnerCommand:
         mock_load_all.assert_called_once()
         mock_sync.assert_called_once_with(mock_get_client.return_value)
         mock_sync_prompts.assert_called_once_with(mock_get_client.return_value)
+        self.mock_sync_knowledge_base.assert_called_once_with()
         mock_start_worker.assert_called_once()
         mock_make_server.assert_called_once()
         assert mock_make_server.call_args[0][0] == "127.0.0.1"

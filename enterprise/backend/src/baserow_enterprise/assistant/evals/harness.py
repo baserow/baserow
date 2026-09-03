@@ -17,6 +17,7 @@ from pydantic_ai import Agent
 from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
+from pydantic_ai.tool_manager import ToolManager
 from pydantic_ai.usage import UsageLimits
 
 from baserow_enterprise.assistant.agents import main_agent
@@ -28,6 +29,10 @@ from baserow_enterprise.assistant.evals.types import (
     CheckResult,
     EvalCase,
     EvalRunOutput,
+)
+from baserow_enterprise.assistant.model_profiles import (
+    ORCHESTRATOR,
+    get_model_settings,
 )
 from baserow_enterprise.assistant.onboarding import onboarding_suggestions_agent
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
@@ -207,6 +212,13 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
                     content = str(part.content)
                     if "Unknown tool name" in content:
                         continue
+                    # The mode router's re-call redirect is protocol, not a failure.
+                    if "was not executed yet" in content and "Switched to" in content:
+                        continue
+                    # pydantic-ai's nudge after an empty model response, which it
+                    # recovers from on its own — not a tool failure.
+                    if part.tool_name is None and content.startswith("Please "):
+                        continue
                     retry_errors.append(
                         {
                             "tool_name": getattr(part, "tool_name", None),
@@ -270,27 +282,42 @@ def run_case(
     tool_helpers = ToolHelpers(lambda x: None, lambda x: None)
 
     with override_assistant_model(model):
-        ctx = build_agent_run_context(scenario.user, scenario.workspace, tool_helpers)
+        string_model = model if isinstance(model, str) else None
+        ctx = build_agent_run_context(
+            scenario.user,
+            scenario.workspace,
+            tool_helpers,
+            model=string_model,
+        )
         ctx.deps.mode = case.mode
         ctx.deps.tool_helpers.request_context["ui_context"] = scenario.ui_context
+        run_model = ctx.model if string_model is not None else model
+        model_settings = (
+            get_model_settings(string_model, ORCHESTRATOR)
+            if string_model is not None
+            else None
+        )
 
         timeout_s = get_case_timeout_s()
         start = time.monotonic()
         # wait_for on pydantic-ai's own loop: cancels the in-flight request
         # instead of stranding a thread that keeps calling the provider.
         try:
-            result = run_until_complete(
-                asyncio.wait_for(
-                    main_agent.run(
-                        user_prompt=case.prompt,
-                        deps=ctx.deps,
-                        model=model,
-                        usage_limits=UsageLimits(request_limit=case.max_iters),
-                        toolsets=[ctx.toolset],
-                    ),
-                    timeout_s,
+            # Sequential tool execution mirrors production (assistant.py).
+            with ToolManager.parallel_execution_mode("sequential"):
+                result = run_until_complete(
+                    asyncio.wait_for(
+                        main_agent.run(
+                            user_prompt=case.prompt,
+                            deps=ctx.deps,
+                            model=run_model,
+                            usage_limits=UsageLimits(request_limit=case.max_iters),
+                            toolsets=[ctx.toolset],
+                            model_settings=model_settings,
+                        ),
+                        timeout_s,
+                    )
                 )
-            )
         except (TimeoutError, asyncio.CancelledError) as exc:
             raise EvalCaseTimeout(
                 f"{case.id} exceeded {timeout_s:g}s and was cancelled"

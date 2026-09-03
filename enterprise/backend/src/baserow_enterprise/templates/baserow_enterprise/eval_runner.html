@@ -767,6 +767,18 @@
         var byName = experimentsByName(dataset);
         var experiment = byName[selected];
         var baseline = byName["baseline"];
+        var experimentComplete = experiment && experiment.complete;
+        var comparable = experimentComplete && baseline && baseline.complete;
+        // Scores are means so they compare across repetition counts, but time
+        // and cost are totals and need dividing by the repetitions behind them.
+        var repetitions = function (candidate) {
+          return (candidate && candidate.repetitions) || 1;
+        };
+        var perPass = function (candidate, key) {
+          if (!candidate || candidate[key] == null) return null;
+          var reps = repetitions(candidate);
+          return reps > 0 ? candidate[key] / reps : null;
+        };
         var row = document.createElement("tr");
         var nameCell = document.createElement("td");
         if (experiment && experiment.link) {
@@ -787,6 +799,22 @@
         if (experiment) {
           modelCell.textContent = (experiment.model || "") +
             (experiment.git_label ? " (" + experiment.git_label + ")" : "");
+          if (!experimentComplete) {
+            var incomplete = document.createElement("small");
+            incomplete.className = "experiment-note";
+            incomplete.textContent = "incomplete (" + experiment.scored_run_count +
+              "/" + experiment.expected_run_count + " scored)";
+            modelCell.appendChild(incomplete);
+          }
+          var runReps = repetitions(experiment);
+          var baseReps = baseline ? repetitions(baseline) : 1;
+          if (runReps !== 1 || baseReps !== 1) {
+            var repNote = document.createElement("small");
+            repNote.className = "experiment-note";
+            repNote.textContent = runReps + "x vs baseline " + baseReps +
+              "x \u2014 time and cost shown per pass";
+            modelCell.appendChild(repNote);
+          }
           [experiment.settings, experiment.notes].forEach(function (text) {
             if (!text) return;
             var line = document.createElement("small");
@@ -799,49 +827,51 @@
         }
         row.appendChild(modelCell);
         METRICS.forEach(function (metric) {
-          var value = experiment ? experiment.scores[metric] : null;
-          var baseValue = baseline ? baseline.scores[metric] : null;
+          var value = experimentComplete ? experiment.scores[metric] : null;
+          var metricComparable = comparable &&
+            experiment.score_counts[metric] === experiment.expected_run_count &&
+            baseline.score_counts[metric] === baseline.expected_run_count;
+          var baseValue = metricComparable ? baseline.scores[metric] : null;
           scoreCell(row, value == null ? null : value, baseValue == null ? null : baseValue);
-          if (value != null) {
-            totals.scores[metric] = (totals.scores[metric] || 0) + value * dataset.case_count;
-            totals.weights[metric] = (totals.weights[metric] || 0) + dataset.case_count;
-          }
-          if (baseValue != null) {
+          if (value != null && baseValue != null) {
+            totals.scores[metric] = (totals.scores[metric] || 0) +
+              value * dataset.case_count;
+            totals.weights[metric] = (totals.weights[metric] || 0) +
+              dataset.case_count;
             totals.baseline[metric] = (totals.baseline[metric] || 0) + baseValue * dataset.case_count;
             totals.baselineWeights[metric] = (totals.baselineWeights[metric] || 0) + dataset.case_count;
           }
         });
-        var time = experiment ? experiment.time_s : null;
-        var baseTime = baseline ? baseline.time_s : null;
+        var time = experimentComplete ? perPass(experiment, "time_s") : null;
+        var baseTime = comparable ? perPass(baseline, "time_s") : null;
         usageCell(row, time, baseTime, fmtDuration);
-        var cost = experiment ? experiment.cost : null;
-        var baseCost = baseline ? baseline.cost : null;
+        var cost = experimentComplete ? perPass(experiment, "cost") : null;
+        var baseCost = comparable ? perPass(baseline, "cost") : null;
         usageCell(
           row, cost, baseCost,
           function (value) { return "$" + value.toFixed(2); },
-          experiment && experiment.tokens != null ? fmtTokens(experiment.tokens) : null
+          experimentComplete && experiment.tokens != null
+            ? fmtTokens(perPass(experiment, "tokens")) : null
         );
         ["time_s", "cost"].forEach(function (key) {
-          if (experiment && experiment[key] != null) {
-            totals[key] = (totals[key] || 0) + experiment[key];
-          }
-          if (baseline && baseline[key] != null) {
-            totals["baseline_" + key] = (totals["baseline_" + key] || 0) + baseline[key];
+          if (comparable && experiment[key] != null && baseline[key] != null) {
+            totals[key] = (totals[key] || 0) + perPass(experiment, key);
+            totals["baseline_" + key] = (totals["baseline_" + key] || 0) + perPass(baseline, key);
           }
         });
-        if (experiment && experiment.tokens != null) {
-          totals.tokens = (totals.tokens || 0) + experiment.tokens;
+        if (comparable && experiment.tokens != null) {
+          totals.tokens = (totals.tokens || 0) + perPass(experiment, "tokens");
         }
-        if (experiment) totals.casesRun += dataset.case_count;
+        if (comparable) totals.casesRun += dataset.case_count;
         table.appendChild(row);
       });
 
       if (totals.casesRun) {
         var totalRow = document.createElement("tr");
-        ["Overall (case-weighted)", String(totals.casesRun), ""].forEach(function (label) {
+        ["Overall (comparable cases)", String(totals.casesRun), ""].forEach(function (label) {
           var cell = document.createElement("td");
           cell.textContent = label;
-          if (label === "Overall (case-weighted)") cell.style.fontWeight = "600";
+          if (label === "Overall (comparable cases)") cell.style.fontWeight = "600";
           totalRow.appendChild(cell);
         });
         METRICS.forEach(function (metric) {
@@ -870,7 +900,7 @@
       body.appendChild(table);
       var note = document.createElement("p");
       note.className = "results-note";
-      note.textContent = "Scores are experiment means per dataset; answer_quality exists only where a judge ran. Overall weighs scores by case count and sums time/cost. Time is the sum of run latencies; cost comes from Phoenix's token prices (baseline values are frozen at capture time).";
+      note.textContent = "Scores are experiment means per dataset, so they compare across repetition counts; answer_quality exists only where a judge ran. Incomplete datasets are not compared. Overall includes only complete datasets, weighs scores by case count, and sums time/cost. Time and cost are shown per pass over the dataset, so a --runs 3 experiment is divided by 3 and compares with a single-pass baseline. Time is the sum of run latencies; cost comes from Phoenix's token prices (baseline values are frozen at capture time).";
       body.appendChild(note);
     }
 

@@ -183,9 +183,36 @@ def capture_baseline(client: Any, experiment_name: str | None = None) -> dict[st
             + (f" ({skipped} non-code runs skipped)" if skipped else "")
         )
 
-    BASELINE_PATH.write_text(json.dumps(snapshot, indent=2) + "\n")
+    BASELINE_PATH.write_text(_dump_snapshot(snapshot))
     results["file"] = str(BASELINE_PATH)
     return results
+
+
+def _dump_snapshot(snapshot: dict[str, Any]) -> str:
+    """Serialize with one compact line per run.
+
+    :param snapshot: The captured baseline snapshot.
+    :return: JSON text that parses back to *snapshot* exactly.
+    """
+
+    compact = (",", ":")
+    lines = ["{", f'  "captured_at": {json.dumps(snapshot["captured_at"])},']
+    lines.append('  "datasets": {')
+    ds_items = list(snapshot["datasets"].items())
+    for di, (name, data) in enumerate(ds_items):
+        lines.append(f"    {json.dumps(name)}: {{")
+        for key in ("experiment_name", "metadata", "totals"):
+            value = json.dumps(data[key], separators=compact)
+            lines.append(f"      {json.dumps(key)}: {value},")
+        lines.append('      "runs": [')
+        for ri, run in enumerate(data["runs"]):
+            comma = "," if ri < len(data["runs"]) - 1 else ""
+            lines.append(f"        {json.dumps(run, separators=compact)}{comma}")
+        lines.append("      ]")
+        lines.append("    }" + ("," if di < len(ds_items) - 1 else ""))
+    lines.append("  }")
+    lines.append("}")
+    return "\n".join(lines) + "\n"
 
 
 def import_baseline(client: Any) -> dict[str, str]:

@@ -13,7 +13,8 @@ trace. Why this platform: [ADR 007](../decisions/007-ai-assistant-eval-platform.
    [AI assistant tracing](../development/ai-assistant-tracing.md) for the
    Phoenix side.
 2. `just dc-dev up -d` — the `assistant-eval-runner` service migrates its own
-   `baserow_evals` database, syncs the datasets into Phoenix, and serves
+   `baserow_evals` database, seeds its knowledge base when embeddings are
+   configured, syncs the datasets into Phoenix, and serves
    `http://localhost:8090`.
 3. Pick a whole dataset or individual cases, a model (pick **Custom…** to
    type any pydantic-ai model string), a repeat count, optional notes, and Run.
@@ -48,8 +49,8 @@ chatter (httpx, pydantic-ai retries) still goes to
 ### Timeouts
 
 Every case has a wall-clock budget — `BASEROW_EVAL_CASE_TIMEOUT`, default
-120s. For scale: across the committed baseline's 111 runs the slowest case
-takes 16.4s and the median 5.8s, so the budget only ever fires on a genuine
+120s. For scale: across the committed baseline's 366 runs the slowest
+case takes 50s and the median 6s, so the budget only ever fires on a genuine
 hang. Without it a single stuck case blocks the one worker indefinitely, and
 the per-request timeouts don't bound it: `max_iters` requests times the
 per-request timeout, plus retries, runs into several minutes.
@@ -60,6 +61,13 @@ a thread burning quota. It is recorded as a failed `completed_within_timeout`
 check, so it scores 0 and counts in aggregates (a hang is a real failure, not
 a skip), the run continues with the remaining cases, and the judge is not
 asked to grade the empty answer.
+
+Each case also has an intentional request budget (`max_iters`). Exhausting it
+is recorded as a failed case rather than aborting the dataset, so a genuine
+agent loop stays visible while the remaining cases still run. Transient
+provider rate limits are retried at the individual request boundary, honoring
+`Retry-After` when the provider supplies it; completed tool work is never
+replayed as a whole-case retry.
 
 **Stop** is cooperative and lands at the next case boundary, because the
 worker sits inside a blocking LLM call that Python cannot interrupt. Queued
@@ -79,6 +87,17 @@ submissions merges them into one group.
 
 Experiments created before this grouping existed each carry their own
 Phoenix-generated name, so they stay ungrouped.
+
+The Results tab marks a dataset incomplete unless every expected run has both
+mandatory scores. Incomplete datasets show no baseline deltas and are excluded
+from the overall row; that prevents a stopped, skipped, or partially logged run
+from looking like a quality, latency, or cost improvement.
+
+Repetition counts may differ between the run and the baseline. Scores are means,
+so a `--runs 3` experiment compares directly with a single-pass baseline; time
+and cost are totals, so both sides are divided by their repetitions and shown
+per pass over the dataset. The model cell notes the two counts whenever they are
+not both 1.
 
 ### Recording why a run differed
 
@@ -129,8 +148,9 @@ hashes, so branch/model comparisons are filterable in Phoenix.
 |---------|-------|--------|
 | `kuma-core` | 3 | creating/listing databases and automations |
 | `kuma-database` | 21 | tables, fields, views, filters, rows |
-| `kuma-builder` | 16 | pages, elements, data sources, themes, user sources |
+| `kuma-builder` | 20 | pages, elements, data sources, themes, user sources |
 | `kuma-automation` | 7 | workflows, triggers, nodes |
+| `kuma-prod-replay` | 7 | synthetic equivalents of production-failure prompts |
 | `kuma-docs` | 64 | docs Q&A via `search_user_docs`, incl. cannot-do guardrail cases |
 
 `kuma-docs` needs the knowledge base: the `embeddings` service (`ai` profile)
