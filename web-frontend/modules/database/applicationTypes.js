@@ -92,8 +92,11 @@ export class DatabaseApplicationType extends ApplicationType {
     return {
       ...super.populate(application),
       tables,
-      // Filled by the button field editor when an action needs one.
+      // Filled by the button field editor when an action needs one. The flag
+      // rides on the application, so a refetch that empties the list clears
+      // the memory of having loaded it too.
       integrations: application.integrations || [],
+      _integrationsLoadedOnce: false,
     }
   }
 

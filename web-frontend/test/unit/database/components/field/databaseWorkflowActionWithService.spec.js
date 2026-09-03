@@ -1,3 +1,4 @@
+import { vi } from 'vitest'
 import flushPromises from 'flush-promises'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
@@ -108,6 +109,64 @@ describe('DatabaseWorkflowActionWithService', () => {
     const dropdown = wrapper.findComponent({ name: 'IntegrationDropdown' })
     expect(dropdown.exists()).toBe(true)
     expect(dropdown.props('integrations').map((i) => i.name)).toEqual(['Bot'])
+  })
+
+  test('a repopulated application fetches its integrations again', async () => {
+    // The applications endpoint carries no integrations, so every refetch
+    // empties the list. Remembering the load anywhere but on the application
+    // itself leaves the dropdown permanently empty after one.
+    await seedApplications()
+    testApp.mock
+      .onGet(`application/${OWN_DATABASE_ID}/integrations/`)
+      .reply(200, [{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
+
+    const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
+    await mountAction('slack_write_message', {}, database)
+    await flushPromises()
+    expect(testApp.mock.history.get).toHaveLength(1)
+
+    // What `application/fetchAll` does on a workspace switch or a re-login.
+    await seedApplications()
+    const repopulated =
+      testApp.store.getters['application/get'](OWN_DATABASE_ID)
+    const wrapper = await mountAction('slack_write_message', {}, repopulated)
+    await flushPromises()
+
+    expect(testApp.mock.history.get).toHaveLength(2)
+    expect(
+      wrapper
+        .findComponent({ name: 'IntegrationDropdown' })
+        .props('integrations')
+    ).toHaveLength(1)
+  })
+
+  test('a failed integrations fetch is reported, not left empty', async () => {
+    await seedApplications()
+    // Mimic a real API error: it carries a `handler` so notifyIf reports it
+    // instead of re-throwing.
+    const notifyIfHandler = vi.fn()
+    const apiError = Object.assign(new Error('boom'), {
+      handler: { notifyIf: notifyIfHandler },
+    })
+    const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation((action, payload) =>
+        action === 'integration/fetch'
+          ? Promise.reject(apiError)
+          : Promise.resolve()
+      )
+
+    await mountAction('slack_write_message', {}, database)
+    await flushPromises()
+
+    // Reported to the user rather than left as an unhandled rejection, and
+    // not remembered as loaded, so reopening the editor tries again instead
+    // of claiming the database has no bot.
+    expect(notifyIfHandler).toHaveBeenCalled()
+    expect(database._integrationsLoadedOnce).toBeFalsy()
+
+    dispatch.mockRestore()
   })
 
   test('a row action fetches no integrations', async () => {
