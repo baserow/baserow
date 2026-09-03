@@ -168,6 +168,8 @@ def test_generate_schema(data_fixture):
         "to",
         "cc",
         "reply_to",
+        "rcpt_to",
+        "recipient_tag",
         "subject",
         "body_text",
         "body_html",
