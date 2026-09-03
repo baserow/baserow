@@ -8,10 +8,88 @@ import { getFieldsForTable } from "../../fixtures/database/field";
 import { createRows, listRows } from "../../fixtures/database/rows";
 import { createTable } from "../../fixtures/database/table";
 import { createLocalBaserowIntegration } from "../../fixtures/builder/integration";
+import {
+  createLicense,
+  deleteLicense,
+  ENTERPRISE_LICENSE,
+} from "../../fixtures/licence";
 import { baserowConfig } from "../../playwright.config";
 import { expect, test } from "../baserowTest";
 
+/**
+ * Run this suite from the repository root after selecting one of these URL
+ * configurations in `e2e-tests/.env` (leave `CI` unset).
+ *
+ * Same hostname:
+ *   PUBLIC_WEB_FRONTEND_URL=http://localhost:3070
+ *   PUBLIC_BACKEND_URL=http://localhost:8070
+ *   BASEROW_BUILDER_PREVIEW_URL=http://localhost:3070
+ *
+ * Sibling hostnames (all must resolve to 127.0.0.1):
+ *   PUBLIC_WEB_FRONTEND_URL=http://app.getbaserow.io:3070
+ *   PUBLIC_BACKEND_URL=http://app.getbaserow.io:8070
+ *   BASEROW_BUILDER_PREVIEW_URL=http://preview.getbaserow.io:3070
+ *
+ * Then run:
+ *   just e2e up
+ *   just e2e test tests/builder/builderPreview.spec.ts --workers=1
+ */
 test.describe("Builder preview test suite", () => {
+  test("loads authenticated custom CSS and JavaScript @enterprise", async ({
+    context,
+    builderPagePage,
+    workspacePage,
+  }) => {
+    const license = await createLicense(ENTERPRISE_LICENSE);
+    const cssMarker = "preview-css-loaded";
+    const jsMarker = "preview-js-loaded";
+
+    try {
+      await getClient(workspacePage.workspace.user).patch(
+        `applications/${builderPagePage.builder.id}/`,
+        {
+          custom_code: {
+            css: `html { --preview-custom-code: ${cssMarker}; }`,
+            js: `document.documentElement.dataset.previewCustomCode = "${jsMarker}";`,
+          },
+        }
+      );
+      const grantResponse = await getClient(workspacePage.workspace.user).post(
+        `builder/preview/${builderPagePage.builder.id}/grant/`,
+        { path: builderPagePage.builderPage.path }
+      );
+      const previewPage = await context.newPage();
+      const customCodeResponses = Promise.all([
+        previewPage.waitForResponse((response) =>
+          response.url().endsWith("/custom-code/css/")
+        ),
+        previewPage.waitForResponse((response) =>
+          response.url().endsWith("/custom-code/js/")
+        ),
+      ]);
+
+      await previewPage.goto(grantResponse.data.url, {
+        waitUntil: "networkidle",
+      });
+
+      for (const response of await customCodeResponses) {
+        expect(response.status()).toBe(200);
+      }
+      await expect
+        .poll(() =>
+          previewPage.evaluate(() => ({
+            css: getComputedStyle(document.documentElement)
+              .getPropertyValue("--preview-custom-code")
+              .trim(),
+            js: document.documentElement.dataset.previewCustomCode,
+          }))
+        )
+        .toEqual({ css: cssMarker, js: jsMarker });
+    } finally {
+      await deleteLicense(license);
+    }
+  });
+
   test("keeps simultaneous builder preview sessions isolated", async ({
     page,
     context,
