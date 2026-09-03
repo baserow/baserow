@@ -117,14 +117,21 @@ class MenuItemCreate(BaseModel):
 
 class TableFieldConfig(BaseModel):
     """
-    Column configuration for table elements.
+    One column of a table element.
 
-    ``type`` is ``"text"`` (default) or ``"button"``.
+    - type="text" (default): ``value`` is the cell content — a literal or
+      "$formula: <intent>". Omit ``value`` to show the data source field
+      whose name matches ``name``.
+    - type="button": ``label`` is the button caption.
+
+    These are the only column types, and ``name``, ``type``, ``value``,
+    ``label`` are the only accepted keys; any other key is rejected. Column
+    keys are not interchangeable with element keys.
     """
 
     name: str = Field(..., description="Column header name.")
-    type: Literal["text", "button", "link", "tags"] = Field(
-        default="text", description="Column type."
+    type: Literal["text", "button"] = Field(
+        default="text", description="Column type: 'text' (default) or 'button'."
     )
 
     # text columns
@@ -806,10 +813,6 @@ def _convert_table_fields(
                     },
                 }
             )
-        elif field_cfg.type == "link":
-            result.append({"name": field_cfg.name, "type": "link", "config": {}})
-        elif field_cfg.type == "tags":
-            result.append({"name": field_cfg.name, "type": "tags", "config": {}})
 
     return result
 
@@ -1872,7 +1875,6 @@ class ElementItem(BaseModel):
 
     id: int
     type: str
-    order: str
     parent_element_id: int | None = None
     place_in_container: str | None = None
     is_container: bool = Field(
@@ -1912,7 +1914,6 @@ class ElementItem(BaseModel):
         return cls(
             id=element.id,
             type=element_type,
-            order=str(element.order),
             parent_element_id=element.parent_element_id,
             place_in_container=element.place_in_container,
             is_container=element_type in CONTAINER_ELEMENT_TYPES,

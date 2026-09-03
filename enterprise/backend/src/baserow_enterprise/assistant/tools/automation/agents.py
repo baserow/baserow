@@ -123,15 +123,15 @@ def update_workflow_formulas(
 
 
 def update_single_node_formulas(
-    node_update: "NodeUpdate",
+    node: "NodeUpdate | ActionNodeCreate",
     orm_node: AutomationNode,
     tool_helpers: "ToolHelpers",
 ) -> None:
     """
-    Generate and apply formulas for a single node being updated.
+    Generate and apply formulas for a single node being created or updated.
 
     Builds formula context from the node's workflow, then generates
-    formulas for the $formula: fields in the update.
+    formulas for the $formula: fields in the payload.
     """
 
     context = AssistantFormulaContext()
@@ -147,10 +147,14 @@ def update_single_node_formulas(
         metadata["node_id"] = wf_node.id
         context.add_node_context(wf_node.id, example, metadata)
 
-    formulas_to_create = node_update.get_formulas_to_update(orm_node)
+    formulas_to_create = (
+        node.get_formulas_to_update(orm_node)
+        if isinstance(node, NodeUpdate)
+        else node.get_formulas_to_create(orm_node)
+    )
     if formulas_to_create is None:
         return
 
     result = generate_formula(formulas_to_create, context)
     if result:
-        node_update.update_service_with_formulas(orm_node.service, result)
+        node.update_service_with_formulas(orm_node.service, result)

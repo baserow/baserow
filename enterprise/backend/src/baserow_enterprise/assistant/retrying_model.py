@@ -67,6 +67,8 @@ _RETRYABLE_MESSAGES = frozenset(
 def _is_transient_provider_error(exc: Exception) -> bool:
     """Return True for provider errors that are transient and safe to retry."""
 
+    if isinstance(exc, ModelHTTPError) and exc.status_code == 429:
+        return True
     msg = str(exc)
     return any(needle in msg for needle in _RETRYABLE_MESSAGES)
 
@@ -418,6 +420,8 @@ class RetryingModel(WrapperModel):
                 ):
                     raise
                 delay = self._delay_for(attempt)
+                if isinstance(exc, ModelHTTPError) and exc.retry_after is not None:
+                    delay = min(exc.retry_after, self.max_delay)
                 logger.warning(
                     "[assistant] Model request failed (attempt {}/{}), "
                     "retrying in {:.1f}s: {}",

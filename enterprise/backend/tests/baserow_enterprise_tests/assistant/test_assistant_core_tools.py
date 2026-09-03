@@ -4,8 +4,12 @@ from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.core.tools import (
     create_builders,
     list_builders,
+    update_builder,
 )
-from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
+from baserow_enterprise.assistant.tools.core.types import (
+    BuilderItemCreate,
+    BuilderUpdate,
+)
 
 from .utils import make_test_ctx
 
@@ -158,3 +162,66 @@ def test_create_database_ignores_theme(data_fixture):
 
     assert len(result["created_builders"]) == 1
     assert result["created_builders"][0]["type"] == "database"
+
+
+@pytest.mark.django_db
+def test_update_builder_renames_an_application(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Old Name"
+    )
+
+    ctx = make_test_ctx(user, workspace)
+    result = update_builder(
+        ctx,
+        builder_id=database.id,
+        update=BuilderUpdate(name="New Name"),
+        thought="rename",
+    )
+
+    assert result == {"id": database.id, "name": "New Name"}
+    database.refresh_from_db()
+    assert database.name == "New Name"
+
+
+@pytest.mark.django_db
+def test_update_builder_sets_the_login_page(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=workspace, name="Portal"
+    )
+    page = data_fixture.create_builder_page(
+        builder=builder, name="Login", path="/login"
+    )
+
+    ctx = make_test_ctx(user, workspace)
+    result = update_builder(
+        ctx,
+        builder_id=builder.id,
+        update=BuilderUpdate(login_page_id=page.id),
+        thought="set login page",
+    )
+
+    assert result["login_page_id"] == page.id
+    builder.refresh_from_db()
+    assert builder.login_page_id == page.id
+
+
+@pytest.mark.django_db
+def test_update_builder_with_nothing_to_change_is_a_no_op(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Unchanged"
+    )
+
+    ctx = make_test_ctx(user, workspace)
+    result = update_builder(
+        ctx, builder_id=database.id, update=BuilderUpdate(), thought="no-op"
+    )
+
+    assert result["name"] == "Unchanged"
+    database.refresh_from_db()
+    assert database.name == "Unchanged"

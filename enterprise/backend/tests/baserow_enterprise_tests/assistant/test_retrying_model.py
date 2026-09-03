@@ -31,6 +31,17 @@ class TestIsTransientProviderError:
         exc = ValueError("something went wrong")
         assert _is_transient_provider_error(exc) is False
 
+    def test_rate_limit_http_error_is_retryable(self):
+        from pydantic_ai.exceptions import ModelHTTPError
+
+        exc = ModelHTTPError(
+            status_code=429,
+            model_name="test-model",
+            body={"error": {"message": "Rate limit exceeded"}},
+        )
+
+        assert _is_transient_provider_error(exc) is True
+
 
 def _make_retrying(inner_mock, **kwargs):
     """Create a RetryingModel with a pre-resolved mock as the wrapped model."""
@@ -68,6 +79,37 @@ async def test_request_retries_on_transient_error():
 
     assert result == response
     assert inner.request.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_request_uses_provider_retry_after_for_rate_limit():
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from pydantic_ai.exceptions import ModelHTTPError
+    from pydantic_ai.messages import ModelResponse, TextPart
+
+    rate_limit_error = ModelHTTPError(
+        status_code=429,
+        model_name="test-model",
+        body={"error": {"message": "Rate limit exceeded"}},
+        headers={"Retry-After": "2"},
+    )
+    response = ModelResponse(parts=[TextPart(content="hello")])
+    inner = MagicMock()
+    inner.request = AsyncMock(side_effect=[rate_limit_error, response])
+    model = _make_retrying(inner, base_delay=0.01, max_delay=1.0)
+
+    with patch(
+        "baserow_enterprise.assistant.retrying_model.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as mock_sleep:
+        result = await model.request(
+            [], None, ModelRequestParameters(function_tools=[], output_tools=[])
+        )
+
+    assert result == response
+    assert inner.request.call_count == 2
+    mock_sleep.assert_awaited_once_with(1.0)
 
 
 @pytest.mark.asyncio

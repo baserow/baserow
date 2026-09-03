@@ -30,4 +30,5 @@ def get_generate_formula_prompt():
 
 @cache
 def get_formula_docs():
+    # Callers embed this in a str.format() template, so it must stay brace-free.
     return read_text("baserow_premium.prompts", "formula_docs.md")
