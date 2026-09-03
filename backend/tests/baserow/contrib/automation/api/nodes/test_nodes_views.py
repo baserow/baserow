@@ -421,6 +421,47 @@ def test_update_node(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_node_service_without_type_is_a_validation_error(
+    api_client, data_fixture
+):
+    """
+    A service payload without a `type` must be rejected with a machine-readable
+    validation error instead of crashing the polymorphic serializer.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_local_baserow_get_row_action_node(
+        user=user, workflow=workflow
+    )
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"service": {"row_id": "'42'"}},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["service"]["type"][0]["code"] == "missing_type"
+
+
+@pytest.mark.django_db
+def test_update_node_service_with_invalid_type(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_local_baserow_get_row_action_node(
+        user=user, workflow=workflow
+    )
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"service": {"type": "unknown_service_type"}},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SERVICE_INVALID_TYPE"
+
+
+@pytest.mark.django_db
 def test_updating_node_with_invalid_formula_arguments_throws_error(
     api_client, data_fixture
 ):

@@ -80,6 +80,29 @@ class BasePolymorphicSerializer(serializers.Serializer):
     # Used for instance for creating public serializers
     extra_params: Dict[str, Any] = None
 
+    default_error_messages = {
+        "missing_type": "Unable to determine the `type` of the polymorphic data.",
+        "invalid_type": '"{type_name}" is not a valid type.',
+    }
+
+    def __init__(self, *args, default_type_name: str | None = None, **kwargs):
+        # The type to fall back to when the data doesn't name one, for use
+        # where the caller can't change the type anyway, like the service of a
+        # workflow action whose action type pins it.
+        self.default_type_name = default_type_name
+        super().__init__(*args, **kwargs)
+
+    def fail_on_type_field(self, key, **kwargs):
+        """
+        Like `fail`, but keys the error under the type field, so the error
+        detail stays a dict whether this serializer is nested or standalone.
+        """
+
+        try:
+            self.fail(key, **kwargs)
+        except serializers.ValidationError as e:
+            raise serializers.ValidationError({self.type_field_name: e.detail})
+
     def get_type_from_type_name(self, name):
         return self.registry.get(name)
 
@@ -87,10 +110,26 @@ class BasePolymorphicSerializer(serializers.Serializer):
         return self.registry.get_by_model(instance.specific)
 
     def get_type_from_mapping(self, mapping):
-        if self.type_field_name in mapping:
-            return self.registry.get(mapping[self.type_field_name])
-        else:
-            self.fail("Unable to determine the `type` of the polymorphic data.")
+        type_name = (
+            mapping.get(self.type_field_name) if isinstance(mapping, dict) else None
+        )
+
+        if not type_name and self.default_type_name:
+            type_name = self.default_type_name
+
+        if type_name is None and (
+            not isinstance(mapping, dict) or self.type_field_name not in mapping
+        ):
+            self.fail_on_type_field("missing_type")
+
+        try:
+            return self.registry.get(type_name)
+        # An unhashable `type` value, e.g. a list or a dict, would crash the
+        # registry lookup. An unknown type on the other hand propagates the
+        # registry's own does-not-exist exception, which views map to their
+        # specific API errors.
+        except TypeError:
+            self.fail_on_type_field("invalid_type", type_name=type_name)
 
     def to_representation(self, instance):
         if not self.required and not instance:
