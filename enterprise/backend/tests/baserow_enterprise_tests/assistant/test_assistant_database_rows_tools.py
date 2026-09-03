@@ -1,6 +1,7 @@
 import pytest
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.assistant.tools.database.tools import (
     list_rows,
     load_row_tools,
@@ -261,6 +262,50 @@ def test_create_rows(data_fixture):
     created_row_ids = result["created_row_ids"]
     assert len(created_row_ids) == 2
     assert created_row_ids == [4, 5]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dynamic_row_tool_returns_permission_denied_result(data_fixture, monkeypatch):
+    resources = _create_simple_database_with_linked_tables_and_rows(data_fixture)
+    table = resources["table_a"]
+    ctx = make_test_ctx(resources["user"], resources["workspace"])
+    load_row_tools(ctx, [table.id], ["create"], thought="test")
+    create_tool = ctx.deps.dynamic_tools[0]
+
+    def deny(*args, **kwargs):
+        raise PermissionDenied()
+
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.database.tools.CreateRowsActionType.do",
+        deny,
+    )
+    arguments = create_tool.function_schema.validator.validate_python(
+        {
+            "rows": [
+                {
+                    "primary": "Blocked",
+                    "Text field": "",
+                    "Long text field": "",
+                    "Number field": None,
+                    "Date field": None,
+                    "Datetime field": None,
+                    "Single select": None,
+                    "Multiple select": [],
+                    "Single link to B": None,
+                    "link": [],
+                }
+            ],
+            "thought": "test",
+        }
+    )
+
+    result = create_tool.function(**arguments)
+
+    assert result["error"] == (
+        f"create_rows_in_table_{table.id} was not executed because permission "
+        "was denied."
+    )
+    assert "Do not retry or claim" in result["next_steps"]
 
 
 @pytest.mark.django_db(transaction=True)

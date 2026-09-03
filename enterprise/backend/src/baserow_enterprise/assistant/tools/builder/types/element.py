@@ -1896,7 +1896,13 @@ class ElementItem(BaseModel):
 
     @classmethod
     def from_orm(cls, element) -> "ElementItem":
-        """Create ElementItem from ORM Element instance."""
+        """
+        Create ElementItem from ORM Element instance.
+
+        :param element: The ORM element to describe.
+        :return: The serialisable element description.
+        """
+
         element_type = element.get_type().type
         page = element.page
         page_name = "[shared]" if page.shared else page.name

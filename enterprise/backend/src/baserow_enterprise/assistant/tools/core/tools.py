@@ -4,14 +4,16 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.actions import CreateApplicationActionType
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
+from baserow_enterprise.assistant.tools.shared import require_payload
 
-from .types import BuilderItem, BuilderItemCreate, BuilderUpdate, builder_type_registry
+from . import helpers
+from .types import BuilderItem, BuilderItemCreate, BuilderUpdate
 
 
 def list_builders(
@@ -48,30 +50,22 @@ def list_builders(
         }
     )
 
-    applications_qs = CoreService().list_applications_in_workspace(
-        user, workspace, specific=False
-    )
+    builders_by_type = {}
+    for builder in helpers.list_builder_items(user, workspace):
+        if not builder_types or builder.type in builder_types:
+            builders_by_type.setdefault(builder.type, []).append(builder.model_dump())
 
-    builders = {}
-    for app in applications_qs:
-        try:
-            item = builder_type_registry.from_django_orm(app)
-        except KeyError:
-            continue
-        if not builder_types or item.type in builder_types:
-            builders.setdefault(item.type, []).append(item.model_dump())
-
-    if not builders:
+    if not builders_by_type:
         return {}
 
-    total = sum(len(v) for v in builders.values())
+    total = sum(len(builders) for builders in builders_by_type.values())
     max_items = 20
     if total > max_items:
         truncated = {}
         remaining = max_items
-        for btype, items in builders.items():
-            truncated[btype] = items[:remaining]
-            remaining -= len(truncated[btype])
+        for builder_type, builders in builders_by_type.items():
+            truncated[builder_type] = builders[:remaining]
+            remaining -= len(truncated[builder_type])
             if remaining <= 0:
                 break
         return {
@@ -80,7 +74,7 @@ def list_builders(
             "Use builder_types to filter.",
         }
 
-    return builders
+    return builders_by_type
 
 
 def create_builders(
@@ -97,9 +91,8 @@ def create_builders(
     Create a new database, application, or automation.
 
     WHEN to use: User wants a new database, application, or automation created in the workspace.
-    WHAT it does: Creates one or more builders with the specified names and types.
-    RETURNS: List of created builders with id, name, type.
-    DO NOT USE when: A builder with that name may already exist — check with list_builders first.
+    WHAT it does: Creates missing builders and reuses an exact name-and-type match in the workspace.
+    RETURNS: Created and reused builders with id, name, type.
     HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
     THEME (applications only): Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
     """
@@ -108,27 +101,54 @@ def create_builders(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
+    require_payload("create_builders", "builders", builders)
+    requested_builders, conflicting_names = helpers.canonical_builder_requests(builders)
+    if conflicting_names:
+        names = ", ".join(conflicting_names)
+        raise ModelRetry(
+            f"Conflicting builder definitions use the same name and type: {names}. "
+            "Submit one definition per builder."
+        )
+
+    existing_builders = {
+        (builder.type, builder.name): builder.model_dump()
+        for builder in helpers.list_builder_items(user, workspace)
+    }
+
     created_builders = []
+    reused_builders = []
+    reused_requests = []
     with transaction.atomic():
-        for builder in builders:
+        for builder in requested_builders:
             tool_helpers.raise_if_cancelled()
+            key = (builder.type, builder.name)
+            if existing := existing_builders.get(key):
+                reused_builders.append(existing)
+                reused_requests.append((builder, existing))
+                continue
+
             tool_helpers.update_status(
                 _("Creating %(builder_type)s %(builder_name)s...")
                 % {"builder_type": builder.type, "builder_name": builder.name}
             )
-            builder_orm_instance = CreateApplicationActionType.do(
+            application = CreateApplicationActionType.do(
                 user, workspace, builder.get_orm_type(), name=builder.name
             )
-            builder.post_creation_hook(user, builder_orm_instance)
-            created_builders.append(
-                BuilderItem(
-                    id=builder_orm_instance.id,
-                    name=builder_orm_instance.name,
-                    type=builder.type,
-                ).model_dump()
-            )
+            builder.post_creation_hook(user, application)
+            created_builder = BuilderItem(
+                id=application.id,
+                name=application.name,
+                type=builder.type,
+            ).model_dump()
+            created_builders.append(created_builder)
+            existing_builders[key] = created_builder
 
-    return {"created_builders": created_builders}
+    result = {
+        "created_builders": created_builders,
+        "reused_builders": reused_builders,
+    }
+    result.update(helpers.reused_builder_report(user, reused_requests))
+    return result
 
 
 def switch_mode(
@@ -204,16 +224,57 @@ def update_builder(
         _("Updating %(app_name)s...") % {"app_name": app.name}
     )
 
-    update_kwargs = update.to_update_kwargs(app)
-    if update_kwargs:
-        CoreHandler().update_application(user, app, **update_kwargs)
+    requested_changes = update.to_update_kwargs(app)
+    changes = {
+        name: value
+        for name, value in requested_changes.items()
+        if getattr(app, name) != value
+    }
+    if changes:
+        CoreHandler().update_application(user, app, **changes)
         app.refresh_from_db()
 
-    result: dict[str, Any] = {"id": app.id, "name": app.name}
+    result: dict[str, Any] = {
+        "id": app.id,
+        "name": app.name,
+        "changed": bool(changes),
+    }
     if hasattr(app, "login_page_id"):
         result["login_page_id"] = app.login_page_id
     return result
 
 
-TOOL_FUNCTIONS = [list_builders, create_builders, update_builder, switch_mode]
+def ask_user(
+    ctx: RunContext[AssistantDeps],
+    question: Annotated[
+        str,
+        Field(
+            description=(
+                "The question to put to the user, phrased so a single short "
+                "reply answers it. Cover every unknown in one question."
+            )
+        ),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> str:
+    """\
+    Ask the user for a requirement you cannot look up, then stop.
+
+    WHEN to use: The request names data, fields, or users no list_* tool result matches, or never says what it is for.
+    WHAT it does: Records the question; you deliver it as your final answer.
+    RETURNS: Instructions for delivering the question.
+    DO NOT USE when: A sensible first version can be built with defaults (see `<intent>`), a list_* tool can answer it, or you only want permission to continue — build and iterate.
+    """
+
+    ctx.deps.pending_question = question
+    return (
+        "Question recorded. Deliver it now: restate this question verbatim as "
+        "your final answer and stop — do not create, guess, or build anything "
+        "until the user replies."
+    )
+
+
+TOOL_FUNCTIONS = [list_builders, create_builders, update_builder, switch_mode, ask_user]
 core_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)

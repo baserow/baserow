@@ -1,9 +1,11 @@
-from pydantic_ai import Agent, ModelRetry, RunContext
+import json
+
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
-from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
+from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
-from baserow_enterprise.assistant.tools.toolset import tool_manifest_line_compact
 
 FREE_LICENSE_TIER = "free"
 _CANONICAL_LICENSE_TIERS = {
@@ -23,6 +25,7 @@ main_agent: Agent[AssistantDeps, str] = Agent(
     retries=3,
     name="main_agent",
 )
+main_agent.output_validator(validate_final_answer)
 
 
 def _canonical_license_tier(license_tier: str) -> str:
@@ -34,28 +37,6 @@ def _canonical_license_tier(license_tier: str) -> str:
     if normalized_tier in _CANONICAL_LICENSE_TIERS:
         return normalized_tier
     return FREE_LICENSE_TIER
-
-
-@main_agent.output_validator
-def _text_must_not_be_a_tool_call(ctx: RunContext[AssistantDeps], output: str) -> str:
-    """
-    Send back a final answer that is a tool call printed as text.
-
-    After a provider rejects an oversized generation, the model sometimes dumps
-    the same call as its text answer; accepting it would end the turn with raw
-    JSON shown to the user and nothing executed.
-    """
-
-    stripped = output.strip()
-    if stripped.startswith("```"):
-        stripped = stripped.split("\n", 1)[-1].strip()
-    if stripped.startswith('{"name"') and '"arguments"' in stripped[:200]:
-        raise ModelRetry(
-            "That answer is a tool call printed as text, so nothing was "
-            "executed. Call the tool instead, and if the payload is large "
-            "split it into batches of at most 20 rows per call."
-        )
-    return output
 
 
 @main_agent.instructions
@@ -90,41 +71,64 @@ def dynamic_license_tier(ctx) -> str:
 
 
 @main_agent.instructions
-def dynamic_current_task(ctx) -> str:
-    """Pin the original user request as immutable context."""
+def dynamic_verified_tool_outcomes(ctx) -> str:
+    """
+    Inject bounded, verified prior tool outcomes.
 
-    if ctx.deps.original_request:
-        return f"\n<current_task>\n{ctx.deps.original_request}\n</current_task>"
-    return ""
+    :param ctx: The agent run context.
+    :return: The <verified_prior_actions> instruction block, or an empty
+        string when there are no outcomes.
+    """
+
+    outcomes = ctx.deps.verified_tool_outcomes
+    if not outcomes:
+        return ""
+    visible_outcomes = [
+        {key: value for key, value in outcome.items() if key != "_request_fingerprint"}
+        for outcome in outcomes
+    ]
+    serialized = json.dumps(visible_outcomes, separators=(",", ":"), ensure_ascii=False)
+    return (
+        "\n<verified_prior_actions>\n"
+        f"{serialized}\n"
+        "These are factual results from earlier tool calls. Reuse their verified "
+        "IDs and do not duplicate resources. Results may describe reused or "
+        "partial work; they do not prove the current request is complete.\n"
+        "</verified_prior_actions>"
+    )
 
 
 @main_agent.instructions
-def dynamic_tool_manifest(ctx) -> str:
+def dynamic_tool_catalog(ctx) -> str:
     """
-    Inject the available tools manifest into the system prompt, including both
-    static and dynamically loaded tools name and description.
+    Inject the compact tool ownership catalog into the system prompt.
+
+    :param ctx: The agent run context.
+    :return: The <tool_catalog> instruction block, or an empty string when
+        there is no catalog.
     """
 
-    manifest = ctx.deps.active_manifest
-    if not manifest:
+    catalog = ctx.deps.tool_catalog
+    if not catalog:
         return ""
 
-    # Append dynamically loaded tools (e.g. row tools from load_row_tools)
-    if ctx.deps.dynamic_tools:
-        extra = "\n".join(
-            tool_manifest_line_compact(tool.name, tool.description or "")
-            for tool in ctx.deps.dynamic_tools
-        )
-        manifest = manifest + "\n" + extra
+    if ctx.deps.mode == AgentMode.DATABASE and ctx.deps.dynamic_tools:
+        names = ", ".join(tool.name for tool in ctx.deps.dynamic_tools)
+        catalog = f"{catalog}\n- database row tools: {names}"
 
-    return f"\n<available_tools>\n{manifest}\n</available_tools>"
+    return f"\n<tool_catalog>\n{catalog}\n</tool_catalog>"
 
 
 @main_agent.toolset
 def dynamic_toolset(ctx: RunContext[AssistantDeps]):
-    """Make dynamically loaded tools available to the agent."""
+    """
+    Make dynamically loaded tools available to the agent.
 
-    if ctx.deps.dynamic_tools:
+    :param ctx: The agent run context.
+    :return: A toolset with the dynamic row tools in database mode, or None.
+    """
+
+    if ctx.deps.mode == AgentMode.DATABASE and ctx.deps.dynamic_tools:
         ts = FunctionToolset()
         for tool in ctx.deps.dynamic_tools:
             ts.add_tool(tool)

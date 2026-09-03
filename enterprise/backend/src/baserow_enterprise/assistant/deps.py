@@ -124,20 +124,9 @@ class AssistantDeps:
     license_tier: "LicenseType | None" = None
     sources: list[str] = field(default_factory=list)
     dynamic_tools: list[Tool] = field(default_factory=list)
-    database_manifest: str = ""
-    application_manifest: str = ""
-    automation_manifest: str = ""
-    explain_manifest: str = ""
-    original_request: str = ""
-
-    @property
-    def active_manifest(self) -> str:
-        return {
-            AgentMode.DATABASE: self.database_manifest,
-            AgentMode.APPLICATION: self.application_manifest,
-            AgentMode.AUTOMATION: self.automation_manifest,
-            AgentMode.EXPLAIN: self.explain_manifest,
-        }[self.mode]
+    tool_catalog: str = ""
+    verified_tool_outcomes: list[dict[str, Any]] = field(default_factory=list)
+    pending_question: str | None = None
 
     def extend_sources(self, new_sources: list[str]):
         """

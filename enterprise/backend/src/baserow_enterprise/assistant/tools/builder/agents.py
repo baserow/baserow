@@ -24,6 +24,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.signals import workflow_action_updated
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.utils import to_path
+from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     create_example_from_json_schema,
@@ -352,10 +353,16 @@ def update_element_formulas(
     element_mapping: dict[str, tuple[Any, ElementItemCreate]],
     tool_helpers: "ToolHelpers",
 ) -> list[str]:
-    """Generate and apply formulas for elements that need them.
+    """
+    Generate and apply formulas for elements that need them.
 
-    Returns a list of error messages for elements whose formulas could
-    not be generated (empty list on full success).
+    :param user: The acting user.
+    :param page: The page the elements belong to.
+    :param elements: The requested element definitions.
+    :param element_mapping: Mapping of refs to (orm_element, create) pairs.
+    :param tool_helpers: Provides status updates.
+    :return: Error messages for elements whose formulas could not be
+        generated (empty list on full success).
     """
 
     errors: list[str] = []
@@ -404,6 +411,7 @@ def update_element_formulas(
                         if generated:
                             el_create.update_with_formulas(user, orm_element, generated)
                     except Exception as exc:
+                        raise_if_permission_denied(exc)
                         logger.error(
                             "Failed to generate formulas for element {}: {}",
                             orm_element.id,
@@ -423,10 +431,15 @@ def update_data_source_formulas(
     ds_pairs: list[tuple[Any, DataSourceCreate]],
     tool_helpers: "ToolHelpers",
 ) -> list[str]:
-    """Generate and apply formulas for data sources that need them.
+    """
+    Generate and apply formulas for data sources that need them.
 
-    Returns a list of error messages for data sources whose formulas could
-    not be generated (empty list on full success).
+    :param user: The acting user.
+    :param page: The page the data sources belong to.
+    :param ds_pairs: Pairs of the ORM data source and its create definition.
+    :param tool_helpers: Provides status updates.
+    :return: Error messages for data sources whose formulas could not be
+        generated (empty list on full success).
     """
 
     errors: list[str] = []
@@ -451,6 +464,7 @@ def update_data_source_formulas(
                         if generated:
                             ds_create.update_with_formulas(user, orm_ds, generated)
                     except Exception as exc:
+                        raise_if_permission_denied(exc)
                         logger.error(
                             "Failed to generate formulas for data source {}: {}",
                             orm_ds.id,
@@ -461,6 +475,7 @@ def update_data_source_formulas(
                             f"'{ds_create.name}': {exc}"
                         )
         except Exception as exc:
+            raise_if_permission_denied(exc)
             logger.error(
                 "Error processing data source {} for formulas: {}", orm_ds.id, exc
             )
@@ -476,7 +491,15 @@ def update_single_data_source_formulas(
     ds_update: DataSourceUpdate,
     tool_helpers: "ToolHelpers",
 ) -> None:
-    """Generate and apply formulas for a single updated data source."""
+    """
+    Generate and apply formulas for a single updated data source.
+
+    :param user: The acting user.
+    :param page: The page the data source belongs to.
+    :param orm_ds: The ORM data source being updated.
+    :param ds_update: The update definition.
+    :param tool_helpers: Provides status updates.
+    """
 
     from baserow.contrib.builder.data_sources.handler import DataSourceHandler
     from baserow.contrib.builder.data_sources.service import DataSourceService
@@ -522,6 +545,7 @@ def update_single_data_source_formulas(
                         **service_kwargs,
                     )
         except Exception as exc:
+            raise_if_permission_denied(exc)
             logger.exception(
                 "Failed to generate formulas for data source {}: {}",
                 orm_ds.id,
@@ -537,7 +561,16 @@ def update_single_element_formulas(
     element_type: str,
     tool_helpers: "ToolHelpers",
 ) -> None:
-    """Generate and apply formulas for a single updated element."""
+    """
+    Generate and apply formulas for a single updated element.
+
+    :param user: The acting user.
+    :param page: The page the element belongs to.
+    :param orm_element: The ORM element being updated.
+    :param element_update: The update definition.
+    :param element_type: The element type string.
+    :param tool_helpers: Provides status updates.
+    """
 
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
@@ -590,6 +623,7 @@ def update_single_element_formulas(
                         if kwargs:
                             UpdateElementActionType.do(user, orm_element, kwargs)
                 except Exception as exc:
+                    raise_if_permission_denied(exc)
                     logger.exception(
                         "Failed to generate formulas for element {}: {}",
                         orm_element.id,
@@ -606,10 +640,15 @@ def update_workflow_action_formulas(
     action_pairs: list[tuple[Any, ActionCreate]],
     tool_helpers: "ToolHelpers",
 ) -> list[str]:
-    """Generate and apply formulas for workflow actions that need them.
+    """
+    Generate and apply formulas for workflow actions that need them.
 
-    Returns a list of error messages for actions whose formulas could
-    not be generated (empty list on full success).
+    :param user: The acting user.
+    :param page: The page the actions belong to.
+    :param action_pairs: Pairs of the ORM action and its create definition.
+    :param tool_helpers: Provides status updates.
+    :return: Error messages for actions whose formulas could not be
+        generated (empty list on full success).
     """
 
     errors: list[str] = []
@@ -651,6 +690,7 @@ def update_workflow_action_formulas(
                             None, workflow_action=orm_action, user=user
                         )
                     except Exception as exc:
+                        raise_if_permission_denied(exc)
                         logger.error(
                             "Failed to generate formulas for action {}: {}",
                             orm_action.id,
@@ -660,6 +700,7 @@ def update_workflow_action_formulas(
                             f"Formula generation failed for action on '{ref}': {exc}"
                         )
         except Exception as exc:
+            raise_if_permission_denied(exc)
             logger.error(
                 "Error processing action {} for formulas: {}", orm_action.id, exc
             )

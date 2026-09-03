@@ -42,7 +42,7 @@ def test_list_views_tool(data_fixture):
         ]
     }
 
-    view_2 = data_fixture.create_grid_view(table=table, name="View 2", order=2)
+    data_fixture.create_grid_view(table=table, name="View 2", order=2)
     response = list_views(ctx, thought="test", table_id=table.id)
     assert len(response["views"]) == 2
     assert response["views"][0]["name"] == "View 1"
@@ -266,7 +266,26 @@ def test_create_text_equal_filter(data_fixture):
     assert len(response["created_view_filters"]) == 1
     assert len(response["created_view_filters"][0]["filters"]) == 1
     assert response["created_view_filters"][0]["filters"][0]["operator"] == "equal"
+    assert response["changed"] is True
     assert ViewFilter.objects.filter(view=view, field=field, type="equal").exists()
+
+
+@pytest.mark.django_db
+def test_empty_filter_group_reports_no_change(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table)
+
+    response = create_view_filters(
+        make_test_ctx(user, workspace),
+        thought="test",
+        view_filters=[ViewFiltersArgs(view_id=view.id, filters=[])],
+    )
+
+    assert response["created_view_filters"] == [{"view_id": view.id, "filters": []}]
+    assert response["changed"] is False
 
 
 @pytest.mark.django_db

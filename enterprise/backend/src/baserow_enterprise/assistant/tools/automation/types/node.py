@@ -173,16 +173,8 @@ def _service_dispatch_type(service: "Service | None") -> str | None:
     return _SERVICE_TO_DISPATCH_TYPE.get(service_type, service_type)
 
 
-ROW_TRIGGER_TYPES = frozenset(
-    {
-        "rows_created",
-        "rows_updated",
-        "rows_deleted",
-        "local_baserow_rows_created",
-        "local_baserow_rows_updated",
-        "local_baserow_rows_deleted",
-    }
-)
+# Short forms only: _fold_registered_type rewrites long names before validation.
+ROW_TRIGGER_TYPES = frozenset({"rows_created", "rows_updated", "rows_deleted"})
 
 
 class TriggerNodeCreate(BaseModel):
@@ -240,7 +232,11 @@ class TriggerNodeCreate(BaseModel):
         return self
 
     def to_orm_service_dict(self) -> dict[str, Any]:
-        """Convert to ORM dict for node creation service."""
+        """
+        Convert to ORM dict for node creation service.
+
+        :return: The type-specific trigger settings as service kwargs.
+        """
 
         if self.type == "periodic" and self.periodic_interval:
             values = self.periodic_interval.model_dump()
@@ -422,14 +418,23 @@ class ActionNodeCreate(BaseModel):
         return fn(self, orm_node) if fn else None
 
     def apply_direct_values(self, service: Service):
-        """Apply literal (non-$formula) values directly to the service."""
+        """
+        Apply literal (non-$formula) values directly to the service.
+
+        :param service: The ORM service to write to.
+        """
 
         fn = _APPLY_DIRECT.get(self.type)
         if fn is not None:
             fn(self, service.specific)
 
     def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
-        """Write generated formulas back to the ORM service."""
+        """
+        Write generated formulas back to the ORM service.
+
+        :param service: The ORM service to write to.
+        :param formulas: The generated formulas keyed as requested.
+        """
 
         service = service.specific
         fn = _UPDATE_FORMULAS.get(self.type)
@@ -727,7 +732,13 @@ class NodeUpdate(BaseModel):
     )
 
     def to_update_service_dict(self, current_type: str) -> dict[str, Any] | None:
-        """Build a service kwargs dict from non-None fields. Returns None if no service fields set."""
+        """
+        Build a service kwargs dict from non-None fields.
+
+        :param current_type: The node's current service type.
+        :return: The service kwargs, or None if no service fields are set.
+        """
+
         builder = _TO_UPDATE_SERVICE.get(
             _SERVICE_TO_DISPATCH_TYPE.get(current_type, current_type)
         )
@@ -737,18 +748,35 @@ class NodeUpdate(BaseModel):
         return result if result else None
 
     def get_formulas_to_update(self, orm_node: AutomationNode) -> dict[str, str] | None:
-        """Return a {key: description} dict of formulas to generate, or None."""
+        """
+        Return the formulas this update needs generated.
+
+        :param orm_node: The ORM node being updated.
+        :return: A {key: description} dict of formulas to generate, or None.
+        """
+
         fn = _GET_UPDATE_FORMULAS.get(_service_dispatch_type(orm_node.service))
         return fn(self, orm_node) if fn else None
 
     def apply_direct_values(self, service: Service):
-        """Apply literal (non-$formula) values directly to the service."""
+        """
+        Apply literal (non-$formula) values directly to the service.
+
+        :param service: The ORM service to write to.
+        """
+
         fn = _APPLY_UPDATE_DIRECT.get(_service_dispatch_type(service))
         if fn is not None:
             fn(self, service.specific)
 
     def update_service_with_formulas(self, service: Service, formulas: dict[str, str]):
-        """Write generated formulas back to the ORM service."""
+        """
+        Write generated formulas back to the ORM service.
+
+        :param service: The ORM service to write to.
+        :param formulas: The generated formulas keyed as requested.
+        """
+
         stype = _service_dispatch_type(service)
         service = service.specific
         fn = _UPDATE_FORMULAS.get(stype)

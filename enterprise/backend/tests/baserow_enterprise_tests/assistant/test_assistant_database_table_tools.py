@@ -8,6 +8,10 @@ from baserow.contrib.database.formula.registries import formula_function_registr
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.tools.database.agents import FormulaGenerationResult
+from baserow_enterprise.assistant.tools.database.reconciliation import (
+    plan_table_creation,
+    table_schema_conflict,
+)
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
     create_tables,
@@ -19,7 +23,9 @@ from baserow_enterprise.assistant.tools.database.types import (
     FieldItemCreate,
     InvalidFormulaFieldError,
     ListTablesFilterArg,
+    SelectOption,
     SelectOptionCreate,
+    TableItem,
     TableItemCreate,
 )
 
@@ -41,6 +47,84 @@ def _make_mock_formula_result(**kwargs):
     mock_agent_result = MagicMock()
     mock_agent_result.output = result
     return mock_agent_result
+
+
+def test_plan_table_creation_keeps_the_first_identical_request():
+    request = TableItemCreate(name="Orders", primary_field_name="Order", fields=[])
+
+    plan = plan_table_creation([request, request.model_copy(deep=True)], [])
+
+    assert plan.requested == [request]
+    assert plan.to_create == [request]
+    assert plan.conflicting_names == []
+
+
+def test_reused_table_detects_field_setting_mismatches():
+    requested = TableItemCreate(
+        name="Orders",
+        primary_field_name="Order",
+        fields=[
+            FieldItemCreate(name="Total", type="number", decimal_places=2, suffix="€"),
+            FieldItemCreate(
+                name="Status",
+                type="single_select",
+                options=[SelectOptionCreate(value="Pending", color="yellow")],
+            ),
+        ],
+    )
+    actual = TableItem(
+        id=1,
+        name="Orders",
+        primary_field=FieldItem(id=2, name="Order", type="text"),
+        fields=[
+            FieldItem(id=3, name="Total", type="number", decimal_places=0, suffix=""),
+            FieldItem(
+                id=4,
+                name="Status",
+                type="single_select",
+                options=[SelectOption(id=5, value="Pending", color="blue")],
+            ),
+        ],
+    )
+
+    conflict = table_schema_conflict(requested, actual)
+
+    mismatches = {item["name"]: item for item in conflict["field_mismatches"]}
+    assert mismatches["Total"]["decimal_places"] == {
+        "actual": 0,
+        "requested": 2,
+    }
+    assert mismatches["Total"]["suffix"] == {
+        "actual": "",
+        "requested": "€",
+    }
+    assert mismatches["Status"]["option_color_mismatches"] == [
+        {
+            "value": "Pending",
+            "actual_color": "blue",
+            "requested_color": "yellow",
+        }
+    ]
+
+
+def test_reused_table_detects_a_non_text_primary_field():
+    requested = TableItemCreate(name="Orders", primary_field_name="Order", fields=[])
+    actual = TableItem(
+        id=1,
+        name="Orders",
+        primary_field=FieldItem(
+            id=2, name="Order", type="number", decimal_places=0, suffix=""
+        ),
+        fields=[],
+    )
+
+    conflict = table_schema_conflict(requested, actual)
+
+    assert conflict["primary_field_mismatch"] == {
+        "field_id": 2,
+        "actual_type": "number",
+        "requested_type": "text",
+    }
 
 
 @pytest.mark.django_db
@@ -178,6 +262,257 @@ def test_create_simple_table_tool(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_tables_reuses_exact_names_and_skips_side_effects_when_all_reused(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Restaurant"
+    )
+    existing = data_fixture.create_database_table(database=database, name="Orders")
+    data_fixture.create_text_field(table=existing, name="Order", primary=True)
+    ctx = make_test_ctx(user, workspace)
+    ctx.deps.tool_helpers.navigate_to = MagicMock()
+    table_specs = [
+        TableItemCreate(name="Orders", primary_field_name="Order", fields=[]),
+        TableItemCreate(name="Customers", primary_field_name="Customer", fields=[]),
+    ]
+
+    first = create_tables(
+        ctx,
+        database_id=database.id,
+        tables=table_specs,
+        add_sample_rows=False,
+        thought="finish the database",
+    )
+
+    assert [table["name"] for table in first["created_tables"]] == ["Customers"]
+    assert first["reused_tables"][0]["id"] == existing.id
+    assert first["reused_tables"][0]["name"] == "Orders"
+    assert "primary_field" in first["reused_tables"][0]
+    assert Table.objects.filter(database=database).count() == 2
+
+    ctx.deps.tool_helpers.navigate_to.reset_mock()
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.generate_sample_rows"
+    ) as generate_sample_rows:
+        second = create_tables(
+            ctx,
+            database_id=database.id,
+            tables=table_specs,
+            add_sample_rows=True,
+            thought="continue",
+        )
+
+    assert second["created_tables"] == []
+    assert [table["name"] for table in second["reused_tables"]] == [
+        "Orders",
+        "Customers",
+    ]
+    assert Table.objects.filter(database=database).count() == 2
+    generate_sample_rows.assert_not_called()
+    ctx.deps.tool_helpers.navigate_to.assert_not_called()
+    assert "incomplete_reused_tables" not in second
+    assert "next_steps" not in second
+
+
+@pytest.mark.django_db
+def test_create_tables_does_not_reuse_a_table_the_user_cannot_see(
+    data_fixture, enable_enterprise, synced_roles
+):
+    """A same-name table hidden by RBAC must not leak its schema via reuse."""
+
+    from baserow_enterprise.role.handler import RoleAssignmentHandler
+    from baserow_enterprise.role.models import Role
+
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    database = data_fixture.create_database_application(workspace=workspace)
+    hidden = data_fixture.create_database_table(database=database, name="Orders")
+    data_fixture.create_text_field(table=hidden, name="Secret", primary=True)
+    RoleAssignmentHandler().assign_role(
+        member, workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    RoleAssignmentHandler().assign_role(
+        member, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=hidden
+    )
+
+    result = create_tables(
+        make_test_ctx(member, workspace),
+        database_id=database.id,
+        tables=[TableItemCreate(name="Orders", primary_field_name="Order", fields=[])],
+        add_sample_rows=False,
+        thought="create Orders",
+    )
+
+    assert result["reused_tables"] == []
+    assert [table["name"] for table in result["created_tables"]] == ["Orders"]
+    assert result["created_tables"][0]["id"] != hidden.id
+    assert "Secret" not in str(result)
+    assert Table.objects.filter(database=database, name="Orders").count() == 2
+
+
+@pytest.mark.django_db
+def test_reused_table_resolves_an_omitted_relation_target_from_the_database(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Restaurant"
+    )
+    customers = data_fixture.create_database_table(database=database, name="Customers")
+    customer_name = data_fixture.create_text_field(
+        table=customers, name="Customer", primary=True
+    )
+    orders = data_fixture.create_database_table(database=database, name="Orders")
+    data_fixture.create_text_field(table=orders, name="Order", primary=True)
+    customer_link = data_fixture.create_link_row_field(
+        table=orders,
+        name="Customer",
+        link_row_table=customers,
+    )
+    data_fixture.create_lookup_field(
+        table=orders,
+        name="Customer Name",
+        through_field=customer_link,
+        target_field=customer_name,
+        through_field_name=customer_link.name,
+        target_field_name=customer_name.name,
+    )
+
+    result = create_tables(
+        make_test_ctx(user, workspace),
+        database_id=database.id,
+        tables=[
+            TableItemCreate(
+                name="Orders",
+                primary_field_name="Order",
+                fields=[
+                    FieldItemCreate(
+                        name="Customer",
+                        type="link_row",
+                        linked_table="Customers",
+                    ),
+                    FieldItemCreate(
+                        name="Customer Name",
+                        type="lookup",
+                        linked_table="Customers",
+                        target_field="Customer",
+                    ),
+                ],
+            )
+        ],
+        add_sample_rows=False,
+        thought="verify Orders",
+    )
+
+    assert result["created_tables"] == []
+    assert [table["name"] for table in result["reused_tables"]] == ["Orders"]
+    assert "incomplete_reused_tables" not in result
+    assert "next_steps" not in result
+
+
+@pytest.mark.django_db
+def test_create_tables_reports_missing_fields_on_a_reused_table(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(
+        workspace=workspace, name="Restaurant"
+    )
+    orders = data_fixture.create_database_table(database=database, name="Orders")
+    data_fixture.create_text_field(table=orders, name="Order", primary=True)
+    ctx = make_test_ctx(user, workspace)
+
+    result = create_tables(
+        ctx,
+        database_id=database.id,
+        tables=[
+            TableItemCreate(
+                name="Orders",
+                primary_field_name="Order",
+                fields=[
+                    FieldItemCreate(
+                        name="Status",
+                        type="single_select",
+                        options=[
+                            SelectOptionCreate(value="Pending", color="blue"),
+                            SelectOptionCreate(value="Processing", color="yellow"),
+                        ],
+                    )
+                ],
+            )
+        ],
+        add_sample_rows=False,
+        thought="finish Orders",
+    )
+
+    assert result["created_tables"] == []
+    assert result["reused_tables"][0]["fields"] == []
+    conflict = result["incomplete_reused_tables"][0]
+    assert conflict["id"] == orders.id
+    assert [field["name"] for field in conflict["missing_fields"]] == ["Status"]
+    assert "create_fields" in result["next_steps"]
+    assert "Status" in result["next_steps"]
+
+    status = data_fixture.create_single_select_field(table=orders, name="Status")
+    data_fixture.create_select_option(field=status, value="Pending", color="blue")
+    result = create_tables(
+        ctx,
+        database_id=database.id,
+        tables=[
+            TableItemCreate(
+                name="Orders",
+                primary_field_name="Order",
+                fields=[
+                    FieldItemCreate(
+                        name="Status",
+                        type="single_select",
+                        options=[
+                            SelectOptionCreate(value="Pending", color="blue"),
+                            SelectOptionCreate(value="Processing", color="yellow"),
+                        ],
+                    )
+                ],
+            )
+        ],
+        add_sample_rows=False,
+        thought="verify Orders",
+    )
+
+    mismatch = result["incomplete_reused_tables"][0]["field_mismatches"][0]
+    assert mismatch["name"] == "Status"
+    assert [option["value"] for option in mismatch["missing_options"]] == ["Processing"]
+    assert "update_fields" in result["next_steps"]
+
+
+@pytest.mark.django_db
+def test_create_tables_rejects_conflicting_same_name_requests(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    ctx = make_test_ctx(user, workspace)
+
+    with pytest.raises(ModelRetry, match="Conflicting table definitions.*Orders"):
+        create_tables(
+            ctx,
+            database_id=database.id,
+            tables=[
+                TableItemCreate(name="Orders", primary_field_name="Order", fields=[]),
+                TableItemCreate(
+                    name="Orders", primary_field_name="Reference", fields=[]
+                ),
+            ],
+            add_sample_rows=False,
+            thought="create Orders",
+        )
+
+    assert not Table.objects.filter(database=database, name="Orders").exists()
+
+
+@pytest.mark.django_db
 def test_create_complex_table_tool(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -305,7 +640,7 @@ def test_generate_formula_no_save(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -344,7 +679,7 @@ def test_generate_formula_create_new_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -396,7 +731,7 @@ def test_generate_formula_update_existing_formula_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -448,7 +783,7 @@ def test_generate_formula_replace_non_formula_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -502,7 +837,7 @@ def test_generate_formula_invalid_formula(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -549,7 +884,7 @@ def test_generate_formula_documentation_completeness(data_fixture):
         return mock_result
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync",
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync",
         side_effect=mock_run_sync,
     ):
         ctx = make_test_ctx(user, workspace)
@@ -693,7 +1028,7 @@ def test_create_fields_tool_with_invalid_formula_auto_fixes(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -741,7 +1076,7 @@ def test_create_fields_tool_reports_error_when_auto_fix_fails(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -771,6 +1106,51 @@ def test_create_fields_tool_reports_error_when_auto_fix_fails(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_fields_reports_the_error_when_the_fixed_field_cannot_be_created(
+    data_fixture,
+):
+    """
+    Regression: the fixer returned a formula but creating the field failed on a
+    duplicate name; the handler must record the formula error, not raise
+    UnboundLocalError from except-as shadowing.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    data_fixture.create_text_field(table=table, name="Collides")
+
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="Collides",
+        formula="field('Name')",
+        formula_type="text",
+    )
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
+
+        ctx = make_test_ctx(user, workspace)
+        result = create_fields(
+            ctx,
+            thought="test",
+            table_id=table.id,
+            fields=[
+                FieldItemCreate(
+                    name="Collides", type="formula", formula="invalid_stuff!!!"
+                )
+            ],
+        )
+
+    assert result["created_fields"] == []
+    assert result["formula_errors"][0]["field_name"] == "Collides"
+
+
+@pytest.mark.django_db
 def test_create_tables_with_invalid_formula_auto_fixes(data_fixture):
     """
     When create_tables encounters an invalid formula, it auto-fixes
@@ -793,7 +1173,7 @@ def test_create_tables_with_invalid_formula_auto_fixes(data_fixture):
         )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync",
+        "baserow_enterprise.assistant.tools.database.agents.formula_generation_agent.run_sync",
         side_effect=mock_run_sync,
     ):
         ctx = make_test_ctx(user, workspace)
