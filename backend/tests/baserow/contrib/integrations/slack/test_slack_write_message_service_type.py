@@ -5,13 +5,17 @@ from django.test import override_settings
 from django.utils import timezone
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
 from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
-from baserow.contrib.integrations.slack.models import SlackBotIntegration
+from baserow.contrib.integrations.slack.models import (
+    SlackBotIntegration,
+    SlackWriteMessageService,
+)
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
 )
@@ -427,3 +431,46 @@ def test_slack_write_message_posts_to_the_configured_api(data_fixture):
     assert mock_request.call_args.kwargs["url"] == (
         "http://slack-stub:8080/api/chat.postMessage"
     )
+
+
+@pytest.mark.django_db
+def test_slack_write_message_refusal_without_an_error_code(data_fixture):
+    """
+    The endpoint is configurable, so the body is not guaranteed to be Slack's.
+    A refusal that names no code must still reach the clicker as a message
+    rather than a 500.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        integration=data_fixture.create_integration(
+            SlackBotIntegration, token="xoxb-test"
+        ),
+        channel="general",
+        text="'hi'",
+    )
+    answered = Mock()
+    answered.json.return_value = {"message": "forbidden"}
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=Mock(return_value=answered),
+    ):
+        with pytest.raises(ServiceImproperlyConfiguredDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert "xoxb-test" not in str(raised.value)
+
+
+def test_slack_write_message_channel_cannot_outgrow_its_column():
+    """
+    The API validates through this field, so without a limit an over-long
+    channel reaches the insert and answers 500 instead of 400.
+    """
+
+    field = SlackWriteMessageServiceType().serializer_field_overrides["channel"]
+    column = SlackWriteMessageService._meta.get_field("channel")
+
+    assert field.max_length == column.max_length
+
+    with pytest.raises(DRFValidationError):
+        field.run_validation("a" * (column.max_length + 1))

@@ -7,6 +7,7 @@ from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.integrations.slack.integration_types import SlackBotIntegrationType
 from baserow.contrib.integrations.slack.models import SlackWriteMessageService
 from baserow.contrib.integrations.utils import get_http_request_function
@@ -14,7 +15,7 @@ from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.validator import ensure_string
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
-    ServiceImproperlyConfiguredDispatchException,
+    RemoteRefusedDispatchException,
     UnexpectedDispatchException,
 )
 from baserow.core.services.registries import DispatchTypes, ServiceType
@@ -50,6 +51,11 @@ class SlackWriteMessageServiceType(ServiceType):
             ),
             "channel": serializers.CharField(
                 help_text=SlackWriteMessageService._meta.get_field("channel").help_text,
+                # The column holds 80, so a longer one is refused here rather
+                # than by the insert, which would answer 500.
+                max_length=SlackWriteMessageService._meta.get_field(
+                    "channel"
+                ).max_length,
                 allow_blank=True,
                 required=False,
                 default="",
@@ -110,10 +116,16 @@ class SlackWriteMessageServiceType(ServiceType):
                 timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
             )
             response_data = response.json()
+        except (UnacceptableAddressException, ConnectionError) as e:
+            # What the default advocate path raises for an address it will not
+            # reach. Named like the HTTP service's, which shares this rule.
+            raise UnexpectedDispatchException(
+                f"Invalid URL: {settings.INTEGRATIONS_SLACK_API_URL}"
+            ) from e
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
-            logger.exception("Error while dispatching HTTP request")
+            logger.exception("Error while dispatching the Slack message")
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
 
         # If we've found that the response indicates an error, we raise a
@@ -131,13 +143,13 @@ class SlackWriteMessageServiceType(ServiceType):
                 "default": "An unknown error occurred while sending the message, "
                 "the error code was: {error_code}",
             }
-            error_code = response_data["error"]
+            error_code = response_data.get("error") or "unknown"
             misconfigured_service_message = misconfigured_service_error_codes.get(
                 error_code, misconfigured_service_error_codes["default"]
             ).format(channel=service.channel, error_code=error_code)
-            raise ServiceImproperlyConfiguredDispatchException(
-                misconfigured_service_message
-            )
+            # The post was already made, so a caller counting outbound
+            # traffic charges the click for it.
+            raise RemoteRefusedDispatchException(misconfigured_service_message)
         return {"data": response_data}
 
     def dispatch_transform(self, data):
