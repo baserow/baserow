@@ -1,11 +1,14 @@
 import MarkdownIt from 'markdown-it'
 import { createApplicationBuilderMarkdownRules } from '@baserow/modules/builder/utils/markdown'
 
-const renderMarkdown = (content, { builderId = 1, mode = 'public' } = {}) => {
+const renderMarkdown = (
+  content,
+  { builder = { id: 1 }, mode = 'public' } = {}
+) => {
   const markdown = new MarkdownIt()
   markdown.renderer.rules = {
     ...markdown.renderer.rules,
-    ...createApplicationBuilderMarkdownRules({ builderId, mode }),
+    ...createApplicationBuilderMarkdownRules({ builder, mode }),
   }
   return markdown.render(content)
 }
@@ -54,7 +57,7 @@ describe('createApplicationBuilderMarkdownRules', () => {
 
   test('prefixes internal links in preview mode', () => {
     const html = renderMarkdown('[Link](/path)', {
-      builderId: 42,
+      builder: { id: 42 },
       mode: 'preview',
     })
 
