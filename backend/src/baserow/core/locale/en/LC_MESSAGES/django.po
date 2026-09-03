@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-26 15:25+0000\n"
+"POT-Creation-Date: 2026-09-03 16:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Unlabeled"
 msgstr ""
 
-#: src/baserow/core/handler.py:2239 src/baserow/core/user/handler.py:276
+#: src/baserow/core/handler.py:2239 src/baserow/core/user/handler.py:284
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -584,109 +584,109 @@ msgid ""
 "(%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s)"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:119
+#: src/baserow/core/user/actions.py:122
 msgid "Update User"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:120
+#: src/baserow/core/user/actions.py:123
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) updated"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:184
+#: src/baserow/core/user/actions.py:187
 msgid "Schedule user deletion"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:186
+#: src/baserow/core/user/actions.py:189
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) scheduled to be deleted after grace "
 "time"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:220
+#: src/baserow/core/user/actions.py:223
 msgid "Cancel user deletion"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:222
+#: src/baserow/core/user/actions.py:225
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) logged in cancelling the deletion "
 "process"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:256
+#: src/baserow/core/user/actions.py:259
 msgid "Sign In User"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:258
+#: src/baserow/core/user/actions.py:261
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) signed in via "
 "\"%(auth_provider_type)s\" (%(auth_provider_id)s) auth provider"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:327
+#: src/baserow/core/user/actions.py:330
 msgid "Send reset user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:328
+#: src/baserow/core/user/actions.py:331
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) requested to reset password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:361
+#: src/baserow/core/user/actions.py:364
 msgid "Change user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:362
+#: src/baserow/core/user/actions.py:365
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) changed password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:401
+#: src/baserow/core/user/actions.py:404
 msgid "Reset user password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:402
+#: src/baserow/core/user/actions.py:405
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) reset password"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:438
+#: src/baserow/core/user/actions.py:441
 msgid "Send verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:439
+#: src/baserow/core/user/actions.py:442
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) requested to verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:472
+#: src/baserow/core/user/actions.py:475
 msgid "Verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:473
+#: src/baserow/core/user/actions.py:476
 #, python-format
 msgid "User \"%(user_email)s\" (%(user_id)s) verify email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:510
+#: src/baserow/core/user/actions.py:513
 msgid "Send change email confirmation"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:512
+#: src/baserow/core/user/actions.py:515
 #, python-format
 msgid ""
 "User \"%(user_email)s\" (%(user_id)s) requested to change email to "
 "\"%(new_email)s\""
 msgstr ""
 
-#: src/baserow/core/user/actions.py:558
+#: src/baserow/core/user/actions.py:561
 msgid "Change email"
 msgstr ""
 
-#: src/baserow/core/user/actions.py:560
+#: src/baserow/core/user/actions.py:563
 #, python-format
 msgid ""
 "User \"%(old_email)s\" (%(user_id)s) changed email to \"%(new_email)s\" by "

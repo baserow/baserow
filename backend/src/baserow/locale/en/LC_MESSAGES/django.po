@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-26 15:25+0000\n"
+"POT-Creation-Date: 2026-09-03 16:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -110,75 +110,79 @@ msgstr ""
 msgid "Node (%(node_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:153
+#: src/baserow/contrib/automation/nodes/node_types.py:156
 msgid "Local Baserow create row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:170
+#: src/baserow/contrib/automation/nodes/node_types.py:173
 msgid "Local Baserow update row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:187
+#: src/baserow/contrib/automation/nodes/node_types.py:190
 msgid "Local Baserow delete row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:195
+#: src/baserow/contrib/automation/nodes/node_types.py:198
 msgid "Local Baserow get row"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:203
+#: src/baserow/contrib/automation/nodes/node_types.py:206
 msgid "Local Baserow list rows"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:211
+#: src/baserow/contrib/automation/nodes/node_types.py:214
 msgid "Local Baserow aggregate rows"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:219
+#: src/baserow/contrib/automation/nodes/node_types.py:222
 msgid "HTTP request"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:226
+#: src/baserow/contrib/automation/nodes/node_types.py:229
 msgid "Iterator"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:239
+#: src/baserow/contrib/automation/nodes/node_types.py:242
 msgid "Send email"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:252
+#: src/baserow/contrib/automation/nodes/node_types.py:255
 msgid "AI agent"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:259
+#: src/baserow/contrib/automation/nodes/node_types.py:262
 msgid "Router"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:325
+#: src/baserow/contrib/automation/nodes/node_types.py:328
 msgid "Branch"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:712
+#: src/baserow/contrib/automation/nodes/node_types.py:715
 msgid "Local Baserow rows created"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:720
+#: src/baserow/contrib/automation/nodes/node_types.py:723
 msgid "Local Baserow rows updated"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:728
+#: src/baserow/contrib/automation/nodes/node_types.py:731
 msgid "Local Baserow rows deleted"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:744
+#: src/baserow/contrib/automation/nodes/node_types.py:747
 msgid "Periodic trigger"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:751
+#: src/baserow/contrib/automation/nodes/node_types.py:754
 msgid "HTTP trigger"
 msgstr ""
 
-#: src/baserow/contrib/automation/nodes/node_types.py:764
+#: src/baserow/contrib/automation/nodes/node_types.py:761
+msgid "Start workflow by email"
+msgstr ""
+
+#: src/baserow/contrib/automation/nodes/node_types.py:783
 msgid "Slack write message"
 msgstr ""
 
@@ -282,44 +286,128 @@ msgstr ""
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1176
+#: src/baserow/contrib/integrations/core/service_types.py:1361
 msgid "Branch taken"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1181
+#: src/baserow/contrib/integrations/core/service_types.py:1366
 msgid "Label"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1183
+#: src/baserow/contrib/integrations/core/service_types.py:1368
 msgid "The label of the branch that matched the condition."
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1376
+#: src/baserow/contrib/integrations/core/service_types.py:1561
 msgid "Condition"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1378
+#: src/baserow/contrib/integrations/core/service_types.py:1563
 msgid "Whether the condition evaluated to true and the jump was followed."
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1785
+#: src/baserow/contrib/integrations/core/service_types.py:1970
 msgid "Previous scheduled run"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1789
+#: src/baserow/contrib/integrations/core/service_types.py:1974
 msgid "Next scheduled run"
 msgstr ""
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:1783
+#: src/baserow/contrib/integrations/core/service_types.py:2294
+msgid "Name"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2295
+msgid "Address"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2300
+msgid "From"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2303
+msgid "To"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2308
+msgid "Cc"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2313
+msgid "Reply to"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2316
+msgid "Recipient"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2317
+msgid "Recipient tag"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2318
+msgid "Subject"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2319
+msgid "Body (text)"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2320
+msgid "Body (HTML)"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2321
+msgid "Message ID"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2322
+msgid "In reply to"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2323
+msgid "Received at"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2326
+msgid "Attachments"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2330
+msgid "Filename"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2333
+msgid "Content type"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2335
+msgid "Size"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2341
+msgid "Sender validated"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2345
+msgid "DKIM verified domains"
+msgstr ""
+
+#: src/baserow/contrib/integrations/core/service_types.py:2348
+msgid "Remote IP"
+msgstr ""
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1789
 msgid "No rows found"
 msgstr ""
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:2408
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2414
 #, python-format
 msgid "The %(operation)s action can process at most %(limit)s rows at once."
 msgstr ""
 
-#: src/baserow/contrib/integrations/local_baserow/service_types.py:2774
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2780
 #, python-format
 msgid ""
 "The batch delete rows action can process at most %(limit)s rows at once."
