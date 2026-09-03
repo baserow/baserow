@@ -88,17 +88,14 @@ def _noop_tool_helpers(workspace) -> ToolHelpers:
 
 @pytest.mark.django_db
 class TestBuildAgentRunContext:
-    def test_returns_deps_with_manifests_and_toolset(self):
+    def test_returns_deps_with_tool_catalog_and_toolset(self):
         fixtures = make_fixtures()
         user = fixtures.create_user()
         workspace = fixtures.create_workspace(user=user)
 
         ctx = build_agent_run_context(user, workspace, _noop_tool_helpers(workspace))
 
-        assert ctx.deps.database_manifest
-        assert ctx.deps.application_manifest
-        assert ctx.deps.automation_manifest
-        assert ctx.deps.explain_manifest
+        assert ctx.deps.tool_catalog
         assert ctx.toolset is not None
         assert ctx.deps.user is user
         assert ctx.deps.workspace is workspace
@@ -111,7 +108,7 @@ class TestBuildAgentRunContext:
         with patch.object(
             assistant_tool_registry,
             "build_toolset",
-            return_value=(toolset, "database", "application", "automation", "explain"),
+            return_value=(toolset, "- database: list_tables"),
         ) as build_toolset:
             ctx = build_agent_run_context(user, workspace, helpers)
 
@@ -149,10 +146,7 @@ class TestBuildAgentRunContext:
                     model=kwargs["model"],
                     model_profile=kwargs["model_profile"],
                 ),
-                "database",
-                "application",
-                "automation",
-                "explain",
+                "- database: list_tables",
             )
 
         with (

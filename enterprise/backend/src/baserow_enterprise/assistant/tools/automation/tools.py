@@ -1,20 +1,28 @@
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
+from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils.translation import gettext as _
 
-from loguru import logger
 from pydantic import Field
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
+from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.shared import (
+    raise_if_permission_denied,
+    require_payload,
+)
 from baserow_enterprise.assistant.types import WorkflowNavigationType
 
-from . import agents, helpers
+from . import agents, helpers, reconciliation
 from .types import ActionNodeCreate, NodeUpdate, WorkflowCreate
+
+if TYPE_CHECKING:
+    from baserow_enterprise.assistant.deps import ToolHelpers
 
 
 def list_workflows(
@@ -99,7 +107,7 @@ def add_nodes(
 
     WHEN to use: User wants to insert or append nodes in an existing workflow — e.g. add a router between trigger and action, or add a new action after an existing one.
     WHAT it does: Creates new nodes attached to existing ones. Use previous_node_ref with the string ID of an existing node (e.g. "49") or a temp ref of a node being created in the same call.
-    RETURNS: Created nodes array with id, label, type.
+    RETURNS: Created nodes with id, label, type, plus formula_errors if needed.
     DO NOT USE when: You want to create an entirely new workflow — use create_workflows instead.
     HOW: Use list_nodes first to find the existing node IDs, then specify previous_node_ref to place new nodes. Use router_edge_label when attaching to a router branch.
     REQUIRED: `workflow_id` and `nodes` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
@@ -116,12 +124,12 @@ def add_nodes(
     workflow = helpers.get_workflow(workflow_id, user, workspace)
 
     with transaction.atomic():
-        created_nodes, node_mapping = helpers.add_nodes_to_workflow(
+        created_nodes, _node_mapping = helpers.add_nodes_to_workflow(
             user, workflow, nodes, tool_helpers
         )
 
-    # Generate formulas for nodes that need them
-    for orm_node, node_create in [(n, nodes[i]) for i, n in enumerate(created_nodes)]:
+    formula_errors = []
+    for orm_node, node_create in zip(created_nodes, nodes):
         node_create.apply_direct_values(orm_node.service)
         formulas = node_create.get_formulas_to_create(orm_node)
         if formulas:
@@ -132,21 +140,59 @@ def add_nodes(
                 )
             )
             with transaction.atomic():
-                try:
+                formula_errors.extend(
                     agents.update_single_node_formulas(
                         node_create, orm_node, tool_helpers
                     )
-                except Exception:
-                    logger.exception(
-                        "Failed to generate formulas for node {}", orm_node.id
-                    )
+                )
 
-    return {
+    result: dict[str, Any] = {
         "created_nodes": [
             {"id": n.id, "label": n.label, "type": n.get_type().type}
             for n in created_nodes
         ]
     }
+    if formula_errors:
+        result["formula_errors"] = formula_errors
+    return result
+
+
+def _create_new_workflows(
+    user: AbstractUser,
+    automation: Automation,
+    workflows: list[WorkflowCreate],
+    tool_helpers: "ToolHelpers",
+) -> tuple[list[dict[str, Any]], AutomationWorkflow | None, list[dict[str, Any]]]:
+    """
+    Create the requested workflows and generate their formulas.
+
+    :return: The created workflow summaries, the last workflow created, and
+        the formula errors.
+    """
+
+    created_workflows: list[dict[str, Any]] = []
+    formula_errors: list[dict[str, Any]] = []
+    last_workflow = None
+    for workflow_spec in workflows:
+        tool_helpers.raise_if_cancelled()
+        with transaction.atomic():
+            workflow, node_mapping = helpers.create_workflow(
+                user, automation, workflow_spec, tool_helpers
+            )
+            created_workflows.append(
+                {
+                    "id": workflow.id,
+                    "name": workflow.name,
+                    "state": workflow.state,
+                }
+            )
+            last_workflow = workflow
+
+        formula_errors.extend(
+            agents.update_workflow_formulas(workflow_spec, node_mapping, tool_helpers)
+        )
+
+    return created_workflows, last_workflow, formula_errors
 
 
 def create_workflows(
@@ -168,9 +214,8 @@ def create_workflows(
     Create workflows with triggers and action nodes.
 
     WHEN to use: User wants automated workflows with triggers and action nodes.
-    WHAT it does: Creates workflows with a trigger and action/router/iterator nodes. Use {{ node.ref }} for referencing values from previous nodes.
-    RETURNS: Created workflows with id, name, state.
-    DO NOT USE when: Workflows with those names already exist — check with list_workflows first.
+    WHAT it does: Reuses exact-name matches and creates missing workflows with a trigger and action/router/iterator nodes. Reused workflows return actual nodes and next_steps when their node sequence differs. Use {{ node.ref }} for referencing values from previous nodes.
+    RETURNS: Created and reused workflows, plus formula_errors if needed.
     HOW: Each workflow needs exactly one trigger and one or more actions/routers. Use {{ node.ref }} syntax to reference previous node values in action formulas. Know the table_id and field_ids for row-based triggers and actions.
 
     ## Workflow Structure
@@ -195,38 +240,40 @@ def create_workflows(
 
     require_payload("create_workflows", "workflows", workflows)
 
-    created = []
-
     automation = helpers.get_automation(automation_id, user, workspace)
-    for wf in workflows:
-        tool_helpers.raise_if_cancelled()
-        with transaction.atomic():
-            orm_workflow, node_mapping = helpers.create_workflow(
-                user, automation, wf, tool_helpers
-            )
-            created.append(
-                {
-                    "id": orm_workflow.id,
-                    "name": orm_workflow.name,
-                    "state": orm_workflow.state,
-                }
-            )
-
-        # In separate transactions, try to update the formulas inside the workflow,
-        # so we don't block the main creation if something goes wrong here.
-        agents.update_workflow_formulas(wf, node_mapping, tool_helpers)
-
-    # Navigate to the last created workflow
-    tool_helpers.navigate_to(
-        WorkflowNavigationType(
-            type="automation-workflow",
-            automation_id=automation.id,
-            workflow_id=orm_workflow.id,
-            workflow_name=orm_workflow.name,
+    existing_workflows = AutomationWorkflowService().list_workflows(user, automation.id)
+    plan = reconciliation.plan_workflow_creation(workflows, existing_workflows)
+    if plan.conflicting_names:
+        names = ", ".join(plan.conflicting_names)
+        raise ModelRetry(
+            f"Conflicting workflow definitions use the same name: {names}. "
+            "Submit one definition per workflow name."
         )
+    created_workflows, last_created_workflow, formula_errors = _create_new_workflows(
+        user, automation, plan.to_create, tool_helpers
     )
 
-    return {"created_workflows": created}
+    if last_created_workflow is not None:
+        tool_helpers.navigate_to(
+            WorkflowNavigationType(
+                type="automation-workflow",
+                automation_id=automation.id,
+                workflow_id=last_created_workflow.id,
+                workflow_name=last_created_workflow.name,
+            )
+        )
+
+    reused_workflows = reconciliation.describe_reused_workflows(user, plan.to_reuse)
+    result: dict[str, Any] = {
+        "created_workflows": created_workflows,
+        "reused_workflows": reused_workflows,
+    }
+    result.update(
+        reconciliation.reused_workflow_report(plan.requested, reused_workflows)
+    )
+    if formula_errors:
+        result["formula_errors"] = formula_errors
+    return result
 
 
 def update_nodes(
@@ -249,7 +296,7 @@ def update_nodes(
 
     WHEN to use: User wants to rename a node, change email subject/body, update slack channel, etc.
     WHAT it does: Updates node label and/or service config. Supports $formula: prefix for dynamic values.
-    RETURNS: Updated node IDs and any errors.
+    RETURNS: Updated node IDs and any update or formula errors.
     DO NOT USE when: You need to change a node's type — delete and recreate it instead.
     HOW: Use list_workflows first to find the workflow and node IDs.
     """
@@ -266,6 +313,7 @@ def update_nodes(
 
     updated = []
     errors = []
+    formula_errors = []
     updated_pairs = []
 
     with transaction.atomic():
@@ -277,8 +325,9 @@ def update_nodes(
                 )
                 updated.append({"node_id": orm_node.id, "label": orm_node.label})
                 updated_pairs.append((node_update, orm_node))
-            except Exception as e:
-                errors.append(f"Error updating node {node_update.node_id}: {e}")
+            except Exception as error:
+                raise_if_permission_denied(error)
+                errors.append(f"Error updating node {node_update.node_id}: {error}")
 
     # Apply direct values and generate formulas outside the main transaction
     for node_update, orm_node in updated_pairs:
@@ -290,16 +339,15 @@ def update_nodes(
             _("Generating formulas for node '%(label)s'..." % {"label": orm_node.label})
         )
         with transaction.atomic():
-            try:
+            formula_errors.extend(
                 agents.update_single_node_formulas(node_update, orm_node, tool_helpers)
-            except Exception as exc:
-                logger.exception(
-                    "Failed to generate formulas for node {}: {}", orm_node.id, exc
-                )
+            )
 
     result: dict[str, Any] = {"updated_nodes": updated}
     if errors:
         result["errors"] = errors
+    if formula_errors:
+        result["formula_errors"] = formula_errors
     return result
 
 
@@ -340,8 +388,9 @@ def delete_nodes(
         try:
             helpers.delete_node(user, workspace, node_id)
             deleted.append(node_id)
-        except Exception as e:
-            errors.append(f"Error deleting node {node_id}: {e}")
+        except Exception as error:
+            raise_if_permission_denied(error)
+            errors.append(f"Error deleting node {node_id}: {error}")
 
     result: dict[str, Any] = {"deleted_node_ids": deleted}
     if errors:
@@ -358,8 +407,3 @@ TOOL_FUNCTIONS = [
     delete_nodes,
 ]
 automation_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
-
-ROUTING_RULES = """\
-- switch_mode: switch domain if task needs tools not in the current mode.
-- create_workflows: use {{ node.ref }} for node refs, $formula: prefix for dynamic field values.
-- add_nodes: insert/append nodes. Use list_nodes first to find existing node IDs."""
