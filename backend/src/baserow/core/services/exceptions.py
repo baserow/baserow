@@ -43,6 +43,17 @@ class UnreachableAddressDispatchException(ServiceImproperlyConfiguredDispatchExc
     """
 
 
+class RemoteRefusedDispatchException(ServiceImproperlyConfiguredDispatchException):
+    """
+    Raised when the service reached the server it is pointed at and that server
+    refused the exchange, such as an SMTP server that will not start TLS or
+    rejects the credentials. Unlike its parent it is raised once the instance
+    has already reached out, so a caller counting outbound traffic still counts
+    it. Its message is written for whoever clicked, and names neither the
+    address nor the credential it carried.
+    """
+
+
 class InvalidContextDispatchException(DispatchException):
     """
     Raised when trying to dispatch a service and the dispatch context is invalid.

@@ -51,6 +51,7 @@ from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
     PermissionDeniedDispatchException,
+    RemoteRefusedDispatchException,
     ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
@@ -95,10 +96,16 @@ def reached_outside(exc: Exception) -> bool:
     """
 
     # Subclasses of the configuration failures above, but raised once the
-    # instance had already reached out: a refusal on the answer's size, or a
-    # connection that was attempted. Both are charged like any other.
+    # instance had already reached out: a refusal on the answer's size, a
+    # connection that was attempted, or a server that answered and then turned
+    # the exchange down. All are charged like any other.
     if isinstance(
-        exc, (ResponseTooLargeDispatchException, UnreachableAddressDispatchException)
+        exc,
+        (
+            ResponseTooLargeDispatchException,
+            UnreachableAddressDispatchException,
+            RemoteRefusedDispatchException,
+        ),
     ):
         return True
 

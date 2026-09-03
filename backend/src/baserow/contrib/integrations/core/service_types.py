@@ -75,6 +75,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
+    RemoteRefusedDispatchException,
     ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
@@ -775,6 +776,19 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         "body",
     ]
 
+    # Who the message goes to and what it says. A literal recipient is somebody
+    # personal data, and a literal body is whatever the button was set up to
+    # send, so neither travels to a third party the way the configuration does.
+    sensitive_fields = [
+        "from_email",
+        "from_name",
+        "to_emails",
+        "cc_emails",
+        "bcc_emails",
+        "subject",
+        "body",
+    ]
+
     serializer_field_names = [
         "integration_id",
         "use_instance_smtp_settings",
@@ -900,6 +914,11 @@ class CoreSMTPEmailServiceType(CoreServiceType):
 
         if not settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
             return self.INSTANCE_SMTP_TURNED_OFF
+
+        # The same question a dispatch asks, so the editor cannot offer an
+        # action that the send then refuses for want of a host.
+        if not self.instance_smtp_is_available():
+            return self.INSTANCE_SMTP_NO_SERVER
 
         # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
         # says nothing about whether this installation can send. What it does
@@ -1084,9 +1103,9 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 }
             }
         except SMTPNotSupportedError as e:
-            raise ServiceImproperlyConfiguredDispatchException(
-                "TLS not supported by server"
-            ) from e
+            # The server was reached and answered, so the click is charged for
+            # it even though the fix is in the configuration.
+            raise RemoteRefusedDispatchException("TLS not supported by server") from e
         except socket.gaierror as e:
             raise UnreachableAddressDispatchException(
                 f"The host {smtp_host}:{smtp_port} could not be reached"
@@ -1096,7 +1115,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 f"Connection refused by {smtp_host}:{smtp_port}"
             ) from e
         except SMTPAuthenticationError as e:
-            raise ServiceImproperlyConfiguredDispatchException(
+            raise RemoteRefusedDispatchException(
                 "The username or password is incorrect"
             ) from e
         except SMTPConnectError as e:

@@ -311,6 +311,17 @@ iteration adds real ownership: a `created_by` user and an `is_shared` flag, priv
 default. Both steps are designed with the builder team, since they apply to its
 integrations as much as to buttons.
 
+**Amendment (phase 4b, September 2026).** The email action does not take an
+`SMTPIntegrationType` integration after all. A database action carries no integration,
+so a button sends only through this installation's own mail server, and the action type
+pins `use_instance_smtp_settings` on every save rather than offering the choice. That
+keeps a button's email out of the sharing question above entirely: there are no
+credentials on the action to lend to anybody. It also makes
+`BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS` a switch for the
+feature: with it off, or with no mail server configured, the editor offers the action
+disabled and says which of the two it is. An installation that wants per-action
+credentials is the revisit trigger for attaching an integration here.
+
 In practice v1 registers only local row actions, so it has nothing to auto-create, copy,
 or manage, and no integrations settings UI. The builder keeps its behavior: a builder
 service without an integration is a normal half-configured state that fails cleanly
