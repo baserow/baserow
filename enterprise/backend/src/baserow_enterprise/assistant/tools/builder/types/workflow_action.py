@@ -165,10 +165,14 @@ _SERVICE_TYPE: dict[str, str | None] = {
 
 
 def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
-    """Build service kwargs for row-based actions (create/update/delete)."""
+    """
+    Build service kwargs for row-based actions (create/update/delete).
 
-    from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
+    :raises ToolInputError: When the referenced table does not exist.
+    """
+
     from baserow_enterprise.assistant.tools.database.helpers import filter_tables
+    from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
 
     table = filter_tables(user, workspace).filter(id=action.table_id).first()
     if table is None:
