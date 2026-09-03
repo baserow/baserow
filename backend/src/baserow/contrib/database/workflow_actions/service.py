@@ -97,8 +97,8 @@ def reached_outside(exc: Exception) -> bool:
 
     # Subclasses of the configuration failures above, but raised once the
     # instance had already reached out: a refusal on the answer's size, a
-    # connection that was attempted, or a server that answered and then turned
-    # the exchange down. All are charged like any other.
+    # connection that was attempted, or a server that answered and then
+    # refused. All are charged like any other.
     if isinstance(
         exc,
         (
