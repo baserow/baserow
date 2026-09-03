@@ -131,6 +131,16 @@ init: _check-binary
     assert dom.count(old) == 1, "destinations anchor not found"
     dom = dom.replace(old, new)
 
+    # Remove the account's JunkFilter block (optional in sconf) so localserve
+    # stops rejecting small test emails as "junk-content-strict" (a fresh
+    # account has an untrained filter and rejects almost everything).
+    import re
+
+    dom, removed = re.subn(
+        r"\t\tJunkFilter:\n(?:.*\n)*?(?=\t\t# Do not apply a delay)", "", dom
+    )
+    assert removed == 1, "JunkFilter block not found"
+
     open(dom_path, "w").write(dom)
     print("  + patched mox.conf and domains.conf")
     PY
@@ -210,6 +220,10 @@ send ADDRESS *SUBJECT:
     set -euo pipefail
     SUBJECT="{{ SUBJECT }}"
     [ -z "$SUBJECT" ] && SUBJECT="Test email from 'just mox send'"
+    if ! (exec 3<>"/dev/tcp/127.0.0.1/{{ MOX_SMTP_PORT }}") 2>/dev/null; then
+        echo "error: nothing is listening on localhost:{{ MOX_SMTP_PORT }}. Is mox running? Start it with: just mox up" >&2
+        exit 1
+    fi
     MOX_SMTP_PORT="{{ MOX_SMTP_PORT }}" \
     TO_ADDRESS="{{ ADDRESS }}" \
     SUBJECT="$SUBJECT" \
