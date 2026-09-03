@@ -1,4 +1,4 @@
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow_enterprise.assistant.deps import AssistantDeps
@@ -34,6 +34,28 @@ def _canonical_license_tier(license_tier: str) -> str:
     if normalized_tier in _CANONICAL_LICENSE_TIERS:
         return normalized_tier
     return FREE_LICENSE_TIER
+
+
+@main_agent.output_validator
+def _text_must_not_be_a_tool_call(ctx: RunContext[AssistantDeps], output: str) -> str:
+    """
+    Send back a final answer that is a tool call printed as text.
+
+    After a provider rejects an oversized generation, the model sometimes dumps
+    the same call as its text answer; accepting it would end the turn with raw
+    JSON shown to the user and nothing executed.
+    """
+
+    stripped = output.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.split("\n", 1)[-1].strip()
+    if stripped.startswith('{"name"') and '"arguments"' in stripped[:200]:
+        raise ModelRetry(
+            "That answer is a tool call printed as text, so nothing was "
+            "executed. Call the tool instead, and if the payload is large "
+            "split it into batches of at most 20 rows per call."
+        )
+    return output
 
 
 @main_agent.instructions
