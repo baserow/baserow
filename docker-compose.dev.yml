@@ -31,6 +31,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL}
+      - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-}
+      - BASEROW_ASSISTANT_PHOENIX_API_KEY=${BASEROW_ASSISTANT_PHOENIX_API_KEY:-}
     build:
       dockerfile: ./backend/Dockerfile
       context: .
@@ -127,6 +129,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
+      - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-}
+      - BASEROW_ASSISTANT_PHOENIX_API_KEY=${BASEROW_ASSISTANT_PHOENIX_API_KEY:-}
     volumes:
       - ./docs:/baserow/docs
       - ./backend:/baserow/backend
@@ -291,6 +295,96 @@ services:
       interval: 1m30s
       timeout: 10s
       retries: 3
+
+  ai-evals-db-init:
+    profiles: ["ai-evals"]
+    image: pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}
+    environment:
+      - PGHOST=db
+      - PGUSER=${DATABASE_USER:-baserow}
+      - PGPASSWORD=${DATABASE_PASSWORD:?}
+    command: sh -c "createdb phoenix || true; createdb baserow_evals || true"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      local:
+    restart: "no"
+
+  phoenix:
+    profiles: ["ai-evals"]
+    image: arizephoenix/phoenix:version-20.3.0
+    environment:
+      - PHOENIX_SQL_DATABASE_URL=postgresql://${DATABASE_USER:-baserow}:${DATABASE_PASSWORD:?}@db:5432/phoenix
+      # Provider keys for the Phoenix prompt playground (same vars the evals use).
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    ports:
+      - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_PHOENIX_PORT:-6060}:6006"
+    networks:
+      local:
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ai-evals-db-init:
+        condition: service_completed_successfully
+
+  assistant-eval-runner:
+    image: baserow_backend:dev
+    user: "${UID}:${GID}"
+    profiles: ["ai-evals"]
+    restart: unless-stopped
+    command: "watch-py manage assistant_eval_runner --host 0.0.0.0"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8090/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 3m
+    environment:
+      - SECRET_KEY=${SECRET_KEY:?}
+      - DATABASE_NAME=baserow_evals
+      - DATABASE_USER=${DATABASE_USER:-baserow}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:?}
+      - DATABASE_HOST=db
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?}
+      - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-http://phoenix:6006}
+      - BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL=${BASEROW_ASSISTANT_PHOENIX_PUBLIC_URL:-http://localhost:${BASEROW_PHOENIX_PORT:-6060}}
+      - BASEROW_ASSISTANT_PHOENIX_API_KEY=${BASEROW_ASSISTANT_PHOENIX_API_KEY:-}
+      - BASEROW_EMBEDDINGS_API_URL=${BASEROW_EMBEDDINGS_API_URL:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - BASEROW_EVAL_GIT_BRANCH=${BASEROW_EVAL_GIT_BRANCH:-}
+      - BASEROW_EVAL_GIT_COMMIT=${BASEROW_EVAL_GIT_COMMIT:-}
+      - BASEROW_EVAL_JUDGE_MODEL=${BASEROW_EVAL_JUDGE_MODEL:-}
+      - BASEROW_EVAL_CASE_TIMEOUT=${BASEROW_EVAL_CASE_TIMEOUT:-}
+      - BASEROW_EVAL_RUNNER_LOG_LEVEL=${BASEROW_EVAL_RUNNER_LOG_LEVEL:-}
+    ports:
+      - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_EVAL_RUNNER_PORT:-8090}:8090"
+    volumes:
+      - ./docs:/baserow/docs
+      - ./backend:/baserow/backend
+      - ./premium/backend/:/baserow/premium/backend
+      - ./enterprise/backend/:/baserow/enterprise/backend
+      - ./deploy/plugins:/baserow/plugins
+    networks:
+      local:
+    depends_on:
+      db:
+        condition: service_healthy
+      ai-evals-db-init:
+        condition: service_completed_successfully
+      phoenix:
+        condition: service_started
+    stdin_open: true
+    tty: true
 
 volumes:
   pgdatadev:

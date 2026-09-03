@@ -353,6 +353,38 @@ test-regenerate-ci-durations: _check-dev
     {{ _load_env }}
     {{ _pytest }} {{ backend_tests_dirs }} --store-durations
 
+# Sync assistant eval datasets to Phoenix
+[group('3 - testing')]
+eval-sync *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow assistant_eval_sync {{ ARGS }}
+
+# Run assistant eval experiments against Phoenix
+[group('3 - testing')]
+eval-run *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow assistant_eval_run {{ ARGS }}
+
+# Export UI-added Phoenix dataset examples as ready-to-paste eval code
+[group('3 - testing')]
+eval-export *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow assistant_eval_export {{ ARGS }}
+
+# Capture or import the committed eval baseline snapshot (capture|import)
+[group('3 - testing')]
+eval-baseline *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _load_env }}
+    {{ uv_run }} baserow assistant_eval_baseline {{ ARGS }}
+
 # =============================================================================
 # CI Commands (used by docker-entrypoint.sh in CI pipelines)
 # =============================================================================

@@ -7,8 +7,7 @@
 Run the unit test suite (no LLM needed):
 
 ```bash
-just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
-  -v --ignore=enterprise/backend/tests/baserow_enterprise_tests/assistant/evals
+just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ -v
 ```
 
 All tests must pass. These cover: assistant orchestrator, all tool modules,
@@ -16,22 +15,19 @@ telemetry event emission, history compaction, and streaming.
 
 ### 2. Automated tests (evals, optional)
 
-Run the eval suite against a live LLM. The default model is
-`groq:openai/gpt-oss-120b`, so you need a `GROQ_API_KEY`. Evals that exercise
-the `search_user_docs` tool also require a running embedding service — set
-`BASEROW_EMBEDDINGS_API_URL` to point to it, or those evals will fail.
+Run the eval suite against a live LLM. Prerequisites: Phoenix running with
+the datasets synced and a `GROQ_API_KEY` for the default model — see
+[ai-assistant-evals.md](ai-assistant-evals.md).
 
 ```bash
-GROQ_API_KEY=gsk_... BASEROW_EMBEDDINGS_API_URL=http://... \
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
-  -m eval -v -s
+just b eval-run --dataset kuma-database
 ```
 
 > **Note:** Evals are non-deterministic and are not guaranteed to pass every
 > run. When a failure occurs, check whether the model did something
 > fundamentally wrong or whether the result is still acceptable. See
-> [ai-assistant-evals.md](ai-assistant-evals.md) for details on configuration,
-> multi-model runs, and how to interpret results.
+> [ai-assistant-evals.md](ai-assistant-evals.md) for the full workflow (UI
+> runner, model comparison, writing new cases) and prerequisites.
 
 ### 3. Manual: Tool smoke tests
 

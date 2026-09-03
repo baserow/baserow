@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix AI assistant tool calls failing on gpt-5.6 models by disabling their default reasoning effort",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-26"
+}

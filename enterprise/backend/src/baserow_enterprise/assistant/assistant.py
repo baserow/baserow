@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 from typing import Any, AsyncGenerator
 
 from django.contrib.auth.models import AbstractUser
@@ -20,6 +21,7 @@ from pydantic_ai.messages import (
     ThinkingPartDelta,
 )
 from pydantic_ai.run import AgentRunResultEvent
+from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
@@ -136,6 +138,54 @@ def _get_workspace_license_type(
         return None
 
 
+@dataclass
+class AgentRunContext:
+    deps: AssistantDeps
+    toolset: AbstractToolset
+    model: RetryingModel | str
+
+
+def build_agent_run_context(
+    user: AbstractUser,
+    workspace: Workspace,
+    tool_helpers: ToolHelpers,
+    model: str | None = None,
+    wrap_retrying: bool = True,
+) -> AgentRunContext:
+    """Single seam building deps + toolset + manifests, used by Assistant and evals.
+
+    :param tool_helpers: Caller-provided helpers (production wires status
+        updates/navigation via ``Assistant._build_tool_helpers``; evals pass
+        no-op helpers).
+    :param model: The pydantic-ai model string. ``None`` resolves the
+        default via ``get_model_string()`` (reads Django settings).
+    :param wrap_retrying: Wrap the resolved model in ``RetryingModel``.
+    """
+
+    model_string = get_model_string(model)
+    resolved_model: RetryingModel | str = (
+        RetryingModel(model_string) if wrap_retrying else model_string
+    )
+
+    deps = AssistantDeps(
+        user=user,
+        workspace=workspace,
+        tool_helpers=tool_helpers,
+        license_tier=_get_workspace_license_type(user, workspace),
+    )
+    toolset, db_manifest, app_manifest, auto_manifest, explain_manifest = (
+        assistant_tool_registry.build_toolset(
+            user=user, workspace=workspace, model=model_string, deps=deps
+        )
+    )
+    deps.database_manifest = db_manifest
+    deps.application_manifest = app_manifest
+    deps.automation_manifest = auto_manifest
+    deps.explain_manifest = explain_manifest
+
+    return AgentRunContext(deps=deps, toolset=toolset, model=resolved_model)
+
+
 def _extract_tool_thought(event: FunctionToolCallEvent) -> str | None:
     """Extract the chain-of-thought ``thought`` argument from a tool call
     event, if present and non-empty."""
@@ -159,30 +209,17 @@ class Assistant:
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
-        self._model_string = get_model_string()
-        self._model = RetryingModel(self._model_string)
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
 
-        self._deps = AssistantDeps(
-            user=self._user,
-            workspace=self._workspace,
-            tool_helpers=self._tool_helpers,
-            license_tier=_get_workspace_license_type(self._user, self._workspace),
+        self._model_string = get_model_string()
+        ctx = build_agent_run_context(
+            self._user, self._workspace, self._tool_helpers, model=self._model_string
         )
-        self._toolset, db_m, app_m, auto_m, explain_m = (
-            assistant_tool_registry.build_toolset(
-                user=self._user,
-                workspace=self._workspace,
-                model=self._model_string,
-                deps=self._deps,
-            )
-        )
-        self._deps.database_manifest = db_m
-        self._deps.application_manifest = app_m
-        self._deps.automation_manifest = auto_m
-        self._deps.explain_manifest = explain_m
+        self._model = ctx.model
+        self._deps = ctx.deps
+        self._toolset = ctx.toolset
 
         setup_instrumentation()
 

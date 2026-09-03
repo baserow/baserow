@@ -571,6 +571,10 @@ dc-dev *ARGS:
         fi
         export GID
 
+        # Best-effort: lets the .git-less eval-runner container stamp experiments.
+        export BASEROW_EVAL_GIT_BRANCH="${BASEROW_EVAL_GIT_BRANCH:-$(git branch --show-current 2>/dev/null || true)}"
+        export BASEROW_EVAL_GIT_COMMIT="${BASEROW_EVAL_GIT_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || true)}"
+
         # Docker needs node_modules folder to exists to mount the volume inside a bind mount.
         # Let's ensure it exists before starting anything.
         if [ ! -d web-frontend/node_modules ]; then

@@ -1,8 +1,12 @@
 import json
+import sys
 from unittest.mock import MagicMock, patch
+
+from django.test import override_settings
 
 import pytest
 
+from baserow_enterprise.assistant import telemetry
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.telemetry import (
     PosthogSpanProcessor,
@@ -564,23 +568,6 @@ class TestPosthogSpanProcessor:
         assert "$ai_span" in events
 
 
-class TestSetupInstrumentation:
-    """Test the one-time instrumentation setup."""
-
-    @patch("baserow_enterprise.assistant.telemetry._instrumentation_ready", False)
-    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
-    def test_setup_skipped_when_posthog_disabled(self, mock_get_client):
-        """Test that setup is skipped when POSTHOG_ENABLED is False."""
-
-        from baserow_enterprise.assistant.telemetry import setup_instrumentation
-
-        # POSTHOG_ENABLED is False in test settings
-        setup_instrumentation()
-
-        # Should not have called get_posthog_client (nothing was set up)
-        mock_get_client.assert_not_called()
-
-
 class TestEndToEndOtelPipeline:
     """Integration: verify that a real pydantic-ai Agent run produces
     PostHog events via the OTel span exporter."""
@@ -644,3 +631,169 @@ class TestEndToEndOtelPipeline:
         finally:
             # Clean up global instrumentation so other tests aren't affected.
             Agent.instrument_all(None)
+
+
+@pytest.fixture
+def reset_instrumentation():
+    telemetry._instrumentation_ready = False
+    telemetry._tracer_provider = None
+    telemetry._phoenix_import_error_warned = False
+    yield
+    telemetry._instrumentation_ready = False
+    telemetry._tracer_provider = None
+    telemetry._phoenix_import_error_warned = False
+
+
+class TestSetupInstrumentation:
+    @override_settings(POSTHOG_ENABLED=False, BASEROW_ASSISTANT_PHOENIX_URL="")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_noop_when_nothing_is_configured(
+        self, mock_instrument, reset_instrumentation
+    ):
+        telemetry.setup_instrumentation()
+
+        mock_instrument.assert_not_called()
+        assert telemetry._instrumentation_ready is False
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_get_assistant_tracer_provider_returns_provider_after_setup(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        assert telemetry.get_assistant_tracer_provider() is None
+
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ),
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        assert (
+            telemetry.get_assistant_tracer_provider() is mock_provider_cls.return_value
+        )
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_only_adds_openinference_and_otlp_processors(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        provider = mock_provider_cls.return_value
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ) as mock_oi,
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ) as mock_exporter,
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor") as mock_batch,
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_exporter.assert_called_once_with(endpoint="http://phoenix:6006/v1/traces")
+        added = [c.args[0] for c in provider.add_span_processor.call_args_list]
+        assert added == [mock_oi.return_value, mock_batch.return_value]
+        mock_instrument.assert_called_once()
+        assert telemetry._instrumentation_ready is True
+
+    @override_settings(
+        POSTHOG_ENABLED=True,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.PosthogSpanProcessor")
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_posthog_processor_runs_before_openinference(
+        self, mock_instrument, mock_provider_cls, mock_posthog, reset_instrumentation
+    ):
+        provider = mock_provider_cls.return_value
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ),
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        added = [c.args[0] for c in provider.add_span_processor.call_args_list]
+        assert len(added) == 3
+        assert added[0] is mock_posthog.return_value
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_import_error_does_not_activate_instrumentation(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with patch.dict(
+            sys.modules, {"openinference.instrumentation.pydantic_ai": None}
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_instrument.assert_not_called()
+        assert telemetry._instrumentation_ready is False
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_import_error_warns_once_per_process(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with (
+            patch.dict(
+                sys.modules, {"openinference.instrumentation.pydantic_ai": None}
+            ),
+            patch("baserow_enterprise.assistant.telemetry.logger") as mock_logger,
+        ):
+            telemetry.setup_instrumentation()
+            telemetry._instrumentation_ready = False
+            telemetry.setup_instrumentation()
+
+        assert mock_logger.warning.call_count == 1
+
+    @override_settings(
+        POSTHOG_ENABLED=False,
+        BASEROW_ASSISTANT_PHOENIX_URL="http://phoenix:6006",
+        BASEROW_ASSISTANT_PHOENIX_API_KEY="team-key",
+    )
+    @patch("baserow_enterprise.assistant.telemetry.TracerProvider")
+    @patch("pydantic_ai.Agent.instrument_all")
+    def test_phoenix_api_key_sent_as_bearer_header(
+        self, mock_instrument, mock_provider_cls, reset_instrumentation
+    ):
+        with (
+            patch(
+                "openinference.instrumentation.pydantic_ai.OpenInferenceSpanProcessor"
+            ),
+            patch(
+                "opentelemetry.exporter.otlp.proto.http.trace_exporter.OTLPSpanExporter"
+            ) as mock_exporter,
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor"),
+        ):
+            telemetry.setup_instrumentation()
+
+        mock_exporter.assert_called_once_with(
+            endpoint="http://phoenix:6006/v1/traces",
+            headers={"authorization": "Bearer team-key"},
+        )

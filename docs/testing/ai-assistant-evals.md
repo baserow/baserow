@@ -1,259 +1,378 @@
 # AI Assistant Evals
 
-The assistant eval suite runs the real agent against a live LLM to verify
-end-to-end behaviour: tool selection, schema compatibility, row creation, etc.
+The assistant eval suite runs the real agent against a live LLM and scores the
+outcome. Evals are defined in the codebase, synced automatically into
+[Phoenix](../development/ai-assistant-tracing.md) as datasets, and every run is
+recorded there as an experiment with per-case scores, cost, latency, and a full
+trace. Why this platform: [ADR 007](../decisions/007-ai-assistant-eval-platform.md).
 
-All eval tests live under
-`enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/` and are
-marked with `@pytest.mark.eval` so they are **skipped by default** in CI and
-local test runs.
+## Running evals from the UI
 
-## Prerequisites
+1. In `.env.docker-dev`: `COMPOSE_PROFILES=optional,ai,ai-evals`, plus a
+   provider API key (e.g. `GROQ_API_KEY`) — see
+   [AI assistant tracing](../development/ai-assistant-tracing.md) for the
+   Phoenix side.
+2. `just dc-dev up -d` — the `assistant-eval-runner` service migrates its own
+   `baserow_evals` database, syncs the datasets into Phoenix, and serves
+   `http://localhost:8090`.
+3. Pick a whole dataset or individual cases, a model (pick **Custom…** to
+   type any pydantic-ai model string), a repeat count, optional notes, and Run.
+   The model list only offers models whose provider key is set — see
+   [why a model is missing](ai-assistant-evals.md#why-a-model-is-missing-from-the-dropdown).
+4. The run row shows live progress as `running 7/38`; click it to expand the
+   run's log tail. Each queued or running row has its own **Stop**, and
+   **Stop all** halts everything at once.
+5. The run row links to the experiment in Phoenix when done.
+6. The page's **Help** tab renders this guide and the
+   [tracing guide](../development/ai-assistant-tracing.md) inline.
 
-1. A running PostgreSQL database (see [running-tests.md](../development/running-tests.md)).
-2. An API key for the LLM provider you want to test against.
-3. **For `test_eval_search_user_docs` only:** an embeddings server and a
-   synced knowledge base (see [Search docs evals](#search-docs-evals) below).
+### Watching a run
 
-## Quick start
+The status cell counts finished case-repetitions against the total, which is
+known before the first case starts. Clicking any row — running or finished —
+expands the last 200 log lines captured from that run: one line per case with
+its score and duration, plus any warnings and tracebacks. Only the worker
+thread's lines are captured, so page requests never pollute a run's log.
+
+The page polls every 2s while anything is queued or running and backs off to
+30s once everything settles, repainting only the rows whose state actually
+changed. A finished run's log is fetched once and then left alone.
+
+The buffer is in memory and deliberately not persisted: a `.py` edit restarts
+the runner, which rewrites in-flight runs to `failed` and drops their logs.
+Raise or lower the captured level with `BASEROW_EVAL_RUNNER_LOG_LEVEL`
+(default `INFO`). Only Baserow's own loguru output is captured — library
+chatter (httpx, pydantic-ai retries) still goes to
+`just dc-dev logs -f assistant-eval-runner`.
+
+### Timeouts
+
+Every case has a wall-clock budget — `BASEROW_EVAL_CASE_TIMEOUT`, default
+120s. For scale: across the committed baseline's 111 runs the slowest case
+takes 16.4s and the median 5.8s, so the budget only ever fires on a genuine
+hang. Without it a single stuck case blocks the one worker indefinitely, and
+the per-request timeouts don't bound it: `max_iters` requests times the
+per-request timeout, plus retries, runs into several minutes.
+
+A timed-out case is cancelled, not abandoned — `asyncio.wait_for` on the
+agent's own event loop stops the in-flight provider call rather than leaving
+a thread burning quota. It is recorded as a failed `completed_within_timeout`
+check, so it scores 0 and counts in aggregates (a hang is a real failure, not
+a skip), the run continues with the remaining cases, and the judge is not
+asked to grade the empty answer.
+
+**Stop** is cooperative and lands at the next case boundary, because the
+worker sits inside a blocking LLM call that Python cannot interrupt. Queued
+runs stop immediately; a running one finishes its current case first and ends
+as `stopped`, keeping the cases it already logged to Phoenix — its status
+reads `stopping…` in between. Stop one dataset from its row, or use **Stop
+all** when an error is going to sink every remaining case anyway.
+
+### Comparing a whole run
+
+A selection spanning several datasets fans out to one experiment per dataset,
+and the Results tab groups experiments by name. Leaving **Experiment name**
+blank generates one shared `run-<timestamp>-<id>` name for the whole fan-out,
+so the Results tab compares every dataset against the baseline in one view.
+Type a name instead to group runs yourself — reusing a name across separate
+submissions merges them into one group.
+
+Experiments created before this grouping existed each carry their own
+Phoenix-generated name, so they stay ungrouped.
+
+### Recording why a run differed
+
+Every experiment is stamped with its model, the resolved orchestrator
+`model_settings` (temperature, reasoning effort, max tokens), the judge model,
+prompt hashes, and git branch/commit — so a score is traceable to the
+configuration that produced it without writing anything down. The **Notes**
+field adds free text for whatever that does not cover; both the settings and
+the note show under the model in the Results tab.
+
+> **Warning:** the runner hot-reloads on any mounted `.py` change (including
+> a lint/format pass), which kills queued and running experiments — don't
+> edit backend Python while a run is in flight.
+
+## Running evals from the CLI
+
+The CLI uses your host env (`.env.local`): the database it points at and
+`BASEROW_ASSISTANT_PHOENIX_URL` for Phoenix.
+
+> **Warning:** CLI runs create real scenario data (users, workspaces, apps) in
+> whatever database `DATABASE_NAME` points at, with no teardown. The runner
+> service uses its own disposable `baserow_evals` database, so prefer it for
+> bulk runs, or point `DATABASE_NAME` at a disposable database first.
 
 ```bash
-# Set your API key (Groq example — works with any pydantic-ai provider)
-export GROQ_API_KEY=gsk_...
+# Sync the datasets defined in code into Phoenix (idempotent)
+just b eval-sync
 
-# Suppress noisy framework-level log messages (Celery task registration, etc.)
-export BASEROW_BACKEND_LOG_LEVEL=WARNING
+# Run a whole dataset
+just b eval-run --dataset kuma-core
 
-# Run all evals with the default model (groq:openai/gpt-oss-120b)
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
-  -m eval -v
+# Run selected cases (must all belong to the same dataset)
+just b eval-run --case database/creates-simple-table --case database/creates-view-kanban
 
-# Run a single eval file
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_core_builders.py \
-  -m eval -v
+# Compare models / measure flakiness
+just b eval-run --dataset kuma-builder --model groq:openai/gpt-oss-20b --runs 3 --name builder-20b
 ```
 
-> **Tip:** Do **not** pass `-s`. Without it, pytest captures `print_message_history` output and shows it only in the failure report — passing tests stay silent. Use `-s` only when you want to watch the agent's tool calls in real time for a single test.
+`--runs N` repeats every case N times in one experiment — the score spread
+across repetitions is the flake signal. Compare experiments (models, prompt
+changes, repeat runs) side by side in the Phoenix dataset view. Every
+experiment is auto-stamped with its model, git branch and commit, and prompt
+hashes, so branch/model comparisons are filterable in Phoenix.
 
+## The datasets
 
-## Configuration
+| Dataset | Cases | Covers |
+|---------|-------|--------|
+| `kuma-core` | 3 | creating/listing databases and automations |
+| `kuma-database` | 21 | tables, fields, views, filters, rows |
+| `kuma-builder` | 16 | pages, elements, data sources, themes, user sources |
+| `kuma-automation` | 7 | workflows, triggers, nodes |
+| `kuma-docs` | 64 | docs Q&A via `search_user_docs`, incl. cannot-do guardrail cases |
 
-All configuration is via environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EVAL_LLM_MODEL` | `groq:openai/gpt-oss-120b` | Model string in pydantic-ai format (`provider:model`). Accepts a comma-separated list to parametrize every eval across multiple models. |
-| `EVAL_RETRIES` | `0` | Retry each failing eval test up to N times. If a test passes on retry it's a flake (LLM non-determinism); if it fails all N retries it's a consistent bug. |
-| `GROQ_API_KEY` | — | Required when using a Groq model. |
-| `OPENAI_API_KEY` | — | Required when using an OpenAI model. |
-| `ANTHROPIC_API_KEY` | — | Required when using an Anthropic model. |
-| `GOOGLE_API_KEY` | — | Required when using a Google (Gemini) model. |
-
-### API keys from a file
-
-The eval conftest reads API keys from the same `TEST_ENV_FILE` that
-`baserow/config/settings/test.py` already parses, and exposes them via
-`os.environ` so that LLM provider SDKs can find them:
-
-```bash
-TEST_ENV_FILE=.env.testing-local just b test \
-  ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ -m eval -v -s
-```
-
-Variables already present in `os.environ` take precedence.
-
-### Running against multiple models
-
-```bash
-GROQ_API_KEY=... OPENAI_API_KEY=... EVAL_LLM_MODEL="groq:openai/gpt-oss-120b,openai:gpt-4o" \
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
-  -m eval -v -s
-```
-
-Each test will run once per model, with the model name shown in the test ID.
-
-## Test files
-
-File names follow the pattern `test_eval_{module}_{feature}.py`, where module
-maps to the tool directory (`core`, `database`, `automation`, `navigation`,
-`search_user_docs`). Browse
-`enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/` for the
-full list. Each file defines its prompts as module-level `PROMPT_*` constants
-at the top, making it easy to scan which scenarios are covered without reading
-the test bodies.
+`kuma-docs` needs the knowledge base: the `embeddings` service (`ai` profile)
+plus a synced KB. When unavailable, those cases are recorded as skipped, not
+failed.
 
 ## Writing a new eval
 
-1. Create a new `test_eval_<area>.py` file in the `evals/` directory.
-2. Define prompts as `PROMPT_*` constants at the top, so it's easier to have an overview of the existing evals.
-3. Mark each test with `@pytest.mark.eval` and
-   `@pytest.mark.django_db(transaction=True)`.
-4. Use the helpers from `eval_utils.py`:
+Cases live in
+`enterprise/backend/src/baserow_enterprise/assistant/evals/datasets/` and are
+picked up automatically (registration on import, synced at runner startup or
+via `just b eval-sync`). A case is three parts — a scenario (the Baserow state
+the agent starts from), a prompt, and checks:
 
 ```python
-import pytest
-from .eval_utils import (
-    EvalChecklist,
-    build_database_ui_context,
-    count_tool_errors,
-    create_eval_assistant,
-    print_message_history,
+from baserow.test_utils.fixtures import Fixtures
+from baserow_enterprise.assistant.evals.harness import tool_called
+from baserow_enterprise.assistant.evals.registry import register_case, register_scenario
+from baserow_enterprise.assistant.evals.scenarios import build_database_ui_context
+from baserow_enterprise.assistant.evals.types import (
+    CheckResult,
+    EvalCase,
+    EvalRunOutput,
+    EvalScenario,
 )
 
-PROMPT_DOES_SOMETHING = "Do something useful in database {database_name}"
 
-@pytest.mark.eval
-@pytest.mark.django_db(transaction=True)
-def test_agent_does_something(data_fixture, eval_model):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(workspace=workspace, name="Test")
-
-    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
-        user, workspace, max_iters=15, model=eval_model
-    )
-    ui_context = build_database_ui_context(user, workspace, database)
-    deps.tool_helpers.request_context["ui_context"] = ui_context
-
-    result = agent.run_sync(
-        user_prompt=PROMPT_DOES_SOMETHING.format(database_name=database.name),
-        deps=deps,
-        model=model,
-        usage_limits=usage_limits,
-        toolsets=[toolset],
+@register_scenario("database-my-scenario")
+def _my_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace, name="Sales")
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_database_ui_context(user, workspace, database),
+        refs={"database": database},
     )
 
-    print_message_history(result)
-    err_count, err_hint = count_tool_errors(result)
 
-    with EvalChecklist("does something") as checks:
-        checks.check("no tool errors", err_count == 0, hint=err_hint)
-        # Add domain-specific checks here
-        checks.check("created the thing", some_condition, hint="details if failed")
+def _my_checks(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    return [
+        CheckResult("called list_tables", tool_called(output, "list_tables") >= 1),
+        CheckResult(
+            "answer mentions Sales",
+            "sales" in output.answer.lower(),
+            hint=output.answer[:200],
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="database/my-new-case",          # append-only, never rename
+        dataset="kuma-database",
+        prompt="Which tables are in the Sales database?",
+        scenario="database-my-scenario",
+        checks=_my_checks,
+        max_iters=10,
+    )
+)
 ```
 
-### Key helpers
+Rules that keep results comparable over time:
 
-| Helper | Purpose |
-|--------|---------|
-| `create_eval_assistant(user, workspace, max_iters, model)` | Returns `(agent, deps, tracker, model, usage_limits, toolset)` configured like production. |
-| `build_database_ui_context(user, workspace, database, table)` | Builds the UI context JSON the agent receives. |
-| `count_tool_errors(result)` | Returns `(error_count, hint)` — count of tool validation errors (pydantic retries) and a formatted hint string. Use with `EvalChecklist`: `checks.check("no tool errors", err_count == 0, hint=err_hint)`. |
-| `EvalChecklist(name)` | Context manager for soft assertions: collects checks, prints a score table (`4/6 (66%)`), and only hard-fails at the end. Use for tests with multiple independent checks. |
-| `print_message_history(result)` | Prints the full agent conversation to stdout. |
-| `format_message_history(result)` | Returns the conversation as a list of dicts for programmatic assertions. |
+- **Case ids are append-only.** They are the stable key in Phoenix; renaming
+  one breaks its history. Add new ids, never repurpose old ones.
+- Scenario object names must match what the prompt references.
+- Checks run right after the agent, with the scenario objects alive — DB
+  assertions through `scenario.refs` are the norm. The harness automatically
+  prepends a `tool_errors_within_budget` check (`EvalCase.max_tool_errors`,
+  default 0).
+- Pre-run state a check needs later (a snapshot before the agent acts) goes in
+  `scenario.pre_state`.
+- A case's score is `passed_checks / total_checks`; it passes only when every
+  check passes.
 
-## Search docs evals
+## Contributing cases from the Phoenix UI
 
-`test_eval_search_user_docs.py` tests the `search_user_docs` tool end-to-end:
-the agent receives a real user question, decides to call the tool, the tool
-performs a vector search against the knowledge base, and a sub-agent produces
-an answer with source URLs. The test verifies that:
+You don't need a PR to add a case: from the dataset editor, or from a trace
+span's "Add Example to Dataset", add an example directly in Phoenix. `just b
+eval-sync` preserves it — it no longer wipes examples that aren't in the
+codebase, only code-owned ones (identified by a `case_id` in their metadata)
+are replaced wholesale.
 
-1. The agent called `search_user_docs`.
-2. The answer mentions expected concepts (e.g. "date_diff" for a date
-   formula question).
-3. Returned source URLs match expected documentation pages (non-fatal
-   warning if not — URLs can change).
+UI-added examples are **runnable**: they appear on the runner page under
+"Added in the Phoenix UI" in their dataset's tab (reload the page after
+adding one), and they run with the rest of the dataset too. The example's
+`input` needs a `{"prompt": "..."}` (or `"question"`) and everything else is
+optional metadata:
 
-### Additional prerequisites
+### Docs questions
 
-These tests are **automatically skipped** when the knowledge base is not
-available. To enable them:
+Add the example to `kuma-docs`. It runs against the standard docs scenario
+with the standard checks (`search_user_docs` called, at least one source),
+and the LLM judge scores `answer_quality`. Optional fields:
 
-1. **Embeddings server** — start the embeddings service and set:
-   ```bash
-   # Running tests outside Docker (local dev):
-   export BASEROW_EMBEDDINGS_API_URL=http://localhost:7999
-   # Running tests inside Docker:
-   export BASEROW_EMBEDDINGS_API_URL=http://embeddings
-   ```
+- `output` → `{"reference_answer": "..."}` — the ideal answer the judge
+  grades against.
+- metadata `expected_keywords` — list of strings; adds an
+  "answer mentions one of" check and informs the judge.
 
-2. **pgvector extension** — the PostgreSQL instance must have the `vector`
-   extension installed. If you use the dev Docker setup this is already
-   included.
+### Tool use cases
 
-3. **Sync the knowledge base** — the test suite handles this automatically
-   (see [Knowledge base caching](#knowledge-base-caching) below), but you
-   can also trigger a manual sync:
-   ```bash
-   # From the backend directory, with the Django env active:
-   python -m baserow sync_knowledge_base
-   ```
-   This reads `website_export.csv` (user docs) and `docs/` (dev docs),
-   creates `KnowledgeBaseDocument` / `KnowledgeBaseChunk` rows, and
-   generates embeddings via the embeddings server.
+Add the example to the matching dataset (`kuma-database`, `kuma-builder`,
+`kuma-automation`, `kuma-core`) and declare what to exercise in its metadata:
 
-### Knowledge base caching
+- `scenario` — name of a registered starting state (the
+  `register_scenario("...")` ids in `evals/datasets/*.py` and
+  `evals/scenarios.py`). Defaults to `empty-workspace`, a bare workspace —
+  enough for "create a table called X"-style prompts. Pick a richer scenario
+  when the prompt references existing objects; its object names must match
+  what the prompt mentions.
+- `expected_tools` — list of tool names; each adds a "called `<tool>`" check.
+- `answer_contains` — list of strings; each adds a case-insensitive
+  "answer contains" check.
+- `mode` (agent mode, defaults to the dataset's usual one), `max_iters`,
+  `max_tool_errors` — same meaning as on a code case.
 
-Syncing the knowledge base is slow (it generates embeddings for every
-documentation chunk). To avoid repeating this on every test run, the eval
-suite uses two mechanisms together:
+Checks that assert on **database state** (rows really created, field types
+correct) can't be expressed in metadata — promote the example to code for
+those. The tool-error budget check always runs, and the full trace is linked
+from every run, so even a check-less example is useful for experimenting.
 
-1. **Session-scoped fixture** — the `synced_knowledge_base` fixture in
-   `conftest.py` runs once per pytest session. It checks whether the KB is
-   already populated (`handler.can_search()`) and only calls
-   `sync_knowledge_base()` when it isn't.
-
-2. **`--reuse-db`** — pytest-django's `--reuse-db` flag keeps the test
-   database between sessions instead of recreating it. Combined with the
-   fixture above, the expensive sync only happens on the very first run.
-   Subsequent runs detect that the data is already there and skip the sync
-   entirely.
-
-3. **No `transaction=True`** — search docs tests use
-   `@pytest.mark.django_db` (savepoint rollback) rather than
-   `@pytest.mark.django_db(transaction=True)` (full table truncation). This
-   is important: `transaction=True` would wipe the knowledge base tables
-   after each test, defeating the caching.
-
-**Typical workflow:**
-
-| Run | What happens | Time |
-|-----|--------------|------|
-| First ever | DB created, KB synced, tests run | Several minutes |
-| Subsequent | DB reused, KB already populated, tests run | Seconds |
-
-To force a fresh sync (e.g. after schema changes or new documentation):
+To promote a UI-added example to code:
 
 ```bash
-# Drop and recreate the test DB, then re-sync
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
-  -m eval -v -s --create-db
+just b eval-export --dataset kuma-docs
 ```
 
-### Running search docs evals
+This prints a ready-to-paste `_register_docs_case(...)` snippet per UI-added
+`kuma-docs` example (question from the example, keywords/source patterns from
+its metadata if the UI author set them, else `TODO` placeholders to fill in;
+a `reference_answer` kwarg is included too if the example's `output` carries
+one). Paste it into `datasets/docs.py`, pick a real id and keywords, then
+`just b eval-sync` — the UI copy is dropped automatically because its prompt
+now matches the code case (matched by exact prompt text, so no duplicate).
+Non-`kuma-docs` datasets have no registration helper to generate from, so
+`eval-export` prints a commented JSON block instead; write the scenario and
+checks by hand.
 
-```bash
-# Only search docs evals
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
-  -m eval -v -s
+### Reference answers for docs cases
 
-# A single test case by parametrize ID
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
-  -m eval -v -s -k "vlookup-to-link-row"
-```
+A `kuma-docs` case can carry an ideal "reference answer" that the LLM judge
+grades Kuma's answer against (see below). Add one in code with
+`_register_docs_case(..., reference_answer="...")`, or curate it directly on
+a synced example in the Phoenix UI by editing its `output` field to
+`{"reference_answer": "..."}` — that's a normal, versioned edit to the
+example, so it survives `just b eval-sync`: a code case with no
+`reference_answer` never overwrites a live one, it only adopts it, and a
+code-set `reference_answer` always wins over whatever is live.
 
-If the embeddings server is not running or the knowledge base has not been
-synced, all search docs tests will be skipped with a clear message.
+## Models and providers
 
-## Troubleshooting
+`EVAL_MODELS` in
+`enterprise/backend/src/baserow_enterprise/assistant/evals/models.py` is the
+candidate list — extend it there. Any pydantic-ai `provider:model` string
+works via `--model`, or in the UI by picking **Custom…** and typing it. The
+model applies to the whole agent, sub-agents included.
 
-### `FAILED — No API key`
+Per-model overrides live in `_MODEL_PROFILES` in
+`enterprise/backend/src/baserow_enterprise/assistant/model_profiles.py`, keyed
+by exact model name. The `gpt-5.6` family is pinned to
+`openai_reasoning_effort="none"` there: it reasons by default, and OpenAI
+rejects function tools alongside reasoning on `/v1/chat/completions`. That is
+a workaround — the real fix is to resolve OpenAI models through the Responses
+API, which is what pydantic-ai's own `openai:` prefix already defaults to.
 
-Make sure the correct `*_API_KEY` env var is set for your provider/
+### Why a model is missing from the dropdown
 
-### Flaky results
+The dropdown is not `EVAL_MODELS` itself but `available_models()`, which keeps
+only the entries whose `api_key_env` variable is set in the runner's
+environment. A model with no key is silently absent rather than listed and
+broken, so adding one to `EVAL_MODELS` is not enough to make it appear.
 
-LLM evals are inherently non-deterministic. If a test fails intermittently:
+`docker-compose.dev.yml` forwards `GROQ_API_KEY`, `OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, and `GOOGLE_API_KEY` to
+`assistant-eval-runner` from `.env.docker-dev`. Set the variable the model's
+entry names, then restart the service.
 
-- Use `EVAL_RETRIES` to automatically distinguish flakes from consistent bugs:
-  ```bash
-  EVAL_RETRIES=3 just b test \
-    ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_database_tables.py \
-    -m eval -v -s
-  ```
-  A test that passes on retry is a flake; one that fails all 3 retries is a real problem.
-- Check the printed message history (`-s` flag) to see what the agent did.
-- If a prompt is ambiguous, tighten the wording in the `PROMPT_*` constant.
-- Consider lowering the temperature in the model profile for the eval model.
+Gemini is the one asymmetric case: pydantic-ai authenticates with either
+`GOOGLE_API_KEY` or `GEMINI_API_KEY`, but `available_models()` only checks
+`GOOGLE_API_KEY`. With only `GEMINI_API_KEY` set the Gemini entries stay
+hidden even though a run would have worked — use `GOOGLE_API_KEY`, or reach
+the model through **Custom…**, which skips the key check entirely and so
+fails at request time instead of hiding.
+
+## Prompts
+
+Kuma's load-bearing prompts (the main system prompt and each sub-agent's
+instructions — see `SYNCED_PROMPTS` in
+`enterprise/backend/src/baserow_enterprise/assistant/evals/prompt_sync.py`)
+are synced to Phoenix's **Prompts** tab as versioned prompts on every
+eval-sync. Every experiment's `prompts` metadata records the content hash of
+each prompt as it ran, so prompt-version comparisons are filterable in
+Phoenix.
+
+To experiment with a prompt change **without touching code** (Phoenix has no
+plain edit box — editing goes through its playground):
+
+1. Phoenix → **Prompts** → click **Open in playground** on the prompt's row.
+   The playground loads its latest version as an editable System message.
+2. Edit the text, then click the save-icon **Prompt** button in the prompt's
+   header row, next to the name and version selectors. In the dialog the
+   prompt name is pre-selected — optionally describe the change, then
+   confirm. That appends a new version (append-only, nothing is lost; the
+   "Run" playground button is irrelevant here).
+3. On the runner page, expand **Prompt overrides** in the run panel and tick
+   that prompt — checked prompts run with their latest Phoenix version
+   instead of the code constant. CLI: `--override-prompt <name>`
+   (repeatable). The list sorts the active tab's likely-relevant prompts
+   first, but any prompt can be overridden — one the selected cases never
+   exercise is just a no-op.
+4. Run and compare: the experiment is stamped with the effective prompt
+   hashes plus a `prompt_overrides` list naming what was overridden.
+5. To promote a winning prompt, paste its text into the code constant — the
+   next eval-sync records it as the new latest version. (Eval-sync also
+   re-appends the code version as latest whenever the two drift, so an
+   abandoned experiment resets itself on the next runner restart —
+   overrides are opt-in per run, never sticky.)
+
+Editing the constant in code directly still works too (the runner
+hot-reloads .py changes).
+
+## Reading results
+
+Every experiment run links to its trace (agent → LLM calls → tool calls, with
+token counts and cost). Failed checks appear in the experiment's `checklist`
+evaluator explanation with their hints. How to compare against the committed
+baseline, classify outcomes (improvement / regression / gap / flake), and
+diagnose failures through traces:
+[evaluating results](./ai-assistant-eval-analysis.md).
+
+`kuma-docs` runs get a third score, `answer_quality`, from an LLM judge (the
+judge prompt lives in `evals/judge.py`) that grades the answer's correctness,
+helpfulness, and groundedness against the sources the assistant cited. When
+the case (or its synced example) carries a `reference_answer`, the judge is
+also given it and told to weigh factual agreement with it heavily — it's the
+ideal answer, not the only acceptable phrasing, so wording differences alone
+don't cost points. The judge model is `BASEROW_EVAL_JUDGE_MODEL`, defaulting
+to `groq:openai/gpt-oss-120b`, and is stamped into every experiment's
+metadata. A judge failure (LLM error, missing case, ...) records no
+`answer_quality` score rather than a 0, so it doesn't skew aggregates.
