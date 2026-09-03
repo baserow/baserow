@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-26 15:25+0000\n"
+"POT-Creation-Date: 2026-09-03 16:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -107,97 +107,97 @@ msgstr ""
 msgid "Element (%(element_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:138
+#: src/baserow/contrib/builder/elements/element_types.py:142
 msgid "Column"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:334
+#: src/baserow/contrib/builder/elements/element_types.py:338
 msgid "Form"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:406
+#: src/baserow/contrib/builder/elements/element_types.py:413
 msgid "Container"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:418
+#: src/baserow/contrib/builder/elements/element_types.py:425
 msgid "Table"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:483
+#: src/baserow/contrib/builder/elements/element_types.py:490
 msgid "Repeat"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:551
+#: src/baserow/contrib/builder/elements/element_types.py:558
 msgid "Record selector"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:800
+#: src/baserow/contrib/builder/elements/element_types.py:818
 msgid "Heading"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:867
+#: src/baserow/contrib/builder/elements/element_types.py:885
 msgid "Text"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1089
+#: src/baserow/contrib/builder/elements/element_types.py:1107
 msgid "Link"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1227
+#: src/baserow/contrib/builder/elements/element_types.py:1245
 msgid "Image"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1391
+#: src/baserow/contrib/builder/elements/element_types.py:1409
 msgid "Rating"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1438
+#: src/baserow/contrib/builder/elements/element_types.py:1456
 msgid "Rating input"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1524
+#: src/baserow/contrib/builder/elements/element_types.py:1551
 msgid "Input text"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1664
+#: src/baserow/contrib/builder/elements/element_types.py:1700
 msgid "Button"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1709
+#: src/baserow/contrib/builder/elements/element_types.py:1748
 msgid "Checkbox"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1783
+#: src/baserow/contrib/builder/elements/element_types.py:1829
 msgid "Choice"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2096
+#: src/baserow/contrib/builder/elements/element_types.py:2162
 msgid "Iframe"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2168
+#: src/baserow/contrib/builder/elements/element_types.py:2234
 msgid "Date time picker"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2312
+#: src/baserow/contrib/builder/elements/element_types.py:2389
 msgid "Shared header"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2322
+#: src/baserow/contrib/builder/elements/element_types.py:2399
 msgid "Shared footer"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2332
+#: src/baserow/contrib/builder/elements/element_types.py:2409
 msgid "Menu"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/mixins.py:707
-#: src/baserow/contrib/builder/elements/mixins.py:712
-#: src/baserow/contrib/builder/elements/mixins.py:717
+#: src/baserow/contrib/builder/elements/mixins.py:719
+#: src/baserow/contrib/builder/elements/mixins.py:724
+#: src/baserow/contrib/builder/elements/mixins.py:729
 #, python-format
 msgid "Column %(count)s"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/registries.py:68
+#: src/baserow/contrib/builder/elements/registries.py:69
 msgid "Unnamed element"
 msgstr ""
