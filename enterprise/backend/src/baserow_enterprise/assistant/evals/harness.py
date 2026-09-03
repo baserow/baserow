@@ -192,6 +192,10 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
                     content = str(part.content)
                     if "Unknown tool name" in content or is_mode_redirect(content):
                         continue
+                    # pydantic-ai's nudge after an empty model response, which it
+                    # recovers from on its own — not a tool failure.
+                    if part.tool_name is None and content.startswith("Please "):
+                        continue
                     retry_errors.append(
                         {
                             "tool_name": getattr(part, "tool_name", None),

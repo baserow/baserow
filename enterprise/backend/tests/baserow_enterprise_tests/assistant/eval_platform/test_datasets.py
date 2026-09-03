@@ -59,6 +59,7 @@ _OUR_DATASETS = {
     "kuma-docs",
     "kuma-builder",
     "kuma-automation",
+    "kuma-prod-replay",
 }
 
 EXPECTED_CASE_IDS = {
@@ -157,8 +158,12 @@ EXPECTED_CASE_IDS = {
         "docs/webhooks-availability",
     ],
     "kuma-builder": [
-        "builder/asks-when-implied-table-missing",
+        "builder/asks-once-when-goal-unclear",
+        "builder/asks-when-named-table-missing",
         "builder/back-button-on-page-not-header",
+        "builder/builds-demo-page-without-asking",
+        "builder/builds-example-app-without-asking",
+        "builder/builds-projects-app-proactively",
         "builder/changes-theme",
         "builder/creates-app-when-table-exists",
         "builder/creates-app-with-theme",
@@ -183,6 +188,15 @@ EXPECTED_CASE_IDS = {
         "automation/creates-workflow",
         "automation/lists-workflows",
     ],
+    "kuma-prod-replay": [
+        "prod-replay/fake-rows-into-typed-fields",
+        "prod-replay/form-for-table-with-formula-field",
+        "prod-replay/impossible-formula-request",
+        "prod-replay/iso-week-number-formula",
+        "prod-replay/page-inspection-existing-elements",
+        "prod-replay/project-tracker-onboarding",
+        "prod-replay/signed-amount-formula",
+    ],
 }
 
 # builder/creates-app-with-theme bypassed mode derivation in the legacy test
@@ -190,6 +204,8 @@ EXPECTED_CASE_IDS = {
 # AssistantDeps default of DATABASE; every other builder case derived
 # APPLICATION from its application-slot UIContext. All automation cases never
 # set deps.mode, so they ran (and still run) in DATABASE mode too.
+# Prod-replay derived mode from the UI context: builder page inspection ran in
+# APPLICATION, every other replay in DATABASE.
 EXPECTED_MODES = {
     **{
         case_id: AgentMode.APPLICATION
@@ -198,6 +214,10 @@ EXPECTED_MODES = {
     },
     "builder/creates-app-with-theme": AgentMode.DATABASE,
     **{case_id: AgentMode.DATABASE for case_id in EXPECTED_CASE_IDS["kuma-automation"]},
+    **{
+        case_id: AgentMode.DATABASE for case_id in EXPECTED_CASE_IDS["kuma-prod-replay"]
+    },
+    "prod-replay/page-inspection-existing-elements": AgentMode.APPLICATION,
 }
 
 
@@ -212,8 +232,9 @@ class TestDatasetCounts:
         assert len(grouped["kuma-core"]) == 3
         assert len(grouped["kuma-database"]) == 21
         assert len(grouped["kuma-docs"]) == 64
-        assert len(grouped["kuma-builder"]) == 16
+        assert len(grouped["kuma-builder"]) == 20
         assert len(grouped["kuma-automation"]) == 7
+        assert len(grouped["kuma-prod-replay"]) == 7
 
     def test_case_ids_match_inventory(self):
         grouped = cases_by_dataset()
@@ -246,12 +267,16 @@ class TestDocsCasesFlagKnowledgeBase:
             )
 
 
-class TestBuilderAutomationModes:
+class TestAgentModes:
     """Mode is scenario configuration, not derived — pin it per case id."""
 
     @pytest.mark.parametrize(
         "case",
-        [c for c in _our_cases() if c.dataset in ("kuma-builder", "kuma-automation")],
+        [
+            c
+            for c in _our_cases()
+            if c.dataset in ("kuma-builder", "kuma-automation", "kuma-prod-replay")
+        ],
         ids=lambda c: c.id,
     )
     def test_mode_matches_inventory(self, case):
