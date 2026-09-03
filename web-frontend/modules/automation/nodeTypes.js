@@ -647,7 +647,9 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(
+  NodeType
+) {
   static getType() {
     return 'email_trigger'
   }
