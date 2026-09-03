@@ -68,9 +68,10 @@ def test_normalize_mox_payload_to_payload():
     ]
     assert payload["sender_validated"] is True
     assert payload["dkim_verified_domains"] == ["example.com"]
-    # The envelope recipient and automation flags are internal and not part of
-    # the payload exposed to workflows.
-    assert "rcpt_to" not in payload
+    # The envelope recipient and its sub-address tag are exposed for routing.
+    assert payload["rcpt_to"] == ADDRESS
+    assert payload["recipient_tag"] == ""
+    # The automation flag stays internal (used for loop protection only).
     assert "is_automated" not in payload
 
 
@@ -142,6 +143,46 @@ def test_extract_tokens_rejects_invalid_recipients(address):
 def test_extract_tokens_is_case_insensitive():
     email = InboundEmail(rcpt_to=f"{TOKEN.upper()}@{INBOUND_DOMAIN.upper()}")
     assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_extract_tokens_strips_subaddress_tag():
+    # `token+anything@domain` must resolve to the same `token` trigger.
+    for tag in ["gmail", "hotmail", "with+extra+pluses", "MixedCase"]:
+        email = InboundEmail(rcpt_to=f"{TOKEN}+{tag}@{INBOUND_DOMAIN}")
+        assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_extract_tokens_deduplicates_across_tags():
+    # The same token reached via different tags must dispatch the trigger once.
+    email = InboundEmail(
+        rcpt_to=f"{TOKEN}+gmail@{INBOUND_DOMAIN}",
+        to=[InboundEmailAddress(address=f"{TOKEN}+hotmail@{INBOUND_DOMAIN}")],
+    )
+    assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_tagged_recipient_full_mox_path():
+    # Full wire-format path: a mox webhook for `token+bob@domain` resolves to the
+    # `token` trigger and carries the tag through to the workflow payload.
+    email = normalize_mox_payload(make_mox_payload(f"{TOKEN}+bob@{INBOUND_DOMAIN}"))
+    assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+    assert email.to_payload()["recipient_tag"] == "bob"
+
+
+def test_to_payload_exposes_recipient_tag():
+    payload = InboundEmail(rcpt_to=f"{TOKEN}+sales@{INBOUND_DOMAIN}").to_payload()
+    assert payload["rcpt_to"] == f"{TOKEN}+sales@{INBOUND_DOMAIN}"
+    # The tag is returned as received (case preserved) for exact routing.
+    assert payload["recipient_tag"] == "sales"
+
+    payload = InboundEmail(rcpt_to=f"{TOKEN}+Team-A@{INBOUND_DOMAIN}").to_payload()
+    assert payload["recipient_tag"] == "Team-A"
+
+    payload = InboundEmail(rcpt_to=f"{TOKEN}@{INBOUND_DOMAIN}").to_payload()
+    assert payload["recipient_tag"] == ""
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
