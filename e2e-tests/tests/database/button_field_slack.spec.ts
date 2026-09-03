@@ -42,6 +42,7 @@ import { User } from "../../fixtures/user";
 // Positions in the right-hand section, in the order `beforeAll` creates them.
 const TS_FIELD_INDEX = 0;
 const LIVE_FIELD_INDEX = 3;
+const SLOW_FIELD_INDEX = 4;
 
 const SLACK_STUB = process.env.E2E_SLACK_STUB === "yes";
 // What `e2e-tests/stubs/slack` answers every post with.
@@ -79,6 +80,7 @@ test.describe("Button field, Slack action", () => {
         { name: "Post", type: "button", settings: { label: "Post" } },
         { name: "Chain", type: "button", settings: { label: "Chain" } },
         { name: "Live", type: "button", settings: { label: "Live" } },
+        { name: "Slow", type: "button", settings: { label: "Slow" } },
       ],
     });
   });
@@ -242,5 +244,58 @@ test.describe("Button field, Slack action", () => {
       timeout: 15_000,
     });
     await expect(page.locator(".toast")).toHaveCount(0);
+  });
+  test("a click while the same row is still posting is refused", async ({
+    page,
+    browser,
+  }) => {
+    test.skip(
+      !SLACK_STUB,
+      "E2E_SLACK_STUB is not set, a click would reach slack.com",
+    );
+    test.setTimeout(120_000);
+
+    await resetRows(g, [{ Name: "Ada", "Slack ts": "" }]);
+    const bot = await createSlackBotIntegration(g.user, g.database, {
+      name: "Slow bot",
+      token: "xoxb-made-up",
+    });
+    // The stub holds this channel open for eight seconds, which is what the
+    // second click has to land inside.
+    await createSlackAction(g.user, g.fieldByName["Slow"], {
+      integrationId: bot.id,
+      channel: "slow",
+      text: "'taking a while'",
+    });
+
+    const grid = await gridFor(page, g.user);
+
+    // The cell disables itself while its request is in flight, so a second
+    // click in the same session never reaches the server. Another session is
+    // what the lock is for.
+    const other = await browser.newContext({
+      viewport: { width: 2200, height: 900 },
+    });
+    const otherPage = await other.newPage();
+    const otherGrid = new GridPage(otherPage, g.user);
+    await otherGrid.goTo(g.database, g.table);
+
+    const button = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+    const otherButton = otherGrid
+      .fieldCellAt(0, SLOW_FIELD_INDEX)
+      .locator("button");
+
+    await button.click();
+    await expect(button).toHaveClass(/button--loading/);
+    await otherButton.click();
+
+    await expect(otherPage.locator(".toast")).toBeVisible({ timeout: 20_000 });
+
+    // The first post is still in flight. Waiting for it keeps it out of the
+    // teardown and out of the test after this one.
+    await expect(button).not.toHaveClass(/button--loading/, {
+      timeout: 30_000,
+    });
+    await other.close();
   });
 });

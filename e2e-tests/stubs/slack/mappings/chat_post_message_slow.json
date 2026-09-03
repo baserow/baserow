@@ -1,0 +1,20 @@
+{
+  "priority": 1,
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/chat.postMessage",
+    "queryParameters": {
+      "channel": { "equalTo": "#slow" }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "fixedDelayMilliseconds": 8000,
+    "jsonBody": {
+      "ok": true,
+      "channel": "C0E2ESLOW",
+      "ts": "1700000000.000200"
+    }
+  }
+}
