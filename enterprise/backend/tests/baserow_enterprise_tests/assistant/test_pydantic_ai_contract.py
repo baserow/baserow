@@ -52,6 +52,7 @@ from pydantic_ai.providers.ollama import OllamaProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AbstractToolset, CombinedToolset, FunctionToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from pydantic_ai.usage import RequestUsage, UsageLimits
@@ -133,6 +134,31 @@ def test_pydantic_ai_symbol_surface_the_assistant_depends_on():
     # Private module, no public equivalent (assistant.py:9) — unguaranteed across releases.
     assert split_content_into_text_and_thinking is not None
     assert _strip_think_tags("a<think>b</think>c") == "ac"
+
+
+def test_gpt_oss_withholds_deferred_tool_schemas_from_the_request():
+    """Mode routing must not spend gpt-oss context on every domain schema."""
+
+    visible = ToolDefinition(
+        name="create_tables",
+        description="Create tables",
+        parameters_json_schema={"type": "object", "properties": {}},
+    )
+    deferred = ToolDefinition(
+        name="create_workflows",
+        description="Create workflows",
+        parameters_json_schema={"type": "object", "properties": {}},
+        defer_loading=True,
+    )
+    model = GroqModel("openai/gpt-oss-120b", provider=GroqProvider(api_key="not-used"))
+
+    _, prepared = model.prepare_request(
+        None, ModelRequestParameters(function_tools=[visible, deferred])
+    )
+
+    assert prepared.visibility_of("create_tables") == "visible"
+    assert prepared.visibility_of("create_workflows") == "withheld"
+    assert [tool.name for tool in prepared.declared_function_tools] == ["create_tables"]
 
 
 # ---------------------------------------------------------------------------

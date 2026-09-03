@@ -139,9 +139,14 @@ class DataSourceCreate(BaseModel):
         return _SERVICE_TYPE[self.type]
 
     def matches_existing(self, existing: "DataSourceItem") -> bool:
-        """Check if this create request would produce a duplicate of *existing*.
+        """
+        Check if this create request would produce a duplicate of an
+        existing data source.
 
         Delegates to a per-type matcher in ``_STRUCTURAL_MATCH``.
+
+        :param existing: The existing data source to compare against.
+        :return: True when both share the type and structural configuration.
         """
 
         existing_type = _CANONICAL_TO_SHORT_TYPE.get(existing.type, existing.type)
@@ -151,10 +156,17 @@ class DataSourceCreate(BaseModel):
         return matcher(self, existing) if matcher else False
 
     def to_service_kwargs(self, user: "AbstractUser", workspace: Any) -> dict:
-        """Build kwargs for ``DataSourceService.create_data_source()``."""
+        """
+        Build kwargs for ``DataSourceService.create_data_source()``.
 
-        from baserow_enterprise.assistant.tools.builder.helpers import ToolInputError
+        :param user: The acting user.
+        :param workspace: The workspace the referenced table must belong to.
+        :return: The service kwargs for this data source type.
+        :raises ToolInputError: When the referenced table does not exist.
+        """
+
         from baserow_enterprise.assistant.tools.database.helpers import filter_tables
+        from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
 
         table = filter_tables(user, workspace).filter(id=self.table_id).first()
         if table is None:
@@ -283,7 +295,14 @@ class DataSourceUpdate(BaseModel):
     )
 
     def to_update_kwargs(self, user: "AbstractUser", workspace: Any) -> dict:
-        """Return kwargs for ``DataSourceService.update_data_source()``."""
+        """
+        Return kwargs for ``DataSourceService.update_data_source()``.
+
+        :param user: The acting user.
+        :param workspace: The workspace the referenced table must belong to.
+        :return: The service kwargs built from the fields that are set.
+        :raises ToolInputError: When the referenced table does not exist.
+        """
 
         kwargs: dict[str, Any] = {}
 
@@ -291,12 +310,10 @@ class DataSourceUpdate(BaseModel):
             kwargs["name"] = self.name
 
         if self.table_id is not None:
-            from baserow_enterprise.assistant.tools.builder.helpers import (
-                ToolInputError,
-            )
             from baserow_enterprise.assistant.tools.database.helpers import (
                 filter_tables,
             )
+            from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
 
             table = filter_tables(user, workspace).filter(id=self.table_id).first()
             if table is None:

@@ -38,6 +38,10 @@ from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow.core.services.registries import service_type_registry
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    raise_if_permission_denied,
+)
 
 from .types import (
     ActionCreate,
@@ -67,7 +71,16 @@ if TYPE_CHECKING:
 def get_builder(
     user: AbstractUser, workspace: Workspace, application_id: int
 ) -> Builder:
-    """Get a builder application scoped to the user's workspace."""
+    """
+    Get a builder application scoped to the user's workspace.
+
+    :param user: The acting user.
+    :param workspace: The workspace the application must belong to.
+    :param application_id: The ID of the application to fetch.
+    :returns: The matching builder application.
+    :raises ToolInputError: When the application is not visible in the
+        workspace.
+    """
 
     from baserow.core.service import CoreService
 
@@ -77,23 +90,28 @@ def get_builder(
             application_id,
             base_queryset=Builder.objects.filter(workspace=workspace),
         )
-    except Exception:
+    except Exception as exc:
+        raise_if_permission_denied(exc)
         raise ToolInputError(
             f"Application with ID {application_id} not found in this workspace. "
             "Use list_builders to find valid application IDs."
         )
 
 
-class ToolInputError(Exception):
-    """Raised when tool input is invalid — returned to the model as an error message."""
-
-
 def get_page(user: AbstractUser, page_id: int) -> Page:
-    """Get a page with permission check."""
+    """
+    Get a page with permission check.
+
+    :param user: The acting user.
+    :param page_id: The ID of the page to fetch.
+    :returns: The matching page.
+    :raises ToolInputError: When the page is missing or not accessible.
+    """
 
     try:
         return PageService().get_page(user, page_id)
-    except Exception:
+    except Exception as exc:
+        raise_if_permission_denied(exc)
         raise ToolInputError(
             f"Page with ID {page_id} not found or not accessible. "
             "Use list_pages to find valid page IDs."
@@ -279,14 +297,19 @@ def update_data_source(
     """
     Update an existing data source by ID.
 
-    Returns ``(orm_data_source, service_type_str)``.
+    :param user: The acting user.
+    :param ds_update: The update definition.
+    :param workspace: The workspace the referenced tables must belong to.
+    :returns: ``(orm_data_source, service_type_str)``.
+    :raises ToolInputError: When the data source does not exist.
     """
 
     from baserow.core.services.registries import service_type_registry
 
     try:
         ds = DataSourceHandler().get_data_source_for_update(ds_update.data_source_id)
-    except Exception:
+    except Exception as exc:
+        raise_if_permission_denied(exc)
         raise ToolInputError(
             f"Data source with ID {ds_update.data_source_id} not found. "
             "Use list_data_sources to find valid data source IDs."

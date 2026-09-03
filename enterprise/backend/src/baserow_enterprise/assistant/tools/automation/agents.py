@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 from loguru import logger
 
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
 from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     BaseFormulaContext,
@@ -60,19 +61,68 @@ def get_generate_formulas_tool():
     return get_formula_generator(GENERATE_FORMULA_PROMPT)
 
 
+def _formula_error(node: AutomationNode, error: Exception) -> dict[str, Any]:
+    """Return node-level formula error data."""
+
+    return {"node_id": node.id, "label": node.label, "error": str(error)}
+
+
+def _is_optional_formula(description: Any) -> bool:
+    """Return whether a formula request may be omitted."""
+
+    if isinstance(description, dict):
+        description = description.get("desc")
+    return isinstance(description, str) and description.startswith("[optional]")
+
+
+def _missing_required_formulas(
+    requested: dict[Any, Any], generated: dict[Any, str]
+) -> list[Any]:
+    """Return required keys absent from the generated formulas."""
+
+    return [
+        key
+        for key, description in requested.items()
+        if key not in generated and not _is_optional_formula(description)
+    ]
+
+
+def _apply_generated_formulas(
+    node: "NodeUpdate | ActionNodeCreate",
+    orm_node: AutomationNode,
+    requested: dict[Any, Any],
+    generated: dict[Any, str],
+) -> None:
+    """
+    Apply available formulas and reject missing required ones.
+
+    :raises ValueError: When the generator omitted a required formula, after
+        the available ones were applied.
+    """
+
+    missing = _missing_required_formulas(requested, generated)
+    if generated:
+        node.update_service_with_formulas(orm_node.service, generated)
+    if missing:
+        names = ", ".join(str(key) for key in missing)
+        raise ValueError(f"Formula generator omitted required fields: {names}")
+
+
 def update_workflow_formulas(
     workflow: "WorkflowCreate",
     node_mapping: dict[int | str, Any],
     tool_helpers: "ToolHelpers",
-) -> None:
+) -> list[dict[str, Any]]:
     """
-    Generate and apply formulas for all nodes in a newly created workflow.
+    Generate workflow formulas in order and return node-level failures.
 
-    Walks nodes in order, building up the available formula context as it goes.
-    For each node that has ``$formula:`` values, delegates to the formula
-    generation agent and writes the results back to the ORM service.
+    :param workflow: The workflow definition the nodes were created from.
+    :param node_mapping: Mapping of node refs to (orm_node, create) pairs.
+    :param tool_helpers: Provides status updates.
+    :return: One error dict per node whose formulas could not be generated.
     """
 
+    formula_errors: list[dict[str, Any]] = []
     context = AssistantFormulaContext()
     generate_formula = get_generate_formulas_tool()
 
@@ -94,9 +144,8 @@ def update_workflow_formulas(
         formulas_to_create = node.get_formulas_to_create(orm_node)
         if formulas_to_create is None:
             return
-        result = generate_formula(formulas_to_create, context)
-        if result:
-            node.update_service_with_formulas(orm_node.service, result)
+        generated = generate_formula(formulas_to_create, context) or {}
+        _apply_generated_formulas(node, orm_node, formulas_to_create, generated)
 
     # Seed context with the trigger
     orm_trigger, trigger_create = node_mapping[workflow.trigger.ref]
@@ -115,24 +164,46 @@ def update_workflow_formulas(
                 try:
                     _generate_node_formulas(node, orm_node)
                 except Exception as exc:
+                    raise_if_permission_denied(exc)
                     logger.exception(
                         "Failed to generate formulas for node {}: {}", orm_node.id, exc
                     )
+                    formula_errors.append(_formula_error(orm_node, exc))
 
         _build_node_context(orm_node, node)
+
+    return formula_errors
 
 
 def update_single_node_formulas(
     node: "NodeUpdate | ActionNodeCreate",
     orm_node: AutomationNode,
     tool_helpers: "ToolHelpers",
-) -> None:
+) -> list[dict[str, Any]]:
     """
-    Generate and apply formulas for a single node being created or updated.
+    Generate one node's formulas and return any failure.
 
-    Builds formula context from the node's workflow, then generates
-    formulas for the $formula: fields in the payload.
+    :param node: The node create or update definition.
+    :param orm_node: The ORM node to write formulas to.
+    :param tool_helpers: Provides status updates.
+    :return: A single-item error list on failure, otherwise an empty list.
     """
+
+    try:
+        _apply_single_node_formulas(node, orm_node)
+    except Exception as exc:
+        raise_if_permission_denied(exc)
+        logger.exception(
+            "Failed to generate formulas for node {}: {}", orm_node.id, exc
+        )
+        return [_formula_error(orm_node, exc)]
+    return []
+
+
+def _apply_single_node_formulas(
+    node: "NodeUpdate | ActionNodeCreate", orm_node: AutomationNode
+) -> None:
+    """Generate and apply a single node's formulas."""
 
     context = AssistantFormulaContext()
     generate_formula = get_generate_formulas_tool()
@@ -155,6 +226,5 @@ def update_single_node_formulas(
     if formulas_to_create is None:
         return
 
-    result = generate_formula(formulas_to_create, context)
-    if result:
-        node.update_service_with_formulas(orm_node.service, result)
+    generated = generate_formula(formulas_to_create, context) or {}
+    _apply_generated_formulas(node, orm_node, formulas_to_create, generated)

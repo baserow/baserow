@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any
@@ -8,22 +9,41 @@ from django.test.utils import override_settings
 
 import pytest
 from asgiref.sync import async_to_sync
-from pydantic_ai.messages import PartStartEvent
-from pydantic_ai.messages import TextPart as PaiTextPart
+from pydantic_ai import ModelRetry
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelMessagesTypeAdapter,
+    ModelRequest,
+    ModelResponse,
+    PartStartEvent,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
+from pydantic_ai.run import AgentRunResultEvent
 
-from baserow_enterprise.assistant.agents import dynamic_license_tier
+from baserow_enterprise.assistant.action_memory import (
+    MAX_VERIFIED_TOOL_OUTCOMES_CHARS,
+    get_mutation_evidence,
+    get_verified_tool_outcomes,
+)
+from baserow_enterprise.assistant.agents import (
+    dynamic_license_tier,
+    dynamic_verified_tool_outcomes,
+)
 from baserow_enterprise.assistant.assistant import (
     Assistant,
     _get_workspace_license_type,
-    compact_message_history,
-    get_model_string,
 )
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.history import compact_message_history
+from baserow_enterprise.assistant.model_profiles import get_model_string
 from baserow_enterprise.assistant.models import (
     AssistantChat,
     AssistantChatMessage,
-    AssistantChatPrediction,
 )
+from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.types import (
     AiMessage,
@@ -41,6 +61,34 @@ from baserow_enterprise.assistant.types import (
 )
 
 TEST_MODEL = "groq:test-model"
+
+
+def _mutation_messages(
+    tool_name: str,
+    arguments: dict[str, Any],
+    result: dict[str, Any],
+    call_id: str,
+) -> list[ModelMessage]:
+    return [
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name=tool_name,
+                    args=arguments,
+                    tool_call_id=call_id,
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name=tool_name,
+                    content=result,
+                    tool_call_id=call_id,
+                )
+            ]
+        ),
+    ]
 
 
 @pytest.fixture(autouse=True)
@@ -67,10 +115,9 @@ async def _mock_run_stream_events(
     Async generator that mimics the events pulled from ``main_agent.run_stream_events()``,
     yielding PartStartEvent, then AgentRunResultEvent.
     """
-    from pydantic_ai.run import AgentRunResultEvent
 
     # Emit a text part start with the full answer
-    yield PartStartEvent(index=0, part=PaiTextPart(content=answer))
+    yield PartStartEvent(index=0, part=TextPart(content=answer))
 
     # Emit the final result event
     mock_result = MagicMock()
@@ -193,41 +240,9 @@ class TestAssistantChatHistory:
         history = async_to_sync(assistant._load_message_history)()
         assert history is None
 
-    def test_save_ai_response_persists_posthog_trace_id(self, enterprise_data_fixture):
-        user = enterprise_data_fixture.create_user()
-        workspace = enterprise_data_fixture.create_workspace(user=user)
-        chat = AssistantChat.objects.create(
-            user=user, workspace=workspace, title="Test Chat"
-        )
-        human_message = AssistantChatMessage.objects.create(
-            chat=chat,
-            role=AssistantChatMessage.Role.HUMAN,
-            content="Create a table",
-        )
-        assistant = Assistant(chat)
-        assistant._telemetry.trace_id = "trace-123"
-
-        async_to_sync(assistant._save_ai_response)(human_message, "Done")
-
-        prediction = AssistantChatPrediction.objects.get(human_message=human_message)
-        assert prediction.prediction == {
-            "answer": "Done",
-            "posthog_trace_id": "trace-123",
-        }
-
     def test_load_message_history_deserializes_and_compacts(
         self, enterprise_data_fixture
     ):
-        from pydantic_ai.messages import (
-            ModelMessagesTypeAdapter,
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
-        )
-
         user = enterprise_data_fixture.create_user()
         workspace = enterprise_data_fixture.create_workspace(user=user)
         chat = AssistantChat.objects.create(
@@ -240,7 +255,11 @@ class TestAssistantChatHistory:
                 parts=[
                     ToolCallPart(
                         tool_name="create_tables",
-                        args={"thought": "creating", "tables": ["recipes"]},
+                        args={
+                            "database_id": 41,
+                            "thought": "creating",
+                            "tables": [{"name": "Recipes"}],
+                        },
                         tool_call_id="tc1",
                     )
                 ]
@@ -249,7 +268,7 @@ class TestAssistantChatHistory:
                 parts=[
                     ToolReturnPart(
                         tool_name="create_tables",
-                        content="Created",
+                        content={"created_tables": [{"id": 73, "name": "Recipes"}]},
                         tool_call_id="tc1",
                     )
                 ]
@@ -266,6 +285,18 @@ class TestAssistantChatHistory:
         assert len(history) == 2
         assert isinstance(history[0], ModelRequest)
         assert isinstance(history[1], ModelResponse)
+        assert assistant._deps.verified_tool_outcomes[0]["result"] == {
+            "created_tables": [{"id": 73, "name": "Recipes"}]
+        }
+
+        # API requests construct a new Assistant each turn. The next instance
+        # must recover the same verified IDs from the chat blob.
+        next_assistant = Assistant(chat)
+        next_history = async_to_sync(next_assistant._load_message_history)()
+        assert next_history is not None
+        assert next_assistant._deps.verified_tool_outcomes == (
+            assistant._deps.verified_tool_outcomes
+        )
 
     def test_load_message_history_handles_corrupt_data(self, enterprise_data_fixture):
         user = enterprise_data_fixture.create_user()
@@ -286,15 +317,6 @@ class TestCompactMessageHistory:
     """Test the message history compaction logic."""
 
     def test_compacts_tool_calls_in_older_turns(self):
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            ToolCallPart,
-            ToolReturnPart,
-            UserPromptPart,
-        )
-
         messages = [
             ModelRequest(parts=[UserPromptPart(content="create a database")]),
             ModelResponse(
@@ -323,14 +345,477 @@ class TestCompactMessageHistory:
         compacted = compact_message_history(messages)
         assert len(compacted) == 4
 
-    def test_trims_to_max_messages(self):
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            UserPromptPart,
+    def test_retains_bounded_verified_mutation_outcomes(self):
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="create an orders table")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_tables",
+                        args={
+                            "database_id": 41,
+                            "tables": [{"name": "Orders"}],
+                            "thought": "Creating the table",
+                        },
+                        tool_call_id="tc1",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_tables",
+                        content={
+                            "created_tables": [
+                                {
+                                    "id": 73,
+                                    "name": "Orders",
+                                    "fields": [
+                                        {
+                                            "id": 92,
+                                            "name": "Status",
+                                            "type": "single_select",
+                                        }
+                                    ],
+                                }
+                            ]
+                        },
+                        tool_call_id="tc1",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Created it.")]),
+        ]
+
+        compacted = compact_message_history(messages)
+        outcomes = get_verified_tool_outcomes(compacted)
+
+        assert len(compacted) == 2
+        assert len(outcomes) == 1
+        assert len(outcomes[0]["_request_fingerprint"]) == 64
+        assert {
+            key: value
+            for key, value in outcomes[0].items()
+            if key != "_request_fingerprint"
+        } == {
+            "tool": "create_tables",
+            "arguments": {
+                "database_id": 41,
+                "tables": [{"name": "Orders"}],
+            },
+            "result": {
+                "created_tables": [
+                    {
+                        "id": 73,
+                        "name": "Orders",
+                        "fields": [
+                            {
+                                "id": 92,
+                                "name": "Status",
+                                "type": "single_select",
+                            }
+                        ],
+                    }
+                ]
+            },
+            "changed": True,
+            "completed": True,
+            "failed": False,
+        }
+
+        # The metadata must survive another compaction cycle unchanged.
+        round_tripped = ModelMessagesTypeAdapter.validate_json(
+            ModelMessagesTypeAdapter.dump_json(compacted)
+        )
+        next_cycle = compact_message_history(
+            [
+                *round_tripped,
+                ModelRequest(parts=[UserPromptPart(content="ok")]),
+                ModelResponse(parts=[TextPart(content="Continuing.")]),
+            ]
+        )
+        assert get_verified_tool_outcomes(next_cycle) == outcomes
+
+    def test_remembers_failed_mutations_as_incomplete_work(self):
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="create it")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_builders",
+                        args={"builders": [{"name": "Restaurant"}]},
+                        tool_call_id="failed-1",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_builders",
+                        content={
+                            "created_builders": [],
+                            "error": "Permission denied",
+                        },
+                        tool_call_id="failed-1",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="It failed.")]),
+        ]
+
+        outcomes = get_verified_tool_outcomes(compact_message_history(messages))
+
+        assert len(outcomes) == 1
+        assert outcomes[0]["changed"] is False
+        assert outcomes[0]["completed"] is False
+        assert outcomes[0]["failed"] is True
+
+    def test_verified_workflow_outcome_keeps_deep_field_values(self):
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="automate orders")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_workflows",
+                        args={
+                            "automation_id": 5,
+                            "workflows": [
+                                {
+                                    "name": "Process Orders",
+                                    "nodes": [
+                                        {
+                                            "type": "update_row",
+                                            "values": [
+                                                {
+                                                    "field_id": 9,
+                                                    "value": "Processing",
+                                                }
+                                            ],
+                                        }
+                                    ],
+                                }
+                            ],
+                        },
+                        tool_call_id="workflow-1",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_workflows",
+                        content={"created_workflows": [{"id": 7}]},
+                        tool_call_id="workflow-1",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Done")]),
+        ]
+
+        compacted = compact_message_history(messages)
+        outcomes = get_verified_tool_outcomes(compacted)
+
+        assert "Processing" in str(outcomes)
+
+    def test_verified_mutation_ledger_is_capped(self):
+        messages = []
+        for index in range(20):
+            call_id = f"create-{index}"
+            messages.extend(
+                [
+                    ModelRequest(
+                        parts=[UserPromptPart(content=f"create database {index}")]
+                    ),
+                    ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                tool_name="create_builders",
+                                args={"builders": [{"name": f"DB {index}"}]},
+                                tool_call_id=call_id,
+                            )
+                        ]
+                    ),
+                    ModelRequest(
+                        parts=[
+                            ToolReturnPart(
+                                tool_name="create_builders",
+                                content={"created_builders": [{"id": index + 1}]},
+                                tool_call_id=call_id,
+                            )
+                        ]
+                    ),
+                    ModelResponse(parts=[TextPart(content="Done")]),
+                ]
+            )
+
+        outcomes = get_verified_tool_outcomes(compact_message_history(messages))
+
+        assert len(outcomes) == 12
+        assert outcomes[0]["result"] == {"created_builders": [{"id": 9}]}
+        assert outcomes[-1]["result"] == {"created_builders": [{"id": 20}]}
+
+    def test_action_fingerprints_use_complete_arguments(self):
+        shared = [{"name": f"Shared {index}"} for index in range(12)]
+        messages = []
+        for index, final_name in enumerate(("First", "Second")):
+            call_id = f"large-{index}"
+            messages.extend(
+                [
+                    ModelRequest(parts=[UserPromptPart(content="create builders")]),
+                    ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                tool_name="create_builders",
+                                args={"builders": [*shared, {"name": final_name}]},
+                                tool_call_id=call_id,
+                            )
+                        ]
+                    ),
+                    ModelRequest(
+                        parts=[
+                            ToolReturnPart(
+                                tool_name="create_builders",
+                                content={"created_builders": [{"id": index + 1}]},
+                                tool_call_id=call_id,
+                            )
+                        ]
+                    ),
+                    ModelResponse(parts=[TextPart(content="Done")]),
+                ]
+            )
+
+        outcomes = get_verified_tool_outcomes(compact_message_history(messages))
+
+        assert len(outcomes) == 2
+        assert outcomes[0]["arguments"] == outcomes[1]["arguments"]
+        assert (
+            outcomes[0]["_request_fingerprint"] != (outcomes[1]["_request_fingerprint"])
         )
 
+    def test_oversized_newest_mutation_is_truncated_to_verified_flags(self):
+        workflows = [
+            {
+                "name": f"Process Orders {workflow_index}",
+                "nodes": [
+                    {
+                        "ref": f"update-{workflow_index}-{node_index}",
+                        "type": "update_row",
+                        "values": [
+                            {
+                                "field_id": field_index + 1,
+                                "value": "Processing " * 20,
+                            }
+                            for field_index in range(12)
+                        ],
+                    }
+                    for node_index in range(12)
+                ],
+            }
+            for workflow_index in range(12)
+        ]
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="automate every order flow")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_workflows",
+                        args={"automation_id": 5, "workflows": workflows},
+                        tool_call_id="large-workflow",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_workflows",
+                        content={
+                            "created_workflows": [
+                                {"id": index + 100, "name": workflow["name"]}
+                                for index, workflow in enumerate(workflows)
+                            ]
+                        },
+                        tool_call_id="large-workflow",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Done")]),
+        ]
+
+        compacted = compact_message_history(messages)
+        outcomes = get_verified_tool_outcomes(compacted)
+        evidence = get_mutation_evidence(compacted)
+
+        assert len(outcomes) == 1
+        assert outcomes[0]["tool"] == "create_workflows"
+        assert outcomes[0]["_truncated"] is True
+        assert evidence[0].changed is True
+        assert evidence[0].completed is True
+        assert (
+            len(json.dumps(outcomes, separators=(",", ":")))
+            <= MAX_VERIFIED_TOOL_OUTCOMES_CHARS
+        )
+
+    def test_compaction_preserves_partial_state(self):
+        fields = [
+            {"field_id": index, "name": f"Field {index} " + "x" * 200}
+            for index in range(30)
+        ]
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="update all fields")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_fields",
+                        args={"fields": fields},
+                        tool_call_id="partial-fields",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="update_fields",
+                        content={
+                            "updated_fields": [
+                                {"id": index, "name": "Updated " + "y" * 200}
+                                for index in range(12)
+                            ],
+                            "errors": [
+                                f"Field {index} could not be updated " + "z" * 200
+                                for index in range(12, 24)
+                            ],
+                        },
+                        tool_call_id="partial-fields",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Partially updated")]),
+        ]
+
+        compacted = compact_message_history(messages)
+        outcomes = get_verified_tool_outcomes(compacted)
+        evidence = get_mutation_evidence(compacted)
+
+        assert outcomes[0]["_truncated"] is True
+        assert evidence[0].changed is True
+        assert evidence[0].completed is False
+
+    def test_identical_reused_retry_keeps_created_outcome(self):
+        arguments = {"builders": [{"name": "Restaurant", "type": "database"}]}
+        created = [
+            ModelRequest(parts=[UserPromptPart(content="create Restaurant")]),
+            *_mutation_messages(
+                "create_builders",
+                arguments,
+                {
+                    "created_builders": [
+                        {"id": 1, "name": "Restaurant", "type": "database"}
+                    ],
+                    "reused_builders": [],
+                },
+                "created-builder",
+            ),
+            ModelResponse(parts=[TextPart(content="Done")]),
+            ModelRequest(parts=[UserPromptPart(content="create Inventory")]),
+            *_mutation_messages(
+                "create_builders",
+                {"builders": [{"name": "Inventory", "type": "database"}]},
+                {
+                    "created_builders": [
+                        {"id": 2, "name": "Inventory", "type": "database"}
+                    ],
+                    "reused_builders": [],
+                },
+                "created-inventory",
+            ),
+            ModelResponse(parts=[TextPart(content="Done")]),
+        ]
+        first_compaction = compact_message_history(created)
+        retried = [
+            *first_compaction,
+            ModelRequest(parts=[UserPromptPart(content="create Restaurant")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_builders",
+                        args=arguments,
+                        tool_call_id="reused-builder",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_builders",
+                        content={
+                            "created_builders": [],
+                            "reused_builders": [
+                                {
+                                    "id": 1,
+                                    "name": "Restaurant",
+                                    "type": "database",
+                                }
+                            ],
+                        },
+                        tool_call_id="reused-builder",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="Already exists")]),
+        ]
+
+        outcomes = get_verified_tool_outcomes(compact_message_history(retried))
+
+        assert outcomes[-1]["changed"] is True
+        assert outcomes[-1]["result"]["created_builders"][0]["name"] == "Restaurant"
+
+    def test_compacted_failure_replaces_stale_success(self):
+        arguments = {"database_id": 1, "tables": [{"name": "Orders"}]}
+        created = [
+            ModelRequest(parts=[UserPromptPart(content="create Orders")]),
+            *_mutation_messages(
+                "create_tables",
+                arguments,
+                {"created_tables": [{"id": 2, "name": "Orders"}]},
+                "created-orders",
+            ),
+            ModelResponse(parts=[TextPart(content="Done")]),
+        ]
+        failed_retry = [
+            *compact_message_history(created),
+            ModelRequest(parts=[UserPromptPart(content="retry Orders")]),
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_tables",
+                        args=arguments,
+                        tool_call_id="failed-orders",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_tables",
+                        content={
+                            "created_tables": [],
+                            "error": "Permission denied",
+                        },
+                        tool_call_id="failed-orders",
+                    )
+                ]
+            ),
+            ModelResponse(parts=[TextPart(content="It failed")]),
+        ]
+        compacted = compact_message_history(failed_retry)
+        ctx = MagicMock(messages=compacted)
+
+        outcomes = get_verified_tool_outcomes(compacted)
+        assert outcomes[0]["failed"] is True
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, "I created the Orders table.")
+
+    def test_trims_to_max_messages(self):
         messages = []
         for i in range(20):
             messages.append(
@@ -342,13 +827,6 @@ class TestCompactMessageHistory:
         assert len(compacted) == 6
 
     def test_preserves_simple_conversations(self):
-        from pydantic_ai.messages import (
-            ModelRequest,
-            ModelResponse,
-            TextPart,
-            UserPromptPart,
-        )
-
         messages = [
             ModelRequest(parts=[UserPromptPart(content="hello")]),
             ModelResponse(parts=[TextPart(content="hi")]),
@@ -410,24 +888,39 @@ class TestAssistantLicenseTier:
         assert dynamic_license_tier(ctx) == "\n<license_tier>free</license_tier>"
 
     def test_agent_system_prompt_includes_grounding_guardrail(self):
-        assert "Use `search_user_docs` first" in AGENT_SYSTEM_PROMPT
+        assert "Call `search_user_docs` first" in AGENT_SYSTEM_PROMPT
+        assert "documentation search is not configured" in AGENT_SYSTEM_PROMPT
         assert "Never invent plan names" in AGENT_SYSTEM_PROMPT
 
+    def test_agent_system_prompt_calibrates_asking_on_intent(self):
+        """Asking is an action (ask_user), not the absence of one — the prompt
+        must route the ask cases to the tool, or it competes with the
+        agent's bias toward acting."""
+
+        assert "<intent>" in AGENT_SYSTEM_PROMPT
+        assert "Default to building" in AGENT_SYSTEM_PROMPT
+        assert "never invent their data" in AGENT_SYSTEM_PROMPT
+        assert "You act rather than describe" in AGENT_SYSTEM_PROMPT
+
     def test_agent_system_prompt_covers_production_regressions(self):
-        assert AGENT_SYSTEM_PROMPT.index("<contracts>") < AGENT_SYSTEM_PROMPT.index(
-            "<rules>"
+        assert "Cross-mode routing is automatic" in AGENT_SYSTEM_PROMPT
+        assert "Use only real IDs returned by tools" in AGENT_SYSTEM_PROMPT
+        assert "continue the latest unfinished request" in AGENT_SYSTEM_PROMPT
+        assert (
+            "Claim success only after a successful tool result" in AGENT_SYSTEM_PROMPT
         )
-        assert "call create_builders first and build on the ID it returns" in (
-            AGENT_SYSTEM_PROMPT
-        )
-        assert "Never invent, guess, or carry over an ID from a different resource" in (
-            AGENT_SYSTEM_PROMPT
-        )
-        assert "Baserow IDs start at 1, so 0 is never an ID" in AGENT_SYSTEM_PROMPT
-        assert "For database formula creation or repair, call generate_formula" in (
-            AGENT_SYSTEM_PROMPT
-        )
-        assert "Never return or save a handwritten formula" in AGENT_SYSTEM_PROMPT
+        assert "use generate_formula" in AGENT_SYSTEM_PROMPT
+
+    def test_verified_outcomes_are_injected_as_facts_not_completion(self):
+        ctx = MagicMock()
+        ctx.deps.verified_tool_outcomes = [
+            {"tool": "create_builders", "result": {"id": 42}}
+        ]
+
+        rendered = dynamic_verified_tool_outcomes(ctx)
+
+        assert '"id":42' in rendered
+        assert "do not prove the current request is complete" in rendered
 
 
 @pytest.mark.django_db
@@ -691,13 +1184,11 @@ class TestAssistantStreaming:
         assistant = Assistant(chat)
 
         async def mock_stream_with_thinking(*args, **kwargs):
-            from pydantic_ai.run import AgentRunResultEvent
-
             # Emit thinking message via the event bus during streaming
             assistant._event_bus.emit(AiThinkingMessage(content="still thinking..."))
 
             # Yield text part then result
-            yield PartStartEvent(index=0, part=PaiTextPart(content="Answer"))
+            yield PartStartEvent(index=0, part=TextPart(content="Answer"))
 
             mock_result = MagicMock()
             mock_result.output = "Answer"
@@ -808,7 +1299,6 @@ def test_stream_agent_run_cancellation_propagates_through_async_with(
     from types import TracebackType
 
     from pydantic_ai.agent.abstract import _RunStreamEventsContext
-    from pydantic_ai.messages import ModelMessage
     from pydantic_ai.models.function import AgentInfo, FunctionModel
 
     user = enterprise_data_fixture.create_user()
@@ -1011,22 +1501,370 @@ class TestGetModelString:
         )
 
 
-class TestMainAgentOutputValidator:
+class TestFinalAnswerValidation:
     def test_tool_call_printed_as_text_is_sent_back(self):
-        from pydantic_ai import ModelRetry
-
-        from baserow_enterprise.assistant.agents import _text_must_not_be_a_tool_call
-
         payload = '{"name": "create_rows_in_table_9", "arguments": {"rows": []}}'
         with pytest.raises(ModelRetry):
-            _text_must_not_be_a_tool_call(None, payload)
+            validate_final_answer(None, payload)
 
         fenced = f"```json\n{payload}\n```"
         with pytest.raises(ModelRetry):
-            _text_must_not_be_a_tool_call(None, fenced)
+            validate_final_answer(None, fenced)
+
+        keys_reordered = '{"id": "c1", "name": "create_tables", "arguments": {}}'
+        with pytest.raises(ModelRetry):
+            validate_final_answer(None, keys_reordered)
 
     def test_regular_answers_pass_through(self):
-        from baserow_enterprise.assistant.agents import _text_must_not_be_a_tool_call
-
         answer = 'Created the table. The field {"name": ...} maps to your schema.'
-        assert _text_must_not_be_a_tool_call(None, answer) == answer
+        assert validate_final_answer(None, answer) == answer
+        availability = "The automation tools are available."
+        assert validate_final_answer(None, availability) == availability
+
+    def test_ungrounded_tool_unavailable_claim_is_sent_back(self):
+        with pytest.raises(ModelRetry, match="current mode"):
+            validate_final_answer(
+                None,
+                "The tools for building automations aren't available in this session.",
+            )
+
+    def test_truthful_tool_limitation_or_permission_explanation_is_allowed(self):
+        limitation = (
+            "The dashboard-creation tool isn't available because <limitations> "
+            "explicitly excludes creating or modifying dashboards."
+        )
+        assert validate_final_answer(None, limitation) == limitation
+
+        permission = (
+            "I don't have access to the role-management tool because your role "
+            "does not permit changing workspace permissions."
+        )
+        assert validate_final_answer(None, permission) == permission
+
+    def test_ungrounded_success_claim_is_sent_back(self):
+        ctx = MagicMock()
+        ctx.messages = []
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(
+                ctx, "The Restaurant database has been created successfully."
+            )
+
+        answer = "It already exists from the previous step."
+        assert validate_final_answer(ctx, answer) == answer
+
+        ctx.messages = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_rows_in_table_9",
+                        args={"rows": [{"Name": "Order 12"}]},
+                        tool_call_id="rows-1",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_rows_in_table_9",
+                        content={"created_rows": [{"id": 12}]},
+                        tool_call_id="rows-1",
+                    )
+                ]
+            ),
+        ]
+        completed = "I've created the requested rows successfully."
+        assert validate_final_answer(ctx, completed) == completed
+
+        rephrased = "I've updated the table with the requested rows."
+        assert validate_final_answer(ctx, rephrased) == rephrased
+
+    @pytest.mark.parametrize(
+        "claim",
+        [
+            "Created the Orders table.",
+            "I created the Orders table.",
+            "Done — set up the workflow.",
+            "Done.",
+            "Applied the requested configuration.",
+        ],
+    )
+    def test_common_ungrounded_completion_phrases_are_sent_back(self, claim):
+        ctx = MagicMock()
+        ctx.messages = []
+
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, claim)
+
+    @pytest.mark.parametrize(
+        "claim",
+        [
+            "I've created the text field 'Notes'.",
+            "I've created a long text field called Notes.",
+            "I created the Notes field successfully.",
+        ],
+    )
+    def test_truthful_field_claims_with_matching_evidence_pass(self, claim):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "create_fields",
+            {"table_id": 9, "fields": [{"name": "Notes", "type": "long_text"}]},
+            {"created_fields": [{"id": 55, "name": "Notes", "type": "long_text"}]},
+            "notes-field",
+        )
+
+        assert validate_final_answer(ctx, claim) == claim
+
+    def test_truthful_view_claim_with_matching_evidence_passes(self):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "create_views",
+            {"table_id": 9, "views": [{"name": "Intake", "type": "form"}]},
+            {"created_views": [{"id": 7, "name": "Intake", "type": "form"}]},
+            "form-view",
+        )
+        claim = "The form view has been created."
+
+        assert validate_final_answer(ctx, claim) == claim
+
+    def test_any_successful_mutation_grounds_a_differently_phrased_claim(self):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "update_fields",
+            {"table_id": 9, "fields": [{"id": 55, "options": ["In Progress"]}]},
+            {"updated_fields": [{"id": 55, "name": "Status"}]},
+            "status-field",
+        )
+        claim = "I've added the In Progress option to the Status field."
+
+        assert validate_final_answer(ctx, claim) == claim
+
+    def test_completion_claim_can_use_multiple_matching_tool_results(self):
+        ctx = MagicMock()
+        ctx.messages = [
+            *_mutation_messages(
+                "create_builders",
+                {"builders": [{"name": "Restaurant", "type": "database"}]},
+                {"created_builders": [{"id": 1, "type": "database"}]},
+                "database",
+            ),
+            *_mutation_messages(
+                "create_tables",
+                {"database_id": 1, "tables": [{"name": "Orders"}]},
+                {"created_tables": [{"id": 2, "name": "Orders"}]},
+                "table",
+            ),
+            *_mutation_messages(
+                "create_workflows",
+                {"automation_id": 3, "workflows": [{"name": "Process Orders"}]},
+                {"created_workflows": [{"id": 4, "name": "Process Orders"}]},
+                "workflow",
+            ),
+        ]
+        answer = "I've created the database, table, and workflow successfully."
+
+        assert validate_final_answer(ctx, answer) == answer
+
+    def test_no_op_update_does_not_ground_success(self):
+        ctx = MagicMock()
+        ctx.messages = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_builder",
+                        args={"builder_id": 1, "update": {}},
+                        tool_call_id="update",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="update_builder",
+                        content={"id": 1, "name": "Restaurant", "changed": False},
+                        tool_call_id="update",
+                    )
+                ]
+            ),
+        ]
+
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, "I've updated the application.")
+
+    def test_unconfigured_documentation_search_is_a_truthful_limitation(self):
+        ctx = MagicMock()
+        ctx.deps.tool_catalog = "- database: list_tables"
+        answer = (
+            "The documentation search tool isn't available in this session because "
+            "documentation search is not configured."
+        )
+
+        assert validate_final_answer(ctx, answer) == answer
+
+        ctx.deps.tool_catalog = "- explain: search_user_docs"
+        with pytest.raises(ModelRetry, match="current mode"):
+            validate_final_answer(ctx, answer)
+
+    def test_reused_or_empty_error_results_do_not_ground_success(self):
+        ctx = MagicMock()
+        ctx.messages = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="create_builders",
+                        args={"builders": [{"name": "Restaurant", "type": "database"}]},
+                        tool_call_id="reuse-builder",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="create_builders",
+                        content={
+                            "created_builders": [],
+                            "reused_builders": [
+                                {
+                                    "id": 41,
+                                    "name": "Restaurant",
+                                    "type": "database",
+                                }
+                            ],
+                        },
+                        tool_call_id="reuse-builder",
+                    )
+                ]
+            ),
+        ]
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(
+                ctx, "The Restaurant database has been created successfully."
+            )
+
+        ctx.messages = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="update_fields",
+                        args={"fields": [{"field_id": 9, "name": "Status"}]},
+                        tool_call_id="failed-update",
+                    )
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="update_fields",
+                        content={
+                            "updated_fields": [],
+                            "errors": ["Field 9 is not accessible"],
+                        },
+                        tool_call_id="failed-update",
+                    )
+                ]
+            ),
+        ]
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, "I've updated the Status field successfully.")
+
+    def test_partial_language_is_scoped_to_its_clause(self):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "create_workflows",
+            {"workflows": [{"name": "Process Orders"}]},
+            {
+                "created_workflows": [{"id": 1, "name": "Process Orders"}],
+                "errors": ["The action could not be configured"],
+            },
+            "partial-workflow",
+        )
+
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(
+                ctx, "I created the Process Orders workflow without errors."
+            )
+
+        partial = "I created the Process Orders workflow with errors."
+        assert validate_final_answer(ctx, partial) == partial
+
+    def test_table_notes_mark_the_result_as_partial(self):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Orders"}]},
+            {
+                "created_tables": [{"id": 2, "name": "Orders"}],
+                "notes": ["The Status field could not be created"],
+            },
+            "partial-table",
+        )
+
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, "I created the Orders table successfully.")
+
+        partial = "I created the Orders table with an error."
+        assert validate_final_answer(ctx, partial) == partial
+
+    def test_nested_empty_result_does_not_ground_success(self):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "create_view_filters",
+            {"view_filters": [{"view_id": 1, "filters": []}]},
+            {"created_view_filters": [{"view_id": 1, "filters": []}]},
+            "empty-filters",
+        )
+
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, "I created the filter.")
+
+    def test_bare_handoff_without_completed_work_is_retried(self):
+        ctx = MagicMock()
+        ctx.messages = []
+        handoff = (
+            "I'm ready to set up the automation; let me know if you'd like me "
+            "to create it now."
+        )
+
+        with pytest.raises(ModelRetry, match="hand an executable action"):
+            validate_final_answer(ctx, handoff)
+
+    def test_relaying_a_pending_ask_user_question_is_not_a_handoff(self):
+        """After ask_user, the question reaches the user only through the
+        final answer — retrying it with "Execute it now" would push the model
+        to invent the data <intent> forbids inventing."""
+
+        ctx = MagicMock()
+        ctx.messages = []
+        ctx.deps.pending_question = "Which table holds your customers?"
+        relay = (
+            "I couldn't find a Customers table — would you like me to create "
+            "it, or should I use another table?"
+        )
+
+        assert validate_final_answer(ctx, relay) == relay
+
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            "I've created the Projects table. Would you like me to add sample rows?",
+            "Done. Let me know if you'd like me to create a matching view.",
+            "I created the Projects table. Let me know if you'd like help with "
+            "anything else.",
+        ],
+    )
+    def test_optional_offer_after_completed_work_passes(self, answer):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Projects"}]},
+            {"created_tables": [{"id": 2, "name": "Projects"}]},
+            "projects-table",
+        )
+
+        assert validate_final_answer(ctx, answer) == answer
+
+    def test_destructive_confirmation_is_never_forced(self):
+        ctx = MagicMock()
+        ctx.messages = []
+        confirmation = "Would you like me to delete the old field? It cannot be undone."
+
+        assert validate_final_answer(ctx, confirmation) == confirmation
