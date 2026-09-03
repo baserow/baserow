@@ -11,6 +11,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import gitinfo, registry
@@ -2097,3 +2098,64 @@ class TestTimeoutIsRecordedNotRaised:
         assert calls == ["db/case-1", "db/case-2"], "the run stopped at the timeout"
         assert control.completed == 2
         assert len(client.experiments.log_run_calls) == 2
+
+
+class TestUsageLimitIsRecordedNotRaised:
+    def test_a_case_that_exhausts_its_request_budget_scores_zero(self):
+        case = _make_case("db/exhausts-budget")
+        error = UsageLimitExceeded(
+            "The next request would exceed the request_limit of 15"
+        )
+        reason = str(error)
+
+        with patch(
+            "baserow_enterprise.assistant.evals.run.run_case",
+            side_effect=error,
+        ):
+            result = run_case_for_experiment(case, "groq:test-model", True)
+
+        assert result["usage_limit_exceeded"] is True
+        assert result["score"] == 0.0
+        assert result["passed"] is False
+        assert result["checks"] == [
+            {
+                "name": "completed_within_request_limit",
+                "passed": False,
+                "hint": reason,
+            }
+        ]
+        # Not a skip: exhausting the case budget must count against the model.
+        assert "skipped" not in result
+        assert checklist(result) == {
+            "score": 0.0,
+            "explanation": f"✗ completed_within_request_limit — {reason}",
+        }
+        assert passed(result) is False
+
+    def test_the_remaining_cases_still_run_after_one_exhausts_its_budget(self):
+        client = _two_case_client()
+        control = RunControl()
+        calls = []
+
+        def exhaust_the_first(case, *args, **kwargs):
+            calls.append(case.id)
+            if len(calls) == 1:
+                raise UsageLimitExceeded(
+                    f"The next request for {case.id} would exceed its request_limit"
+                )
+            return (_make_output(), [])
+
+        with _subset_env(client, run_case_side_effect=exhaust_the_first):
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                case_ids=["db/case-1", "db/case-2"],
+                control=control,
+            )
+
+        assert calls == ["db/case-1", "db/case-2"], (
+            "the run stopped at the request limit"
+        )
+        assert control.completed == 2
+        assert len(client.experiments.log_run_calls) == 2
+        assert client.experiments.log_run_calls[0]["output"]["score"] == 0.0

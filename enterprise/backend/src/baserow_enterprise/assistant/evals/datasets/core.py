@@ -125,8 +125,7 @@ def _creates_automation_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_automation(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    # Global query, not workspace-filtered: the eval DB is disposable per run.
-    created = list(Automation.objects.all())
+    created = list(Automation.objects.filter(workspace=scenario.workspace))
     automation = created[0] if created else None
     return [
         CheckResult(

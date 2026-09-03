@@ -50,7 +50,10 @@ wall clock), cost and tokens come from Phoenix's per-model token prices
 cost or latency is a win too — and a score improvement that triples cost is
 a trade-off to state explicitly. The baseline's time/cost are frozen into
 the snapshot at capture time, since imported baselines carry no traces to
-price. Note
+price. Partial and all-skipped experiments are marked incomplete and excluded
+from deltas and the overall row, which only compares complete datasets. Runs
+with different `--runs` counts still compare: scores are means, and time/cost
+are normalised per pass over the dataset. Note
 that whole-dataset experiments include UI-added examples in their mean while
 the baseline holds code cases only, so a small delta on such datasets can be
 composition, not regression — the per-case compare settles it.

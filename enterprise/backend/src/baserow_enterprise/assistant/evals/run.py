@@ -24,6 +24,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.control import RunControl
@@ -285,6 +286,33 @@ def _timed_out_result(case: EvalCase, reason: str) -> dict[str, Any]:
     }
 
 
+def _usage_limit_exceeded_result(case: EvalCase, reason: str) -> dict[str, Any]:
+    """A request-budget failure's Phoenix output, scored as zero."""
+
+    checks = [
+        {
+            "name": "completed_within_request_limit",
+            "passed": False,
+            "hint": reason,
+        }
+    ]
+    return {
+        "question": case.prompt,
+        "judge_docs": False,
+        "answer": "",
+        "tool_calls": [],
+        "tool_error_count": 0,
+        "checks": checks,
+        "score": 0.0,
+        "passed": False,
+        "usage_limit_exceeded": True,
+        "sources": [],
+        "sources_count": 0,
+        "request_count": case.max_iters,
+        "duration_s": 0.0,
+    }
+
+
 def run_case_for_experiment(
     case: EvalCase,
     model: str,
@@ -311,6 +339,11 @@ def run_case_for_experiment(
         # keep the remaining cases running.
         logger.warning("TIMEOUT {}", exc)
         return _timed_out_result(case, str(exc))
+    except UsageLimitExceeded as exc:
+        # Exhausting the per-case request budget is also a scored failure, not
+        # a reason to abort the cases that follow it.
+        logger.warning("USAGE LIMIT {}", exc)
+        return _usage_limit_exceeded_result(case, str(exc))
     check_dicts = [asdict(c) for c in checks]
     partial = {"checks": check_dicts}
     score = _score_and_explanation(check_dicts)[0]

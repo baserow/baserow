@@ -26,6 +26,23 @@ from baserow_enterprise.assistant.evals.types import (
     EvalScenario,
 )
 
+# Registered node type names fold to the short vocabulary the checks use, so a
+# model echoing list_nodes output is not scored as a miss.
+_CANONICAL_TO_SHORT_TYPE = {
+    "local_baserow_rows_created": "rows_created",
+    "local_baserow_rows_updated": "rows_updated",
+    "local_baserow_rows_deleted": "rows_deleted",
+    "local_baserow_create_row": "create_row",
+    "local_baserow_update_row": "update_row",
+    "local_baserow_delete_row": "delete_row",
+}
+
+
+def _node_type(node: dict) -> str:
+    node_type = node.get("type", "")
+    return _CANONICAL_TO_SHORT_TYPE.get(node_type, node_type)
+
+
 # Names the automation instead of a live DB id, since prompts are fixed before creation.
 PROMPT_LISTS_WORKFLOWS = "List the workflows in automation '{automation_name}'."
 
@@ -182,7 +199,7 @@ def _check_creates_workflow(
     trigger_args = wf_args.get("trigger", {})
     nodes_args = wf_args.get("nodes", [])
     trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
-    update_nodes_args = [n for n in nodes_args if n.get("type") == "update_row"]
+    update_nodes_args = [n for n in nodes_args if _node_type(n) == "update_row"]
     ur_values = update_nodes_args[0].get("values", []) if update_nodes_args else []
     ur_has_processing = any(
         "processing" in str(v.get("value", "")).lower() for v in ur_values
@@ -208,7 +225,7 @@ def _check_creates_workflow(
         CheckResult("workflow created in DB", db_ok),
         CheckResult(
             "trigger is rows_created",
-            trigger_args.get("type") == "rows_created",
+            _node_type(trigger_args) == "rows_created",
             hint=f"got {trigger_args.get('type')}",
         ),
         CheckResult(
@@ -280,7 +297,7 @@ def _check_creates_weekly_slack_reminder(
     trigger_args = wf_args.get("trigger", {})
     interval_args = trigger_args.get("periodic_interval", {})
     nodes_args = wf_args.get("nodes", [])
-    slack_nodes_args = [n for n in nodes_args if n.get("type") == "slack_write_message"]
+    slack_nodes_args = [n for n in nodes_args if _node_type(n) == "slack_write_message"]
 
     db_ok = AutomationWorkflow.objects.filter(automation=automation).exists()
     if db_ok:
@@ -305,7 +322,7 @@ def _check_creates_weekly_slack_reminder(
         CheckResult("called create_workflows", len(call_args_list) >= 1),
         CheckResult(
             "trigger type is periodic",
-            trigger_args.get("type") == "periodic",
+            _node_type(trigger_args) == "periodic",
             hint=f"got {trigger_args.get('type')}",
         ),
         CheckResult(
@@ -391,7 +408,7 @@ def _check_creates_router_workflow(
     args = call_args_list[0] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
     nodes_args = wf_args.get("nodes", [])
-    router_nodes_args = [n for n in nodes_args if n.get("type") == "router"]
+    router_nodes_args = [n for n in nodes_args if _node_type(n) == "router"]
     router_edges_args = (
         router_nodes_args[0].get("edges", []) if router_nodes_args else []
     )
@@ -414,7 +431,7 @@ def _check_creates_router_workflow(
     trigger_args = wf_args.get("trigger", {})
     trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
     slack_nodes_in_nodes = [
-        n for n in nodes_args if n.get("type") == "slack_write_message"
+        n for n in nodes_args if _node_type(n) == "slack_write_message"
     ]
     slack_channel = (
         slack_nodes_in_nodes[0].get("channel", "") if slack_nodes_in_nodes else ""
@@ -424,7 +441,7 @@ def _check_creates_router_workflow(
         CheckResult("called create_workflows", len(call_args_list) >= 1),
         CheckResult(
             "trigger is rows_created",
-            trigger_args.get("type") == "rows_created",
+            _node_type(trigger_args) == "rows_created",
             hint=f"got {trigger_args.get('type')}",
         ),
         CheckResult(
@@ -517,7 +534,7 @@ def _check_creates_row_with_field_values(
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
     trigger_args = wf_args.get("trigger", {})
     nodes_args = wf_args.get("nodes", [])
-    create_row_nodes_args = [n for n in nodes_args if n.get("type") == "create_row"]
+    create_row_nodes_args = [n for n in nodes_args if _node_type(n) == "create_row"]
     cr_values = (
         create_row_nodes_args[0].get("values", []) if create_row_nodes_args else []
     )
@@ -546,7 +563,7 @@ def _check_creates_row_with_field_values(
         CheckResult("called create_workflows", len(call_args_list) >= 1),
         CheckResult(
             "trigger is rows_created",
-            trigger_args.get("type") == "rows_created",
+            _node_type(trigger_args) == "rows_created",
             hint=f"got {trigger_args.get('type')}",
         ),
         CheckResult(
@@ -635,7 +652,7 @@ def _check_creates_update_row_workflow(
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
     trigger_args = wf_args.get("trigger", {})
     nodes_args = wf_args.get("nodes", [])
-    update_nodes_args = [n for n in nodes_args if n.get("type") == "update_row"]
+    update_nodes_args = [n for n in nodes_args if _node_type(n) == "update_row"]
     ur = update_nodes_args[0] if update_nodes_args else {}
 
     db_ok = AutomationWorkflow.objects.filter(automation=automation).exists()
@@ -666,7 +683,7 @@ def _check_creates_update_row_workflow(
         CheckResult("called create_workflows", len(call_args_list) >= 1),
         CheckResult(
             "trigger is rows_updated",
-            trigger_args.get("type") == "rows_updated",
+            _node_type(trigger_args) == "rows_updated",
             hint=f"got {trigger_args.get('type')}",
         ),
         CheckResult(
@@ -749,7 +766,7 @@ def _check_creates_email_notification_workflow(
     trigger_args = wf_args.get("trigger", {})
     trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
     nodes_args = wf_args.get("nodes", [])
-    email_nodes_args = [n for n in nodes_args if n.get("type") == "smtp_email"]
+    email_nodes_args = [n for n in nodes_args if _node_type(n) == "smtp_email"]
     email_node = email_nodes_args[0] if email_nodes_args else {}
     email_to = email_node.get("to_emails", "")
     email_subject = email_node.get("subject", "")
@@ -768,7 +785,7 @@ def _check_creates_email_notification_workflow(
         CheckResult("called create_workflows", len(call_args_list) >= 1),
         CheckResult(
             "trigger is rows_created",
-            trigger_args.get("type") == "rows_created",
+            _node_type(trigger_args) == "rows_created",
             hint=f"got {trigger_args.get('type')}",
         ),
         CheckResult(

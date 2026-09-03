@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 from pydantic_ai import Agent
@@ -8,7 +9,7 @@ from pydantic_ai.models.test import TestModel
 
 from baserow_enterprise.assistant.assistant import build_agent_run_context
 from baserow_enterprise.assistant.deps import ToolHelpers
-from baserow_enterprise.assistant.evals import registry
+from baserow_enterprise.assistant.evals import harness, registry
 from baserow_enterprise.assistant.evals.harness import (
     PROMPT_AGENT_TARGETS,
     PROMPT_ATTR_TARGETS,
@@ -88,12 +89,113 @@ class TestOverrideAssistantModel:
         assert settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL == "groq/original-model"
 
 
+class TestAskUserTool:
+    def test_records_the_question_and_tells_the_agent_to_stop(self):
+        """Asking must be an action the agent can take, not the absence of
+        one — otherwise it competes with the prompt's bias toward acting."""
+
+        from baserow_enterprise.assistant.tools.core.tools import ask_user
+
+        deps = SimpleNamespace(pending_question=None)
+        result = ask_user(
+            SimpleNamespace(deps=deps),
+            question="Which table holds your customers?",
+            thought="No Customers table found.",
+        )
+
+        assert deps.pending_question == "Which table holds your customers?"
+        assert "restate this question verbatim" in result
+
+    def test_is_reachable_from_every_mode(self):
+        from baserow_enterprise.assistant.deps import AgentMode
+        from baserow_enterprise.assistant.tools.routing import is_tool_active
+
+        assert all(is_tool_active("ask_user", mode) for mode in AgentMode)
+
+
+class TestCountToolErrors:
+    def test_empty_response_retry_is_not_a_tool_error(self):
+        """pydantic-ai nudges the model after an empty response with a
+        tool_name-less RetryPromptPart; it recovers on its own, so it must not
+        spend the case's tool-error budget."""
+
+        from pydantic_ai.messages import ModelRequest, RetryPromptPart
+
+        from baserow_enterprise.assistant.evals.harness import count_tool_errors
+
+        result = SimpleNamespace(
+            all_messages=lambda: [
+                ModelRequest(
+                    parts=[
+                        RetryPromptPart(content="Please return text or call a tool.")
+                    ]
+                )
+            ]
+        )
+
+        assert count_tool_errors(result) == (0, "")
+
+    def test_real_tool_validation_error_still_counts(self):
+        from pydantic_ai.messages import ModelRequest, RetryPromptPart
+
+        from baserow_enterprise.assistant.evals.harness import count_tool_errors
+
+        result = SimpleNamespace(
+            all_messages=lambda: [
+                ModelRequest(
+                    parts=[
+                        RetryPromptPart(
+                            content="update_row requires row_id",
+                            tool_name="create_workflows",
+                        )
+                    ]
+                )
+            ]
+        )
+
+        count, hint = count_tool_errors(result)
+        assert count == 1
+        assert "create_workflows" in hint
+
+
 @pytest.mark.django_db
 class TestRunCase:
     def _register_scenario(self, user, workspace):
         @registry.register_scenario("harness-test-scenario")
         def _build(fixtures) -> EvalScenario:
             return EvalScenario(user=user, workspace=workspace, ui_context=None)
+
+    def test_ask_user_is_exposed_to_the_agent_and_recorded_as_a_tool_call(self):
+        """End-to-end guard for the intent eval checks.
+
+        They assert ``tool_called(output, "ask_user")``, so the tool must be
+        reachable through the real toolset AND land in ``output.tool_calls``
+        under exactly that name. If either breaks, the ask cases would fail
+        forever and the act cases would pass trivially — silently.
+        """
+
+        from baserow_enterprise.assistant.evals.harness import tool_called
+
+        fixtures = make_fixtures()
+        user = fixtures.create_user()
+        workspace = fixtures.create_workspace(user=user)
+        self._register_scenario(user, workspace)
+
+        ctx = build_agent_run_context(user, workspace, _noop_tool_helpers())
+        assert "ask_user" in ctx.deps.tool_catalog
+
+        case = EvalCase(
+            id="harness-test/ask-user",
+            dataset="harness-test",
+            prompt="build me a page for our Customers",
+            scenario="harness-test-scenario",
+            checks=lambda case, scenario, output: [],
+        )
+
+        output, _checks = run_case(case, TestModel(call_tools=["ask_user"]))
+
+        assert "ask_user" in output.tool_calls
+        assert tool_called(output, "ask_user") == 1
 
     def test_returns_output_and_prepends_budget_check(self):
         fixtures = make_fixtures()
@@ -129,7 +231,11 @@ class TestRunCase:
         assert results[1].name == "has-no-tool-calls"
         assert results[1].passed is True
 
-    def test_scenario_receives_case_mode_and_ui_context(self):
+    def test_scenario_receives_case_mode_and_ui_context(self, monkeypatch):
+        """The case's mode and the scenario's ui_context must reach the run's
+        deps — otherwise every case silently runs in DATABASE mode with no
+        UI context and the whole baseline measures the wrong agent."""
+
         from baserow_enterprise.assistant.deps import AgentMode
 
         fixtures = make_fixtures()
@@ -154,11 +260,106 @@ class TestRunCase:
             mode=AgentMode.APPLICATION,
         )
 
+        captured = {}
+        real_build_context = build_agent_run_context
+
+        def build_context_spy(*args, **kwargs):
+            ctx = real_build_context(*args, **kwargs)
+            captured["ctx"] = ctx
+            return ctx
+
+        monkeypatch.setattr(harness, "build_agent_run_context", build_context_spy)
+
         output, results = run_case(
             case, TestModel(custom_output_text="hi", call_tools=[])
         )
 
         assert output.answer == "hi"
+        deps = captured["ctx"].deps
+        assert deps.mode is AgentMode.APPLICATION
+        request_context = deps.tool_helpers.request_context
+        assert request_context["ui_context"] == '{"foo": "bar"}'
+
+    def test_string_model_uses_resolved_context_model_and_orchestrator_settings(
+        self, monkeypatch
+    ):
+        from baserow_enterprise.assistant.model_profiles import (
+            ORCHESTRATOR,
+            get_model_settings,
+        )
+
+        fixtures = make_fixtures()
+        user = fixtures.create_user()
+        workspace = fixtures.create_workspace(user=user)
+        self._register_scenario(user, workspace)
+        case = EvalCase(
+            id="harness-test/string-model",
+            dataset="harness-test",
+            prompt="say hi",
+            scenario="harness-test-scenario",
+            checks=lambda case, scenario, output: [],
+        )
+        model = "groq:openai/gpt-oss-120b"
+        captured = {}
+        real_build_context = build_agent_run_context
+
+        def build_context_spy(*args, **kwargs):
+            ctx = real_build_context(*args, **kwargs)
+            captured["ctx"] = ctx
+            return ctx
+
+        async def run_spy(**kwargs):
+            captured["run_kwargs"] = kwargs
+            return SimpleNamespace(
+                output="hello",
+                usage=SimpleNamespace(requests=1),
+                all_messages=lambda: [],
+            )
+
+        monkeypatch.setattr(harness, "build_agent_run_context", build_context_spy)
+        monkeypatch.setattr(harness.main_agent, "run", run_spy)
+
+        output, _checks = run_case(case, model)
+
+        assert output.answer == "hello"
+        assert captured["run_kwargs"]["model"] is captured["ctx"].model
+        assert captured["run_kwargs"]["model_settings"] == get_model_settings(
+            model, ORCHESTRATOR
+        )
+
+    def test_runs_the_agent_in_sequential_tool_execution_mode(self, monkeypatch):
+        """Production serializes multi-tool-call responses (assistant.py);
+        evals must measure the same execution mode, not pydantic-ai's
+        parallel default."""
+
+        from pydantic_ai.tool_manager import _parallel_execution_mode_ctx_var
+
+        fixtures = make_fixtures()
+        user = fixtures.create_user()
+        workspace = fixtures.create_workspace(user=user)
+        self._register_scenario(user, workspace)
+        case = EvalCase(
+            id="harness-test/sequential-mode",
+            dataset="harness-test",
+            prompt="say hi",
+            scenario="harness-test-scenario",
+            checks=lambda case, scenario, output: [],
+        )
+        seen = {}
+
+        async def run_spy(**kwargs):
+            seen["mode"] = _parallel_execution_mode_ctx_var.get()
+            return SimpleNamespace(
+                output="hello",
+                usage=SimpleNamespace(requests=1),
+                all_messages=lambda: [],
+            )
+
+        monkeypatch.setattr(harness.main_agent, "run", run_spy)
+
+        run_case(case, TestModel(call_tools=[]))
+
+        assert seen["mode"] == "sequential"
 
 
 class _InstructionSpyModel(TestModel):
