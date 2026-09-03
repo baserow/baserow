@@ -12,6 +12,7 @@ from rest_framework.status import (
 )
 
 from baserow.core.integrations.models import Integration
+from baserow.core.registries import application_type_registry
 
 
 @pytest.mark.django_db
@@ -128,9 +129,13 @@ def test_create_integration_application_does_not_exist(api_client, data_fixture)
 
 
 @pytest.mark.django_db
-def test_create_integration_bad_application_type(api_client, data_fixture):
+def test_create_integration_bad_application_type(api_client, data_fixture, monkeypatch):
+    # Every registered application type supports integrations now, so the
+    # guard is exercised by turning one off.
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_database_application(user=user)
+    application_type = application_type_registry.get("database")
+    monkeypatch.setattr(application_type, "supports_integrations", False)
 
     url = reverse("api:integrations:list", kwargs={"application_id": application.id})
     response = api_client.post(
