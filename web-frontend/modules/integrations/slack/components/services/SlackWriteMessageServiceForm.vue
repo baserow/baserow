@@ -53,6 +53,9 @@ import IntegrationDropdown from '@baserow/modules/core/components/integrations/I
 
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
+// `SlackWriteMessageService.channel` in the backend.
+const CHANNEL_MAX_LENGTH = 80
+
 export default {
   name: 'SlackWriteMessageServiceForm',
   components: { IntegrationDropdown, InjectedFormulaInput },
@@ -96,7 +99,9 @@ export default {
     return {
       values: {
         channel: {
-          maxLength: maxLength(75),
+          // The column holds 80, which the serializer is pinned to. A
+          // stricter form would refuse a channel the API accepts.
+          maxLength: maxLength(CHANNEL_MAX_LENGTH),
           noPrefix: helpers.withMessage(
             this.$t('slackWriteMessageServiceForm.channelNoPrefix'),
             (value) => !value || !value.startsWith('#')

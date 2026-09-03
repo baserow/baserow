@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from django.test import override_settings
@@ -7,6 +8,8 @@ from django.utils import timezone
 import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+import baserow.contrib.integrations.slack.service_types as service_types_module
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -22,6 +25,7 @@ from baserow.contrib.integrations.slack.service_types import (
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
+    AddressNotAllowedDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
@@ -474,3 +478,70 @@ def test_slack_write_message_channel_cannot_outgrow_its_column():
 
     with pytest.raises(DRFValidationError):
         field.run_validation("a" * (column.max_length + 1))
+
+
+@pytest.mark.django_db
+def test_slack_write_message_refused_address_is_not_charged(data_fixture):
+    """
+    Advocate refuses the address before anything is sent, so a caller
+    counting outbound traffic must not count it. The HTTP service answers the
+    same way.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        integration=data_fixture.create_integration(
+            SlackBotIntegration, token="xoxb-test"
+        ),
+        channel="general",
+        text="'hi'",
+    )
+    refuses = Mock(side_effect=UnacceptableAddressException("10.0.0.5"))
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=refuses,
+    ):
+        with pytest.raises(AddressNotAllowedDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "body", [[], "forbidden", 12, {"ok": False, "error": {"code": "denied"}}]
+)
+def test_slack_write_message_answer_that_is_not_an_object(data_fixture, body):
+    """
+    The endpoint is configurable, so a proxy or a gateway can answer with
+    valid JSON that is not Slack's. The clicker gets a message, not a 500.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        integration=data_fixture.create_integration(
+            SlackBotIntegration, token="xoxb-test"
+        ),
+        channel="general",
+        text="'hi'",
+    )
+    answered = Mock()
+    answered.json.return_value = body
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=Mock(return_value=answered),
+    ):
+        with pytest.raises(ServiceImproperlyConfiguredDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert "xoxb-test" not in str(raised.value)
+
+
+def test_slack_write_message_does_not_log_what_the_request_carried():
+    """
+    The dispatch frame holds the bot token, and loguru prints frame locals
+    beside a traceback. The HTTP service refuses to log its own exception for
+    the same reason.
+    """
+
+    source = Path(service_types_module.__file__).read_text()
+
+    assert "logger.exception(" not in source

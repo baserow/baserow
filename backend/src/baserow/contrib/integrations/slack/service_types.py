@@ -15,6 +15,7 @@ from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.validator import ensure_string
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
+    AddressNotAllowedDispatchException,
     RemoteRefusedDispatchException,
     UnexpectedDispatchException,
 )
@@ -116,17 +117,38 @@ class SlackWriteMessageServiceType(ServiceType):
                 timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
             )
             response_data = response.json()
-        except (UnacceptableAddressException, ConnectionError) as e:
-            # What the default advocate path raises for an address it will not
-            # reach. Named like the HTTP service's, which shares this rule.
+        except UnacceptableAddressException as e:
+            # Refused before anything was sent, so a caller counting outbound
+            # traffic must not count it. The HTTP service answers the same.
+            raise AddressNotAllowedDispatchException(
+                f"Invalid URL: {settings.INTEGRATIONS_SLACK_API_URL}"
+            ) from e
+        except ConnectionError as e:
             raise UnexpectedDispatchException(
                 f"Invalid URL: {settings.INTEGRATIONS_SLACK_API_URL}"
             ) from e
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
-            logger.exception("Error while dispatching the Slack message")
+            # Not `logger.exception`: loguru prints the frame locals beside
+            # the traceback, and this frame holds the bot token. Only the
+            # class of the failure is logged.
+            logger.error(
+                "Error while dispatching the Slack message: {exception}. The "
+                "failure itself is not logged: it names the credential the "
+                "request carried.",
+                exception=type(e).__name__,
+            )
             raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
+
+        # The endpoint is configurable, so a proxy or a gateway can answer
+        # with valid JSON that is not an object at all. Read as a refusal
+        # rather than indexed into.
+        if not isinstance(response_data, dict):
+            raise RemoteRefusedDispatchException(
+                "The message was not accepted, and the answer was not in the "
+                "shape Slack replies with."
+            )
 
         # If we've found that the response indicates an error, we raise a
         # ServiceImproperlyConfiguredDispatchException with a relevant message.
@@ -143,7 +165,11 @@ class SlackWriteMessageServiceType(ServiceType):
                 "default": "An unknown error occurred while sending the message, "
                 "the error code was: {error_code}",
             }
-            error_code = response_data.get("error") or "unknown"
+            error_code = response_data.get("error")
+            # Slack answers with a string. Anything else cannot key the table
+            # below, and must not be repeated into the message either.
+            if not isinstance(error_code, str):
+                error_code = "unknown"
             misconfigured_service_message = misconfigured_service_error_codes.get(
                 error_code, misconfigured_service_error_codes["default"]
             ).format(channel=service.channel, error_code=error_code)
