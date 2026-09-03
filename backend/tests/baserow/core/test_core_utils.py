@@ -1,3 +1,4 @@
+import ipaddress
 from decimal import Decimal
 from io import BytesIO
 from unittest.mock import MagicMock, patch
@@ -710,9 +711,11 @@ def test_remove_duplicates():
 
 
 def test_get_all_ips():
-    assert get_all_ips("localhost") == {"127.0.0.1", "::1"}
-    assert get_all_ips("0.0.0.0") == {"0.0.0.0"}  # noqa: S104
-    assert get_all_ips("::") == {"::"}
+    result = get_all_ips("localhost")
+    assert isinstance(result, list)
+    assert set(result) == {"127.0.0.1", "::1"}
+    assert get_all_ips("0.0.0.0") == ["0.0.0.0"]  # noqa: S104
+    assert get_all_ips("::") == ["::"]
 
 
 def test_is_hostname_safe():
@@ -765,28 +768,48 @@ def test_is_hostname_safe():
     assert is_hostname_safe("fec0::1", allow_private=True) is False
 
     # IPv4-mapped IPv6 with private embedded IPv4
-    with patch("baserow.core.utils.get_all_ips", return_value={"::ffff:10.0.0.1"}):
+    with patch("baserow.core.utils.get_all_ips", return_value=["::ffff:10.0.0.1"]):
         assert is_hostname_safe("mapped-private.test") is False
         assert is_hostname_safe("mapped-private.test", allow_private=True) is True
 
     # IPv4-mapped IPv6 with public embedded IPv4
-    with patch("baserow.core.utils.get_all_ips", return_value={"::ffff:8.8.8.8"}):
+    with patch("baserow.core.utils.get_all_ips", return_value=["::ffff:8.8.8.8"]):
         assert is_hostname_safe("mapped-public.test") is True
 
     # IPv4-mapped IPv6 with loopback embedded IPv4
-    with patch("baserow.core.utils.get_all_ips", return_value={"::ffff:127.0.0.1"}):
+    with patch("baserow.core.utils.get_all_ips", return_value=["::ffff:127.0.0.1"]):
         assert is_hostname_safe("mapped-loopback.test") is False
         assert is_hostname_safe("mapped-loopback.test", allow_private=True) is False
 
     # Mixed DNS results: one public + one private → unsafe
-    with patch("baserow.core.utils.get_all_ips", return_value={"8.8.8.8", "10.0.0.1"}):
+    with patch("baserow.core.utils.get_all_ips", return_value=["8.8.8.8", "10.0.0.1"]):
         assert is_hostname_safe("mixed.test") is False
         assert is_hostname_safe("mixed.test", allow_private=True) is True
 
+    # 6to4 with unsafe embedded IPv4 (2002:7f00:0001:: embeds 127.0.0.1)
+    with patch("baserow.core.utils.get_all_ips", return_value=["2002:7f00:1::"]):
+        assert is_hostname_safe("6to4-loopback.test") is False
+        assert is_hostname_safe("6to4-loopback.test", allow_private=True) is False
+
+    # 6to4 with safe embedded IPv4 (2002:0808:0808:: embeds 8.8.8.8)
+    # Python 3.14+ treats 2002::/16 as non-global, so blocked by default
+    with patch("baserow.core.utils.get_all_ips", return_value=["2002:808:808::"]):
+        assert is_hostname_safe("6to4-public.test") is False
+        assert is_hostname_safe("6to4-public.test", allow_private=True) is True
+
+    # Teredo with unsafe embedded IPv4 (inverted 127.0.0.1 = 0x80fffffe)
+    with patch(
+        "baserow.core.utils.get_all_ips",
+        return_value=["2001:0000:4136:e378:8000:63bf:80ff:fffe"],
+    ):
+        assert is_hostname_safe("teredo-loopback.test") is False
+        assert is_hostname_safe("teredo-loopback.test", allow_private=True) is False
+
 
 def test_resolve_and_validate_hostname():
-    # Public IP returns resolved set
+    # Public IP returns resolved list
     result = resolve_and_validate_hostname("8.8.8.8")
+    assert isinstance(result, list)
     assert "8.8.8.8" in result
 
     # Private IP raises ValueError by default
@@ -812,6 +835,28 @@ def test_resolve_and_validate_hostname():
     # Loopback always blocked
     with pytest.raises(ValueError):
         resolve_and_validate_hostname("127.0.0.1", allow_private=True)
+
+    # IP assigned to this host is blocked
+    with (
+        patch("baserow.core.utils.get_all_ips", return_value=["192.0.2.99"]),
+        patch(
+            "baserow.core.utils._get_local_addresses",
+            return_value={ipaddress.ip_address("192.0.2.99")},
+        ),
+    ):
+        with pytest.raises(ValueError, match="assigned to this host"):
+            resolve_and_validate_hostname("local-host-ip.test")
+
+    # Non-local public IP is allowed
+    with (
+        patch("baserow.core.utils.get_all_ips", return_value=["8.8.4.4"]),
+        patch(
+            "baserow.core.utils._get_local_addresses",
+            return_value={ipaddress.ip_address("192.0.2.99")},
+        ),
+    ):
+        result = resolve_and_validate_hostname("safe-external.test")
+        assert "8.8.4.4" in result
 
 
 def test_are_hostnames_same():

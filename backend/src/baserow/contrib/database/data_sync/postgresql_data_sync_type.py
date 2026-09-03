@@ -18,6 +18,7 @@ from baserow.core.psycopg import psycopg, sql
 from baserow.core.utils import (
     ChildProgressBuilder,
     are_hostnames_same,
+    get_all_ips,
     resolve_and_validate_hostname,
 )
 
@@ -160,11 +161,36 @@ class PostgreSQLDataSyncType(DataSyncType):
         "postgresql_password": ["postgresql_host", "postgresql_port"],
     }
 
+    @staticmethod
+    def _check_host_not_blocked(postgresql_host, validated_ips):
+        """
+        Checks whether the target host overlaps with the application database
+        or any blacklisted hostname. When *validated_ips* is available (non-test
+        mode), IP sets are compared directly to avoid a second DNS lookup of
+        the user-supplied hostname. In test mode, falls back to hostname-based
+        comparison.
+        """
+
+        validated_set = set(validated_ips) if validated_ips else None
+
+        def _overlaps(other_hostname):
+            if validated_set is not None:
+                return bool(validated_set & set(get_all_ips(other_hostname)))
+            return are_hostnames_same(postgresql_host, other_hostname)
+
+        if settings.BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE:
+            if _overlaps(settings.DATABASES[DEFAULT_DB_ALIAS]["HOST"]):
+                raise SyncError("It's not allowed to connect to this hostname.")
+
+        for blacklisted in settings.BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST:
+            if _overlaps(blacklisted):
+                raise SyncError("It's not allowed to connect to this hostname.")
+
     @contextlib.contextmanager
     def _connection(self, instance):
         cursor = None
         connection = None
-        hostaddr = None
+        validated_ips = []
 
         if not settings.TESTS:
             try:
@@ -174,23 +200,9 @@ class PostgreSQLDataSyncType(DataSyncType):
                 )
             except ValueError:
                 raise SyncError("It's not allowed to connect to this hostname.")
-            # Use the first validated IP for the actual connection to prevent
-            # DNS rebinding (TOCTOU between validation and connect).
-            hostaddr = next(iter(validated_ips))
 
-        baserow_postgresql_connection = (
-            settings.BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE
-            and are_hostnames_same(
-                instance.postgresql_host, settings.DATABASES[DEFAULT_DB_ALIAS]["HOST"]
-            )
-        )
-        data_sync_blacklist = any(
-            are_hostnames_same(instance.postgresql_host, hostname)
-            for hostname in settings.BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
-        )
+        self._check_host_not_blocked(instance.postgresql_host, validated_ips)
 
-        if baserow_postgresql_connection or data_sync_blacklist:
-            raise SyncError("It's not allowed to connect to this hostname.")
         try:
             connect_kwargs = dict(
                 host=instance.postgresql_host,
@@ -200,12 +212,31 @@ class PostgreSQLDataSyncType(DataSyncType):
                 port=instance.postgresql_port,
                 sslmode=instance.postgresql_sslmode,
                 connect_timeout=10,
-                options="-c statement_timeout=30000",
             )
-            if hostaddr:
-                connect_kwargs["hostaddr"] = hostaddr
-            connection = psycopg.connect(**connect_kwargs)
+
+            last_error = None
+            for ip in validated_ips or [None]:
+                try:
+                    kw = dict(connect_kwargs)
+                    if ip:
+                        kw["hostaddr"] = ip
+                    connection = psycopg.connect(**kw)
+                    last_error = None
+                    break
+                except psycopg.OperationalError as exc:
+                    last_error = exc
+                    continue
+            if last_error is not None:
+                raise last_error
+
             cursor = connection.cursor()
+            statement_timeout_ms = (
+                settings.BASEROW_POSTGRESQL_DATA_SYNC_STATEMENT_TIMEOUT * 1000
+            )
+            cursor.execute(
+                "SELECT set_config('statement_timeout', %s, true)",
+                [str(statement_timeout_ms)],
+            )
             yield cursor
         except psycopg.OperationalError:
             logger.warning("PostgreSQL data sync connection error", exc_info=True)

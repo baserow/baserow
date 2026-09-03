@@ -1150,8 +1150,6 @@ def test_get_data_sync_properties_non_member_denied(data_fixture, api_client):
 def test_get_data_sync_properties_permission_denied_no_external_call(
     data_fixture, api_client
 ):
-    """When permission is denied, no external network call should be made."""
-
     from unittest.mock import patch
 
     from baserow.core.exceptions import PermissionException
@@ -1164,9 +1162,14 @@ def test_get_data_sync_properties_permission_denied_no_external_call(
         kwargs={"database_id": database.id},
     )
 
-    with patch(
-        "baserow.core.handler.CoreHandler.check_permissions",
-        side_effect=PermissionException(user),
+    with (
+        patch(
+            "baserow.core.handler.CoreHandler.check_permissions",
+            side_effect=PermissionException(user),
+        ),
+        patch(
+            "baserow.contrib.database.data_sync.registries.DataSyncType.get_properties"
+        ) as mock_get_properties,
     ):
         response = api_client.post(
             url,
@@ -1178,6 +1181,7 @@ def test_get_data_sync_properties_permission_denied_no_external_call(
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
     assert response.status_code == HTTP_401_UNAUTHORIZED
+    mock_get_properties.assert_not_called()
     assert len(responses.calls) == 0
 
 

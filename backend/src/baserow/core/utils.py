@@ -1255,21 +1255,20 @@ def merge_dicts_no_duplicates(*dicts):
     return merged_dict
 
 
-def get_all_ips(hostname: str) -> Set:
+def get_all_ips(hostname: str) -> List[str]:
     """
-    Returns a set of all IP addresses of the provided hostname.
+    Returns a deduplicated list of all IP addresses of the provided hostname,
+    preserving the DNS resolution order (A/AAAA fallback order).
 
     :param hostname: The hostname where to get the IP addresses from.
-    :return: A set containing the IP addresses of the hostname.
+    :return: A list containing the IP addresses of the hostname in DNS order.
     """
 
     try:
         addr_info = socket.getaddrinfo(hostname, None)
-        # Extract unique IP addresses from addr_info (both IPv4 and IPv6)
-        ips = {info[4][0] for info in addr_info}
-        return ips
+        return list(dict.fromkeys(info[4][0] for info in addr_info))
     except socket.gaierror:
-        return set()
+        return []
 
 
 def _is_ip_unsafe(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
@@ -1291,16 +1290,52 @@ def _is_ip_unsafe(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool
         # Validate the embedded IPv4 inside mapped addresses (::ffff:x.x.x.x).
         if ip_obj.ipv4_mapped and _is_ip_unsafe(ip_obj.ipv4_mapped):
             return True
+        packed = ip_obj.packed
+        # 6to4 (2002::/16): embedded IPv4 sits at bytes 2-6.
+        if packed[:2] == b"\x20\x02":
+            embedded = ipaddress.IPv4Address(packed[2:6])
+            if _is_ip_unsafe(embedded):
+                return True
+        # Teredo (2001:0000::/32): embedded IPv4 is bitwise-inverted at bytes 12-16.
+        if packed[:4] == b"\x20\x01\x00\x00":
+            embedded = ipaddress.IPv4Address(bytes(b ^ 0xFF for b in packed[12:16]))
+            if _is_ip_unsafe(embedded):
+                return True
 
     return False
 
 
+def _get_local_addresses() -> Set[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    """Return IP addresses assigned to local network interfaces."""
+
+    try:
+        import netifaces
+    except ImportError:
+        return set()
+
+    local = set()
+    for iface in netifaces.interfaces():
+        families = netifaces.ifaddresses(iface)
+        for family in (netifaces.AF_INET, netifaces.AF_INET6):
+            for addr_info in families.get(family, []):
+                raw = addr_info.get("addr", "")
+                if not raw:
+                    continue
+                # Strip IPv6 scope-id suffix (e.g. "%eth0").
+                raw = raw.split("%")[0]
+                try:
+                    local.add(ipaddress.ip_address(raw))
+                except ValueError:
+                    continue
+    return local
+
+
 def resolve_and_validate_hostname(
     hostname: str, allow_private: bool = False
-) -> Set[str]:
+) -> List[str]:
     """
-    Resolves the hostname and validates all IPs are safe. Returns the set of
-    validated IP address strings.
+    Resolves the hostname and validates all IPs are safe. Returns a
+    deduplicated list of validated IP address strings in DNS resolution order.
 
     Unsafe addresses include wildcard, loopback, link-local, multicast,
     reserved, and site-local IPv6. When ``allow_private`` is False, non-global
@@ -1309,13 +1344,15 @@ def resolve_and_validate_hostname(
     :param hostname: The hostname to resolve and check.
     :param allow_private: When True, private/non-global addresses are allowed.
         Loopback, link-local, and other unsafe ranges are always blocked.
-    :return: Set of validated IP address strings.
+    :return: List of validated IP address strings in DNS order.
     :raises ValueError: If the hostname cannot be resolved or any IP is unsafe.
     """
 
     ips = get_all_ips(hostname)
     if not ips:
         raise ValueError(f"Could not resolve hostname: {hostname}")
+
+    local_addresses = _get_local_addresses()
 
     for ip in ips:
         try:
@@ -1325,6 +1362,9 @@ def resolve_and_validate_hostname(
 
         if _is_ip_unsafe(ip_obj):
             raise ValueError(f"Unsafe IP address: {ip}")
+
+        if ip_obj in local_addresses:
+            raise ValueError(f"IP address assigned to this host: {ip}")
 
         if not allow_private and not ip_obj.is_global:
             raise ValueError(f"Non-global IP address: {ip}")
@@ -1380,9 +1420,9 @@ def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
     :return: True if the hostnames point to the same IP.
     """
 
-    ips1 = get_all_ips(hostname1)
-    ips2 = get_all_ips(hostname2)
-    return not ips1.isdisjoint(ips2)
+    ips1 = set(get_all_ips(hostname1))
+    ips2 = set(get_all_ips(hostname2))
+    return bool(ips1) and not ips1.isdisjoint(ips2)
 
 
 def are_kwargs_default(func, **kwargs):
