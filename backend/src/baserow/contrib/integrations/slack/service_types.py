@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.utils.translation import gettext as _
 
 from loguru import logger
@@ -100,7 +101,7 @@ class SlackWriteMessageServiceType(ServiceType):
             token = service.integration.specific.token
             response = get_http_request_function()(
                 method="POST",
-                url="https://slack.com/api/chat.postMessage",
+                url=f"{settings.INTEGRATIONS_SLACK_API_URL}/chat.postMessage",
                 headers={"Authorization": f"Bearer {token}"},
                 params={
                     "channel": f"#{service.channel}",

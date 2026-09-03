@@ -3,10 +3,11 @@
  *
  * The bot lives on the button's own database and is created from the action
  * form itself, so this file drives that editor flow for real and checks what
- * the API ends up holding. A click reaches slack.com, which the e2e stack
- * cannot stub, so the one test that sends is skipped unless
- * E2E_SLACK_BOT_TOKEN names a bot that may post to E2E_SLACK_CHANNEL
- * (default "social"). Everything else runs without network.
+ * the API ends up holding. A click reaches whatever
+ * BASEROW_INTEGRATIONS_SLACK_API_URL names: the e2e stack points it at the
+ * WireMock stub in `e2e-tests/stubs/slack` and sets E2E_SLACK_STUB, and the
+ * one test that clicks is skipped without that, since it would reach
+ * slack.com with a made-up token otherwise.
  */
 
 import { Page } from "@playwright/test";
@@ -42,8 +43,9 @@ import { User } from "../../fixtures/user";
 const TS_FIELD_INDEX = 0;
 const LIVE_FIELD_INDEX = 3;
 
-const LIVE_TOKEN = process.env.E2E_SLACK_BOT_TOKEN;
-const LIVE_CHANNEL = process.env.E2E_SLACK_CHANNEL ?? "social";
+const SLACK_STUB = process.env.E2E_SLACK_STUB === "yes";
+// What `e2e-tests/stubs/slack` answers every post with.
+const STUB_TS = "1700000000.000100";
 
 let g: GridSetupResult;
 
@@ -199,20 +201,23 @@ test.describe("Button field, Slack action", () => {
     expect(error).toBe("ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION");
   });
 
-  test("a click posts to Slack and the row keeps the message timestamp", async ({
+  test("a click posts through the bot and the row keeps the message timestamp", async ({
     page,
   }) => {
-    test.skip(!LIVE_TOKEN, "E2E_SLACK_BOT_TOKEN is not set");
+    test.skip(
+      !SLACK_STUB,
+      "E2E_SLACK_STUB is not set, a click would reach slack.com",
+    );
 
     await resetRows(g, [{ Name: "Ada", "Slack ts": "" }]);
     const bot = await createSlackBotIntegration(g.user, g.database, {
       name: "Live bot",
-      token: LIVE_TOKEN as string,
+      token: "xoxb-made-up",
     });
     const name = g.fieldByName["Name"];
     await createSlackAction(g.user, g.fieldByName["Live"], {
       integrationId: bot.id,
-      channel: LIVE_CHANNEL,
+      channel: "social",
       text: `concat('Hello from e2e ', get('row.field_${name.id}'))`,
     });
     const slack = (await listWorkflowActions(g.user, g.fieldByName["Live"]))[0];
@@ -231,8 +236,9 @@ test.describe("Button field, Slack action", () => {
     const grid = await gridFor(page, g.user);
     await grid.fieldCellAt(0, LIVE_FIELD_INDEX).locator("button").click();
 
-    // Slack's message reference, which only a delivered message has.
-    await expect(grid.fieldCellAt(0, TS_FIELD_INDEX)).toHaveText(/^\d+\.\d+$/, {
+    // The stub's own timestamp, so it can only have come back through the
+    // bot's post and the action after it.
+    await expect(grid.fieldCellAt(0, TS_FIELD_INDEX)).toHaveText(STUB_TS, {
       timeout: 15_000,
     });
     await expect(page.locator(".toast")).toHaveCount(0);

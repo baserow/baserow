@@ -1,0 +1,15 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/chat.postMessage"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "ok": true,
+      "channel": "C0E2ESTUB",
+      "ts": "1700000000.000100"
+    }
+  }
+}

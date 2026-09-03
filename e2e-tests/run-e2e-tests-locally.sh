@@ -26,6 +26,21 @@ if [ -z "${E2E_HTTP_STUB_URL:-}" ]; then
         export E2E_HTTP_STUB_URL="https://httpbin.org"
     fi
 fi
+# The Slack action test that clicks needs the dev backend pointed at a Slack
+# stub, since a click reaches slack.com otherwise. Start one on
+# E2E_SLACK_STUB_PORT (default 8101) and run the dev backend with
+# BASEROW_INTEGRATIONS_SLACK_API_URL=http://localhost:8101/api and
+# BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true; the test is skipped
+# unless E2E_SLACK_STUB says the backend is wired that way.
+if [ "${E2E_SLACK_STUB:-}" = "yes" ]; then
+    SLACK_STUB_PORT="${E2E_SLACK_STUB_PORT:-8101}"
+    docker rm -f e2e-local-slack-stub >/dev/null 2>&1 || true
+    docker run -d --name e2e-local-slack-stub \
+        -p "${SLACK_STUB_PORT}:8080" \
+        -v "$(cd "$(dirname "$0")" && pwd)/stubs/slack:/home/wiremock:ro" \
+        wiremock/wiremock:3.13.1 >/dev/null
+    trap 'docker rm -f e2e-local-slack-stub e2e-local-httpbin >/dev/null 2>&1 || true' EXIT
+fi
 # The dev stack's MailHog, which the dev environment already runs. Its API port
 # is BASEROW_MAILHOG_WEB_PORT: 8025 for the default instance, 8035 and 8045 for
 # the alternates in .env.local-dev.example. Export that variable, or

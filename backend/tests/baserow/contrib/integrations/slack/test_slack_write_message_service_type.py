@@ -1,6 +1,7 @@
 import json
 from unittest.mock import Mock, patch
 
+from django.test import override_settings
 from django.utils import timezone
 
 import pytest
@@ -10,6 +11,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.formula_importer import import_formula
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
 )
@@ -395,3 +397,33 @@ def test_slack_write_message_waits_as_long_as_its_request(data_fixture):
     service = data_fixture.create_slack_write_message_service()
 
     assert service.get_type().max_dispatch_seconds(service) == 10
+
+
+@pytest.mark.django_db
+@override_settings(INTEGRATIONS_SLACK_API_URL="http://slack-stub:8080/api")
+def test_slack_write_message_posts_to_the_configured_api(data_fixture):
+    """
+    The e2e stack has no way to reach slack.com, so it points the service at a
+    stub of its own through this setting.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        integration=data_fixture.create_integration(
+            SlackBotIntegration, token="xoxb-test"
+        ),
+        channel="general",
+        text="'hi'",
+    )
+    mock_response = Mock()
+    mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.2"}
+    mock_request = Mock(return_value=mock_response)
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=mock_request,
+    ):
+        service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert mock_request.call_args.kwargs["url"] == (
+        "http://slack-stub:8080/api/chat.postMessage"
+    )

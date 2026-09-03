@@ -1303,6 +1303,12 @@ INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = int(
     os.getenv("BASEROW_INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES") or 32 * 1024 * 1024
 )
 
+# Where the Slack service posts. Only an environment with no way to reach
+# slack.com, the e2e stack for one, points it somewhere else.
+INTEGRATIONS_SLACK_API_URL = (
+    os.getenv("BASEROW_INTEGRATIONS_SLACK_API_URL") or "https://slack.com/api"
+).rstrip("/")
+
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.
