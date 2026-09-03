@@ -503,7 +503,7 @@ def _check_creates_data_source_with_repeat(
     first_ds = data_sources[0] if data_sources else {}
     ds_name = first_ds.get("name", "")
     ds_table_id = first_ds.get("table_id")
-    ds_type = first_ds.get("type")
+    ds_type = (first_ds.get("type") or "").removeprefix("local_baserow_")
 
     all_el_args = _collect_element_args(output)
     for call in setup_calls:
@@ -1314,12 +1314,12 @@ register_case(
 )
 
 # ---------------------------------------------------------------------------
-# Proactive: asks when implied table is missing
+# Proactive: builds the projects app even though no Projects table exists
 # ---------------------------------------------------------------------------
 
 
-@register_scenario("builder-asks-when-implied-table-missing")
-def _asks_when_implied_table_missing_scenario(fx: Fixtures) -> EvalScenario:
+@register_scenario("builder-projects-table-missing")
+def _projects_table_missing_scenario(fx: Fixtures) -> EvalScenario:
     user = fx.create_user()
     workspace = fx.create_workspace(user=user)
     database = fx.create_database_application(
@@ -1337,60 +1337,50 @@ def _asks_when_implied_table_missing_scenario(fx: Fixtures) -> EvalScenario:
     )
 
 
-def _check_asks_when_implied_table_missing(
+def _check_builds_projects_app_without_asking(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    assistant_entries = [e for e in output.messages if e["role"] == "assistant"]
-    last_assistant = assistant_entries[-1] if assistant_entries else {}
-    final_text = last_assistant.get("content", "") or ""
+    pages = Page.objects.filter(builder__workspace=scenario.workspace, shared=False)
 
     return [
         CheckResult(
-            "called list_tables to search for 'projects'",
-            tool_called(output, "list_tables") >= 1,
+            "created the scaffolding it needed",
+            tool_called(output, "create_tables") >= 1,
         ),
         CheckResult(
-            "did NOT call create_tables", tool_called(output, "create_tables") == 0
-        ),
-        CheckResult(
-            "did NOT create app pages (no matching table found)",
+            "built the app pages",
             tool_called(output, "create_pages") + tool_called(output, "setup_page")
-            == 0,
+            >= 1,
         ),
         CheckResult(
-            "agent ended with a text response (asked the user)",
-            last_assistant.get("type") == "TextPart",
-            hint=f"last assistant entry type: {last_assistant.get('type')}",
+            "page exists in DB",
+            pages.exists(),
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
         ),
         CheckResult(
-            "response asks about projects or requests clarification",
-            any(
-                kw in final_text.lower()
-                for kw in (
-                    "project",
-                    "which table",
-                    "clarif",
-                    "don't see",
-                    "no table",
-                    "exist",
-                    "could you",
-                    "please",
-                )
-            ),
-            hint=f"response: {final_text[:300]}",
+            "created at least one element",
+            Element.objects.filter(
+                page__builder__workspace=scenario.workspace
+            ).exists(),
+        ),
+        CheckResult(
+            "did NOT call ask_user",
+            tool_called(output, "ask_user") == 0,
+            hint=f"tools called: {output.tool_calls}",
         ),
     ]
 
 
 register_case(
     EvalCase(
-        id="builder/asks-when-implied-table-missing",
+        id="builder/builds-projects-app-proactively",
         dataset="kuma-builder",
+        # Fully-described deliverable: missing scaffolding is no reason to ask.
         prompt=PROMPT_CREATE_PROJECTS_APP,
-        scenario="builder-asks-when-implied-table-missing",
-        checks=_check_asks_when_implied_table_missing,
+        scenario="builder-projects-table-missing",
+        checks=_check_builds_projects_app_without_asking,
         mode=AgentMode.APPLICATION,
-        max_iters=15,
+        max_iters=25,
     )
 )
 
@@ -1613,6 +1603,209 @@ register_case(
         ),
         scenario="builder-setup-user-source-existing-table",
         checks=_check_setup_user_source_existing_table,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Intent: missing named data or an unclear goal asks once; everything else builds
+# ---------------------------------------------------------------------------
+
+PROMPT_CUSTOMERS_PAGE = (
+    "In builder 'My App', create a page listing our Customers with their "
+    "name and email."
+)
+
+PROMPT_EXAMPLE_PROJECTS_APP = (
+    "Create a simple example app showing projects in a list with cards "
+    "showing project name and status."
+)
+
+PROMPT_DEMO_PAGE = (
+    "In builder 'My App', add a quick demo page at '/demo' with a heading "
+    "saying 'Demo' and a sign-up button."
+)
+
+PROMPT_TEAM_APP = "Create an app for my team."
+
+
+def _check_asks_when_named_table_missing(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    builder = scenario.refs["builder"]
+
+    return [
+        CheckResult(
+            "looked the table up first",
+            tool_called(output, "list_tables") >= 1,
+        ),
+        CheckResult(
+            "did NOT invent a Customers table",
+            tool_called(output, "create_tables") == 0,
+        ),
+        CheckResult(
+            "did NOT build the page",
+            tool_called(output, "create_pages") + tool_called(output, "setup_page")
+            == 0,
+        ),
+        CheckResult(
+            "no page created in DB",
+            not Page.objects.filter(builder=builder, shared=False).exists(),
+        ),
+        CheckResult(
+            "called ask_user about the missing table",
+            tool_called(output, "ask_user") >= 1,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+    ]
+
+
+def _check_builds_demo_page_without_asking(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    builder = scenario.refs["builder"]
+    pages = Page.objects.filter(builder=builder, shared=False)
+    elements = Element.objects.filter(page__in=pages)
+
+    return [
+        CheckResult(
+            "built the page",
+            tool_called(output, "create_pages") + tool_called(output, "setup_page")
+            >= 1,
+        ),
+        CheckResult(
+            "page exists at /demo",
+            pages.filter(path="/demo").exists(),
+            hint=f"paths: {list(pages.values_list('path', flat=True))}",
+        ),
+        CheckResult(
+            "created at least two elements (heading and button)",
+            elements.count() >= 2,
+            hint=f"elements: {elements.count()}",
+        ),
+        CheckResult(
+            "did NOT ask before building",
+            tool_called(output, "ask_user") == 0,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+    ]
+
+
+@register_scenario("builder-asks-when-named-table-missing")
+def _asks_when_named_table_missing_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(
+        user=user, workspace=workspace, name="Ops"
+    )
+    table = fx.create_database_table(user=user, database=database, name="Suppliers")
+    fx.create_text_field(table=table, name="Supplier", primary=True)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="My App"
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"builder": builder},
+    )
+
+
+@register_scenario("builder-blank-app")
+def _blank_app_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(
+        user=user, workspace=workspace, name="My App"
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={"builder": builder},
+    )
+
+
+register_case(
+    EvalCase(
+        id="builder/asks-when-named-table-missing",
+        dataset="kuma-builder",
+        prompt=PROMPT_CUSTOMERS_PAGE,
+        scenario="builder-asks-when-named-table-missing",
+        checks=_check_asks_when_named_table_missing,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/builds-example-app-without-asking",
+        dataset="kuma-builder",
+        prompt=PROMPT_EXAMPLE_PROJECTS_APP,
+        # Same state as builds-projects-app-proactively: framing must not matter.
+        scenario="builder-projects-table-missing",
+        checks=_check_builds_projects_app_without_asking,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+register_case(
+    EvalCase(
+        id="builder/builds-demo-page-without-asking",
+        dataset="kuma-builder",
+        prompt=PROMPT_DEMO_PAGE,
+        scenario="builder-blank-app",
+        checks=_check_builds_demo_page_without_asking,
+        mode=AgentMode.APPLICATION,
+        max_iters=25,
+    )
+)
+
+
+def _check_asks_once_when_goal_unclear(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    pages = Page.objects.filter(builder__workspace=scenario.workspace, shared=False)
+    build_calls = (
+        tool_called(output, "create_tables")
+        + tool_called(output, "create_pages")
+        + tool_called(output, "setup_page")
+        + tool_called(output, "create_builders")
+    )
+
+    return [
+        CheckResult(
+            "asked exactly one question",
+            tool_called(output, "ask_user") == 1,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+        CheckResult(
+            "did NOT build anything",
+            build_calls == 0,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+        CheckResult(
+            "no page created in DB",
+            not pages.exists(),
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/asks-once-when-goal-unclear",
+        dataset="kuma-builder",
+        # Nothing pins what the app is for: one question first, not a guess.
+        prompt=PROMPT_TEAM_APP,
+        scenario="builder-blank-app",
+        checks=_check_asks_once_when_goal_unclear,
         mode=AgentMode.APPLICATION,
         max_iters=15,
     )
