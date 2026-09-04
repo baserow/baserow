@@ -34,35 +34,6 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
-// A database has no single entry point the way a builder does, so its
-// integrations are fetched the first time an action asks for them. Several
-// actions of one field mount at once, so the request in flight is shared,
-// and the entry is dropped once it settles: whether they have been loaded is
-// remembered on the application itself, the way the builder and automation
-// do it, so a refetch that replaces the object asks again.
-const inFlight = new Map()
-
-async function fetchIntegrationsOnce(store, database) {
-  if (database._integrationsLoadedOnce) {
-    return
-  }
-  if (!inFlight.has(database.id)) {
-    inFlight.set(
-      database.id,
-      store
-        .dispatch('integration/fetch', { application: database })
-        .then(() =>
-          store.dispatch('application/forceUpdate', {
-            application: database,
-            data: { _integrationsLoadedOnce: true },
-          })
-        )
-        .finally(() => inFlight.delete(database.id))
-    )
-  }
-  await inFlight.get(database.id)
-}
-
 export default {
   name: 'DatabaseWorkflowActionWithService',
   components: { SampleDataViewer },
@@ -178,18 +149,6 @@ export default {
         this.fetchMappableFields(tableId)
       },
     },
-  },
-  async created() {
-    if (!this.workflowActionType.needsIntegration) {
-      return
-    }
-    try {
-      await fetchIntegrationsOnce(this.$store, this.database)
-    } catch (error) {
-      // Otherwise the dropdown reads as a database with no bot, and the only
-      // thing offered is creating a second one.
-      notifyIf(error, 'application')
-    }
   },
   methods: {
     /**

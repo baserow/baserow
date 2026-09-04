@@ -90,83 +90,37 @@ describe('DatabaseWorkflowActionWithService', () => {
       },
     })
 
-  test('a slack action fetches the bots of its database and offers them', async () => {
+  test('a slack action offers the bots its database holds', async () => {
+    // The list above it owns the fetch, so this form only has to render what
+    // the store already holds.
     await seedApplications()
-    testApp.mock
-      .onGet(`application/${OWN_DATABASE_ID}/integrations/`)
-      .reply(200, [{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
-
-    // The store's own object, as the table page hands it down, so the list
-    // the fetch fills is the one the form reads.
     const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
+    await testApp.store.dispatch('integration/forceCreate', {
+      application: database,
+      integration: { id: 7, type: 'slack_bot', name: 'Bot', order: '1' },
+    })
+
     const wrapper = await mountAction('slack_write_message', {}, database)
     await flushPromises()
 
-    // Fetched once, for the field's own database, and nothing else.
-    expect(testApp.mock.history.get.map((request) => request.url)).toEqual([
-      `application/${OWN_DATABASE_ID}/integrations/`,
-    ])
     const dropdown = wrapper.findComponent({ name: 'IntegrationDropdown' })
     expect(dropdown.exists()).toBe(true)
     expect(dropdown.props('integrations').map((i) => i.name)).toEqual(['Bot'])
   })
 
-  test('a repopulated application fetches its integrations again', async () => {
-    // The applications endpoint carries no integrations, so every refetch
-    // empties the list. Remembering the load anywhere but on the application
-    // itself leaves the dropdown permanently empty after one.
+  test('the form fetches nothing itself', async () => {
+    // The cards are hidden rather than unmounted, so a fetch tied to this
+    // form's own `created` runs once for the life of the editor and can never
+    // be retried. It belongs to the list, which knows when a card opens.
     await seedApplications()
-    testApp.mock
-      .onGet(`application/${OWN_DATABASE_ID}/integrations/`)
-      .reply(200, [{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
-
     const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
+
     await mountAction('slack_write_message', {}, database)
     await flushPromises()
-    expect(testApp.mock.history.get).toHaveLength(1)
 
-    // What `application/fetchAll` does on a workspace switch or a re-login.
-    await seedApplications()
-    const repopulated =
-      testApp.store.getters['application/get'](OWN_DATABASE_ID)
-    const wrapper = await mountAction('slack_write_message', {}, repopulated)
-    await flushPromises()
-
-    expect(testApp.mock.history.get).toHaveLength(2)
     expect(
-      wrapper
-        .findComponent({ name: 'IntegrationDropdown' })
-        .props('integrations')
-    ).toHaveLength(1)
-  })
-
-  test('a failed integrations fetch is reported, not left empty', async () => {
-    await seedApplications()
-    // Mimic a real API error: it carries a `handler` so notifyIf reports it
-    // instead of re-throwing.
-    const notifyIfHandler = vi.fn()
-    const apiError = Object.assign(new Error('boom'), {
-      handler: { notifyIf: notifyIfHandler },
-    })
-    const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
-    const dispatch = vi
-      .spyOn(testApp.store, 'dispatch')
-      .mockImplementation((action, payload) =>
-        action === 'integration/fetch'
-          ? Promise.reject(apiError)
-          : Promise.resolve()
-      )
-
-    await mountAction('slack_write_message', {}, database)
-    await flushPromises()
-
-    // Reported to the user rather than left as an unhandled rejection, and
-    // not remembered as loaded, so reopening the editor tries again instead
-    // of claiming the database has no bot.
-    expect(notifyIfHandler).toHaveBeenCalled()
-    expect(database._integrationsLoadedOnce).toBeFalsy()
-
-    dispatch.mockRestore()
+      testApp.mock.history.get.filter((r) => r.url.includes('/integrations/'))
+    ).toHaveLength(0)
   })
 
   test('a row action fetches no integrations', async () => {

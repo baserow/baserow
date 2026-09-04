@@ -137,6 +137,8 @@ import {
   CLIENT_ID_KEY,
   workflowActionKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
+import { fetchIntegrationsOnce } from '@baserow/modules/database/utils/buttonField'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
  * Controlled editor for a button field's ordered action list. Owns no state
@@ -172,6 +174,19 @@ export default {
     }
   },
   computed: {
+    /**
+     * Whether any action in the list needs the database's integrations. The
+     * list owns the fetch rather than each form, so a failure is reported
+     * once and reopening a card can ask again.
+     */
+    needsIntegrations() {
+      return this.value.some(
+        (action) =>
+          action.type &&
+          this.$registry.get('databaseWorkflowActionType', action.type)
+            .needsIntegration
+      )
+    },
     availableActionTypes() {
       return this.$registry.getOrderedList('databaseWorkflowActionType')
     },
@@ -190,6 +205,9 @@ export default {
       const context = {
         workspace: this.workspace,
         workflowActions: this.value,
+        // The credential an action carries lives here, so a type that needs
+        // one can say when it is not usable.
+        database: this.database,
       }
       return Object.fromEntries(
         this.value.map((action) => [
@@ -201,6 +219,18 @@ export default {
             : null,
         ])
       )
+    },
+  },
+  watch: {
+    // Covers the editor opening, an action being added, and a type being
+    // picked, all of which can be the first thing to need an integration.
+    needsIntegrations: {
+      immediate: true,
+      handler(needs) {
+        if (needs) {
+          this.fetchIntegrations()
+        }
+      },
     },
   },
   methods: {
@@ -299,6 +329,27 @@ export default {
     toggleAction(action) {
       const key = workflowActionKey(action)
       this.expandedActions = this.expandedActions[key] ? {} : { [key]: true }
+      // The cards are hidden rather than unmounted, so opening one is the
+      // only moment a user can ask for a fetch that failed to be tried again.
+      if (this.expandedActions[key]) {
+        this.fetchIntegrations()
+      }
+    },
+    /**
+     * Loads the database's integrations, when something in the list needs
+     * them. Quiet about a load that already happened, and loud once about one
+     * that failed: otherwise the dropdown reads as a database with no bot,
+     * and the only thing offered is creating a second one.
+     */
+    async fetchIntegrations() {
+      if (!this.needsIntegrations) {
+        return
+      }
+      try {
+        await fetchIntegrationsOnce(this.$store, this.database.id)
+      } catch (error) {
+        notifyIf(error, 'application')
+      }
     },
     /**
      * No type until the user picks one, and no `id` until the field is saved.

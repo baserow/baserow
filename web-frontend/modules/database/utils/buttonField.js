@@ -58,3 +58,53 @@ export function urlWithAllowedProtocol(url) {
     ? url
     : ''
 }
+
+// A database has no single entry point the way a builder does, so its
+// integrations are fetched the first time an action editor asks for them.
+// The request in flight is shared, and the entry dropped once it settles, so
+// a failed one is asked again rather than remembered as an empty database.
+const inFlightIntegrations = new Map()
+
+/**
+ * Fetches a database's integrations, at most once per database.
+ *
+ * Whether they have been loaded is remembered on the application itself, the
+ * way the builder and automation do it, so a refetch that replaces the object
+ * asks again.
+ *
+ * @param {Object} store The Vuex store.
+ * @param {Number} applicationId The database whose integrations are wanted.
+ * @return {Promise} Settles when the list is loaded, rejects when it is not.
+ */
+export function fetchIntegrationsOnce(store, applicationId) {
+  const current = () => store.getters['application/get'](applicationId)
+  if (current()?._integrationsLoadedOnce) {
+    return Promise.resolve()
+  }
+  if (!inFlightIntegrations.has(applicationId)) {
+    const request = (async () => {
+      // Resolved from the store rather than captured, on both sides of the
+      // await: `application/forceSetAll` replaces the object, and marking one
+      // object loaded while filling another leaves the list on screen empty
+      // and nothing to fetch it again.
+      const application = current()
+      if (!application) {
+        return
+      }
+      await store.dispatch('integration/fetch', { application })
+      const settled = current()
+      if (!settled) {
+        return
+      }
+      await store.dispatch('application/forceUpdate', {
+        application: settled,
+        data: { _integrationsLoadedOnce: true },
+      })
+    })()
+    inFlightIntegrations.set(
+      applicationId,
+      request.finally(() => inFlightIntegrations.delete(applicationId))
+    )
+  }
+  return inFlightIntegrations.get(applicationId)
+}
