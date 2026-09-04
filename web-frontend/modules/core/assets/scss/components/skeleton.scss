@@ -1,0 +1,75 @@
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.skeleton {
+  pointer-events: none;
+  user-select: none;
+}
+
+.skeleton-block {
+  flex: 0 0 auto;
+  max-width: 100%;
+  background-color: $palette-neutral-200;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.skeleton-block--rounded {
+  @include rounded($rounded);
+}
+
+.skeleton-block--square {
+  @include rounded($rounded-lg);
+}
+
+.skeleton-block--circle {
+  border-radius: 100%;
+}
+
+// Applied by the `v-skeleton` directive. The element keeps its own size because
+// the real content stays in the layout, only hidden, and the placeholder is
+// painted on top of it. It's sized after the font size of the element, so it
+// automatically matches the typography it covers.
+.skeleton-loading {
+  position: relative;
+  visibility: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: var(--skeleton-width, 100%);
+    height: var(--skeleton-height, 0.8em);
+    max-width: 100%;
+    visibility: visible;
+    background-color: $palette-neutral-200;
+    transform: translateY(-50%);
+    animation: skeleton-pulse 1.2s ease-in-out infinite;
+
+    @include rounded($rounded);
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+.skeleton-loading--square::after {
+  @include rounded($rounded-lg);
+}
+
+.skeleton-loading--circle::after {
+  border-radius: 100%;
+}
