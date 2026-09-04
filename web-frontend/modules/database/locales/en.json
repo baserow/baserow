@@ -643,6 +643,9 @@
     "maxGroupBysReached": "You can group by up to {count} fields.",
     "collapseAllGroups": "Collapse all",
     "expandAllGroups": "Expand all",
+    "layout": "Group layout",
+    "layoutBanner": "Banners",
+    "layoutColumn": "Columns",
     "hiddenFieldWarning": "One or more group bys reference hidden fields that won't be visible to editors and lower roles."
   },
   "viewGroupBy": {

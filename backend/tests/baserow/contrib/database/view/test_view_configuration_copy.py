@@ -163,6 +163,7 @@ def test_copy_view_configuration_field_options_and_row_height(data_fixture):
         row_height_size="large",
         frozen_column_count=3,
         row_identifier_type="count",
+        group_by_layout="column",
     )
     dest_view = data_fixture.create_grid_view(table=table, row_height_size="small")
 
@@ -184,6 +185,7 @@ def test_copy_view_configuration_field_options_and_row_height(data_fixture):
     assert dest_view.row_height_size == "large"
     assert dest_view.frozen_column_count == 3
     assert dest_view.row_identifier_type == "count"
+    assert dest_view.group_by_layout == "column"
     dest_options = dest_view.gridviewfieldoptions_set.get(field=field)
     assert dest_options.hidden is True
     assert dest_options.width == 300

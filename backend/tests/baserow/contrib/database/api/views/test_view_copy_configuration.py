@@ -22,6 +22,7 @@ def test_copy_view_configuration(api_client, data_fixture):
         filter_type="OR",
         row_height_size="large",
         frozen_column_count=2,
+        group_by_layout="column",
     )
     dest_view = data_fixture.create_grid_view(table=table)
 
@@ -58,6 +59,7 @@ def test_copy_view_configuration(api_client, data_fixture):
     assert response_json["filter_type"] == "OR"
     assert response_json["row_height_size"] == "large"
     assert response_json["frozen_column_count"] == 2
+    assert response_json["group_by_layout"] == "column"
     assert len(response_json["filters"]) == 1
     assert response_json["filters"][0]["value"] == "a"
     assert len(response_json["filter_groups"]) == 1

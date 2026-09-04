@@ -100,6 +100,41 @@ async function waitForViewPatch(
   await waitForApiPatch(page, `/api/database/views/${viewId}/`, action);
 }
 
+async function expectSingleViewPatch(
+  page: Page,
+  viewId: number,
+  expectedBody: Record<string, unknown>,
+  action: () => Promise<void>,
+): Promise<void> {
+  const path = `/api/database/views/${viewId}/`;
+  const matchingRequests: Request[] = [];
+  const isMatchingRequest = (request: Request) => {
+    const url = new URL(request.url());
+    return url.pathname === path && request.method() === "PATCH";
+  };
+  const onRequest = (request: Request) => {
+    if (isMatchingRequest(request)) {
+      matchingRequests.push(request);
+    }
+  };
+
+  page.on("request", onRequest);
+  try {
+    const responsePromise = page.waitForResponse((response) =>
+      isMatchingRequest(response.request()),
+    );
+    await action();
+    const response = await responsePromise;
+
+    expect(response.ok()).toBe(true);
+    expect(response.request().postDataJSON()).toEqual(expectedBody);
+    await page.waitForTimeout(100);
+    expect(matchingRequests).toHaveLength(1);
+  } finally {
+    page.off("request", onRequest);
+  }
+}
+
 async function waitForFieldOptionsPatch(
   page: Page,
   viewId: number,
@@ -959,6 +994,360 @@ test.describe("9.5 Row identifier type", () => {
 // -----------------------------------------------------------------------------
 // section 15  Public shared grid view
 // -----------------------------------------------------------------------------
+
+test.describe("9.6 Group layout", () => {
+  async function setupGroupLayoutGrid(page: Page) {
+    const g = await setupGrid({
+      dbName: "GroupLayoutDb",
+      fields: [
+        { name: "Team", type: "text" },
+        { name: "Role", type: "text" },
+      ],
+      rows: [
+        { Name: "Alice", Team: "A", Role: "Developer" },
+        { Name: "Ada", Team: "A", Role: "Designer" },
+        { Name: "Bob", Team: "B", Role: "QA" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    return { g, grid };
+  }
+
+  test("9.6.1 switching to Columns replaces banners with spanning group cells and persists", async ({
+    page,
+  }) => {
+    const { g, grid } = await setupGroupLayoutGrid(page);
+    await expect(grid.groupByBannerByValue("A")).toBeVisible({
+      timeout: 10_000,
+    });
+
+    await expectSingleViewPatch(
+      page,
+      g.view.id,
+      { group_by_layout: "column" },
+      () => grid.selectGroupLayout("Columns"),
+    );
+    await expect(page.locator(".grid-view__group-by-banner")).toHaveCount(0);
+    await grid.expectGroupSpanCount("A", 2);
+    await grid.expectGroupSpanCount("B", 1);
+    await expect(
+      page.locator(".grid-view__left .grid-view__group-span"),
+    ).toHaveCount(2);
+    await grid.expectRowCount(3);
+    for (const name of ["Alice", "Ada", "Bob"]) {
+      const cell = page.locator(".grid-view__body .grid-field-text", {
+        hasText: new RegExp(`^\\s*${name}\\s*$`),
+      });
+      await expect(cell).toHaveCount(1);
+      await expect(cell).toBeVisible();
+    }
+
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupSpanCount("A", 2);
+    await grid.expectGroupSpanCount("B", 1);
+    await expect(page.locator(".grid-view__group-by-banner")).toHaveCount(0);
+  });
+
+  test("9.6.2 a second group-by adds a second column and Banners restores the banners", async ({
+    page,
+  }) => {
+    const { g, grid } = await setupGroupLayoutGrid(page);
+    await expectSingleViewPatch(
+      page,
+      g.view.id,
+      { group_by_layout: "column" },
+      () => grid.selectGroupLayout("Columns"),
+    );
+
+    const groupByCreated = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname === `/api/database/views/${g.view.id}/group_bys/` &&
+        response.request().method() === "POST"
+      );
+    });
+    await grid.addGroupBy("Role");
+    expect((await groupByCreated).ok()).toBe(true);
+    await expect(
+      page.locator(".grid-view__left .grid-view__head-group"),
+    ).toHaveCount(2);
+    await grid.expectGroupSpanCount("A", 2);
+    await grid.expectGroupSpanCount("B", 1);
+    await grid.expectGroupSpanCount("Designer", 1);
+    await grid.expectGroupSpanCount("Developer", 1);
+    await grid.expectGroupSpanCount("QA", 1);
+
+    await expectSingleViewPatch(
+      page,
+      g.view.id,
+      { group_by_layout: "banner" },
+      () => grid.selectGroupLayout("Banners"),
+    );
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectGroupByBanner("Designer", 1);
+    await grid.expectGroupByBanner("Developer", 1);
+    await grid.expectGroupByBanner("QA", 1);
+    await expect(page.locator(".grid-view__group-span")).toHaveCount(0);
+
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectGroupByBanner("Designer", 1);
+    await grid.expectGroupByBanner("Developer", 1);
+    await grid.expectGroupByBanner("QA", 1);
+    await expect(page.locator(".grid-view__group-span")).toHaveCount(0);
+  });
+
+  test("9.6.3 five Columns groups keep a usable data pane at a narrow viewport", async ({
+    page,
+  }) => {
+    const groupFields = Array.from({ length: 5 }, (_, index) => ({
+      name: `Group ${index + 1}`,
+      type: "text" as const,
+    }));
+    const g = await setupGrid({
+      dbName: "ResponsiveGroupLayoutDb",
+      fields: groupFields,
+      rows: [
+        {
+          Name: "Responsive row",
+          ...Object.fromEntries(
+            groupFields.map(({ name }, index) => [name, `Value ${index + 1}`]),
+          ),
+        },
+      ],
+      groupBys: groupFields.map(({ name }) => ({
+        fieldName: name,
+        order: "ASC",
+      })),
+    });
+    await patchView(g.user, g.view, { group_by_layout: "column" });
+    await page.setViewportSize({ width: 1_024, height: 800 });
+
+    const unexpectedViewPatches: string[] = [];
+    const onViewMutation = (request: Request) => {
+      const url = new URL(request.url());
+      if (
+        request.method() === "PATCH" &&
+        url.pathname.startsWith("/api/database/views/")
+      ) {
+        unexpectedViewPatches.push(url.pathname);
+      }
+    };
+    page.on("request", onViewMutation);
+
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    const gridRoot = page.locator(".grid-view");
+    const rightSection = page.locator(".grid-view__right");
+    const groupHeaders = page.locator(
+      ".grid-view__left .grid-view__head-group",
+    );
+    const groupSpans = page.locator(".grid-view__left .grid-view__group-span");
+    await expect(groupHeaders).toHaveCount(5);
+    await expect(groupSpans).toHaveCount(5);
+    await expect(
+      page.locator(".grid-view__head-group-width-handle"),
+    ).toHaveCount(0);
+    await expect(
+      rightSection.locator(".grid-field-text", {
+        hasText: /^\s*Responsive row\s*$/,
+      }),
+    ).toBeVisible();
+    await expect(page.locator(".scrollbars__horizontal-wrapper")).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const [gridBox, rightBox, widths, spanWidths] = await Promise.all([
+          gridRoot.boundingBox(),
+          rightSection.boundingBox(),
+          groupHeaders.evaluateAll((elements) =>
+            elements.map((element) => element.getBoundingClientRect().width),
+          ),
+          groupSpans.evaluateAll((elements) =>
+            elements.map((element) => element.getBoundingClientRect().width),
+          ),
+        ]);
+        return {
+          rightWidth: Math.round(rightBox?.width ?? 0),
+          widthsFit:
+            widths.length === 5 &&
+            widths.every((width) => width >= 78 && width < 200),
+          contained:
+            !!gridBox &&
+            !!rightBox &&
+            rightBox.x + rightBox.width <= gridBox.x + gridBox.width + 1,
+          spansAligned:
+            spanWidths.length === widths.length &&
+            spanWidths.every(
+              (width, index) => Math.abs(width - widths[index]) < 1,
+            ),
+        };
+      })
+      .toEqual({
+        rightWidth: 300,
+        widthsFit: true,
+        contained: true,
+        spansAligned: true,
+      });
+
+    // Responsive widths are display-only: the configured 200px widths return when
+    // space is available, without another view mutation.
+    await page.setViewportSize({ width: 1_920, height: 1_080 });
+    await expect
+      .poll(() =>
+        groupHeaders.evaluateAll((elements) =>
+          elements.map((element) =>
+            Math.round(element.getBoundingClientRect().width),
+          ),
+        ),
+      )
+      .toEqual([200, 200, 200, 200, 200]);
+    await expect(
+      page.locator(".grid-view__head-group-width-handle"),
+    ).toHaveCount(5);
+    await page.waitForTimeout(100);
+    expect(unexpectedViewPatches).toEqual([]);
+    page.off("request", onViewMutation);
+  });
+
+  test("9.6.4 a group column can be resized and its width persists", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1_920, height: 1_080 });
+    const { g, grid } = await setupGroupLayoutGrid(page);
+    await expectSingleViewPatch(
+      page,
+      g.view.id,
+      { group_by_layout: "column" },
+      () => grid.selectGroupLayout("Columns"),
+    );
+
+    const header = page
+      .locator(".grid-view__left .grid-view__head-group")
+      .first();
+    const span = grid.groupSpanByValue("A");
+    const handle = page.locator(".grid-view__head-group-width-handle").first();
+    await expect(header).toHaveCSS("width", "200px");
+    await expect(span).toHaveCSS("width", "200px");
+    await expect(handle).toBeVisible();
+
+    const matchingRequests: Request[] = [];
+    const isGroupWidthPatch = (request: Request) => {
+      const url = new URL(request.url());
+      return (
+        request.method() === "PATCH" &&
+        /^\/api\/database\/views\/group_by\/\d+\/$/.test(url.pathname)
+      );
+    };
+    const onRequest = (request: Request) => {
+      if (isGroupWidthPatch(request)) {
+        matchingRequests.push(request);
+      }
+    };
+    page.on("request", onRequest);
+    try {
+      const responsePromise = page.waitForResponse((response) =>
+        isGroupWidthPatch(response.request()),
+      );
+      const box = await handle.boundingBox();
+      if (box === null) {
+        throw new Error("Expected the group width handle to have a box.");
+      }
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(
+        box.x + box.width / 2 + 40,
+        box.y + box.height / 2,
+        { steps: 5 },
+      );
+      await page.mouse.up();
+
+      const response = await responsePromise;
+      expect(response.ok()).toBe(true);
+      expect(response.request().postDataJSON()).toEqual({ width: 240 });
+      await page.waitForTimeout(100);
+      expect(matchingRequests).toHaveLength(1);
+    } finally {
+      page.off("request", onRequest);
+    }
+
+    await expect(header).toHaveCSS("width", "240px");
+    await expect(span).toHaveCSS("width", "240px");
+    await grid.goTo(g.database, g.table);
+    await expect(header).toHaveCSS("width", "240px");
+    await expect(grid.groupSpanByValue("A")).toHaveCSS("width", "240px");
+  });
+
+  test("9.6.5 a row can be dragged within a group with the Columns offset and persists", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1_920, height: 1_080 });
+    const { g, grid } = await setupGroupLayoutGrid(page);
+    await expectSingleViewPatch(
+      page,
+      g.view.id,
+      { group_by_layout: "column" },
+      () => grid.selectGroupLayout("Columns"),
+    );
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Ada");
+
+    await grid.hoverRow(1);
+    const sourceHandle = grid.rowDragHandleAt(1);
+    await expect(sourceHandle).toBeVisible();
+    const [sourceBox, targetBox] = await Promise.all([
+      sourceHandle.boundingBox(),
+      grid.leftRowAt(0).boundingBox(),
+    ]);
+    if (sourceBox === null || targetBox === null) {
+      throw new Error(
+        "Expected the source handle and target row to have boxes.",
+      );
+    }
+
+    const movedRowId = g.rowIds[1];
+    const movePath = `/api/database/rows/table/${g.table.id}/${movedRowId}/move/`;
+    const moveResponse = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === "PATCH" && url.pathname === movePath
+      );
+    });
+
+    await page.mouse.move(
+      sourceBox.x + sourceBox.width / 2,
+      sourceBox.y + sourceBox.height / 2,
+    );
+    await page.mouse.down();
+    const dragging = page.locator(".grid-view__row-dragging-container");
+    await expect(dragging).toBeVisible();
+    await expect(dragging).toHaveCSS("left", "200px");
+    await page.mouse.move(sourceBox.x + sourceBox.width / 2, targetBox.y + 4, {
+      steps: 5,
+    });
+    await expect(page.locator(".grid-view__row-target")).toBeVisible();
+    await page.mouse.up();
+
+    const response = await moveResponse;
+    expect(response.ok()).toBe(true);
+    const requestUrl = new URL(response.url());
+    expect(requestUrl.searchParams.get("before_id")).toBe(String(g.rowIds[0]));
+    expect(requestUrl.searchParams.get("view")).toBe(String(g.view.id));
+    await grid.expectPrimaryText(0, "Ada");
+    await grid.expectPrimaryText(1, "Alice");
+    await grid.expectGroupSpanCount("A", 2);
+
+    await grid.goTo(g.database, g.table);
+    await grid.expectPrimaryText(0, "Ada");
+    await grid.expectPrimaryText(1, "Alice");
+    await grid.expectGroupSpanCount("A", 2);
+  });
+});
 
 test.describe("15.1 Public shared grid", () => {
   let g: Setup;

@@ -263,6 +263,7 @@ def test_import_grid_view():
         "public": False,
         "row_height_size": "medium",
         "frozen_column_count": 1,
+        "group_by_layout": "banner",
         "row_identifier_type": "count",
         "sortings": [],
         "type": "grid",

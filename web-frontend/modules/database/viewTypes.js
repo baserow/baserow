@@ -614,7 +614,12 @@ export class GridViewType extends ViewType {
   }
 
   getCopyableViewSettings() {
-    return ['row_height_size', 'frozen_column_count', 'row_identifier_type']
+    return [
+      'row_height_size',
+      'frozen_column_count',
+      'row_identifier_type',
+      'group_by_layout',
+    ]
   }
 
   getName() {
@@ -670,6 +675,10 @@ export class GridViewType extends ViewType {
     await store.dispatch(
       storePrefix + 'view/grid/setRowHeight',
       GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING[view.row_height_size]
+    )
+    await store.dispatch(
+      storePrefix + 'view/grid/setGroupByLayout',
+      view.group_by_layout || 'banner'
     )
     await store.dispatch(storePrefix + 'view/grid/fetchInitial', {
       gridId: view.id,

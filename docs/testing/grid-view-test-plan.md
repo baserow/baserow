@@ -964,6 +964,71 @@ flat/group-by runs, the same way filters and sorts do.
 - Row identifier values are no longer visible.
 - Count values persist after reload.
 
+### 9.6.1 Switch to Columns replaces banners with spanning group cells
+
+- Grouped by Team with three rows in two groups.
+- Choosing "Columns" in the group-by menu sends one view PATCH with
+  `group_by_layout: "column"`.
+- No `.grid-view__group-by-banner` remains; each group renders one
+  `.grid-view__group-span` in the frozen section whose `.grid-view__group-count`
+  shows the group's row count; all rows stay visible and ordered.
+- The layout survives a reload.
+
+### 9.6.2 Second level adds a column; Banners restores the banners
+
+- Adding a second group-by in column layout renders two
+  `.grid-view__head-group` header cells and a span for the nested group.
+- Choosing "Banners" sends one view PATCH, restores the banners and removes every
+  span.
+
+### 9.6.3 Five Columns groups keep the data pane usable at a narrow viewport
+
+- A view grouped by the maximum five fields opens in Columns at a 1024px browser
+  viewport.
+- All five group headers and spans remain visible, while their display widths are
+  proportionally fitted without going below the minimum column width.
+- The right data pane remains 300px wide, contains the primary value, and exposes
+  its horizontal scrollbar.
+- Group headers and body spans remain aligned, and resize handles are withheld
+  while responsive fitting is active so a drag cannot persist a misleading width.
+- Widening the viewport restores every configured 200px group width without a
+  persistence mutation and restores the resize handles.
+
+### 9.6.4 Column width resize persists
+
+- At a wide viewport, dragging the group-column resize handle by 40px sends one
+  group-by PATCH containing `width: 240`.
+- The header and every matching body span move from 200px to 240px together.
+- The 240px width survives a reload.
+
+### 9.6.5 Row drag uses the Columns offset and persists
+
+- Dragging a row within a group renders the drag overlay after the 200px group
+  column and exposes a valid drop target.
+- The move request targets the expected `before_id` and view.
+- The new row order and group count survive a reload.
+
+### 9.6.6 Columns virtualizes thousands of uneven rows and groups
+
+- The fixture contains 3,000 rows grouped into 50 parent groups and 1,500 nested
+  leaf groups. Leaf groups alternate between one and three rows, while parents
+  alternate between 29 and 31 leaves, forcing sparse page estimates to converge
+  across uneven boundaries.
+- Switching from collapsed Banners to Columns expands the rendered hierarchy
+  without overwriting the saved Banner collapse state.
+- Deep wheel jumps across singleton/large leaf, parent, sparse-page and midpoint
+  boundaries render exact absolute count identifiers and matching parent/leaf
+  spans.
+- The first parent span keeps its exact 57-row height and sticky label at a deep
+  offset.
+- Fewer than 100 left rows, right rows and spans are mounted at both the start and
+  end. Attempted group and row data requests remain independently below 200 and
+  below 250 combined.
+- Switching back to Banners restores the collapsed state; switching to Columns
+  again and reloading preserves the Columns layout, hydrates the first row, and
+  reaches a deep sparse row directly.
+- No local API response, non-cancellation transport, or page error occurs.
+
 ## Cell Selection
 
 ### 10.1.1 Click a cell
@@ -1207,10 +1272,6 @@ flat/group-by runs, the same way filters and sorts do.
     - The UI does not allow freezing more than 4 columns.
     - The UI does not allow freezing more columns than can fit in the available
       width.
-- 9.6.x: Drag-and-drop rows when no sort is applied.
-    - Drop target is visible while dragging.
-    - Dropped row moves to the new visual position.
-    - Row order persists after reload.
 - 9.7.x: Drag-and-drop fields.
     - Field-drag preview is visible while dragging a field header.
     - Target position is visible while dragging a field header.

@@ -1,8 +1,10 @@
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
+import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
+import { TestApp } from '@baserow/test/helpers/testApp'
 
 describe('GridView component', () => {
   const fields = [
@@ -52,6 +54,170 @@ describe('GridView component', () => {
     })
 
     expect(sortedFields.map((field) => field.id)).toEqual([1, 3])
+  })
+
+  test('frozen columns fall back when group columns would crowd the viewport', () => {
+    const context = {
+      $refs: { gridView: { clientWidth: 800 } },
+      fields: [{ id: 1, name: 'Primary', primary: true }],
+      fieldOptions: { 1: { hidden: false, order: 0 } },
+      frozenColumnCount: 1,
+      gridViewRowDetailsWidth: 72,
+      groupColumnsWidth: 0,
+      getFieldWidth: () => 200,
+      canFitFrozenColumns: true,
+    }
+
+    GridView.methods.checkCanFitFrozenColumns.call(context)
+    expect(context.canFitFrozenColumns).toBe(true)
+
+    context.groupColumnsWidth = 400
+    GridView.methods.checkCanFitFrozenColumns.call(context)
+    expect(context.canFitFrozenColumns).toBe(false)
+  })
+
+  test.each([
+    [1024, 130.4],
+    // The default 240px application sidebar leaves a 784px grid at a 1024px
+    // browser viewport.
+    [784, 82.4],
+  ])(
+    'five group columns leave a usable data pane at a %ipx grid width',
+    (gridViewWidth, expectedGroupWidth) => {
+      const groupBys = Array.from({ length: 5 }, (_, index) => ({
+        id: index,
+        width: 200,
+      }))
+      const groupByWidths = GridView.computed.groupByWidths.call({
+        isColumnLayout: true,
+        activeGroupBys: groupBys,
+        gridViewWidth,
+        gridViewRowDetailsWidth: 72,
+      })
+      const groupColumnsWidth = GridView.computed.groupColumnsWidth.call({
+        groupByWidths,
+      })
+      const leftWidth = GridView.computed.leftWidth.call({
+        leftFieldsWidth: 0,
+        gridViewRowDetailsWidth: 72,
+        groupColumnsWidth,
+      })
+
+      expect(groupByWidths).toEqual(Array(5).fill(expectedGroupWidth))
+      expect(gridViewWidth - leftWidth).toBeCloseTo(300)
+      expect(groupBys.map(({ width }) => width)).toEqual(Array(5).fill(200))
+    }
+  )
+
+  test('effective group width changes recalculate grid geometry', () => {
+    const fieldsUpdated = vi.fn()
+    const nextTick = vi.fn((callback) => callback())
+    const context = { fieldsUpdated, $nextTick: nextTick }
+
+    GridView.watch.groupColumnsWidth.call(context, 240, 200)
+
+    expect(nextTick).toHaveBeenCalledOnce()
+    expect(fieldsUpdated).toHaveBeenCalledOnce()
+
+    GridView.watch.groupColumnsWidth.call(context, 240, 240)
+    expect(nextTick).toHaveBeenCalledOnce()
+    expect(fieldsUpdated).toHaveBeenCalledOnce()
+
+    expect(
+      GridView.computed.groupColumnsWidth.call({ groupByWidths: [] })
+    ).toBe(0)
+  })
+
+  test.each([
+    [[82.4, 82.4], [200, 200], true],
+    [[200, 200], [200, 200], false],
+    [[78, 200], [40, 200], false],
+  ])(
+    'group width resize handles responsive state for rendered widths %j',
+    (renderedGroupByWidths, configuredWidths, expected) => {
+      expect(
+        GridViewSection.computed.groupByWidthsAreResponsivelyFitted.call({
+          activeGroupBys: configuredWidths.map((width) => ({ width })),
+          renderedGroupByWidths,
+          groupColumnsWidth: renderedGroupByWidths.reduce(
+            (total, width) => total + width,
+            0
+          ),
+          GRID_VIEW_MIN_FIELD_WIDTH: 78,
+        })
+      ).toBe(expected)
+    }
+  )
+
+  test('row dragging starts after group columns only in column layout', async () => {
+    const testApp = new TestApp()
+    try {
+      const mockServer = testApp.mockServer
+      const store = testApp.store
+      const table = mockServer.createTable()
+      const { application } = await mockServer.createAppAndWorkspace(table)
+      const groupBys = [
+        {
+          id: 10,
+          field: 2,
+          order: 'ASC',
+          type: 'default',
+          width: 200,
+          _: { loading: false },
+        },
+      ]
+      const view = mockServer.createGridView(application, table, { groupBys })
+      view.group_by_layout = 'column'
+      mockServer.createFields(application, table, [
+        {
+          id: 1,
+          name: 'Name',
+          order: 0,
+          type: 'text',
+          primary: true,
+          text_default: '',
+        },
+        {
+          id: 2,
+          name: 'Team',
+          order: 1,
+          type: 'text',
+          primary: false,
+          text_default: '',
+        },
+      ])
+      await store.dispatch('field/fetchAll', { table })
+      const mountedFields = store.getters['field/getAll']
+      const primary = store.getters['field/getPrimary']
+      mockServer.createGridRows(view, mountedFields, [])
+      await store.dispatch('page/view/grid/fetchInitial', {
+        gridId: view.id,
+        fields: mountedFields,
+        primary,
+      })
+      await store.dispatch('page/view/grid/updateActiveGroupBys', groupBys)
+      await store.dispatch('page/view/grid/setGroupByLayout', 'column')
+
+      const wrapper = await testApp.mount(GridView, {
+        props: {
+          fields: mountedFields,
+          view,
+          table,
+          database: application,
+          readOnly: false,
+          storePrefix: 'page/',
+          row: null,
+        },
+      })
+
+      expect(wrapper.findComponent(GridViewRowDragging).props('offset')).toBe(
+        200
+      )
+      await wrapper.setProps({ view: { ...view, group_by_layout: 'banner' } })
+      expect(wrapper.findComponent(GridViewRowDragging).props('offset')).toBe(0)
+    } finally {
+      await testApp.afterEach()
+    }
   })
 
   // The post-drag click of a multi-select lands on the rows container; that must not

@@ -448,13 +448,11 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                     class="grid-view__placeholder"
                     style="width: 72px;"
                   >
-                    <div
-                      class="grid-view__placeholder-groups"
-                      style="width: 0px;"
-                    />
+                    <!--v-if-->
                     
                     
                   </div>
+                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"
@@ -470,6 +468,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               <div
                 class="grid-view__foot"
               >
+                <!--v-if-->
                 <div
                   class="grid-view__foot-info"
                 >
@@ -662,6 +661,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                     />
                     
                   </div>
+                  <!--v-if-->
                   <div
                     class="grid-view__rows"
                     style="transform: translateY(NaNpx) translateX(0px); left: 0px;"
@@ -677,6 +677,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               <div
                 class="grid-view__foot"
               >
+                <!--v-if-->
                 <!--v-if-->
                 
                 <div

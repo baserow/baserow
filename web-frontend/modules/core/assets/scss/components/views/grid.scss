@@ -483,6 +483,51 @@
   color: $palette-neutral-900;
 }
 
+.grid-view__group-columns {
+  @include absolute(0, auto, auto, 0);
+
+  z-index: 2;
+  background-color: $palette-neutral-50;
+}
+
+.grid-view__group-span {
+  position: absolute;
+  box-sizing: border-box;
+  border-right: 1px solid $palette-neutral-400;
+  border-bottom: 1px solid $palette-neutral-400;
+  background-color: $palette-neutral-50;
+}
+
+.grid-view__group-cell--sticky {
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+}
+
+.grid-view__group-value {
+  @extend %ellipsis;
+
+  min-width: 0;
+  flex: 1;
+  font-size: 13px;
+}
+
+.grid-view__group-value-empty {
+  color: $palette-neutral-700;
+}
+
+.grid-view__group-count {
+  @include rounded($rounded);
+
+  flex: none;
+  margin-left: 8px;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 600;
+  background-color: $palette-neutral-200;
+}
+
 .grid-view__group-by-banner {
   position: absolute;
   left: 0;
@@ -787,6 +832,16 @@
 
 .grid-view__group-by-rows-row {
   background: $palette-neutral-0;
+}
+
+.grid-view__group-by-rows-row--group-end::after {
+  @include absolute(auto, 0, 0, 0);
+
+  content: '';
+  z-index: 1;
+  height: 1px;
+  background-color: $palette-neutral-400;
+  pointer-events: none;
 }
 
 .grid-view__right .grid-view__group-by-rows-row .grid-view__column:last-child {

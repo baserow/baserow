@@ -1,6 +1,17 @@
 <template>
   <Context ref="context" class="group-bys" max-height-if-outside-viewport>
     <div class="group-bys__content">
+      <div v-if="view.group_bys.length > 0" class="group-bys__layout">
+        <div class="group-bys__layout-label">
+          {{ $t('viewGroupByContext.layout') }}
+        </div>
+        <SegmentControl
+          :segments="layoutSegments"
+          :active-index="activeLayoutIndex"
+          size="small"
+          @update:active-index="setLayout"
+        ></SegmentControl>
+      </div>
       <div
         v-if="view.group_bys.length === 0"
         v-auto-overflow-scroll
@@ -132,12 +143,14 @@
           </Dropdown>
         </div>
         <div v-if="view.group_bys.length > 0" class="group-bys__footer-actions">
-          <ButtonText @click.prevent="setGroupByCollapseAll(true)">
-            {{ $t('viewGroupByContext.collapseAllGroups') }}
-          </ButtonText>
-          <ButtonText @click.prevent="setGroupByCollapseAll(false)">
-            {{ $t('viewGroupByContext.expandAllGroups') }}
-          </ButtonText>
+          <template v-if="!isColumnLayout">
+            <ButtonText @click.prevent="setGroupByCollapseAll(true)">
+              {{ $t('viewGroupByContext.collapseAllGroups') }}
+            </ButtonText>
+            <ButtonText @click.prevent="setGroupByCollapseAll(false)">
+              {{ $t('viewGroupByContext.expandAllGroups') }}
+            </ButtonText>
+          </template>
         </div>
       </div>
     </div>
@@ -152,6 +165,8 @@ import {
   MAX_GROUP_BYS,
 } from '@baserow/modules/database/constants'
 import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrder.vue'
+
+const GROUP_BY_LAYOUTS = ['banner', 'column']
 
 export default {
   name: 'ViewGroupByContext',
@@ -198,6 +213,18 @@ export default {
      */
     atGroupByLimit() {
       return this.view.group_bys.length >= this.maxGroupBys
+    },
+    isColumnLayout() {
+      return this.view.group_by_layout === 'column'
+    },
+    activeLayoutIndex() {
+      return Math.max(0, GROUP_BY_LAYOUTS.indexOf(this.view.group_by_layout))
+    },
+    layoutSegments() {
+      return [
+        { label: this.$t('viewGroupByContext.layoutBanner') },
+        { label: this.$t('viewGroupByContext.layoutColumn') },
+      ]
     },
     /**
      * Calculates the total amount of available fields.
@@ -323,6 +350,27 @@ export default {
     },
     getSortTypes(field) {
       return this.getFieldType(field).getSortTypes(field)
+    },
+    async setLayout(index) {
+      const value = GROUP_BY_LAYOUTS[index]
+      if (value === this.view.group_by_layout) {
+        return
+      }
+      try {
+        await this.$store.dispatch('view/update', {
+          view: this.view,
+          values: { group_by_layout: value },
+          readOnly:
+            this.readOnly ||
+            !this.$hasPermission(
+              'database.table.view.update',
+              this.view,
+              this.database.workspace.id
+            ),
+        })
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
     },
     async setGroupByCollapseAll(collapse) {
       try {
