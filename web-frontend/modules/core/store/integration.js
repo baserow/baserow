@@ -1,6 +1,8 @@
 import IntegrationService from '@baserow/modules/core/services/integration'
 
-const state = () => ({})
+// Bumped whenever an application's list changes, so a fetch can tell that
+// the answer it is holding is older than what the store holds now.
+const state = () => ({ generation: {} })
 
 const updateContext = {
   updateTimeout: null,
@@ -9,6 +11,15 @@ const updateContext = {
 }
 
 const mutations = {
+  BUMP_GENERATION(state, { application }) {
+    state.generation = {
+      ...state.generation,
+      [application.id]: (state.generation[application.id] || 0) + 1,
+    }
+  },
+  SET_GENERATION(state, { application, generation }) {
+    state.generation = { ...state.generation, [application.id]: generation }
+  },
   ADD_ITEM(state, { application, integration, beforeId = null }) {
     if (beforeId === null) {
       application.integrations.push(integration)
@@ -52,12 +63,14 @@ const mutations = {
 const actions = {
   forceCreate({ commit }, { application, integration, beforeId = null }) {
     commit('ADD_ITEM', { application, integration, beforeId })
+    commit('BUMP_GENERATION', { application })
   },
   forceUpdate({ commit }, { application, integration, values }) {
     commit('UPDATE_ITEM', { application, integration, values })
   },
   forceDelete({ commit, getters }, { application, integrationId }) {
     commit('DELETE_ITEM', { application, integrationId })
+    commit('BUMP_GENERATION', { application })
   },
   forceMove(
     { commit, getters },
@@ -230,18 +243,39 @@ const actions = {
       throw error
     }
   },
-  async fetch({ dispatch, commit }, { application }) {
+  async fetch({ dispatch, commit, state, rootGetters }, { application }) {
     const { $registry, $i18n, $client, $config } = this
-    const { data: integrations } = await IntegrationService($client).fetchAll(
-      application.id
-    )
+    const applicationId = application.id
+    const before = state.generation[applicationId] || 0
 
-    commit('CLEAR_ITEMS', { application })
+    const { data: integrations } =
+      await IntegrationService($client).fetchAll(applicationId)
+
+    // Something changed the list while this request was open: an integration
+    // was created, deleted or moved. The answer being held snapshots the list
+    // as it was before that, and replacing the newer list with it would lose
+    // the change for good, since nothing fetches a second time.
+    if ((state.generation[applicationId] || 0) !== before) {
+      return rootGetters['application/get'](applicationId)?.integrations || []
+    }
+
+    // The store can have replaced the application object while the request
+    // was open, `application/forceSetAll` being the usual way. Filling the
+    // object this started with would fill a list nothing renders and leave
+    // the one on screen empty.
+    const current = rootGetters['application/get'](applicationId) || application
+
+    commit('CLEAR_ITEMS', { application: current })
     await Promise.all(
       integrations.map((integration) =>
-        dispatch('forceCreate', { application, integration })
+        dispatch('forceCreate', { application: current, integration })
       )
     )
+    // Its own writes are not a change another fetch has to back off from:
+    // reaching here means nothing changed the list while it was open. Left
+    // bumped, a second fetch that started alongside this one would discard
+    // its newer answer.
+    commit('SET_GENERATION', { application: current, generation: before })
 
     return integrations
   },
