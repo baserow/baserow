@@ -15,6 +15,7 @@
       :loading="loading"
       @node-selected="$emit('node-selected', $event)"
       @node-unselected="$emit('node-unselected')"
+      @example-click="$emit('example-click', $event)"
     />
     <div
       v-if="advancedModeEnabled"
@@ -123,14 +124,10 @@ export default {
       required: true,
     },
   },
-  emits: ['mode-changed', 'node-selected', 'node-unselected'],
+  emits: ['mode-changed', 'node-selected', 'node-unselected', 'example-click'],
   data() {
     return {
       searchQuery: '',
-      tooltip: {
-        functionData: null,
-      },
-      tooltipTimer: null,
       tabs: [],
       isModalVisible: false,
     }
@@ -151,7 +148,6 @@ export default {
     },
     activeTabIndex() {
       this.searchQuery = ''
-      this.hideTooltip()
     },
   },
   created() {
@@ -175,7 +171,6 @@ export default {
     },
     hide() {
       this.$refs.context.hide()
-      this.hideTooltip()
     },
     getTabTitle(tabName) {
       const titleMap = {
@@ -212,48 +207,6 @@ export default {
       } else {
         this.$emit('mode-changed', 'advanced')
       }
-    },
-    onFunctionHover(item, tabName, event) {
-      if (tabName !== 'Functions') {
-        return
-      }
-
-      if (this.tooltipTimer) {
-        clearTimeout(this.tooltipTimer)
-      }
-
-      this.tooltip.functionData = {
-        name: item.name,
-        description: item.description,
-        example: item.example,
-        icon: item.icon,
-      }
-
-      this.tooltipTimer = setTimeout(() => {
-        if (this.$refs.functionHelpTooltip) {
-          this.$refs.functionHelpTooltip.show(
-            event.target,
-            'bottom',
-            'right',
-            5,
-            10
-          )
-        }
-      }, 300)
-    },
-    onFunctionLeave() {
-      if (this.tooltipTimer) {
-        clearTimeout(this.tooltipTimer)
-        this.tooltipTimer = null
-      }
-
-      this.hideTooltip()
-    },
-    hideTooltip() {
-      if (this.$refs.functionHelpTooltip) {
-        this.$refs.functionHelpTooltip.hide()
-      }
-      this.tooltip.functionData = null
     },
     showAdvancedModeModal() {
       this.$refs.advancedModeModal.show()
