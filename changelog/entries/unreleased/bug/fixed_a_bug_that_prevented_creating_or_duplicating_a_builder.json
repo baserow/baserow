@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug that prevented creating or duplicating a builder page when a trashed page uses the same path.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-20"
+}
