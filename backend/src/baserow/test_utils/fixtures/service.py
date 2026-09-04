@@ -105,6 +105,16 @@ class ServiceFixtures:
             kwargs["type"] = "equal"
         if "order" not in kwargs:
             kwargs["order"] = 0
+        if kwargs.get("value_is_formula") is False and "value" in kwargs:
+            value = kwargs["value"]
+            if isinstance(value, dict):
+                value["mode"] = "raw"
+            else:
+                kwargs["value"] = {
+                    "formula": "" if value is None else str(value),
+                    "mode": "raw",
+                    "version": "0.1",
+                }
         return LocalBaserowTableServiceFilter.objects.create(**kwargs)
 
     def create_local_baserow_table_service_filter_group(

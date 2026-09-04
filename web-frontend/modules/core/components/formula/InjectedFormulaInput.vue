@@ -8,6 +8,9 @@
     <template #after-input>
       <slot name="after-input"></slot>
     </template>
+    <template v-if="$slots['raw-input']" #raw-input="slotProps">
+      <slot name="raw-input" v-bind="slotProps"></slot>
+    </template>
   </component>
 </template>
 

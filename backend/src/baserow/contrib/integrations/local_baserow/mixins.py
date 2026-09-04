@@ -100,7 +100,6 @@ class LocalBaserowTableServiceFilterableMixin:
                 "field_id": f.field_id,
                 "type": f.type,
                 "value": f.value,
-                "value_is_formula": f.value_is_formula,
                 "group": f.group_id,
             }
             for f in service.service_filters_with_untrashed_fields
@@ -164,12 +163,17 @@ class LocalBaserowTableServiceFilterableMixin:
 
         for f in value:
             formula = BaserowFormulaObject.to_formula(f["value"])
+            value_is_formula = f.get(
+                "value_is_formula", formula["mode"] != BASEROW_FORMULA_MODE_RAW
+            )
+            if not value_is_formula:
+                formula["mode"] = BASEROW_FORMULA_MODE_RAW
             field_id = id_mapping.get("database_fields", {}).get(
                 f["field_id"], f["field_id"]
             )
 
             if (
-                f["value_is_formula"]
+                value_is_formula
                 or not formula["formula"].isdigit()
                 or "database_field_select_options" not in id_mapping
             ):
@@ -185,7 +189,9 @@ class LocalBaserowTableServiceFilterableMixin:
                     version=formula["version"],
                 )
 
-            result.append({**f, "field_id": field_id, "value": val})
+            result_filter = {**f, "field_id": field_id, "value": val}
+            result_filter.pop("value_is_formula", None)
+            result.append(result_filter)
 
         return result
 
@@ -336,11 +342,7 @@ class LocalBaserowTableServiceFilterableMixin:
         yield from super().formula_generator(service)
 
         for service_filter in service.service_filters_with_untrashed_fields:
-            is_formula = service_filter.value_is_formula
             formula = BaserowFormulaObject.to_formula(service_filter.value)
-
-            if not is_formula:
-                formula["mode"] = BASEROW_FORMULA_MODE_RAW
 
             # Service types like LocalBaserowGetRow do not have a value attribute.
             new_formula = yield formula

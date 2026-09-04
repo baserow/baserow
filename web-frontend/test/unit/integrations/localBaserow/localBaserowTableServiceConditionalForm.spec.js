@@ -1,6 +1,52 @@
+import { defineComponent } from 'vue'
+
 import LocalBaserowTableServiceConditionalForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableServiceConditionalForm'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm.vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
+
+const ViewFieldConditionsFormStub = defineComponent({
+  name: 'ViewFieldConditionsForm',
+  props: {
+    filters: { type: Array, required: true },
+  },
+  setup() {
+    return {
+      filterType: {
+        hasEditableValue: true,
+        isDeprecated: () => false,
+        getInputComponent: () => 'input',
+      },
+    }
+  },
+  template: `
+    <div>
+      <slot
+        name="filterInputComponent"
+        :slot-props="{
+          filter: filters[0],
+          field: { id: filters[0].field },
+          filterType,
+        }"
+      />
+    </div>
+  `,
+})
+
+const InjectedFormulaInputStub = defineComponent({
+  name: 'InjectedFormulaInput',
+  emits: ['input'],
+  template: `
+    <button
+      class="formula-input-stub"
+      @click="$emit('input', { formula: &quot;'Alice'&quot;, mode: 'simple' })"
+    />
+  `,
+})
+
+const FormulaInputStub = defineComponent({
+  name: 'FormulaInputStub',
+  template: '<button class="formula-input-field__raw-mode-toggle" />',
+})
 
 describe('LocalBaserowTableServiceConditionalForm', () => {
   let testApp = null
@@ -15,7 +61,7 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
 
   const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
 
-  async function mountComponent(props = {}) {
+  async function mountComponent(props = {}, global = {}) {
     return await testApp.mount(LocalBaserowTableServiceConditionalForm, {
       props: {
         modelValue: [],
@@ -24,6 +70,7 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
         fields,
         ...props,
       },
+      global,
     })
   }
 
@@ -76,7 +123,6 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
           field: 1,
           type: 'equal',
           value: { formula: 'a', mode: 'raw' },
-          value_is_formula: false,
           group: 'group-1',
         },
         {
@@ -84,7 +130,6 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
           field: 1,
           type: 'equal',
           value: { formula: 'b', mode: 'raw' },
-          value_is_formula: false,
           group: null,
         },
       ],
@@ -136,24 +181,68 @@ describe('LocalBaserowTableServiceConditionalForm', () => {
   test('the formula toggle is rendered for a filter inside a group', async () => {
     // The raw-value/formula toggle (sigma) slot must reach filters nested in a
     // group, not just root-level filters.
-    const wrapper = await mountComponent({
-      modelValue: [
-        {
-          id: 'f1',
-          field: 1,
-          type: 'equal',
-          value: { formula: 'a', mode: 'raw' },
-          value_is_formula: false,
-          group: 'group-1',
+    const wrapper = await mountComponent(
+      {
+        modelValue: [
+          {
+            id: 'f1',
+            field: 1,
+            type: 'equal',
+            value: { formula: 'a', mode: 'raw' },
+            group: 'group-1',
+          },
+        ],
+        filterGroups: [
+          { id: 'group-1', filter_type: 'AND', parent_group: null },
+        ],
+      },
+      {
+        provide: {
+          formulaComponent: FormulaInputStub,
+          dataProvidersAllowed: [],
         },
-      ],
-      filterGroups: [{ id: 'group-1', filter_type: 'AND', parent_group: null }],
-    })
+      }
+    )
 
     expect(
       wrapper
-        .find('.filters__group-item .filters__value--formula-toggle')
+        .find('.filters__group-item .formula-input-field__raw-mode-toggle')
         .exists()
     ).toBe(true)
+  })
+
+  test('emits filters using formula mode instead of value_is_formula', async () => {
+    const wrapper = await mountComponent(
+      {
+        modelValue: [
+          {
+            id: 'filter-1',
+            field: 1,
+            type: 'equal',
+            value: { formula: 'Alice', mode: 'raw' },
+            value_is_formula: false,
+            group: null,
+          },
+        ],
+      },
+      {
+        stubs: {
+          ViewFieldConditionsForm: ViewFieldConditionsFormStub,
+          InjectedFormulaInput: InjectedFormulaInputStub,
+        },
+      }
+    )
+
+    await wrapper.find('.formula-input-stub').trigger('click')
+
+    expect(wrapper.emitted('update:modelValue').at(-1)[0]).toEqual([
+      {
+        id: 'filter-1',
+        field: 1,
+        type: 'equal',
+        value: { formula: "'Alice'", mode: 'simple' },
+        group: null,
+      },
+    ])
   })
 })

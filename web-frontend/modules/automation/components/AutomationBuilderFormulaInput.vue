@@ -9,7 +9,11 @@
     :validation-context="{ dataProviderRegistry: dataProviders }"
     @update:mode="updateMode"
     @input="updatedFormulaStr"
-  />
+  >
+    <template v-if="$slots['raw-input']" #raw-input="slotProps">
+      <slot name="raw-input" v-bind="slotProps"></slot>
+    </template>
+  </FormulaInputField>
 </template>
 
 <script setup>

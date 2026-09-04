@@ -266,6 +266,8 @@ class LocalBaserowTableServiceFilter(ServiceFilter):
         blank=True,
         help_text="The filter value that must be compared to the field's value.",
     )
+    # TODO ZDM: remove this field in the next version. The filter formula mode
+    # now defines whether the value is raw or a formula.
     value_is_formula = models.BooleanField(
         default=False,
         help_text="Indicates whether the value is a formula or not.",

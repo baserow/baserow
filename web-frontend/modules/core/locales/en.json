@@ -932,7 +932,9 @@
     "errorInvalidFormula": "The formula is invalid.",
     "advancedFormulaMode": "Advanced formula mode",
     "invalidFormulaTitle": "Invalid formula",
-    "invalidSyntax": "Not a valid expert formula, please check the syntax."
+    "invalidSyntax": "Not a valid expert formula, please check the syntax.",
+    "useFormulaMode": "Use formula mode",
+    "useRawMode": "Use raw mode"
   },
   "formulaInputErrorContext": {
     "viewFullError": "View full error"
