@@ -66,6 +66,10 @@ when that name is already checked out elsewhere.
 Read every selected reference completely, and do not load unrelated references.
 Select more than one when a change crosses concerns.
 
+- Database module code, its tests or documentation, or an extension/shared contract
+  that changes Database tables, fields, rows, views, formulas, data syncs, imports,
+  exports, or workflow actions: read
+  [references/modules/database.md](references/modules/database.md).
 - Backend Python, Django models, APIs, handlers, actions, services, registries, or
   settings: read [references/backend.md](references/backend.md).
 - Vue components, stores/composables, browser behaviour, frontend services,
