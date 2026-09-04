@@ -7,6 +7,7 @@ import pytest
 from pydantic_ai.models.test import TestModel
 
 from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_AI_AGENT,
     AI_PROVIDER_FEATURE_AI_FIELDS,
     AI_PROVIDER_FEATURE_KUMA,
     AI_PROVIDER_FEATURE_MODE_DISABLED,
@@ -76,14 +77,31 @@ def test_create_model_does_not_misreport_unexpected_integrity_error():
 
 
 @pytest.mark.django_db
-def test_omitted_model_feature_types_remain_ai_fields_only():
+def test_omitted_model_feature_types_remain_available_to_legacy_consumers():
     provider = AIProviderHandler.create_provider(
         "openai",
         api_key="secret",
         models_data=[{"model_identifier": "gpt-5.4"}],
     )
 
-    assert provider.models.get().feature_types == [AI_PROVIDER_FEATURE_AI_FIELDS]
+    assert provider.models.get().feature_types == [
+        AI_PROVIDER_FEATURE_AI_FIELDS,
+        AI_PROVIDER_FEATURE_AI_AGENT,
+    ]
+
+
+@pytest.mark.django_db
+def test_orm_model_default_remains_available_to_legacy_consumers():
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-5.4"
+    )
+
+    assert model.feature_types == [
+        AI_PROVIDER_FEATURE_AI_FIELDS,
+        AI_PROVIDER_FEATURE_AI_AGENT,
+    ]
 
 
 @pytest.mark.django_db

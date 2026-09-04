@@ -51,6 +51,34 @@ describe('Generative AI model types', () => {
     expect(registry.exists('generativeAIModel', 'groq')).toBe(true)
   })
 
+  test('only treats self-contained integration connections as complete', () => {
+    const registry = testApp.getRegistry()
+    const openai = registry.get('generativeAIModel', 'openai')
+    const ollama = registry.get('generativeAIModel', 'ollama')
+
+    expect(
+      openai.isIntegrationSettingsComplete({
+        base_url: 'https://example.com/v1',
+        models: ['model'],
+      })
+    ).toBe(false)
+    expect(
+      openai.isIntegrationSettingsComplete({
+        api_key: 'secret',
+        models: ['model'],
+      })
+    ).toBe(true)
+    expect(ollama.isIntegrationSettingsComplete({ models: ['model'] })).toBe(
+      false
+    )
+    expect(
+      ollama.isIntegrationSettingsComplete({
+        host: 'http://localhost:11434',
+        models: ['model'],
+      })
+    ).toBe(true)
+  })
+
   test.each([
     {
       providerType: 'google',

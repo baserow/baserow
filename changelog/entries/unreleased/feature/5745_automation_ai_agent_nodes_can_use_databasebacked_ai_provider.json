@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Automation AI agent nodes can use database-backed AI providers when the ai-providers feature flag is enabled.",
+    "message": "AI Agent actions can use database-backed AI providers when the ai-providers feature flag is enabled.",
     "issue_origin": "github",
     "issue_number": 5745,
     "domain": "automation",

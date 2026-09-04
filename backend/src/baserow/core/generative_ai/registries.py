@@ -574,11 +574,34 @@ class GenerativeAIModelType(Instance):
         except InvalidAIProviderSettings:
             return None
 
+        # Include every connection setting, even when its value is absent. The
+        # returned dictionary is an atomic override: omitting an optional key
+        # would let provider getters inherit that key from another scope.
+        extra_settings = provider_values["extra_settings"]
         return {
             "api_key": provider_values["api_key"],
             "models": provider_values["models"],
-            **provider_values["extra_settings"],
+            **{
+                name: extra_settings.get(name)
+                for name in AI_PROVIDER_TYPES[self.type]["extra_settings"]
+            },
         }
+
+    def get_atomic_settings_override(self, values: Any) -> Optional[dict[str, Any]]:
+        """Return a self-contained settings override, or ``None`` if incomplete.
+
+        Built-in database-backed providers must supply their own complete
+        connection so an override can never borrow credentials from another
+        scope. Out-of-tree providers own their settings contract and have
+        already validated it with their registered serializer, so their
+        dictionaries retain the legacy authoritative behavior. Extensions with
+        partial/inherited settings should override this hook and return ``None``
+        until their connection is complete.
+        """
+
+        if self.type not in AI_PROVIDER_TYPES:
+            return dict(values) if isinstance(values, dict) else None
+        return self._get_complete_provider_settings(values)
 
     def get_model_settings_override(
         self,

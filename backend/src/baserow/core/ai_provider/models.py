@@ -3,6 +3,7 @@ from django.db import models
 from baserow.core.mixins import CreatedAndUpdatedOnMixin
 
 from .constants import (
+    AI_PROVIDER_FEATURE_AI_AGENT,
     AI_PROVIDER_FEATURE_AI_FIELDS,
     AI_PROVIDER_TEST_STATUS_FAILURE,
     AI_PROVIDER_TEST_STATUS_SUCCESS,
@@ -10,9 +11,15 @@ from .constants import (
 
 
 def get_default_ai_provider_model_feature_types() -> list[str]:
-    """Keep API and ORM callers which omit this field backwards compatible."""
+    """Return the historical default referenced by migration 0119."""
 
     return [AI_PROVIDER_FEATURE_AI_FIELDS]
+
+
+def get_default_ai_provider_model_feature_types_v2() -> list[str]:
+    """Keep current ORM callers compatible with every legacy model consumer."""
+
+    return [AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT]
 
 
 class AIProviderConfig(CreatedAndUpdatedOnMixin, models.Model):
@@ -65,9 +72,9 @@ class AIProviderModel(models.Model):
     model_identifier = models.CharField(max_length=255)
     is_enabled = models.BooleanField(default=True, db_default=True)
     feature_types = models.JSONField(
-        default=get_default_ai_provider_model_feature_types,
+        default=get_default_ai_provider_model_feature_types_v2,
         blank=True,
-        db_default=[AI_PROVIDER_FEATURE_AI_FIELDS],
+        db_default=[AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT],
         help_text=(
             "The AI features allowed to select this model. This controls "
             "eligibility, not which features currently use the model."

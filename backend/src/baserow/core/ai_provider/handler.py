@@ -15,6 +15,7 @@ from baserow.core.models import Workspace
 from baserow.core.psycopg import is_unique_violation_error
 
 from .constants import (
+    AI_PROVIDER_FEATURE_AI_AGENT,
     AI_PROVIDER_FEATURE_AI_FIELDS,
     AI_PROVIDER_FEATURE_MODE_DISABLED,
     AI_PROVIDER_FEATURE_MODE_INHERIT,
@@ -73,9 +74,9 @@ class AIProviderHandler:
     def _normalize_feature_types(feature_types: list[str] | None) -> list[str]:
         if feature_types is None:
             # Older API callers predate per-feature model eligibility. Preserve
-            # their AI Fields-only behaviour instead of silently opting models
-            # into every feature registered by the running installation.
-            return [AI_PROVIDER_FEATURE_AI_FIELDS]
+            # the consumers those models already served instead of silently
+            # opting them into every feature registered by the installation.
+            return [AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT]
 
         normalized = list(dict.fromkeys(feature_types))
         for feature_type in normalized:

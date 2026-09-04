@@ -268,6 +268,7 @@ const isInError = computed(() => {
   return nodeType.value.isInError({
     service: props.node.service,
     workspace: workspace.value,
+    application: automation.value,
   })
 })
 
@@ -281,6 +282,7 @@ const errorMessage = computed(() => {
     service: props.node.service,
     node: props.node,
     workspace: workspace.value,
+    application: automation.value,
   })
 })
 

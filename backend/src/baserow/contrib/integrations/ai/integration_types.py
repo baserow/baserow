@@ -37,8 +37,9 @@ class AIIntegrationType(IntegrationType):
             required=False,
             default=dict,
             help_text="Per-provider AI settings overrides. If a provider key is not "
-            "present, workspace settings are inherited. If present, these values "
-            "override workspace settings. Structure: "
+            "present, workspace settings are inherited. A complete provider object "
+            "uses its own connection and models atomically; an incomplete object can "
+            "only restrict inherited model availability. Structure: "
             '{"openai": {"api_key": "...", "models": [...], "organization": ""}, ...}',
         ),
     }
@@ -53,8 +54,8 @@ class AIIntegrationType(IntegrationType):
     ) -> Dict[str, Any]:
         """Validate explicit per-integration provider settings before saving.
 
-        Database-only providers are valid here because these overrides are passed
-        directly to the runtime instead of being stored in legacy workspace settings.
+        Database-only providers are valid here because complete overrides are passed
+        atomically to the runtime instead of being stored in legacy workspace settings.
 
         :param values: The integration values supplied by the caller.
         :param user: The user creating or updating the integration.

@@ -511,7 +511,7 @@ def test_provider_crud_never_returns_api_key(
                 "id": response.json()["models"][0]["id"],
                 "model_identifier": "gpt-4o",
                 "is_enabled": True,
-                "feature_types": ["ai_fields"],
+                "feature_types": ["ai_fields", "ai_agent"],
                 "last_test_at": None,
                 "last_test_status": None,
                 "last_test_error": "",

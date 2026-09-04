@@ -22,10 +22,11 @@ server.
 
 For a fresh database-backed setup, enable `ai-providers`, then add a provider and
 its models in the admin UI. On each model, choose whether it is available to Kuma,
-AI Fields, or both, then select the Kuma model in the **AI features** section.
-Availability permits a feature to choose a model; it does not force AI Fields to
-use Kuma's model. Use **Test model** to check every selected feature. AI Fields
-check for a text response, while Kuma also checks tool calling.
+AI Fields, AI Agent actions, or any combination of them, then select the
+Kuma model in the **AI features** section. Availability permits a feature to choose
+a model; it does not force AI Fields or AI Agent actions to use Kuma's model. Use
+**Test model** to check every selected feature. AI Fields and AI Agent actions check
+for a text response, while Kuma also checks tool calling.
 
 For every existing installation, deploy this release with `ai-providers` still
 disabled and wait for the previous web and worker processes to drain. If the

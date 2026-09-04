@@ -38,6 +38,7 @@
       v-if="values.ai_generative_ai_type"
       small-label
       :label="$t('aiAgentServiceForm.modelLabel')"
+      :error="selectedModelUnavailable"
       required
       class="margin-bottom-2"
     >
@@ -50,9 +51,17 @@
           :key="model"
           :name="model"
           :value="model"
+          :disabled="
+            selectedModelUnavailable && model === values.ai_generative_ai_model
+          "
         >
         </DropdownItem>
       </Dropdown>
+      <template #error>
+        <span v-if="selectedModelUnavailable" class="error">
+          {{ $t('selectAIModelForm.modelUnavailable') }}
+        </span>
+      </template>
     </FormGroup>
 
     <FormGroup
@@ -154,6 +163,7 @@ import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationT
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import { AIAgentAIProviderModelFeatureType } from '@baserow/modules/integrations/ai/aiProviderModelFeatureTypes'
 import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
+import { getEffectiveAIAgentModels } from '@baserow/modules/integrations/ai/utils'
 
 export default {
   name: 'AIAgentServiceForm',
@@ -236,16 +246,14 @@ export default {
       const integrationSettings = this.integration.ai_settings || {}
       const allProviders = this.$registry.getAll('generativeAIModel')
       return Object.keys(allProviders)
-        .filter((type) => {
-          if (integrationSettings[type]) {
-            const models = integrationSettings[type].models || []
-            if (models.length > 0) {
-              return true
-            }
-          }
-
-          return workspaceEnabled[type] && workspaceEnabled[type].length > 0
-        })
+        .filter(
+          (type) =>
+            getEffectiveAIAgentModels({
+              workspaceModels: workspaceEnabled[type] || [],
+              integrationSettings: integrationSettings[type],
+              modelType: allProviders[type],
+            }).length > 0
+        )
         .map((type) => {
           const modelType = this.$registry.get('generativeAIModel', type)
           return {
@@ -279,10 +287,13 @@ export default {
 
       const integrationSettings = this.integration.ai_settings || {}
       const providerType = this.values.ai_generative_ai_type
-      if (integrationSettings[providerType]) {
-        return integrationSettings[providerType].models || []
-      }
-      return this.workspaceEnabledModels[providerType] || []
+      const modelType =
+        this.$registry.getAll('generativeAIModel')[providerType] || null
+      return getEffectiveAIAgentModels({
+        workspaceModels: this.workspaceEnabledModels[providerType] || [],
+        integrationSettings: integrationSettings[providerType],
+        modelType,
+      })
     },
     availableModels() {
       const models = this.baseAvailableModels
@@ -293,14 +304,22 @@ export default {
       }
       return models
     },
+    selectedModelUnavailable() {
+      const current = this.values.ai_generative_ai_model
+      return Boolean(
+        this.aiProvidersEnabled &&
+        current &&
+        !this.baseAvailableModels.includes(current)
+      )
+    },
     maxTemperature() {
       if (!this.values.ai_generative_ai_type) {
         return 2
       }
-      const modelType = this.$registry.get(
-        'generativeAIModel',
-        this.values.ai_generative_ai_type
-      )
+      const modelType =
+        this.$registry.getAll('generativeAIModel')[
+          this.values.ai_generative_ai_type
+        ] || null
       return modelType ? modelType.getMaxTemperature() : 2
     },
     outputTypeOptions() {
