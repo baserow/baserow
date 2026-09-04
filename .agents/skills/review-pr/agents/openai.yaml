@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review PR"
+  short_description: "Review a Baserow pull request like a maintainer"
+  default_prompt: "Use $review-pr to deeply review the given Baserow pull request and produce a severity-ranked report with ready-to-post comments."
