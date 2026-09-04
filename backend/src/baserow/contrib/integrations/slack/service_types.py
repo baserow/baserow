@@ -28,6 +28,12 @@ from baserow.core.services.types import DispatchResult, FormulaToResolve, Servic
 
 SLACK_REQUEST_TIMEOUT_SECONDS = 10
 
+# The timeout above is per socket operation rather than for the call as a
+# whole: connecting, waiting for the headers and pulling the body each get it
+# in full. `chat.postMessage` answers directly, and redirects are refused
+# below, so three is the whole request.
+SLACK_REQUEST_SOCKET_OPERATIONS = 3
+
 
 class SlackWriteMessageServiceType(ServiceType):
     type = "slack_write_message"
@@ -119,6 +125,11 @@ class SlackWriteMessageServiceType(ServiceType):
                     "text": resolved_values["text"],
                 },
                 timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
+                # Slack answers directly. A configured endpoint that redirects
+                # would spend a fresh timeout on every hop, and Requests
+                # follows thirty of them, so the call could outlive the lock
+                # that guards the row many times over.
+                allow_redirects=False,
                 # `read_response_within_limit` pulls the body in, in chunks,
                 # so a slow or oversized answer cannot outlive the lock this
                 # service's `max_dispatch_seconds` sizes.
@@ -197,7 +208,7 @@ class SlackWriteMessageServiceType(ServiceType):
         return DispatchResult(data=data["data"])
 
     def max_dispatch_seconds(self, service: SlackWriteMessageService) -> int:
-        return SLACK_REQUEST_TIMEOUT_SECONDS
+        return SLACK_REQUEST_TIMEOUT_SECONDS * SLACK_REQUEST_SOCKET_OPERATIONS
 
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).select_related("integration")

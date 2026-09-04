@@ -289,7 +289,12 @@ test.describe("Button field, Slack action", () => {
     await expect(button).toHaveClass(/button--loading/);
     await otherButton.click();
 
-    await expect(otherPage.locator(".toast")).toBeVisible({ timeout: 20_000 });
+    // The lock's own refusal, not any error the click could have hit: the
+    // backend renders this 409's detail verbatim.
+    await expect(otherPage.locator(".toast")).toContainText(
+      "A click is already running for this button and row.",
+      { timeout: 20_000 },
+    );
 
     // The first post is still in flight. Waiting for it keeps it out of the
     // teardown and out of the test after this one.
