@@ -20,6 +20,7 @@ from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 
 
@@ -51,7 +52,9 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
         ],
         rows=[],
     )
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        user=user, application=page.builder
+    )
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         table=table, page=page
     )
@@ -132,6 +135,41 @@ def test_export_import_upsert_row_workflow_action_type(data_fixture):
         imported_field_mapping.value["formula"]
         == f"get('data_source.{data_source2.id}.{field.db_column}')"
     )
+
+
+@pytest.mark.django_db
+def test_import_workflow_action_drops_integration_from_another_application(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    builder_a = data_fixture.create_builder_application(user=user)
+    page_a = data_fixture.create_builder_page(builder=builder_a)
+    element_a = data_fixture.create_builder_button_element(page=page_a)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        user=user, page=page_a, element=element_a, event=EventTypes.CLICK
+    )
+    integration = workflow_action.service.integration
+    TrashHandler.trash(user, builder_a.workspace, builder_a, integration)
+
+    # The export preserves the (trashed) integration id.
+    exported = workflow_action.get_type().export_serialized(workflow_action)
+    assert exported["service"]["integration_id"] == integration.id
+
+    # Import into a *different* application. The trashed integration is absent from
+    # `id_mapping`, so its id must not resolve to builder_a's integration — the
+    # imported action is left misconfigured rather than referencing another app.
+    builder_b = data_fixture.create_builder_application(user=user)
+    page_b = data_fixture.create_builder_page(builder=builder_b)
+    element_b = data_fixture.create_builder_button_element(page=page_b)
+    id_mapping = defaultdict(lambda: MirrorDict())
+    id_mapping["integrations"] = {}
+    id_mapping["builder_pages"] = {page_a.id: page_b.id}
+    id_mapping["builder_page_elements"] = {element_a.id: element_b.id}
+
+    imported = workflow_action.get_type().import_serialized(
+        page_b, exported, id_mapping
+    )
+    assert imported.service.integration_id is None
 
 
 @pytest.mark.django_db

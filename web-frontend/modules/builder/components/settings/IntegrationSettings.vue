@@ -98,6 +98,13 @@ export default {
           application: this.builder,
           integrationId: integration.id,
         })
+        // Re-dispatch the data sources that used this integration so their bound
+        // collection elements reset (they're now misconfigured). The initiator
+        // doesn't receive its own websocket echo, so this is triggered here too.
+        this.$store.dispatch('dataSource/redispatchForIntegration', {
+          builder: this.builder,
+          integrationId: integration.id,
+        })
       } catch (error) {
         notifyIf(error)
       }

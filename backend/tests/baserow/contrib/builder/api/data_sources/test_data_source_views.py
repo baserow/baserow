@@ -24,6 +24,7 @@ from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
 from baserow.core.services.models import Service
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
 
@@ -166,7 +167,7 @@ def test_create_data_source_bad_request(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
+def test_create_data_source_with_duplicate_name_is_allowed(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -183,11 +184,10 @@ def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source.name}' already exists.",
-    }
+    # Data source names are not unique (like database table names), so creating a
+    # second data source with the same name on the same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source.name
 
 
 @pytest.mark.django_db
@@ -319,7 +319,38 @@ def test_update_data_source_page(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
+def test_update_data_source_page_only_preserves_service_values(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(user=user, builder=page.builder)
+    table = data_fixture.create_database_table(user=user)
+    data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="name", table=table, row_id="'42'"
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source1.id}
+    )
+
+    response = api_client.patch(
+        url,
+        {"page_id": page2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["page_id"] == page2.id
+    assert response.json()["row_id"]["formula"] == "'42'"
+    assert response.json()["table_id"] == table.id
+
+    data_source1.refresh_from_db()
+    assert data_source1.service.specific.row_id["formula"] == "'42'"
+
+
+@pytest.mark.django_db
+def test_update_data_source_with_duplicate_name_is_allowed_on_same_page(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
@@ -341,11 +372,10 @@ def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source_1.name}' already exists.",
-    }
+    # Data source names are not unique, so renaming one to match a sibling on the
+    # same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source_1.name
 
 
 @pytest.mark.django_db
@@ -1014,7 +1044,14 @@ def test_delete_data_source(api_client, data_fixture):
     )
     assert response.status_code == HTTP_204_NO_CONTENT
 
-    # Ensure the service also is deleted
+    # The data source is trashed (soft-deleted) so it can be restored via undo.
+    assert not DataSource.objects.filter(id=data_source1.id).exists()
+    assert DataSource.trash.filter(id=data_source1.id).exists()
+    # The underlying service is preserved while trashed so a restore brings it back.
+    assert Service.objects.count() == 1
+
+    # Permanently deleting the data source also cleans up the service.
+    TrashHandler.permanently_delete(data_source1)
     assert Service.objects.count() == 0
 
 

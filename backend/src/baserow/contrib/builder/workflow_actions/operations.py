@@ -33,5 +33,9 @@ class ReadBuilderWorkflowActionOperationType(BuilderWorkflowActionOperationType)
     type = "builder.page.workflow_action.read"
 
 
+class RestoreBuilderWorkflowActionOperationType(BuilderWorkflowActionOperationType):
+    type = "builder.page.workflow_action.restore"
+
+
 class DispatchBuilderWorkflowActionOperationType(BuilderWorkflowActionOperationType):
     type = "builder.page.workflow_action.dispatch"

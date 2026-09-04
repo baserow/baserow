@@ -432,6 +432,13 @@ class BuilderApplicationType(ApplicationType):
         builder.breakpoints = breakpoints
         builder.save(update_fields=["breakpoints"])
 
+        # Always initialize the integrations mapping, even when the export
+        # contains none (e.g. they were all trashed). Downstream importers
+        # (data sources, workflow actions, user sources) resolve dangling
+        # integration references through this mapping and expect the key to
+        # exist.
+        id_mapping.setdefault("integrations", {})
+
         if not serialized_integrations:
             progress.increment(
                 state=IMPORT_SERIALIZED_IMPORTING, by=integration_progress

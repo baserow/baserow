@@ -102,6 +102,20 @@ export default {
   },
   watch: {
     'mapping.value'(newValue) {
+      // Editing/enabling another field makes the parent re-emit the whole
+      // mappings array, which re-renders this field with its last *committed*
+      // value. If we still have an uncommitted, debounced edit, that would drop
+      // the user's input (it's never emitted, so it can't be undone/redone - the
+      // set-value action simply never happens). This is easy to hit at a normal
+      // pace: type a value, then click to enable the next field within ~500ms.
+      // So commit the pending value now instead of losing it. A genuine external
+      // change (undo/redo) never coincides with a pending debounce.
+      if (this.debounceTimeout) {
+        clearTimeout(this.debounceTimeout)
+        this.debounceTimeout = null
+        this.$emit('update', { value: this.localValue })
+        return
+      }
       this.localValue = newValue
     },
   },
@@ -122,9 +136,14 @@ export default {
       this.$emit('update', { value: this.localValue })
     },
     defaultEmptyFormula() {
+      // Use the canonical empty formula (''), not the empty-string literal ('""').
+      // The formula editor can't represent '""' faithfully - it renders empty and
+      // emits '' on its first update, which registers a spurious field-value change.
+      // During undo/redo that extra action discards the redo stack ("No more actions
+      // to redo"). The field ends up as '' regardless, so this changes no behaviour.
       return {
         enabled: true,
-        value: { formula: '""' },
+        value: { formula: '' },
       }
     },
     openContext() {

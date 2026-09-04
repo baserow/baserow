@@ -304,6 +304,15 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
     def allowed_fields(self):
         return super().allowed_fields + ["service"]
 
+    def export_prepared_values(self, instance: WorkflowAction) -> Dict[str, Any]:
+        # Replace the `service` model instance captured by the base implementation
+        # with the service's own JSON-serializable prepared values, so a config
+        # change can be undone/redone.
+        values = super().export_prepared_values(instance)
+        service = instance.service.specific
+        values["service"] = service.get_type().export_prepared_values(service)
+        return values
+
     def get_pytest_params_serialized(
         self, pytest_params: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -366,7 +375,28 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
                 integration_id = id_mapping["integrations"].get(
                     integration_id, integration_id
                 )
-                integration = Integration.objects.get(id=integration_id)
+                # Use the trash-inclusive manager: the service may reference an
+                # integration that has since been trashed (e.g. duplicating a page
+                # whose data source's integration was deleted). We keep the FK so
+                # the service is restored intact when the integration is. A
+                # genuinely missing integration falls back to `None` (the service
+                # becomes misconfigured) rather than crashing the import.
+                try:
+                    integration = Integration.objects_and_trash.get(id=integration_id)
+                except Integration.DoesNotExist:
+                    integration = None
+                else:
+                    # Never reference an integration outside the target application.
+                    # On a cross-application import a trashed integration is not part
+                    # of the export (so it is absent from `id_mapping`), and the
+                    # unmapped id would otherwise resolve to an unrelated integration
+                    # in another application. Same-builder duplication is unaffected.
+                    target_builder_id = kwargs.get("target_builder_id")
+                    if (
+                        target_builder_id is not None
+                        and integration.application_id != target_builder_id
+                    ):
+                        integration = None
 
             return ServiceHandler().import_service(
                 integration,

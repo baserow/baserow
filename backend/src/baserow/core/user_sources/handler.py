@@ -11,6 +11,7 @@ from loguru import logger
 
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
+from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import application_type_registry
@@ -45,9 +46,15 @@ class UserSourceHandler:
                 user_source.application = gen_user_source.application
 
                 if user_source.integration_id:
-                    specific_integration = IntegrationHandler().get_integration(
-                        user_source.integration_id, specific=True
-                    )
+                    try:
+                        specific_integration = IntegrationHandler().get_integration(
+                            user_source.integration_id, specific=True
+                        )
+                    except IntegrationDoesNotExist:
+                        # The integration has been trashed (the no-trash manager
+                        # can't find it) but the user source still references it.
+                        # Treat it as misconfigured rather than failing to load.
+                        specific_integration = None
                     user_source.__class__.integration.field.set_cached_value(
                         user_source, specific_integration
                     )

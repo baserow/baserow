@@ -17,13 +17,14 @@ from baserow.core.integrations.operations import (
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.signals import (
     integration_created,
-    integration_deleted,
     integration_moved,
     integration_orders_recalculated,
     integration_updated,
 )
-from baserow.core.integrations.types import IntegrationForUpdate
+from baserow.core.integrations.types import IntegrationForUpdate, UpdatedIntegration
 from baserow.core.models import Application
+from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import extract_undo_redo_values
 
 
 class IntegrationService:
@@ -135,7 +136,7 @@ class IntegrationService:
 
     def update_integration(
         self, user: AbstractUser, integration: IntegrationForUpdate, **kwargs
-    ) -> Integration:
+    ) -> UpdatedIntegration:
         """
         Updates and integration with values. Will also check if the values are allowed
         to be set on the integration first.
@@ -144,7 +145,7 @@ class IntegrationService:
         :param integration: The integration that should be updated.
         :param values: The values that should be set on the integration.
         :param kwargs: Additional attributes of the integration.
-        :return: The updated integration.
+        :return: The updated integration together with the values that changed.
         """
 
         CoreHandler().check_permissions(
@@ -154,15 +155,24 @@ class IntegrationService:
             context=integration,
         )
 
-        prepared_values = integration.get_type().prepare_values(kwargs, user)
+        integration_type = integration.get_type()
+
+        # Capture the original and new values (in the service-level vocabulary, so
+        # FK fields are stored as their ids) before `prepare_values` mutates them, so
+        # the update can be undone/redone.
+        original_values, new_values = extract_undo_redo_values(
+            integration, kwargs, integration_type.sensitive_fields
+        )
+
+        prepared_values = integration_type.prepare_values(kwargs, user)
 
         integration = self.handler.update_integration(
-            integration.get_type(), integration, **prepared_values
+            integration_type, integration, **prepared_values
         )
 
         integration_updated.send(self, integration=integration, user=user)
 
-        return integration
+        return UpdatedIntegration(integration, original_values, new_values)
 
     def delete_integration(self, user: AbstractUser, integration: IntegrationForUpdate):
         """
@@ -181,11 +191,9 @@ class IntegrationService:
             context=integration,
         )
 
-        self.handler.delete_integration(integration)
-
-        integration_deleted.send(
-            self, integration_id=integration.id, application=application, user=user
-        )
+        # Soft-delete (trash) the integration so it can be restored via undo. The
+        # `integration_deleted` realtime signal is emitted by the trashable item type.
+        TrashHandler.trash(user, application.workspace, application, integration)
 
     def move_integration(
         self,

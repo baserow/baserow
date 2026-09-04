@@ -76,7 +76,10 @@ export default {
   emits: ['delete', 'edit', 'share'],
   computed: {
     isInError() {
-      return this.dataSourceType?.isInError({ service: this.dataSource })
+      return this.dataSourceType?.isInError({
+        service: this.dataSource,
+        application: this.builder,
+      })
     },
     dataSourceType() {
       if (!this.dataSource.type) {

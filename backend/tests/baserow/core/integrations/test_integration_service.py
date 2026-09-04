@@ -221,20 +221,24 @@ def test_get_integrations(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
-@patch("baserow.core.integrations.service.integration_deleted")
+@patch("baserow.core.integrations.trash_types.integration_deleted")
 def test_delete_integration(integration_deleted_mock, data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
+    application = integration.application
 
-    service = IntegrationService()
-    service.delete_integration(user, integration)
+    IntegrationService().delete_integration(user, integration)
 
-    integration_deleted_mock.send.assert_called_once_with(
-        service,
-        integration_id=integration.id,
-        application=integration.application,
-        user=user,
-    )
+    # The integration is trashed (soft-deleted) so it can be restored via undo.
+    assert not Integration.objects.filter(id=integration.id).exists()
+    assert Integration.trash.filter(id=integration.id).exists()
+
+    # The realtime `integration_deleted` signal is emitted by the trashable item type.
+    integration_deleted_mock.send.assert_called_once()
+    call_kwargs = integration_deleted_mock.send.call_args.kwargs
+    assert call_kwargs["integration_id"] == integration.id
+    assert call_kwargs["application"] == application
+    assert call_kwargs["user"] == user
 
 
 @pytest.mark.django_db(transaction=True)
@@ -261,7 +265,7 @@ def test_update_integration(integration_updated_mock, data_fixture):
     )
 
     integration_updated_mock.send.assert_called_once_with(
-        service, integration=integration_updated, user=user
+        service, integration=integration_updated.integration, user=user
     )
 
 

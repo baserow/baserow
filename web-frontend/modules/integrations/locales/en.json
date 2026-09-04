@@ -75,6 +75,7 @@
     "trashedField": "Trashed field",
     "errorUrlMissing": "Missing Url property",
     "errorNoTableSelected": "No table selected",
+    "errorMisconfiguredIntegration": "The integration is missing or has been trashed",
     "errorFilterInError": "At least one filter is misconfigured",
     "errorSortingInError": "At least one sort is misconfigured",
     "errorNoFieldSelected": "No fields selected",

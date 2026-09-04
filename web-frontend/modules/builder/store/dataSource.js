@@ -1,5 +1,6 @@
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
+import { ELEMENT_EVENTS } from '@baserow/modules/builder/enums'
 
 const state = () => ({})
 
@@ -231,6 +232,54 @@ const actions = {
       updateContext.promiseResolve = resolve
     })
   },
+  /**
+   * Re-dispatches every data source bound to the given integration so that the
+   * collection elements pointing at them reset their content. Used when an
+   * integration is trashed (its data sources become misconfigured and have no
+   * records to show) or restored (they repopulate). Affected data sources are
+   * resolved across the current and shared pages.
+   */
+  redispatchForIntegration(
+    { dispatch, getters, rootGetters },
+    { builder, integrationId }
+  ) {
+    // Integrations exist on multiple application types (e.g. automations) and
+    // the realtime integration events fire for all of them. Only builder
+    // applications have pages with data sources to re-dispatch; for any other
+    // type resolving the shared page below would crash on `pages`.
+    if (builder.type !== 'builder') {
+      return
+    }
+    const selectedPage = rootGetters['page/getSelected']
+    const sharedPage = rootGetters['page/getSharedPage'](builder)
+    const pages = [selectedPage, sharedPage].filter(Boolean)
+    if (!pages.length) {
+      return
+    }
+
+    const affectedDataSources = getters
+      .getPagesDataSources(pages)
+      .filter((dataSource) => dataSource.integration_id === integrationId)
+    if (!affectedDataSources.length) {
+      return
+    }
+
+    const elements = pages.flatMap((page) =>
+      rootGetters['element/getElementsOrdered'](page)
+    )
+    affectedDataSources.forEach((dataSource) => {
+      dispatch(
+        'element/emitElementEvent',
+        {
+          event: ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE,
+          elements,
+          dataSourceId: dataSource.id,
+          builder,
+        },
+        { root: true }
+      )
+    })
+  },
   async moveToPage(
     { commit, dispatch, getters },
     { pageSource, pageDest, dataSourceId }
@@ -393,7 +442,11 @@ const getters = {
     return page.dataSources
   },
   getPagesDataSources: (state) => (pages) => {
-    return pages.map(({ dataSources }) => dataSources).flat()
+    // A page's `dataSources` can be undefined when the page exists in the store
+    // (e.g. a builder's shared page listed in the sidebar) but its data sources
+    // haven't been loaded, such as when a realtime event arrives while viewing a
+    // non-builder scope. Default to an empty array so callers don't hit undefined.
+    return pages.map(({ dataSources }) => dataSources || []).flat()
   },
   getPagesDataSourceById: (state, getters) => (pages, id) => {
     return getters

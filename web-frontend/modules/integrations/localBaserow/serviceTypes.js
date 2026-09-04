@@ -47,17 +47,40 @@ export class LocalBaserowTableServiceType extends ServiceType {
 
   /**
    * Responsible for determining if this service is in error. It will be if the
-   * `table_id` is missing.
+   * integration can't be resolved to a live integration (e.g. it has been
+   * trashed, or was never set) or if the `table_id` is missing.
+   *
+   * The integration check requires `application` to be passed so the integration
+   * can be looked up in the store; callers that don't provide it (the integration
+   * isn't resolvable from a service alone) simply skip that check.
+   *
    * @param service - The service object.
+   * @param application - The application the service's integration belongs to.
    * @returns {boolean} - If the service is valid.
    */
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, application }) {
     if (service !== undefined) {
+      // Only flag an unresolvable integration when one is actually configured
+      // (`integration_id` set). A service that was never given an integration is
+      // reported by the more specific checks below (e.g. no table selected).
+      // Callers must only pass `application` when the builder's integrations are
+      // loaded in the store (editor mode) - see WorkflowActionServiceType.
+      if (application !== undefined && service.integration_id) {
+        const integration = this.app.$store.getters[
+          'integration/getIntegrationById'
+        ](application, service.integration_id)
+        // A data source whose integration has been trashed keeps its
+        // integration_id, but the trashed integration is no longer in the store,
+        // so it can't be resolved — the data source is misconfigured.
+        if (!integration) {
+          return this.app.$i18n.t('serviceType.errorMisconfiguredIntegration')
+        }
+      }
       if (!service.table_id) {
         return this.app.$i18n.t('serviceType.errorNoTableSelected')
       }
     }
-    return super.getErrorMessage({ service })
+    return super.getErrorMessage({ service, application })
   }
 
   /**
@@ -130,7 +153,7 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, application }) {
     if (service !== undefined) {
       const filtersInError = service.filters?.some((filter) => filter.trashed)
       if (filtersInError) {
@@ -144,7 +167,7 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
         return this.app.$i18n.t('serviceType.errorSortingInError')
       }
     }
-    return super.getErrorMessage({ service })
+    return super.getErrorMessage({ service, application })
   }
 }
 
@@ -368,7 +391,7 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
     return null
   }
 
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, application }) {
     if (service !== undefined) {
       if (!service.field_id) {
         return this.app.$i18n.t('serviceType.errorNoFieldSelected')
@@ -381,7 +404,7 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
         return this.app.$i18n.t('serviceType.errorFilterInError')
       }
     }
-    return super.getErrorMessage({ service })
+    return super.getErrorMessage({ service, application })
   }
 
   getDescription(service, application) {

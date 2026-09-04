@@ -83,7 +83,9 @@ export default {
   },
   emits: ['toggle', 'delete'],
   data() {
-    return { loading: false }
+    return {
+      loading: false,
+    }
   },
   computed: {
     workflowActionType() {
@@ -124,6 +126,26 @@ export default {
         actionLabel: this.workflowActionType.label,
       })
     },
+  },
+  created() {
+    // Reset the form when the workflow action's realtime version advances (an
+    // undo/redo or another user's change). Comparing the version — rather than just
+    // reading the `viaRealtime` flag, which stays set until the next local edit —
+    // ensures we only reset on a genuinely new realtime event. Runs post-flush so the
+    // form's `defaultValues` reflect the change first.
+    this.$watch(
+      () => [this.workflowAction?.id, this.workflowAction?._?.realtimeVersion],
+      ([id, version], [oldId, oldVersion]) => {
+        if (
+          id === oldId &&
+          version !== oldVersion &&
+          this.workflowAction?._?.viaRealtime
+        ) {
+          this.$refs.actionForm?.reset?.(true)
+        }
+      },
+      { flush: 'post' }
+    )
   },
   methods: {
     ...mapActions({

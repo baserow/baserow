@@ -1,4 +1,5 @@
-from typing import List, NewType, TypedDict, TypeVar
+from dataclasses import dataclass
+from typing import Any, Dict, List, NewType, TypedDict, TypeVar
 
 from baserow.core.app_auth_providers.models import AppAuthProvider
 from baserow.core.user_sources.models import UserSource
@@ -19,3 +20,10 @@ UserSourceDictSubClass = TypeVar("UserSourceDictSubClass", bound="UserSourceDict
 UserSourceSubClass = TypeVar("UserSourceSubClass", bound="UserSource")
 
 UserSourceForUpdate = NewType("UserSourceForUpdate", UserSource)
+
+
+@dataclass
+class UpdatedUserSource:
+    user_source: UserSource
+    original_values: Dict[str, Any]
+    new_values: Dict[str, Any]

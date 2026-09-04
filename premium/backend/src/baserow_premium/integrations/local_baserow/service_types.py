@@ -426,9 +426,27 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
-
-        # FIXME: for "service_aggregation_series", "service_aggregation_group_bys"
-
+        # The aggregation series, group bys and sorts live on related models (rebuilt
+        # in `after_update`), so the base export - which only reads `allowed_fields` -
+        # misses them. Capture them in the same shape `after_update` restores them
+        # from (without the row ids, which are recreated), so that changing them can be
+        # undone/redone.
+        values["service_aggregation_series"] = [
+            {"field_id": series.field_id, "aggregation_type": series.aggregation_type}
+            for series in instance.service_aggregation_series.all()
+        ]
+        values["service_aggregation_group_bys"] = [
+            {"field_id": group_by.field_id}
+            for group_by in instance.service_aggregation_group_bys.all()
+        ]
+        values["service_aggregation_sorts"] = [
+            {
+                "sort_on": sort.sort_on,
+                "reference": sort.reference,
+                "direction": sort.direction,
+            }
+            for sort in instance.service_aggregation_sorts.all()
+        ]
         return values
 
     def serialize_property(

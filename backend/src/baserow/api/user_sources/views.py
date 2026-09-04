@@ -69,6 +69,12 @@ from baserow.core.exceptions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.user.exceptions import RefreshTokenAlreadyBlacklisted
+from baserow.core.user_sources.actions import (
+    CreateUserSourceActionType,
+    DeleteUserSourceActionType,
+    MoveUserSourceActionType,
+    UpdateUserSourceActionType,
+)
 from baserow.core.user_sources.exceptions import (
     UserSourceDoesNotExist,
     UserSourceImproperlyConfigured,
@@ -193,7 +199,7 @@ class UserSourcesView(APIView):
         before = UserSourceHandler().get_user_source(before_id) if before_id else None
 
         user_source_type = user_source_type_registry.get(type_name)
-        user_source = UserSourceService().create_user_source(
+        user_source = CreateUserSourceActionType.do(
             request.user, user_source_type, application, before=before, **data
         )
 
@@ -325,7 +331,7 @@ class UserSourceView(APIView):
             return_validated=True,
         )
 
-        user_source_updated = UserSourceService().update_user_source(
+        user_source_updated = UpdateUserSourceActionType.do(
             request.user, user_source, **data
         )
 
@@ -368,12 +374,12 @@ class UserSourceView(APIView):
     @transaction.atomic
     def delete(self, request, user_source_id: int):
         """
-        Deletes an user_source.
+        Deletes a user_source.
         """
 
         user_source = UserSourceHandler().get_user_source_for_update(user_source_id)
 
-        UserSourceService().delete_user_source(request.user, user_source)
+        DeleteUserSourceActionType.do(request.user, user_source)
 
         return Response(status=204)
 
@@ -438,7 +444,7 @@ class MoveUserSourceView(APIView):
         if before_id:
             before = UserSourceHandler().get_user_source(before_id)
 
-        moved_user_source = UserSourceService().move_user_source(
+        moved_user_source = MoveUserSourceActionType.do(
             request.user, user_source, before
         )
 

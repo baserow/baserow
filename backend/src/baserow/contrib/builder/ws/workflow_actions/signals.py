@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
@@ -5,6 +7,7 @@ from django.dispatch import receiver
 from baserow.contrib.builder.api.workflow_actions.serializers import (
     BuilderWorkflowActionSerializer,
 )
+from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.object_scopes import BuilderPageObjectScopeType
 from baserow.contrib.builder.workflow_actions import signals as workflow_action_signals
@@ -92,6 +95,32 @@ def workflow_action_deleted(
                 "type": "workflow_action_deleted",
                 "workflow_action_id": workflow_action_id,
                 "page_id": page.id,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(workflow_action_signals.workflow_actions_reordered)
+def workflow_actions_reordered(
+    sender,
+    page: Page,
+    order: List[int],
+    user: AbstractUser,
+    element: Optional[Element] = None,
+    **kwargs,
+):
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            page.builder.workspace_id,
+            ListBuilderWorkflowActionsPageOperationType.type,
+            BuilderPageObjectScopeType.type,
+            page.id,
+            {
+                "type": "workflow_actions_reordered",
+                "page_id": page.id,
+                "element_id": element.id if element else None,
+                "order": order,
             },
             getattr(user, "web_socket_id", None),
         )

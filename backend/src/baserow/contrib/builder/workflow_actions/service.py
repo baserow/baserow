@@ -32,9 +32,11 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.contrib.builder.workflow_actions.signals import (
     workflow_action_created,
-    workflow_action_deleted,
     workflow_action_updated,
     workflow_actions_reordered,
+)
+from baserow.contrib.builder.workflow_actions.types import (
+    UpdatedBuilderWorkflowAction,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     BuilderWorkflowActionType,
@@ -42,6 +44,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.services.types import DispatchResult
+from baserow.core.trash.handler import TrashHandler
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -169,7 +172,7 @@ class BuilderWorkflowActionService:
 
     def update_workflow_action(
         self, user: AbstractUser, workflow_action: WorkflowAction, **kwargs
-    ) -> WorkflowAction:
+    ) -> UpdatedBuilderWorkflowAction:
         """
         Updates and workflow_action with values. Will also check if the values are
         allowed to be set on the workflow_action first.
@@ -202,6 +205,12 @@ class BuilderWorkflowActionService:
             workflow_action.page.builder.workspace
         )
 
+        # Capture the original values before `prepare_values` mutates the action's
+        # service, so the update can be undone/redone.
+        original_values = workflow_action.get_type().export_prepared_values(
+            workflow_action
+        )
+
         if has_type_changed:
             # When a workflow action's type changes, due our polymorphism, we need
             # to delete the existing action and create a new one of the new type.
@@ -226,9 +235,13 @@ class BuilderWorkflowActionService:
                 workflow_action, **prepared_values
             )
 
+        new_values = workflow_action.get_type().export_prepared_values(workflow_action)
+
         workflow_action_updated.send(self, workflow_action=workflow_action, user=user)
 
-        return workflow_action
+        return UpdatedBuilderWorkflowAction(
+            workflow_action, original_values, new_values
+        )
 
     def delete_workflow_action(
         self, user: AbstractUser, workflow_action: WorkflowAction
@@ -249,11 +262,11 @@ class BuilderWorkflowActionService:
             context=workflow_action,
         )
 
-        self.handler.delete_workflow_action(workflow_action)
-
-        workflow_action_deleted.send(
-            self, workflow_action_id=workflow_action.id, page=page, user=user
-        )
+        # Soft-delete (trash) the workflow action so it can be restored via undo. The
+        # `workflow_action_deleted` realtime signal is emitted by the trashable item
+        # type.
+        builder = page.builder
+        TrashHandler.trash(user, builder.workspace, builder, workflow_action)
 
     def order_workflow_actions(
         self,
@@ -294,7 +307,9 @@ class BuilderWorkflowActionService:
             page, order, base_qs=user_workflow_actions, element=element
         )
 
-        workflow_actions_reordered.send(self, order=full_order, user=user)
+        workflow_actions_reordered.send(
+            self, page=page, element=element, order=full_order, user=user
+        )
 
         return full_order
 

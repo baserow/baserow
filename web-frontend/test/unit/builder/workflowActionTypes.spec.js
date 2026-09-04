@@ -225,4 +225,64 @@ describe('Builder workflow action types', () => {
       })
     ).toBe(false)
   })
+
+  test('service-backed action flags its trashed integration as in-error', () => {
+    const workflowActionType = testApp
+      .getRegistry()
+      .get('workflowAction', 'create_row')
+
+    // The builder's only live integration is id 5; id 41 has been trashed and is
+    // therefore no longer present on the builder.
+    const builder = {
+      id: 1,
+      integrations: [{ id: 5, type: 'local_baserow' }],
+    }
+
+    // Live integration + a table selected → not in error.
+    expect(
+      workflowActionType.getErrorMessage(
+        { type: 'create_row', service: { integration_id: 5, table_id: 99 } },
+        { builder, mode: 'editing' }
+      )
+    ).toBe(null)
+
+    // Integration 41 is absent (trashed) → the action is misconfigured.
+    const trashedAction = {
+      type: 'create_row',
+      service: { integration_id: 41, table_id: 99 },
+    }
+    expect(
+      workflowActionType.getErrorMessage(trashedAction, {
+        builder,
+        mode: 'editing',
+      })
+    ).toBe('serviceType.errorMisconfiguredIntegration')
+    expect(
+      workflowActionType.isInError(trashedAction, { builder, mode: 'editing' })
+    ).toBe(true)
+  })
+
+  test('integration check is skipped outside the editor', () => {
+    const workflowActionType = testApp
+      .getRegistry()
+      .get('workflowAction', 'create_row')
+
+    // Preview/public mode never loads the builder's integrations, so a
+    // configured action must not be flagged as misconfigured there (it would
+    // hide its element from the rendered page).
+    const builder = { id: 1, integrations: [] }
+    const action = {
+      type: 'create_row',
+      service: { integration_id: 41, table_id: 99 },
+    }
+
+    for (const mode of ['preview', 'public']) {
+      expect(
+        workflowActionType.getErrorMessage(action, { builder, mode })
+      ).toBe(null)
+      expect(workflowActionType.isInError(action, { builder, mode })).toBe(
+        false
+      )
+    }
+  })
 })

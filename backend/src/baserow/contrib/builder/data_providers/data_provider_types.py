@@ -404,7 +404,13 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
         if not data_source_id:
             return path
 
-        data_source = DataSourceHandler().get_data_source(data_source_id)
+        try:
+            data_source = DataSourceHandler().get_data_source(data_source_id)
+        except DataSourceDoesNotExist:
+            # The data source has probably been trashed/deleted; leave the path
+            # unchanged, consistent with the other data provider `import_path`
+            # implementations above.
+            return path
         service_type = data_source.service.specific.get_type()
         # Here we add a fake row part to make it match the usual shape for this path
         _, *rest = service_type.import_path([0, *path], id_mapping)

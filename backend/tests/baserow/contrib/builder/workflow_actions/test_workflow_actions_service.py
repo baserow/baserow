@@ -102,8 +102,10 @@ def test_update_workflow_action(data_fixture):
 
     element_changed = data_fixture.create_builder_button_element()
 
-    workflow_action = BuilderWorkflowActionService().update_workflow_action(
-        user, workflow_action, element=element_changed
+    workflow_action = (
+        BuilderWorkflowActionService()
+        .update_workflow_action(user, workflow_action, element=element_changed)
+        .workflow_action
     )
 
     workflow_action.refresh_from_db()
@@ -120,8 +122,12 @@ def test_update_workflow_action_change_type(data_fixture):
         page=page, element=element, event=event
     )
 
-    updated_workflow_action = BuilderWorkflowActionService().update_workflow_action(
-        user, workflow_action, type=CreateRowWorkflowActionType.type
+    updated_workflow_action = (
+        BuilderWorkflowActionService()
+        .update_workflow_action(
+            user, workflow_action, type=CreateRowWorkflowActionType.type
+        )
+        .workflow_action
     )
 
     assert workflow_action.id != updated_workflow_action.id

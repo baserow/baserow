@@ -442,6 +442,10 @@
     "andMore": "... and {count} more",
     "unnamed": "Unnamed {type} {id}"
   },
+  "trashType": {
+    "integration": "integration",
+    "user_source": "user source"
+  },
   "trashModal": {
     "emptyTitle": "No workspaces found",
     "emptyMessage": "You aren't a member of any workspace. Applications like databases belong to a workspace, so in order to create them you need to create a workspace.",

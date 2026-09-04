@@ -102,10 +102,15 @@ def test_ai_integration_update(data_fixture):
         },
     )
 
-    assert updated_integration.ai_settings["openai"]["api_key"] == "sk-new"
-    assert updated_integration.ai_settings["openai"]["models"] == ["gpt-4"]
-    assert updated_integration.ai_settings["anthropic"]["api_key"] == "sk-anthropic"
-    assert updated_integration.ai_settings["anthropic"]["models"] == ["claude-3-opus"]
+    assert updated_integration.integration.ai_settings["openai"]["api_key"] == "sk-new"
+    assert updated_integration.integration.ai_settings["openai"]["models"] == ["gpt-4"]
+    assert (
+        updated_integration.integration.ai_settings["anthropic"]["api_key"]
+        == "sk-anthropic"
+    )
+    assert updated_integration.integration.ai_settings["anthropic"]["models"] == [
+        "claude-3-opus"
+    ]
 
 
 @pytest.mark.django_db
@@ -134,10 +139,14 @@ def test_ai_integration_partial_update(data_fixture):
     )
 
     # OpenAI should be updated
-    assert updated_integration.ai_settings["openai"]["api_key"] == "sk-updated"
-    assert updated_integration.ai_settings["openai"]["models"] == ["gpt-4-turbo"]
+    assert (
+        updated_integration.integration.ai_settings["openai"]["api_key"] == "sk-updated"
+    )
+    assert updated_integration.integration.ai_settings["openai"]["models"] == [
+        "gpt-4-turbo"
+    ]
     # Anthropic should be removed (replaced, not merged)
-    assert "anthropic" not in updated_integration.ai_settings
+    assert "anthropic" not in updated_integration.integration.ai_settings
 
 
 @pytest.mark.django_db

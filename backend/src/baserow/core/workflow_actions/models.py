@@ -4,6 +4,7 @@ from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
     PolymorphicContentTypeMixin,
+    TrashableModelMixin,
     WithRegistry,
 )
 from baserow.core.registry import ModelRegistryMixin
@@ -13,6 +14,7 @@ class WorkflowAction(
     PolymorphicContentTypeMixin,
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
+    TrashableModelMixin,
     models.Model,
     WithRegistry,
 ):

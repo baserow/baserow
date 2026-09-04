@@ -6,6 +6,7 @@ from django.db.models import QuerySet
 
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.db import specific_iterator
+from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.registries import ImportExportConfig
@@ -45,9 +46,16 @@ class ServiceHandler:
                 service = service.get_type().get_queryset().get(id=service_id)
 
                 if service.integration_id:
-                    specific_integration = IntegrationHandler().get_integration(
-                        service.integration_id, specific=True
-                    )
+                    try:
+                        specific_integration = IntegrationHandler().get_integration(
+                            service.integration_id, specific=True
+                        )
+                    except IntegrationDoesNotExist:
+                        # The integration has been trashed (the no-trash manager
+                        # can't find it) but the service still references it.
+                        # Treat it as misconfigured rather than failing to load
+                        # the service.
+                        specific_integration = None
                     service.__class__.integration.field.set_cached_value(
                         service, specific_integration
                     )
@@ -128,9 +136,19 @@ class ServiceHandler:
 
             for service in specific_services:
                 if service.integration_id:
-                    service.integration = specific_integration_map[
-                        service.integration_id
-                    ]
+                    # The integration may be missing from the map because it has been
+                    # trashed (the map is built from the no-trash manager) while the
+                    # service still references it — trashing an integration does not
+                    # cascade to its services/data sources. Cache the resolved
+                    # integration (or `None` when trashed/missing) without touching the
+                    # `integration_id`, mirroring `get_service`. Keeping the FK id means
+                    # consumers detect a misconfigured service by the id no longer
+                    # resolving to a live integration, and serialization/duplication
+                    # preserve the reference so it reconnects when the integration is
+                    # restored.
+                    service.__class__.integration.field.set_cached_value(
+                        service, specific_integration_map.get(service.integration_id)
+                    )
 
             return specific_services
         else:
@@ -220,14 +238,27 @@ class ServiceHandler:
         :return: The result of dispatching the service.
         """
 
-        if service.integration_id is None and service.get_type().requires_integration(
-            service
-        ):
+        service_type = service.get_type()
+
+        if service.integration_id is not None:
+            try:
+                IntegrationHandler().get_integration(
+                    service.integration_id, specific=False
+                )
+            except IntegrationDoesNotExist:
+                # The referenced integration has been trashed (soft-deleted). A
+                # trashed integration must never be dispatched - e.g. a deleted SMTP
+                # integration would otherwise still send emails - so treat the
+                # service as misconfigured.
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration used by this service has been trashed."
+                )
+        elif service_type.requires_integration(service):
             raise ServiceImproperlyConfiguredDispatchException(
                 "No integration selected"
             )
 
-        return service.get_type().dispatch(service, dispatch_context)
+        return service_type.dispatch(service, dispatch_context)
 
     def export_service(
         self,

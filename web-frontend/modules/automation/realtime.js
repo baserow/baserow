@@ -91,6 +91,7 @@ export const registerRealtimeEvents = (realtime) => {
       node: existing,
       values: node,
       override: true,
+      viaRealtime: true,
     })
   })
 

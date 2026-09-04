@@ -3,14 +3,12 @@ from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
-from django.db.utils import DatabaseError, IntegrityError
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceNameNotUniqueError,
 )
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.formula_importer import import_formula
@@ -29,7 +27,7 @@ from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import find_unused_name
 
-from .types import DataSourceForUpdate
+from .types import DataSourceForUpdate, UpdatedDataSource
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -166,7 +164,7 @@ class DataSourceHandler:
             specific_services_map = {
                 s.id: s
                 for s in ServiceHandler().get_services(
-                    base_queryset=Service.objects.filter(id__in=service_ids)
+                    base_queryset=Service.objects.filter(id__in=service_ids),
                 )
             }
 
@@ -379,15 +377,11 @@ class DataSourceHandler:
         else:
             service = None
 
-        try:
-            data_source = DataSource.objects.create(
-                page=page, order=order, name=name, service=service
-            )
-        except IntegrityError as error:
-            # The only unique values are page and name, together.
-            if "unique" in str(error):
-                raise DataSourceNameNotUniqueError(name)
-            raise error
+        # Data source names are not unique (like database table names): duplicates
+        # are allowed on the same page.
+        data_source = DataSource.objects.create(
+            page=page, order=order, name=name, service=service
+        )
 
         data_source.save()
 
@@ -400,7 +394,7 @@ class DataSourceHandler:
         name: Optional[str] = None,
         page: Optional[Page] = None,
         **kwargs,
-    ) -> DataSource:
+    ) -> UpdatedDataSource:
         """
         Updates a data_source and the related service with values.
 
@@ -409,8 +403,13 @@ class DataSourceHandler:
         :param name: A new name for the data_source.
         :param page: The data source's page.
         :param kwargs: The values that should be set on the data_source.
-        :return: The updated data_source.
+        :return: The updated data_source together with the original and new values
+            that changed, so the update can be undone/redone.
         """
+
+        original_values: Dict[str, Any] = {}
+        new_values: Dict[str, Any] = {}
+        original_name = data_source.name
 
         new_service_type = None
         if "new_service_type" in kwargs:
@@ -444,12 +443,18 @@ class DataSourceHandler:
             service_to_update = self.service_handler.get_service_for_update(
                 data_source.service.id
             )
-            self.service_handler.update_service(
+            updated_service = self.service_handler.update_service(
                 service_type, service_to_update, **kwargs
             )
-            data_source.service = service_to_update
+            original_values.update(updated_service.original_service_values)
+            new_values.update(updated_service.new_service_values)
+            data_source.service = updated_service.service
 
         if page is not None and data_source.page_id != page.id:
+            # Capture the page move (e.g. toggling a data source as shared, which moves
+            # it to the builder's shared page) so it can be undone/redone.
+            original_values["page_id"] = data_source.page_id
+            new_values["page_id"] = page.id
             data_source.page = page
             # Add the moved data source at the end of the new page
             data_source.order = DataSource.get_last_order(page)
@@ -457,18 +462,13 @@ class DataSourceHandler:
             data_source.name = self.find_unused_data_source_name(page, data_source.name)
 
         if name is not None:
+            original_values["name"] = original_name
+            new_values["name"] = name
             data_source.name = name
 
-        try:
-            data_source.save()
-        except DatabaseError:
-            # If the `name` changes, on a PATCH Django will raise a `DatabaseError`
-            # exception if it's already in use on the page, instead of an
-            # `IntegrityError` like in `create_data_source`.
-            if name is not None:
-                raise DataSourceNameNotUniqueError(name)
+        data_source.save()
 
-        return data_source
+        return UpdatedDataSource(data_source, original_values, new_values)
 
     def delete_data_source(self, data_source: DataSource):
         """
@@ -671,7 +671,23 @@ class DataSourceHandler:
                 integration_id = id_mapping["integrations"].get(
                     integration_id, integration_id
                 )
-                integration = Integration.objects.get(id=integration_id)
+                # Use the trash-inclusive manager: duplicating a page preserves the
+                # `integration_id` of a service pointing at a trashed integration (so
+                # the copy reconnects when it is restored), and the default manager
+                # would raise `DoesNotExist` on that trashed row.
+                try:
+                    integration = Integration.objects_and_trash.get(id=integration_id)
+                except Integration.DoesNotExist:
+                    integration = None
+                else:
+                    # Never reference an integration outside the target application.
+                    # On a cross-application import a trashed integration is not part
+                    # of the export (so it is absent from `id_mapping`), and the
+                    # unmapped id would otherwise resolve to an unrelated integration
+                    # in another application. Same-builder duplication is unaffected:
+                    # the integration lives in this builder.
+                    if integration.application_id != page.builder_id:
+                        integration = None
 
             service = ServiceHandler().import_service(
                 integration,

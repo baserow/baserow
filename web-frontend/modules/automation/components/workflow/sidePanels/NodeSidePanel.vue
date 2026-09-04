@@ -77,6 +77,24 @@ watch(
   },
   { immediate: true }
 )
+
+const formComponent = ref(null)
+
+// Reset the node form when the *same* node's realtime version advances (an undo/redo
+// or another user's change). Comparing the version — rather than just reading the
+// `viaRealtime` flag, which stays set until the next local edit — ensures we only
+// reset on a genuinely new realtime event. A changed node id means the selection
+// changed (the form remounts via `:key`, so there is nothing to reset). Runs
+// post-flush so the form's `defaultValues` (`node.service`) reflect the change first.
+watch(
+  () => [node.value?.id, node.value?._?.realtimeVersion],
+  ([id, version], [oldId, oldVersion]) => {
+    if (id === oldId && version !== oldVersion && node.value?._?.viaRealtime) {
+      formComponent.value?.reset?.(true)
+    }
+  },
+  { flush: 'post' }
+)
 const rules = {
   label: {
     maxLength: helpers.withMessage(
@@ -110,7 +128,6 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 
-const formComponent = ref(null)
 const handleNodeChange = async ({
   node: nodeChanges,
   service: serviceChanges,

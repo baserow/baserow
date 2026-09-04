@@ -71,6 +71,21 @@ class BuilderWorkflowActionType(
 
         return super().prepare_values(values, user, instance)
 
+    def export_prepared_values(self, instance: BuilderWorkflowAction) -> Dict[str, Any]:
+        """
+        Returns a JSON-serializable dict of the action's prepared values, so an
+        update can be undone/redone by re-applying them. Formula fields are stored
+        as their serialized dicts. The `page`/`element` relations are skipped: their
+        `page_id`/`element_id` counterparts (also allowed fields) capture them in a
+        JSON-serializable way.
+        """
+
+        return {
+            key: getattr(instance, key)
+            for key in self.allowed_fields
+            if key not in ("page", "element")
+        }
+
     def validate_event(self, event: str, element: Optional[Element]) -> None:
         """
         Ensures that the given event is one the element can fire. Every element
@@ -195,6 +210,11 @@ class BuilderWorkflowActionType(
             import_context = ElementHandler().get_import_context_addition(
                 imported_element_id, cache.get("imported_element_map", None)
             )
+
+        # `parent` is the target page; expose its builder so `deserialize_property`
+        # can drop a service's integration reference when it belongs to another
+        # application (see LocalBaserowWorkflowActionType.deserialize_property).
+        import_context["target_builder_id"] = parent.builder_id
 
         created_instance = super().import_serialized(
             parent,

@@ -31,6 +31,7 @@ from baserow.contrib.builder.data_sources.operations import (
     ListDataSourcesPageOperationType,
     OrderDataSourcesPageOperationType,
     ReadDataSourceOperationType,
+    RestoreDataSourceOperationType,
     UpdateDataSourceOperationType,
 )
 from baserow.contrib.builder.domains.operations import (
@@ -72,6 +73,7 @@ from baserow.contrib.builder.workflow_actions.operations import (
     ListBuilderWorkflowActionsPageOperationType,
     OrderBuilderWorkflowActionOperationType,
     ReadBuilderWorkflowActionOperationType,
+    RestoreBuilderWorkflowActionOperationType,
     UpdateBuilderWorkflowActionOperationType,
 )
 from baserow.contrib.dashboard.data_sources.operations import (
@@ -226,6 +228,7 @@ from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
     OrderIntegrationsOperationType,
     ReadIntegrationOperationType,
+    RestoreIntegrationOperationType,
     UpdateIntegrationOperationType,
 )
 from baserow.core.mcp.operations import (
@@ -277,6 +280,7 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
     OrderUserSourcesOperationType,
     ReadUserSourceOperationType,
+    RestoreUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
@@ -549,12 +553,14 @@ default_roles[BUILDER_ROLE_UID].extend(
         PublishDomainOperationType,
         CreateIntegrationOperationType,
         DeleteIntegrationOperationType,
+        RestoreIntegrationOperationType,
         ListIntegrationsApplicationOperationType,
         OrderIntegrationsOperationType,
         ReadIntegrationOperationType,
         UpdateIntegrationOperationType,
         CreateDataSourceOperationType,
         DeleteDataSourceOperationType,
+        RestoreDataSourceOperationType,
         ListDataSourcesPageOperationType,
         OrderDataSourcesPageOperationType,
         ReadDataSourceOperationType,
@@ -562,9 +568,11 @@ default_roles[BUILDER_ROLE_UID].extend(
         DispatchDataSourceOperationType,
         DispatchBuilderWorkflowActionOperationType,
         DeleteBuilderWorkflowActionOperationType,
+        RestoreBuilderWorkflowActionOperationType,
         CreateBuilderWorkflowActionOperationType,
         CreateUserSourceOperationType,
         DeleteUserSourceOperationType,
+        RestoreUserSourceOperationType,
         ListUserSourcesApplicationOperationType,
         ReadUserSourceOperationType,
         UpdateUserSourceOperationType,
