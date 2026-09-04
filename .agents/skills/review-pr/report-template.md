@@ -1,28 +1,33 @@
 # Report template
 
-Copy this structure. Omit empty sections except "Verification". Number findings within a section and order them by impact. Every finding names the exact line, so the comment can be pasted there as is. A finding without a natural line (PR description, missing test, missing doc) anchors to the file that should hold the change, or to the PR description, and says so in **Where**.
+Omit empty finding sections, but always include Verification. Number findings within
+each section and order them by impact. Anchor a missing test, document, or PR claim to
+the place that should own it, or explicitly to the PR description.
 
 ---
 
 # Review: PR #<N> <title>
 
-**Problem and change.** <Three sentences: the problem, the intended behaviour, how the diff solves it.>
+**Problem and change.** <Problem, intended behavior, and approach in three sentences.>
 
-**Feature flag:** `<flag>` or none. **Scope:** <backend, frontend, migrations, public API, import/export, premium, enterprise>.
+**Risk map.** <Semantic reach, persisted contracts, trust boundaries, expected scale,
+and the review surfaces selected from them.>
 
-**Verdict:** <Approve | Approve with follow-ups | Request changes>. <One sentence applying the merge policy, for example "mergeable behind the flag once an issue tracks finding 2 before flag removal", or "not mergeable alone: stack the fix for finding 1 on top of this branch and merge them together".>
+**Feature flag:** `<flag>` or none. **Scope:** <affected products and layers>.
+
+**Verdict:** <Approve | Approve with follow-ups | Request changes>. <Apply the flag
+and stacking policy in one sentence.>
 
 ## Blocking / High
 
 ### 1. <Short title>
 
 - **Where:** `backend/src/baserow/.../handler.py:123`
-- **Issue:** <What is wrong and who is affected, in two sentences.>
-- **Why:** <The consequence: what breaks, for whom, when.>
-- **Repro:** <Numbered UI steps, or a code block with a pytest snippet, a request, or a shell command.>
-- **Alternative:** <The smaller or safer design, when one exists. Omit otherwise.>
+- **Consequence:** <What fails or is exposed, for whom, and under which conditions.>
+- **Evidence:** <Repro, request, query plan, browser steps, or traced call chain.>
+- **Alternative:** <Smaller or safer design, when useful.>
 - **Comment:**
-  > <The text to paste on that line. One to four sentences, polite, concrete, simple words.>
+  > <Ready-to-post wording: one ask, one to four sentences.>
 
 ## Blocking / Medium
 
@@ -34,39 +39,17 @@ Copy this structure. Omit empty sections except "Verification". Number findings 
 
 ## Follow-up candidates
 
-- <Item>: <why it can wait, and under which policy: "behind the flag, before flag removal" or "stacked PR, base not merged alone">.
+- <Item, why it can wait, and the issue/merge condition that prevents it being lost.>
 
 ## Pre-existing (not caused by this PR)
 
-- <Item>: <how it was verified on `develop`>. Suggest a separate issue.
+- <Item and how it was verified on `develop`; suggest a separate issue.>
 
 ## Verification
 
-- **Ran:** `just b test tests/baserow/...` (12 passed), `just f test ...` (passed).
-- **Manual:** <what was exercised in the browser, with the flag on and off>.
-- **Not run:** <what, and why>.
-- **Residual uncertainty:** <what could not be verified>.
-
----
-
-## Example finding
-
-Adapted from a real review (#5786). Paths are illustrative.
-
-### 1. Missing row id turns an update into a create
-
-- **Where:** `backend/src/baserow/contrib/database/api/rows/serializers.py:214`
-- **Issue:** `row_id` is optional in the update serializer, so a payload without it takes the create branch. A client that loses the id duplicates the row instead of getting an error.
-- **Why:** Silent duplicate rows in the user's table, with nothing in the response to notice.
-- **Repro:**
-
-  ```python
-  response = api_client.patch(
-      url, {"field_1": "x"}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
-  )
-  assert response.status_code == 400  # currently 200, and a new row exists
-  ```
-
-- **Alternative:** Make `row_id` required and let DRF return the 400.
-- **Comment:**
-  > Should `row_id` be required here? Without it the payload falls into the create branch, so a client that loses the id ends up with a duplicate row instead of an error. Making it required lets DRF return a 400.
+- **Automated:** <exact commands, counts, and results>.
+- **Manual:** <real behavior exercised, including flag states where applicable>.
+- **Database and scale:** <cardinality, query growth/plan, benchmark, or why not applicable>.
+- **Security and misuse:** <actors/attack paths exercised, or why not applicable>.
+- **Not run:** <what and why>.
+- **Residual uncertainty:** <what remains unverified>.

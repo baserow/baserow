@@ -5,113 +5,146 @@ description: Review a Baserow pull request, branch, or diff against `develop` th
 
 # Review a Baserow Pull Request
 
-The deliverable is a report for the person who asked, written so that every finding can be pasted as a PR comment on a specific line. Never post to GitHub unless explicitly asked.
+Produce an evidence-backed report whose findings can be pasted as line comments.
+Never post to GitHub unless explicitly asked.
 
-A review has four phases, in this order. Do not judge code style before the change is understood and verified.
+## Review principles
 
-Read `checklist.md` (what to check) and `report-template.md` (what to produce) in this directory before starting.
+Use these invariants instead of accumulating a universal list of edge cases:
 
-## Setup
+1. **Risk follows semantic reach, not diff size.** Trace every consumer of a
+   shared registry, base class, setting, component, payload, or persisted shape.
+2. **One concept has one owner and one snapshot.** Resolve mutable facts once and
+   pass the same typed value through validation, authorization, accounting,
+   execution, metadata, and serialization. Parallel implementations must delegate
+   to one contract or prove they cannot drift.
+3. **Correctness is a timeline.** Review creation, use, change, failure, retry,
+   concurrency, restart, and removal rather than only the final saved state. Every
+   derived value needs a producer, source inputs, invalidators, and consumers.
+4. **Different meanings need different states.** Do not collapse missing, empty,
+   false, zero, inherited, not loaded, invalid, skipped, partial, and failed when
+   they cause different behaviour or recovery.
+5. **Persistence creates a compatibility contract.** Anything users can save,
+   reference, export, cache, or derive from needs a rollout and recovery story when
+   its representation or semantics change.
+6. **Judge actual effects, not configured intent or proxies.** Authorize before an
+   effect, account for work actually attempted, clean up resources actually owned,
+   and test the claimed outcome rather than a nearby count or callback.
+7. **Assume hostile input and least authority.** A user must not read, alter,
+   execute as, or consume resources belonging to a capability they do not have.
+   No response, log, trace, event, or fallback may disclose protected context.
+8. **Cost is per-unit work multiplied by real fan-out.** Evaluate realistic
+   cardinality and concurrency, and bound the complete operation rather than one
+   convenient phase.
 
-- Work in the current worktree. Never switch branches in the main clone.
-- `gh pr view <N> --json title,body,author,baseRefName,headRefName,additions,deletions,changedFiles` and `gh pr diff <N>`.
-- Get the code locally with `gh pr checkout <N>`, or `git fetch origin pull/<N>/head:pr-<N> && git switch pr-<N>` when the branch name is taken by another worktree.
-- `gh issue view <id>` for every issue referenced in the PR body.
-- Stacked PR: the base is the parent branch, so `gh pr diff` already shows only this layer. Review the layer, and check the parent's state (open, merged, changed since).
-- `just b test` splits its arguments on spaces: pass explicit test paths or node ids rather than a quoted `-k` expression, and add `--tb=short` when capturing assertion values for a repro.
+## Workflow
 
-## Phase 1: Understand
+### 1. Establish the contract
 
-Write, in three sentences, the problem, the intended behaviour, and how the diff solves it. Sources: PR description, linked issue, the changelog entry under `changelog/entries/unreleased/`, any ADR under `docs/decisions/`.
+- Work in the current worktree; never switch branches in the main clone.
+- Read the PR description and every linked issue. Inspect the diff against its real
+  base; for a stack, review only the layer and check the parent state.
+- State in three sentences: the problem, intended behaviour, and approach.
+- Identify the feature flag, affected products/layers, persisted contracts, trust
+  boundaries, expected cardinalities, and every measurable claim.
+- Build a semantic reach map for shared primitives. A one-line edit can require a
+  wider review than a new isolated module.
 
-Then establish:
+Useful commands include:
 
-- **Feature flag.** Grep the diff for `feature_flag_is_enabled` and `featureFlagIsEnabled`, and check `docs/development/feature-flags.md`. This decides the merge policy in Phase 4.
-- **Scope.** Backend, frontend, premium, enterprise, migrations, public API, import/export, websocket payloads, e2e.
-- **Claims.** Every statement in the PR description ("no behaviour change", "~99% smaller payload", "tested with 1M rows") is a claim to verify in Phase 2.
+```bash
+gh pr view <N> --json title,body,author,baseRefName,headRefName,additions,deletions,changedFiles
+gh pr diff <N>
+gh issue view <id>
+```
 
-If the problem cannot be reconstructed from PR, issue, and code, that is the first finding (Blocking / Medium). State the gap, then continue under an explicit assumption.
+Use `gh pr checkout <N>`, or fetch the pull ref into a dedicated worktree branch
+when that name is already checked out elsewhere.
 
-## Phase 2: Verify it works
+### 2. Route to relevant topics
 
-Verification means running, not reading.
+Read every selected reference completely, and do not load unrelated references.
+Select more than one when a change crosses concerns.
 
-1. Run the tests the diff touches through the repo recipes: `just b test <path>`, `just f test <path>`, `just e2e test <path>`. Report what ran and the result. Never write "tests pass" for tests that did not run.
-2. Walk the happy path end to end: API view, handler, model, signals, websocket, frontend store, component. For UI changes start this worktree's stack (`just dc-dev up -d`, ports in `.env.docker-dev`) and drive it in the browser, with the feature flag on and off.
-3. Walk the edge angles and intersections in `checklist.md` § Functional. Baserow bugs live in lifecycle paths (duplicate, import/export, trash/restore, undo/redo, snapshots), in public and restricted views, and in mixed-version deploys far more often than in the main flow.
-4. Reproduce every suspected bug: a failing test, a shell snippet, a request, or numbered UI steps. A finding without a repro or a traced call chain is a question, not a finding.
-5. Check whether each bug also exists on `origin/develop` (`git show origin/develop:<path>`, or a throwaway worktree). Pre-existing bugs go to their own report section and never block the PR, unless this PR's change makes them worse or newly reachable; then they are this PR's finding.
+- Backend Python, Django models, APIs, handlers, actions, services, registries, or
+  settings: read [references/backend.md](references/backend.md).
+- Vue components, stores/composables, browser behaviour, frontend services,
+  translations, or SCSS: read [references/frontend.md](references/frontend.md).
+- ORM/SQL, indexes, serializers over collections, loops, bulk work, caches,
+  generated expressions, background fan-out, payload size, or a performance claim:
+  read [references/data-performance.md](references/data-performance.md).
+- Outbound HTTP/email/SSO/provider calls, user-selected hosts, Celery/Redis, locks,
+  retries, scheduling, remote pagination, or asynchronous cleanup: read
+  [references/external-io.md](references/external-io.md). Load data-performance too
+  when local cardinality drives the remote fan-out.
+- Authentication, permissions, licenses, secrets, new endpoints, public/restricted
+  data, destructive/admin capabilities, or code that changes how user-controlled
+  input, rendered output, files, URLs, or external responses cross a trust boundary:
+  read
+  [references/security.md](references/security.md).
+- Models or stored values, migrations, feature flags, import/export, duplication,
+  trash/restore, undo/redo, realtime, Celery, retries, or cache invalidation: read
+  [references/state-compatibility.md](references/state-compatibility.md).
+- Python or JavaScript dependencies, lockfiles, framework/runtime upgrades, or a
+  dependency security advisory: read
+  [references/dependencies.md](references/dependencies.md).
 
-## Phase 3: Review the code
+For any behavior-affecting change, including CSS or configuration, perform a quick
+security and scale screen even when their references are not initially selected:
 
-Non-negotiables, all layers:
+- Can a lower-privilege actor, crafted input, stale client, or alternate entry point
+  reach a protected read or effect, or expose data in output or observability?
+- What is the expected number of users, workspaces, rows, fields, elements, actions,
+  events, or external calls, and does any cost multiply with it?
 
-- Smallest diff that solves the problem. No unrelated hunks, no plumbing for a later PR, no leftovers (debug output, commented code, TODOs, dead helpers and their tests).
-- Names carry the contract: a method does exactly what its signature says, no hidden side effects, one term per concept, existing Baserow terms not reused for new concepts.
-- Methods short and single-purpose. Complex logic is extracted into a named method whose docstring explains the what, with a test proving it.
-- Comments are at most two lines and explain a non-obvious why. A comment that narrates the code is a finding; so is a stale or wrong one.
-- Reuse before build: existing handlers, helpers, registry hooks, and library primitives (celery-singleton, `local_cache`, `str_to_bool`, advocate, `schema_editor`) over hand-rolled versions.
-- No guards for states that cannot occur (`?.`, `hasattr`, `if not x`). Every guard needs a scenario; otherwise fail loudly.
+If either answer is non-trivial, load the corresponding reference.
 
-Backend:
+### 3. Verify behaviour
 
-- Every new or touched function has precise type hints and a reST docstring with `:param`, `:return`, and `:raises` where applicable.
-- Prefer immutable, structured data (dataclass, `TypedDict`, `NamedTuple`) over passing and mutating plain dicts, and idempotent methods over stateful ones. Suggest, do not block, unless it caused a bug.
-- Boundaries: core never imports `baserow_premium` or `baserow_enterprise` outside `if TYPE_CHECKING:`; premium never imports enterprise; `contrib/database` never imports builder, automation, or dashboard; builder and automation never import each other. Serializers in `serializers.py`, action types in `actions.py`, registries in `registries.py`, type subclasses in `*_types.py`, premium and enterprise settings in their own `config/settings/settings.py`.
-- Migrations are zero-downtime: new fields have `db_default`, nothing is renamed or dropped while the previous version still runs, data migrations are justified in the PR with a realistic scenario and a test. `just b check-migrations` is clean. One migration per branch: merge into it instead of adding another.
-- Translatable strings (`_()`) added or changed: `just b make-translations` was run and the `.po` files are in the diff.
+- Run the focused tests through the repository `just` recipes. Report the exact
+  commands and outcomes; never imply a test ran when it did not.
+- Trace the happy path end to end, then test the state transitions and attack/scale
+  hypotheses selected by the topic references.
+- Reproduce suspected bugs with a failing test, request, query plan, browser steps,
+  or a traced call chain. A plausible concern without evidence is a question.
+- Check whether each bug exists on `origin/develop`. Pre-existing bugs are recorded
+  separately unless the PR worsens or newly exposes them.
+- Verify PR claims using the actual effect. Performance claims need representative
+  data; security claims need an adversarial path; UI claims need browser behaviour.
 
-Frontend:
+`just b test` splits arguments on spaces, so pass explicit paths or node ids rather
+than a quoted `-k` expression. Use the worktree's stack and ports for browser checks.
 
-- Copy only in `en.json` files. Any other locale file in the diff is a finding.
-- SCSS in a dedicated file imported through the bundle, BEM classes, `$palette-*` variables, no `<style>` blocks in components.
-- Frontend rules mirror backend rules (permissions, emptiness, validation). A divergence is a bug, not a style issue.
+### 4. Report
 
-Security, every PR (details in `checklist.md` § Security): any URL the server fetches goes through advocate; anything rendered from user input is escaped; secrets are write-only and never returned to the UI or usable by another user; every new endpoint checks permission with the right operation type and workspace scoping.
-
-Compatibility, every PR: SaaS runs `develop`, self-hosters run older releases, and production deploys roll. A new frontend must work against the previous backend and vice versa. Renamed API URLs, changed payloads, changed import/export formats, new Celery task names, and changed websocket events need a flag, a compatibility path, or a `breaking_change` changelog entry.
-
-Tests: short, direct, one behaviour each, shared fixtures (`data_fixture`, `api_client`), a docstring only for a non-obvious reason. Every fix and every edge case raised in review gets a regression test that fails on the old code. Assertions prove the behaviour, not that code ran.
-
-Docs: a new env var is in `docs/installation/configuration.md`, `.env.example`, and the docker-compose files. A new concept, public behaviour, or architectural decision gets a doc: an ADR in `docs/decisions/`, a technical doc in `docs/technical/`, or a user guide. User-facing changes get a changelog entry via `just changelog add`.
-
-## Phase 4: Report
-
-Use `report-template.md`. Order findings by severity. Each one has the file and line, the issue, the consequence, a repro for bugs, an alternative when one exists, and the comment to post.
+Read [report-template.md](report-template.md) only when writing the report. Order
+findings by impact and include file/line, consequence, evidence, a concrete
+alternative when one exists, and ready-to-post wording.
 
 Severity:
 
-- **Blocking / High.** Security hole, data loss or corruption, broken happy path, non-zero-downtime migration, boundary violation, backward-incompatible change without a flag, secret exposure.
-- **Blocking / Medium.** Edge-case bug with a repro, missing regression test, silent failure or fallback, wrong layer or duplicated logic that will drift, unverifiable PR claim, missing docs for a new env var or concept.
-- **Minor / Low.** Type hints, docstrings, narrating comments, naming, small duplication, leftovers, missing changelog entry.
-- **Nit.** Formatting, wording, preference. Optional by definition.
-- **Non-blocking.** Questions and design alternatives the author may decline.
-- **Follow-up candidates.** Work worth its own PR, under the merge policy below.
-- **Pre-existing.** Verified on `develop` and not made worse by this PR. Recorded, never blocking.
+- **Blocking / High:** security exposure, cross-tenant or privilege violation, data
+  loss/corruption, broken main path, non-zero-downtime migration, or incompatible
+  deployed contract.
+- **Blocking / Medium:** reproduced edge failure, missing regression for changed
+  behaviour, silent fallback, invariant enforced in only some entry points, or an
+  important claim that cannot be verified.
+- **Minor / Low:** maintainability or repository-convention issue with a concrete
+  future cost.
+- **Nit / Non-blocking:** optional wording, style, question, or alternative.
 
-Merge policy:
+Behind a feature flag, a non-security/non-data-loss finding may be tracked before
+flag removal when retesting now is disproportionate. Without a flag, broken code
+must not land alone; propose a stacked fix and state that the base must not merge by
+itself.
 
-- Behind a feature flag, and the PR is large or hard to retest: Medium findings, and High ones that are neither security nor data loss, may move to a follow-up PR, provided it lands before the flag is removed. Say so in the verdict and ask for a tracked issue.
-- Not behind a feature flag: nothing broken merges into `develop`, because SaaS deploys from it. Propose a stacked PR with the fix on top of this branch, and state that the base PR must not be merged alone.
+## Comment quality
 
-End with what was run, what was not and why, and residual uncertainty. "No findings" is a valid outcome and must be stated explicitly.
+- One ask per comment, usually one to four sentences.
+- State the consequence and evidence, not merely the rule.
+- Bugs include a repro or traced path; small fixes can include a suggestion block.
+- Prefix optional feedback with `[minor]`, `[nit]`, or `[non-blocking]`.
+- Do not let nits outnumber functional, security, or scale verification.
 
-## Comment style
-
-- One to four sentences. A question is fine ("Is there a reason we...?", "Wdyt of...?") as long as the concrete alternative is in the same comment.
-- Say the consequence, not the rule: "old workers drop this task name during a rolling deploy" beats "this is not backward compatible".
-- Simple words, polite, no "you should". Point to the existing pattern to copy, by file and function.
-- Bugs come with a repro: numbered UI steps, a pytest or JS snippet, or a request. Small fixes come as a GitHub `suggestion` block.
-- Prefix optional comments with `[minor]`, `[nit]`, or `[non-blocking]`. An untagged comment is expected to be addressed.
-- One ask per comment. Stacked asks become separate threads.
-- The key number or mechanism goes in the comment itself ("9 minutes for 8k workspaces is 67 ms each"), not only in the report detail.
-
-## Red flags
-
-Stop and fix the review if any of these is true:
-
-- A finding has no repro and no traced call chain.
-- "Tests pass" appears without a `just` command that ran.
-- A pre-existing bug sits in a blocking section.
-- A convention is reported without a line where it is broken.
-- Nits outnumber the verification section.
+Stop and correct the review if a finding lacks evidence, a pre-existing bug is
+blocking the PR, or the report says something passed without the command having run.
