@@ -636,7 +636,7 @@ def test_create_ai_field_type_via_api_file_field_doesnt_exist(
             "ai_generative_ai_type": "test_generative_ai_with_files",
             "ai_generative_ai_model": "test_1",
             "ai_prompt": "'Test'",
-            "ai_file_field_id": 999,
+            "ai_file_field_id": 999999999,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -644,6 +644,98 @@ def test_create_ai_field_type_via_api_file_field_doesnt_exist(
     response_json = response.json()
     assert response.status_code == HTTP_404_NOT_FOUND, response_json
     assert response_json["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_ai_field_type_via_api_file_field_not_a_file_field(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    text_field = premium_data_fixture.create_text_field(
+        table=table, order=1, name="name"
+    )
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test 1",
+            "type": "ai",
+            "ai_generative_ai_type": "test_generative_ai_with_files",
+            "ai_generative_ai_model": "test_1",
+            "ai_prompt": "'Test'",
+            "ai_file_field_id": text_field.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST, response_json
+    assert response_json["error"] == "ERROR_INCOMPATIBLE_FIELD"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_create_ai_field_type_via_api_file_field_in_other_table(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    other_table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    file_field = premium_data_fixture.create_file_field(table=other_table, name="file")
+
+    response = api_client.post(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test 1",
+            "type": "ai",
+            "ai_generative_ai_type": "test_generative_ai_with_files",
+            "ai_generative_ai_model": "test_1",
+            "ai_prompt": "'Test'",
+            "ai_file_field_id": file_field.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_404_NOT_FOUND, response_json
+    assert response_json["error"] == "ERROR_FIELD_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_update_ai_field_type_via_api_file_field_cannot_reference_itself(
+    premium_data_fixture, api_client
+):
+    """
+    An AI field pointing at itself as its file field would create a self
+    dependency, which previously made the recursive dependants query run forever.
+    """
+
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    field = premium_data_fixture.create_ai_field(table=table, order=1, name="name")
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field.id}),
+        {
+            "ai_generative_ai_type": "test_generative_ai_with_files",
+            "ai_generative_ai_model": "test_1",
+            "ai_file_field_id": field.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST, response_json
+    assert response_json["error"] == "ERROR_INCOMPATIBLE_FIELD"
+    field.refresh_from_db()
+    assert field.ai_file_field_id is None
+    assert not FieldDependency.objects.filter(dependant=field).exists()
 
 
 @pytest.mark.django_db

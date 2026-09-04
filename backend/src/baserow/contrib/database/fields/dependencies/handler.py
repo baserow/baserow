@@ -204,7 +204,10 @@ class FieldDependencyHandler:
                 FROM traverse
                 INNER JOIN relationship_table_cte
                     ON relationship_table_cte.dependency_id = traverse.id
-                WHERE 1 = 1
+                -- Stop recursing once the maximum depth is reached. Without this the
+                -- recursion is unbounded, and a cyclic dependency would make Postgres
+                -- spill temporary files until the disk is full.
+                WHERE traverse.depth < %(max_depth)s
                 -- LIMITING_FK_EDGES_CLAUSE_2
                 -- DISALLOWED_ANCESTORS_NODES_CLAUSE_2
                 -- ALLOWED_ANCESTORS_NODES_CLAUSE_2

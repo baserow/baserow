@@ -11,6 +11,7 @@ from baserow.contrib.database.fields.dependencies.circular_reference_checker imp
 )
 from baserow.contrib.database.fields.dependencies.exceptions import (
     CircularFieldDependencyError,
+    SelfReferenceFieldDependencyError,
 )
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -162,6 +163,10 @@ def rebuild_fields_dependencies(
                 new_dependencies_to_create.append(new_dep)
 
         for dep in new_dependencies_to_create:
+            # `will_cause_circular_dep` only inspects dependencies that already
+            # exist, so a field depending on itself must be rejected explicitly.
+            if dep.dependency_id is not None and dep.dependency_id == field_instance.id:
+                raise SelfReferenceFieldDependencyError()
             # Unfortunately, the `will_cause_circular_dep` still causes N number of
             # queries, but that's only if new dependencies must be created.
             if dep.dependency is not None and will_cause_circular_dep(

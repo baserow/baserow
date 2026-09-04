@@ -11,7 +11,10 @@ from baserow.api.generative_ai.errors import (
     ERROR_GENERATIVE_AI_DOES_NOT_EXIST,
     ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
 )
-from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
+from baserow.contrib.database.api.fields.errors import (
+    ERROR_FIELD_DOES_NOT_EXIST,
+    ERROR_INCOMPATIBLE_FIELD,
+)
 from baserow.contrib.database.fields.dependencies.handler import (
     FieldDependencyHandler,
 )
@@ -21,12 +24,16 @@ from baserow.contrib.database.fields.dependencies.update_collector import (
     DependencyContext,
     FieldUpdateCollector,
 )
+from baserow.contrib.database.fields.exceptions import (
+    FieldDoesNotExist,
+    IncompatibleField,
+)
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.field_types import (
     CollationSortMixin,
     SelectOptionBaseFieldType,
 )
-from baserow.contrib.database.fields.models import Field, LinkRowField
+from baserow.contrib.database.fields.models import Field, FileField, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
@@ -135,6 +142,8 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
         GenerativeAITypeDoesNotSupportFileField: ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
         IntegrityError: ERROR_FIELD_DOES_NOT_EXIST,
+        FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+        IncompatibleField: ERROR_INCOMPATIBLE_FIELD,
     }
     can_get_unique_values = True
     can_have_select_options = True
@@ -350,7 +359,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         return baserow_field_type.get_human_readable_value(value, field_object)
 
     def _validate_field_kwargs(
-        self, ai_output_type, ai_type, model_type, ai_file_field_id, workspace=None
+        self,
+        ai_output_type,
+        ai_type,
+        model_type,
+        ai_file_field_id,
+        workspace=None,
+        table=None,
     ):
         ai_field_output_registry.get(ai_output_type)
         if ai_type is not None:
@@ -366,6 +381,30 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                 raise ModelDoesNotBelongToType(model_name=model_type)
         if ai_file_field_id is not None and not ai_type.supports_files:
             raise GenerativeAITypeDoesNotSupportFileField()
+        if ai_file_field_id is not None and table is not None:
+            self._validate_ai_file_field(ai_file_field_id, table)
+
+    def _validate_ai_file_field(self, ai_file_field_id, table):
+        """
+        Ensures the referenced file field exists in the same table and is a file
+        field. This also rejects an AI field pointing at itself, which would
+        otherwise create a self-dependency and an unbounded recursive query.
+
+        :param ai_file_field_id: The id of the field the AI field wants to use.
+        :param table: The table the AI field belongs to.
+        :raises FieldDoesNotExist: If no such field exists in the table.
+        :raises IncompatibleField: If the field is not a file field.
+        """
+
+        if not Field.objects.filter(id=ai_file_field_id, table=table).exists():
+            raise FieldDoesNotExist(
+                f"The field with id {ai_file_field_id} does not exist in table "
+                f"{table.id}."
+            )
+        if not FileField.objects.filter(id=ai_file_field_id, table=table).exists():
+            raise IncompatibleField(
+                f"The field with id {ai_file_field_id} is not a file field."
+            )
 
     def get_field_dependencies(
         self, field_instance: AIField, field_cache: "FieldCache"
@@ -380,6 +419,9 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             field_ids = set()
         if field_instance.ai_file_field_id is not None:
             field_ids.add(field_instance.ai_file_field_id)
+        # A field can never depend on itself. This would create a cycle in the
+        # dependency graph, which makes the recursive dependants query run away.
+        field_ids.discard(field_instance.id)
         # Scoped to the field's table, matching `get_ai_prompt_error`; a prompt
         # can only reference fields in the same table.
         existing_field_ids = set(
@@ -534,7 +576,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         ai_file_field_id = field_kwargs.get("ai_file_field_id", None)
         workspace = table.database.workspace
         self._validate_field_kwargs(
-            ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
+            ai_output_type,
+            ai_type,
+            model_type,
+            ai_file_field_id,
+            workspace=workspace,
+            table=table,
         )
         if allowed_field_values.get("ai_auto_update"):
             allowed_field_values["ai_auto_update_user_id"] = user.id if user else None
@@ -565,7 +612,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             ai_file_field_id = getattr(update_field, "ai_file_field_id", None)
         workspace = from_field.table.database.workspace
         self._validate_field_kwargs(
-            ai_output_type, ai_type, model_type, ai_file_field_id, workspace=workspace
+            ai_output_type,
+            ai_type,
+            model_type,
+            ai_file_field_id,
+            workspace=workspace,
+            table=from_field.table,
         )
 
         # Set the auto update user if the auto update is being enabled.

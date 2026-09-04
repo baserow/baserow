@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from baserow.contrib.database.fields.dependencies.circular_reference_checker import (
@@ -5,10 +7,12 @@ from baserow.contrib.database.fields.dependencies.circular_reference_checker imp
 )
 from baserow.contrib.database.fields.dependencies.exceptions import (
     CircularFieldDependencyError,
+    SelfReferenceFieldDependencyError,
 )
 from baserow.contrib.database.fields.dependencies.handler import FieldDependencyHandler
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.field_cache import FieldCache
+from baserow.contrib.database.fields.field_types import TextFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.trash.handler import TrashHandler
@@ -395,3 +399,25 @@ def test_even_with_circular_dependencies_queries_finish_in_time(data_fixture):
 
     with pytest.raises(CircularFieldDependencyError):
         assert get_all_field_dependencies(f2) == {f1.id}  # f2 -> f1
+
+
+@pytest.mark.django_db
+def test_rebuild_dependencies_rejects_a_field_depending_on_itself(data_fixture):
+    """
+    `will_cause_circular_dep` only looks at dependencies that already exist, so a
+    brand new self dependency must be rejected explicitly by the rebuilder.
+    """
+
+    field = data_fixture.create_text_field()
+
+    with (
+        patch.object(
+            TextFieldType,
+            "get_field_dependencies",
+            return_value=[FieldDependency(dependant=field, dependency=field)],
+        ),
+        pytest.raises(SelfReferenceFieldDependencyError),
+    ):
+        FieldDependencyHandler.rebuild_dependencies([field], FieldCache())
+
+    assert not FieldDependency.objects.filter(dependant=field).exists()

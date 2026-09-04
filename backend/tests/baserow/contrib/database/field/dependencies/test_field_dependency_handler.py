@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
-from django.test.utils import CaptureQueriesContext
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 from pytest_unordered import unordered
@@ -865,3 +865,32 @@ def test_get_via_dependants_of_link_field_num_queries_does_not_scale(data_fixtur
     for field, field_type, via_path in more_dependants:
         assert via_path == []
         assert field_type == field_type_registry.get_by_model(field)
+
+
+@pytest.mark.django_db
+@override_settings(MAX_FIELD_REFERENCE_DEPTH=3)
+def test_get_all_dependant_fields_stops_recursing_on_cyclic_dependency(data_fixture):
+    """
+    The recursive dependants query used to only apply the max depth to its final
+    result, so a cycle in the dependency rows made it recurse without bound and
+    spill temporary files until the disk was full. The recursion itself must stop
+    at the configured max depth.
+    """
+
+    field_a = data_fixture.create_text_field()
+    field_b = data_fixture.create_text_field(table=field_a.table)
+    # Insert the cycle directly, bypassing the checks that normally prevent it.
+    FieldDependency.objects.create(dependant=field_a, dependency=field_a)
+    FieldDependency.objects.create(dependant=field_a, dependency=field_b)
+    FieldDependency.objects.create(dependant=field_b, dependency=field_a)
+
+    # The query must return, after which the cycle is reported as such rather
+    # than hanging Postgres.
+    with pytest.raises(CircularFieldDependencyError):
+        FieldDependencyHandler.group_all_dependent_fields_by_level(
+            field_a.table_id,
+            [field_a.id],
+            FieldCache(),
+            associated_relations_changed=False,
+            database_id_prefilter=field_a.table.database_id,
+        )
