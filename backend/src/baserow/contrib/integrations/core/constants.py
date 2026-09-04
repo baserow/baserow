@@ -36,4 +36,9 @@ PERIODIC_INTERVAL_CHOICES = [
     (PERIODIC_INTERVAL_MONTH, PERIODIC_INTERVAL_MONTH),
 ]
 
+# Services created before the schedule became timezone aware stored their fields
+# already converted to UTC, so UTC is the default which keeps them running at
+# exactly the same instants.
+PERIODIC_TIMEZONE_DEFAULT = "UTC"
+
 SMTP_EMAIL_TIMEOUT = 30

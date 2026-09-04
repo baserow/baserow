@@ -29,7 +29,7 @@
           required
         >
           <FormInput
-            v-model="v$.user.minute.$model"
+            v-model="v$.values.minute.$model"
             size="large"
             type="number"
             :min="1"
@@ -45,7 +45,7 @@
           class="margin-right-1"
         >
           <FormInput
-            v-model="v$.user.hour.$model"
+            v-model="v$.values.hour.$model"
             size="large"
             type="number"
             :min="0"
@@ -60,7 +60,7 @@
           required
         >
           <FormInput
-            v-model="v$.user.minute.$model"
+            v-model="v$.values.minute.$model"
             size="large"
             type="number"
             :min="0"
@@ -70,22 +70,21 @@
         </FormGroup>
       </div>
 
-      <div v-if="fieldHasLocalErrors('hour')" class="error margin-bottom-2">
-        {{ v$.user.hour.$errors[0].$message }}
+      <div v-if="fieldHasErrors('hour')" class="error margin-bottom-2">
+        {{ v$.values.hour.$errors[0].$message }}
       </div>
-      <div v-if="fieldHasLocalErrors('minute')" class="error margin-bottom-2">
-        {{ v$.user.minute.$errors[0].$message }}
+      <div v-if="fieldHasErrors('minute')" class="error margin-bottom-2">
+        {{ v$.values.minute.$errors[0].$message }}
       </div>
 
       <FormGroup
         v-if="values.interval === 'WEEK'"
-        :error="fieldHasLocalErrors('day_of_week')"
         :label="$t('periodicForm.dayOfWeek')"
         required
         small-label
         class="margin-bottom-2"
       >
-        <Dropdown v-model="user.day_of_week" size="large">
+        <Dropdown v-model="values.day_of_week" size="large">
           <DropdownItem
             v-for="(value, key) in daysOfWeek"
             :key="key"
@@ -97,24 +96,45 @@
 
       <FormGroup
         v-if="values.interval === 'MONTH'"
-        :error="fieldHasLocalErrors('day_of_month')"
+        :error="fieldHasErrors('day_of_month')"
         :label="$t('periodicForm.dayOfMonth')"
         required
         small-label
         class="margin-bottom-2"
       >
         <FormInput
-          v-model="v$.user.day_of_month.$model"
+          v-model="v$.values.day_of_month.$model"
           size="large"
           type="number"
           :min="1"
           :max="31"
           :placeholder="$t('periodicForm.dayOfMonthPlaceholder')"
-          @blur="v$.user.day_of_month.$touch()"
+          @blur="v$.values.day_of_month.$touch()"
         />
         <template #error>
-          {{ v$.user.day_of_month.$errors[0].$message }}
+          {{ v$.values.day_of_month.$errors[0].$message }}
         </template>
+      </FormGroup>
+
+      <FormGroup
+        v-if="showTimezoneField"
+        :label="$t('periodicForm.timezone')"
+        :helper-text="$t('periodicForm.timezoneHelper')"
+        required
+        small-label
+        class="margin-bottom-2"
+      >
+        <PaginatedDropdown
+          :value="values.timezone"
+          :fetch-page="fetchTimezonePage"
+          :add-empty-item="false"
+          :initial-display-name="values.timezone"
+          :fetch-on-open="true"
+          :debounce-time="20"
+          :page-size="pageSize"
+          :fixed-items="true"
+          @input="(timezone) => (values.timezone = timezone)"
+        ></PaginatedDropdown>
       </FormGroup>
     </div>
     <slot></slot>
@@ -124,40 +144,38 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { between, required, integer, helpers } from '@vuelidate/validators'
+import moment from '@baserow/modules/core/moment'
 import form from '@baserow/modules/core/mixins/form'
+import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 
 export default {
   name: 'CorePeriodicServiceForm',
+  components: { PaginatedDropdown },
   mixins: [form],
   setup() {
     return { v$: useVuelidate() }
   },
   data() {
     return {
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      pageSize: 100,
       allowedValues: [
         'interval',
+        'timezone',
         'minute',
         'hour',
         'day_of_week',
         'day_of_month',
       ],
-      // The values stored in UTC timezone (observed by backend).
+      // The schedule exactly as the user entered it. The backend resolves these
+      // against `timezone` for every run, so they're sent through unconverted.
       values: {
         interval: 'HOUR',
+        timezone: moment.tz.guess(),
         minute: 0,
         hour: 0,
-        day_of_week: 0, // Monday=0..Sunday=6 (UTC)
-        day_of_month: 1, // 1..31 (UTC)
+        day_of_week: 0, // Monday=0..Sunday=6
+        day_of_month: 1, // 1..31
       },
-      // User-facing values in local timezone.
-      user: {
-        minute: 0,
-        hour: 0,
-        day_of_week: 0, // Monday=0..Sunday=6 (LOCAL)
-        day_of_month: 1, // 1..31 (LOCAL)
-      },
-      syncedFromValues: false, // Have we synced these from `values` yet?
     }
   },
   computed: {
@@ -173,17 +191,22 @@ export default {
     showMinuteField() {
       return ['HOUR', 'DAY', 'WEEK', 'MONTH'].includes(this.values.interval)
     },
+    showTimezoneField() {
+      // A MINUTE interval is a frequency rather than a time of day, and an HOUR
+      // interval only picks a minute past the hour, so neither depends on the
+      // timezone. Every offset in use is a whole number of minutes.
+      return ['DAY', 'WEEK', 'MONTH'].includes(this.values.interval)
+    },
     intervalText() {
-      const context = { timezone: this.timezone }
       switch (this.values.interval) {
         case 'HOUR':
-          return this.$t('periodicForm.hourHelper', context)
+          return this.$t('periodicForm.hourHelper')
         case 'DAY':
-          return this.$t('periodicForm.dayHelper', context)
+          return this.$t('periodicForm.dayHelper')
         case 'WEEK':
-          return this.$t('periodicForm.weekHelper', context)
+          return this.$t('periodicForm.weekHelper')
         case 'MONTH':
-          return this.$t('periodicForm.monthHelper', context)
+          return this.$t('periodicForm.monthHelper')
         case null:
           return this.$t('periodicForm.intervalHelper')
         default:
@@ -211,8 +234,6 @@ export default {
             required
           ),
         },
-      },
-      user: {
         minute: {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
@@ -255,209 +276,56 @@ export default {
     }
   },
   watch: {
-    'user.minute': 'syncValuesFromUser',
-    'user.hour': 'syncValuesFromUser',
-    'user.day_of_week': 'syncValuesFromUser',
-    'user.day_of_month': 'syncValuesFromUser',
     'values.interval'(newInterval, oldInterval) {
-      if (
-        this.syncedFromValues &&
-        newInterval === 'MINUTE' &&
-        oldInterval !== 'MINUTE'
-      ) {
-        // Once `syncedFromValues` is true (which happens after the initial sync in
-        // mounted()), if the user changes the interval *to* MINUTE, we want to set the
-        // minute field to the minimum allowed frequency for this Baserow instance type.
-        this.user.minute = this.minimumMinuteFrequency
+      if (newInterval === 'MINUTE' && oldInterval !== 'MINUTE') {
+        // When changing the interval *to* MINUTE, set the minute field to the
+        // minimum allowed frequency for this Baserow instance type.
+        this.values.minute = this.minimumMinuteFrequency
       } else if (newInterval !== 'MINUTE' && oldInterval === 'MINUTE') {
         // Otherwise if we're changing *from* MINUTE, then reset the `minute` to 0.
-        this.user.minute = 0
+        this.values.minute = 0
       }
-      this.syncValuesFromUser()
     },
   },
-  mounted() {
-    this.syncUserFromValues()
-    // We've fully synced the user facing values.
-    this.syncedFromValues = true
-  },
   methods: {
+    getDefaultValues() {
+      const defaultValues = form.methods.getDefaultValues.call(this)
+      // A trigger without an interval has never been scheduled, so it has no
+      // existing schedule to preserve and can default to the user's own timezone.
+      // The backend defaults to UTC instead, because that's what keeps schedules
+      // made before the timezone was configurable running at the same times.
+      if (!defaultValues.interval) {
+        defaultValues.timezone = moment.tz.guess()
+      }
+      return defaultValues
+    },
     fieldHasErrors(name) {
       const seg = this.v$.values?.[name]
       return !!(seg && seg.$error)
     },
-    fieldHasLocalErrors(name) {
-      const seg = this.v$.user?.[name]
-      return !!(seg && seg.$error)
-    },
-    toMondayIndexFromSundayZero(sunZero) {
-      return (sunZero + 6) % 7
-    },
-    localDateForWeekly(monZero, hour, minute) {
-      const now = new Date()
-      const todayMonZero = (now.getDay() + 6) % 7
-      const diff = monZero - todayMonZero
-      const d = new Date(now)
-      d.setDate(now.getDate() + diff)
-      d.setHours(hour, minute, 0, 0)
-      return d
-    },
-    utcPartsFromLocalDate(d) {
+    fetchTimezonePage(page, search) {
+      const pageSize = this.pageSize
+      const start = (page - 1) * pageSize
+      const results = this.filterTimezones(search || '')
+      // The paginated dropdown expects a HTTP response-like object.
       return {
-        minute: d.getUTCMinutes(),
-        hour: d.getUTCHours(),
-        day_of_week: this.toMondayIndexFromSundayZero(d.getUTCDay()),
-        day_of_month: d.getUTCDate(),
+        data: {
+          count: results.length,
+          next: results.length > start + pageSize ? page + 1 : null,
+          previous: page > 1 ? page - 1 : null,
+          results: results.slice(start, start + pageSize).map((timezone) => {
+            return {
+              id: timezone,
+              value: timezone,
+            }
+          }),
+        },
       }
     },
-    syncValuesFromUser() {
-      if (!this.syncedFromValues) {
-        // This function could have been called before the initial sync from `values`
-        // to `user` in mounted() has completed. In that case, we don't want to run
-        // this logic yet since `user` won't have the correct values yet.
-        return
-      }
-      this.v$.$touch()
-      if (this.v$.values.interval.$invalid) return
-      if (this.showMinuteFrequencyField && this.v$.user.minute.$invalid) return
-      if (this.showMinuteField && this.v$.user.minute.$invalid) return
-      if (this.showHourField && this.v$.user.hour.$invalid) return
-      if (
-        this.values.interval === 'MONTH' &&
-        this.v$.user.day_of_month.$invalid
-      )
-        return
-
-      const { interval } = this.values
-      const {
-        minute,
-        hour,
-        day_of_week: dayOfWeek,
-        day_of_month: dayOfMonth,
-      } = this.user
-
-      if (interval === 'MINUTE' || interval === 'HOUR') {
-        this.values = { ...this.values, interval, minute }
-        return
-      }
-
-      if (interval === 'DAY') {
-        const base = new Date()
-        base.setHours(hour, minute, 0, 0)
-        const utc = this.utcPartsFromLocalDate(base)
-        this.values = {
-          ...this.values,
-          interval,
-          hour: utc.hour,
-          minute: utc.minute,
-        }
-        return
-      }
-
-      if (interval === 'WEEK') {
-        const d = this.localDateForWeekly(dayOfWeek, hour, minute)
-        const utc = this.utcPartsFromLocalDate(d)
-        this.values = {
-          ...this.values,
-          interval,
-          day_of_week: utc.day_of_week,
-          hour: utc.hour,
-          minute: utc.minute,
-        }
-        return
-      }
-
-      if (interval === 'MONTH') {
-        const now = new Date()
-        const d = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          Math.min(dayOfMonth, 31),
-          hour,
-          minute,
-          0,
-          0
-        )
-        const utc = this.utcPartsFromLocalDate(d)
-        this.values = {
-          ...this.values,
-          interval,
-          day_of_month: utc.day_of_month,
-          hour: utc.hour,
-          minute: utc.minute,
-        }
-      }
-    },
-    syncUserFromValues() {
-      const {
-        interval,
-        minute,
-        hour,
-        day_of_week: dayOfWeek,
-        day_of_month: dayOfMonth,
-      } = this.values
-
-      if (interval === 'MINUTE' || interval === 'HOUR') {
-        this.user.minute = minute
-        return
-      }
-
-      if (interval === 'DAY') {
-        const now = new Date()
-        const d = new Date(
-          Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            now.getUTCDate(),
-            hour,
-            minute,
-            0,
-            0
-          )
-        )
-        this.user.hour = d.getHours()
-        this.user.minute = d.getMinutes()
-        return
-      }
-
-      if (interval === 'WEEK') {
-        const now = new Date()
-        const todayUtcMonZero = (now.getUTCDay() + 6) % 7
-        const diff = dayOfWeek - todayUtcMonZero
-        const utcCandidate = new Date(
-          Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            now.getUTCDate() + diff,
-            hour,
-            minute,
-            0,
-            0
-          )
-        )
-        this.user.day_of_week = (utcCandidate.getDay() + 6) % 7
-        this.user.hour = utcCandidate.getHours()
-        this.user.minute = utcCandidate.getMinutes()
-        return
-      }
-
-      if (interval === 'MONTH') {
-        const now = new Date()
-        const utcCandidate = new Date(
-          Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            dayOfMonth,
-            hour,
-            minute,
-            0,
-            0
-          )
-        )
-        this.user.day_of_month = utcCandidate.getDate()
-        this.user.hour = utcCandidate.getHours()
-        this.user.minute = utcCandidate.getMinutes()
-      }
+    filterTimezones(value) {
+      return moment.tz.names().filter((timezone) => {
+        return timezone.toLowerCase().includes(value.toLowerCase())
+      })
     },
   },
 }

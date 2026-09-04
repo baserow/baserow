@@ -1108,3 +1108,37 @@ def test_simulate_dispatch_action_node_with_sample_data(
 
     workflow.refresh_from_db()
     assert workflow.simulate_until_node_id == action_node.id
+
+
+@pytest.mark.django_db
+def test_update_periodic_trigger_before_an_interval_is_chosen(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, create_trigger=False)
+    node = data_fixture.create_periodic_trigger_node(
+        user=user, workflow=workflow, service_kwargs={"interval": None}
+    )
+
+    payload = {
+        "service": {
+            "type": "periodic",
+            "interval": None,
+            "timezone": "Europe/Amsterdam",
+            "minute": 0,
+            "hour": 0,
+            "day_of_week": 0,
+            "day_of_month": 1,
+        }
+    }
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        payload,
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+
+    service = node.service.specific
+    service.refresh_from_db()
+    assert service.timezone == "Europe/Amsterdam"
+    assert service.interval is None
+    # Still unconfigured, so still not scheduled.
+    assert service.next_run_at is None

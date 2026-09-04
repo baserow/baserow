@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Improves the accuracy of periodic triggers so they run at the time you scheduled them for",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-07-17"
+}

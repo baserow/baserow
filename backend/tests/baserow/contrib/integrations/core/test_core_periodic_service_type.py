@@ -1,6 +1,6 @@
-import json
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import call, patch
+from zoneinfo import ZoneInfo
 
 from django.db import transaction
 
@@ -15,13 +15,17 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.integrations.core.constants import (
+    PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
+    PERIODIC_INTERVAL_WEEK,
 )
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 
@@ -114,18 +118,36 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
 
 
 @pytest.mark.django_db
-def test_periodic_service_export_serializes_next_run_at_as_iso(data_fixture):
+@pytest.mark.parametrize("is_publishing", [True, False])
+def test_periodic_service_import_schedules_only_when_publishing(
+    data_fixture, is_publishing
+):
+    service_type = CorePeriodicServiceType()
     service = data_fixture.create_core_periodic_service(
-        interval=PERIODIC_INTERVAL_MINUTE,
-        minute=15,
-        next_run_at=datetime(2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc),
+        interval=PERIODIC_INTERVAL_WEEK,
+        day_of_week=0,
+        hour=5,
+        minute=0,
+        next_run_at=datetime(2025, 2, 10, 5, 0, tzinfo=timezone.utc),
     )
+    serialized = service_type.export_serialized(service)
+    assert "next_run_at" not in serialized
 
-    serialized = json.loads(
-        json.dumps(CorePeriodicServiceType().export_serialized(service))
+    with freeze_time("2025-02-12 14:23:00"):
+        imported = service_type.import_serialized(
+            None,
+            serialized,
+            {},
+            import_export_config=ImportExportConfig(
+                include_permission_data=True,
+                is_publishing=is_publishing,
+            ),
+        )
+
+    expected_next_run_at = (
+        datetime(2025, 2, 17, 5, 0, tzinfo=timezone.utc) if is_publishing else None
     )
-
-    assert serialized["next_run_at"] == "2025-02-15T10:30:00+00:00"
+    assert imported.next_run_at == expected_next_run_at
 
 
 @pytest.mark.django_db
@@ -334,7 +356,6 @@ def test_call_periodic_services_that_are_due(
         )
 
     service_type = service_type_registry.get(CorePeriodicServiceType.type)
-    service_type.on_event = MagicMock()
 
     target_date = datetime.fromisoformat(frozen_time).replace(
         tzinfo=timezone.utc, second=0, microsecond=0
@@ -358,11 +379,12 @@ def test_call_periodic_services_that_are_due(
         else:
             assert len(services) == 0
 
-    service_type.on_event.side_effect = check_service_count
-
-    with freeze_time(frozen_time):
-        with transaction.atomic():
-            service_type.call_periodic_services_that_are_due()
+    # The service type is a registry singleton, so `on_event` is patched rather
+    # than assigned, otherwise the mock leaks into every subsequent test.
+    with patch.object(service_type, "on_event", side_effect=check_service_count):
+        with freeze_time(frozen_time):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
 
     trigger.refresh_from_db()
     service = trigger.service.specific
@@ -373,3 +395,339 @@ def test_call_periodic_services_that_are_due(
         # Verify next_run_at was updated to the next scheduled time
         assert service.next_run_at is not None
         assert service.next_run_at > target_date
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publishing_a_workflow_does_not_trigger_an_unscheduled_run(data_fixture):
+    """
+    Publishing imports a fresh copy of the service. The copy must be scheduled from
+    the schedule itself, otherwise it inherits the draft's `next_run_at` (always
+    null, as drafts are never dispatched), is immediately considered due, and runs
+    once at publish time regardless of the configured schedule.
+    """
+
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, state=WorkflowState.DRAFT, create_trigger=False
+    )
+    data_fixture.create_periodic_trigger_node(
+        workflow=workflow,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_WEEK,
+            "day_of_week": 0,  # Monday
+            "hour": 5,
+            "minute": 0,
+        },
+    )
+
+    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+
+    # Publish on a Wednesday, nowhere near the Monday 05:00 schedule.
+    with freeze_time("2025-02-12 14:23:00"):
+        with transaction.atomic():
+            published_workflow = AutomationWorkflowHandler().publish(workflow)
+
+    published_service = published_workflow.get_trigger().service.specific
+    assert published_service.next_run_at == datetime(
+        2025, 2, 17, 5, 0, 0, tzinfo=timezone.utc
+    )
+
+    # The tick straight after publishing must not dispatch it.
+    with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
+        with freeze_time("2025-02-12 14:24:00"):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
+        assert mock_start.call_count == 0
+
+    # It fires on the Monday it was configured for.
+    with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
+        with freeze_time("2025-02-17 05:00:00"):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
+        assert mock_start.call_count == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_unconfigured_periodic_service_is_never_due(data_fixture):
+    """
+    A periodic trigger which hasn't been given an interval yet has no schedule, so
+    it must not be dispatched. Previously it was considered due via its null
+    `next_run_at`, and `calculate_next_periodic_run` fell through to its unknown
+    interval branch, causing it to run every hour.
+    """
+
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger = data_fixture.create_periodic_trigger_node(
+        workflow=workflow, service_kwargs={"interval": None}
+    )
+
+    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+
+    with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
+        with freeze_time("2025-02-12 14:24:00"):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
+        assert mock_start.call_count == 0
+
+    trigger.service.specific.refresh_from_db()
+    assert trigger.service.specific.next_run_at is None
+
+
+@pytest.mark.django_db
+def test_periodic_service_schedules_in_its_own_timezone(data_fixture):
+    """
+    The schedule fields are a wall clock time in the service's timezone. The same
+    "Monday at 09:00 in Amsterdam" is a different instant either side of a DST
+    transition, so the `next_run_at` it resolves to has to differ with it.
+    """
+
+    service_type = CorePeriodicServiceType()
+    schedule = {
+        "interval": PERIODIC_INTERVAL_WEEK,
+        "timezone": "Europe/Amsterdam",
+        "day_of_week": 0,  # Monday
+        "hour": 9,
+        "minute": 0,
+    }
+    draft = data_fixture.create_core_periodic_service(**schedule)
+    serialized = service_type.export_serialized(draft)
+    publishing_config = ImportExportConfig(
+        include_permission_data=True,
+        is_publishing=True,
+    )
+
+    # Published in December, when Amsterdam is on CET (UTC+1).
+    with freeze_time("2025-12-15 11:00:00"):
+        winter = service_type.import_serialized(
+            None,
+            serialized,
+            {},
+            import_export_config=publishing_config,
+        )
+    assert winter.next_run_at == datetime(2025, 12, 22, 8, 0, tzinfo=timezone.utc)
+
+    # Published in July, when Amsterdam is on CEST (UTC+2).
+    with freeze_time("2026-07-01 11:00:00"):
+        summer = service_type.import_serialized(
+            None,
+            serialized,
+            {},
+            import_export_config=publishing_config,
+        )
+    assert summer.next_run_at == datetime(2026, 7, 6, 7, 0, tzinfo=timezone.utc)
+
+    # Both are 09:00 in Amsterdam, which is the point.
+    for service in [winter, summer]:
+        local = service.next_run_at.astimezone(ZoneInfo("Europe/Amsterdam"))
+        assert (local.weekday(), local.hour, local.minute) == (0, 9, 0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_periodic_service_keeps_local_time_when_advancing_across_dst(data_fixture):
+    """
+    A live schedule crosses a DST transition by being advanced in the dispatch
+    loop, not by being re-saved. Advancing has to re-resolve the offset each time,
+    otherwise the run drifts by an hour once the clocks change.
+    """
+
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger = data_fixture.create_periodic_trigger_node(
+        workflow=workflow,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_WEEK,
+            "timezone": "Europe/Amsterdam",
+            "day_of_week": 0,  # Monday
+            "hour": 9,
+            "minute": 0,
+            # 09:00 in Amsterdam while the clocks are on CET.
+            "next_run_at": datetime(2025, 12, 22, 8, 0, tzinfo=timezone.utc),
+        },
+    )
+
+    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+
+    # Dispatch at the July occurrence, which is 09:00 in Amsterdam on CEST.
+    with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
+        with freeze_time("2026-07-06 07:00:00"):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
+        assert mock_start.call_count == 1
+
+    service = trigger.service.specific
+    service.refresh_from_db()
+
+    # The next run is the following Monday, still 09:00 in Amsterdam. It's 07:00
+    # UTC rather than the 08:00 it was scheduled at in December.
+    assert service.next_run_at == datetime(2026, 7, 13, 7, 0, tzinfo=timezone.utc)
+    local = service.next_run_at.astimezone(ZoneInfo("Europe/Amsterdam"))
+    assert (local.weekday(), local.hour, local.minute) == (0, 9, 0)
+
+
+@pytest.mark.django_db
+def test_periodic_service_defaults_to_utc(data_fixture):
+    """
+    A service which doesn't choose a timezone is scheduled in UTC, which is what
+    services created before the schedule became timezone aware relied on.
+    """
+
+    service = data_fixture.create_core_periodic_service(
+        interval=PERIODIC_INTERVAL_WEEK, day_of_week=0, hour=9, minute=0
+    )
+    assert service.timezone == "UTC"
+
+
+@pytest.mark.django_db
+def test_periodic_service_prepare_values_validates_timezone(data_fixture):
+    user = data_fixture.create_user()
+    service_type = CorePeriodicServiceType()
+
+    prepared = service_type.prepare_values(
+        {"interval": PERIODIC_INTERVAL_WEEK, "timezone": "Europe/Amsterdam"}, user
+    )
+    assert prepared["timezone"] == "Europe/Amsterdam"
+
+    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+        service_type.prepare_values(
+            {"interval": PERIODIC_INTERVAL_WEEK, "timezone": "Middle/Earth"}, user
+        )
+    assert str(e.value) == "The timezone `Middle/Earth` is not a valid timezone."
+
+
+@pytest.mark.django_db(transaction=True)
+def test_late_periodic_service_catches_up_once_and_resumes(data_fixture):
+    """
+    If the workers are down over one or more scheduled runs, the service is late
+    rather than skipped. When they come back it runs once to catch up, and is then
+    put back onto its normal schedule instead of firing once per missed run.
+    """
+
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger = data_fixture.create_periodic_trigger_node(
+        workflow=workflow,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_WEEK,
+            "day_of_week": 0,  # Monday
+            "hour": 5,
+            "minute": 0,
+            # Due three Mondays ago: the workers never picked it up.
+            "next_run_at": datetime(2025, 1, 27, 5, 0, tzinfo=timezone.utc),
+        },
+    )
+
+    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+
+    # The workers come back on a Wednesday, long after three runs were missed.
+    with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
+        with freeze_time("2025-02-19 09:13:00"):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
+        # It catches up once, not once per missed run.
+        assert mock_start.call_count == 1
+
+    service = trigger.service.specific
+    service.refresh_from_db()
+
+    # It's back on schedule: the next run is the coming Monday, not another
+    # missed one in the past.
+    assert service.last_periodic_run == datetime(
+        2025, 2, 19, 9, 13, tzinfo=timezone.utc
+    )
+    assert service.next_run_at == datetime(2025, 2, 24, 5, 0, tzinfo=timezone.utc)
+
+    # The next tick must not fire it again now that it's caught up.
+    with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
+        with freeze_time("2025-02-19 09:14:00"):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
+        assert mock_start.call_count == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_existing_utc_periodic_service_is_unaffected_across_dst(data_fixture):
+    """
+    Schedules which predate the timezone field default to UTC, and must keep firing
+    at exactly the instants they did before. That means they still drift against a
+    local clock across a DST transition, which is the pre-existing behaviour: this
+    change mustn't silently move a live schedule, only let it be corrected.
+    """
+
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, state=WorkflowState.LIVE, create_trigger=False
+    )
+    trigger = data_fixture.create_periodic_trigger_node(
+        workflow=workflow,
+        service_kwargs={
+            "interval": PERIODIC_INTERVAL_WEEK,
+            "day_of_week": 0,  # Monday
+            "hour": 5,
+            "minute": 0,
+            # Set while the clocks were on CET, as an existing service would be.
+            "next_run_at": datetime(2026, 3, 23, 5, 0, tzinfo=timezone.utc),
+        },
+    )
+    service = trigger.service.specific
+    assert service.timezone == "UTC"
+
+    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+
+    # Advance it over the 29 March transition, when Amsterdam goes CET -> CEST.
+    with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
+        with freeze_time("2026-03-30 05:00:00"):
+            with transaction.atomic():
+                service_type.call_periodic_services_that_are_due()
+        assert mock_start.call_count == 1
+
+    service.refresh_from_db()
+
+    # Still 05:00 UTC on the Monday, exactly as before this change.
+    assert service.next_run_at == datetime(2026, 4, 6, 5, 0, tzinfo=timezone.utc)
+    # And still drifting against a local clock, which is the point: UTC schedules
+    # are left alone rather than quietly reinterpreted as somebody's local time.
+    local = service.next_run_at.astimezone(ZoneInfo("Europe/Amsterdam"))
+    assert (local.weekday(), local.hour) == (0, 7)
+
+
+@pytest.mark.django_db
+def test_periodic_payload_timestamps_are_in_the_service_timezone(data_fixture):
+    """
+    The payload timestamps describe the same instants either way, but they're
+    formatted in the service's timezone so that a user who scheduled "23:30
+    Europe/London" sees 23:30 rather than the UTC equivalent.
+    """
+
+    service = data_fixture.create_core_periodic_service(
+        interval=PERIODIC_INTERVAL_DAY,
+        timezone="Europe/London",
+        hour=23,
+        minute=30,
+    )
+    service_type = CorePeriodicServiceType()
+
+    # 29 July is BST (UTC+1): 23:30 London is 22:30 UTC.
+    with freeze_time("2026-07-29 15:44:00"):
+        payload = service_type._get_simulation_payload(service)
+
+    assert payload["next_run_at"] == "2026-07-29T23:30:00+01:00"
+    assert payload["triggered_at"] == "2026-07-29T16:44:00+01:00"
+
+    # The dispatch payload is formatted the same way.
+    service.last_periodic_run = datetime(2026, 7, 28, 22, 30, tzinfo=timezone.utc)
+    service.next_run_at = datetime(2026, 7, 29, 22, 30, tzinfo=timezone.utc)
+    dispatch_payload = service_type._get_dispatch_payload(service)
+    assert dispatch_payload["triggered_at"] == "2026-07-28T23:30:00+01:00"
+    assert dispatch_payload["next_run_at"] == "2026-07-29T23:30:00+01:00"

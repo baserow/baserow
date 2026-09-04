@@ -9,6 +9,7 @@ from baserow.contrib.integrations.core.constants import (
     CSV_FILE_READER_INPUT_TYPE,
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
+    PERIODIC_TIMEZONE_DEFAULT,
 )
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
@@ -304,6 +305,14 @@ class CorePeriodicService(Service):
         null=True,
         default=None,
         help_text="The interval frequency for running the service.",
+    )
+    timezone = models.CharField(
+        max_length=255,
+        default=PERIODIC_TIMEZONE_DEFAULT,
+        db_default=PERIODIC_TIMEZONE_DEFAULT,
+        help_text="The IANA timezone that the hour, minute, day of week and day of "
+        "month are expressed in. The schedule keeps this local time across daylight "
+        "saving transitions.",
     )
     minute = models.PositiveSmallIntegerField(
         default=0,
