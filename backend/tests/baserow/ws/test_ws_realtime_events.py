@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
+from django.db import connection, transaction
 from django.test import override_settings
 
 import pytest
@@ -1012,6 +1013,27 @@ def test_broadcast_to_users_without_workspace_id_still_records():
 
     assert "_event_id" in payload
     assert RealtimeEvent.objects.filter(channel_group="users").exists()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
+@override_settings(
+    BASEROW_REALTIME_REPLAY_MAX_EVENTS=100,
+    CELERY_TASK_ALWAYS_EAGER=True,
+    CELERY_TASK_EAGER_PROPAGATES=True,
+)
+def test_broadcast_to_users_records_from_eager_on_commit_task():
+    payload = {"type": "job_started"}
+
+    with transaction.atomic():
+        transaction.on_commit(lambda: broadcast_to_users.delay([1], payload))
+
+    assert RealtimeEvent.objects.filter(channel_group="users").exists()
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT 1")
+        assert cursor.fetchone()[0] == 1
 
 
 @pytest.mark.django_db(transaction=True)

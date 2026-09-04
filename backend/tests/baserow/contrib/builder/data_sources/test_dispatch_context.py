@@ -17,23 +17,31 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
+def fake_workspace():
+    return Mock(id=-1)
+
+
+def fake_page():
+    return Mock(builder=Mock(get_workspace=Mock(return_value=fake_workspace())))
+
+
 def test_dispatch_context_page_range():
     request = HttpRequest()
     request.GET = {"offset": 42, "count": 42}
 
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
 
     assert dispatch_context.range(None) == (42, 42)
 
     request.GET = {"offset": "foo", "count": "bar"}
 
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
 
     assert dispatch_context.range(None) == (0, None)
 
     request.GET = {"offset": "-20", "count": "-10"}
 
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
 
     assert dispatch_context.range(None) == (0, 0)
 
@@ -102,7 +110,7 @@ def test_dispatch_context_element_type(data_fixture):
 def test_dispatch_context_search_query():
     request = HttpRequest()
     request.GET["search_query"] = "foobar"
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
     assert dispatch_context.search_query() == "foobar"
 
 
@@ -214,7 +222,7 @@ def test_dispatch_context_filters():
         ],
     }
     request.GET["filters"] = filter_data
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
     assert dispatch_context.filters() == filter_data
 
 
@@ -245,7 +253,7 @@ def test_dispatch_context_is_publicly_sortable(collection_element_type, data_fix
 def test_dispatch_context_sortings():
     request = HttpRequest()
     request.GET["order_by"] = "-field_1,-field_2"
-    dispatch_context = BuilderDispatchContext(request, None)
+    dispatch_context = BuilderDispatchContext(request, fake_page())
     assert dispatch_context.sortings() == "-field_1,-field_2"
 
 
@@ -382,7 +390,7 @@ def test_get_element_property_options(data_fixture, django_assert_num_queries):
 
 
 def test_validate_filter_search_sort_fields_without_element():
-    dispatch_context = BuilderDispatchContext(HttpRequest(), None)
+    dispatch_context = BuilderDispatchContext(HttpRequest(), fake_page())
     with pytest.raises(DataSourceRefinementForbidden) as exc:
         dispatch_context.validate_filter_search_sort_fields(
             ["name"], ServiceAdhocRefinements.FILTER

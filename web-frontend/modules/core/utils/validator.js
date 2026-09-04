@@ -35,21 +35,35 @@ export const ensureNumeric = (value, { allowNull = false } = {}) => {
 /**
  * Ensures that the value is an integer or can be converted to an integer.
  * @param {number|string} value - The value to ensure as an integer.
- * @param allowNull {boolean} - Whether to allow null or empty values.
+ * @param {Object} options - Configuration options
+ * @param {Boolean} [options.allowNegative=true] - Whether negative integer values
+ * are allowed.
  * @returns {number|null} The value as an integer if conversion is successful, null otherwise.
  * @throws {Error} If the value is not a valid integer or convertible to an integer.
  */
-export const ensureInteger = (value) => {
+export const ensureInteger = (value, { allowNegative = true } = {}) => {
   if (Number.isInteger(value)) {
+    if (!allowNegative && value < 0) {
+      throw new Error('Value is not a positive integer.')
+    }
     return value
   }
   if (typeof value === 'string' || value instanceof String) {
-    if (/^(-|\+)?(\d+|Infinity)$/.test(value)) {
-      return Number(value)
+    const integerRegex = allowNegative ? /^[+-]?\d+$/ : /^\d+$/
+    if (integerRegex.test(value)) {
+      const validInteger = Number(value)
+      if (!allowNegative && validInteger < 0) {
+        throw new Error('Value is not a positive integer.')
+      }
+      return validInteger
     }
   }
   if (value instanceof Timedelta) {
-    return Math.floor(value.ms / 1000)
+    const validInteger = Math.trunc(value.ms / 1000)
+    if (!allowNegative && validInteger < 0) {
+      throw new Error('Value is not a positive integer.')
+    }
+    return validInteger
   }
   throw new Error(
     `Value '${value}' is not a valid integer or convertible to an integer.`
@@ -69,11 +83,7 @@ export const ensurePositiveInteger = (value, { allowNull = false } = {}) => {
   if (allowNull && (value === null || value === '')) {
     return null
   }
-  const validInteger = ensureInteger(value)
-  if (validInteger < 0) {
-    throw new Error('Value is not a positive integer.')
-  }
-  return validInteger
+  return ensureInteger(value, { allowNegative: false })
 }
 /**
  * Ensures that the value is a string or try to convert it.

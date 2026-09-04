@@ -101,7 +101,10 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
     ](pages).filter((dataSource) => dataSource.type)
     return dataSources.some((dataSource) => {
       const serviceType = this.app.$registry.get('service', dataSource.type)
-      return serviceType.isInError({ service: dataSource })
+      return serviceType.isInError({
+        service: dataSource,
+        workspace: builder.workspace,
+      })
     })
   }
 

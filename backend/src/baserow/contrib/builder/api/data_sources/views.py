@@ -683,7 +683,9 @@ class GetRecordNamesView(APIView):
         query = GetRecordIdsSerializer(data=request.query_params)
 
         if query.is_valid(raise_exception=True):
-            record_ids = query.validated_data["record_ids"]
+            record_ids = service_type.prepare_record_ids(
+                query.validated_data["record_ids"]
+            )
             record_names = service_type.get_record_names(
                 service, record_ids, dispatch_context
             )

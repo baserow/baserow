@@ -17,6 +17,7 @@ from baserow.core.formula.exceptions import (
 )
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.validator import ensure_integer
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.registry import (
@@ -580,7 +581,24 @@ class ListServiceTypeMixin:
 
     returns_list = True
 
-    @abstractmethod
+    def prepare_record_ids(self, record_ids: List[Any]) -> List[int]:
+        """
+        Convert record selector values into the type used by this service as row IDs.
+        Regular Baserow row services use integer row IDs. Services with synthetic or
+        external row identifiers can override this hook.
+        """
+
+        try:
+            prepared_record_ids = [
+                ensure_integer(record_id) for record_id in record_ids
+            ]
+        except ValidationError as exc:
+            raise DRFValidationError(
+                {"record_ids": ["The provided record ids are not valid."]}
+            ) from exc
+
+        return prepared_record_ids
+
     def get_record_names(
         self,
         service: Service,
@@ -590,13 +608,16 @@ class ListServiceTypeMixin:
         """
         Return the record name associated with each one of the provided record ids.
 
-        Implementation is required for any service that uses this mixin.
+        By default, the record id itself is used as the display name. Services
+        that can resolve richer names, like local Baserow row services, can
+        override this.
 
         :param service: The available service to use.
         :param record_ids: The list containing the record identifiers.
         :param dispatch_context: The context used for the dispatch.
         :return: A dictionary mapping each record to its name.
         """
+        return {record_id: str(record_id) for record_id in record_ids}
 
     @abstractmethod
     def get_max_result_limit(self, service: Service):

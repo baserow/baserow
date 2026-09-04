@@ -6,7 +6,10 @@ from rest_framework.relations import PrimaryKeyRelatedField
 
 from baserow.core.context import clear_current_workspace_id, set_current_workspace_id
 from baserow.core.storage import get_default_storage
-from baserow.core.utils import split_comma_separated_string
+from baserow.core.utils import (
+    list_to_comma_separated_string,
+    split_comma_separated_string,
+)
 
 
 class PrefetchedManyToManyListSerializer(serializers.ListSerializer):
@@ -133,6 +136,16 @@ class CommaSeparatedIntegerValuesField(serializers.Field):
             raise serializers.ValidationError("The provided record ids are not valid.")
 
         return record_ids
+
+
+class CommaSeparatedValuesField(serializers.Field):
+    """A serializer field that accepts a CSV string containing a list of values."""
+
+    def to_representation(self, value):
+        return list_to_comma_separated_string(value)
+
+    def to_internal_value(self, data):
+        return split_comma_separated_string(data)
 
 
 class FileURLSerializerMixin(serializers.Serializer):

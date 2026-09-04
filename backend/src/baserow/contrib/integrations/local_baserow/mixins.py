@@ -230,9 +230,11 @@ class LocalBaserowTableServiceFilterableMixin:
             new_group = LocalBaserowTableServiceFilterGroup.objects.create(
                 service=service,
                 filter_type=filter_group["filter_type"],
-                parent_group_id=group_id_mapping.get(parent_group_id)
-                if parent_group_id is not None
-                else None,
+                parent_group_id=(
+                    group_id_mapping.get(parent_group_id)
+                    if parent_group_id is not None
+                    else None
+                ),
             )
             group_id_mapping[filter_group["id"]] = new_group.id
 
@@ -241,9 +243,11 @@ class LocalBaserowTableServiceFilterableMixin:
             [
                 LocalBaserowTableServiceFilter(
                     **{k: v for k, v in service_filter.items() if k != "group"},
-                    group_id=group_id_mapping.get(service_filter.get("group"))
-                    if service_filter.get("group") is not None
-                    else None,
+                    group_id=(
+                        group_id_mapping.get(service_filter.get("group"))
+                        if service_filter.get("group") is not None
+                        else None
+                    ),
                     order=index,
                     service=service,
                 )
@@ -543,6 +547,12 @@ class LocalBaserowTableServiceFilterableMixin:
         if prefetch_cache is not None:
             prefetch_cache.pop("service_filters", None)
             prefetch_cache.pop("service_filter_groups", None)
+
+    def after_create(self, instance: ServiceSubClass, values: Dict) -> None:
+        super().after_create(instance, values)
+
+        if "service_filters" in values:
+            self.update_service_filters(instance, values["service_filters"])
 
     def after_update(
         self,
