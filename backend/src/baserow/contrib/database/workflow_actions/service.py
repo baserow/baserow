@@ -44,7 +44,9 @@ from baserow.contrib.database.workflow_actions.types import (
     WorkflowActionsDispatchResult,
 )
 from baserow.core.action.context import without_undo_redo_registration
+from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.models import Integration
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     DoesNotExist,
@@ -280,6 +282,44 @@ class DatabaseWorkflowActionService:
         workflow_actions_reordered.send(self, field=field, order=full_order, user=user)
 
         return full_order
+
+    def _resolve_integrations(
+        self, server_actions: List[DatabaseWorkflowAction]
+    ) -> None:
+        """
+        Puts the specific integration on each service that carries one, in one
+        query for the whole click.
+
+        A service's `enhance_queryset` fetches the base row, but the credential
+        lives on the subtype, and resolving that row by row costs a query per
+        action. Three actions sharing one bot read it three times, inside the
+        lock that guards the row.
+
+        `get_specific` returns the instance unchanged when it already is the
+        subtype, so assigning these here means nothing queries again later.
+
+        :param server_actions: The actions this click will run.
+        """
+
+        services = [
+            workflow_action.service.specific for workflow_action in server_actions
+        ]
+        carrying = [service for service in services if service.integration_id]
+        if not carrying:
+            return
+
+        by_id = {
+            integration.id: integration
+            for integration in specific_iterator(
+                Integration.objects.filter(
+                    id__in={service.integration_id for service in carrying}
+                )
+            )
+        }
+        for service in carrying:
+            integration = by_id.get(service.integration_id)
+            if integration is not None:
+                service.integration = integration
 
     def _lock_ttl_for(self, server_actions: List[DatabaseWorkflowAction]) -> int:
         """
@@ -550,6 +590,10 @@ class DatabaseWorkflowActionService:
         # so a click whose TTL ran out cannot drop a later click's lock. Keyed
         # on field and row together, so two buttons on one row do not block
         # each other.
+        # Before the lock, not inside it: this is one query for the whole
+        # click and it holds nothing the lock protects.
+        self._resolve_integrations(server_actions)
+
         lock = cache.lock(
             f"button_dispatch_{field.id}_{row.id}",
             timeout=self._lock_ttl_for(server_actions),
