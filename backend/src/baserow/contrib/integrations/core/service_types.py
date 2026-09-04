@@ -28,6 +28,9 @@ from baserow.config.celery import app as celery_app
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
+from baserow.contrib.integrations.core.api.inbound_email.views import (
+    CoreInboundEmailWebhookView,
+)
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
@@ -40,6 +43,11 @@ from baserow.contrib.integrations.core.constants import (
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
     CoreHTTPTriggerServiceMethodNotAllowed,
+    CoreInboundEmailTriggerServiceDoesNotExist,
+)
+from baserow.contrib.integrations.core.inbound_email import (
+    InboundEmail,
+    InboundEmailAddress,
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
@@ -47,6 +55,7 @@ from baserow.contrib.integrations.core.models import (
     CoreGotoService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
+    CoreInboundEmailTriggerService,
     CoreIteratorService,
     CoreManualTriggerService,
     CorePeriodicService,
@@ -57,6 +66,7 @@ from baserow.contrib.integrations.core.models import (
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
+    generate_inbound_email_token,
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import get_http_request_function
@@ -2155,6 +2165,219 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
                 # Ensure that duplicating a service (e.g. installing a template)
                 # results in a new unique uuid.
                 serialized_values["uid"] = str(uuid.uuid4())
+
+        return super().import_serialized(
+            parent,
+            serialized_values,
+            id_mapping,
+            import_export_config=import_export_config,
+            **kwargs,
+        )
+
+
+class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
+    type = "email_trigger"
+    model_class = CoreInboundEmailTriggerService
+
+    # The token is deliberately not part of the request serializer fields: a
+    # client-chosen token could collide with another workspace's address. It
+    # can only be regenerated via the `regenerate_token` flag.
+    allowed_fields = ["token", "is_public"]
+    serializer_field_names = ["token", "email_address", "is_public"]
+    serializer_field_overrides = {
+        "email_address": serializers.CharField(
+            read_only=True,
+            allow_null=True,
+            help_text="The generated inbound email address of this trigger, or "
+            "null when the instance has no inbound email domain configured.",
+        ),
+    }
+    request_serializer_field_names = ["regenerate_token"]
+    request_serializer_field_overrides = {
+        "regenerate_token": serializers.BooleanField(
+            write_only=True,
+            required=False,
+            help_text="When true, a new inbound email address is generated for "
+            "this trigger.",
+        ),
+    }
+
+    class SerializedDict(ServiceDict):
+        token: str
+        is_public: bool
+
+    def get_api_urls(self) -> List[path]:
+        return [
+            path(
+                r"inbound-email/",
+                CoreInboundEmailWebhookView.as_view(),
+                name="inbound_email",
+            ),
+        ]
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CoreInboundEmailTriggerService] = None,
+    ) -> Dict[str, Any]:
+        if values.pop("regenerate_token", False):
+            values["token"] = generate_inbound_email_token()
+
+        return super().prepare_values(values, user, instance)
+
+    def process_inbound_email(self, token: str, email: InboundEmail) -> None:
+        """
+        Finds the CoreInboundEmailTriggerService instances matching the provided
+        token and calls the on_event handler for them with the email payload.
+        The email is passed through as-is; the trigger doesn't care which
+        provider sent or forwarded it.
+
+        Both the draft and the published version of a service share the same
+        token, so all matches are passed to on_event, which only starts
+        workflows that are live, in a test run window, or being simulated.
+
+        :param token: The token extracted from the recipient address.
+        :param email: The normalized inbound email.
+        :raises CoreInboundEmailTriggerServiceDoesNotExist: When the token doesn't
+            match any service.
+        """
+
+        services = list(self.model_class.objects.filter(token=token))
+
+        if not services:
+            raise CoreInboundEmailTriggerServiceDoesNotExist(token)
+
+        payload = email.to_payload()
+        self.on_event(services, lambda service: payload)
+
+    def dispatch_data(
+        self,
+        service: CoreInboundEmailTriggerService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ):
+        # When the trigger is simulated before any real email arrived, there
+        # is no event payload, so a sample email is returned instead.
+        if dispatch_context.event_payload is None:
+            return self._get_sample_payload(service)
+
+        return super().dispatch_data(service, resolved_values, dispatch_context)
+
+    def _get_sample_payload(
+        self, service: CoreInboundEmailTriggerService
+    ) -> Dict[str, Any]:
+        return InboundEmail(
+            from_=InboundEmailAddress(
+                name="Sample sender", address="sender@example.com"
+            ),
+            to=[InboundEmailAddress(address=service.email_address or "")],
+            rcpt_to=service.email_address or "",
+            subject="Sample email subject",
+            body_text="This is a sample email body.",
+            body_html="<p>This is a sample email body.</p>",
+            message_id="<sample@example.com>",
+            received_at=timezone.now().isoformat(),
+        ).to_payload()
+
+    def get_schema_name(self, service: CoreInboundEmailTriggerService) -> str:
+        return f"EmailTrigger{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreInboundEmailTriggerService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        email_address_schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "title": _("Name")},
+                "address": {"type": "string", "title": _("Address")},
+            },
+        }
+
+        properties = {
+            "from": {**email_address_schema, "title": _("From")},
+            "to": {
+                "type": "array",
+                "title": _("To"),
+                "items": email_address_schema,
+            },
+            "cc": {
+                "type": "array",
+                "title": _("Cc"),
+                "items": email_address_schema,
+            },
+            "reply_to": {
+                "type": "array",
+                "title": _("Reply to"),
+                "items": email_address_schema,
+            },
+            "rcpt_to": {"type": "string", "title": _("Recipient")},
+            "recipient_tag": {"type": "string", "title": _("Recipient tag")},
+            "subject": {"type": "string", "title": _("Subject")},
+            "body_text": {"type": "string", "title": _("Body (text)")},
+            "body_html": {"type": "string", "title": _("Body (HTML)")},
+            "message_id": {"type": "string", "title": _("Message ID")},
+            "in_reply_to": {"type": "string", "title": _("In reply to")},
+            "received_at": {"type": "string", "title": _("Received at")},
+            "attachments": {
+                "type": "array",
+                "title": _("Attachments"),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "filename": {"type": "string", "title": _("Filename")},
+                        "content_type": {
+                            "type": "string",
+                            "title": _("Content type"),
+                        },
+                        "size": {"type": "number", "title": _("Size")},
+                    },
+                },
+            },
+            "sender_validated": {
+                "type": "boolean",
+                "title": _("Sender validated"),
+            },
+            "dkim_verified_domains": {
+                "type": "array",
+                "title": _("DKIM verified domains"),
+                "items": {"type": "string"},
+            },
+            "remote_ip": {"type": "string", "title": _("Remote IP")},
+        }
+
+        if allowed_fields is not None:
+            properties = {
+                key: value for key, value in properties.items() if key in allowed_fields
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[str, str]],
+        import_export_config: Optional[ImportExportConfig] = None,
+        **kwargs,
+    ):
+        """
+        Handle the is_public field during import based on publishing context.
+        """
+
+        if import_export_config:
+            if import_export_config.is_publishing:
+                serialized_values["is_public"] = True
+            if import_export_config.is_duplicate:
+                # Ensure that duplicating a service (e.g. installing a template)
+                # results in a new unique inbound email address.
+                serialized_values["token"] = generate_inbound_email_token()
 
         return super().import_serialized(
             parent,

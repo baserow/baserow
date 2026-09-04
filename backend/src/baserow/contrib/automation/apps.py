@@ -23,6 +23,7 @@ class AutomationConfig(AppConfig):
             CoreGotoActionNodeType,
             CoreHttpRequestNodeType,
             CoreHTTPTriggerNodeType,
+            CoreInboundEmailTriggerNodeType,
             CoreIteratorNodeType,
             CoreManualTriggerNodeType,
             CorePeriodicTriggerNodeType,
@@ -196,6 +197,7 @@ class AutomationConfig(AppConfig):
         )
         automation_node_type_registry.register(CorePeriodicTriggerNodeType())
         automation_node_type_registry.register(CoreHTTPTriggerNodeType())
+        automation_node_type_registry.register(CoreInboundEmailTriggerNodeType())
         automation_node_type_registry.register(CoreManualTriggerNodeType())
         automation_node_type_registry.register(AIAgentActionNodeType())
         automation_node_type_registry.register(SlackWriteMessageActionNodeType())

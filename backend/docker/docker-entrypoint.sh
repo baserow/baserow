@@ -175,6 +175,11 @@ gunicorn-wsgi       : Same as gunicorn but runs a wsgi server which does not sup
 celery-worker       : Start the celery worker queue which runs important async tasks
 celery-exportworker : Start the celery worker queue which runs slower async tasks
 celery-beat         : Start the celery beat service used to schedule periodic jobs
+email-receiver      : Start the mox mail server which receives inbound email for
+                      the "Start workflow by email" automation trigger and forwards
+                      it to the backend. Must run as root (mox drops privileges
+                      itself). Idles until BASEROW_INBOUND_EMAIL_DOMAIN and
+                      BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET are both set.
 
 HEALTHCHECK COMMANDS (exit with non zero when unhealthy, zero when healthy)
 backend-healthcheck             : Checks the gunicorn/django-dev service health
@@ -413,6 +418,30 @@ case "$1" in
     ;;
     celery-flower)
       exec celery -A baserow flower "$@"
+    ;;
+    email-receiver)
+      # Runs the mox mail server as the inbound SMTP receiver for the "Start
+      # workflow by email" automation trigger. Mox must be started as root; it
+      # binds its sockets and then drops privileges itself to the user
+      # configured by the generated config (default uid 9999).
+      export OTEL_SERVICE_NAME="email-receiver"
+      if [[ -z "${BASEROW_INBOUND_EMAIL_DOMAIN:-}" || -z "${BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:-}" ]]; then
+        echo "Inbound email is not configured. Set BASEROW_INBOUND_EMAIL_DOMAIN" \
+          "and BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET to enable the \"Start" \
+          "workflow by email\" automation trigger. Idling until then."
+        exec tail -f /dev/null
+      fi
+      /baserow/backend/docker/generate-mox-config.sh
+      MOX_DATA_DIR="${BASEROW_INBOUND_EMAIL_DATA_DIR:-/baserow/data/mox}"
+      exec /usr/local/bin/mox -config "$MOX_DATA_DIR/config/mox.conf" serve
+    ;;
+    email-receiver-healthcheck)
+      echo "Running email receiver healthcheck..."
+      if [[ -z "${BASEROW_INBOUND_EMAIL_DOMAIN:-}" || -z "${BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:-}" ]]; then
+        # Inbound email is disabled and the service is idling on purpose.
+        exit 0
+      fi
+      exec bash -c "exec 3<>'/dev/tcp/127.0.0.1/${BASEROW_INBOUND_EMAIL_SMTP_PORT:-25}'"
     ;;
     watch-py)
         # Ensure we watch all possible python source code locations for changes.

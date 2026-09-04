@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-26 15:25+0000\n"
+"POT-Creation-Date: 2026-09-03 16:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -69,7 +69,7 @@ msgid ""
 "\"%(airtable_share_id)s\""
 msgstr ""
 
-#: src/baserow/contrib/database/application_types.py:320
+#: src/baserow/contrib/database/application_types.py:324
 msgid "Table"
 msgstr ""
 
@@ -196,8 +196,8 @@ msgid ""
 "%(new_primary_field_name)s"
 msgstr ""
 
-#: src/baserow/contrib/database/fields/models.py:494
-#: src/baserow/contrib/database/fields/models.py:706
+#: src/baserow/contrib/database/fields/models.py:493
+#: src/baserow/contrib/database/fields/models.py:705
 msgid "The format of the duration."
 msgstr ""
 
@@ -600,100 +600,100 @@ msgid ""
 "into view \"%(view_name)s\" (%(view_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1736
+#: src/baserow/contrib/database/views/actions.py:1742
 msgid "Delete view"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1737
+#: src/baserow/contrib/database/views/actions.py:1743
 #, python-format
 msgid "View \"%(view_name)s\" (%(view_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1799
+#: src/baserow/contrib/database/views/actions.py:1805
 msgid "Create decoration"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1800
+#: src/baserow/contrib/database/views/actions.py:1806
 #, python-format
 msgid "View decoration %(decorator_id)s created"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1904
+#: src/baserow/contrib/database/views/actions.py:1910
 msgid "Update decoration"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:1905
+#: src/baserow/contrib/database/views/actions.py:1911
 #, python-format
 msgid "View decoration %(decorator_id)s updated"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2042
+#: src/baserow/contrib/database/views/actions.py:2048
 msgid "Delete decoration"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2043
+#: src/baserow/contrib/database/views/actions.py:2049
 #, python-format
 msgid "View decoration %(decorator_id)s deleted"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2139
+#: src/baserow/contrib/database/views/actions.py:2145
 msgid "Create a view group"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2140
+#: src/baserow/contrib/database/views/actions.py:2146
 #, python-format
 msgid "View grouped on field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2245
+#: src/baserow/contrib/database/views/actions.py:2251
 msgid "Update a view group"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2246
+#: src/baserow/contrib/database/views/actions.py:2252
 #, python-format
 msgid "View group by updated on field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2395
+#: src/baserow/contrib/database/views/actions.py:2401
 msgid "Delete a view group"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2396
+#: src/baserow/contrib/database/views/actions.py:2402
 #, python-format
 msgid "View group by deleted from field \"%(field_name)s\" (%(field_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2494
+#: src/baserow/contrib/database/views/actions.py:2500
 msgid "Prioritize view group bys"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2495
+#: src/baserow/contrib/database/views/actions.py:2501
 msgid "View group bys priority changed"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2570
+#: src/baserow/contrib/database/views/actions.py:2576
 msgid "Submit form"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2571
+#: src/baserow/contrib/database/views/actions.py:2577
 #, python-format
 msgid "Row (%(row_id)s) created via form submission"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2728
+#: src/baserow/contrib/database/views/actions.py:2734
 msgid "Edit form row"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2729
+#: src/baserow/contrib/database/views/actions.py:2735
 #, python-format
 msgid "Row (%(row_id)s) updated via form edit"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2808
+#: src/baserow/contrib/database/views/actions.py:2814
 msgid "Update view default values"
 msgstr ""
 
-#: src/baserow/contrib/database/views/actions.py:2809
+#: src/baserow/contrib/database/views/actions.py:2815
 #, python-format
 msgid "Default row values updated for view (%(view_name)s)"
 msgstr ""

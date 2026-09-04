@@ -302,6 +302,14 @@ services:
       BASEROW_FORMULA_RANGE_MAX_ITEMS:
       BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT:
       BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
+      BASEROW_INBOUND_EMAIL_DOMAIN:
+      BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:
+      BASEROW_INBOUND_EMAIL_WEBHOOK_URL:
+      BASEROW_INBOUND_EMAIL_SMTP_HOSTNAME:
+      BASEROW_INBOUND_EMAIL_SMTP_PORT:
+      BASEROW_INBOUND_EMAIL_TLS_MODE:
+      BASEROW_INBOUND_EMAIL_TLS_CERT_FILE:
+      BASEROW_INBOUND_EMAIL_TLS_KEY_FILE:
       BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
@@ -382,6 +390,33 @@ services:
     networks:
       local:
 
+  # Receives inbound email for the "Start workflow by email" automation trigger
+  # and forwards it to the backend. It stays idle until both
+  # BASEROW_INBOUND_EMAIL_DOMAIN and BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET are
+  # set. Runs as root because mox binds its sockets as root and then drops
+  # privileges itself.
+  email-receiver:
+    image: baserow/backend:2.3.1
+    restart: unless-stopped
+    user: root
+    command: email-receiver
+    ports:
+      - "${HOST_PUBLISH_IP:-0.0.0.0}:${BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT:-25}:25"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh email-receiver-healthcheck",
+        ]
+    environment:
+      <<: *backend-variables
+    depends_on:
+      - backend
+    volumes:
+      - mox_data:/baserow/data/mox
+    networks:
+      local:
+
   db:
     image: pgvector/pgvector:pg15
     restart: unless-stopped
@@ -425,6 +460,7 @@ services:
 volumes:
   pgdata:
   media:
+  mox_data:
   caddy_data:
   caddy_config:
 

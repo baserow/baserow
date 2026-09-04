@@ -30,7 +30,26 @@
         })
       }}
     </div>
-    <div class="sample-data-modal__code">
+    <Tabs v-if="hasHtmlTab" header-no-padding content-no-x-padding>
+      <Tab title="JSON">
+        <div class="sample-data-modal__code">
+          <pre><code>{{ displayedFormattedSampleData }}</code></pre>
+        </div>
+      </Tab>
+      <Tab title="HTML">
+        <iframe
+          v-if="sampleDataHtml"
+          class="sample-data-modal__html-preview"
+          sandbox=""
+          :srcdoc="sampleDataHtml"
+          :title="title"
+        ></iframe>
+        <div v-else class="sample-data-modal__notice">
+          {{ $t('sampleDataViewer.noHtmlContent') }}
+        </div>
+      </Tab>
+    </Tabs>
+    <div v-else class="sample-data-modal__code">
       <pre><code>{{ displayedFormattedSampleData }}</code></pre>
     </div>
   </Modal>
@@ -50,6 +69,25 @@ export default {
       type: null,
       required: true,
     },
+    /**
+     * The content type of the sample data. When it's 'html', the modal
+     * shows a JSON and an HTML tab instead of only the JSON payload.
+     */
+    contentType: {
+      type: String,
+      required: false,
+      default: 'json',
+    },
+    /**
+     * The HTML document rendered in the HTML tab when the content type is
+     * 'html'. It's rendered in a fully sandboxed iframe because the content
+     * is untrusted (e.g. a received email).
+     */
+    sampleDataHtml: {
+      type: String,
+      required: false,
+      default: null,
+    },
     title: {
       type: String,
       required: true,
@@ -65,6 +103,9 @@ export default {
     },
   },
   computed: {
+    hasHtmlTab() {
+      return this.contentType === 'html'
+    },
     maxFormattedSampleDataLength() {
       return MAX_FORMATTED_SAMPLE_DATA_LENGTH
     },

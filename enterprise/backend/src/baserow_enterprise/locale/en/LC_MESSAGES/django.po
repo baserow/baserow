@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 14:48+0000\n"
+"POT-Creation-Date: 2026-09-03 16:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -57,27 +57,27 @@ msgstr ""
 msgid "Deleting node %(node_id)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:401
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:399
 #, python-format
 msgid "Generating formulas for element '%(ref)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:447
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:445
 #, python-format
 msgid "Generating formulas for data source '%(name)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:495
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:493
 #, python-format
 msgid "Generating formulas for data source %(id)d..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:575
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:573
 #, python-format
 msgid "Generating formulas for element %(id)d..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:644
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:642
 #, python-format
 msgid "Generating formulas for action on '%(ref)s'..."
 msgstr ""
@@ -195,12 +195,12 @@ msgstr ""
 msgid "Updating %(app_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/agents.py:126
+#: src/baserow_enterprise/assistant/tools/database/agents.py:128
 #, python-format
 msgid "Fixing formula for %(name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/agents.py:227
+#: src/baserow_enterprise/assistant/tools/database/agents.py:229
 msgid "Generating example rows for these new tables..."
 msgstr ""
 
@@ -354,11 +354,11 @@ msgstr ""
 msgid "Code"
 msgstr ""
 
-#: src/baserow_enterprise/builder/elements/element_types.py:31
+#: src/baserow_enterprise/builder/elements/element_types.py:33
 msgid "Auth form"
 msgstr ""
 
-#: src/baserow_enterprise/builder/elements/element_types.py:139
+#: src/baserow_enterprise/builder/elements/element_types.py:144
 msgid "File input"
 msgstr ""
 
@@ -488,11 +488,11 @@ msgid ""
 "resolved."
 msgstr ""
 
-#: src/baserow_enterprise/field_permissions/actions.py:25
+#: src/baserow_enterprise/field_permissions/actions.py:26
 msgid "Update field permissions"
 msgstr ""
 
-#: src/baserow_enterprise/field_permissions/actions.py:27
+#: src/baserow_enterprise/field_permissions/actions.py:28
 #, python-format
 msgid ""
 "Field \"%(field_name)s\" (%(field_id)s): permissions updated to role "

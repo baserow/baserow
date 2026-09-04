@@ -956,6 +956,15 @@ INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = str_to_bool(
     os.getenv("BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS", "true")
 )
 
+# The domain used to generate inbound email addresses for email triggers, e.g.
+# "inbound.baserow.io" results in addresses like "{token}@inbound.baserow.io".
+# When empty, the email trigger feature is not configured on this instance.
+INBOUND_EMAIL_DOMAIN = os.getenv("BASEROW_INBOUND_EMAIL_DOMAIN", "")
+# The shared secret the inbound mail server must send in the Authorization
+# header when delivering inbound email webhooks to this instance. When empty,
+# the inbound email webhook endpoint rejects all requests.
+INBOUND_EMAIL_WEBHOOK_SECRET = os.getenv("BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET", "")
+
 AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
 )

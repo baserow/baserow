@@ -54,6 +54,21 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 
 # =============================================================================
+# Builder for mox (inbound SMTP receiver for the email trigger feature)
+# =============================================================================
+FROM golang:1.23-bookworm AS mox-builder
+ARG MOX_VERSION=v0.0.15
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# `go install` verifies the module against the Go checksum database
+# (sum.golang.org), so the pinned version is integrity-checked.
+RUN CGO_ENABLED=0 GOFLAGS=-trimpath go install "github.com/mjl-/mox@${MOX_VERSION}" && \
+    mv "$(go env GOPATH)/bin/mox" /usr/local/bin/mox && \
+    chmod 0755 /usr/local/bin/mox
+
+
+# =============================================================================
 # Builder for QuickJS-NG WASI runtime
 # =============================================================================
 FROM debian:trixie-slim AS quickjs-wasi-builder
@@ -285,6 +300,7 @@ RUN groupadd --system --gid $GID ${DOCKER_USER} && \
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=mox-builder /usr/local/bin/mox /usr/local/bin/mox
 COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 # hadolint ignore=DL3022
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
@@ -362,6 +378,7 @@ COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
 COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=mox-builder /usr/local/bin/mox /usr/local/bin/mox
 COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 # hadolint ignore=DL3022
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
@@ -449,6 +466,7 @@ COPY ./backend/docker/mime.types /etc/
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=mox-builder /usr/local/bin/mox /usr/local/bin/mox
 COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 
 RUN mkdir -p /baserow/media && chown -R $UID:$GID /baserow/

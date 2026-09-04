@@ -13,6 +13,7 @@ from baserow.contrib.automation.nodes.models import (
 from baserow.contrib.automation.nodes.node_types import (
     CoreGotoActionNodeType,
     CoreHTTPTriggerNodeType,
+    CoreInboundEmailTriggerNodeType,
     CoreIteratorNodeType,
     CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
@@ -219,6 +220,13 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=CoreHTTPTriggerNodeType.type,
+            **kwargs,
+        )
+
+    def create_inbound_email_trigger_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreInboundEmailTriggerNodeType.type,
             **kwargs,
         )
 

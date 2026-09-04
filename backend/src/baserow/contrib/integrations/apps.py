@@ -60,6 +60,7 @@ class IntegrationsConfig(AppConfig):
             CoreGotoServiceType,
             CoreHTTPRequestServiceType,
             CoreHTTPTriggerServiceType,
+            CoreInboundEmailTriggerServiceType,
             CoreIteratorServiceType,
             CoreManualTriggerServiceType,
             CorePeriodicServiceType,
@@ -73,6 +74,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(CoreRouterServiceType())
         service_type_registry.register(CoreGotoServiceType())
         service_type_registry.register(CoreHTTPTriggerServiceType())
+        service_type_registry.register(CoreInboundEmailTriggerServiceType())
         service_type_registry.register(CoreManualTriggerServiceType())
         service_type_registry.register(CoreIteratorServiceType())
         service_type_registry.register(CorePeriodicServiceType())
