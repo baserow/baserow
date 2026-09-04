@@ -610,6 +610,10 @@ class GridView(View):
         medium = "medium"
         large = "large"
 
+    class GroupByLayouts(models.TextChoices):
+        banner = "banner"
+        column = "column"
+
     # `field_options` is a very misleading name
     # it should probably be more like `fields_with_field_options`
     # since this field will return instances of `Field` not of
@@ -628,6 +632,14 @@ class GridView(View):
     # Number of frozen (pinned) columns including the primary field. Max defined in
     # the serializer.
     frozen_column_count = models.PositiveSmallIntegerField(default=1, db_default=1)
+    group_by_layout = models.CharField(
+        choices=GroupByLayouts.choices,
+        default=GroupByLayouts.banner,
+        db_default=GroupByLayouts.banner,
+        max_length=10,
+        help_text="How grouped rows are presented: banners above each group, or "
+        "one column per group-by level beside the rows.",
+    )
 
 
 class GridViewFieldOptionsManager(models.Manager):

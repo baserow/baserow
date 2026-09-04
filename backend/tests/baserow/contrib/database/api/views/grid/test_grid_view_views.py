@@ -3482,6 +3482,7 @@ def test_get_public_grid_view(api_client, data_fixture):
             "row_identifier_type": grid_view.row_identifier_type,
             "row_height_size": grid_view.row_height_size,
             "frozen_column_count": 1,
+            "group_by_layout": grid_view.group_by_layout,
             "show_logo": True,
             "allow_public_export": False,
             "ownership_type": "collaborative",
@@ -5626,3 +5627,35 @@ def test_list_rows_with_page_and_invalid_numbers(api_client, data_fixture):
         assert response_json["results"][0][f"field_{text_field.id}"] == "0"
         assert response_json["results"][99][f"field_{text_field.id}"] == "99"
         assert count_calls == 0  # count is not called again
+
+
+@pytest.mark.django_db
+def test_update_grid_view_group_by_layout(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    url = reverse("api:database:views:item", kwargs={"view_id": grid_view.id})
+
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["group_by_layout"] == "banner"
+
+    response = api_client.patch(
+        url,
+        {"group_by_layout": "column"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["group_by_layout"] == "column"
+    grid_view.refresh_from_db()
+    assert grid_view.group_by_layout == "column"
+
+    response = api_client.patch(
+        url,
+        {"group_by_layout": "vertical"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

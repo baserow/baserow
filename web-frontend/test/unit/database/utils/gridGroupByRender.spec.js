@@ -3,6 +3,8 @@ import {
   ROW_HEIGHT,
   ADD_ROW_HEIGHT,
   GROUP_GAP,
+  GROUP_BY_LAYOUT_BANNER,
+  GROUP_BY_LAYOUT_COLUMN,
   buildLayout,
   pathKey,
   renderViewport,
@@ -980,6 +982,393 @@ describe('gridGroupByRender', () => {
     })
     const renderedHeader = items.find((item) => item.type === 'header')
     expect(renderedHeader.display).toEqual(display)
+  })
+
+  describe('column layout', () => {
+    const fields = [textField(1), textField(2)]
+    const nodes = [
+      { path: { field_1: 'A' }, depth: 0, row_count: 3 },
+      { path: { field_1: 'A', field_2: 'X' }, depth: 1, row_count: 2 },
+      { path: { field_1: 'A', field_2: 'Y' }, depth: 1, row_count: 1 },
+      { path: { field_1: 'B' }, depth: 0, row_count: 1 },
+      { path: { field_1: 'B', field_2: 'X' }, depth: 1, row_count: 1 },
+    ]
+    const column = { mode: 'expand', paths: [] }
+
+    test('emits spans and gap-free row sections, no headers or per-group add rows', () => {
+      const layout = buildLayout({
+        nodes,
+        collapse: column,
+        fields,
+        layout: GROUP_BY_LAYOUT_COLUMN,
+      })
+      expect(layout.items.map((i) => i.type)).toEqual([
+        'groupSpan',
+        'groupSpan',
+        'rowSection',
+        'groupSpan',
+        'rowSection',
+        'groupSpan',
+        'groupSpan',
+        'rowSection',
+        'addRow',
+      ])
+      const spans = layout.items.filter((i) => i.type === 'groupSpan')
+      expect(spans.map((s) => [s.depth, s.y, s.height])).toEqual([
+        [0, 0, 3 * ROW_HEIGHT],
+        [1, 0, 2 * ROW_HEIGHT],
+        [1, 2 * ROW_HEIGHT, ROW_HEIGHT],
+        [0, 3 * ROW_HEIGHT, ROW_HEIGHT],
+        [1, 3 * ROW_HEIGHT, ROW_HEIGHT],
+      ])
+      const addRow = layout.items.at(-1)
+      expect(addRow).toMatchObject({
+        type: 'addRow',
+        path: {},
+        y: 4 * ROW_HEIGHT,
+        height: ADD_ROW_HEIGHT,
+      })
+      expect(layout.totalHeight).toBe(4 * ROW_HEIGHT + ADD_ROW_HEIGHT)
+      expect(layout.geometry.headerHeight).toBe(0)
+    })
+
+    test('ignores collapse state', () => {
+      const layout = buildLayout({
+        nodes,
+        fields,
+        layout: GROUP_BY_LAYOUT_COLUMN,
+        collapse: { mode: 'collapse', paths: [] },
+      })
+      expect(layout.items.filter((i) => i.type === 'rowSection')).toHaveLength(
+        3
+      )
+    })
+
+    test('sizes unloaded sibling ranges by one row per group', () => {
+      const layout = buildLayout({
+        pages: { '': { parentPath: {}, totalSiblingCount: 50, nodes: {} } },
+        collapse: column,
+        fields: [textField(1)],
+        layout: GROUP_BY_LAYOUT_COLUMN,
+        pageSize: 40,
+      })
+      const placeholders = layout.items.filter(
+        (i) => i.type === 'groupPlaceholder'
+      )
+      expect(placeholders.map((p) => p.height)).toEqual([
+        40 * ROW_HEIGHT,
+        10 * ROW_HEIGHT,
+      ])
+      expect(
+        visibleGroupDepthPageInViewport(
+          layout,
+          { scrollTop: 41 * ROW_HEIGHT, clientHeight: ROW_HEIGHT },
+          40
+        )
+      ).toEqual({ depth: 0, offset: 40, limit: 40 })
+    })
+
+    test('uses the total row count to size sparse root group pages', () => {
+      const layout = buildLayout({
+        pages: {
+          '': { parentPath: {}, totalSiblingCount: 1500, nodes: {} },
+        },
+        collapse: column,
+        fields: [textField(1)],
+        rootRowCount: 3000,
+        layout: GROUP_BY_LAYOUT_COLUMN,
+        pageSize: 40,
+      })
+      const placeholders = layout.items.filter(
+        (item) => item.type === 'groupPlaceholder'
+      )
+
+      expect(placeholders).toHaveLength(Math.ceil(1500 / 40))
+      expect(
+        placeholders.reduce((height, item) => height + item.height, 0)
+      ).toBe(3000 * ROW_HEIGHT)
+      expect(layout.totalHeight).toBe(3000 * ROW_HEIGHT + ADD_ROW_HEIGHT)
+    })
+
+    test('reserves a loaded parent row span while its child page is sparse', () => {
+      const layout = buildLayout({
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 2,
+            nodes: {
+              0: {
+                path: { field_1: 'A' },
+                depth: 0,
+                row_count: 100,
+                children_count: 2,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+              1: {
+                path: { field_1: 'B' },
+                depth: 0,
+                row_count: 1,
+                children_count: 1,
+                sibling_index: 1,
+                row_offset: 100,
+              },
+            },
+          },
+        },
+        collapse: column,
+        fields,
+        layout: GROUP_BY_LAYOUT_COLUMN,
+      })
+      const [a, b] = layout.items.filter(
+        (item) => item.type === 'groupSpan' && item.depth === 0
+      )
+
+      expect(b.y).toBe(a.y + a.height)
+      expect(layout.totalHeight).toBe(101 * ROW_HEIGHT + ADD_ROW_HEIGHT)
+      expect(
+        visibleGroupPagesInViewport(
+          layout,
+          { scrollTop: 50 * ROW_HEIGHT, clientHeight: ROW_HEIGHT },
+          40
+        )
+      ).toEqual([{ parentPath: { field_1: 'A' }, offset: 0, limit: 40 }])
+    })
+
+    test('distributes missing parent rows across multiple child placeholder pages', () => {
+      const parentPath = { field_1: 'A' }
+      const layout = buildLayout({
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 1,
+            nodes: {
+              0: {
+                path: parentPath,
+                depth: 0,
+                row_count: 100,
+                children_count: 50,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+            },
+          },
+          [pathKey(parentPath, fields)]: {
+            parentPath,
+            totalSiblingCount: 50,
+            nodes: {
+              0: {
+                path: { ...parentPath, field_2: 'Loaded' },
+                depth: 1,
+                row_count: 10,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+            },
+          },
+        },
+        collapse: column,
+        fields,
+        pageSize: 40,
+        layout: GROUP_BY_LAYOUT_COLUMN,
+      })
+      const placeholders = layout.items.filter(
+        (item) => item.type === 'groupPlaceholder'
+      )
+
+      expect(placeholders).toHaveLength(2)
+      expect(
+        placeholders.reduce((height, item) => height + item.height, 0)
+      ).toBe(90 * ROW_HEIGHT)
+      expect(layout.totalHeight).toBe(100 * ROW_HEIGHT + ADD_ROW_HEIGHT)
+    })
+
+    test('uses the absolute row offset for identifiers after a sparse branch', () => {
+      const bPath = { field_1: 'B' }
+      const bLeafPath = { ...bPath, field_2: 'Only' }
+      const layout = buildLayout({
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 2,
+            nodes: {
+              0: {
+                path: { field_1: 'A' },
+                depth: 0,
+                row_count: 100,
+                children_count: 2,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+              1: {
+                path: bPath,
+                depth: 0,
+                row_count: 1,
+                children_count: 1,
+                sibling_index: 1,
+                row_offset: 100,
+              },
+            },
+          },
+          [pathKey(bPath, fields)]: {
+            parentPath: bPath,
+            totalSiblingCount: 1,
+            nodes: {
+              0: {
+                path: bLeafPath,
+                depth: 1,
+                row_count: 1,
+                sibling_index: 0,
+                row_offset: 100,
+              },
+            },
+          },
+        },
+        collapse: column,
+        fields,
+        layout: GROUP_BY_LAYOUT_COLUMN,
+      })
+      const bSection = layout.items.find(
+        (item) => item.type === 'rowSection' && item.path.field_1 === 'B'
+      )
+      const [renderedRow] = renderViewport({
+        layout,
+        sectionRows: buildSectionRows(
+          [{ path: bLeafPath, rows: [{ id: 101 }] }],
+          fields
+        ),
+        viewport: { scrollTop: bSection.y, clientHeight: ROW_HEIGHT },
+        fields,
+      }).filter((item) => item.type === 'row')
+
+      expect(renderedRow.globalRowOffset).toBe(100)
+    })
+
+    test('marks only the last row of each group as a column boundary', () => {
+      const f = [textField(1)]
+      const groupedNodes = [
+        { path: { field_1: 'A' }, depth: 0, row_count: 2 },
+        { path: { field_1: 'B' }, depth: 0, row_count: 1 },
+      ]
+      const sectionRows = buildSectionRows(
+        [
+          { path: { field_1: 'A' }, rows: [{ id: 1 }, { id: 2 }] },
+          { path: { field_1: 'B' }, rows: [{ id: 3 }] },
+        ],
+        f
+      )
+      const renderRows = (layout) =>
+        renderViewport({
+          layout,
+          sectionRows,
+          viewport: { scrollTop: 0, clientHeight: 1000 },
+          fields: f,
+        }).filter((item) => item.type === 'row')
+
+      const columnRows = renderRows(
+        buildLayout({
+          nodes: groupedNodes,
+          collapse: column,
+          fields: f,
+          layout: GROUP_BY_LAYOUT_COLUMN,
+        })
+      )
+      expect(columnRows.map((item) => item.groupEnd)).toEqual([
+        false,
+        true,
+        true,
+      ])
+
+      const bannerRows = renderRows(
+        buildLayout({
+          nodes: groupedNodes,
+          collapse: column,
+          fields: f,
+          layout: GROUP_BY_LAYOUT_BANNER,
+        })
+      )
+      expect(bannerRows.every((item) => item.groupEnd === false)).toBe(true)
+    })
+
+    test('renderViewport clips spans and renders unloaded ranges as one placeholder block', () => {
+      const layout = buildLayout({
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 3,
+            nodes: {
+              0: {
+                path: { field_1: 'A' },
+                depth: 0,
+                row_count: 4,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+            },
+          },
+        },
+        collapse: column,
+        fields: [textField(1)],
+        layout: GROUP_BY_LAYOUT_COLUMN,
+      })
+      const items = renderViewport({
+        layout,
+        sectionRows: new Map(),
+        fields: [textField(1)],
+        viewport: { scrollTop: ROW_HEIGHT, clientHeight: 5 * ROW_HEIGHT },
+      })
+      expect(items[0]).toMatchObject({
+        type: 'groupSpan',
+        y: 0,
+        height: 4 * ROW_HEIGHT,
+      })
+      expect(items.filter((i) => i.type === 'placeholder')).toHaveLength(3)
+      expect(
+        items.find((i) => i.type === 'groupRangePlaceholder')
+      ).toMatchObject({ y: 4 * ROW_HEIGHT, height: 2 * ROW_HEIGHT })
+      expect(items.some((i) => i.type === 'groupSkeleton')).toBe(false)
+    })
+
+    test('resolveGroupByRowMoveTarget ignores spans and resolves the end-of-group slot', () => {
+      const f = [textField(1)]
+      const rows = [{ id: 1 }, { id: 2 }]
+      const layout = buildLayout({
+        nodes: [{ path: { field_1: 'A' }, depth: 0, row_count: 2 }],
+        collapse: column,
+        fields: f,
+        layout: GROUP_BY_LAYOUT_COLUMN,
+      })
+      const sectionRows = buildSectionRows(
+        [{ path: { field_1: 'A' }, rows }],
+        f
+      )
+      const common = {
+        layout,
+        sectionRows,
+        fields: f,
+        sourcePath: { field_1: 'A' },
+        allowCrossGroup: false,
+      }
+      expect(
+        resolveGroupByRowMoveTarget({ ...common, contentY: 5 })
+      ).toMatchObject({ before: rows[0], position: 0 })
+      expect(
+        resolveGroupByRowMoveTarget({ ...common, contentY: 2 * ROW_HEIGHT - 3 })
+      ).toMatchObject({ before: null, position: 2 })
+    })
+
+    test('banner layout output is unchanged', () => {
+      const banner = buildLayout({ nodes, collapse: column, fields })
+      const explicit = buildLayout({
+        nodes,
+        collapse: column,
+        fields,
+        layout: GROUP_BY_LAYOUT_BANNER,
+      })
+      expect(explicit.items).toEqual(banner.items)
+      expect(banner.items.map((i) => i.type)).toContain('header')
+      expect(banner.items.some((i) => i.type === 'groupSpan')).toBe(false)
+    })
   })
 })
 

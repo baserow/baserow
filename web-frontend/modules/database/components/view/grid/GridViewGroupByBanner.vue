@@ -106,10 +106,12 @@ import {
   pathKey,
 } from '@baserow/modules/database/utils/gridGroupByRender'
 import GridViewGroupByAggregation from '@baserow/modules/database/components/view/grid/GridViewGroupByAggregation'
+import gridViewGroupByValue from '@baserow/modules/database/mixins/gridViewGroupByValue'
 
 export default {
   name: 'GridViewGroupByBanner',
   components: { GridViewGroupByAggregation },
+  mixins: [gridViewGroupByValue],
   props: {
     item: {
       type: Object,
@@ -180,64 +182,17 @@ export default {
     groupByField() {
       return this.groupByFields[this.item.depth]
     },
-    fieldType() {
-      if (!this.groupByField) {
-        return null
-      }
-      return this.$registry.get('field', this.groupByField.type)
+    groupPath() {
+      return this.item.path
+    },
+    groupDisplay() {
+      return this.item.display
     },
     fieldNameLabel() {
       return this.groupByField?.name || ''
     },
-    groupValue() {
-      const field = this.groupByField
-      if (!field) {
-        return null
-      }
-      return this.item.path[`field_${field.id}`]
-    },
-    displayValue() {
-      const field = this.groupByField
-      const display = this.item.display
-      if (!field || !display) {
-        return undefined
-      }
-      const key = `field_${field.id}`
-      return key in display ? display[key] : undefined
-    },
-    rowValueForGroup() {
-      const field = this.groupByField
-      if (!field || !this.fieldType) {
-        return null
-      }
-      // Reference fields (collaborators, link rows, selects) can't be rendered from
-      // their group id(s) alone, so the backend resolves them to a renderable value
-      // in `display`. Other field types group on a value that is already displayable.
-      if (this.displayValue !== undefined) {
-        return this.displayValue
-      }
-      return this.fieldType.getRowValueFromGroupValue(field, this.groupValue)
-    },
-    isEmptyValue() {
-      const value = this.rowValueForGroup
-      // Array-valued group keys (multiple select, link row, collaborators) come through
-      // as an empty array when the group has no values.
-      if (Array.isArray(value)) {
-        return value.length === 0
-      }
-      return value === null || value === undefined || value === ''
-    },
     emptyValueLabel() {
       return this.$t('gridViewGroupByBanner.emptyValue')
-    },
-    groupByComponent() {
-      if (this.isEmptyValue || !this.groupByField || !this.fieldType) {
-        return null
-      }
-      if (typeof this.fieldType.getGroupByComponent !== 'function') {
-        return null
-      }
-      return this.fieldType.getGroupByComponent(this.groupByField)
     },
     indentPx() {
       return groupBannerIndentPx(
@@ -245,35 +200,6 @@ export default {
         this.groupByFields.length,
         this.rowDetailsWidth
       )
-    },
-    fallbackValueText() {
-      const value = this.rowValueForGroup
-      if (value === null || value === undefined) {
-        return ''
-      }
-      if (typeof value === 'boolean') {
-        return value ? 'true' : 'false'
-      }
-      if (this.fieldType?.toHumanReadableString) {
-        try {
-          const text = this.fieldType.toHumanReadableString(
-            this.groupByField,
-            value
-          )
-          if (typeof text === 'string') {
-            return text
-          }
-        } catch (_) {
-          // Fall back to the generic object/string rendering below.
-        }
-      }
-      if (typeof value === 'object') {
-        if ('value' in value) {
-          return value.value
-        }
-        return JSON.stringify(value)
-      }
-      return String(value)
     },
     separatorPositions() {
       const positions = []

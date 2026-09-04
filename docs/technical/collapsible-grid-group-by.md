@@ -251,3 +251,25 @@ edit path and the realtime echo funnel through the same group-aware refresh. Row
 edits refresh silently; a spinner is reserved for changing a column's aggregation
 function. Sorting needs no refresh because these aggregations are
 order-independent.
+
+## Layouts
+
+A grid view stores a `group_by_layout` setting with two values. Both share every
+layer described above; they differ only in the geometry the layout builder emits.
+
+- **Banner** (default): each group contributes a header, a gap and an add-row
+  line, groups can be collapsed, and per-group aggregations are shown.
+- **Column**: one column per group-by level sits at the left of the frozen
+  section, and each group's value is drawn once as a cell spanning its rows with a
+  row count. Headers, gaps and per-group add-row lines take no space, the tree is
+  always fully expanded (collapse state is ignored), and a single add-row line
+  closes the grid. Per-group aggregations are still computed but not rendered.
+
+The builder emits a `groupSpan` item per group at every depth instead of a header
+in column mode. Consumers that only read row sections (row fetching, drag
+targets, scroll-to-row, multi-select) are unaffected; any loop over layout items
+that rejects unexpected types must skip spans. In column mode, unloaded sibling
+ranges receive at least one row slot per group, then share the parent's remaining
+unaccounted row count. This keeps sparse estimates aligned with the full row
+space so the ranges overlap the correct viewport and get refined; in banner mode
+they are sized by header height as before.

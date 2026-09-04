@@ -10094,3 +10094,409 @@ describe('Grid view store', () => {
     expect(rowsOrderByParam).toBe('field_1')
   })
 })
+
+describe('Grid view store group-by layout mode', () => {
+  let testApp = null
+  let store = null
+
+  const fields = [
+    { id: 1, name: 'Name', type: 'text', primary: true },
+    { id: 2, name: 'Team', type: 'text' },
+  ]
+  const groupBys = [
+    { id: 10, field: 2, order: 'ASC', type: 'default', width: 200 },
+  ]
+  const view = {
+    id: 1,
+    filters: [],
+    filter_groups: [],
+    filter_type: 'AND',
+    sortings: [],
+    group_bys: groupBys,
+  }
+  const seed = (targetStore, extra = {}) => {
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      rowHeight: 33,
+      windowHeight: 100,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 2 }],
+        collapse: { mode: 'expand', paths: [] },
+      },
+      ...extra,
+    })
+    targetStore.replaceState({ ...targetStore.state, grid: state })
+  }
+
+  beforeEach(() => {
+    testApp = new TestApp()
+    store = testApp.createStore({ modules: { grid: gridStore } })
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  test('setGroupByLayout switches the layout builder and forces expand-all', async () => {
+    seed(store)
+    store.commit('grid/SET_GROUP_BY_COLLAPSE', { mode: 'collapse', paths: [] })
+    expect(
+      store.getters['grid/getGroupByLayout'].items.map((item) => item.type)
+    ).toEqual(['header'])
+
+    await store.dispatch('grid/setGroupByLayout', 'column')
+
+    expect(store.getters['grid/isGroupByColumnLayout']).toBe(true)
+    expect(
+      store.getters['grid/getGroupByLayout'].items.map((item) => item.type)
+    ).toEqual(['groupSpan', 'rowSection', 'addRow'])
+  })
+
+  test('collapse actions are no-ops in column layout', async () => {
+    const fetchGroupByRowsByScrollTop = vi.fn().mockResolvedValue([])
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: { ...gridStore.actions, fetchGroupByRowsByScrollTop },
+        },
+      },
+    })
+    seed(groupByStore, { groupByLayout: 'column' })
+
+    await groupByStore.dispatch('grid/toggleGroupCollapse', {
+      path: { field_2: 'A' },
+      view,
+      fields,
+    })
+    await groupByStore.dispatch('grid/setGroupByCollapseAll', {
+      view,
+      fields,
+      collapse: true,
+    })
+
+    expect(groupByStore.getters['grid/getGroupByCollapse']).toEqual({
+      mode: 'expand',
+      paths: [],
+    })
+    expect(fetchGroupByRowsByScrollTop).not.toHaveBeenCalled()
+  })
+
+  test('column layout initially fetches descendants despite a saved collapse-all state', async () => {
+    const nestedFields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+      { id: 3, name: 'Role', type: 'text' },
+    ]
+    const nestedGroupBys = [
+      { field: 2, order: 'ASC', type: 'default', width: 200 },
+      { field: 3, order: 'ASC', type: 'default', width: 200 },
+    ]
+    const nestedView = { ...view, group_bys: nestedGroupBys }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: nestedGroupBys,
+      groupByLayout: 'column',
+      count: 2,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 330,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+        3: { hidden: false, order: 2 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        pages: {},
+        treeNodes: [],
+        collapse: { mode: 'collapse', paths: [] },
+        collapseInitialized: true,
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const groupByRequests = []
+    testApp.mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        groupByRequests.push(config.params)
+        return [
+          200,
+          {
+            pages: [
+              {
+                parent: {},
+                groups: [
+                  {
+                    path: { field_2: 'A' },
+                    depth: 0,
+                    row_count: 2,
+                    children_count: 1,
+                    sibling_index: 0,
+                    row_offset: 0,
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+                group_count: 1,
+              },
+              {
+                parent: { field_2: 'A' },
+                groups: [
+                  {
+                    path: { field_2: 'A', field_3: 'Dev' },
+                    depth: 1,
+                    row_count: 2,
+                    sibling_index: 0,
+                    row_offset: 0,
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+                group_count: 1,
+              },
+            ],
+          },
+        ]
+      })
+    testApp.mockServer.mock.onGet('/database/views/grid/1/').reply(200, {
+      count: 2,
+      results: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          field_3: 'Dev',
+        },
+        { id: 11, order: '2.00', field_1: 'Ada', field_2: 'A', field_3: 'Dev' },
+      ],
+    })
+
+    await store.dispatch('grid/fetchGroupByRowsByScrollTop', {
+      gridId: 1,
+      view: nestedView,
+      fields: nestedFields,
+      scrollTop: 0,
+    })
+
+    expect(groupByRequests).toHaveLength(1)
+    expect(groupByRequests[0].get('include_descendants')).toBe('true')
+    expect(groupByRequests[0].get('depth')).toBe(null)
+    expect(store.state.grid.groupBy.collapse).toEqual({
+      mode: 'collapse',
+      paths: [],
+    })
+  })
+
+  test('column viewport refines sparse group pages until rows are visible', async () => {
+    const sparseGroupBys = [
+      { id: 10, field: 2, order: 'ASC', type: 'default', width: 200 },
+    ]
+    const sparseView = { ...view, group_bys: sparseGroupBys }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: sparseGroupBys,
+      groupByLayout: 'column',
+      count: 12000,
+      bufferRequestSize: 40,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 33,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 120,
+            nodes: {},
+          },
+        },
+        collapse: { mode: 'expand', paths: [] },
+        collapseInitialized: true,
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const groupPageOffsets = []
+    testApp.mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        const [{ offset }] = JSON.parse(config.params.get('parents'))
+        groupPageOffsets.push(offset)
+        const isLastPage = offset === 80
+        const rowCount = isLastPage ? 1 : 100
+        const rowOffset = isLastPage ? 11960 : 7960
+        return [
+          200,
+          {
+            pages: [
+              {
+                parent: {},
+                groups: Array.from({ length: 40 }, (_, index) => ({
+                  path: { field_2: `Group ${offset + index}` },
+                  depth: 0,
+                  row_count: rowCount,
+                  sibling_index: offset + index,
+                  row_offset: rowOffset + index * rowCount,
+                })),
+                offset,
+                limit: 40,
+                group_count: 120,
+              },
+            ],
+          },
+        ]
+      })
+
+    const rowRequests = []
+    testApp.mockServer.mock.onGet('/database/views/grid/1/').reply((config) => {
+      rowRequests.push(config.params)
+      return [
+        200,
+        {
+          count: 12000,
+          results: [
+            {
+              id: 8001,
+              order: '8001.00',
+              field_1: 'Visible row',
+              field_2: 'Group 40',
+            },
+          ],
+        },
+      ]
+    })
+
+    await store.dispatch('grid/fetchGroupByRowsByScrollTop', {
+      gridId: 1,
+      view: sparseView,
+      fields,
+      scrollTop: 8000 * 33,
+    })
+
+    // Loading the initially visible final page changes the estimated heights of the
+    // earlier sparse pages. The same viewport then falls in page 40 and must be refined
+    // again before row ranges can be resolved.
+    expect(groupPageOffsets).toEqual([80, 40])
+    expect(rowRequests).toHaveLength(1)
+    expect(rowRequests[0].get('offset')).toBe('7960')
+  })
+
+  test('column layout refresh uses expanded paging but preserves banner collapse state', async () => {
+    const nestedFields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+      { id: 3, name: 'Role', type: 'text' },
+    ]
+    const nestedGroupBys = [
+      { field: 2, order: 'ASC', type: 'default', width: 200 },
+      { field: 3, order: 'ASC', type: 'default', width: 200 },
+    ]
+    const nestedView = { ...view, group_bys: nestedGroupBys }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: nestedGroupBys,
+      groupByLayout: 'column',
+      count: 2,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 330,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+        3: { hidden: false, order: 2 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        collapse: { mode: 'collapse', paths: [] },
+        collapseInitialized: true,
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const rootPage = {
+      parent: {},
+      groups: [
+        {
+          path: { field_2: 'A' },
+          depth: 0,
+          row_count: 2,
+          children_count: 1,
+          sibling_index: 0,
+          row_offset: 0,
+        },
+      ],
+      offset: 0,
+      limit: 40,
+      group_count: 1,
+    }
+    const childPage = {
+      parent: { field_2: 'A' },
+      groups: [
+        {
+          path: { field_2: 'A', field_3: 'Dev' },
+          depth: 1,
+          row_count: 2,
+          sibling_index: 0,
+          row_offset: 0,
+        },
+      ],
+      offset: 0,
+      limit: 40,
+      group_count: 1,
+    }
+    const groupByRequests = []
+    testApp.mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        groupByRequests.push(config.params)
+        const pages =
+          config.params.get('include_descendants') === 'true'
+            ? [rootPage, childPage]
+            : config.params.get('depth') !== null
+              ? [childPage]
+              : [rootPage]
+        return [200, { pages }]
+      })
+    testApp.mockServer.mock.onGet('/database/views/grid/1/').reply(200, {
+      count: 2,
+      results: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          field_3: 'Dev',
+        },
+        { id: 11, order: '2.00', field_1: 'Ada', field_2: 'A', field_3: 'Dev' },
+      ],
+    })
+
+    await store.dispatch('grid/refreshActiveGroupBys', {
+      view: nestedView,
+      fields: nestedFields,
+      scrollTop: 0,
+      preserveScroll: true,
+    })
+
+    expect(groupByRequests).toHaveLength(1)
+    expect(groupByRequests[0].get('include_descendants')).toBe('true')
+    expect(groupByRequests[0].get('depth')).toBe(null)
+    expect(store.state.grid.groupBy.collapse).toEqual({
+      mode: 'collapse',
+      paths: [],
+    })
+  })
+})
