@@ -17,6 +17,10 @@ from baserow.api.user_files.serializers import UserFileSerializer
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.preview import (
+    BuilderPreviewGrantHandler,
+    get_builder_preview_cookie_name,
+)
 from baserow.contrib.database.views.models import SORT_ORDER_ASC
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula import BaserowFormulaObject
@@ -31,6 +35,12 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
 )
 from baserow.core.user_sources.user_source_user import UserSourceUser
+
+
+def authenticate_builder_preview(api_client, builder, user):
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.fixture
@@ -247,8 +257,8 @@ def test_get_non_public_builder(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_public_builder_by_id(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
+def test_get_builder_preview_by_id(api_client, data_fixture):
+    user, _token = data_fixture.create_user_and_token()
     favicon_file = data_fixture.create_user_file(original_extension=".png")
     page = data_fixture.create_builder_page(user=user)
     page.builder.favicon_file = favicon_file
@@ -256,14 +266,14 @@ def test_get_public_builder_by_id(api_client, data_fixture):
     page2 = data_fixture.create_builder_page(builder=page.builder, user=user)
 
     url = reverse(
-        "api:builder:domains:get_builder_by_id",
+        "api:builder:preview:current",
         kwargs={"builder_id": page.builder.id},
     )
+    authenticate_builder_preview(api_client, page.builder, user)
 
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     response_json = response.json()
@@ -651,6 +661,7 @@ def test_ask_public_builder_domain_exists(api_client, data_fixture):
 @override_settings(
     PUBLIC_BACKEND_HOSTNAME="backend.localhost",
     PUBLIC_WEB_FRONTEND_HOSTNAME="web-frontend.localhost",
+    BUILDER_PREVIEW_HOSTNAME="preview.localhost",
     MEDIA_URL_HOSTNAME="media.localhost",
 )
 def test_ask_public_builder_domain_exists_with_public_backend_and_web_frontend_domains(
@@ -665,6 +676,10 @@ def test_ask_public_builder_domain_exists_with_public_backend_and_web_frontend_d
     assert response.status_code == 200
 
     url = reverse("api:builder:domains:ask_exists") + "?domain=web-frontend.localhost"
+    response = api_client.get(url)
+    assert response.status_code == 200
+
+    url = reverse("api:builder:domains:ask_exists") + "?domain=preview.localhost"
     response = api_client.get(url)
     assert response.status_code == 200
 
@@ -754,6 +769,69 @@ def test_public_dispatch_data_source_view(
     mock_dispatch_data_source.assert_called_once_with(
         ANY, mock_data_source, mock_dispatch_context
     )
+
+
+@pytest.mark.django_db
+def test_preview_dispatch_data_source_keeps_user_source_as_secondary_actor(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    table, fields, rows = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Ada"]],
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page,
+        integration=integration,
+        table=table,
+        user=user,
+    )
+    element = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Name",
+                "type": "text",
+                "config": {"value": f"get('current_record.{fields[0].db_column}')"},
+            }
+        ],
+    )
+    user_source = data_fixture.create_local_baserow_table_user_source(
+        application=builder,
+        integration=integration,
+        user=user,
+    )
+    user_source_row = user_source.table.get_model().objects.first()
+    user_source_user = data_fixture.create_user_source_user(
+        user_source=user_source, user_id=user_source_row.id
+    )
+
+    authenticate_builder_preview(api_client, builder, user)
+    response = api_client.post(
+        reverse(
+            "api:builder:preview:dispatch_data_source",
+            kwargs={
+                "builder_id": builder.id,
+                "data_source_id": data_source.id,
+            },
+        ),
+        {"metadata": {"data_source": {"element": element.id}}},
+        format="json",
+        HTTP_AUTHORIZATION=(f"JWT {user_source_user.get_refresh_token().access_token}"),
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json() == {
+        "has_next_page": False,
+        "results": [{"id": rows[0].id, "Name": "Ada"}],
+    }
 
 
 @pytest.mark.django_db
@@ -2303,7 +2381,7 @@ def test_get_data_source_context_fields_are_included(api_client, data_fixture):
 def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
     api_client, data_fixture
 ):
-    user, token = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
     table, fields, rows = data_fixture.build_table(
@@ -2339,12 +2417,15 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
         page=page,
         value=f"get('data_source.{data_source.id}.field_{fields[0].id}')",
     )
+    builder.workspace = None
+    builder.save()
+    data_fixture.create_builder_custom_domain(published_to=builder)
 
     url = reverse(
         "api:builder:domains:public_dispatch",
         kwargs={"data_source_id": data_source.id},
     )
-    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    response = api_client.post(url)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
@@ -2362,7 +2443,7 @@ def test_public_dispatch_data_source_with_refinements_referencing_trashed_field(
         order=0,
     )
 
-    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    response = api_client.post(url)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {

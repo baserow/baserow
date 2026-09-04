@@ -497,8 +497,12 @@ export function makeErrorResponseInterceptor(
   return (error) => {
     const rspData = error.response?.data
 
-    // user session expired. Redirect to login page to start a new session.
-    if (rspData?.error === 'ERROR_INVALID_REFRESH_TOKEN') {
+    // A regular Baserow user session expired. User source sessions use the same
+    // error code, but their callers must clear the user source session instead.
+    if (
+      rspData?.error === 'ERROR_INVALID_REFRESH_TOKEN' &&
+      !error.config?.isUserSourceAuth
+    ) {
       store.dispatch('auth/forceLogoff')
       nuxtErrorHandler(
         createError({ statusCode: 401, message: 'User session expired' })
@@ -522,36 +526,24 @@ export function makeErrorResponseInterceptor(
 }
 
 /**
- * Add the user related headers according to the current authentication status.
+ * Adds headers associated with the current Baserow user.
+ *
+ * Authentication-specific plugins run before this interceptor. The user source
+ * handler marks requests where its Authorization header must be preserved.
  */
 export const prepareRequestHeaders = (store) => (config) => {
-  const application = store.getters['userSourceUser/getCurrentApplication']
-  if (store.getters['auth/isAuthenticated']) {
+  config.headers ||= {}
+
+  if (
+    store.getters['auth/isAuthenticated'] &&
+    !config.usesUserSourceAuthorization
+  ) {
     const token = store.getters['auth/token']
     config.headers.Authorization = `JWT ${token}`
     config.headers.ClientSessionId =
       store.getters['auth/getUntrustedClientSessionId']
-    // If we are logged with Baserow user and with a user source user
-    // so we also want to send this user token
-    // to the backend through the custom `UserSourceAuthorization` header.
-    // This enables the "double" authentication.
-    // We access the data with the permission of the currently logged Baserow user
-    // but we can see the data of the user source user.
-    if (store.getters['userSourceUser/isAuthenticated'](application)) {
-      const userSourceToken =
-        store.getters['userSourceUser/accessToken'](application)
-      config.headers.UserSourceAuthorization = `JWT ${userSourceToken}`
-    }
-  } else if (store.getters['userSourceUser/isAuthenticated'](application)) {
-    // Here we are logged as a user source user
-    const userSourceToken =
-      store.getters['userSourceUser/accessToken'](application)
-    // We don't want to add the user source token if we are refreshing as the token
-    // won't be accepted.
-    if (!store.getters['userSourceUser/isRefreshing'](application)) {
-      config.headers.Authorization = `JWT ${userSourceToken}`
-    }
   }
+
   // This header keeps the sender out of the realtime broadcast its own request
   // triggers, so a request that applies nothing locally opts out to receive it.
   if (store.getters['auth/webSocketId'] !== null && !config.omitWebSocketId) {
@@ -614,35 +606,6 @@ export default defineNuxtPlugin({
       shouldInterceptResponse
     )
     client.interceptors.response.use(null, refreshAuthInterceptor)
-
-    const shouldInterceptUserSourceRequest = (req) => {
-      const application = store.getters['userSourceUser/getCurrentApplication']
-      return (
-        !store.getters['auth/isAuthenticated'] &&
-        store.getters['userSourceUser/shouldRefreshToken'](application)
-      )
-    }
-
-    const shouldInterceptUserSourceResponse = (error) => {
-      const application = store.getters['userSourceUser/getCurrentApplication']
-      return (
-        !store.getters['auth/isAuthenticated'] &&
-        store.getters['userSourceUser/isAuthenticated'](application) &&
-        error.response?.data?.error === 'ERROR_INVALID_ACCESS_TOKEN'
-      )
-    }
-    const refreshUserSourceToken = async () =>
-      await store.dispatch('userSourceUser/refreshAuth', {
-        application: store.getters['userSourceUser/getCurrentApplication'],
-      })
-
-    const refreshUserSourceUserInterceptor = makeRefreshAuthInterceptor(
-      client,
-      refreshUserSourceToken,
-      shouldInterceptUserSourceRequest,
-      shouldInterceptUserSourceResponse
-    )
-    client.interceptors.response.use(null, refreshUserSourceUserInterceptor)
 
     return {
       provide: {

@@ -55,6 +55,27 @@ describe('Test enterprise Baserow plugin', () => {
       expect(jsScript.body).toBeUndefined()
     })
 
+    test('preview custom CSS and JS include preview credentials', () => {
+      const plugin = new EnterprisePlugin({ app })
+      const builder = makeBuilder({
+        custom_code: { css: '.ab-text { color: red }', js: 'console.log(1)' },
+      })
+
+      const { link, script } = plugin.getBuilderApplicationHeaderAddition({
+        builder,
+        mode: 'preview',
+      })
+
+      expect(link[0].crossorigin).toBe('use-credentials')
+      expect(link[0].href).toBe(
+        'http://localhost:8000/api/builder/preview/42/custom-code/css/'
+      )
+      expect(script[0].crossorigin).toBe('use-credentials')
+      expect(script[0].src).toBe(
+        'http://localhost:8000/api/builder/preview/42/custom-code/js/'
+      )
+    })
+
     test('external scripts and stylesheets are injected at body close', () => {
       const plugin = new EnterprisePlugin({ app })
       const builder = makeBuilder({

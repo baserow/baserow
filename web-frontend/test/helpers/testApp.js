@@ -4,6 +4,7 @@ import axios from 'axios'
 import setupClient, {
   ClientErrorMap,
 } from '@baserow/modules/core/plugins/clientHandler'
+import setupUserSourceClient from '@baserow/modules/core/plugins/userSourceClientHandler'
 
 import setupDatabasePlugin from '@baserow/modules/database/plugin'
 import setupBuilderPlugin from '@baserow/modules/builder/plugin'
@@ -35,6 +36,7 @@ function _createBaserowStoreAndRegistry(app, vueContext, extraPluginSetupFunc) {
     app[key] = value
   })
   app.$client = app.client
+  setupUserSourceClient({ store, app })
   store.$registry = app.$registry
   store.$client = app.client
   store.$config = app.$config

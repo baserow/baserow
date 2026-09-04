@@ -39,7 +39,7 @@ def decode_saml_request(idp_redirect_url):
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_builder_saml_baserow_initiated_login_view(
-    data_fixture, api_client, enterprise_data_fixture
+    data_fixture, api_client, enterprise_data_fixture, settings
 ):
     metadata = enterprise_data_fixture.get_test_saml_idp_metadata()
 
@@ -93,9 +93,8 @@ def test_builder_saml_baserow_initiated_login_view(
     saml_request = decode_saml_request(idp_sign_in_url)
     assert validate_saml_xml(saml_request) is None
     response_query_params = dict(parse_qsl(urlparse(idp_sign_in_url).query))
-    assert (
-        response_query_params["RelayState"]
-        == f"http://localhost:3000/builder/{domain.builder.id}/preview/"
+    assert response_query_params["RelayState"] == (
+        f"{settings.BUILDER_PREVIEW_URL}/builder/preview/{user_source.application_id}/"
     )
 
     # Second time, should redirect to the same URL
@@ -122,7 +121,7 @@ def test_builder_saml_baserow_initiated_login_view(
 @pytest.mark.django_db()
 @override_settings(DEBUG=True)
 def test_builder_saml_assertion_consumer_service(
-    data_fixture, api_client, enterprise_data_fixture
+    data_fixture, api_client, enterprise_data_fixture, settings
 ):
     (
         metadata,
@@ -157,6 +156,27 @@ def test_builder_saml_assertion_consumer_service(
     )
 
     with freeze_time("2024-12-17T15:53:00.00Z"):
+        preview_relay_state = (
+            f"{settings.BUILDER_PREVIEW_URL}/builder/preview/"
+            f"{user_source.application_id}/login?next=%2Ftoto"
+        )
+        response = api_client.post(
+            sp_sso_saml_acs_url,
+            data={
+                "SAMLResponse": saml_response,
+                "RelayState": preview_relay_state,
+            },
+        )
+        assert response.status_code == HTTP_302_FOUND
+
+        parsed_redirect = urlparse(response.headers["Location"])
+        assert parsed_redirect.path == (
+            f"/builder/preview/{user_source.application_id}/login"
+        )
+        query_param = dict(parse_qsl(parsed_redirect.query))
+        assert query_param["next"] == "/toto"
+        assert f"user_source_saml_token__{user_source.id}" in query_param
+
         response = api_client.post(
             sp_sso_saml_acs_url,
             data={

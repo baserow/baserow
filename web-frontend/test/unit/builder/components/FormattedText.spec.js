@@ -89,7 +89,7 @@ describe('FormattedText', () => {
     )
 
     expect(wrapper.find('a.ab-link').attributes('href')).toBe(
-      '/builder/7/preview/terms'
+      '/builder/preview/7/terms'
     )
   })
 
@@ -106,7 +106,7 @@ describe('FormattedText', () => {
     )
 
     expect(wrapper.find('a.ab-link').attributes('href')).toBe(
-      '/builder/9/preview/terms'
+      '/builder/preview/9/terms'
     )
   })
 

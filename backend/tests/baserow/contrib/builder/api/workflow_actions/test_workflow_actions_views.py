@@ -13,6 +13,11 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.builder.preview import (
+    BuilderPreviewActor,
+    BuilderPreviewGrantHandler,
+    get_builder_preview_cookie_name,
+)
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
@@ -38,6 +43,13 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
+from baserow.core.services.types import DispatchResult
+
+
+def authenticate_builder_preview(api_client, builder, user):
+    token = BuilderPreviewGrantHandler().create_grant(builder, user)
+    _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
+    api_client.cookies[get_builder_preview_cookie_name()] = session_token
 
 
 @pytest.mark.django_db
@@ -289,18 +301,19 @@ def test_public_workflow_actions_view(api_client, data_fixture):
     )
 
     url = reverse(
-        "api:builder:domains:list_workflow_actions",
-        kwargs={"page_id": page.id},
+        "api:builder:preview:list_workflow_actions",
+        kwargs={"builder_id": builder.id, "page_id": page.id},
     )
+    authenticate_builder_preview(api_client, builder, user)
     response = api_client.get(
         url,
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     response_json = response.json()
     assert len(response_json) == 1
     assert response_json[0]["type"] == NotificationWorkflowActionType.type
+    del api_client.cookies[get_builder_preview_cookie_name()]
 
     url = reverse(
         "api:builder:domains:list_workflow_actions",
@@ -698,6 +711,141 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
     assert service.sample_data["data"][color_field.name] == "Brown"
     assert animal_field.name not in service.sample_data["data"]
     assert service.sample_data["status"] == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_dispatch_workflow_action_in_preview_without_user_source_authentication(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Preview row'")
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        element=element,
+        event=EventTypes.CLICK,
+        service=service,
+    )
+
+    original_dispatch = BuilderWorkflowActionHandler.dispatch_workflow_action
+
+    def dispatch_without_user_source(handler, workflow_action, dispatch_context):
+        assert isinstance(dispatch_context.request.user, BuilderPreviewActor)
+        assert dispatch_context.request.user_source_user.is_anonymous
+        return original_dispatch(handler, workflow_action, dispatch_context)
+
+    authenticate_builder_preview(api_client, builder, user)
+    with (
+        patch(
+            "baserow.contrib.builder.handler.get_builder_used_property_names",
+            return_value={
+                "all": {service.id: ["id", fields[0].db_column]},
+                "external": {service.id: ["id", fields[0].db_column]},
+            },
+        ),
+        patch.object(
+            BuilderWorkflowActionHandler,
+            "dispatch_workflow_action",
+            side_effect=dispatch_without_user_source,
+            autospec=True,
+        ),
+    ):
+        response = api_client.post(
+            reverse(
+                "api:builder:preview:dispatch_workflow_action",
+                kwargs={
+                    "builder_id": builder.id,
+                    "workflow_action_id": workflow_action.id,
+                },
+            ),
+            {},
+            format="json",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert list(
+        table.get_model().objects.values_list(fields[0].db_column, flat=True)
+    ) == ["Preview row"]
+    service.refresh_from_db()
+    assert service.sample_data["data"][fields[0].name] == "Preview row"
+    assert service.sample_data["status"] == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_dispatch_workflow_action_in_preview_with_user_source_authentication(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[],
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=fields[0], value="'Preview row'")
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page,
+        element=element,
+        event=EventTypes.CLICK,
+        service=service,
+    )
+    user_source = data_fixture.create_local_baserow_table_user_source(
+        application=builder,
+        integration=integration,
+        user=user,
+    )
+    user_source_row = user_source.table.get_model().objects.first()
+    user_source_user = data_fixture.create_user_source_user(
+        user_source=user_source, user_id=user_source_row.id
+    )
+
+    def dispatch_with_user_source(workflow_action, dispatch_context):
+        assert dispatch_context.request.user_source_user.id == user_source_row.id
+        return DispatchResult()
+
+    authenticate_builder_preview(api_client, builder, user)
+    with patch.object(
+        BuilderWorkflowActionHandler,
+        "dispatch_workflow_action",
+        side_effect=dispatch_with_user_source,
+    ):
+        response = api_client.post(
+            reverse(
+                "api:builder:preview:dispatch_workflow_action",
+                kwargs={
+                    "builder_id": builder.id,
+                    "workflow_action_id": workflow_action.id,
+                },
+            ),
+            {},
+            format="json",
+            HTTP_AUTHORIZATION=(
+                f"JWT {user_source_user.get_refresh_token().access_token}"
+            ),
+        )
+
+    assert response.status_code == HTTP_200_OK
 
 
 @pytest.mark.django_db

@@ -7,12 +7,12 @@ test.describe("Builder page heading element test suite", () => {
     element1 = await createBuilderElement(
       builderPagePage.builderPage,
       "rating",
-      { value: "'A Rate'" },
+      { value: "'A Rate'" }
     );
     element2 = await createBuilderElement(
       builderPagePage.builderPage,
       "rating_input",
-      { value: "'B Rate'" },
+      { value: "'B Rate'" }
     );
     await builderPagePage.goto();
   });
@@ -21,7 +21,7 @@ test.describe("Builder page heading element test suite", () => {
     const builderElementModal = await builderPagePage.openAddElementModal();
     await builderElementModal.addElementByName("Rating");
     await expect(
-      page.locator("a").filter({ hasText: "Star" }).first(),
+      page.locator("a").filter({ hasText: "Star" }).first()
     ).toBeVisible();
   });
 
@@ -34,7 +34,7 @@ test.describe("Builder page heading element test suite", () => {
     await builderElementModal.addElementByName("Rating input");
 
     await expect(
-      page.locator('[data-test-id="rating-form-value"]'),
+      page.locator('[data-test-id="rating-form-value"]')
     ).toBeVisible();
 
     await page.evaluate(() => {
@@ -50,9 +50,7 @@ test.describe("Builder page heading element test suite", () => {
 
     await newPage.waitForLoadState();
 
-    const title = await newPage.title();
-    await expect(title).toBe("Default page");
-
+    await expect(newPage).toHaveTitle("Default page");
     await expect(newPage.locator(".rating")).toHaveCount(3);
   });
 });

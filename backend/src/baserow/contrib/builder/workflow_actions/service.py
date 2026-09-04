@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Any, List
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
@@ -7,6 +8,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.preview import BuilderPreviewActor
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
 )
@@ -45,6 +47,8 @@ from baserow.core.services.types import DispatchResult
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
+
+User = get_user_model()
 
 
 class BuilderWorkflowActionService:
@@ -378,15 +382,21 @@ class BuilderWorkflowActionService:
         """
         Returns whether this dispatch may persist the service sample data.
 
-        Only authenticated dispatches against draft builders with workflow-action
-        update permission are allowed to refresh sample data. Published builder
-        copies must not mutate their service sample data.
+        Only dispatches against draft builders whose editor has workflow-action
+        update permission may refresh sample data. For preview dispatches, the
+        editor who issued the preview grant is checked. Published builder copies
+        must not mutate their service sample data.
         """
 
         builder = workflow_action.page.builder
 
         if builder.is_published:
             return False
+
+        if isinstance(user, BuilderPreviewActor):
+            user = User.objects.filter(id=user.issued_by_user_id).first()
+            if user is None:
+                return False
 
         try:
             CoreHandler().check_permissions(

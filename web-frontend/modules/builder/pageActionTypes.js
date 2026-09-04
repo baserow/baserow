@@ -3,6 +3,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import { compile } from 'path-to-regexp'
 import PublishActionModal from '@baserow/modules/builder/components/page/header/PublishActionModal'
 import { ensureString } from '@baserow/modules/core/utils/validator'
+import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 
 export class PageActionType extends Registerable {
   get label() {
@@ -89,12 +90,11 @@ export class PreviewPageActionType extends PageActionType {
     return this.app.$i18n.t('pageActionTypes.preview')
   }
 
-  generatePreviewUrl(builderId, page) {
+  generatePreviewPath(page) {
     /**
-     * Responsible for generating the preview URL for a given
+     * Responsible for generating the preview path for a given
      * page using the page's path parameters and query string parameters.
      *
-     * @param builderId   The builder application ID.
      * @param page        The Page object.
      */
 
@@ -108,10 +108,7 @@ export class PreviewPageActionType extends PageActionType {
 
     const resolvedPagePath = toPath(pageParams)
 
-    const url = new URL(
-      `/builder/${builderId}/preview${resolvedPagePath}`,
-      window.location.origin
-    )
+    const url = new URL(resolvedPagePath, 'http://preview.local')
     if (page.query_params && Array.isArray(page.query_params)) {
       page.query_params.forEach(({ name }) => {
         if (page.parameters[name]) {
@@ -119,16 +116,34 @@ export class PreviewPageActionType extends PageActionType {
         }
       })
     }
-    return url.toString()
+    return `${url.pathname}${url.search}`
   }
 
   isActive({ workspace, page }) {
     return this.app.$hasPermission('builder.domain.publish', page, workspace.id)
   }
 
-  onClick({ builder, page }) {
-    const pageUrl = this.generatePreviewUrl(builder.id, page)
-    window.open(pageUrl, '_blank')
+  async onClick({ builder, page }) {
+    // The tab must be opened synchronously while the click's transient user
+    // activation is still available, otherwise browsers can block it as a popup.
+    const previewWindow = window.open('', '_blank')
+    if (previewWindow !== null) {
+      previewWindow.opener = null
+    }
+
+    try {
+      const { data } = await PublishedBuilderService(
+        this.app.$client
+      ).createPreviewGrant(builder.id, this.generatePreviewPath(page))
+      if (previewWindow !== null && !previewWindow.closed) {
+        previewWindow.location.replace(data.url)
+      }
+    } catch (error) {
+      if (previewWindow !== null && !previewWindow.closed) {
+        previewWindow.close()
+      }
+      throw error
+    }
   }
 
   getOrder() {

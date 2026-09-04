@@ -154,7 +154,7 @@ export default {
         application: this.builder,
         userSource: this.selectedUserSource,
         credentials,
-        setCookie: this.mode === 'public',
+        setCookie: this.mode !== 'editing',
       })
     },
     async afterLogin() {

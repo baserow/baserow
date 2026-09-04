@@ -8,10 +8,21 @@ import {
   userSourceCookieTokenName,
 } from '@baserow/modules/core/utils/auth'
 
+const getUserSourceCookie = (getters) => {
+  const authConfig = getters.getCurrentUserSourceAuthConfig
+  return {
+    name: authConfig?.cookieName || userSourceCookieTokenName,
+    options: {
+      path: '/',
+      ...authConfig?.cookieOptions,
+    },
+  }
+}
+
 export const state = () => ({
-  // The currentApplication is used in the clientHandler because we have no way to know
-  // If the a request is done for the page editor or the template.
+  // The client handler needs the current application to select its user source token.
   currentApplication: null,
+  currentUserSourceAuthConfig: null,
 })
 
 const checkApplication = (application) => {
@@ -79,14 +90,18 @@ export const mutations = {
     checkApplication(application)
     application.userSourceUser.refreshing = refreshing
   },
-  SET_CURRENT_APPLICATION(state, { application }) {
+  SET_CURRENT_APPLICATION(state, { application, userSourceAuthConfig = null }) {
     state.currentApplication = application
+    state.currentUserSourceAuthConfig = userSourceAuthConfig
   },
 }
 
 export const actions = {
-  setCurrentApplication({ commit }, { application }) {
-    commit('SET_CURRENT_APPLICATION', { application })
+  setCurrentApplication(
+    { commit },
+    { application, userSourceAuthConfig = null }
+  ) {
+    commit('SET_CURRENT_APPLICATION', { application, userSourceAuthConfig })
   },
   async forceAuthenticate({ dispatch }, { application, userSource, user }) {
     const { $registry, $i18n, $client, $config } = this
@@ -105,7 +120,7 @@ export const actions = {
     })
   },
   async authenticate(
-    { dispatch },
+    { dispatch, getters },
     { application, userSource, credentials, setCookie }
   ) {
     const { $registry, $i18n, $client, $config } = this
@@ -113,7 +128,10 @@ export const actions = {
       data: { access_token: access, refresh_token: refresh },
     } = await UserSourceService($client).authenticate(
       userSource.id,
-      credentials
+      credentials,
+      getters.getCurrentUserSourceAuthConfig?.authenticationUrls?.[
+        userSource.id
+      ]
     )
     dispatch('login', {
       application,
@@ -143,13 +161,16 @@ export const actions = {
     commit('SET_AUTHENTICATED', { application, authenticated: true })
 
     if (setCookie) {
+      const userSourceCookie = getUserSourceCookie(getters)
       // Set the token for next page load
       await setToken(
         nuxtApp,
         getters.refreshToken(application),
-        userSourceCookieTokenName,
+        userSourceCookie.name,
         {
           sameSite: 'Lax',
+          cookieUrl: nuxtApp.$config.public.publicWebFrontendUrl,
+          ...userSourceCookie.options,
         }
       )
     }
@@ -160,7 +181,10 @@ export const actions = {
    * data.
    */
   async logoff({ commit, getters }, { application, invalidateToken = true }) {
-    await unsetToken(this.app, userSourceCookieTokenName)
+    const userSourceCookie = getUserSourceCookie(getters)
+    await unsetToken(this.app, userSourceCookie.name, {
+      path: userSourceCookie.options.path,
+    })
     if (!getters.isAuthenticated(application)) {
       return
     }
@@ -203,7 +227,10 @@ export const actions = {
       const tokenUpdatedAt = new Date().getTime()
       const {
         data: { refresh_token: refresh = null, access_token: access },
-      } = await UserSourceService(this.$client).refreshAuth(refreshToken)
+      } = await UserSourceService(this.$client).refreshAuth(
+        refreshToken,
+        getters.getCurrentUserSourceAuthConfig?.refreshUrl
+      )
 
       // if ROTATE_REFRESH_TOKEN=False in the backend the response will not contain
       // a new refresh token. In that case, we keep the one we just used.
@@ -222,6 +249,9 @@ export const actions = {
 export const getters = {
   getCurrentApplication: (state) => {
     return state.currentApplication
+  },
+  getCurrentUserSourceAuthConfig: (state) => {
+    return state.currentUserSourceAuthConfig
   },
   isAuthenticated: (state) => (application) => {
     return !!application?.userSourceUser?.authenticated

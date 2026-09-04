@@ -1,4 +1,10 @@
 import { prepareDispatchParams } from '@baserow/modules/builder/utils/params'
+import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
+
+const getRenderPath = (builderId, previewPath, publicPath) =>
+  builderId
+    ? getBuilderPreviewApiPath(builderId, previewPath)
+    : `builder/domains/published/${publicPath}`
 
 export default (client) => {
   return {
@@ -13,24 +19,45 @@ export default (client) => {
     fetchById(builderId) {
       return client.get(`builder/domains/published/by_id/${builderId}/`)
     },
-    fetchElements(page) {
-      return client.get(`builder/domains/published/page/${page.id}/elements/`)
+    fetchPreview(builderId) {
+      return client.get(getBuilderPreviewApiPath(builderId, 'current/'))
     },
-    fetchDataSources(pageId) {
+    createPreviewGrant(builderId, path) {
+      return client.post(`builder/preview/${builderId}/grant/`, { path })
+    },
+    fetchElements(page, builderId = null) {
       return client.get(
-        `builder/domains/published/page/${pageId}/data_sources/`
+        getRenderPath(
+          builderId,
+          `pages/${page.id}/elements/`,
+          `page/${page.id}/elements/`
+        )
       )
     },
-    fetchWorkflowActions(pageId) {
+    fetchDataSources(pageId, builderId = null) {
       return client.get(
-        `builder/domains/published/page/${pageId}/workflow_actions/`
+        getRenderPath(
+          builderId,
+          `pages/${pageId}/data-sources/`,
+          `page/${pageId}/data_sources/`
+        )
+      )
+    },
+    fetchWorkflowActions(pageId, builderId = null) {
+      return client.get(
+        getRenderPath(
+          builderId,
+          `pages/${pageId}/workflow-actions/`,
+          `page/${pageId}/workflow_actions/`
+        )
       )
     },
     dispatch(
       dataSourceId,
       dispatchContext,
       dispatchRefinements,
-      signal = null
+      signal = null,
+      builderId = null
     ) {
       const params = prepareDispatchParams(dispatchRefinements)
       const config = { params }
@@ -40,14 +67,22 @@ export default (client) => {
       }
 
       return client.post(
-        `builder/domains/published/data-source/${dataSourceId}/dispatch/`,
+        getRenderPath(
+          builderId,
+          `data-sources/${dataSourceId}/dispatch/`,
+          `data-source/${dataSourceId}/dispatch/`
+        ),
         { metadata: dispatchContext },
         config
       )
     },
-    dispatchAll(pageId, params) {
+    dispatchAll(pageId, params, builderId = null) {
       return client.post(
-        `builder/domains/published/page/${pageId}/dispatch-data-sources/`,
+        getRenderPath(
+          builderId,
+          `pages/${pageId}/dispatch-data-sources/`,
+          `page/${pageId}/dispatch-data-sources/`
+        ),
         { metadata: params }
       )
     },

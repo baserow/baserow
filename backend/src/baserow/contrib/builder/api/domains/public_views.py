@@ -25,6 +25,7 @@ from baserow.api.services.errors import (
     ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
     ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
 )
+from baserow.api.user_sources.authentication import UserSourceJSONWebTokenAuthentication
 from baserow.api.utils import (
     DiscriminatorCustomFieldsMappingSerializer,
     apply_exception_mapping,
@@ -92,6 +93,8 @@ BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 # The duration of the cached public `get_public_builder_by_domain_name` view.
 BUILDER_PUBLIC_BUILDER_BY_DOMAIN_TTL_SECONDS = 60 * 60
 
+BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES = (UserSourceJSONWebTokenAuthentication,)
+
 
 class ForcedPublicPolymorphicApplicationResponseSerializer(
     PublicPolymorphicApplicationResponseSerializer
@@ -157,6 +160,7 @@ class PublicBuilderByDomainNameView(APIView):
 
 class PublicBuilderByIdView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -197,6 +201,7 @@ class PublicBuilderByIdView(APIView):
 
 class PublicElementsView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -227,7 +232,7 @@ class PublicElementsView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    def get(self, request: Request, page_id: int):
+    def get(self, request: Request, page_id: int, builder_id: int | None = None):
         """
         Responds with a list of serialized elements that belongs to the given page id.
         """
@@ -274,6 +279,7 @@ class PublicElementsView(APIView):
 
 class PublicDataSourcesView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -303,7 +309,7 @@ class PublicDataSourcesView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    def get(self, request: Request, page_id: int):
+    def get(self, request: Request, page_id: int, builder_id: int | None = None):
         """
         Responds with a list of serialized data_sources that belong to the page if the
         user has access to it.
@@ -364,6 +370,7 @@ class PublicDataSourcesView(APIView):
 
 class PublicBuilderWorkflowActionsView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -398,7 +405,7 @@ class PublicBuilderWorkflowActionsView(APIView):
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
         }
     )
-    def get(self, request: Request, page_id: int):
+    def get(self, request: Request, page_id: int, builder_id: int | None = None):
         """ "
         Responds with a list of serialized workflow actions that belongs to the given
         page id.
@@ -448,6 +455,7 @@ class PublicBuilderWorkflowActionsView(APIView):
 
 class PublicDispatchDataSourceView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -498,7 +506,7 @@ class PublicDispatchDataSourceView(APIView):
             UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
         }
     )
-    def post(self, request, data_source_id: int):
+    def post(self, request, data_source_id: int, builder_id: int | None = None):
         """
         Call the given data_source related service dispatch method.
         """
@@ -519,6 +527,7 @@ class PublicDispatchDataSourceView(APIView):
 
 class PublicDispatchDataSourcesView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[
@@ -549,7 +558,7 @@ class PublicDispatchDataSourcesView(APIView):
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
         }
     )
-    def post(self, request, page_id: str):
+    def post(self, request, page_id: str, builder_id: int | None = None):
         """
         Call the given data_source related service dispatch method.
         """

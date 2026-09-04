@@ -120,6 +120,7 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/global.js'))
     addPlugin(resolve('plugins/i18n.js'))
     addPlugin(resolve('plugins/clientHandler.js'))
+    addPlugin(resolve('plugins/userSourceClientHandler.js'))
     addPlugin(resolve('plugins/priorityBus.js'))
     addPlugin(resolve('plugins/registry.js'))
     addPlugin(resolve('plugins/permissions.js'))

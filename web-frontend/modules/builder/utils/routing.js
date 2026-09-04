@@ -18,3 +18,6 @@ export const resolveApplicationRoute = (pages, fullPath) => {
 
   return undefined
 }
+
+export const resolveBuilderPagePath = (pathMatch) =>
+  Array.isArray(pathMatch) ? pathMatch.join('/') : pathMatch || ''

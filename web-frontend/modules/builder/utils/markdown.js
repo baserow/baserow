@@ -15,9 +15,9 @@ export const createApplicationBuilderMarkdownRules = ({ builder, mode }) => ({
   link_open: (tokens, idx, options, env, renderer) => {
     const url = prefixInternalResolvedUrl(
       tokens[idx].attrGet('href'),
-      builder,
       'custom',
-      mode
+      mode,
+      builder?.id
     )
     tokens[idx].attrSet('href', url)
     tokens[idx].attrJoin('class', 'ab-link')

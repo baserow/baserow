@@ -6,7 +6,7 @@
     :page="currentPage"
     :params="params"
     :path="path"
-    :mode="mode"
+    :mode="pageMode"
   />
 </template>
 
@@ -14,7 +14,10 @@
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useAsyncData, useNuxtApp, navigateTo, createError } from '#app'
-import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
+import {
+  resolveApplicationRoute,
+  resolveBuilderPagePath,
+} from '@baserow/modules/builder/utils/routing'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import _ from 'lodash'
@@ -23,31 +26,75 @@ import {
   getTokenIfEnoughTimeLeft,
   userSourceCookieTokenName,
 } from '@baserow/modules/core/utils/auth'
-import { useRoute, useRouter } from '#imports'
+import { useHead, useRequestURL, useRoute, useRuntimeConfig } from '#imports'
 import PublicPageContent from '../components/PublicPageContent.vue'
+import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlResolution'
+import {
+  getBuilderPreviewCookiePath,
+  getBuilderPreviewUserSourceAuthConfig,
+  getBuilderPreviewUserSourceCookieName,
+} from '@baserow/modules/builder/utils/preview'
 
-const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
+const logOffAndReturnToLogin = async ({ builder, mode, store, redirect }) => {
   await store.dispatch('userSourceUser/logoff', {
     application: builder,
   })
   // Redirect to home page after logout
-  return redirect({
-    name: 'application-builder-page',
-    params: { pathMatch: '/' },
-  })
+  return redirect(prefixInternalResolvedUrl('/', 'page', mode, builder.id))
 }
 
 defineOptions({
   name: 'PublicPage',
 })
 
+const props = defineProps({
+  builderId: {
+    type: Number,
+    required: false,
+    default: null,
+  },
+  pathMatch: {
+    type: String,
+    required: false,
+    default: null,
+  },
+  mode: {
+    type: String,
+    required: false,
+    default: 'public',
+  },
+})
+
 const store = useStore()
 const route = useRoute()
 const nuxtApp = useNuxtApp()
+const config = useRuntimeConfig()
 
 const { $registry, $i18n } = nuxtApp
 
-const requestHostname = useRequestURL().hostname
+const requestUrl = useRequestURL()
+const requestHostname = requestUrl.hostname
+const routeBuilderId =
+  props.builderId !== null
+    ? Number(props.builderId)
+    : route.params.builderId
+      ? Number(route.params.builderId)
+      : null
+const routeMode =
+  typeof route.meta.builderPageMode === 'string'
+    ? route.meta.builderPageMode
+    : null
+const mode = routeMode || props.mode
+const routePathMatch = resolveBuilderPagePath(
+  props.pathMatch !== null ? props.pathMatch : route.params.pathMatch
+)
+
+if (mode === 'preview') {
+  useHead({
+    titleTemplate: '',
+    title: '',
+  })
+}
 
 const {
   data: asyncDataResult,
@@ -56,29 +103,31 @@ const {
 } = await useAsyncData(
   `publicPage_${requestHostname}_${route.fullPath}`,
   async () => {
-    let mode = 'public'
+    store.dispatch('publicBuilder/setPageMode', mode)
+    store.dispatch('userSourceUser/setCurrentApplication', {
+      application: null,
+    })
+
     const query = route.query
 
-    const builderId = route.params.builderId
-      ? parseInt(route.params.builderId, 10)
-      : null
-
-    // We have a builderId parameter in the path so it's a preview
-    if (builderId) {
-      mode = 'preview'
-    }
+    const builderId = routeBuilderId
 
     let builder = store.getters['application/getSelected']
     let needPostBuilderLoading = false
 
     if (!builder || (builderId && builderId !== builder.id)) {
       try {
-        if (builderId) {
-          // We have the builderId in the params so this is a preview
-          // Must fetch the builder instance by this Id.
-          await store.dispatch('publicBuilder/fetchById', {
-            builderId,
-          })
+        if (mode === 'preview') {
+          const { id: receivedBuilderId } = await store.dispatch(
+            'publicBuilder/fetchPreview',
+            { builderId }
+          )
+          builder = await store.dispatch(
+            'application/selectById',
+            receivedBuilderId
+          )
+        } else if (builderId) {
+          await store.dispatch('publicBuilder/fetchById', { builderId })
           builder = await store.dispatch('application/selectById', builderId)
         } else {
           // We don't have the builderId so it's a public page.
@@ -95,6 +144,12 @@ const {
           )
         }
       } catch (e) {
+        if (
+          e.response?.data?.error === 'ERROR_BUILDER_PREVIEW_SESSION_INVALID' ||
+          e.data?.error === 'ERROR_BUILDER_PREVIEW_SESSION_INVALID'
+        ) {
+          throw e
+        }
         throw createError({
           statusCode: 404,
           message: $i18n.t('publicPage.siteNotFound'),
@@ -110,15 +165,28 @@ const {
 
     store.dispatch('userSourceUser/setCurrentApplication', {
       application: builder,
+      userSourceAuthConfig:
+        mode === 'preview'
+          ? getBuilderPreviewUserSourceAuthConfig(
+              builder,
+              config.public.builderPreviewUrl
+            )
+          : null,
     })
 
     if (
       (!import.meta.server || import.meta.server) &&
       !store.getters['userSourceUser/isAuthenticated'](builder)
     ) {
+      const previewUserSourceCookie = mode === 'preview'
       const refreshToken = await getTokenIfEnoughTimeLeft(
         nuxtApp,
-        userSourceCookieTokenName
+        previewUserSourceCookie
+          ? getBuilderPreviewUserSourceCookieName()
+          : userSourceCookieTokenName,
+        previewUserSourceCookie
+          ? { path: getBuilderPreviewCookiePath(builder.id) }
+          : {}
       )
 
       if (refreshToken) {
@@ -132,6 +200,7 @@ const {
             // We logoff as the token has probably expired or became invalid
             await logOffAndReturnToLogin({
               builder,
+              mode,
               store,
               redirect: navigateTo,
             })
@@ -189,9 +258,7 @@ const {
 
     const found = resolveApplicationRoute(
       store.getters['page/getVisiblePages'](builder),
-      Array.isArray(route.params.pathMatch)
-        ? route.params.pathMatch.join('/')
-        : route.params.pathMatch
+      routePathMatch
     )
 
     // Handle 404
@@ -238,14 +305,24 @@ const {
         store.dispatch('dataSource/fetchPublished', {
           page,
         }),
-        store.dispatch('element/fetchPublished', { builder, page }),
-        store.dispatch('builderWorkflowAction/fetchPublished', { page }),
+        store.dispatch('element/fetchPublished', {
+          builder,
+          page,
+        }),
+        store.dispatch('builderWorkflowAction/fetchPublished', {
+          page,
+        }),
       ])
     } catch (error) {
       if (error.response?.status === 401) {
         // this case can happen if the site has been published with changes in the
         // user source. In this case we want to unlog the user.
-        await logOffAndReturnToLogin({ builder, store, redirect: navigateTo })
+        await logOffAndReturnToLogin({
+          builder,
+          mode,
+          store,
+          redirect: navigateTo,
+        })
       } else if (
         error.response?.status === 404 &&
         error.response?.data?.error === 'ERROR_PAGE_DOES_NOT_EXIST'
@@ -316,5 +393,5 @@ const builder = computed(() => asyncDataResult.value?.builder)
 const currentPage = computed(() => asyncDataResult.value?.currentPage)
 const path = computed(() => asyncDataResult.value?.path)
 const params = computed(() => asyncDataResult.value?.params)
-const mode = computed(() => asyncDataResult.value?.mode)
+const pageMode = computed(() => asyncDataResult.value?.mode)
 </script>

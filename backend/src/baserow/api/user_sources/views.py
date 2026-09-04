@@ -536,7 +536,7 @@ class UserSourceObtainJSONWebToken(TokenObtainPairView):
             UserSourceImproperlyConfigured: ERROR_USER_SOURCE_IMPROPERLY_CONFIGURED,
         }
     )
-    def post(self, request, user_source_id: int):
+    def post(self, request, user_source_id: int, **kwargs):
         """
         Return an access/refresh token pair if the given credentials matches for
         the given user source.

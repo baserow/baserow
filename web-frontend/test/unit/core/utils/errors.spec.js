@@ -1,5 +1,6 @@
 import {
   ClientErrorMap,
+  ErrorHandler,
   makeErrorResponseInterceptor,
   ResponseErrorMessage,
 } from '@baserow/modules/core/plugins/clientHandler'
@@ -192,7 +193,32 @@ describe('test error handling', () => {
     } catch (error) {
       expect(errorPageData.statusCode).toBe(401)
       expect(errorPageData.message).toBe('User session expired')
+      expect(actualStoreDispatches).toEqual([
+        { action: 'auth/forceLogoff', args: [] },
+      ])
     }
+  })
+  test('an invalid user source refresh token is handled by the caller', async () => {
+    const actualStoreDispatches = []
+    const errorPageData = {}
+    const error = {
+      config: { isUserSourceAuth: true },
+      response: {
+        data: { error: 'ERROR_INVALID_REFRESH_TOKEN' },
+        status: 401,
+      },
+    }
+
+    await expect(
+      errorInterceptorWithStubAppAndStore(
+        actualStoreDispatches,
+        errorPageData
+      )(error)
+    ).rejects.toBe(error)
+
+    expect(errorPageData).toEqual({})
+    expect(actualStoreDispatches).toEqual([])
+    expect(error.handler).toBeInstanceOf(ErrorHandler)
   })
   test('an 404 response returns a not found error', async () => {
     try {

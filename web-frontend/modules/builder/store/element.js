@@ -474,10 +474,12 @@ const actions = {
 
     return elements
   },
-  async fetchPublished({ dispatch, commit }, { builder, page }) {
+  async fetchPublished({ dispatch, commit, rootGetters }, { builder, page }) {
     const { $client } = this
-    const { data: elements } =
-      await PublicBuilderService($client).fetchElements(page)
+    const previewBuilderId = rootGetters['publicBuilder/getPreviewBuilderId']
+    const { data: elements } = await PublicBuilderService(
+      $client
+    ).fetchElements(page, previewBuilderId)
 
     commit('SET_ITEMS', { builder, page, elements })
 
