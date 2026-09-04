@@ -8197,6 +8197,11 @@ class ButtonFieldType(ReadOnlyFieldType):
                     serialized_action,
                     id_mapping,
                     import_export_config=import_export_config,
+                    # A duplicated table or application is copied by a person,
+                    # and this path never passes through the endpoint that
+                    # checks what they may read. An import from a file has
+                    # nobody, and leaves this None.
+                    copied_by=getattr(import_export_config, "copied_by", None),
                 )
 
         if serialized_actions:
