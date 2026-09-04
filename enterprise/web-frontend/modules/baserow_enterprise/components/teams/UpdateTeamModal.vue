@@ -11,7 +11,7 @@
       :loading="loading"
       :default-values="team"
       :subjects-loading="subjectsLoading"
-      :invited-user-subjects="invitedUserSubjects"
+      :invited-subjects="invitedSubjects"
       @submitted="updateTeam"
       @remove-subject="removeSubject"
       @invite="$refs.memberAssignmentModal.show()"
@@ -19,8 +19,8 @@
     </ManageTeamForm>
     <MemberAssignmentModal
       ref="memberAssignmentModal"
-      :members="uninvitedUserSubjects"
-      @select="storeSelectedUsers"
+      :members="uninvitedSubjects"
+      @select="storeSelectedSubjects"
     />
   </Modal>
 </template>
@@ -32,6 +32,11 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
+import AgentService from '@baserow/modules/core/services/agent'
+import {
+  getTeamSubjectKey,
+  makeTeamSubject,
+} from '@baserow_enterprise/utils/teamSubjects'
 
 export {}
 
@@ -55,16 +60,15 @@ export default {
     return {
       loading: false,
       subjectsLoading: false,
-      invitedUserSubjects: [],
+      invitedSubjects: [],
+      availableSubjects: [],
     }
   },
   computed: {
-    uninvitedUserSubjects() {
-      // Pluck out the user IDs in the objects of the `selections` array.
-      const invitedSubjectIds = this.invitedUserSubjects.map((subj) => subj.id)
-      // Return an array of workspace users who aren't already invited.
-      return this.workspace.users.filter(
-        (user) => !invitedSubjectIds.includes(user.id)
+    uninvitedSubjects() {
+      const invitedSubjectKeys = this.invitedSubjects.map(getTeamSubjectKey)
+      return this.availableSubjects.filter(
+        (subject) => !invitedSubjectKeys.includes(getTeamSubjectKey(subject))
       )
     },
   },
@@ -76,36 +80,44 @@ export default {
     },
     removeSubject(removal) {
       // Remove them as an invited subject.
-      this.invitedUserSubjects = this.invitedUserSubjects.filter(
-        (subj) => subj.user_id !== removal.user_id
+      const removalKey = getTeamSubjectKey(removal)
+      this.invitedSubjects = this.invitedSubjects.filter(
+        (subject) => getTeamSubjectKey(subject) !== removalKey
       )
     },
     async parseSubjectsAndMembers() {
       this.subjectsLoading = true
-      // Fetch the subjects in this team, and the users in the workspace in parallel.
-      const { data } = await TeamService(this.$client).fetchAllSubjects(
-        this.team.id
+      const [{ data: teamSubjects }, { data: agentsResponse }] =
+        await Promise.all([
+          TeamService(this.$client).fetchAllSubjects(this.team.id),
+          AgentService(this.$client).list(this.workspace.id),
+        ])
+      const userSubjectType = this.$registry.get('subject', 'auth.User')
+      const agentSubjectType = this.$registry.get('subject', 'core.Agent')
+      const users = this.workspace.users.map((member) =>
+        makeTeamSubject(member, userSubjectType)
       )
-      this.teamSubjects = data
+      const agents = (agentsResponse.results || agentsResponse).map((agent) =>
+        makeTeamSubject(
+          agent,
+          agentSubjectType,
+          this.$t('manageTeamForm.agentLabel')
+        )
+      )
+      this.availableSubjects = [...users, ...agents]
       this.subjectsLoading = false
-
-      // Extract the subjects which are Users.
-      const userSubjects = this.teamSubjects.filter(
-        (subject) => subject.subject_type === 'auth.User'
+      const subjectsByKey = new Map(
+        this.availableSubjects.map((subject) => [
+          getTeamSubjectKey(subject),
+          subject,
+        ])
       )
-      // Extract the user subject PKs.
-      const userIds = userSubjects.map((subject) => subject.subject_id)
-
-      // Using those user PKs, find the members records in `this.workspace.user`.
-      const invitedMembers = this.workspace.users.filter((member) =>
-        userIds.includes(member.user_id)
-      )
-      // Assign `invitedUserSubjects` our list of WorkspaceUser records who are NOT subjects in this team.
-      this.invitedUserSubjects = invitedMembers
+      this.invitedSubjects = teamSubjects
+        .map((subject) => subjectsByKey.get(getTeamSubjectKey(subject)))
+        .filter(Boolean)
     },
-    storeSelectedUsers(selections) {
-      // Merge the new members into `invitedUserSubjects`.
-      this.invitedUserSubjects = this.invitedUserSubjects.concat(selections)
+    storeSelectedSubjects(selections) {
+      this.invitedSubjects = this.invitedSubjects.concat(selections)
     },
     async updateTeam(values) {
       this.loading = true

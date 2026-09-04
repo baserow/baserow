@@ -10,6 +10,7 @@ from loguru import logger
 
 from baserow.core.action.signals import ActionCommandType, action_done
 from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
 from baserow.core.utils import exception_capturer
 
 _posthog = None
@@ -112,6 +113,12 @@ def capture_event_action_done(
     session,
     **kwargs,
 ):
+    subject_type = (
+        subject_type_registry.get_by_model(user) if user is not None else None
+    )
+    if subject_type is not None and not subject_type.is_interactive_user:
+        return
+
     # Only capture do commands for now because the undo might make it more difficult
     # to do analytics on the data.
     if action_command_type == ActionCommandType.DO:

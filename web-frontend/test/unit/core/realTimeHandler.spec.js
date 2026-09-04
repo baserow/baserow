@@ -71,6 +71,30 @@ function fire(handler, type, data) {
   )
 }
 
+describe('RealTimeHandler agent events', () => {
+  test('create and update events upsert the serialized agent', () => {
+    const { handler, store } = makeHandler()
+    const agent = { id: 1, workspace_id: 42, name: 'Writer' }
+
+    fire(handler, 'agent_created', { workspace_id: 42, agent })
+    fire(handler, 'agent_updated', { workspace_id: 42, agent })
+
+    expect(store._dispatched).toContainEqual(['agent/forceCreate', agent])
+    expect(store._dispatched).toContainEqual(['agent/forceUpdate', agent])
+  })
+
+  test('delete events remove the agent from its workspace', () => {
+    const { handler, store } = makeHandler()
+
+    fire(handler, 'agent_deleted', { workspace_id: 42, agent_id: 1 })
+
+    expect(store._dispatched).toContainEqual([
+      'agent/forceDelete',
+      { workspaceId: 42, agentId: 1 },
+    ])
+  })
+})
+
 describe('RealTimeHandler replay_events flow', () => {
   let env
   beforeEach(() => {

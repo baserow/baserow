@@ -21,7 +21,7 @@ class TeamSampleSubjectSerializer(serializers.Serializer):
     subject_id = serializers.IntegerField(help_text="The subject's unique identifier.")
     subject_type = serializers.ChoiceField(
         required=True,
-        choices=list(SUPPORTED_SUBJECT_TYPES.keys()),
+        choices=SUPPORTED_SUBJECT_TYPES,
         help_text="The type of subject who belongs to the team.",
     )
     subject_label = serializers.CharField(
@@ -37,7 +37,7 @@ class TeamSubjectSerializer(
 ):
     subject_type = serializers.ChoiceField(
         required=True,
-        choices=list(SUPPORTED_SUBJECT_TYPES.keys()),
+        choices=SUPPORTED_SUBJECT_TYPES,
         help_text="The type of subject that is being invited.",
     )
     subject_id = serializers.IntegerField(

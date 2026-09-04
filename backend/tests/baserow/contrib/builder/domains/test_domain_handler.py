@@ -12,6 +12,7 @@ from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.cache import global_cache
+from baserow.core.models import Agent
 from baserow.core.utils import Progress
 
 
@@ -241,6 +242,26 @@ def test_domain_publishing(data_fixture):
     assert global_cache.get(builder_by_domain_cache_key, default="after") == "after"
 
     assert Builder.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_domain_publishing_preserves_local_baserow_authorized_agent(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    agent = Agent.objects.create(workspace=workspace, name="Builder agent")
+    data_fixture.create_local_baserow_integration(
+        application=builder,
+        authorized_user=user,
+        authorized_agent=agent,
+    )
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    domain = DomainHandler().publish(domain)
+
+    published_integration = domain.published_to.integrations.get().specific
+    assert published_integration.authorized_agent == agent
+    assert published_integration.authorized_subject == agent
 
 
 @pytest.mark.django_db

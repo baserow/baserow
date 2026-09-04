@@ -265,6 +265,7 @@ class IntegrationHandler:
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
+        import_export_config=None,
     ):
         if "integrations" not in id_mapping:
             id_mapping["integrations"] = {}
@@ -274,6 +275,7 @@ class IntegrationHandler:
             application,
             serialized_integration,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

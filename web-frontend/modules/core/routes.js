@@ -121,6 +121,11 @@ export const routes = [
             path: 'invites',
             file: path.resolve(__dirname, 'pages/settings/invites.vue'),
           },
+          {
+            name: 'settings-agents',
+            path: 'agents',
+            file: path.resolve(__dirname, 'pages/settings/agents.vue'),
+          },
         ],
       },
     ],

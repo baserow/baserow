@@ -106,7 +106,9 @@ class IntegrationService:
             context=application,
         )
 
-        prepared_values = integration_type.prepare_values(kwargs, user)
+        prepared_values = integration_type.prepare_values(
+            kwargs, user, application=application
+        )
 
         try:
             new_integration = self.handler.create_integration(
@@ -154,7 +156,9 @@ class IntegrationService:
             context=integration,
         )
 
-        prepared_values = integration.get_type().prepare_values(kwargs, user)
+        prepared_values = integration.get_type().prepare_values(
+            kwargs, user, application=integration.application
+        )
 
         integration = self.handler.update_integration(
             integration.get_type(), integration, **prepared_values

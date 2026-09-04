@@ -41,7 +41,9 @@
         ref="roleAssignmentModal"
         :scope-type="scopeType"
         :users="workspaceUsersNotInvited"
+        :agents="agentsNotInvited"
         :teams="teamsNotInvited"
+        @invite-agents="(agents, role) => $emit('invite-agents', agents, role)"
         @invite-teams="(teams, role) => $emit('invite-teams', teams, role)"
         @invite-members="
           (members, role) => $emit('invite-members', members, role)
@@ -76,7 +78,7 @@ const MEMBER_ROLE_SCOPE_CONFIG = {
 
 export default {
   name: 'MemberRolesTab',
-  emits: ['invite-members', 'invite-teams', 'role-updated'],
+  emits: ['invite-members', 'invite-agents', 'invite-teams', 'role-updated'],
   components: {
     RoleAssignmentModal,
     MemberRolesMembersList,
@@ -100,6 +102,11 @@ export default {
       default: () => [],
     },
     teams: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    agents: {
       type: Array,
       required: false,
       default: () => [],
@@ -149,6 +156,11 @@ export default {
           roleAssignment.subject_type === 'baserow_enterprise.Team'
       )
     },
+    agentRoleAssignments() {
+      return this.roleAssignments.filter(
+        (roleAssignment) => roleAssignment.subject_type === 'core.Agent'
+      )
+    },
     workspaceUsers() {
       return this.workspace.users || []
     },
@@ -162,6 +174,12 @@ export default {
     teamsNotInvited() {
       const teamIds = this.teamRoleAssignments.map(({ subject }) => subject.id)
       return this.teams.filter(({ id }) => !teamIds.includes(id))
+    },
+    agentsNotInvited() {
+      const agentIds = this.agentRoleAssignments.map(
+        ({ subject }) => subject.id
+      )
+      return this.agents.filter(({ id }) => !agentIds.includes(id))
     },
   },
   methods: {

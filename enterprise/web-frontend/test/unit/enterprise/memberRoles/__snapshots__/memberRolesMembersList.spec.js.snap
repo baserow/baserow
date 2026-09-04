@@ -1,0 +1,40 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MemberRolesMembersList > renders registered subject names and avatar colors 1`] = `
+"<ul class="list list margin-bottom-0">
+  <li class="list__item">
+    <div class="member-roles-members-list__subject-section">
+      <div class="avatar avatar--rounded avatar--large avatar--blue">
+        <!--v-if-->
+        <!--v-if--><span class="avatar__initials">A</span>
+      </div>
+      <div class="margin-left-1 member-roles-members-list__user-name">Ada</div>
+    </div>
+    <div class="member-roles-members-list__role-selector">
+      <!--v-if--><button class="role-selector" disabled="" roles="" allow-removing-role="true" workspace="[object Object]" value="[object Object]"></button>
+    </div>
+  </li>
+  <li class="list__item">
+    <div class="member-roles-members-list__subject-section">
+      <div class="member-roles-members-list__team-initials">E</div>
+      <div class="margin-left-1 member-roles-members-list__team-name">Editors <div class="member-roles-members-list__team-member-count">memberRolesMembersList.teamMembersCount - 2</div>
+      </div>
+    </div>
+    <div class="member-roles-members-list__role-selector">
+      <!--v-if--><button class="role-selector" roles="" allow-removing-role="true" workspace="[object Object]" value="[object Object]"></button>
+    </div>
+  </li>
+  <li class="list__item">
+    <div class="member-roles-members-list__subject-section">
+      <div class="avatar avatar--rounded avatar--large avatar--purple">
+        <!--v-if-->
+        <!--v-if--><span class="avatar__initials">W</span>
+      </div>
+      <div class="margin-left-1 member-roles-members-list__user-name">Writer</div>
+    </div>
+    <div class="member-roles-members-list__role-selector">
+      <!--v-if--><button class="role-selector" roles="" allow-removing-role="true" workspace="[object Object]" value="[object Object]"></button>
+    </div>
+  </li>
+</ul>"
+`;

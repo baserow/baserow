@@ -56,6 +56,7 @@ import {
 import {
   MembersWorkspaceSettingsPageType,
   InvitesWorkspaceSettingsPageType,
+  AgentsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
@@ -70,6 +71,15 @@ import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
 import { CloudflareTurnstileCaptchaProviderType } from '@baserow/modules/core/captchaProviderTypes'
 
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
+import {
+  GeneralAgentSettingsType,
+  McpServerAgentSettingsType,
+} from '@baserow/modules/core/agentSettingsTypes'
+import {
+  AgentSubjectType,
+  AnonymousUserSubjectType,
+  UserSubjectType,
+} from '@baserow/modules/core/subjectTypes'
 
 import {
   RuntimeAdd,
@@ -168,11 +178,21 @@ export default defineNuxtPlugin({
     registry.registerNamespace('guidedTour')
     registry.registerNamespace('admin')
     registry.registerNamespace('workspaceSettingsPage')
+    registry.registerNamespace('agentExtension')
+    registry.registerNamespace('agentSettings')
+    registry.registerNamespace('subject')
     registry.registerNamespace('errorPage')
     registry.registerNamespace('twoFactorAuth')
     registry.registerNamespace('captchaProvider')
 
     const context = { app: nuxtApp }
+
+    registry.register('subject', new UserSubjectType(context))
+    registry.register('subject', new AnonymousUserSubjectType(context))
+    registry.register('subject', new AgentSubjectType(context))
+
+    registry.register('agentSettings', new GeneralAgentSettingsType(context))
+    registry.register('agentSettings', new McpServerAgentSettingsType(context))
 
     registry.register('settings', new AccountSettingsType(context))
     registry.register('settings', new PasswordSettingsType(context))
@@ -252,6 +272,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new InvitesWorkspaceSettingsPageType(context)
+    )
+    registry.register(
+      'workspaceSettingsPage',
+      new AgentsWorkspaceSettingsPageType(context)
     )
 
     registry.register('runtimeFormulaFunction', new RuntimeConcat(context))

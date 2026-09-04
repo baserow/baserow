@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.operations import (
     WriteFieldValuesOperationType,
 )
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
@@ -52,6 +53,7 @@ class FieldPermissionManagerType(PermissionManagerType):
     type = "write_field_values"
     supported_actor_types = [
         UserSubjectType.type,
+        AgentSubjectType.type,
         AnonymousUserSubjectType.type,
     ]
 

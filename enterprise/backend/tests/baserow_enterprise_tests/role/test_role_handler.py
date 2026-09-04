@@ -10,7 +10,7 @@ from tqdm import tqdm
 from baserow.contrib.database.object_scopes import DatabaseObjectScopeType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
-from baserow.core.models import WorkspaceUser
+from baserow.core.models import Agent, WorkspaceUser
 from baserow.core.registries import subject_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.subjects import UserSubjectType
@@ -402,6 +402,38 @@ def test_assign_role_batch_create_role_assignments(data_fixture):
     assert len(role_assignments) == 1
     assert role_assignments[0].subject == user_2
     assert role_assignments[0].role == admin_role
+
+
+@pytest.mark.django_db
+def test_assign_role_batch_create_agent_role_assignments(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, user=user)
+    view = data_fixture.create_grid_view(table=table, user=user)
+    agent = Agent.objects.create(workspace=workspace, name="Writer")
+    builder_role = Role.objects.get(uid="BUILDER")
+
+    RoleAssignmentHandler().assign_role_batch_for_user(
+        user,
+        workspace,
+        [
+            NewRoleAssignment(agent, builder_role, database.application_ptr),
+            NewRoleAssignment(agent, builder_role, table),
+            NewRoleAssignment(agent, builder_role, view),
+        ],
+    )
+
+    role_assignments = RoleAssignment.objects.order_by("scope_id")
+    assert {role_assignment.scope for role_assignment in role_assignments} == {
+        database.application_ptr,
+        table,
+        view,
+    }
+    assert all(
+        role_assignment.subject == agent and role_assignment.role == builder_role
+        for role_assignment in role_assignments
+    )
 
 
 @pytest.mark.django_db
