@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import flushPromises from 'flush-promises'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -14,6 +15,13 @@ const en = JSON.parse(
     'utf8'
   )
 )
+
+/** Flushes until the condition holds, so a slow chain is not read as absence. */
+const until = async (condition, tries = 20) => {
+  for (let i = 0; i < tries && !condition(); i++) {
+    await flushPromises()
+  }
+}
 
 describe('ButtonFieldActionList', () => {
   let testApp = null
@@ -652,6 +660,244 @@ describe('ButtonFieldActionList', () => {
       await wrapper.findAll('[data-sortable-handle]')[1].trigger('keydown.down')
 
       expect(emittedCount(wrapper)).toBe(0)
+    })
+  })
+
+  describe('fetching the integrations its actions need', () => {
+    const DATABASE_ID = 1
+
+    // Its own app per test: the fetch is remembered on the application and
+    // shared across the module, so the store above would carry one test's
+    // load into the next.
+    beforeEach(() => {
+      testApp = new TestApp()
+    })
+
+    const seedDatabase = async () => {
+      await testApp.store.dispatch('application/forceSetAll', {
+        applications: [
+          {
+            id: DATABASE_ID,
+            name: 'Customers',
+            type: 'database',
+            workspace: { id: 1 },
+            tables: [],
+          },
+        ],
+      })
+      return testApp.store.getters['application/get'](DATABASE_ID)
+    }
+
+    const mountWith = async (value, database) =>
+      testApp.mount(ButtonFieldActionList, {
+        propsData: { value, database },
+      })
+
+    test('a failed fetch is retried when the card is reopened', async () => {
+      // The card is hidden rather than unmounted, so a fetch tied to the
+      // form's own `created` runs once and never again. A user who reopens
+      // the editor after a network blip is stuck with an empty dropdown.
+      const database = await seedDatabase()
+      testApp.dontFailOnErrorResponses()
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .replyOnce(500)
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .reply(200, [{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
+
+      const wrapper = await mountWith(
+        [{ id: 1, type: 'slack_write_message', service: {} }],
+        database
+      )
+      await flushPromises()
+      expect(database.integrations).toHaveLength(0)
+
+      // Reopening the card, which is all the user can do.
+      wrapper.vm.toggleAction(wrapper.props('value')[0])
+      await flushPromises()
+
+      expect(
+        testApp.store.getters['application/get'](DATABASE_ID).integrations
+      ).toHaveLength(1)
+    })
+
+    test('a failed fetch is reported once however many actions need it', async () => {
+      const database = await seedDatabase()
+      testApp.dontFailOnErrorResponses()
+      testApp.mock.onGet(`application/${DATABASE_ID}/integrations/`).reply(500)
+      const toasts = vi.spyOn(testApp.store, 'dispatch')
+
+      await mountWith(
+        [
+          { id: 1, type: 'slack_write_message', service: {} },
+          { id: 2, type: 'slack_write_message', service: {} },
+          { id: 3, type: 'slack_write_message', service: {} },
+        ],
+        database
+      )
+      await flushPromises()
+
+      const errors = () =>
+        toasts.mock.calls.filter(([action]) => action === 'toast/error')
+      // The rejection travels through the shared request, the list's catch
+      // and the error handler, so one flush does not always reach the toast.
+      await until(() => errors().length > 0)
+      await flushPromises()
+
+      expect(errors()).toHaveLength(1)
+      toasts.mockRestore()
+    })
+
+    test('a repopulated application is fetched again', async () => {
+      // The applications endpoint carries no integrations, so every refetch
+      // empties the list. Remembering the load anywhere but on the
+      // application itself leaves the dropdown permanently empty after one.
+      const database = await seedDatabase()
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .reply(200, [{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
+
+      await mountWith(
+        [{ id: 1, type: 'slack_write_message', service: {} }],
+        database
+      )
+      await flushPromises()
+      expect(testApp.mock.history.get).toHaveLength(1)
+
+      // What `application/fetchAll` does on a workspace switch or a re-login.
+      const repopulated = await seedDatabase()
+      await mountWith(
+        [{ id: 1, type: 'slack_write_message', service: {} }],
+        repopulated
+      )
+      await flushPromises()
+
+      expect(testApp.mock.history.get).toHaveLength(2)
+      expect(
+        testApp.store.getters['application/get'](DATABASE_ID).integrations
+      ).toHaveLength(1)
+    })
+
+    test('a fetch that fills a replaced application still fills the one on screen', async () => {
+      // `forceSetAll` swaps every application object. Filling the one the
+      // fetch started with while marking the new one loaded leaves the
+      // dropdown empty with nothing left to fetch it again.
+      const database = await seedDatabase()
+      let release = null
+      const answer = new Promise((resolve) => {
+        release = () =>
+          resolve([
+            200,
+            [{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }],
+          ])
+      })
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .reply(() => answer)
+
+      await mountWith(
+        [{ id: 1, type: 'slack_write_message', service: {} }],
+        database
+      )
+      await flushPromises()
+
+      await testApp.store.dispatch('application/forceSetAll', {
+        applications: [
+          {
+            id: DATABASE_ID,
+            name: 'Customers',
+            type: 'database',
+            workspace: { id: 1 },
+            tables: [],
+          },
+        ],
+      })
+      release()
+      await flushPromises()
+
+      const onScreen = testApp.store.getters['application/get'](DATABASE_ID)
+      expect(onScreen).not.toBe(database)
+      expect(onScreen.integrations.map((i) => i.name)).toEqual(['Bot'])
+      expect(onScreen._integrationsLoadedOnce).toBe(true)
+    })
+
+    test('a bot whose token an export stripped reads as misconfigured', async () => {
+      // An export strips the token, so an imported action still looks
+      // configured while every click is a doomed outbound request.
+      const database = await seedDatabase()
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .reply(200, [
+          { id: 7, type: 'slack_bot', name: 'Bot', order: '1', token: '' },
+        ])
+
+      const wrapper = await mountWith(
+        [
+          {
+            id: 1,
+            type: 'slack_write_message',
+            service: {
+              integration_id: 7,
+              channel: 'general',
+              text: { formula: "'hi'" },
+            },
+          },
+        ],
+        database
+      )
+      await flushPromises()
+
+      expect(wrapper.find('[data-action-error]').text()).toBe(
+        'databaseWorkflowActionType.slackTokenMissing'
+      )
+      expect(en.databaseWorkflowActionType.slackTokenMissing).toBe(
+        'This bot has no token. Add a new bot with its token, or paste one ' +
+          'into this bot, before the button can post.'
+      )
+    })
+
+    test('a bot with a token reads as configured', async () => {
+      const database = await seedDatabase()
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .reply(200, [
+          {
+            id: 7,
+            type: 'slack_bot',
+            name: 'Bot',
+            order: '1',
+            token: 'xoxb-real',
+          },
+        ])
+
+      const wrapper = await mountWith(
+        [
+          {
+            id: 1,
+            type: 'slack_write_message',
+            service: {
+              integration_id: 7,
+              channel: 'general',
+              text: { formula: "'hi'" },
+            },
+          },
+        ],
+        database
+      )
+      await flushPromises()
+
+      expect(wrapper.find('[data-action-error]').exists()).toBe(false)
+    })
+
+    test('a list with no action needing one fetches nothing', async () => {
+      const database = await seedDatabase()
+
+      await mountWith([{ id: 1, type: 'open_url' }], database)
+      await flushPromises()
+
+      expect(
+        testApp.mock.history.get.filter((r) => r.url.includes('/integrations/'))
+      ).toHaveLength(0)
     })
   })
 })

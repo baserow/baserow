@@ -1324,7 +1324,8 @@
     "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email.",
     "slackOk": "OK",
     "slackChannel": "Channel",
-    "slackTs": "Message timestamp"
+    "slackTs": "Message timestamp",
+    "slackTokenMissing": "This bot has no token. Add a new bot with its token, or paste one into this bot, before the button can post."
   },
   "openUrlWorkflowActionForm": {
     "url": "URL",

@@ -672,6 +672,31 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
   }
 
   /**
+   * A bot an export stripped keeps its name but loses its token, so an
+   * imported action looks configured while every click is an outbound
+   * request that was never going to work. Reported here so the editor says
+   * so before the click rather than after it.
+   */
+  getErrorMessage(workflowAction, applicationContext) {
+    const inherited = super.getErrorMessage(workflowAction, applicationContext)
+    if (inherited) {
+      return inherited
+    }
+    const integrationId = workflowAction.service?.integration_id
+    const integrations = applicationContext?.database?.integrations
+    // Nothing to say while the list is still being fetched: the dropdown is
+    // empty then too, and the action is not wrong for it.
+    if (!integrationId || !integrations?.length) {
+      return null
+    }
+    const bot = integrations.find(({ id }) => id === integrationId)
+    if (bot && !bot.token) {
+      return this.app.$i18n.t('databaseWorkflowActionType.slackTokenMissing')
+    }
+    return null
+  }
+
+  /**
    * What `chat.postMessage` answers with whatever the message: mirrors the
    * backend's `generate_schema`, so a later action can point at the
    * message timestamp before anything is saved.
