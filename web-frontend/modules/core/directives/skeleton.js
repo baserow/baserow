@@ -23,6 +23,11 @@ const apply = (el, binding) => {
       loading && shape === value
     )
   )
+  // Leaving an empty attribute behind would show up in the markup of every
+  // element that has no class of its own.
+  if (el.classList.length === 0) {
+    el.removeAttribute('class')
+  }
 
   if (loading) {
     el.setAttribute('aria-busy', 'true')

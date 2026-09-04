@@ -13,6 +13,7 @@ describe('skeleton', () => {
     skeleton.updated(element, { value: { loading: false, width: '64px' } })
 
     expect(element.classList.contains('skeleton-loading')).toBe(false)
+    expect(element.getAttribute('class')).toBe(null)
     expect(element.getAttribute('aria-busy')).toBe(null)
     expect(element.style.getPropertyValue('--skeleton-width')).toBe('')
   })
