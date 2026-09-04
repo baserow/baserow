@@ -24,20 +24,41 @@
       {{ $t('integrationDropdown.noIntegrations') }}
     </template>
     <template #footer>
-      <a
+      <button
+        v-if="selectedIntegration"
+        type="button"
+        class="select__footer-button"
+        @click="$refs.IntegrationEditModal.show()"
+      >
+        <i class="iconoir-edit-pencil"></i>
+        {{ $t('integrationDropdown.editIntegration') }}
+      </button>
+      <button
+        type="button"
         class="select__footer-button"
         @click="$refs.IntegrationCreateEditModal.show()"
       >
         <i class="iconoir-plus"></i>
         {{ $t('integrationDropdown.addIntegration') }}
-      </a>
+      </button>
       <IntegrationCreateEditModal
         v-if="integrationType"
         ref="IntegrationCreateEditModal"
         :application="application"
         :integration-type="integrationType"
         create
-        @created="$emit('input', $event.id)"
+        @created="select($event.id)"
+      />
+      <!--
+        An export strips a credential, so an imported integration arrives
+        named but unusable. Without this there is no way to repair it from a
+        database, which has no integration settings page of its own.
+      -->
+      <IntegrationCreateEditModal
+        v-if="selectedIntegration"
+        ref="IntegrationEditModal"
+        :application="application"
+        :integration="selectedIntegration"
       />
     </template>
   </Dropdown>
@@ -93,7 +114,21 @@ export default {
       default: false,
     },
   },
-  emits: ['input'],
+  emits: ['input', 'update:modelValue'],
+  computed: {
+    /**
+     * What the parent has selected. A `v-model` binding sends `modelValue`,
+     * which falls through to the dropdown below rather than arriving as a
+     * prop here, so it is read off the attributes.
+     */
+    currentValue() {
+      const bound = this.$attrs.modelValue
+      return bound === undefined ? this.value : bound
+    },
+    selectedIntegration() {
+      return this.integrations.find(({ id }) => id === this.currentValue)
+    },
+  },
   watch: {
     integrations: {
       handler(newValue) {
@@ -103,11 +138,25 @@ export default {
           this.value === null
         ) {
           this.$nextTick(() => {
-            this.$emit('input', newValue[0].id)
+            this.select(newValue[0].id)
           })
         }
       },
       immediate: true,
+    },
+  },
+  methods: {
+    /**
+     * Chosen somewhere other than the list below, which reaches the parent on
+     * its own. A parent binds this with `v-model` and so listens for
+     * `update:modelValue`; `input` is kept for anything still written the
+     * Vue 2 way.
+     *
+     * @param {Number|null} integrationId The integration that was chosen.
+     */
+    select(integrationId) {
+      this.$emit('input', integrationId)
+      this.$emit('update:modelValue', integrationId)
     },
   },
 }

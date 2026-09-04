@@ -274,6 +274,18 @@
   padding: 4px 4px 0;
 }
 
+// Rendered as a `button` where it does something rather than going
+// somewhere, so it takes focus and answers the keyboard. The element's own
+// chrome is reset so it draws the same as the anchors that still use this.
+button.select__footer-button {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .select__footer-button {
   position: relative;
   display: block;
