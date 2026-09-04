@@ -9,6 +9,10 @@ export class AppAuthProviderType extends BaseAuthProviderType {
     return null
   }
 
+  isConfigured() {
+    return true
+  }
+
   get component() {
     return null
   }

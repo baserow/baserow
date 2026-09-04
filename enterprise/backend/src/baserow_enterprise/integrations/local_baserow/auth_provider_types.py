@@ -31,7 +31,7 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
     ]
 
     serializer_field_names = ["password_field_id"]
-    public_serializer_field_names = []
+    public_serializer_field_names = ["is_configured"]
 
     allowed_fields = ["password_field"]
 
@@ -42,7 +42,12 @@ class LocalBaserowPasswordAppAuthProviderType(AppAuthProviderType):
             help_text="The id of the field to use as password for the user account.",
         ),
     }
-    public_serializer_field_overrides = {}
+    public_serializer_field_overrides = {
+        "is_configured": serializers.BooleanField(
+            read_only=True,
+            help_text="Whether the authentication provider is configured.",
+        ),
+    }
 
     class SerializedDict(AppAuthProviderTypeDict):
         password_field_id: int

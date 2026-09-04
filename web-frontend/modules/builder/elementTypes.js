@@ -1321,6 +1321,16 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
    */
   getErrorMessage(element, applicationContext) {
     const { builder } = applicationContext
+    const elementPage = this.app.$store.getters['page/getById'](
+      builder,
+      element.page_id
+    )
+    const workflowActions = this.app.$store.getters[
+      'builderWorkflowAction/getElementWorkflowActions'
+    ](elementPage, element.id)
+    const workflowActionEvents = new Set(
+      workflowActions.map(({ event }) => event)
+    )
 
     const hasCollectionFieldInError = element.fields.some((collectionField) => {
       const collectionFieldType = this.app.$registry.get(
@@ -1329,7 +1339,9 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
       )
       return collectionFieldType.isInError({
         field: collectionField,
+        element,
         builder,
+        workflowActionEvents,
       })
     })
 
@@ -1995,6 +2007,9 @@ export class ChoiceElementType extends FormElementType {
     if (element.option_type === CHOICE_OPTION_TYPES.MANUAL) {
       if (element.options.length === 0) {
         return this.app.$i18n.t('elementType.errorOptionsMissing')
+      }
+      if (element.options.some(({ name }) => !ensureString(name).trim())) {
+        return this.app.$i18n.t('elementType.errorOptionNameMissing')
       }
     } else if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
       if (element.formula_value === '') {

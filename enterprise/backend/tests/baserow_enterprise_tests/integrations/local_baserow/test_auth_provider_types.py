@@ -5,6 +5,7 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
+from baserow.api.app_auth_providers.serializers import AppAuthProviderSerializer
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
 from baserow.core.user_sources.handler import UserSourceHandler
@@ -13,6 +14,7 @@ from baserow.core.user_sources.service import UserSourceService
 from baserow.core.utils import MirrorDict
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowPasswordAppAuthProvider,
+    LocalBaserowUserSource,
 )
 
 from .helpers import populate_local_baserow_test_data
@@ -86,6 +88,46 @@ def test_create_local_baserow_password_app_auth_provider_w_field(
             "password_field_id": password_field.id,
         }
     ]
+
+
+@pytest.mark.django_db
+def test_public_local_baserow_password_app_auth_provider_serializer(data_fixture):
+    user = data_fixture.create_user()
+    user_source = data_fixture.create_user_source(
+        LocalBaserowUserSource,
+        user=user,
+    )
+    _, [password_field], _ = data_fixture.build_table(
+        user=user,
+        columns=[("Password", "password")],
+        rows=[],
+    )
+    auth_provider = data_fixture.create_app_auth_provider(
+        LocalBaserowPasswordAppAuthProvider,
+        user_source=user_source,
+        password_field=password_field,
+    )
+
+    serializer = auth_provider.get_type().get_serializer(
+        auth_provider,
+        base_class=AppAuthProviderSerializer,
+        extra_params={"public": True},
+    )
+
+    assert serializer.data["is_configured"] is True
+    assert "password_field_id" not in serializer.data
+
+    auth_provider.password_field = None
+    auth_provider.save()
+
+    serializer = auth_provider.get_type().get_serializer(
+        auth_provider,
+        base_class=AppAuthProviderSerializer,
+        extra_params={"public": True},
+    )
+
+    assert serializer.data["is_configured"] is False
+    assert "password_field_id" not in serializer.data
 
 
 @pytest.mark.django_db
