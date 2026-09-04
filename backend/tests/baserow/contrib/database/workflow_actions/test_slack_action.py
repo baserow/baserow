@@ -47,6 +47,19 @@ def _bot(data_fixture, database):
     )
 
 
+def _denying(operation_name: str):
+    """A `check_permissions` that refuses one operation and defers the rest."""
+
+    real = CoreHandler.check_permissions
+
+    def check_permissions(self, actor, name, *args, **kwargs):
+        if name == operation_name:
+            raise PermissionException(f"cannot {name}")
+        return real(self, actor, name, *args, **kwargs)
+
+    return check_permissions
+
+
 def _slack_answer(**overrides):
     body = {
         "ok": True,
@@ -416,6 +429,102 @@ def test_duplicating_a_field_drops_a_bot_the_duplicator_cannot_read(data_fixture
 
 
 @pytest.mark.django_db
+def test_duplicating_a_table_drops_a_bot_the_duplicator_cannot_read(data_fixture):
+    """
+    A table duplication copies the action through the serialized import path,
+    which has no actor of its own unless the config carries one.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    with patch.object(
+        CoreHandler, "check_permissions", _denying(ReadIntegrationOperationType.type)
+    ):
+        duplicated = TableHandler().duplicate_table(user, button_field.table)
+
+    (copied,) = DatabaseWorkflowAction.objects.filter(field__table=duplicated)
+    assert copied.specific.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_duplicating_a_table_keeps_a_bot_the_duplicator_can_read(data_fixture):
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    duplicated = TableHandler().duplicate_table(user, button_field.table)
+
+    (copied,) = DatabaseWorkflowAction.objects.filter(field__table=duplicated)
+    assert copied.specific.service.integration_id == bot.id
+
+
+@pytest.mark.django_db
+def test_duplicating_a_database_drops_a_bot_the_duplicator_cannot_read(data_fixture):
+    """
+    The database duplication clones the bot too, token and all, so the copied
+    action would carry a credential its owner may not read.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    database = button_field.table.database
+    bot = _bot(data_fixture, database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    with patch.object(
+        CoreHandler, "check_permissions", _denying(ReadIntegrationOperationType.type)
+    ):
+        duplicated = CoreHandler().duplicate_application(user, database)
+
+    (copied,) = DatabaseWorkflowAction.objects.filter(field__table__database=duplicated)
+    assert copied.specific.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_duplicating_a_database_keeps_a_bot_the_duplicator_can_read(data_fixture):
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    database = button_field.table.database
+    bot = _bot(data_fixture, database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    duplicated = CoreHandler().duplicate_application(user, database)
+
+    (copied,) = DatabaseWorkflowAction.objects.filter(field__table__database=duplicated)
+    # The copy of the bot this duplication made, not the original.
+    assert copied.specific.service.integration_id not in (None, bot.id)
+    assert copied.specific.service.integration.application_id == duplicated.id
+
+
+@pytest.mark.django_db
 def test_duplicating_a_field_keeps_a_bot_the_duplicator_can_read(data_fixture):
     user = data_fixture.create_user()
     button_field = _button(data_fixture, user)
@@ -435,13 +544,18 @@ def test_duplicating_a_field_keeps_a_bot_the_duplicator_can_read(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "integration_id",
+    ["not-a-number", "", None, 0, [], {}, [1], {"id": 1}, True, False, 1.5],
+)
 def test_an_imported_action_survives_an_integration_id_that_is_not_a_number(
-    data_fixture,
+    data_fixture, integration_id
 ):
     """
     Nothing coerces the value on the import path the way the endpoint's
     serializer does, so a hand-edited export must not fail the job with a
-    database error.
+    database error, and must not key the id mapping with something that
+    cannot be a key.
     """
 
     user = data_fixture.create_user()
@@ -455,12 +569,75 @@ def test_an_imported_action_survives_an_integration_id_that_is_not_a_number(
         service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
     )
     exported = action_type.export_serialized(action)
-    exported["service"]["integration_id"] = "not-a-number"
+    exported["service"]["integration_id"] = integration_id
 
     with deferred_callback_context():
         imported = action_type.import_serialized(button_field, exported, {})
 
     assert imported.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_an_imported_action_refuses_a_boolean_integration_id(data_fixture):
+    """
+    `True` hashes equal to `1`, so an unguarded lookup hands it whatever
+    integration 1 was remapped to.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+    exported = action_type.export_serialized(action)
+    exported["service"]["integration_id"] = True
+
+    with deferred_callback_context():
+        imported = action_type.import_serialized(
+            button_field, exported, {"integrations": {1: bot.id}}
+        )
+
+    assert imported.service.integration_id is None
+
+
+@pytest.mark.django_db
+def test_an_imported_integration_id_is_remapped_when_it_arrives_as_a_string(
+    data_fixture,
+):
+    """
+    JSON round trips turn keys into strings. Coercing after the lookup rather
+    than before misses the mapping and resolves the id the export was written
+    with, which is another database's.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    database = button_field.table.database
+    bot = _bot(data_fixture, database)
+    copy = data_fixture.create_integration(
+        SlackBotIntegration, application=database, name="Copy", token="xoxb-copy"
+    )
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+    exported = action_type.export_serialized(action)
+    exported["service"]["integration_id"] = str(bot.id)
+
+    with deferred_callback_context():
+        imported = action_type.import_serialized(
+            button_field, exported, {"integrations": {bot.id: copy.id}}
+        )
+
+    assert imported.service.integration_id == copy.id
 
 
 @pytest.mark.django_db
@@ -505,4 +682,46 @@ def test_a_click_does_not_read_the_field_again_for_every_action(data_fixture):
     assert len(read_the_field) <= 2, (
         f"the field and its table were read {len(read_the_field)} times for "
         f"three actions: " + "\n".join(q["sql"][:120] for q in read_the_field)
+    )
+
+
+@pytest.mark.django_db
+def test_a_click_reads_the_bot_once_however_many_actions_share_it(data_fixture):
+    """
+    `select_related("integration")` only saves the base row. Resolving the
+    subtype for the token costs a query apiece unless the click resolves them
+    together, and it pays that inside the lock that guards the row.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    table = button_field.table
+    bot = _bot(data_fixture, table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    for _ in range(3):
+        DatabaseWorkflowActionService().create_workflow_action(
+            user,
+            action_type,
+            button_field,
+            service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+        )
+    row = table.get_model().objects.create()
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=_slack_answer(),
+    ):
+        with CaptureQueriesContext(connection) as queries:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+
+    read_the_bot = [
+        q
+        for q in queries.captured_queries
+        if '"integrations_slackbotintegration"' in q["sql"]
+    ]
+    assert len(read_the_bot) == 1, (
+        f"the bot was read {len(read_the_bot)} times for three actions "
+        f"sharing it: " + "\n".join(q["sql"][:120] for q in read_the_bot)
     )

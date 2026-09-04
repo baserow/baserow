@@ -268,20 +268,44 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         settled in `import_serialized`, once the field is known.
         """
 
-        integration_id = serialized_service.get("integration_id")
-        if not integration_id:
+        integration_id = self._integration_id_to_look_up(
+            serialized_service.get("integration_id")
+        )
+        if integration_id is None:
             return None
+        # Remapped after the coercion, not before: the mapping is keyed by the
+        # integer ids the export was written with, and a JSON round trip can
+        # turn the value beside them into a string.
         integration_id = id_mapping.get("integrations", {}).get(
             integration_id, integration_id
         )
-        try:
-            integration_id = int(integration_id)
-        except (TypeError, ValueError):
-            # Nothing coerces this the way the endpoint's serializer does, so
-            # a hand-edited export would otherwise fail the import job with a
-            # database error rather than an action that says what it needs.
-            return None
         return Integration.objects.filter(id=integration_id).first()
+
+    @staticmethod
+    def _integration_id_to_look_up(value: Any) -> Optional[int]:
+        """
+        The id a serialized service names, as an integer, or None when it
+        names nothing usable.
+
+        Nothing coerces this the way the endpoint's serializer does, so a
+        hand-edited export would otherwise key the id mapping with a list or a
+        dict and fail the whole import job with a `TypeError`, or slip a
+        `True` through, which hashes equal to 1 and would pick up whatever
+        integration 1 was remapped to.
+
+        :param value: What the export named, which is whatever was in the file.
+        :return: The id to look up, or None.
+        """
+
+        if isinstance(value, bool) or value is None:
+            return None
+        if isinstance(value, int):
+            return value or None
+        if isinstance(value, str):
+            # Only a plain decimal id. `int` also accepts "+1", " 1 " and
+            # "1_0", none of which an export writes.
+            return int(value) or None if value.isdecimal() else None
+        return None
 
     def import_serialized(
         self,
