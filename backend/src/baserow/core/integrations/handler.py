@@ -270,6 +270,17 @@ class IntegrationHandler:
             id_mapping["integrations"] = {}
 
         integration_type = integration_type_registry.get(serialized_integration["type"])
+
+        # The same gate `create_integration` applies. No export this instance
+        # writes can fail it, so one that does was hand edited, and honouring
+        # it would place an integration the application refuses through its
+        # own endpoint (ADR 006 section 5).
+        application_type = application_type_registry.get_by_model(
+            application.specific_class
+        )
+        if not application_type.supports_integration_type(integration_type):
+            raise ApplicationOperationNotSupported()
+
         integration = integration_type.import_serialized(
             application,
             serialized_integration,

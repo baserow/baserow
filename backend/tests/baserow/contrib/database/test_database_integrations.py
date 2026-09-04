@@ -179,3 +179,43 @@ def test_a_database_accepts_what_its_actions_can_carry(data_fixture):
             f"{integration_type.type} is accepted by the database but no "
             f"action can carry it"
         )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_import_refuses_an_integration_the_application_would_not_accept(
+    data_fixture,
+):
+    """
+    The endpoint refuses a `local_baserow` integration on a database, so an
+    export naming one is hand written. Letting the import place it anyway
+    would put an `authorized_user` on a database after all, and it would ride
+    into every duplicate and snapshot from there (ADR 006 section 5).
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    data_fixture.create_integration(
+        SlackBotIntegration, application=database, name="Bot", token="xoxb-secret"
+    )
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    exported[0]["integrations"].append(
+        {
+            **exported[0]["integrations"][0],
+            "id": exported[0]["integrations"][0]["id"] + 1,
+            "type": "local_baserow",
+            "name": "Smuggled",
+        }
+    )
+
+    # Refused rather than dropped, so a file naming one is rejected the way
+    # the endpoint rejects it. Undoing what the job wrote so far is the job
+    # runner's transaction, not this gate's.
+    with pytest.raises(ApplicationOperationNotSupported):
+        core_handler.import_applications_to_workspace(
+            imported_workspace, exported, BytesIO(), config, None
+        )
