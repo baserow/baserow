@@ -774,7 +774,7 @@ def test_inbound_email_trigger_active_when_configured():
 @pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN="", INBOUND_EMAIL_WEBHOOK_SECRET="")
 def test_create_inbound_email_trigger_blocked_when_unconfigured(data_fixture):
-    from django.core.exceptions import PermissionDenied
+    from rest_framework.exceptions import PermissionDenied
 
     from baserow.contrib.automation.nodes.registries import (
         automation_node_type_registry,
