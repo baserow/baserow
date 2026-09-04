@@ -3,6 +3,18 @@ set -Eeo pipefail
 
 # Runs the end to end tests pointed at your local dev environment.
 
+# Only what this run started. A trap replaces the one before it rather than
+# adding to it, and naming a container this run did not create would remove
+# somebody else's: point E2E_HTTP_STUB_URL at your own stub and the block
+# below never starts one.
+started_containers=()
+cleanup() {
+    if [ ${#started_containers[@]} -gt 0 ]; then
+        docker rm -f "${started_containers[@]}" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup EXIT
+
 export PUBLIC_BACKEND_URL="${PUBLIC_BACKEND_URL:-http://localhost:8000}"
 export PUBLIC_WEB_FRONTEND_URL="${PUBLIC_WEB_FRONTEND_URL:-http://localhost:3000}"
 export BASEROW_FRONTEND_COOKIE_PREFIX="${BASEROW_FRONTEND_COOKIE_PREFIX:-}"
@@ -17,7 +29,7 @@ if [ -z "${E2E_HTTP_STUB_URL:-}" ]; then
         docker rm -f e2e-local-httpbin >/dev/null 2>&1 || true
         docker run -d --name e2e-local-httpbin \
             -p "${STUB_PORT}:80" kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b >/dev/null
-        trap 'docker rm -f e2e-local-httpbin >/dev/null 2>&1 || true' EXIT
+        started_containers+=(e2e-local-httpbin)
         export E2E_HTTP_STUB_URL="http://localhost:${STUB_PORT}"
     else
         echo "Warning: the HTTP action tests will call the public httpbin.org."
@@ -39,7 +51,7 @@ if [ "${E2E_SLACK_STUB:-}" = "yes" ]; then
         -p "${SLACK_STUB_PORT}:8080" \
         -v "$(cd "$(dirname "$0")" && pwd)/stubs/slack:/home/wiremock:ro" \
         wiremock/wiremock:3.13.1 >/dev/null
-    trap 'docker rm -f e2e-local-slack-stub e2e-local-httpbin >/dev/null 2>&1 || true' EXIT
+    started_containers+=(e2e-local-slack-stub)
 fi
 # The dev stack's MailHog, which the dev environment already runs. Its API port
 # is BASEROW_MAILHOG_WEB_PORT: 8025 for the default instance, 8035 and 8045 for
