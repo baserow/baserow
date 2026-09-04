@@ -197,6 +197,7 @@ export default defineComponent({
         const isInError = nodeType.isInError({
           service: node.service,
           workspace: workspace.value,
+          application: props.automation,
         })
         return nodeType.isWorkflowAction === true && !isInError
       })

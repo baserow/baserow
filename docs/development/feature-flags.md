@@ -59,6 +59,13 @@ just b manage migrate_ai_provider_settings --scope instance --apply
 just b manage migrate_ai_provider_settings --scope workspace --apply
 ```
 
+The release migration marks every existing database-backed model as available to AI
+Agent services used by Automation nodes and Application Builder actions while
+preserving its existing eligibility. The import command uses a fixed compatibility
+default of AI Fields and AI Agent for models imported from legacy environment or
+workspace settings. Those consumers used the unfiltered model list before per-feature
+eligibility existed; administrators can narrow either eligibility after the cutover.
+
 5. Redeploy or restart every web, backend, and worker process with `ai-providers`
    enabled, then wait for every feature-disabled process to drain before ending
    the settings-write pause. This prevents one generation from resolving legacy

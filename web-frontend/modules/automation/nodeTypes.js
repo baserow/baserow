@@ -227,11 +227,11 @@ export class NodeType extends Registerable {
    * method, but can be overridden by the node type.
    * @returns {boolean} - Whether the properties are in-error.
    */
-  isInError({ service, workspace = null }) {
+  isInError({ service, workspace = null, application = null }) {
     if (workspace && this.isDeactivated({ workspace })) {
       return true
     }
-    return this.serviceType.isInError({ service })
+    return this.serviceType.isInError({ service, workspace, application })
   }
 
   /**
@@ -243,13 +243,13 @@ export class NodeType extends Registerable {
    *  error message is being retrieved.
    * @returns {string} - The error message.
    */
-  getErrorMessage({ service, node, workspace = null }) {
+  getErrorMessage({ service, node, workspace = null, application = null }) {
     const deactivatedReason =
       workspace && this.isDeactivatedReason({ workspace })
     if (deactivatedReason) {
       return deactivatedReason
     }
-    return this.serviceType.getErrorMessage({ service })
+    return this.serviceType.getErrorMessage({ service, workspace, application })
   }
 
   /**

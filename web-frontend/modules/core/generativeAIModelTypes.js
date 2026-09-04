@@ -51,6 +51,29 @@ export class GenerativeAIModelType extends Registerable {
     return this.getSettings().find((setting) => setting.key === key) || null
   }
 
+  /**
+   * Settings which must be present for an integration override to own the
+   * provider connection instead of inheriting it from the workspace.
+   */
+  getRequiredIntegrationSettings() {
+    return this.getSetting('api_key') ? ['api_key'] : []
+  }
+
+  /**
+   * Whether an integration settings object contains its own complete
+   * connection. Partial objects may narrow model availability, but must never
+   * be combined with credentials inherited from another scope.
+   */
+  isIntegrationSettingsComplete(settings) {
+    if (!settings || typeof settings !== 'object') {
+      return false
+    }
+    return this.getRequiredIntegrationSettings().every((key) => {
+      const value = settings[key]
+      return typeof value === 'string' ? value.trim() !== '' : Boolean(value)
+    })
+  }
+
   getModelIdentifierDescription() {
     return null
   }
@@ -235,6 +258,10 @@ export class OllamaModelType extends GenerativeAIModelType {
         i18n.t('generativeAIModelType.ollamaModelsDescription')
       ),
     ]
+  }
+
+  getRequiredIntegrationSettings() {
+    return ['host']
   }
 
   getModelIdentifierDescription() {

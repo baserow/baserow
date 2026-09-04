@@ -494,3 +494,52 @@ def test_ai_integration_settings_hierarchy(data_fixture, settings):
     provider_settings = integration_type.get_provider_settings(integration, "openai")
     assert provider_settings["api_key"] == "sk-workspace-key"
     assert provider_settings["models"] == ["gpt-4"]
+
+
+@pytest.mark.django_db
+def test_get_integration_provider_settings_returns_blob_or_none(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration_type = AIIntegrationType()
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type,
+        application=application,
+        ai_settings={"openai": {"api_key": "sk-blob", "models": ["gpt-4"]}},
+    )
+
+    blob = integration_type.get_integration_provider_settings(integration, "openai")
+    assert blob == {"api_key": "sk-blob", "models": ["gpt-4"]}
+    assert (
+        integration_type.get_integration_provider_settings(integration, "anthropic")
+        is None
+    )
+
+
+@pytest.mark.django_db
+def test_get_integration_provider_settings_ignores_workspace_settings(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = []
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    workspace.generative_ai_models_settings = {
+        "openai": {"api_key": "sk-workspace", "models": ["gpt-4"]}
+    }
+    workspace.save()
+    application = data_fixture.create_builder_application(
+        user=user, workspace=workspace
+    )
+    integration_type = AIIntegrationType()
+    integration = IntegrationService().create_integration(
+        user, integration_type, application=application, ai_settings={}
+    )
+
+    assert (
+        integration_type.get_integration_provider_settings(integration, "openai")
+        is None
+    )
+    assert integration_type.get_provider_settings(integration, "openai") == {
+        "api_key": "sk-workspace",
+        "models": ["gpt-4"],
+    }

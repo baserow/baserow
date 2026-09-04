@@ -30,6 +30,46 @@ describe('NodeType.getHistoryLabel', () => {
   })
 })
 
+describe('NodeType service validation context', () => {
+  test('forwards the workspace and application to the service type', () => {
+    const service = { id: 1 }
+    const workspace = { id: 2 }
+    const application = { id: 3 }
+    const serviceType = {
+      isDeactivatedReason: vi.fn(() => null),
+      isInError: vi.fn(() => true),
+      getErrorMessage: vi.fn(() => 'Unavailable model'),
+    }
+
+    class ContextAwareNodeType extends NodeType {
+      static getType() {
+        return 'context-aware'
+      }
+
+      get serviceType() {
+        return serviceType
+      }
+    }
+
+    const nodeType = new ContextAwareNodeType({ app: {} })
+
+    expect(nodeType.isInError({ service, workspace, application })).toBe(true)
+    expect(nodeType.getErrorMessage({ service, workspace, application })).toBe(
+      'Unavailable model'
+    )
+    expect(serviceType.isInError).toHaveBeenCalledWith({
+      service,
+      workspace,
+      application,
+    })
+    expect(serviceType.getErrorMessage).toHaveBeenCalledWith({
+      service,
+      workspace,
+      application,
+    })
+  })
+})
+
 describe('CoreRouterNodeType.getHistoryLabel', () => {
   const makeApp = () => ({
     $i18n: {

@@ -129,7 +129,7 @@ describe('AIProviderFormModal', () => {
       models: [
         {
           model_identifier: 'gpt-5.6',
-          feature_types: ['ai_fields', 'kuma'],
+          feature_types: ['ai_agent', 'ai_fields', 'kuma'],
         },
       ],
     })

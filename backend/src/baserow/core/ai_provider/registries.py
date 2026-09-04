@@ -8,7 +8,18 @@ from .exceptions import AIProviderModelFeatureTypeDoesNotExist
 
 
 class AIProviderModelFeatureType(Instance):
-    """A Baserow feature for which an AI provider model can be available."""
+    """
+    A Baserow feature for which an AI provider model can be available.
+
+    ``supports_default_model`` controls how the feature selects its model.
+    ``True`` means an administrator picks one model for the whole scope
+    (instance or workspace), stored as an ``AIProviderFeatureSetting`` row
+    whose RESTRICT foreign key blocks deleting the selected model (Kuma).
+    ``False`` means each consumer stores its own provider type and model
+    identifier, no setting row exists, and nothing blocks deletion; a removed
+    model surfaces as a validation or dispatch error on the consumer instead
+    (AI fields, AI Agent nodes).
+    """
 
     supports_default_model = False
     required_model_capabilities = (AI_PROVIDER_MODEL_CAPABILITY_TEXT,)

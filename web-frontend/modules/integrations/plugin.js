@@ -32,6 +32,7 @@ import {
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
+import { AIAgentAIProviderModelFeatureType } from '@baserow/modules/integrations/ai/aiProviderModelFeatureTypes'
 
 export default defineNuxtPlugin({
   dependsOn: ['core'],
@@ -44,6 +45,11 @@ export default defineNuxtPlugin({
     $registry.register('integration', new SMTPIntegrationType(context))
     $registry.register('integration', new AIIntegrationType(context))
     $registry.register('integration', new SlackBotIntegrationType(context))
+
+    $registry.register(
+      'aiProviderModelFeature',
+      new AIAgentAIProviderModelFeatureType(context)
+    )
 
     $registry.register('service', new LocalBaserowGetRowServiceType(context))
     $registry.register('service', new LocalBaserowListRowsServiceType(context))

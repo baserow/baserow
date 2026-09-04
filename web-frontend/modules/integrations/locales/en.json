@@ -18,6 +18,10 @@
     "inheritingWorkspace": "Inheriting workspace AI settings",
     "overridingProviders": "Overriding {count} provider|Overriding {count} providers"
   },
+  "aiProviderModelFeature": {
+    "aiAgent": "AI agent",
+    "aiAgentDescription": "Run AI Agent actions in Automation and Application Builder workflows."
+  },
   "slackBotIntegrationType": {
     "slackBotSummary": "Slack Bot",
     "slackBotNoToken": "Slack Bot - Not configured"
@@ -93,6 +97,7 @@
     "errorNoIntegrationSelected": "No integration selected",
     "errorNoAIProviderSelected": "No AI provider selected",
     "errorNoAIModelSelected": "No AI model selected",
+    "errorAIModelUnavailable": "The selected AI model is disabled or no longer available",
     "errorNoPromptProvided": "No prompt provided",
     "errorNoChoicesProvided": "No choices provided for choice output type",
     "slackWriteMessage": "Send a Slack message",
@@ -111,7 +116,7 @@
   "aiForm": {
     "description": "Configure AI provider settings for this integration. By default, workspace AI settings are inherited.",
     "workspaceSettingsTitle": "Workspace AI Settings",
-    "workspaceSettingsDescription": "This integration inherits AI provider settings from your workspace by default. You can override specific providers below.",
+    "workspaceSettingsDescription": "This integration inherits AI provider settings from your workspace by default. A provider override is self-contained: include its own credentials or host, because connection fields are never combined with inherited credentials.",
     "overrideWorkspaceSettings": "Override workspace settings for this provider",
     "inherited": "Inherited",
     "overridden": "Overridden"

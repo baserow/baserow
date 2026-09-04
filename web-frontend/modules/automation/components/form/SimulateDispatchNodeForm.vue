@@ -116,6 +116,7 @@ const cantBeTestedReason = computed(() => {
     nodeType.value.isInError({
       service: props.node.service,
       workspace: workspace.value,
+      application: automation.value,
     })
   ) {
     return $i18n.t('simulateDispatch.errorNodeNotConfigured')
@@ -135,6 +136,7 @@ const cantBeTestedReason = computed(() => {
       previousNodeType.isInError({
         service: previousNode.service,
         workspace: workspace.value,
+        application: automation.value,
       })
     ) {
       return $i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {

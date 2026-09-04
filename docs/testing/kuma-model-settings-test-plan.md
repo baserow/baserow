@@ -48,8 +48,9 @@ label was reworded since, treat the wording as indicative and the behaviour as
 binding.
 
 Only features that need one default model appear in the **AI features** section.
-Today that is **Kuma** only — AI fields pick their model per field, so the
-`ai_fields` checkbox controls *eligibility*, not a default.
+Today that is **Kuma** only — AI fields and AI Agent services used by Automation
+nodes and Application Builder actions pick their models per consumer, so their
+checkboxes control *eligibility*, not a default.
 
 ### Helper: what the backend actually resolves
 
@@ -136,15 +137,16 @@ refused instead — see 4.5.
 1. Sign in as **admin**, go to Admin → **AI providers**.
 2. **Add provider** → pick a provider type, enter the API key.
 3. In the model rows, enter a model identifier and note the new **Available for**
-   checkboxes (**AI fields**, **Kuma**), both ticked by default.
-4. Add a second model, untick **Kuma** on it, save.
-5. Add a third model through the provider menu → **Add model**, and untick both boxes.
+   checkboxes (**AI Agent**, **AI fields**, **Kuma**), all ticked by default.
+4. Add a second model, untick **AI Agent** and **Kuma** on it, save.
+5. Add a third model through the provider menu → **Add model**, and untick all three
+   boxes.
 
 Verify:
 - The provider is created with all three models.
-- Each model row shows `Available for: AI fields, Kuma` and `Available for: AI fields`.
-  The order follows the feature registry (premium before enterprise), not the order
-  you ticked the boxes.
+- The first two model rows show all three feature labels and **AI fields** only,
+  respectively. Feature order is not semantically meaningful and can reflect how the
+  row was created.
 - A model with no boxes ticked saves, and its row shows
   `Not available to any listed feature`.
 
@@ -163,7 +165,7 @@ Verify:
   `POST /api/ai-providers/models/test/` (its `feature_results` lists one entry per
   selected feature) or `AIProviderModel.last_test_capabilities`, which holds a `text`
   and a `tools` key for a Kuma-eligible model and only `text` otherwise.
-- A model without tool support passes as an AI fields model, and shows
+- A model without tool support passes as an AI fields or AI Agent model, and shows
   **Some tests failed** when it is also marked for Kuma — hover the badge for the
   per-feature breakdown.
 - With a bogus identifier the row shows **Test failed** and the tooltip lists a
@@ -175,8 +177,8 @@ This branch adds **Google Gemini** and **Groq** as provider types.
 
 Verify:
 - Both appear in the **Add provider** type list and accept an API key.
-- Their models can be marked for Kuma and AI fields, tested, and selected like any
-  other provider's.
+- Their models can be marked for Kuma, AI fields, and AI Agent services, tested, and
+  selected like any other provider's.
 - They are configurable through the admin/workspace AI providers UI only. The legacy
   endpoint is `PATCH` (a `PUT` returns `405`), and a `google` or `groq` key is
   rejected with `400 ERROR_REQUEST_BODY_VALIDATION`, *"Your request body had the
@@ -205,7 +207,9 @@ Verify:
   `{"feature_types": ["not-a-feature"]}` returns
   `400 ERROR_AI_PROVIDER_MODEL_FEATURE_TYPE_DOES_NOT_EXIST`.
 - Omitting `feature_types` entirely is the back-compat path for older API callers: the
-  model is created with `["ai_fields"]` only, **not** with every registered feature.
+  model is created with `["ai_fields", "ai_agent"]`, the two per-consumer features
+  that used provider models before eligibility was introduced, **not** with every
+  registered feature.
 - `{"feature_types": []}` is accepted, and the resulting model is offered by no
   feature (see 6.1).
 
@@ -388,9 +392,9 @@ survive the confirm dialog.
 ### 4.2 Removing the Kuma checkbox from the selected model
 
 Verify: same rejection, under the title *"The AI provider model could not be
-saved."*; the modal stays open and the row keeps **Available for: AI fields, Kuma**.
-Removing only the **AI fields** checkbox is allowed, because no default-model
-feature depends on it.
+saved."*; the modal stays open and the row keeps **Available for: AI Agent, AI fields,
+Kuma**. Removing only the **AI Agent** or **AI fields** checkbox is allowed, because
+neither is a default-model feature.
 
 ### 4.3 Disabling the selected model or its provider
 
@@ -494,7 +498,7 @@ and that Kuma there also falls back rather than switching off.
 
 ---
 
-## 6. AI fields are a separate feature
+## 6. Per-consumer features are separate
 
 ### 6.1 Eligibility is per feature
 
@@ -502,6 +506,8 @@ and that Kuma there also falls back rather than switching off.
 
 Verify:
 - Models with **AI fields** unticked are not offered in the field's model dropdown.
+- Models with **AI Agent** unticked are not offered in an Automation AI Agent node's
+  or Application Builder AI Agent action's model dropdown.
 - Models with only **AI fields** ticked are not offered in the Kuma **AI features**
   dropdown.
 - A model with no feature ticked appears nowhere.
@@ -513,8 +519,9 @@ curl -s http://localhost:8000/api/workspaces/ -H "Authorization: JWT <token>" \
   | python3 -c "import json,sys; [print(w['id'], json.dumps(w['ai_features'])) for w in json.load(sys.stdin)]"
 ```
 
-`ai_features.ai_fields.models` must exclude every Kuma-only model, and a model with no
-feature ticked must be absent from both feature lists. The legacy
+`ai_features.ai_fields.models` must exclude every Kuma-only model,
+`ai_features.ai_agent.models` must exclude every model without AI Agent eligibility,
+and a model with no feature ticked must be absent from all feature lists. The legacy
 `generative_ai_models_enabled` field still lists **all** of them, including the
 no-feature model — which is exactly why the frontend must read `ai_features` while the
 flag is on, and why section 10's legacy path still offers those models.
@@ -681,6 +688,8 @@ and verify nothing from this feature leaks into the old path:
   uses it; stored feature settings are ignored (the helper prints `source=legacy`).
 - AI fields offer the env-var and legacy workspace models, unfiltered by
   `feature_types`.
+- Automation AI Agent nodes and Application Builder AI Agent actions likewise use
+  the legacy integration/workspace/environment model lists without feature filtering.
 
 ---
 
