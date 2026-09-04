@@ -63,6 +63,29 @@ class AutomationWorkflowHistory(AutomationHistory):
         ]
 
 
+class AutomationWorkflowHistoryResponse(models.Model):
+    workflow_history = models.OneToOneField(
+        "automation.AutomationWorkflowHistory",
+        on_delete=models.CASCADE,
+        related_name="response",
+    )
+    status_code = models.PositiveSmallIntegerField()
+    headers = models.JSONField(db_default={}, default=dict)
+    body = models.JSONField(db_default=None, default=None, null=True, blank=True)
+    body_type = models.CharField(max_length=10)
+    source_node = models.ForeignKey(
+        "automation.AutomationNode",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="workflow_history_responses",
+    )
+    is_default = models.BooleanField(
+        db_default=False,
+        default=False,
+    )
+
+
 class AutomationNodeHistory(AutomationHistory):
     workflow_history = models.ForeignKey(
         "automation.AutomationWorkflowHistory",

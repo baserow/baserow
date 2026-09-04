@@ -69,6 +69,8 @@
     "coreCSVFileReaderDescription": "Reads rows from a CSV file.",
     "coreStartWorkflow": "Start workflow",
     "coreStartWorkflowDescription": "Starts an automation workflow.",
+    "coreResponse": "Response",
+    "coreResponseDescription": "Returns the workflow response only when the trigger supports waiting for responses and has waiting enabled.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",

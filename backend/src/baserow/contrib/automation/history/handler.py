@@ -1,6 +1,8 @@
+import time
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -13,15 +15,19 @@ from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
     AutomationNodeResult,
     AutomationWorkflowHistory,
+    AutomationWorkflowHistoryResponse,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.core.db import specific_iterator
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 
 
 class AutomationHistoryHandler:
+    RESPONSE_POLL_INTERVAL_SECONDS = 0.3
+
     def get_workflow_histories(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
     ) -> QuerySet[AutomationWorkflowHistory]:
@@ -148,6 +154,100 @@ class AutomationHistoryHandler:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
 
         return node_result.result
+
+    def workflow_has_response_node(self, workflow: AutomationWorkflow) -> bool:
+        """
+        Returns whether the workflow contains at least one response action node.
+        """
+
+        return workflow.automation_workflow_nodes.filter(
+            service__content_type__model="coreresponseservice",
+        ).exists()
+
+    def create_workflow_history_response(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        status_code: int,
+        headers: Optional[Dict[str, str]] = None,
+        body=None,
+        body_type: str = RESPONSE_BODY_TYPE.EMPTY,
+        source_node: Optional[AutomationNode] = None,
+        is_default: bool = False,
+    ) -> tuple[AutomationWorkflowHistoryResponse, bool]:
+        """
+        Creates the workflow response if one doesn't already exist.
+        """
+
+        try:
+            with transaction.atomic():
+                return (
+                    AutomationWorkflowHistoryResponse.objects.create(
+                        workflow_history=workflow_history,
+                        status_code=status_code,
+                        headers=headers or {},
+                        body=body,
+                        body_type=body_type,
+                        source_node=source_node,
+                        is_default=is_default,
+                    ),
+                    True,
+                )
+        except IntegrityError:
+            return (
+                AutomationWorkflowHistoryResponse.objects.get(
+                    workflow_history=workflow_history
+                ),
+                False,
+            )
+
+    def ensure_default_response(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> AutomationWorkflowHistoryResponse:
+        """
+        Ensures the workflow history has a default empty 204 response.
+        """
+
+        response, _ = self.create_workflow_history_response(
+            workflow_history,
+            status_code=204,
+            headers={},
+            body=None,
+            body_type=RESPONSE_BODY_TYPE.EMPTY,
+            is_default=True,
+        )
+        return response
+
+    def get_workflow_history_response(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> Optional[AutomationWorkflowHistoryResponse]:
+        try:
+            return AutomationWorkflowHistoryResponse.objects.get(
+                workflow_history=workflow_history
+            )
+        except AutomationWorkflowHistoryResponse.DoesNotExist:
+            return None
+
+    def wait_for_workflow_response(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        timeout_seconds: int,
+    ) -> Optional[AutomationWorkflowHistoryResponse]:
+        """
+        Polls until a workflow response exists or the timeout expires.
+        """
+
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            workflow_history.refresh_from_db(fields=["status", "completed_on"])
+            if response := self.get_workflow_history_response(workflow_history):
+                return response
+
+            if workflow_history.status != HistoryStatusChoices.STARTED:
+                return self.ensure_default_response(workflow_history)
+
+            time.sleep(self.RESPONSE_POLL_INTERVAL_SECONDS)
+
+        return None
 
     def get_node_history(
         self,

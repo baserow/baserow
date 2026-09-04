@@ -1143,12 +1143,15 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
-    ) -> None:
+        defer_scheduling: bool = False,
+    ) -> Optional[AutomationWorkflowHistory]:
         """
-        Runs the provided workflow in a celery task.
+        Starts the provided workflow.
 
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
+        :param defer_scheduling: Whether the caller will compose the workflow into
+            another Celery canvas.
         """
 
         error = None
@@ -1208,7 +1211,7 @@ class AutomationWorkflowHandler:
             if create_history_entry and simulate_until_node is None:
                 now = timezone.now()
 
-                AutomationHistoryHandler().create_workflow_history(
+                history = AutomationHistoryHandler().create_workflow_history(
                     original_workflow=original_workflow,
                     workflow=workflow,
                     is_test_run=is_test_run,
@@ -1217,6 +1220,8 @@ class AutomationWorkflowHandler:
                     message=error,
                     status=history_status,
                 )
+                AutomationHistoryHandler().ensure_default_response(history)
+                return history
             return
 
         history = AutomationHistoryHandler().create_workflow_history(
@@ -1233,9 +1238,11 @@ class AutomationWorkflowHandler:
             workflow_history=history,
         )
 
-        transaction.on_commit(
-            lambda: start_workflow_celery_task.delay(workflow.id, history.id)
-        )
+        if not defer_scheduling:
+            transaction.on_commit(
+                lambda: start_workflow_celery_task.delay(workflow.id, history.id)
+            )
+        return history
 
     @baserow_trace(tracer)
     def start_workflow(

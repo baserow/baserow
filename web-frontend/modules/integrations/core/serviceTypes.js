@@ -1,4 +1,5 @@
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
+import CoreManualTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreManualTriggerServiceForm'
 import {
   DataSourceServiceTypeMixin,
   getFilesGroup,
@@ -17,6 +18,7 @@ import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/com
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
 import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/components/services/CoreStartWorkflowServiceForm.vue'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
+import CoreResponseServiceForm from '@baserow/modules/integrations/core/components/services/CoreResponseServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -316,6 +318,10 @@ export class CoreManualTriggerServiceType extends TriggerServiceTypeMixin(
     return 'iconoir-play'
   }
 
+  get formComponent() {
+    return CoreManualTriggerServiceForm
+  }
+
   canBeImmediatelyDispatched(service) {
     return true
   }
@@ -510,6 +516,38 @@ export class CoreStartWorkflowServiceType extends WorkflowActionServiceTypeMixin
 
   getOrder() {
     return 8
+  }
+}
+
+export class CoreResponseServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'response'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreResponse')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreResponseDescription')
+  }
+
+  get icon() {
+    return 'iconoir-reply'
+  }
+
+  get formComponent() {
+    return CoreResponseServiceForm
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getOrder() {
+    return 9
   }
 }
 

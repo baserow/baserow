@@ -302,3 +302,101 @@ def test_0006_migrate_local_baserow_table_service_filter_formulas_to_value_is_fo
             assert service_filter.value_is_formula is False, (
                 "A invalid formula was detected, but value_is_formula was not set to False."
             )  # noqa: E501
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0035_migrate_local_baserow_filter_value_mode_forwards(
+    migrator, teardown_table_metadata
+):
+    migrate_from = [
+        ("builder", "0074_corestartworkflowworkflowaction"),
+        ("database", "0211_viewsort_viewgroupby_priority"),
+        ("integrations", "0033_coregotonodeservice"),
+    ]
+    migrate_to = [
+        ("integrations", "0035_migrate_local_baserow_filter_value_mode"),
+    ]
+
+    old_state = migrator.migrate(migrate_from)
+
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Builder = old_state.apps.get_model("builder", "Builder")
+    Database = old_state.apps.get_model("database", "Database")
+    TextField = old_state.apps.get_model("database", "TextField")
+    Table = old_state.apps.get_model("database", "Table")
+    LocalBaserowIntegration = old_state.apps.get_model(
+        "integrations", "LocalBaserowIntegration"
+    )
+    LocalBaserowListRows = old_state.apps.get_model(
+        "integrations", "LocalBaserowListRows"
+    )
+    LocalBaserowTableServiceFilter = old_state.apps.get_model(
+        "integrations", "LocalBaserowTableServiceFilter"
+    )
+
+    workspace = Workspace.objects.create(name="Workspace")
+    database = Database.objects.create(
+        order=1,
+        name="Database",
+        workspace=workspace,
+        content_type=ContentType.objects.get_for_model(Database),
+    )
+    builder = Builder.objects.create(
+        order=2,
+        name="Builder",
+        workspace=workspace,
+        content_type=ContentType.objects.get_for_model(Builder),
+    )
+    table = Table.objects.create(database=database, name="Table", order=1)
+    field = TextField.objects.create(
+        table=table, order=1, content_type=ContentType.objects.get_for_model(TextField)
+    )
+    integration = LocalBaserowIntegration.objects.create(
+        application=builder,
+        content_type=ContentType.objects.get_for_model(LocalBaserowIntegration),
+    )
+    service = LocalBaserowListRows.objects.create(
+        integration=integration,
+        content_type=ContentType.objects.get_for_model(LocalBaserowListRows),
+    )
+
+    raw_filter_count = 1001
+    LocalBaserowTableServiceFilter.objects.bulk_create(
+        [
+            LocalBaserowTableServiceFilter(
+                field=field,
+                service=service,
+                order=order,
+                value={
+                    "formula": f"plain text {order}",
+                    "mode": "simple",
+                    "version": "0.1",
+                },
+                value_is_formula=False,
+            )
+            for order in range(raw_filter_count)
+        ]
+    )
+    LocalBaserowTableServiceFilter.objects.create(
+        field=field,
+        service=service,
+        order=raw_filter_count,
+        value={"formula": "'formula text'", "mode": "simple", "version": "0.1"},
+        value_is_formula=True,
+    )
+
+    new_state = migrator.migrate(migrate_to)
+
+    LocalBaserowTableServiceFilter = new_state.apps.get_model(
+        "integrations", "LocalBaserowTableServiceFilter"
+    )
+    raw_filters = LocalBaserowTableServiceFilter.objects.filter(value_is_formula=False)
+    first_raw_filter = raw_filters.get(order=0)
+    last_raw_filter = raw_filters.get(order=raw_filter_count - 1)
+    formula_filter = LocalBaserowTableServiceFilter.objects.get(order=raw_filter_count)
+
+    assert raw_filters.count() == raw_filter_count
+    assert first_raw_filter.value["mode"] == "raw"
+    assert last_raw_filter.value["mode"] == "raw"
+    assert formula_filter.value["mode"] == "simple"

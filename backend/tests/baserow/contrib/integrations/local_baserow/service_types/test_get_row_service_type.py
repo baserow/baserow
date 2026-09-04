@@ -106,7 +106,6 @@ def test_export_import_local_baserow_get_row_service(data_fixture):
                 "field_id": service_filter.field_id,
                 "type": service_filter.type,
                 "value": service_filter.value,
-                "value_is_formula": service_filter.value_is_formula,
                 "group": service_filter.group_id,
             }
         ],
@@ -133,7 +132,7 @@ def test_export_import_local_baserow_get_row_service(data_fixture):
     assert service_filter.type == exported["filters"][0]["type"]
     assert service_filter.value == exported["filters"][0]["value"]
     assert service_filter.field_id == exported["filters"][0]["field_id"]
-    assert service_filter.value_is_formula == exported["filters"][0]["value_is_formula"]
+    assert service_filter.value["mode"] == exported["filters"][0]["value"]["mode"]
 
     view_2 = data_fixture.create_grid_view(user, table=table)
     field_2 = data_fixture.create_text_field(order=1, table=table)

@@ -89,9 +89,6 @@ class LocalBaserowTableServiceFilterSerializer(serializers.ModelSerializer):
     value = FormulaSerializerField(
         help_text="A formula for the filter's value.",
     )
-    value_is_formula = serializers.BooleanField(
-        default=False, help_text="Indicates whether the value is a formula or not."
-    )
     trashed = serializers.BooleanField(
         source="field.trashed",
         read_only=True,
@@ -117,7 +114,6 @@ class LocalBaserowTableServiceFilterSerializer(serializers.ModelSerializer):
             "type",
             "value",
             "trashed",
-            "value_is_formula",
             "group",
         )
 

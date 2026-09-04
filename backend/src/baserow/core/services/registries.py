@@ -377,6 +377,26 @@ class ServiceType(
         :return: The service `dispatch_data` result if any.
         """
 
+    def after_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_result: DispatchResult,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """Finalizes a dispatch after its database savepoint has committed."""
+
+        return dispatch_result
+
+    def requires_autocommit(self, service: ServiceSubClass) -> bool:
+        """
+        Returns whether dispatch must run without an enclosing transaction.
+
+        This is needed by services that commit work before waiting for another
+        process to observe it.
+        """
+
+        return False
+
     def dispatch(
         self,
         service: ServiceSubClass,
@@ -425,12 +445,17 @@ class ServiceType(
                 service.save()
             raise
         else:
+            serialized_data = self.after_dispatch(
+                service, serialized_data, dispatch_context
+            )
             if dispatch_context.use_sample_data and (
                 dispatch_context.update_sample_data_for is None
                 or service in dispatch_context.update_sample_data_for
             ):
                 sample_data = {}
                 for field in fields(serialized_data):
+                    if field.metadata.get("exclude_from_sample_data"):
+                        continue
                     value = getattr(serialized_data, field.name)
                     sample_data[field.name] = value
 

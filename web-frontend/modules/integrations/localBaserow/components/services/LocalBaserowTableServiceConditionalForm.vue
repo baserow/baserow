@@ -39,13 +39,16 @@
     >
       <template
         #filterInputComponent="{
-          slotProps: { filter, filterType: propFilterType },
+          slotProps: { filter, field, filterType: propFilterType },
         }"
       >
         <InjectedFormulaInput
-          v-if="filter.value_is_formula && propFilterType.hasEditableValue"
+          v-if="
+            propFilterType.hasEditableValue && !propFilterType.isDeprecated()
+          "
           :model-value="getFormulaObject(filter)"
           class="filters__value--formula-input"
+          allow-raw-values
           :placeholder="
             $t(
               'localBaserowTableServiceConditionalForm.expressionFilterInputPlaceholder'
@@ -57,32 +60,24 @@
               values: { value: $event.formula, mode: $event.mode },
             })
           "
-        />
-      </template>
-      <template
-        #afterValueInput="{
-          slotProps: { filter, filterType: propFilterType, emitUpdate },
-        }"
-      >
-        <a
-          v-if="
-            propFilterType.hasEditableValue && !propFilterType.isDeprecated()
-          "
-          :title="
-            !filter.value_is_formula
-              ? $t(
-                  'localBaserowTableServiceConditionalForm.useExpressionForValue'
-                )
-              : $t('localBaserowTableServiceConditionalForm.useDefaultForValue')
-          "
-          class="filters__value--formula-toggle"
-          :class="{
-            'filters__value-formula-toggle--disabled': !filter.value_is_formula,
-          }"
-          @click="handleFormulaToggleClick(filter, emitUpdate)"
         >
-          <i class="iconoir-sigma-function" />
-        </a>
+          <template #raw-input="{ value, input }">
+            <component
+              :is="propFilterType.getInputComponent(field)"
+              :filter="{ ...filter, value }"
+              :fields="fields"
+              :disabled="false"
+              :read-only="false"
+              :placeholder="
+                $t(
+                  'localBaserowTableServiceConditionalForm.textFilterInputPlaceholder'
+                )
+              "
+              @input="input"
+              @migrate="updateFilter({ filter, values: $event })"
+            />
+          </template>
+        </InjectedFormulaInput>
       </template>
     </ViewFieldConditionsForm>
     <div class="filters_footer">
@@ -175,12 +170,16 @@ export default {
      * sorting cannot guarantee for our client-side `ulid` ids.
      */
     getDataSourceFilters() {
-      // The `value` prop is an array of filters with an object `value`
-      // containing the formula string. The `ViewFieldConditionsForm` however
-      // expects the `value` to be the formula string itself, so we have
-      // to convert it here.
+      // The `value` prop is an array of filters with a formula object value.
+      // The `ViewFieldConditionsForm` expects the filter value itself to be a
+      // string, so we keep the mode alongside the flattened formula string.
       return this.modelValue.map((filterConf) => {
-        return { ...filterConf, value: filterConf.value.formula }
+        const formulaObject = this.normalizeFormulaObject(filterConf)
+        return {
+          ...filterConf,
+          value: formulaObject.formula,
+          mode: formulaObject.mode,
+        }
       })
     },
     /*
@@ -211,7 +210,6 @@ export default {
             field: field.id,
             type: 'equal',
             value: { formula: '', mode: 'raw' },
-            value_is_formula: false,
             group: filterGroupId,
           })
           this.$emit('update:modelValue', newFilters)
@@ -300,42 +298,29 @@ export default {
     updateFilter({ filter, values }) {
       const newFilters = this.modelValue.map((filterConf) => {
         if (filterConf.id === filter.id) {
-          // Convert the formula value string into our Baserow formula object.
-          const { value_is_formula: valueIsFormula } = { ...filter, ...values }
+          const mode = values.mode || filter.mode || 'raw'
+          const filterValues = { ...filterConf }
+          delete filterValues.value
+          delete filterValues.value_is_formula
+          delete filterValues.mode
+
+          const updatedValues = { ...values }
+          delete updatedValues.value
+          delete updatedValues.value_is_formula
+          delete updatedValues.mode
+
           return {
-            ...filterConf,
-            ...values,
+            ...filterValues,
+            ...updatedValues,
             value: {
               formula: values.value,
-              mode: valueIsFormula ? values.mode || 'simple' : 'raw',
+              mode,
             },
           }
         }
         return filterConf
       })
       this.$emit('update:modelValue', newFilters)
-    },
-    /*
-     * When the formula toggle is clicked, this is responsible for flipping
-     * the `value_is_formula` value and then tweaking the filter value, depending
-     * on the current state of `value_is_formula`.
-     */
-    handleFormulaToggleClick(filter, emitUpdate) {
-      // If we're changing from a formula to a non-formula, we'll reset the value.
-      // If we're changing from a non-formula to a formula, we'll convert the value.
-      let newValue = filter.value
-      if (filter.value_is_formula) {
-        newValue = ''
-      } else if (filter.value) {
-        newValue = `'${filter.value}'`
-      }
-      this.updateFilter({
-        filter,
-        values: {
-          value: newValue,
-          value_is_formula: !filter.value_is_formula,
-        },
-      })
     },
     /*
      * Responsible for bypassing the `ViewFieldConditionsForm` component's
@@ -361,12 +346,24 @@ export default {
      * @returns {Object} The formula object with the formula string.
      */
     getFormulaObject(filter) {
-      const originalFilter = this.modelValue.find((f) => f.id === filter.id)
       return {
-        ...originalFilter.value,
-        mode: originalFilter.value_is_formula
-          ? originalFilter.value.mode || 'simple'
-          : 'raw',
+        formula: filter.value,
+        mode: filter.mode || 'raw',
+      }
+    },
+    normalizeFormulaObject(filter) {
+      if (filter.value && typeof filter.value === 'object') {
+        const mode =
+          filter.value.mode || (filter.value_is_formula ? 'simple' : 'raw')
+        return {
+          ...filter.value,
+          mode: filter.value_is_formula === false ? 'raw' : mode,
+        }
+      }
+
+      return {
+        formula: filter.value || '',
+        mode: filter.value_is_formula ? 'simple' : 'raw',
       }
     },
   },

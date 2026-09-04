@@ -9,6 +9,7 @@ from baserow.contrib.integrations.core.models import (
     CoreIteratorService,
     CoreManualTriggerService,
     CorePeriodicService,
+    CoreResponseService,
     CoreRouterService,
     CoreSMTPEmailService,
     CoreStartWorkflowService,
@@ -105,6 +106,16 @@ class ServiceFixtures:
             kwargs["type"] = "equal"
         if "order" not in kwargs:
             kwargs["order"] = 0
+        if kwargs.get("value_is_formula") is False and "value" in kwargs:
+            value = kwargs["value"]
+            if isinstance(value, dict):
+                value["mode"] = "raw"
+            else:
+                kwargs["value"] = {
+                    "formula": "" if value is None else str(value),
+                    "mode": "raw",
+                    "version": "0.1",
+                }
         return LocalBaserowTableServiceFilter.objects.create(**kwargs)
 
     def create_local_baserow_table_service_filter_group(
@@ -150,6 +161,9 @@ class ServiceFixtures:
 
     def create_core_start_workflow_service(self, **kwargs):
         return self.create_service(CoreStartWorkflowService, **kwargs)
+
+    def create_core_response_service(self, **kwargs):
+        return self.create_service(CoreResponseService, **kwargs)
 
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)
