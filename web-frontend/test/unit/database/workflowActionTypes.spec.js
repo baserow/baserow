@@ -492,12 +492,16 @@ describe('external database workflow action types', () => {
     const actionType = typeFor('slack_write_message')
 
     // Slack answers with the same three things whatever the message, so the
-    // action after it can point at the message timestamp before saving.
+    // action after it can point at the message timestamp before saving. Under
+    // `data`, which is where the dispatch puts them and what the backend's
+    // `generate_schema` describes.
     for (const workflowAction of [{ service: {} }, {}]) {
       const schema = actionType.getDataSchema({}, workflowAction)
-      expect(Object.keys(schema.properties)).toEqual(['ok', 'channel', 'ts'])
-      expect(schema.properties.ok.type).toBe('boolean')
-      expect(schema.properties.ts.type).toBe('string')
+      expect(Object.keys(schema.properties)).toEqual(['data'])
+      const answer = schema.properties.data.properties
+      expect(Object.keys(answer)).toEqual(['ok', 'channel', 'ts'])
+      expect(answer.ok.type).toBe('boolean')
+      expect(answer.ts.type).toBe('string')
       expect(schema.title).toBe(actionType.label)
     }
   })

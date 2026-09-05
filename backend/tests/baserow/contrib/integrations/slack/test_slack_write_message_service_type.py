@@ -93,9 +93,9 @@ def test_dispatch_slack_write_message_basic(data_fixture):
 
     # Unwrapped like the HTTP and email services, so `ok`, `channel` and
     # `ts` sit where the schema says a later step can read them.
-    assert dispatch_data.data["ok"] is True
-    assert dispatch_data.data["channel"] == "C123456"
-    assert dispatch_data.data["ts"] == "1503435956.000247"
+    assert dispatch_data.data["data"]["ok"] is True
+    assert dispatch_data.data["data"]["channel"] == "C123456"
+    assert dispatch_data.data["data"]["ts"] == "1503435956.000247"
 
 
 @pytest.mark.django_db
@@ -386,22 +386,29 @@ def test_slack_write_message_generate_schema(data_fixture):
         text="'Hello Slack!'",
     )
     schema = service.get_type().generate_schema(service)
+    # Under `data`, which is where the dispatch puts the answer.
     assert schema == {
         "title": f"SlackWriteMessage{service.id}Schema",
         "type": "object",
         "properties": {
-            "ok": {
-                "type": "boolean",
-                "title": "OK",
-            },
-            "channel": {
-                "type": "string",
-                "title": "Channel",
-            },
-            "ts": {
-                "type": "string",
-                "title": "Message timestamp",
-            },
+            "data": {
+                "type": "object",
+                "title": "Data",
+                "properties": {
+                    "ok": {
+                        "type": "boolean",
+                        "title": "OK",
+                    },
+                    "channel": {
+                        "type": "string",
+                        "title": "Channel",
+                    },
+                    "ts": {
+                        "type": "string",
+                        "title": "Message timestamp",
+                    },
+                },
+            }
         },
     }
 
@@ -412,7 +419,9 @@ def test_slack_write_message_generate_schema_respects_allowed_fields(data_fixtur
 
     schema = service.get_type().generate_schema(service, allowed_fields=["ts"])
 
-    assert list(schema["properties"]) == ["ts"]
+    # Applied inside the wrapper: it names what the caller wants out of the
+    # answer, not whether the answer is there.
+    assert list(schema["properties"]["data"]["properties"]) == ["ts"]
 
 
 @pytest.mark.django_db
@@ -668,3 +677,82 @@ def test_slack_write_message_hangs_up_on_a_body_that_drips(data_fixture):
     ):
         with pytest.raises(UnexpectedDispatchException):
             service.get_type().dispatch(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_slack_write_message_answers_where_its_schema_says_it_does(data_fixture):
+    """
+    The schema is what the data explorer offers a later step, so a path it
+    names has to resolve against what a dispatch actually returns. These two
+    disagreed until the schema described the wrapper the dispatch answers with.
+    """
+
+    user = data_fixture.create_user()
+    application = data_fixture.create_automation_application(user=user)
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type_registry.get("slack_bot"),
+        application=application,
+        token="xoxb-test-token-12345",
+    )
+    service = ServiceHandler().create_service(
+        SlackWriteMessageServiceType(),
+        integration=integration,
+        channel="general",
+        text="'Hello'",
+    )
+    service_type = service.get_type()
+
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "ok": True,
+        "channel": "C123456",
+        "ts": "1503435956.000247",
+    }
+    mock_response.iter_content.return_value = iter([b"{}"])
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=Mock(return_value=mock_response),
+    ):
+        result = service_type.dispatch(service, FakeDispatchContext())
+
+    schema = service_type.generate_schema(service)
+    assert set(schema["properties"]) == {"data"}
+    advertised = set(schema["properties"]["data"]["properties"])
+    assert advertised <= set(result.data["data"])
+    assert result.data["data"]["ts"] == "1503435956.000247"
+
+
+@pytest.mark.django_db
+def test_slack_write_message_replays_a_sample_in_the_shape_it_answers(data_fixture):
+    """
+    A simulated run replays the stored sample verbatim, so a sample an earlier
+    version wrote has to be the shape a real run answers with.
+    """
+
+    user = data_fixture.create_user()
+    application = data_fixture.create_automation_application(user=user)
+    integration = IntegrationService().create_integration(
+        user,
+        integration_type_registry.get("slack_bot"),
+        application=application,
+        token="xoxb-test-token-12345",
+    )
+    service = ServiceHandler().create_service(
+        SlackWriteMessageServiceType(),
+        integration=integration,
+        channel="general",
+        text="'Hello'",
+    )
+    service.sample_data = {"data": {"data": {"ok": True, "ts": "1503435956.000247"}}}
+    service.save()
+
+    dispatch_context = FakeDispatchContext()
+    dispatch_context.use_sample_data = True
+    dispatch_context.update_sample_data_for = []
+
+    result = service.get_type().dispatch(service, dispatch_context)
+
+    # The shape every version has written, so nothing has to be migrated.
+    assert result.data["data"]["ts"] == "1503435956.000247"

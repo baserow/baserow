@@ -222,7 +222,7 @@ def test_a_click_posts_the_resolved_text_through_the_bot(data_fixture):
     assert call["headers"] == {"Authorization": "Bearer xoxb-secret"}
     assert call["params"] == {"channel": "#general", "text": "Hello Ada"}
     (dispatched,) = result.dispatched
-    assert dispatched.result.data["ts"] == "1503435956.000247"
+    assert dispatched.result.data["data"]["ts"] == "1503435956.000247"
 
 
 @pytest.mark.django_db
@@ -252,7 +252,7 @@ def test_a_later_action_can_write_the_message_timestamp(data_fixture):
             "field_mappings": [
                 {
                     "field_id": ts_field.id,
-                    "value": f"get('previous_action.{slack_action.id}.ts')",
+                    "value": f"get('previous_action.{slack_action.id}.data.ts')",
                     "enabled": True,
                 }
             ],

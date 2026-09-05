@@ -230,7 +230,7 @@ test.describe("Button field, Slack action", () => {
       fieldMappings: [
         {
           field: g.fieldByName["Slack ts"],
-          value: `get('previous_action.${slack.id}.ts')`,
+          value: `get('previous_action.${slack.id}.data.ts')`,
         },
       ],
     });

@@ -705,17 +705,27 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
     return {
       type: 'object',
       properties: {
-        ok: {
-          type: 'boolean',
-          title: this.app.$i18n.t('databaseWorkflowActionType.slackOk'),
-        },
-        channel: {
-          type: 'string',
-          title: this.app.$i18n.t('databaseWorkflowActionType.slackChannel'),
-        },
-        ts: {
-          type: 'string',
-          title: this.app.$i18n.t('databaseWorkflowActionType.slackTs'),
+        // Under `data`, the way the dispatch answers and the backend's
+        // `generate_schema` describes it.
+        data: {
+          type: 'object',
+          title: this.app.$i18n.t('databaseWorkflowActionType.slackData'),
+          properties: {
+            ok: {
+              type: 'boolean',
+              title: this.app.$i18n.t('databaseWorkflowActionType.slackOk'),
+            },
+            channel: {
+              type: 'string',
+              title: this.app.$i18n.t(
+                'databaseWorkflowActionType.slackChannel'
+              ),
+            },
+            ts: {
+              type: 'string',
+              title: this.app.$i18n.t('databaseWorkflowActionType.slackTs'),
+            },
+          },
         },
       },
     }

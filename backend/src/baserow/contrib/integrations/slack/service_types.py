@@ -203,9 +203,11 @@ class SlackWriteMessageServiceType(ServiceType):
         return {"data": response_data}
 
     def dispatch_transform(self, data):
-        # Unwrapped like the HTTP and email services, so the answer sits where
-        # `generate_schema` says a later step can read it.
-        return DispatchResult(data=data["data"])
+        # Left wrapped, and `generate_schema` describes the wrapper, so the
+        # path the data explorer offers resolves against what a dispatch
+        # stores. Unwrapping instead would mean migrating every sample an
+        # earlier version wrote.
+        return DispatchResult(data=data)
 
     def max_dispatch_seconds(self, service: SlackWriteMessageService) -> int:
         return SLACK_REQUEST_TIMEOUT_SECONDS * SLACK_REQUEST_SOCKET_OPERATIONS
@@ -232,18 +234,31 @@ class SlackWriteMessageServiceType(ServiceType):
 
         # What `chat.postMessage` answers with that a later step can use:
         # `ts` is the message reference for threading and updating.
-        all_properties = {
+        #
+        # Under `data`, because that is where the dispatch puts them. The HTTP
+        # and email services unwrap theirs instead and describe them at the
+        # root; this one cannot, without rewriting every sample an earlier
+        # version stored.
+        answer = {
             "ok": {"type": "boolean", "title": _("OK")},
             "channel": {"type": "string", "title": _("Channel")},
             "ts": {"type": "string", "title": _("Message timestamp")},
         }
+        # `allowed_fields` names what the caller wants out of the answer, so
+        # it is applied inside the wrapper rather than to it.
         properties = {
             name: prop
-            for name, prop in all_properties.items()
+            for name, prop in answer.items()
             if allowed_fields is None or name in allowed_fields
         }
         return {
             "title": self.get_schema_name(service),
             "type": "object",
-            "properties": properties,
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "title": _("Data"),
+                    "properties": properties,
+                }
+            },
         }
