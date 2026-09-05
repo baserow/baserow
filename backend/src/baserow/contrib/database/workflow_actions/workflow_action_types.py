@@ -266,6 +266,11 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         this import, or the original when the copy stays in the same database
         (a duplicated table or field). Whether it may be carried at all is
         settled in `import_serialized`, once the field is known.
+
+        :param serialized_service: The service as the export wrote it.
+        :param id_mapping: What this import has remapped so far.
+        :return: The integration to attach, or None when it names none this
+            installation has.
         """
 
         integration_id = self._integration_id_to_look_up(
@@ -325,10 +330,17 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         then says what it needs, as an unconfigured one does.
 
         `copied_by` is set on the paths where a person copies an existing
-        action in place, a duplicated field or a changed field type, since
-        those never pass through the endpoint that checks the credential. A
-        whole-application import carries its own integrations and has no such
-        actor.
+        action, since those never pass through the endpoint that checks the
+        credential. An import from a file has no such actor.
+
+        :param parent: The button field the action belongs to.
+        :param serialized_values: The action as the export wrote it.
+        :param id_mapping: What this import has remapped so far.
+        :param files_zip: The archive the export's files came in, if any.
+        :param storage: Where those files are written.
+        :param cache: Shared across one import, for values worth reusing.
+        :param kwargs: Passed on, and read for `copied_by`.
+        :return: The imported action.
         """
 
         copied_by = kwargs.pop("copied_by", None)
@@ -382,6 +394,13 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         """
         Creates the backing service when the action is new, and forwards any
         supplied service values to it.
+
+        :param values: What the caller is setting on the action.
+        :param user: Who is configuring it.
+        :param instance: The action being updated, or None when creating one.
+        :raises WorkflowActionInvalidIntegration: When the integration named
+            cannot be carried, or the user may not read it.
+        :return: The values to save, with the service among them.
         """
 
         service_type = service_type_registry.get(self.service_type)

@@ -299,6 +299,7 @@ class DatabaseWorkflowActionService:
         subtype, so assigning these here means nothing queries again later.
 
         :param server_actions: The actions this click will run.
+        :return: Nothing. The services are updated in place.
         """
 
         services = [
