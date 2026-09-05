@@ -173,11 +173,7 @@ export default {
     }
   },
   computed: {
-    /**
-     * Whether any action in the list needs the database's integrations. The
-     * list owns the fetch rather than each form, so a failure is reported
-     * once and reopening a card can ask again.
-     */
+    /** Whether any action in the list needs the database's integrations. */
     needsIntegrations() {
       return this.value.some(
         (action) =>
@@ -204,8 +200,8 @@ export default {
       const context = {
         workspace: this.workspace,
         workflowActions: this.value,
-        // The credential an action carries lives here, so a type that needs
-        // one can say when it is not usable.
+        // Where an action's credential lives, so a type can say when it is
+        // not usable.
         database: this.database,
       }
       return Object.fromEntries(
@@ -221,8 +217,7 @@ export default {
     },
   },
   watch: {
-    // Covers the editor opening, an action being added, and a type being
-    // picked, all of which can be the first thing to need an integration.
+    // Covers opening the editor, adding an action and picking a type.
     needsIntegrations: {
       immediate: true,
       handler(needs) {
@@ -328,24 +323,22 @@ export default {
     toggleAction(action) {
       const key = workflowActionKey(action)
       this.expandedActions = this.expandedActions[key] ? {} : { [key]: true }
-      // The cards are hidden rather than unmounted, so opening one is the
-      // only moment a user can ask for a fetch that failed to be tried again.
+      // Cards are hidden rather than unmounted, so opening one is the only
+      // moment a user can ask for a retry.
       if (this.expandedActions[key]) {
         this.fetchIntegrations()
       }
     },
     /**
      * Loads the database's integrations, when something in the list needs
-     * them. Quiet about a load that already happened, and loud once about one
-     * that failed: otherwise the dropdown reads as a database with no bot,
-     * and the only thing offered is creating a second one.
+     * them. The list owns this rather than each form, so one failure is one
+     * message.
      */
     async fetchIntegrations() {
       if (!this.needsIntegrations) {
         return
       }
-      // Reports its own failure, once for the request rather than once for
-      // each list waiting on it.
+      // Reports its own failure.
       await fetchIntegrationsOnce(this.$store, this.database.id)
     },
     /**

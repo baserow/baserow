@@ -49,11 +49,8 @@
         create
         @created="select($event.id)"
       />
-      <!--
-        An export strips a credential, so an imported integration arrives
-        named but unusable. Without this there is no way to repair it from a
-        database, which has no integration settings page of its own.
-      -->
+      <!-- An imported integration arrives named but unusable, and a database
+           has no integration settings page to repair it from. -->
       <IntegrationCreateEditModal
         v-if="selectedIntegration"
         ref="IntegrationEditModal"
@@ -117,9 +114,8 @@ export default {
   emits: ['input', 'update:modelValue'],
   computed: {
     /**
-     * What the parent has selected. A `v-model` binding sends `modelValue`,
-     * which falls through to the dropdown below rather than arriving as a
-     * prop here, so it is read off the attributes.
+     * What the parent has selected. `v-model` sends `modelValue`, which falls
+     * through to the dropdown below rather than arriving as a prop here.
      */
     currentValue() {
       const bound = this.$attrs.modelValue
@@ -148,9 +144,7 @@ export default {
   methods: {
     /**
      * Chosen somewhere other than the list below, which reaches the parent on
-     * its own. A parent binds this with `v-model` and so listens for
-     * `update:modelValue`; `input` is kept for anything still written the
-     * Vue 2 way.
+     * its own. `input` is kept for anything still bound the Vue 2 way.
      *
      * @param {Number|null} integrationId The integration that was chosen.
      */

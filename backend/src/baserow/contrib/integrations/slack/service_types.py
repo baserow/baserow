@@ -110,8 +110,7 @@ class SlackWriteMessageServiceType(ServiceType):
         :param dispatch_context: The context in which the dispatch is occurring.
         :return: A dictionary containing the response data from the Slack API.
         :raises UnexpectedDispatchException: If there's an error after the HTTP request.
-        :raises ServiceImproperlyConfiguredDispatchException: If the Slack service is
-            improperly configured, indicated by specific error codes from the Slack API.
+        :raises RemoteRefusedDispatchException: If Slack refused the message.
         """
 
         try:
@@ -232,20 +231,15 @@ class SlackWriteMessageServiceType(ServiceType):
         :return: A dictionary representing the JSON schema of the service.
         """
 
-        # What `chat.postMessage` answers with that a later step can use:
-        # `ts` is the message reference for threading and updating.
-        #
-        # Under `data`, because that is where the dispatch puts them. The HTTP
-        # and email services unwrap theirs instead and describe them at the
-        # root; this one cannot, without rewriting every sample an earlier
-        # version stored.
+        # `ts` is the message reference, for threading and updating. Under
+        # `data`, because that is where the dispatch puts them.
         answer = {
             "ok": {"type": "boolean", "title": _("OK")},
             "channel": {"type": "string", "title": _("Channel")},
             "ts": {"type": "string", "title": _("Message timestamp")},
         }
-        # `allowed_fields` names what the caller wants out of the answer, so
-        # it is applied inside the wrapper rather than to it.
+        # Names what the caller wants out of the answer, so it applies inside
+        # the wrapper rather than to it.
         properties = {
             name: prop
             for name, prop in answer.items()

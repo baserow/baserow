@@ -1073,9 +1073,8 @@ class DatabaseApplicationType(ApplicationType):
 
         database = application.specific
 
-        # Before the tables: a button field's action remaps its integration
-        # through `id_mapping`. Absent from every export made before they
-        # were carried.
+        # Before the tables, so an action's integration can remap through
+        # `id_mapping`. Absent from every export made before 4c.
         for serialized_integration in serialized_values.get("integrations", []):
             IntegrationHandler().import_integration(
                 database,

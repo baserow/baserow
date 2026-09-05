@@ -145,11 +145,7 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     return {}
   }
 
-  /**
-   * Whether the form offers an integration dropdown, and so needs the
-   * database's integrations fetched for it. A button's actions carry none
-   * unless the type says which ones it can (ADR 006 section 5).
-   */
+  /** Whether the form offers an integration dropdown (ADR 006 section 5). */
   get needsIntegration() {
     return false
   }
@@ -672,10 +668,8 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
   }
 
   /**
-   * A bot an export stripped keeps its name but loses its token, so an
-   * imported action looks configured while every click is an outbound
-   * request that was never going to work. Reported here so the editor says
-   * so before the click rather than after it.
+   * An export strips the token, so an imported bot keeps its name and looks
+   * configured. Said here rather than after a doomed click.
    */
   getErrorMessage(workflowAction, applicationContext) {
     const inherited = super.getErrorMessage(workflowAction, applicationContext)
@@ -684,8 +678,7 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
     }
     const integrationId = workflowAction.service?.integration_id
     const integrations = applicationContext?.database?.integrations
-    // Nothing to say while the list is still being fetched: the dropdown is
-    // empty then too, and the action is not wrong for it.
+    // Quiet while the list is still loading: the dropdown is empty then too.
     if (!integrationId || !integrations?.length) {
       return null
     }
@@ -697,16 +690,14 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
   }
 
   /**
-   * What `chat.postMessage` answers with whatever the message: mirrors the
-   * backend's `generate_schema`, so a later action can point at the
-   * message timestamp before anything is saved.
+   * Mirrors the backend's `generate_schema`, so a later action can point at
+   * the message timestamp before anything is saved.
    */
   get baselineDataSchema() {
     return {
       type: 'object',
       properties: {
-        // Under `data`, the way the dispatch answers and the backend's
-        // `generate_schema` describes it.
+        // Under `data`, the way the dispatch answers.
         data: {
           type: 'object',
           title: this.app.$i18n.t('databaseWorkflowActionType.slackData'),

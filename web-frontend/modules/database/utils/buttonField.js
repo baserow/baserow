@@ -60,20 +60,14 @@ export function urlWithAllowedProtocol(url) {
     : ''
 }
 
-// A database has no single entry point the way a builder does, so its
-// integrations are fetched the first time an action editor asks for them.
-// The request in flight is shared, and the entry dropped once it settles, so
-// a failed one is asked again rather than remembered as an empty database.
 const inFlightIntegrations = new Map()
 
 /**
- * Fetches a database's integrations, at most once per database.
- *
- * Whether they have been loaded is remembered on the application itself, the
- * way the builder and automation do it, so a refetch that replaces the object
- * asks again. A failure is reported here rather than by the caller: several
- * callers can await one request, and reporting per caller raises a toast
- * apiece for a single failure.
+ * Fetches a database's integrations, at most once per database. A database has
+ * no single entry point the way a builder does, so the first editor to need
+ * them asks. Loading is remembered on the application, so a refetch that
+ * replaces it asks again, and a failure is reported here rather than by the
+ * caller, since several callers can await one request.
  *
  * @param {Object} store The Vuex store.
  * @param {Number} applicationId The database whose integrations are wanted.
@@ -86,10 +80,8 @@ export function fetchIntegrationsOnce(store, applicationId) {
   }
   if (!inFlightIntegrations.has(applicationId)) {
     const request = (async () => {
-      // Resolved from the store rather than captured, on both sides of the
-      // await: `application/forceSetAll` replaces the object, and marking one
-      // object loaded while filling another leaves the list on screen empty
-      // and nothing to fetch it again.
+      // Resolved on both sides of the await: `forceSetAll` replaces the
+      // object, and filling one while marking another leaves both wrong.
       const application = current()
       if (!application) {
         return false
@@ -97,9 +89,7 @@ export function fetchIntegrationsOnce(store, applicationId) {
       try {
         await store.dispatch('integration/fetch', { application })
       } catch (error) {
-        // Once for this request, whoever is waiting on it. Otherwise the
-        // dropdown reads as a database with no bot, and the only thing
-        // offered is creating a second one.
+        // Once for the request, whoever is waiting on it.
         notifyIf(error, 'application')
         return false
       }
@@ -113,8 +103,7 @@ export function fetchIntegrationsOnce(store, applicationId) {
       })
       return true
     })()
-    // Dropped once it settles, so a request that failed is asked again rather
-    // than remembered as an empty database.
+    // Dropped once it settles, so a failed one is asked again.
     inFlightIntegrations.set(
       applicationId,
       request.finally(() => inFlightIntegrations.delete(applicationId))

@@ -1,7 +1,6 @@
 import IntegrationService from '@baserow/modules/core/services/integration'
 
-// Bumped whenever an application's list changes, so a fetch can tell that
-// the answer it is holding is older than what the store holds now.
+// Bumped on every change, so a fetch can tell its answer is stale.
 const state = () => ({ generation: {} })
 
 const updateContext = {
@@ -251,18 +250,14 @@ const actions = {
     const { data: integrations } =
       await IntegrationService($client).fetchAll(applicationId)
 
-    // Something changed the list while this request was open: an integration
-    // was created, deleted or moved. The answer being held snapshots the list
-    // as it was before that, and replacing the newer list with it would lose
-    // the change for good, since nothing fetches a second time.
+    // Changed while this was open, so the answer is older than the list.
+    // Writing it would lose the change, since nothing fetches twice.
     if ((state.generation[applicationId] || 0) !== before) {
       return rootGetters['application/get'](applicationId)?.integrations || []
     }
 
-    // The store can have replaced the application object while the request
-    // was open, `application/forceSetAll` being the usual way. Filling the
-    // object this started with would fill a list nothing renders and leave
-    // the one on screen empty.
+    // `forceSetAll` can have replaced the object this started with, and
+    // filling that one leaves the one on screen empty.
     const current = rootGetters['application/get'](applicationId) || application
 
     commit('CLEAR_ITEMS', { application: current })
@@ -271,10 +266,8 @@ const actions = {
         dispatch('forceCreate', { application: current, integration })
       )
     )
-    // Its own writes are not a change another fetch has to back off from:
-    // reaching here means nothing changed the list while it was open. Left
-    // bumped, a second fetch that started alongside this one would discard
-    // its newer answer.
+    // Its own writes are not a change to back off from, and leaving them
+    // bumped would make a fetch alongside this one discard a newer answer.
     commit('SET_GENERATION', { application: current, generation: before })
 
     return integrations

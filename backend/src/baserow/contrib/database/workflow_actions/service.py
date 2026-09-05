@@ -97,10 +97,8 @@ def reached_outside(exc: Exception) -> bool:
     :return: True when the request went out, so the click owes for it.
     """
 
-    # Subclasses of the configuration failures above, but raised once the
-    # instance had already reached out: a refusal on the answer's size, a
-    # connection that was attempted, or a server that answered and then
-    # refused. All are charged like any other.
+    # Subclasses of the failures above, but raised once the instance had
+    # already reached out, so they are charged like any other.
     if isinstance(
         exc,
         (
@@ -591,8 +589,7 @@ class DatabaseWorkflowActionService:
         # so a click whose TTL ran out cannot drop a later click's lock. Keyed
         # on field and row together, so two buttons on one row do not block
         # each other.
-        # Before the lock, not inside it: this is one query for the whole
-        # click and it holds nothing the lock protects.
+        # Before the lock: it holds nothing the lock protects.
         self._resolve_integrations(server_actions)
 
         lock = cache.lock(

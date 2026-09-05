@@ -278,9 +278,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         )
         if integration_id is None:
             return None
-        # Remapped after the coercion, not before: the mapping is keyed by the
-        # integer ids the export was written with, and a JSON round trip can
-        # turn the value beside them into a string.
+        # After the coercion, not before: the mapping is keyed by integers
+        # and a JSON round trip can turn the value beside them into a string.
         integration_id = id_mapping.get("integrations", {}).get(
             integration_id, integration_id
         )
@@ -307,8 +306,7 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         if isinstance(value, int):
             return value or None
         if isinstance(value, str):
-            # Only a plain decimal id. `int` also accepts "+1", " 1 " and
-            # "1_0", none of which an export writes.
+            # `int` also accepts "+1", " 1 " and "1_0", which no export writes.
             return int(value) or None if value.isdecimal() else None
         return None
 
@@ -411,9 +409,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             service = instance.service.specific
 
         service_values = values.pop("service", None) or {}
-        # The one it is being given, or the one it already carries: an edit
-        # that resends neither must not be a way to drive a credential the
-        # editor may not read.
+        # The one it is given, or the one it carries: an edit that resends
+        # neither must not drive a credential the editor may not read.
         integration_id = service_values.get("integration_id")
         if integration_id is None and instance is not None:
             integration_id = service.integration_id
@@ -435,10 +432,9 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
     def _integration_is_usable(self, integration: Integration, field) -> bool:
         """
-        The one rule every path reads: an integration a button may carry is of
-        a type this action accepts, and belongs to the field's own database.
-        Kept in one place so the guards on save, on import and on dispatch
-        cannot drift apart.
+        The one rule save, import and dispatch all read, so they cannot
+        drift: a carried integration is of a type this action accepts, and
+        belongs to the field's own database.
 
         :param integration: The integration in question.
         :param field: The button field the action belongs to.
@@ -469,22 +465,21 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
         integration = None
         if field is not None:
-            # Scoped to the field's own database, so an id naming someone
-            # else's integration reads the same as one naming nothing.
+            # Scoped to the field's database, so someone else's integration
+            # reads the same as nothing.
             integration = Integration.objects.filter(
                 id=integration_id, application_id=field.table.database_id
             ).first()
 
         if integration is None or not self._integration_is_usable(integration, field):
-            # One answer for every way of being wrong. Saying which would let
-            # a caller walk the ids and learn what this installation holds.
+            # One answer for every way of being wrong, or a caller could walk
+            # the ids and learn what this installation holds.
             raise WorkflowActionInvalidIntegration(
                 "This action cannot use that integration. It must be one the "
                 "action accepts, from the database of the button field."
             )
 
-        # Raises when the user may not read it, checked against the row
-        # already in hand rather than reading it a second time.
+        # Checked against the row already in hand.
         CoreHandler().check_permissions(
             user,
             ReadIntegrationOperationType.type,
@@ -573,14 +568,11 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         dispatch_context: "DatabaseDispatchContext",
     ) -> DispatchResult:
         service = workflow_action.service.specific
-        # A database service runs as the dispatch actor, never as an
-        # integration's `authorized_user` (ADR 006 section 5). The same rule
-        # as on save and on import, so a service that reached this state some
-        # other way still cannot run.
+        # Never as an integration's `authorized_user` (ADR 006 section 5),
+        # however the service reached this state.
         if service.integration_id is not None and not self._integration_is_usable(
-            # The field the dispatch is for, which the context already holds.
-            # Reading it back through the action costs two cold queries per
-            # action, inside the lock that guards the row.
+            # From the context: reading it back through the action costs two
+            # cold queries apiece, inside the lock.
             service.integration,
             dispatch_context.field,
         ):
