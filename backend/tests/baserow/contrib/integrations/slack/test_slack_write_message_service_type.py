@@ -7,6 +7,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 import pytest
+from requests import exceptions as request_exceptions
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 import baserow.contrib.integrations.slack.service_types as service_types_module
@@ -27,6 +28,7 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
+    RemoteRefusedDispatchException,
     ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
@@ -756,3 +758,56 @@ def test_slack_write_message_replays_a_sample_in_the_shape_it_answers(data_fixtu
 
     # The shape every version has written, so nothing has to be migrated.
     assert result.data["data"]["ts"] == "1503435956.000247"
+
+
+@pytest.mark.django_db
+@override_settings(INTEGRATIONS_SLACK_API_URL="http://unreachable.invalid/api")
+def test_slack_write_message_failure_does_not_repeat_the_request(data_fixture):
+    """
+    `requests` builds its message out of the whole URL, and this one's query
+    string carries the channel and the resolved message.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        channel="social", text="'a private message'"
+    )
+    failure = request_exceptions.ConnectionError(
+        "HTTPConnectionPool(host='unreachable.invalid', port=80): Max retries "
+        "exceeded with url: /api/chat.postMessage?channel=%23social&"
+        "text=a+private+message"
+    )
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=Mock(side_effect=failure),
+    ):
+        with pytest.raises(UnexpectedDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert "a private message" not in str(raised.value)
+    assert "social" not in str(raised.value)
+    assert "ConnectionError" in str(raised.value)
+
+
+@pytest.mark.django_db
+def test_slack_write_message_answer_that_is_not_json(data_fixture):
+    """
+    The endpoint is configurable, so a proxy can answer with its own HTML or
+    a redirect body rather than anything Slack would send.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        channel="general", text="'Hello'"
+    )
+    response = Mock()
+    response.iter_content.return_value = iter([b"<html>Moved</html>"])
+    response.json.side_effect = ValueError("Expecting value: line 1 column 1")
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=Mock(return_value=response),
+    ):
+        with pytest.raises(RemoteRefusedDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert "shape Slack replies with" in str(raised.value)

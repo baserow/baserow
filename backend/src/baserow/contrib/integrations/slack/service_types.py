@@ -28,10 +28,7 @@ from baserow.core.services.types import DispatchResult, FormulaToResolve, Servic
 
 SLACK_REQUEST_TIMEOUT_SECONDS = 10
 
-# The timeout above is per socket operation rather than for the call as a
-# whole: connecting, waiting for the headers and pulling the body each get it
-# in full. `chat.postMessage` answers directly, and redirects are refused
-# below, so three is the whole request.
+# The timeout is per socket operation: connect, headers, body.
 SLACK_REQUEST_SOCKET_OPERATIONS = 3
 
 
@@ -62,8 +59,7 @@ class SlackWriteMessageServiceType(ServiceType):
             ),
             "channel": serializers.CharField(
                 help_text=SlackWriteMessageService._meta.get_field("channel").help_text,
-                # The column holds 80, so a longer one is refused here rather
-                # than by the insert, which would answer 500.
+                # Refused here rather than by the insert, which answers 500.
                 max_length=SlackWriteMessageService._meta.get_field(
                     "channel"
                 ).max_length,
@@ -124,59 +120,56 @@ class SlackWriteMessageServiceType(ServiceType):
                     "text": resolved_values["text"],
                 },
                 timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
-                # Slack answers directly. A configured endpoint that redirects
-                # would spend a fresh timeout on every hop, and Requests
-                # follows thirty of them, so the call could outlive the lock
-                # that guards the row many times over.
+                # Each hop would get a fresh timeout, outliving the row lock.
                 allow_redirects=False,
-                # `read_response_within_limit` pulls the body in, in chunks,
-                # so a slow or oversized answer cannot outlive the lock this
-                # service's `max_dispatch_seconds` sizes.
+                # Read in chunks below, under a size and a time limit.
                 stream=True,
             )
             read_response_within_limit(response, SLACK_REQUEST_TIMEOUT_SECONDS)
-            response_data = response.json()
         except ResponseTooLargeDispatchException:
-            # Too big. The message names no address, so it travels as it is
-            # rather than as an unknown error.
+            # Names no address, so it travels as it is.
             raise
         except UnacceptableAddressException as e:
-            # Refused before anything was sent, so a caller counting outbound
-            # traffic must not count it. The HTTP service answers the same.
+            # Nothing was sent, so this click is not charged for it.
             raise AddressNotAllowedDispatchException(
                 f"Invalid URL: {settings.INTEGRATIONS_SLACK_API_URL}"
             ) from e
-        except ConnectionError as e:
-            raise UnexpectedDispatchException(
-                f"Invalid URL: {settings.INTEGRATIONS_SLACK_API_URL}"
-            ) from e
         except request_exceptions.RequestException as e:
-            raise UnexpectedDispatchException(str(e)) from e
+            # Not `str(e)`: requests names the whole URL, and this one's query
+            # string carries the channel and the resolved message. This also
+            # catches requests' own ConnectionError, which is not the builtin.
+            raise UnexpectedDispatchException(
+                f"The request to {settings.INTEGRATIONS_SLACK_API_URL} failed: "
+                f"{type(e).__name__}."
+            ) from e
         except Exception as e:
-            # Not `logger.exception`: loguru prints the frame locals beside
-            # the traceback, and this frame holds the bot token. Only the
-            # class of the failure is logged.
+            # Not `logger.exception`: loguru prints the frame locals, and this
+            # frame holds the bot token.
             logger.error(
-                "Error while dispatching the Slack message: {exception}. The "
-                "failure itself is not logged: it names the credential the "
-                "request carried.",
+                "Error while dispatching the Slack message: {exception}.",
                 exception=type(e).__name__,
             )
-            raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
+            raise UnexpectedDispatchException(
+                f"Unknown error: {type(e).__name__}"
+            ) from e
 
-        # The endpoint is configurable, so a proxy or a gateway can answer
-        # with valid JSON that is not an object at all. Read as a refusal
-        # rather than indexed into.
+        try:
+            response_data = response.json()
+        except ValueError as e:
+            # The endpoint is configurable, so the answer can be a proxy's
+            # HTML or a redirect body rather than anything Slack sends.
+            raise RemoteRefusedDispatchException(
+                "The answer was not in the shape Slack replies with."
+            ) from e
+
+        # Valid JSON, but not an object at all.
         if not isinstance(response_data, dict):
             raise RemoteRefusedDispatchException(
-                "The message was not accepted, and the answer was not in the "
-                "shape Slack replies with."
+                "The answer was not in the shape Slack replies with."
             )
 
-        # If we've found that the response indicates an error, we raise a
-        # ServiceImproperlyConfiguredDispatchException with a relevant message.
         if not response_data.get("ok", False):
-            # Some frequently occurring error codes from Slack API. Full list:
+            # The common codes. Full list:
             # https://docs.slack.dev/reference/methods/chat.postMessage/
             misconfigured_service_error_codes = {
                 "no_text": "The message text is missing.",
@@ -189,15 +182,14 @@ class SlackWriteMessageServiceType(ServiceType):
                 "the error code was: {error_code}",
             }
             error_code = response_data.get("error")
-            # Slack answers with a string. Anything else cannot key the table
-            # below, and must not be repeated into the message either.
+            # Anything but a string cannot key the table, and must not be
+            # repeated into the message either.
             if not isinstance(error_code, str):
                 error_code = "unknown"
             misconfigured_service_message = misconfigured_service_error_codes.get(
                 error_code, misconfigured_service_error_codes["default"]
             ).format(channel=service.channel, error_code=error_code)
-            # The post was already made, so a caller counting outbound
-            # traffic charges the click for it.
+            # The post was made, so the click is charged for it.
             raise RemoteRefusedDispatchException(misconfigured_service_message)
         return {"data": response_data}
 
