@@ -1,6 +1,7 @@
 import IntegrationService from '@baserow/modules/core/services/integration'
 
-// Bumped on every change, so a fetch can tell its answer is stale.
+// Bumped by every write, so a fetch can tell its answer is older than
+// the list it would overwrite.
 const state = () => ({ generation: {} })
 
 const updateContext = {
@@ -15,9 +16,6 @@ const mutations = {
       ...state.generation,
       [application.id]: (state.generation[application.id] || 0) + 1,
     }
-  },
-  SET_GENERATION(state, { application, generation }) {
-    state.generation = { ...state.generation, [application.id]: generation }
   },
   ADD_ITEM(state, { application, integration, beforeId = null }) {
     if (beforeId === null) {
@@ -66,6 +64,7 @@ const actions = {
   },
   forceUpdate({ commit }, { application, integration, values }) {
     commit('UPDATE_ITEM', { application, integration, values })
+    commit('BUMP_GENERATION', { application })
   },
   forceDelete({ commit, getters }, { application, integrationId }) {
     commit('DELETE_ITEM', { application, integrationId })
@@ -90,6 +89,7 @@ const actions = {
     } else {
       commit('MOVE_ITEM', { application, index, oldIndex })
     }
+    commit('BUMP_GENERATION', { application })
   },
   async create(
     { dispatch },
@@ -242,8 +242,8 @@ const actions = {
       throw error
     }
   },
-  async fetch({ dispatch, commit, state, rootGetters }, { application }) {
-    const { $registry, $i18n, $client, $config } = this
+  async fetch({ commit, state, rootGetters }, { application }) {
+    const { $client } = this
     const applicationId = application.id
     const before = state.generation[applicationId] || 0
 
@@ -261,15 +261,15 @@ const actions = {
     // filling that one leaves the one on screen empty.
     const current = rootGetters['application/get'](applicationId) || application
 
+    // Committed rather than dispatched through `forceCreate`: writing the
+    // answer is not a change to back off from. Restoring the generation
+    // afterwards would have done it, but it would also have dropped a bump a
+    // create committed while this was running, which is the case the counter
+    // is here for.
     commit('CLEAR_ITEMS', { application: current })
-    await Promise.all(
-      integrations.map((integration) =>
-        dispatch('forceCreate', { application: current, integration })
-      )
+    integrations.forEach((integration) =>
+      commit('ADD_ITEM', { application: current, integration })
     )
-    // Its own writes are not a change to back off from, and leaving them
-    // bumped would make a fetch alongside this one discard a newer answer.
-    commit('SET_GENERATION', { application: current, generation: before })
 
     return integrations
   },
