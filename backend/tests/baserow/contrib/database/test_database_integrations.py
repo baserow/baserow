@@ -8,8 +8,10 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.models import Application
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.utils import Progress
@@ -212,10 +214,15 @@ def test_an_import_refuses_an_integration_the_application_would_not_accept(
         }
     )
 
-    # Refused rather than dropped, so a file naming one is rejected the way
-    # the endpoint rejects it. Undoing what the job wrote so far is the job
-    # runner's transaction, not this gate's.
-    with pytest.raises(ApplicationOperationNotSupported):
-        core_handler.import_applications_to_workspace(
-            imported_workspace, exported, BytesIO(), config, None
-        )
+    # Skipped rather than raised: the row must not land, but a file naming
+    # one must not be able to fail a whole import either, and the same gate
+    # runs on a snapshot restore.
+    core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported = Application.objects.filter(workspace=imported_workspace).first()
+    assert not Integration.objects.filter(
+        application=imported, name="Smuggled"
+    ).exists()
+    assert SlackBotIntegration.objects.filter(application=imported).count() == 1
