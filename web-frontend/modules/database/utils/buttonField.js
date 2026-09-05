@@ -60,7 +60,10 @@ export function urlWithAllowedProtocol(url) {
     : ''
 }
 
-const inFlightIntegrations = new Map()
+// Keyed by store, not by application id alone: one server process renders
+// every request, and a promise closed over one request's store must not be
+// handed to another's.
+const inFlightIntegrations = new WeakMap()
 
 /**
  * Fetches a database's integrations, at most once per database. A database has
@@ -78,7 +81,11 @@ export function fetchIntegrationsOnce(store, applicationId) {
   if (current()?._integrationsLoadedOnce) {
     return Promise.resolve(true)
   }
-  if (!inFlightIntegrations.has(applicationId)) {
+  if (!inFlightIntegrations.has(store)) {
+    inFlightIntegrations.set(store, new Map())
+  }
+  const inFlight = inFlightIntegrations.get(store)
+  if (!inFlight.has(applicationId)) {
     const request = (async () => {
       // Resolved on both sides of the await: `forceSetAll` replaces the
       // object, and filling one while marking another leaves both wrong.
@@ -86,11 +93,17 @@ export function fetchIntegrationsOnce(store, applicationId) {
       if (!application) {
         return false
       }
+      let loaded
       try {
-        await store.dispatch('integration/fetch', { application })
+        loaded = await store.dispatch('integration/fetch', { application })
       } catch (error) {
         // Once for the request, whoever is waiting on it.
         notifyIf(error, 'application')
+        return false
+      }
+      // Backed off because the list changed under it, so what is there now is
+      // not the whole list. Left unmarked, so the next ask fetches again.
+      if (loaded === null) {
         return false
       }
       const settled = current()
@@ -104,10 +117,10 @@ export function fetchIntegrationsOnce(store, applicationId) {
       return true
     })()
     // Dropped once it settles, so a failed one is asked again.
-    inFlightIntegrations.set(
+    inFlight.set(
       applicationId,
-      request.finally(() => inFlightIntegrations.delete(applicationId))
+      request.finally(() => inFlight.delete(applicationId))
     )
   }
-  return inFlightIntegrations.get(applicationId)
+  return inFlight.get(applicationId)
 }

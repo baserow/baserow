@@ -101,4 +101,28 @@ describe('integration store', () => {
     expect(application()).not.toBe(stale)
     expect(application().integrations.map((i) => i.name)).toEqual(['Bot'])
   })
+
+  test('a fetch that backed off says it did not load the list', async () => {
+    // Backing off leaves the list holding only what was created during the
+    // request. A caller that reads this as a successful load would remember
+    // the database as loaded and never see the rest.
+    const answer = held([{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
+    testApp.mock
+      .onGet(`application/${APPLICATION_ID}/integrations/`)
+      .reply(answer.reply)
+
+    const fetching = store.dispatch('integration/fetch', {
+      application: application(),
+    })
+    await flushPromises()
+    await store.dispatch('integration/forceCreate', {
+      application: application(),
+      integration: { id: 9, type: 'slack_bot', name: 'Fresh bot', order: '1' },
+    })
+
+    answer.release()
+
+    expect(await fetching).toBeNull()
+    expect(application().integrations.map((i) => i.name)).toEqual(['Fresh bot'])
+  })
 })

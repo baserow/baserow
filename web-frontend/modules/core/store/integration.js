@@ -250,10 +250,11 @@ const actions = {
     const { data: integrations } =
       await IntegrationService($client).fetchAll(applicationId)
 
-    // Changed while this was open, so the answer is older than the list.
-    // Writing it would lose the change, since nothing fetches twice.
+    // Changed while this was open, so the answer is older than the list and
+    // writing it would lose the change. Null rather than the list, so a
+    // caller does not remember a load that did not happen.
     if ((state.generation[applicationId] || 0) !== before) {
-      return rootGetters['application/get'](applicationId)?.integrations || []
+      return null
     }
 
     // `forceSetAll` can have replaced the object this started with, and
