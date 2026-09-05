@@ -87,6 +87,7 @@ def test_dispatch_slack_write_message_basic(data_fixture):
                 "text": "Hello from Baserow!",
             },
             timeout=10,
+            allow_redirects=False,
             stream=True,
         )
 
@@ -228,6 +229,7 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
                 "text": "User John has joined!",
             },
             timeout=10,
+            allow_redirects=False,
             stream=True,
         )
 
@@ -414,11 +416,42 @@ def test_slack_write_message_generate_schema_respects_allowed_fields(data_fixtur
 
 
 @pytest.mark.django_db
-def test_slack_write_message_waits_as_long_as_its_request(data_fixture):
-    # A lock held over the dispatch has to outlive the request timeout.
+def test_slack_write_message_waits_as_long_as_its_whole_request(data_fixture):
+    """
+    A lock held over the dispatch has to outlive the request, and the timeout
+    Requests applies is per socket operation rather than for the call as a
+    whole: connecting, waiting for the headers and pulling the body each get
+    the full ten seconds.
+    """
+
     service = data_fixture.create_slack_write_message_service()
 
-    assert service.get_type().max_dispatch_seconds(service) == 10
+    assert service.get_type().max_dispatch_seconds(service) == 30
+
+
+@pytest.mark.django_db
+def test_slack_write_message_does_not_follow_redirects(data_fixture):
+    """
+    `chat.postMessage` answers directly. Following redirects would let a
+    configured endpoint spend a fresh timeout on every hop and outlive the
+    lock that guards the row.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        channel="general", text="'Hello'"
+    )
+    mock_response = Mock()
+    mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.0"}
+    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_request = Mock(return_value=mock_response)
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=mock_request,
+    ):
+        service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert mock_request.call_args.kwargs["allow_redirects"] is False
 
 
 @pytest.mark.django_db
