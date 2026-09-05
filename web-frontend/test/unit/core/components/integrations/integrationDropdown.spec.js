@@ -68,17 +68,32 @@ describe('IntegrationDropdown', () => {
     expect(footer.attributes('type')).toBe('button')
   })
 
-  test('picking one from the list still reaches the parent', async () => {
-    // The list's own event goes to the parent through the dropdown below,
-    // whose model listener falls through to it, so this only has to keep the
-    // Vue 2 event working for anything still bound that way.
+  test('picking one from the list reaches the parent both ways', async () => {
+    // Declaring `update:modelValue` keeps a parent's listener out of
+    // `$attrs`, so it no longer falls through to the dropdown below. This
+    // component has to re-emit it or the list stops selecting anything.
     const wrapper = await mountDropdown({
       integrations: [{ id: 9, name: 'Bot' }],
     })
 
     wrapper.findComponent({ name: 'Dropdown' }).vm.$emit('input', 9)
 
+    expect(wrapper.emitted('update:modelValue')).toEqual([[9]])
     expect(wrapper.emitted('input')).toEqual([[9]])
+  })
+
+  test('the only integration is not auto-selected over one already chosen', async () => {
+    // The guard has to read what the parent bound, which under `v-model`
+    // arrives as `modelValue` and never as `value`.
+    const wrapper = await mountDropdown({
+      autoSelectFirst: true,
+      modelValue: 3,
+    })
+
+    await wrapper.setProps({ integrations: [{ id: 9, name: 'Only bot' }] })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
 
   test('the selected integration can be edited from the footer', async () => {

@@ -25,6 +25,27 @@ describe('SlackWriteMessageServiceForm', () => {
   const application = () =>
     testApp.store.getters['application/get'](APPLICATION_ID)
 
+  test('picking an existing bot from the list reaches the form', async () => {
+    // The list's own selection travels to a `v-model` parent through the
+    // dropdown below. Declaring an event here removes the parent's listener
+    // from `$attrs`, which is what that fallthrough relies on.
+    await testApp.store.dispatch('integration/forceCreate', {
+      application: application(),
+      integration: { id: 9, type: 'slack_bot', name: 'Bot', order: '1' },
+    })
+
+    const wrapper = await testApp.mount(SlackWriteMessageServiceForm, {
+      props: { application: application(), defaultValues: {} },
+    })
+    await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.select__item-link').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.dropdown__selected').text()).toContain('Bot')
+  })
+
   test('a bot created from the dropdown is the one the action carries', async () => {
     // The whole point of emitting the Vue 3 event: creating the first bot
     // selects it, so nobody has to reopen the dropdown and pick it again.

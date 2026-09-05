@@ -11,7 +11,7 @@
         : placeholder || $t('integrationDropdown.integrationPlaceholder')
     "
     show-footer
-    @input="$emit('input', $event)"
+    @input="select($event)"
   >
     <DropdownItem
       v-for="integrationItem in integrations"
@@ -131,7 +131,7 @@ export default {
         if (
           this.autoSelectFirst &&
           newValue.length === 1 &&
-          this.value === null
+          this.currentValue === null
         ) {
           this.$nextTick(() => {
             this.select(newValue[0].id)
@@ -143,8 +143,11 @@ export default {
   },
   methods: {
     /**
-     * Chosen somewhere other than the list below, which reaches the parent on
-     * its own. `input` is kept for anything still bound the Vue 2 way.
+     * Every way of choosing one goes through here. Declaring
+     * `update:modelValue` keeps a parent's listener out of `$attrs`, so it no
+     * longer falls through to the dropdown below and this is the only thing
+     * that reaches a `v-model` parent. `input` is kept for anything still
+     * bound the Vue 2 way.
      *
      * @param {Number|null} integrationId The integration that was chosen.
      */
