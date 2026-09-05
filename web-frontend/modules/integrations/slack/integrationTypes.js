@@ -30,6 +30,10 @@ export class SlackBotIntegrationType extends IntegrationType {
     return SlackBotForm
   }
 
+  get warning() {
+    return this.app.$i18n.t('slackBotIntegrationType.slackBotWarning')
+  }
+
   getDefaultValues() {
     return { token: '' }
   }
