@@ -1351,6 +1351,7 @@ test.describe("9.6 Group layout", () => {
 
 test.describe("15.1 Public shared grid", () => {
   let g: Setup;
+  let groupedColumns: Setup;
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -1362,6 +1363,21 @@ test.describe("15.1 Public shared grid", () => {
       ],
     });
     await patchView(g.user, g.view, { public: true });
+
+    groupedColumns = await setupGrid({
+      dbName: "PublicGroupedColumnsGridDb",
+      fields: [{ name: "Team", type: "text" }],
+      rows: [
+        { Name: "Alice", Team: "A" },
+        { Name: "Ada", Team: "A" },
+        { Name: "Bob", Team: "B" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+    await patchView(groupedColumns.user, groupedColumns.view, {
+      public: true,
+      group_by_layout: "column",
+    });
   });
 
   test("15.1.1 public shared grid renders rows without edit controls", async ({
@@ -1392,6 +1408,52 @@ test.describe("15.1 Public shared grid", () => {
         hasText: "Bob",
       }),
     ).toBeVisible();
+    await expect(page.locator(".grid-view__add-row")).toHaveCount(0);
+    await page
+      .locator(".grid-view__left .grid-view__row")
+      .first()
+      .click({ button: "right" });
+    await expect(
+      page.locator(".context__menu:visible .context__menu-item-link", {
+        hasText: /Delete row|Insert row|Duplicate row/,
+      }),
+    ).toHaveCount(0);
+  });
+
+  test("15.1.2 public shared Columns grid renders grouped rows without edit controls", async ({
+    page,
+  }) => {
+    const slug = groupedColumns.view.slug;
+    if (!slug) {
+      throw new Error("Expected grouped grid view to include a public slug.");
+    }
+
+    await page.goto(
+      `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/public/grid/${slug}`,
+      {
+        waitUntil: "domcontentloaded",
+      },
+    );
+
+    await expect(page.locator(".grid-view__right")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      page.locator(".grid-view__left .grid-view__head-group"),
+    ).toHaveCount(1);
+    await expect(page.locator(".grid-view__group-by-banner")).toHaveCount(0);
+
+    const grid = new GridPage(page, groupedColumns.user);
+    await grid.expectGroupSpanCount("A", 2);
+    await grid.expectGroupSpanCount("B", 1);
+    for (const name of ["Alice", "Ada", "Bob"]) {
+      await expect(
+        page.locator(".grid-view__left .grid-field-text", {
+          hasText: new RegExp(`^\\s*${name}\\s*$`),
+        }),
+      ).toBeVisible();
+    }
+
     await expect(page.locator(".grid-view__add-row")).toHaveCount(0);
     await page
       .locator(".grid-view__left .grid-view__row")

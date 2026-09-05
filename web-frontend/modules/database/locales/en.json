@@ -601,6 +601,7 @@
     "viewSettingsRowHeightSize": "row height",
     "viewSettingsFrozenColumnCount": "frozen columns",
     "viewSettingsRowIdentifierType": "row identifier",
+    "viewSettingsGroupByLayout": "group layout",
     "filters": "Filters",
     "sorts": "Sorts",
     "groupBys": "Groups",
