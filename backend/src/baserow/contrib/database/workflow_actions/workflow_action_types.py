@@ -409,11 +409,15 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             service = instance.service.specific
 
         service_values = values.pop("service", None) or {}
-        # The one it is given, or the one it carries: an edit that resends
-        # neither must not drive a credential the editor may not read.
-        integration_id = service_values.get("integration_id")
-        if integration_id is None and instance is not None:
-            integration_id = service.integration_id
+        # An explicit null clears the credential, which takes nothing away
+        # from anyone and so needs no permission to read the one going. A key
+        # the request never sent keeps the one already carried, and that is
+        # checked: an edit must not be a way to drive a credential the editor
+        # may not read.
+        unset = object()
+        integration_id = service_values.get("integration_id", unset)
+        if integration_id is unset:
+            integration_id = service.integration_id if instance else None
         if integration_id is not None:
             field = values.get("field") or (instance.field if instance else None)
             self._check_integration(integration_id, user, field)

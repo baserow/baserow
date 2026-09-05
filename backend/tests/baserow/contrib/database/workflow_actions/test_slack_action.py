@@ -725,3 +725,33 @@ def test_a_click_reads_the_bot_once_however_many_actions_share_it(data_fixture):
         f"the bot was read {len(read_the_bot)} times for three actions "
         f"sharing it: " + "\n".join(q["sql"][:120] for q in read_the_bot)
     )
+
+
+@pytest.mark.django_db
+def test_an_action_can_have_its_bot_cleared_without_reading_it(data_fixture):
+    """
+    Removing a credential takes nothing away from anyone, so it must not need
+    permission to read the one being removed. An explicit null has to be told
+    apart from a key the request never sent.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    with patch.object(
+        CoreHandler, "check_permissions", _denying(ReadIntegrationOperationType.type)
+    ):
+        DatabaseWorkflowActionService().update_workflow_action(
+            user, action, service={"integration_id": None}
+        )
+
+    action.refresh_from_db()
+    assert action.service.specific.integration_id is None
