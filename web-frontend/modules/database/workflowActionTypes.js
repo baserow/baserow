@@ -681,13 +681,21 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
       return inherited
     }
     const integrationId = workflowAction.service?.integration_id
-    const integrations = applicationContext?.database?.integrations
-    // Quiet while the list is still loading: the dropdown is empty then too.
-    if (!integrationId || !integrations?.length) {
+    const database = applicationContext?.database
+    // Quiet until the list has been fetched: the dropdown is empty then too,
+    // and an empty list is what a load still running looks like.
+    if (!integrationId || !database?._integrationsLoadedOnce) {
       return null
     }
-    const bot = integrations.find(({ id }) => id === integrationId)
-    if (bot && !bot.token) {
+    const bot = (database.integrations || []).find(
+      ({ id }) => id === integrationId
+    )
+    // Gone rather than unusable: deleted since, or named by an import from
+    // somewhere else. Either way the button has no bot to post through.
+    if (!bot) {
+      return this.app.$i18n.t('databaseWorkflowActionType.slackBotMissing')
+    }
+    if (!bot.token) {
       return this.app.$i18n.t('databaseWorkflowActionType.slackTokenMissing')
     }
     return null

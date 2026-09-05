@@ -834,6 +834,35 @@ describe('ButtonFieldActionList', () => {
       expect(onScreen._integrationsLoadedOnce).toBe(true)
     })
 
+    test('a bot the list no longer holds reads as misconfigured', async () => {
+      // Deleted since, or named by an import made somewhere else. The action
+      // still carries the id, and an empty answer used to read as healthy.
+      const database = await seedDatabase()
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .reply(200, [])
+
+      const wrapper = await mountWith(
+        [
+          {
+            id: 1,
+            type: 'slack_write_message',
+            service: {
+              integration_id: 7,
+              channel: 'general',
+              text: { formula: "'hi'" },
+            },
+          },
+        ],
+        database
+      )
+      await flushPromises()
+
+      expect(wrapper.find('[data-action-error]').text()).toBe(
+        'databaseWorkflowActionType.slackBotMissing'
+      )
+    })
+
     test('a bot whose token an export stripped reads as misconfigured', async () => {
       // An export strips the token, so an imported action still looks
       // configured while every click is a doomed outbound request.

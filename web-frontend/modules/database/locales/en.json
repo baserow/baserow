@@ -1325,6 +1325,7 @@
     "slackOk": "OK",
     "slackChannel": "Channel",
     "slackTs": "Message timestamp",
+    "slackBotMissing": "This bot no longer exists. Pick another one before the button can post.",
     "slackTokenMissing": "This bot has no token. Add a new bot with its token, or paste one into this bot, before the button can post.",
     "slackData": "Data"
   },
