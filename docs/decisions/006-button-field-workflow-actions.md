@@ -109,9 +109,25 @@ modules is a promising follow-up with the builder team, not a prerequisite.
 ### 2. Action types: service-backed first, frontend actions kept possible
 
 The first version registers service-backed types only: create, update, and delete
-row(s), backed by the existing Local Baserow services. External types (HTTP request,
-SMTP email, Slack) and code execution follow later, with the same premium or enterprise
-licensing those services already have elsewhere.
+row(s), backed by the existing Local Baserow services. External types and code execution
+follow later, with the same premium or enterprise licensing those services already have
+elsewhere.
+
+**Amendment (phases 4a to 4c, September 2026).** Three external types have since landed:
+HTTP request (4a), SMTP email (4b) and Slack message (4c). Each reuses the service type
+the builder and automation already have, so a button gets the same behaviour without a
+second implementation. What makes them external rather than merely service-backed is
+that they reach outside this installation, so only clicks containing one spend the rate
+limit's budget, and the lock guarding the row is sized for how long they may take: each
+service type says, and a click waits for the sum of its actions.
+
+The Slack action posts to `chat.postMessage` through a bot token held by a
+`slack_bot` integration on the field's own database. It answers with `ok`, `channel` and
+`ts`, the message reference a later action can write into a row or thread against.
+Because the response is what the service stores, its schema describes it under the same
+`data` key the dispatch puts it in, rather than unwrapping it as the HTTP and email
+services do: unwrapping would have meant migrating every sample already stored. The API
+endpoint is configurable so the end-to-end tests can point it at a stub.
 
 Frontend-only actions (success toast, navigate to a URL or table, apply a temporary
 filter) will likely be wanted later. The `service` foreign key therefore goes on the
@@ -299,9 +315,8 @@ an integration's user.
 
 This decision covers only Local Baserow services. External integrations (SMTP, Slack,
 and the rest) carry real configuration rather than a stand-in user, so their services
-keep requiring them: an email action will need an `SMTPIntegrationType` integration when
-external action types arrive (section 2). How those integrations are shared is
-deliberately not settled here. Review flagged that application-level sharing, the
+keep requiring them. How those integrations are shared is deliberately not settled here.
+The amendments below record what phases 4b and 4c settled instead. Review flagged that application-level sharing, the
 current builder model, lets any builder attach someone else's credentials to their own
 button and act as them, for example sending email from the creator's account.
 Integrations today have no ownership at all, and review agreed on a sequence for fixing
@@ -324,21 +339,40 @@ credentials is the revisit trigger for attaching an integration here.
 
 **Amendment (phase 4c, September 2026).** External integrations attach on the database
 application itself, which the generic integration API already supports once the
-application type declares `supports_integrations`. Each database action type names the
-integration types it accepts in an `allowed_integration_types` allow-list, empty for the
-row actions, and both saving and dispatching refuse anything else, so a Local Baserow
-integration still cannot be attached to any button action. An attached integration must
-belong to the field's own database and be readable by the person configuring the button.
-The ownership step above stays open; until it lands, sharing is application-level as in
-the builder.
+application type declares `supports_integrations`. The Slack action is the first to use
+this.
 
-In practice v1 registers only local row actions, so it has nothing to auto-create, copy,
-or manage, and no integrations settings UI. The builder keeps its behavior: a builder
-service without an integration is a normal half-configured state that fails cleanly
-today, and it keeps failing that way, because only a dispatch context that supplies an
-actor takes the no-integration path. If the database ever exposes attaching a Local
-Baserow integration to a button action, that attachment is the explicit opt-in back into
-on-behalf-of execution (see the revisit triggers).
+Each action type names the integration types it may carry in an
+`allowed_integration_types` allow-list. It is empty unless the action needs a credential
+of its own, which is why the row actions, the HTTP request and the email action all
+carry nothing: a row action acts as the clicker, an HTTP request carries its own
+headers, and email sends through the instance's own mail server. No action type lists
+`local_baserow`, because its `authorized_user` would replace the clicker as the acting
+user, which is what this section forbids.
+
+The database application derives what it will hold from those lists rather than keeping
+a second one, so the two cannot drift apart. Every path reads the same rule: an
+integration a button may carry is of a type the action accepts and belongs to the
+field's own database. Saving, importing and dispatching all refuse anything else, and a
+`local_baserow` integration is refused on a database outright, on create and on import,
+so it cannot exist there to be attached.
+
+Who may attach one is checked separately. Configuring an action through the endpoint
+requires `ReadIntegration` on the integration named, on create and on update, and an
+edit that resends neither the integration nor a new one keeps the one it already has
+rather than becoming a way to drive a credential the editor may not read. Copying is
+checked the same way wherever a person asks for it: duplicating a field, changing a
+field type, duplicating a table and duplicating an application all carry the requesting
+user, and a copy drops an integration that user cannot read. An import from a file and
+a template install carry no such actor and keep what they came with. Snapshot create and
+restore also carry none, deliberately: dropping a bot during a restore would quietly
+unconfigure a restored application.
+
+The ownership step above stays open. Until it lands, sharing is application-level as in
+the builder, and the Slack integration type carries a warning saying so at the moment a
+token is entered: anyone who can build in the application can send through the bot,
+without seeing the token. That warning comes out once ownership or private integrations
+land.
 
 Clicks stay non-undoable (section 8), and that takes one deliberate step: dispatch
 performs the row actions without registering them in the clicker's undo session, while
@@ -388,11 +422,13 @@ flowchart TD
     D --> E["after_import hooks run;<br/>unconfigured external integrations<br/>surface as reconfigure states"]
 ```
 
-In v1 there is nothing to strip and nothing to reconfigure, because database services
-have no integration. When external integrations arrive, exports strip their credentials
-as today, and their buttons render disabled with an error indicator pointing at the
-integration to reconfigure, reusing the error state the builder already shows for
-misconfigured actions rather than inventing a database-specific one.
+An export strips an integration's credentials, so an imported Slack bot arrives named
+and unusable, its token an empty string. The action reports that the way it reports any
+other missing piece, so the editor says so before the click rather than after an
+outbound request that was never going to work, and the bot can be repaired in place:
+the integration dropdown opens the same modal in edit mode for the one selected. This
+reuses the error state the builder already shows for misconfigured actions rather than
+inventing a database-specific one.
 
 **Constraint discovered in implementation, since resolved.** Actions are serialized from
 `FieldType.export_serialized`, which at first received only the field: no `files_zip`, no
@@ -424,8 +460,10 @@ it. Concretely:
 
 - **Field duplication.** Actions and services are duplicated with the field.
 - **Application duplication, snapshot, export/import.** Deferred resolution reconnects
-  self-references; stripped credentials only become a concern when external integrations
-  arrive.
+  self-references. A database's integrations travel with it, imported before its tables
+  so an action's `integration_id` remaps. An export strips their credentials, and the
+  action reports the missing one (section 6). A copy a person asked for drops an
+  integration that person cannot read (section 5).
 - **Trash and restore.** Actions and services follow the field, as builder actions
   follow their element.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
