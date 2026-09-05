@@ -589,17 +589,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             for match in RE_FORMULA_FUNCTION.finditer(formula)
         )
 
-    def _read_response_within_limit(self, response, timeout: int) -> None:
-        """
-        Pulls the body in with a ceiling on its size and a deadline on how long
-        it may take. Shared with every other service that reaches outside.
-
-        :param response: The streamed response.
-        :param timeout: How long the whole body may take to arrive, in seconds.
-        """
-
-        read_response_within_limit(response, timeout)
-
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -653,11 +642,11 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 headers=headers,
                 params=query_params,
                 timeout=service.timeout,
-                # `_read_response_within_limit` pulls the body in, in chunks.
+                # `read_response_within_limit` pulls the body in, in chunks.
                 stream=True,
                 **body_dict,
             )
-            self._read_response_within_limit(response, service.timeout)
+            read_response_within_limit(response, service.timeout)
 
         except ServiceImproperlyConfiguredDispatchException:
             # Too big. The message names no address, so it travels as it is

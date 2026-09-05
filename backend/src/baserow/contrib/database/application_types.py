@@ -2,7 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import partial
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple
 from zipfile import ZipFile
 
 from django.conf import settings
@@ -45,6 +45,7 @@ from baserow.core.utils import ChildProgressBuilder, Progress, grouper
 
 from .constants import (
     EXPORT_SERIALIZED_EXPORTING_TABLE,
+    IMPORT_SERIALIZED_IMPORTING,
     IMPORT_SERIALIZED_IMPORTING_TABLE_DATA,
     IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE,
 )
@@ -74,6 +75,17 @@ class DatabaseApplicationType(ApplicationType):
     # A button field's external action can carry one (ADR 006 section 5).
     supports_integrations = True
 
+    instance_serializer_class = DatabaseSerializer
+    serializer_field_names = ["tables"]
+
+    # Mark the request serializer field names as empty, otherwise
+    # the polymorphic request serializer will try and serialize tables.
+    request_serializer_field_names = []
+    data_provider_type_registry = database_data_provider_type_registry
+
+    # Database applications are imported first.
+    import_application_priority = 2
+
     def supports_integration_type(self, integration_type) -> bool:
         """
         Only what a button's actions can actually carry. Read from the action
@@ -85,24 +97,30 @@ class DatabaseApplicationType(ApplicationType):
         :return: True when some database action type accepts it.
         """
 
+        return (
+            self.supports_integrations
+            and integration_type.type in self._carriable_integration_types()
+        )
+
+    @staticmethod
+    def _carriable_integration_types() -> FrozenSet[str]:
+        """
+        Every integration type some database action accepts. Not cached: a
+        test can register an action type, and a stale answer would then refuse
+        an integration the registry accepts.
+
+        :return: The type names, as a set.
+        """
+
         from .workflow_actions.registries import (
             database_workflow_action_type_registry,
         )
 
-        return self.supports_integrations and any(
-            integration_type.type in action_type.allowed_integration_types
+        return frozenset(
+            integration_type
             for action_type in database_workflow_action_type_registry.get_all()
+            for integration_type in action_type.allowed_integration_types
         )
-
-    instance_serializer_class = DatabaseSerializer
-    serializer_field_names = ["tables"]
-    # Mark the request serializer field names as empty, otherwise
-    # the polymorphic request serializer will try and serialize tables.
-    request_serializer_field_names = []
-    data_provider_type_registry = database_data_provider_type_registry
-
-    # Database applications are imported first.
-    import_application_priority = 2
 
     def pre_delete(self, database):
         """
@@ -333,12 +351,16 @@ class DatabaseApplicationType(ApplicationType):
             tables, import_export_config, files_zip, storage, progress_builder
         )
 
+        # One cache for the whole export, the way every other application type
+        # does it, so a type that serializes a file writes it once.
+        integration_cache = {}
         serialized_integrations = [
             IntegrationHandler().export_integration(
                 integration,
                 import_export_config,
                 files_zip=files_zip,
                 storage=storage,
+                cache=integration_cache,
             )
             for integration in self._integrations_to_export(
                 database, import_export_config
@@ -1099,9 +1121,12 @@ class DatabaseApplicationType(ApplicationType):
         Imports a database application exported by the `export_serialized` method.
         """
 
+        serialized_integrations = serialized_values.get("integrations", [])
         database_progress, table_progress = 1, len(serialized_values["tables"])
+        integration_progress = len(serialized_integrations)
         progress = ChildProgressBuilder.build(
-            progress_builder, child_total=database_progress + table_progress
+            progress_builder,
+            child_total=database_progress + table_progress + integration_progress,
         )
 
         application = super().import_serialized(
@@ -1118,14 +1143,17 @@ class DatabaseApplicationType(ApplicationType):
 
         # Before the tables, so an action's integration can remap through
         # `id_mapping`. Absent from every export made before 4c.
-        for serialized_integration in serialized_values.get("integrations", []):
+        integration_cache = {}
+        for serialized_integration in serialized_integrations:
             IntegrationHandler().import_integration(
                 database,
                 serialized_integration,
                 id_mapping,
+                cache=integration_cache,
                 files_zip=files_zip,
                 storage=storage,
             )
+            progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         if serialized_values["tables"]:
             self.import_tables_serialized(
