@@ -429,7 +429,8 @@ function buildPagedLayout({
     parentPath,
     depth,
     fallbackSiblingCount = 0,
-    parentRowCount = null
+    parentRowCount = null,
+    parentRowOffset = null
   ) => {
     const pageCacheKey = pathKey(parentPath, fields)
     if (visitedPageKeys.has(pageCacheKey)) {
@@ -441,6 +442,7 @@ function buildPagedLayout({
       page?.totalSiblingCount ??
       page?.total_sibling_count ??
       fallbackSiblingCount
+    const pageY = y
     const loadedIndexes = getSortedLoadedIndexes(page)
     const validLoadedIndexes = loadedIndexes.filter(
       (loadedIndex) => loadedIndex >= 0 && loadedIndex < totalSiblingCount
@@ -468,29 +470,31 @@ function buildPagedLayout({
       )
     }
 
-    const takeUnloadedRowSlots = (siblingCount) => {
-      if (
-        remainingUnloadedSiblingCount === null ||
-        remainingUnloadedRowCount === null
-      ) {
+    const takeUnloadedRowSlots = (
+      siblingCount,
+      gapSiblingCount,
+      gapRowCount
+    ) => {
+      const anchoredGap =
+        geometry.layout === GROUP_BY_LAYOUT_COLUMN &&
+        Number.isFinite(gapRowCount)
+      const siblingBudget = anchoredGap
+        ? gapSiblingCount
+        : remainingUnloadedSiblingCount
+      const rowBudget = anchoredGap
+        ? Math.max(gapSiblingCount, gapRowCount)
+        : remainingUnloadedRowCount
+      if (siblingBudget === null || rowBudget === null) {
         return null
       }
-      if (siblingCount >= remainingUnloadedSiblingCount) {
-        const rowSlots = remainingUnloadedRowCount
-        remainingUnloadedSiblingCount = 0
-        remainingUnloadedRowCount = 0
-        return rowSlots
-      }
 
-      const extraRows = Math.max(
-        0,
-        remainingUnloadedRowCount - remainingUnloadedSiblingCount
-      )
+      const extraRows = Math.max(0, rowBudget - siblingBudget)
       const rowSlots =
-        siblingCount +
-        Math.floor((extraRows * siblingCount) / remainingUnloadedSiblingCount)
-      remainingUnloadedSiblingCount -= siblingCount
-      remainingUnloadedRowCount -= rowSlots
+        siblingCount + Math.floor((extraRows * siblingCount) / siblingBudget)
+      if (remainingUnloadedSiblingCount !== null) {
+        remainingUnloadedSiblingCount -= siblingCount
+        remainingUnloadedRowCount -= rowSlots
+      }
       return rowSlots
     }
     let loadedPointer = 0
@@ -507,6 +511,21 @@ function buildPagedLayout({
           Math.ceil((index + 1) / pageSize) * pageSize
         )
         const unloadedSiblingCount = unloadedEnd - index
+        // A loaded node's absolute offset anchors the entire preceding gap. Only
+        // estimate page boundaries inside that gap: distributing rows across gaps
+        // on both sides of a loaded node would move it away from its actual rows.
+        const nextNode = page?.nodes?.[loadedIndex]
+        const gapEndRowOffset =
+          loadedIndex !== undefined
+            ? (nextNode?.rowOffset ?? nextNode?.row_offset)
+            : Number.isFinite(parentRowOffset) &&
+                Number.isFinite(parentRowCount)
+              ? parentRowOffset + parentRowCount
+              : null
+        const gapRowCount =
+          Number.isFinite(parentRowOffset) && Number.isFinite(gapEndRowOffset)
+            ? gapEndRowOffset - parentRowOffset - (y - pageY) / rowHeight
+            : null
         y = pushUnloadedGroupPlaceholder({
           items,
           parentPath,
@@ -516,7 +535,11 @@ function buildPagedLayout({
           globalStartIndex: globalSiblingCount(depth),
           y,
           geometry,
-          rowSlotCount: takeUnloadedRowSlots(unloadedSiblingCount),
+          rowSlotCount: takeUnloadedRowSlots(
+            unloadedSiblingCount,
+            (loadedIndex ?? totalSiblingCount) - index,
+            gapRowCount
+          ),
         })
         advanceGlobalSiblingCount(depth, unloadedSiblingCount)
         index = unloadedEnd
@@ -603,7 +626,8 @@ function buildPagedLayout({
             node.path,
             (node.depth ?? depth) + 1,
             childrenCount,
-            rowCount
+            rowCount,
+            node.rowOffset ?? node.row_offset ?? null
           )
         }
       }
@@ -614,7 +638,7 @@ function buildPagedLayout({
     }
   }
 
-  walkPage({}, 0, 0, rootRowCount)
+  walkPage({}, 0, 0, rootRowCount, 0)
 
   const rootPageLoaded = getPage(pages, {}, fields) !== null
   y = pushTrailingAddRow(items, geometry, y, rootPageLoaded)

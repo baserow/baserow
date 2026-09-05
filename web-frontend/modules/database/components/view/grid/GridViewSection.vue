@@ -18,7 +18,7 @@
       class="grid-view__group-by-divider"
       :style="{ left: left + 'px' }"
     ></div>
-    <template v-if="!groupByWidthsAreResponsivelyFitted">
+    <template v-if="!groupByWidthsAreResponsivelyFitted || resizingGroupWidth">
       <HorizontalResize
         v-for="({ groupBy, left }, index) in groupByDividers"
         :key="'group-by-width-' + index"
@@ -26,6 +26,7 @@
         :style="{ left: left + 'px' }"
         :width="renderedGroupByWidths[index]"
         :min="GRID_VIEW_MIN_FIELD_WIDTH"
+        @dragging="resizingGroupWidth = $event"
         @move="moveGroupWidth(groupBy, view, $event)"
         @update="updateGroupWidth(groupBy, view, database, readOnly, $event)"
       ></HorizontalResize>
@@ -343,6 +344,9 @@ export default {
       fieldsLeftOffset: 0,
       resizeObserver: null,
       horizontalScrollEvent: null,
+      // Keep the active handle mounted until mouseup can persist its width, even
+      // when dragging past the available space activates responsive fitting.
+      resizingGroupWidth: false,
     }
   },
   computed: {

@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0219_button_field_smtp_email_action"),
+        ("database", "0220_button_field_slack_write_message_action"),
     ]
 
     operations = [

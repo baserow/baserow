@@ -10426,6 +10426,88 @@ describe('Grid view store group-by layout mode', () => {
     expect(fetchGroupByRowsByScrollTop).not.toHaveBeenCalled()
   })
 
+  test.each(['column', 'banner'])(
+    '%s layout selects loaded rows beyond an unloaded group page',
+    async (layout) => {
+      const nodes = Object.fromEntries(
+        [0, 80].flatMap((offset) =>
+          Array.from({ length: 40 }, (_, index) => {
+            const position = offset + index
+            return [
+              position,
+              {
+                path: { field_2: `Group ${position}` },
+                depth: 0,
+                row_count: 1,
+                sibling_index: position,
+                row_offset: position,
+              },
+            ]
+          })
+        )
+      )
+      seed(store, {
+        groupByLayout: layout,
+        count: 120,
+        groupBy: {
+          ...gridStore.state().groupBy,
+          pages: { '': { parentPath: {}, totalSiblingCount: 120, nodes } },
+        },
+      })
+      for (const rowId of [100, 101]) {
+        store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+          sectionKey: groupPathKey(2, `Group ${rowId}`),
+          startPosition: 0,
+          rows: [
+            {
+              id: rowId,
+              field_2: `Group ${rowId}`,
+              _: { selected: false, selectedFieldId: -1 },
+            },
+          ],
+        })
+      }
+
+      await store.dispatch('grid/multiSelectStart', {
+        rowId: 100,
+        fieldIndex: 0,
+      })
+      await store.dispatch('grid/multiSelectHold', {
+        rowId: 101,
+        fieldIndex: 1,
+      })
+
+      const firstRowIndex = layout === 'column' ? 100 : 60
+      expect(store.getters['grid/getMultiSelectRowIndexSorted']).toEqual([
+        firstRowIndex,
+        firstRowIndex + 1,
+      ])
+      expect(
+        store.getters['grid/getSelectedRows'].map((row) => row.id)
+      ).toEqual([100, 101])
+
+      await store.dispatch('grid/correctMultiSelect')
+
+      expect(store.getters['grid/getMultiSelectRowIndexSorted']).toEqual([
+        firstRowIndex,
+        firstRowIndex + 1,
+      ])
+      expect(
+        store.getters['grid/getSelectedRows'].map((row) => row.id)
+      ).toEqual([100, 101])
+
+      await store.dispatch('grid/updateMultipleSelectIndexes', {
+        position: 'tail',
+        rowIndex: layout === 'column' ? 120 : 80,
+        fieldIndex: 1,
+      })
+      expect(store.getters['grid/getMultiSelectRowIndexSorted']).toEqual([
+        firstRowIndex,
+        firstRowIndex + 1,
+      ])
+    }
+  )
+
   test('column layout initially fetches descendants despite a saved collapse-all state', async () => {
     const nestedFields = [
       { id: 1, name: 'Name', type: 'text', primary: true },

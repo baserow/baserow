@@ -3993,7 +3993,7 @@ export const actions = {
     const startRowIndex = getters.getMultiSelectStartRowIndex
     const startFieldIndex = getters.getMultiSelectStartFieldIndex
 
-    const maxRowIndex = getters.getRowsLength + getters.getBufferStartIndex - 1
+    const maxRowIndex = getters.getSelectionMaxRowIndex
     const maxFieldIndex = getters.getNumberOfVisibleFields - 1
 
     if (headRowIndex > maxRowIndex || headFieldIndex > maxFieldIndex) {
@@ -5328,7 +5328,7 @@ export const actions = {
     }
 
     if (
-      rowIndex > getters.getRowsLength + getters.getBufferStartIndex - 1 ||
+      rowIndex > getters.getSelectionMaxRowIndex ||
       fieldIndex > getters.getNumberOfVisibleFields - 1
     ) {
       return
@@ -6543,6 +6543,14 @@ export const getters = {
       return getGroupByLayoutFromState(state).totalRowCount
     }
     return state.rows.length
+  },
+  getSelectionMaxRowIndex(state, getters) {
+    // Columns use absolute row offsets, including unloaded group pages. Banners
+    // number only the expanded sections, while flat grids use their row buffer.
+    if (getters.isGroupByMode && getters.isGroupByColumnLayout) {
+      return state.count - 1
+    }
+    return getters.getRowsLength + getters.getBufferStartIndex - 1
   },
   getPlaceholderHeight(state) {
     return state.count * state.rowHeight

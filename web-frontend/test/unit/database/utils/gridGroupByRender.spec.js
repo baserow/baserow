@@ -1090,6 +1090,116 @@ describe('gridGroupByRender', () => {
       expect(layout.totalHeight).toBe(3000 * ROW_HEIGHT + ADD_ROW_HEIGHT)
     })
 
+    test.each([0, 1])(
+      'anchors sparse loaded groups between uneven gaps at depth %s',
+      (depth) => {
+        const parentPath = depth === 0 ? {} : { field_1: 'Parent' }
+        const parentRowOffset = depth === 0 ? 0 : 20
+        const groupField = `field_${depth + 1}`
+        const groupFields = fields.slice(0, depth + 1)
+        const makePage = (offset) =>
+          Object.fromEntries(
+            Array.from({ length: 40 }, (_, index) => {
+              const position = offset + index
+              return [
+                position,
+                {
+                  path: { ...parentPath, [groupField]: `Group ${position}` },
+                  depth,
+                  row_count: position < 40 ? 1 : 100,
+                  sibling_index: position,
+                  row_offset:
+                    parentRowOffset +
+                    (position < 40 ? position : 40 + (position - 40) * 100),
+                },
+              ]
+            })
+          )
+        const pages = {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 2,
+            nodes: {
+              0: {
+                path: { field_1: 'Earlier' },
+                depth: 0,
+                row_count: 20,
+                children_count: 1,
+                row_offset: 0,
+              },
+              1: {
+                path: parentPath,
+                depth: 0,
+                row_count: 8080,
+                children_count: 160,
+                row_offset: parentRowOffset,
+              },
+            },
+          },
+          [pathKey(parentPath, groupFields)]: {
+            parentPath,
+            totalSiblingCount: 160,
+            nodes: makePage(0),
+          },
+        }
+        const build = () =>
+          buildLayout({
+            pages,
+            fields: groupFields,
+            collapse: column,
+            layout: GROUP_BY_LAYOUT_COLUMN,
+            rootRowCount: parentRowOffset + 8080,
+          })
+        const viewport = {
+          scrollTop: (parentRowOffset + 3980) * ROW_HEIGHT,
+          clientHeight: 60 * ROW_HEIGHT,
+        }
+        expect(visibleGroupPagesInViewport(build(), viewport)).toEqual([
+          { parentPath, offset: 80, limit: 40 },
+        ])
+
+        // Hydrating the estimated page must anchor it at its actual row offset.
+        // Otherwise it covers this viewport incorrectly and refinement stops early.
+        Object.assign(
+          pages[pathKey(parentPath, groupFields)].nodes,
+          makePage(80)
+        )
+        const layout = build()
+        const firstLoadedSection = layout.items.find(
+          (item) =>
+            item.type === 'rowSection' && item.path[groupField] === 'Group 80'
+        )
+        expect(firstLoadedSection.y).toBe((parentRowOffset + 4040) * ROW_HEIGHT)
+        expect(visibleGroupPagesInViewport(layout, viewport)).toEqual([
+          { parentPath, offset: 40, limit: 40 },
+        ])
+        expect(layout.totalHeight).toBe(
+          (parentRowOffset + 8080) * ROW_HEIGHT + ADD_ROW_HEIGHT
+        )
+
+        Object.assign(
+          pages[pathKey(parentPath, groupFields)].nodes,
+          makePage(40)
+        )
+        const hydratedLayout = build()
+        const targetViewport = {
+          scrollTop: (parentRowOffset + 4000) * ROW_HEIGHT,
+          clientHeight: ROW_HEIGHT,
+        }
+        expect(visibleGroupPagesInViewport(hydratedLayout, viewport)).toEqual(
+          []
+        )
+        const [section] = visibleSectionsInViewport(
+          hydratedLayout,
+          targetViewport,
+          groupFields
+        )
+        expect(section.absoluteRowOffset + section.startPosition).toBe(
+          parentRowOffset + 4000
+        )
+      }
+    )
+
     test('reserves a loaded parent row span while its child page is sparse', () => {
       const layout = buildLayout({
         pages: {
