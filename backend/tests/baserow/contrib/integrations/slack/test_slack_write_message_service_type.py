@@ -84,7 +84,7 @@ def test_dispatch_slack_write_message_basic(data_fixture):
             method="POST",
             url="https://slack.com/api/chat.postMessage",
             headers={"Authorization": "Bearer xoxb-test-token-12345"},
-            params={
+            data={
                 "channel": "#general",
                 "text": "Hello from Baserow!",
             },
@@ -226,7 +226,7 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
             method="POST",
             url="https://slack.com/api/chat.postMessage",
             headers={"Authorization": "Bearer xoxb-test-token-12345"},
-            params={
+            data={
                 "channel": "#general",
                 "text": "User John has joined!",
             },
@@ -438,6 +438,34 @@ def test_slack_write_message_waits_as_long_as_its_whole_request(data_fixture):
     service = data_fixture.create_slack_write_message_service()
 
     assert service.get_type().max_dispatch_seconds(service) == 30
+
+
+@pytest.mark.django_db
+def test_slack_write_message_keeps_the_message_out_of_the_url(data_fixture):
+    """
+    The channel and the resolved text are row data. In the query string they
+    would reach the access log of every proxy between here and the configured
+    API, and the URL travels further than the body does.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        channel="general", text="'Ada owes 42'"
+    )
+    mock_response = Mock()
+    mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.0"}
+    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_request = Mock(return_value=mock_response)
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=mock_request,
+    ):
+        service.get_type().dispatch(service, FakeDispatchContext())
+
+    kwargs = mock_request.call_args.kwargs
+    assert kwargs["data"] == {"channel": "#general", "text": "Ada owes 42"}
+    assert "params" not in kwargs
+    assert "Ada owes 42" not in kwargs["url"]
 
 
 @pytest.mark.django_db

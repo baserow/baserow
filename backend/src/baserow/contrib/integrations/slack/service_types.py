@@ -115,7 +115,10 @@ class SlackWriteMessageServiceType(ServiceType):
                 method="POST",
                 url=f"{settings.INTEGRATIONS_SLACK_API_URL}/chat.postMessage",
                 headers={"Authorization": f"Bearer {token}"},
-                params={
+                # In the body, not the query string: the channel and the
+                # resolved message are row data, and a query string is what
+                # every proxy on the way out writes to its access log.
+                data={
                     "channel": f"#{service.channel}",
                     "text": resolved_values["text"],
                 },
@@ -135,9 +138,9 @@ class SlackWriteMessageServiceType(ServiceType):
                 f"Invalid URL: {settings.INTEGRATIONS_SLACK_API_URL}"
             ) from e
         except request_exceptions.RequestException as e:
-            # Not `str(e)`: requests names the whole URL, and this one's query
-            # string carries the channel and the resolved message. This also
-            # catches requests' own ConnectionError, which is not the builtin.
+            # Not `str(e)`: it can repeat back what was sent, and this
+            # request carries the resolved message. Also catches requests' own
+            # ConnectionError, which is not the builtin.
             raise UnexpectedDispatchException(
                 f"The request to {settings.INTEGRATIONS_SLACK_API_URL} failed: "
                 f"{type(e).__name__}."

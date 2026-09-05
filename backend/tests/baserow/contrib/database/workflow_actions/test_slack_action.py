@@ -220,7 +220,8 @@ def test_a_click_posts_the_resolved_text_through_the_bot(data_fixture):
     slack.assert_called_once()
     call = slack.call_args.kwargs
     assert call["headers"] == {"Authorization": "Bearer xoxb-secret"}
-    assert call["params"] == {"channel": "#general", "text": "Hello Ada"}
+    assert call["data"] == {"channel": "#general", "text": "Hello Ada"}
+    assert "params" not in call
     (dispatched,) = result.dispatched
     assert dispatched.result.data["data"]["ts"] == "1503435956.000247"
 
