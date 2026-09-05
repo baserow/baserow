@@ -109,12 +109,8 @@ test.describe("Button field, Slack action", () => {
     await modal.getByRole("button", { name: exactly("Create") }).click();
     await expect(modal).toBeHidden();
 
-    // Offered now, and chosen for the action.
-    await dropdown.click();
-    await page
-      .locator(".dropdown__items:visible")
-      .locator(".select__item-link", { hasText: exactly(botName) })
-      .click();
+    // Selected by the creation itself. The dropdown emits the event a Vue 3
+    // `v-model` listens for, so there is no second pick to make.
     await expect(dropdown).toContainText(botName);
 
     const form = actionItem(page, 0).locator(".button-field-action-list__form");
