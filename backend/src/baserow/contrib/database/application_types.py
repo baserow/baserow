@@ -30,6 +30,8 @@ from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.models import Application, Workspace
 from baserow.core.registries import (
     ApplicationType,
@@ -38,6 +40,7 @@ from baserow.core.registries import (
 )
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import ChildProgressBuilder, Progress, grouper
 
 from .constants import (
@@ -250,6 +253,44 @@ class DatabaseApplicationType(ApplicationType):
 
         return serialized_tables
 
+    def _integrations_to_export(
+        self, database: Database, import_export_config: ImportExportConfig
+    ) -> List[Integration]:
+        """
+        The integrations a copy carries. A duplicate keeps sensitive data, so
+        one copied here arrives with its token in an application the copier
+        owns. The action's own check cannot catch that: by then the
+        integration it sees is the copy, which the copier can read. So the
+        credential is left out of the export, and the copied action drops it
+        for want of one it may carry.
+
+        :param database: The database being exported.
+        :param import_export_config: How this copy is being made.
+        :return: The integrations to serialize.
+        """
+
+        integrations = list(IntegrationHandler().get_integrations(database))
+        copied_by = import_export_config.copied_by
+        # Nobody asked for this copy, or nothing sensitive travels in it.
+        if copied_by is None or import_export_config.exclude_sensitive_data:
+            return integrations
+
+        checks = [
+            PermissionCheck(copied_by, ReadIntegrationOperationType.type, integration)
+            for integration in integrations
+        ]
+        # One call for all of them: a per-integration check walks every
+        # permission manager again for each one.
+        allowed = CoreHandler().check_multiple_permissions(
+            checks, workspace=database.workspace
+        )
+
+        return [
+            integration
+            for check, integration in zip(checks, integrations)
+            if allowed.get(check, False) is True
+        ]
+
     def export_serialized(
         self,
         database: Database,
@@ -299,7 +340,9 @@ class DatabaseApplicationType(ApplicationType):
                 files_zip=files_zip,
                 storage=storage,
             )
-            for integration in IntegrationHandler().get_integrations(database)
+            for integration in self._integrations_to_export(
+                database, import_export_config
+            )
         ]
 
         serialized = super().export_serialized(

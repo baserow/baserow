@@ -47,6 +47,33 @@ def _bot(data_fixture, database):
     )
 
 
+def _denying_only(operation_name: str, context):
+    """
+    Refuses one operation on one object, the way a per-object role assignment
+    does. Denying by name alone would also deny the copy, which is what hid
+    the escalation this covers.
+
+    Patched on `check_multiple_permissions` because `check_permissions` calls
+    it, so this reaches both.
+    """
+
+    real = CoreHandler.check_multiple_permissions
+
+    def check_multiple_permissions(self, checks, *args, **kwargs):
+        result = real(self, checks, *args, **kwargs)
+        refused = (
+            PermissionException(f"cannot {operation_name}")
+            if kwargs.get("return_permissions_exceptions")
+            else False
+        )
+        for check in checks:
+            if check.operation_name == operation_name and check.context == context:
+                result[check] = refused
+        return result
+
+    return check_multiple_permissions
+
+
 def _denying(operation_name: str):
     """A `check_permissions` that refuses one operation and defers the rest."""
 
@@ -504,6 +531,41 @@ def test_duplicating_a_database_drops_a_bot_the_duplicator_cannot_read(data_fixt
 
 
 @pytest.mark.django_db
+def test_duplicating_a_database_does_not_clone_a_bot_the_duplicator_cannot_read(
+    data_fixture,
+):
+    """
+    A duplicate keeps sensitive data, so the bot itself is cloned with its
+    token. Checking the action against the clone proves nothing: it lives in
+    an application the duplicator owns and can read. The bot has to stay out
+    of the copy.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    database = button_field.table.database
+    bot = _bot(data_fixture, database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+
+    with patch.object(
+        CoreHandler,
+        "check_multiple_permissions",
+        _denying_only(ReadIntegrationOperationType.type, bot),
+    ):
+        duplicated = CoreHandler().duplicate_application(user, database)
+
+    assert not SlackBotIntegration.objects.filter(application=duplicated).exists()
+    (copied,) = DatabaseWorkflowAction.objects.filter(field__table__database=duplicated)
+    assert copied.specific.service.integration_id is None
+
+
+@pytest.mark.django_db
 def test_duplicating_a_database_keeps_a_bot_the_duplicator_can_read(data_fixture):
     user = data_fixture.create_user()
     button_field = _button(data_fixture, user)
@@ -523,6 +585,10 @@ def test_duplicating_a_database_keeps_a_bot_the_duplicator_can_read(data_fixture
     # The copy of the bot this duplication made, not the original.
     assert copied.specific.service.integration_id not in (None, bot.id)
     assert copied.specific.service.integration.application_id == duplicated.id
+    # With its token, which is what makes the copy usable and what the check
+    # above withholds from someone who may not read the original.
+    (clone,) = SlackBotIntegration.objects.filter(application=duplicated)
+    assert clone.token == "xoxb-secret"
 
 
 @pytest.mark.django_db
