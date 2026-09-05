@@ -753,6 +753,44 @@ def test_a_click_does_not_read_the_field_again_for_every_action(data_fixture):
 
 
 @pytest.mark.django_db
+def test_saving_an_action_reads_the_bot_once(data_fixture):
+    """
+    The check resolves the integration to check it. Leaving the id in the
+    values the service type gets makes it fetch the same row again, base and
+    subtype, for three reads of one bot on every save.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+
+    with CaptureQueriesContext(connection) as queries:
+        action_type.prepare_values(
+            {
+                "service": {
+                    "integration_id": bot.id,
+                    "channel": "general",
+                    "text": "'hi'",
+                },
+                "field": button_field,
+            },
+            user,
+            None,
+        )
+
+    read_the_bot = [
+        q
+        for q in queries.captured_queries
+        if '"core_integration"' in q["sql"] and q["sql"].lstrip().startswith("SELECT")
+    ]
+    assert len(read_the_bot) == 1, (
+        f"the bot was read {len(read_the_bot)} times for one save: "
+        + "\n".join(q["sql"][:120] for q in read_the_bot)
+    )
+
+
+@pytest.mark.django_db
 def test_a_click_reads_the_bot_once_however_many_actions_share_it(data_fixture):
     """
     `select_related("integration")` only saves the base row. Resolving the

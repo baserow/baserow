@@ -413,14 +413,22 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         # from anyone and so needs no permission to read the one going. A key
         # the request never sent keeps the one already carried, and that is
         # checked: an edit must not be a way to drive a credential the editor
-        # may not read.
+        # may not read: the channel and the message are the whole of what a
+        # bot does, so editing them is using it.
         unset = object()
         integration_id = service_values.get("integration_id", unset)
         if integration_id is unset:
             integration_id = service.integration_id if instance else None
         if integration_id is not None:
             field = values.get("field") or (instance.field if instance else None)
-            self._check_integration(integration_id, user, field)
+            integration = self._check_integration(integration_id, user, field)
+            if "integration_id" in service_values:
+                # Handed over rather than left as an id: this resolved it
+                # already, and the service type would otherwise read the same
+                # row twice more. Its own checks are looser than the ones
+                # above, which have run.
+                service_values.pop("integration_id")
+                service_values["integration"] = integration
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
@@ -453,7 +461,7 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
     def _check_integration(
         self, integration_id: int, user: AbstractUser, field
-    ) -> None:
+    ) -> Integration:
         """
         Refuses an integration this type may not carry. `integration_id` is
         writable, and the service type resolves it without a permission check,
@@ -465,6 +473,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         :param user: The user configuring the action.
         :param field: The button field the action belongs to.
         :raises WorkflowActionInvalidIntegration: When it cannot be attached.
+        :return: The integration, so the caller can hand it on rather than
+            have the service type read the same row again.
         """
 
         integration = None
@@ -490,6 +500,8 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             workspace=field.table.database.workspace,
             context=integration,
         )
+
+        return integration
 
     def _reshapes_the_request(
         self, service: Service, prepared_service_values: Dict[str, Any]

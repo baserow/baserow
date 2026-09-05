@@ -44,8 +44,8 @@ from baserow.contrib.database.workflow_actions.types import (
     WorkflowActionsDispatchResult,
 )
 from baserow.core.action.context import without_undo_redo_registration
-from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
@@ -307,10 +307,13 @@ class DatabaseWorkflowActionService:
         if not carrying:
             return
 
+        # Through the handler rather than `specific_iterator` directly, so an
+        # integration type's own `enhance_queryset` still runs and this does
+        # not trade one query per action for one per related row.
         by_id = {
             integration.id: integration
-            for integration in specific_iterator(
-                Integration.objects.filter(
+            for integration in IntegrationHandler().get_integrations(
+                base_queryset=Integration.objects.filter(
                     id__in={service.integration_id for service in carrying}
                 )
             )
