@@ -21,7 +21,7 @@
   "slackBotIntegrationType": {
     "slackBotSummary": "Slack Bot",
     "slackBotNoToken": "Slack Bot - Not configured",
-    "slackBotWarning": "Anyone who can build in this application can send messages through this bot, without seeing the token. Use a bot whose access you are happy to share."
+    "slackBotWarning": "Anyone who can build in this application can send messages through this bot, and can read its token through the API. Use a bot whose access you are happy to share."
   },
   "serviceType": {
     "localBaserowGetRow": "Get a single row",

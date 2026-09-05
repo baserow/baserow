@@ -32,10 +32,12 @@ describe('SlackBotIntegrationType', () => {
     expect(integrationType().warning).toBe(
       'slackBotIntegrationType.slackBotWarning'
     )
+    // The integrations endpoint returns the token in the clear, so the
+    // warning must not claim otherwise.
     expect(en.slackBotIntegrationType.slackBotWarning).toBe(
       'Anyone who can build in this application can send messages through ' +
-        'this bot, without seeing the token. Use a bot whose access you are ' +
-        'happy to share.'
+        'this bot, and can read its token through the API. Use a bot whose ' +
+        'access you are happy to share.'
     )
   })
 

@@ -370,9 +370,10 @@ unconfigure a restored application.
 
 The ownership step above stays open. Until it lands, sharing is application-level as in
 the builder, and the Slack integration type carries a warning saying so at the moment a
-token is entered: anyone who can build in the application can send through the bot,
-without seeing the token. That warning comes out once ownership or private integrations
-land.
+token is entered: anyone who can build in the application can send through the bot, and
+can read its token, since the integrations endpoint serializes it in the clear as it
+does for every other type. Masking it on read is worth doing and is not scoped here.
+That warning comes out once ownership or private integrations land.
 
 Clicks stay non-undoable (section 8), and that takes one deliberate step: dispatch
 performs the row actions without registering them in the clicker's undo session, while

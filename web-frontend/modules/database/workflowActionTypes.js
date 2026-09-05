@@ -11,7 +11,7 @@ import {
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
-import slackLogo from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
+import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import {
@@ -652,7 +652,11 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
   }
 
   get image() {
-    return slackLogo
+    // The integration type owns the asset, so the two cannot drift.
+    return this.app.$registry.get(
+      'integration',
+      SlackBotIntegrationType.getType()
+    ).image
   }
 
   get serviceType() {
