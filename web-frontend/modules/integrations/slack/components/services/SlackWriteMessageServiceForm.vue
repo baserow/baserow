@@ -14,6 +14,7 @@
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
+        :allow-editing="editableFromHere"
       />
     </FormGroup>
     <FormGroup
@@ -80,6 +81,14 @@ export default {
     }
   },
   computed: {
+    /**
+     * A database has no integration settings page, so a bot that arrived
+     * without its token can only be repaired from the picker. Everywhere else
+     * has one, and a second route there would only be harder to find.
+     */
+    editableFromHere() {
+      return this.application?.type === 'database'
+    },
     integrationType() {
       return this.$registry.get(
         'integration',

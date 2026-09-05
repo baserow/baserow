@@ -25,7 +25,7 @@
     </template>
     <template #footer>
       <button
-        v-if="selectedIntegration"
+        v-if="allowEditing && selectedIntegration"
         type="button"
         class="select__footer-button"
         @click="$refs.IntegrationEditModal.show()"
@@ -49,10 +49,8 @@
         create
         @created="select($event.id)"
       />
-      <!-- An imported integration arrives named but unusable, and a database
-           has no integration settings page to repair it from. -->
       <IntegrationCreateEditModal
-        v-if="selectedIntegration"
+        v-if="allowEditing && selectedIntegration"
         ref="IntegrationEditModal"
         :application="application"
         :integration="selectedIntegration"
@@ -100,6 +98,17 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    /**
+     * Whether the selected integration can be edited from here. An imported
+     * integration arrives named but unusable, and a database has no
+     * integration settings page to repair it from. Everything else does, so
+     * they keep the one route.
+     */
+    allowEditing: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
     /**
      * If there is only one integration available, it will be

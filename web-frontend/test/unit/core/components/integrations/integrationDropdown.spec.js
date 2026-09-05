@@ -103,6 +103,7 @@ describe('IntegrationDropdown', () => {
     const wrapper = await mountDropdown({
       integrations: [{ id: 9, name: 'Bot', token: '' }],
       modelValue: 9,
+      allowEditing: true,
     })
     await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
     await wrapper.vm.$nextTick()
@@ -112,9 +113,24 @@ describe('IntegrationDropdown', () => {
     expect(editing.props('integration')).toMatchObject({ id: 9 })
   })
 
+  test('a caller that has its own settings page is offered no edit', async () => {
+    // Builder, automation and dashboard all have one. A second, less
+    // discoverable route into the same modal is not worth having.
+    const wrapper = await mountDropdown({
+      integrations: [{ id: 9, name: 'Bot', token: '' }],
+      modelValue: 9,
+    })
+    await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
+    await wrapper.vm.$nextTick()
+
+    const modals = wrapper.findAllComponents(IntegrationCreateEditModal)
+    expect(modals.every((modal) => modal.props('create'))).toBe(true)
+  })
+
   test('nothing selected offers no edit', async () => {
     const wrapper = await mountDropdown({
       integrations: [{ id: 9, name: 'Bot', token: '' }],
+      allowEditing: true,
     })
     await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
     await wrapper.vm.$nextTick()
