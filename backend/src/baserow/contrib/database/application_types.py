@@ -86,7 +86,7 @@ class DatabaseApplicationType(ApplicationType):
             database_workflow_action_type_registry,
         )
 
-        return any(
+        return self.supports_integrations and any(
             integration_type.type in action_type.allowed_integration_types
             for action_type in database_workflow_action_type_registry.get_all()
         )
