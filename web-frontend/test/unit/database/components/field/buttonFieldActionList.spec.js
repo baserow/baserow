@@ -664,13 +664,14 @@ describe('ButtonFieldActionList', () => {
   })
 
   describe('fetching the integrations its actions need', () => {
-    const DATABASE_ID = 1
+    // A distinct database per test, and its own app. The request in flight is
+    // shared across the module and keyed by application id, so a test that
+    // ends while one is still open would otherwise hand it to the next.
+    let DATABASE_ID = 1000
 
-    // Its own app per test: the fetch is remembered on the application and
-    // shared across the module, so the store above would carry one test's
-    // load into the next.
     beforeEach(() => {
       testApp = new TestApp()
+      DATABASE_ID += 1
     })
 
     const seedDatabase = async () => {
@@ -737,13 +738,25 @@ describe('ButtonFieldActionList', () => {
       )
       await flushPromises()
 
+      // Only what the failed integrations request raised. Other components in
+      // the mounted tree can raise their own, and those are not what this is
+      // about.
       const errors = () =>
-        toasts.mock.calls.filter(([action]) => action === 'toast/error')
-      // The rejection travels through the shared request, the list's catch
-      // and the error handler, so one flush does not always reach the toast.
+        toasts.mock.calls.filter(
+          ([action, payload]) =>
+            action === 'toast/error' &&
+            payload?.title === 'clientHandler.notCompletedTitle'
+        )
+      const requests = () =>
+        testApp.mock.history.get.filter((r) => r.url.includes('/integrations/'))
+      // The rejection travels through the shared request and the error
+      // handler, so one flush does not always reach the toast.
       await until(() => errors().length > 0)
       await flushPromises()
 
+      // Once for the request, not once per action and not once per waiter.
+      // Three actions sharing a request used to raise three toasts for it.
+      expect(requests()).toHaveLength(1)
       expect(errors()).toHaveLength(1)
       toasts.mockRestore()
     })

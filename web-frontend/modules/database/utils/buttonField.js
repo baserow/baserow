@@ -1,3 +1,4 @@
+import { notifyIf } from '@baserow/modules/core/utils/error'
 // Recorded for a table whose fields could not be fetched. Kept apart from an
 // empty list, which is a table that really has no fields, and from an absent
 // entry, which is a table nothing has fetched yet.
@@ -70,16 +71,18 @@ const inFlightIntegrations = new Map()
  *
  * Whether they have been loaded is remembered on the application itself, the
  * way the builder and automation do it, so a refetch that replaces the object
- * asks again.
+ * asks again. A failure is reported here rather than by the caller: several
+ * callers can await one request, and reporting per caller raises a toast
+ * apiece for a single failure.
  *
  * @param {Object} store The Vuex store.
  * @param {Number} applicationId The database whose integrations are wanted.
- * @return {Promise} Settles when the list is loaded, rejects when it is not.
+ * @return {Promise<Boolean>} Whether the list was loaded.
  */
 export function fetchIntegrationsOnce(store, applicationId) {
   const current = () => store.getters['application/get'](applicationId)
   if (current()?._integrationsLoadedOnce) {
-    return Promise.resolve()
+    return Promise.resolve(true)
   }
   if (!inFlightIntegrations.has(applicationId)) {
     const request = (async () => {
@@ -89,18 +92,29 @@ export function fetchIntegrationsOnce(store, applicationId) {
       // and nothing to fetch it again.
       const application = current()
       if (!application) {
-        return
+        return false
       }
-      await store.dispatch('integration/fetch', { application })
+      try {
+        await store.dispatch('integration/fetch', { application })
+      } catch (error) {
+        // Once for this request, whoever is waiting on it. Otherwise the
+        // dropdown reads as a database with no bot, and the only thing
+        // offered is creating a second one.
+        notifyIf(error, 'application')
+        return false
+      }
       const settled = current()
       if (!settled) {
-        return
+        return false
       }
       await store.dispatch('application/forceUpdate', {
         application: settled,
         data: { _integrationsLoadedOnce: true },
       })
+      return true
     })()
+    // Dropped once it settles, so a request that failed is asked again rather
+    // than remembered as an empty database.
     inFlightIntegrations.set(
       applicationId,
       request.finally(() => inFlightIntegrations.delete(applicationId))

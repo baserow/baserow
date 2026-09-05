@@ -138,7 +138,6 @@ import {
   workflowActionKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import { fetchIntegrationsOnce } from '@baserow/modules/database/utils/buttonField'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 
 /**
  * Controlled editor for a button field's ordered action list. Owns no state
@@ -345,11 +344,9 @@ export default {
       if (!this.needsIntegrations) {
         return
       }
-      try {
-        await fetchIntegrationsOnce(this.$store, this.database.id)
-      } catch (error) {
-        notifyIf(error, 'application')
-      }
+      // Reports its own failure, once for the request rather than once for
+      // each list waiting on it.
+      await fetchIntegrationsOnce(this.$store, this.database.id)
     },
     /**
      * No type until the user picks one, and no `id` until the field is saved.
