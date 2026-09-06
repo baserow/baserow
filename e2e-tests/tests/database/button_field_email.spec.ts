@@ -100,7 +100,7 @@ test.describe("Button field, email action", () => {
   }) => {
     await gridFor(page, g.user);
     await openFieldEditor(page, "Mail");
-    await addAction(page, "Send Email");
+    await addAction(page, "Send email");
 
     const form = page.locator(".button-field-action-list__form").first();
     await expect(form).toContainText("To Emails");

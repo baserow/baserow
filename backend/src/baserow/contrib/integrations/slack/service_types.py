@@ -1,23 +1,35 @@
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.utils.translation import gettext as _
 
 from loguru import logger
 from requests import exceptions as request_exceptions
 from rest_framework import serializers
 
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.integrations.slack.integration_types import SlackBotIntegrationType
 from baserow.contrib.integrations.slack.models import SlackWriteMessageService
-from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.contrib.integrations.utils import (
+    get_http_request_function,
+    read_response_within_limit,
+)
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.validator import ensure_string
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
-    ServiceImproperlyConfiguredDispatchException,
+    AddressNotAllowedDispatchException,
+    RemoteRefusedDispatchException,
+    ResponseTooLargeDispatchException,
     UnexpectedDispatchException,
 )
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
+
+SLACK_REQUEST_TIMEOUT_SECONDS = 10
+
+# The timeout is per socket operation: connect, headers, body.
+SLACK_REQUEST_SOCKET_OPERATIONS = 3
 
 
 class SlackWriteMessageServiceType(ServiceType):
@@ -47,6 +59,10 @@ class SlackWriteMessageServiceType(ServiceType):
             ),
             "channel": serializers.CharField(
                 help_text=SlackWriteMessageService._meta.get_field("channel").help_text,
+                # Refused here rather than by the insert, which answers 500.
+                max_length=SlackWriteMessageService._meta.get_field(
+                    "channel"
+                ).max_length,
                 allow_blank=True,
                 required=False,
                 default="",
@@ -90,33 +106,73 @@ class SlackWriteMessageServiceType(ServiceType):
         :param dispatch_context: The context in which the dispatch is occurring.
         :return: A dictionary containing the response data from the Slack API.
         :raises UnexpectedDispatchException: If there's an error after the HTTP request.
-        :raises ServiceImproperlyConfiguredDispatchException: If the Slack service is
-            improperly configured, indicated by specific error codes from the Slack API.
+        :raises RemoteRefusedDispatchException: If Slack refused the message.
         """
 
         try:
             token = service.integration.specific.token
             response = get_http_request_function()(
                 method="POST",
-                url="https://slack.com/api/chat.postMessage",
+                url=f"{settings.INTEGRATIONS_SLACK_API_URL}/chat.postMessage",
                 headers={"Authorization": f"Bearer {token}"},
-                params={
+                # In the body, not the query string: the channel and the
+                # resolved message are row data, and a query string is what
+                # every proxy on the way out writes to its access log.
+                data={
                     "channel": f"#{service.channel}",
                     "text": resolved_values["text"],
                 },
-                timeout=10,
+                timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
+                # Each hop would get a fresh timeout, outliving the row lock.
+                allow_redirects=False,
+                # Read in chunks below, under a size and a time limit.
+                stream=True,
             )
-            response_data = response.json()
+            read_response_within_limit(response, SLACK_REQUEST_TIMEOUT_SECONDS)
+        except ResponseTooLargeDispatchException:
+            # Names no address, so it travels as it is.
+            raise
+        except UnacceptableAddressException as e:
+            # Nothing was sent, so this click is not charged for it.
+            raise AddressNotAllowedDispatchException(
+                f"Invalid URL: {settings.INTEGRATIONS_SLACK_API_URL}"
+            ) from e
         except request_exceptions.RequestException as e:
-            raise UnexpectedDispatchException(str(e)) from e
+            # Not `str(e)`: it can repeat back what was sent, and this
+            # request carries the resolved message. Also catches requests' own
+            # ConnectionError, which is not the builtin.
+            raise UnexpectedDispatchException(
+                f"The request to {settings.INTEGRATIONS_SLACK_API_URL} failed: "
+                f"{type(e).__name__}."
+            ) from e
         except Exception as e:
-            logger.exception("Error while dispatching HTTP request")
-            raise UnexpectedDispatchException(f"Unknown error: {str(e)}") from e
+            # Not `logger.exception`: loguru prints the frame locals, and this
+            # frame holds the bot token.
+            logger.error(
+                "Error while dispatching the Slack message: {exception}.",
+                exception=type(e).__name__,
+            )
+            raise UnexpectedDispatchException(
+                f"Unknown error: {type(e).__name__}"
+            ) from e
 
-        # If we've found that the response indicates an error, we raise a
-        # ServiceImproperlyConfiguredDispatchException with a relevant message.
+        try:
+            response_data = response.json()
+        except ValueError as e:
+            # The endpoint is configurable, so the answer can be a proxy's
+            # HTML or a redirect body rather than anything Slack sends.
+            raise RemoteRefusedDispatchException(
+                "The answer was not in the shape Slack replies with."
+            ) from e
+
+        # Valid JSON, but not an object at all.
+        if not isinstance(response_data, dict):
+            raise RemoteRefusedDispatchException(
+                "The answer was not in the shape Slack replies with."
+            )
+
         if not response_data.get("ok", False):
-            # Some frequently occurring error codes from Slack API. Full list:
+            # The common codes. Full list:
             # https://docs.slack.dev/reference/methods/chat.postMessage/
             misconfigured_service_error_codes = {
                 "no_text": "The message text is missing.",
@@ -128,17 +184,30 @@ class SlackWriteMessageServiceType(ServiceType):
                 "default": "An unknown error occurred while sending the message, "
                 "the error code was: {error_code}",
             }
-            error_code = response_data["error"]
+            error_code = response_data.get("error")
+            # Anything but a string cannot key the table, and must not be
+            # repeated into the message either.
+            if not isinstance(error_code, str):
+                error_code = "unknown"
             misconfigured_service_message = misconfigured_service_error_codes.get(
                 error_code, misconfigured_service_error_codes["default"]
             ).format(channel=service.channel, error_code=error_code)
-            raise ServiceImproperlyConfiguredDispatchException(
-                misconfigured_service_message
-            )
+            # The post was made, so the click is charged for it.
+            raise RemoteRefusedDispatchException(misconfigured_service_message)
         return {"data": response_data}
 
     def dispatch_transform(self, data):
+        # Left wrapped, and `generate_schema` describes the wrapper, so the
+        # path the data explorer offers resolves against what a dispatch
+        # stores. Unwrapping instead would mean migrating every sample an
+        # earlier version wrote.
         return DispatchResult(data=data)
+
+    def max_dispatch_seconds(self, service: SlackWriteMessageService) -> int:
+        return SLACK_REQUEST_TIMEOUT_SECONDS * SLACK_REQUEST_SOCKET_OPERATIONS
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).select_related("integration")
 
     def get_schema_name(self, service: SlackWriteMessageService) -> str:
         return f"SlackWriteMessage{service.id}Schema"
@@ -157,16 +226,24 @@ class SlackWriteMessageServiceType(ServiceType):
         :return: A dictionary representing the JSON schema of the service.
         """
 
+        # `ts` is the message reference, for threading and updating. Under
+        # `data`, because that is where the dispatch puts them.
+        answer = {
+            "ok": {"type": "boolean", "title": _("OK")},
+            "channel": {"type": "string", "title": _("Channel")},
+            "ts": {"type": "string", "title": _("Message timestamp")},
+        }
+        # `allowed_fields` names first-level properties, which since the
+        # wrapper means `data` and nothing else: `extract_properties` returns
+        # `path[0]`, and every path into this answer starts there. Filtering
+        # the names inside it would match nothing any caller can send.
         properties = {}
-        if allowed_fields is None or "ok" in allowed_fields:
-            properties.update(
-                **{
-                    "ok": {
-                        "type": "boolean",
-                        "title": _("OK"),
-                    },
-                }
-            )
+        if allowed_fields is None or "data" in allowed_fields:
+            properties["data"] = {
+                "type": "object",
+                "title": _("Data"),
+                "properties": answer,
+            }
         return {
             "title": self.get_schema_name(service),
             "type": "object",

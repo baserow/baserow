@@ -120,7 +120,7 @@ export class BuilderApplicationType extends ApplicationType {
     const { $store, $registry } = this.app
     if (!builder._loadedOnce) {
       const sharedPage = $store.getters['page/getSharedPage'](builder)
-      await Promise.all([
+      const [, integrations] = await Promise.all([
         $store.dispatch('userSource/fetch', {
           application: builder,
         }),
@@ -147,10 +147,15 @@ export class BuilderApplicationType extends ApplicationType {
         }
       )
 
-      await $store.dispatch('application/forceUpdate', {
-        application: builder,
-        data: { _loadedOnce: true },
-      })
+      // Null when the list changed under the fetch and it gave up rather
+      // than write an answer older than the screen. Marking the builder
+      // loaded now would leave those dropdowns short for the session.
+      if (integrations !== null) {
+        await $store.dispatch('application/forceUpdate', {
+          application: builder,
+          data: { _loadedOnce: true },
+        })
+      }
     }
   }
 

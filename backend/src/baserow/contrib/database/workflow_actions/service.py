@@ -45,6 +45,8 @@ from baserow.contrib.database.workflow_actions.types import (
 )
 from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     DoesNotExist,
@@ -58,6 +60,7 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
 )
+from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
 from baserow.core.types import PermissionCheck
 
@@ -95,10 +98,8 @@ def reached_outside(exc: Exception) -> bool:
     :return: True when the request went out, so the click owes for it.
     """
 
-    # Subclasses of the configuration failures above, but raised once the
-    # instance had already reached out: a refusal on the answer's size, a
-    # connection that was attempted, or a server that answered and then turned
-    # the exchange down. All are charged like any other.
+    # Subclasses of the failures above, but raised once the instance had
+    # already reached out, so they are charged like any other.
     if isinstance(
         exc,
         (
@@ -193,7 +194,11 @@ class DatabaseWorkflowActionService:
 
         workflow_action_type.raise_if_deactivated(field.table.database.workspace)
 
-        prepared_values = workflow_action_type.prepare_values(kwargs, user)
+        # The type reads the field to know which database an integration
+        # may come from.
+        prepared_values = workflow_action_type.prepare_values(
+            {**kwargs, "field": field}, user
+        )
         workflow_action = self.handler.create_workflow_action(
             workflow_action_type, field=field, **prepared_values
         )
@@ -224,7 +229,9 @@ class DatabaseWorkflowActionService:
                 kwargs["type"]
             )
             workflow_action_type.raise_if_deactivated(field.table.database.workspace)
-            prepared_values = workflow_action_type.prepare_values(kwargs, user)
+            prepared_values = workflow_action_type.prepare_values(
+                {**kwargs, "field": field}, user
+            )
             workflow_action = self.handler.change_workflow_action_type(
                 workflow_action, workflow_action_type, **prepared_values
             )
@@ -275,7 +282,46 @@ class DatabaseWorkflowActionService:
 
         return full_order
 
-    def _lock_ttl_for(self, server_actions: List[DatabaseWorkflowAction]) -> int:
+    def _resolve_integrations(self, services: List[Service]) -> None:
+        """
+        Puts the specific integration on each service that carries one, in one
+        query for the whole click.
+
+        A service's `enhance_queryset` fetches the base row, but the credential
+        lives on the subtype, and resolving that row by row costs a query per
+        action. Three actions sharing one bot read it three times, inside the
+        lock that guards the row.
+
+        `get_specific` returns the instance unchanged when it already is the
+        subtype, so assigning these here means nothing queries again later.
+
+        :param services: The specific services this click will dispatch.
+        :return: Nothing. The services are updated in place.
+        """
+
+        carrying = [service for service in services if service.integration_id]
+        if not carrying:
+            return
+
+        # Through the handler rather than `specific_iterator` directly, so an
+        # integration type's own `enhance_queryset` still runs and this does
+        # not trade one query per action for one per related row.
+        by_id = {
+            integration.id: integration
+            for integration in IntegrationHandler().get_integrations(
+                base_queryset=Integration.objects.filter(
+                    id__in={service.integration_id for service in carrying}
+                )
+            )
+        }
+        for service in carrying:
+            integration = by_id.get(service.integration_id)
+            if integration is not None:
+                service.integration = integration
+
+    def _lock_ttl_for(
+        self, server_actions: List[DatabaseWorkflowAction], services: List[Service]
+    ) -> int:
         """
         How long the lock outlives the click that took it. The setting is a
         floor rather than the answer: it covers a sequence of ordinary actions,
@@ -284,18 +330,16 @@ class DatabaseWorkflowActionService:
         stops protecting the row, which is what it is there for.
 
         :param server_actions: The actions this click will run, in order.
+        :param services: Their specific services, in the same order.
         :return: The TTL in seconds.
         """
 
         # The service type owns the number: an email waits on its server
         # without carrying a timeout field of its own.
-        services = [
-            workflow_action.service.specific
-            for workflow_action in server_actions
-            if workflow_action.get_type().is_external
-        ]
         waiting_on = sum(
-            service.get_type().max_dispatch_seconds(service) for service in services
+            service.get_type().max_dispatch_seconds(service)
+            for workflow_action, service in zip(server_actions, services)
+            if workflow_action.get_type().is_external
         )
         return max(settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS, waiting_on * 2)
 
@@ -544,9 +588,17 @@ class DatabaseWorkflowActionService:
         # so a click whose TTL ran out cannot drop a later click's lock. Keyed
         # on field and row together, so two buttons on one row do not block
         # each other.
+        # Resolved once for both: `specific` caches on the instance, but only
+        # while these are the objects the dispatch goes on to use.
+        services = [
+            workflow_action.service.specific for workflow_action in server_actions
+        ]
+        # Before the lock: it holds nothing the lock protects.
+        self._resolve_integrations(services)
+
         lock = cache.lock(
             f"button_dispatch_{field.id}_{row.id}",
-            timeout=self._lock_ttl_for(server_actions),
+            timeout=self._lock_ttl_for(server_actions, services),
         )
         # Never waits: a second click is refused rather than queued behind one
         # that is still running.

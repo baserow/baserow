@@ -1,6 +1,13 @@
 import IntegrationService from '@baserow/modules/core/services/integration'
 
-const state = () => ({})
+// How many times a fetch asks again when the list changed while it was open.
+// Bounded: a list changing this often is not settling, and the caller is told
+// nothing was loaded rather than made to wait.
+const FETCH_ATTEMPTS = 3
+
+// Bumped by every write, so a fetch can tell its answer is older than
+// the list it would overwrite.
+const state = () => ({ generation: {} })
 
 const updateContext = {
   updateTimeout: null,
@@ -9,6 +16,12 @@ const updateContext = {
 }
 
 const mutations = {
+  BUMP_GENERATION(state, { application }) {
+    state.generation = {
+      ...state.generation,
+      [application.id]: (state.generation[application.id] || 0) + 1,
+    }
+  },
   ADD_ITEM(state, { application, integration, beforeId = null }) {
     if (beforeId === null) {
       application.integrations.push(integration)
@@ -52,12 +65,15 @@ const mutations = {
 const actions = {
   forceCreate({ commit }, { application, integration, beforeId = null }) {
     commit('ADD_ITEM', { application, integration, beforeId })
+    commit('BUMP_GENERATION', { application })
   },
   forceUpdate({ commit }, { application, integration, values }) {
     commit('UPDATE_ITEM', { application, integration, values })
+    commit('BUMP_GENERATION', { application })
   },
   forceDelete({ commit, getters }, { application, integrationId }) {
     commit('DELETE_ITEM', { application, integrationId })
+    commit('BUMP_GENERATION', { application })
   },
   forceMove(
     { commit, getters },
@@ -78,6 +94,7 @@ const actions = {
     } else {
       commit('MOVE_ITEM', { application, index, oldIndex })
     }
+    commit('BUMP_GENERATION', { application })
   },
   async create(
     { dispatch },
@@ -230,20 +247,43 @@ const actions = {
       throw error
     }
   },
-  async fetch({ dispatch, commit }, { application }) {
-    const { $registry, $i18n, $client, $config } = this
-    const { data: integrations } = await IntegrationService($client).fetchAll(
-      application.id
-    )
+  async fetch({ commit, state, rootGetters }, { application }) {
+    const { $client } = this
+    const applicationId = application.id
 
-    commit('CLEAR_ITEMS', { application })
-    await Promise.all(
-      integrations.map((integration) =>
-        dispatch('forceCreate', { application, integration })
+    for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
+      const before = state.generation[applicationId] || 0
+
+      const { data: integrations } =
+        await IntegrationService($client).fetchAll(applicationId)
+
+      // Changed while this was open, so the answer is older than the list and
+      // writing it would lose the change. Asked again rather than discarded:
+      // most callers await this and then mark the application loaded, and
+      // would keep an empty list until a reload.
+      if ((state.generation[applicationId] || 0) !== before) {
+        continue
+      }
+
+      // `forceSetAll` can have replaced the object this started with, and
+      // filling that one leaves the one on screen empty.
+      const current =
+        rootGetters['application/get'](applicationId) || application
+
+      // Committed rather than dispatched through `forceCreate`: writing the
+      // answer is not a change to back off from, and a bump here would make
+      // the next attempt back off from this one.
+      commit('CLEAR_ITEMS', { application: current })
+      integrations.forEach((integration) =>
+        commit('ADD_ITEM', { application: current, integration })
       )
-    )
 
-    return integrations
+      return integrations
+    }
+
+    // Still moving. Null rather than a list older than the screen, so a
+    // caller does not remember a load that did not happen.
+    return null
   },
   async duplicate({ getters, dispatch }, { application, integrationId }) {
     const integration = getters.getIntegrations.find(

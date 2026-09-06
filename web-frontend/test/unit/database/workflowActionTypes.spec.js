@@ -32,6 +32,7 @@ describe('databaseWorkflowActionType registry', () => {
       'local_baserow_delete_row',
       'local_baserow_update_row',
       'open_url',
+      'slack_write_message',
       'smtp_email',
     ])
   })
@@ -42,12 +43,54 @@ describe('databaseWorkflowActionType registry', () => {
     )
     expect(ordered.map((type) => type.getType())).toEqual([
       'open_url',
+      'http_request',
+      'smtp_email',
       'local_baserow_create_row',
       'local_baserow_update_row',
       'local_baserow_delete_row',
-      'http_request',
-      'smtp_email',
+      'slack_write_message',
     ])
+  })
+
+  test('each type shows the icon and label the design gives it', () => {
+    // Figma "New direction", node 5206:9610. `$t` returns the key here, so
+    // the copy is pinned against the locale file separately.
+    const registry = testApp._app.$registry
+    const expected = {
+      open_url: ['iconoir-link', 'databaseWorkflowActionType.openUrl'],
+      http_request: ['iconoir-cloud-upload', 'serviceType.coreHTTPRequest'],
+      smtp_email: ['iconoir-mail', 'databaseWorkflowActionType.sendEmail'],
+      local_baserow_create_row: [
+        'iconoir-add-circle',
+        'serviceType.localBaserowCreateRow',
+      ],
+      local_baserow_update_row: [
+        'iconoir-edit-pencil',
+        'serviceType.localBaserowUpdateRow',
+      ],
+      local_baserow_delete_row: [
+        'iconoir-bin',
+        'databaseWorkflowActionType.deleteRow',
+      ],
+    }
+    for (const [type, [icon, label]] of Object.entries(expected)) {
+      const actionType = registry.get('databaseWorkflowActionType', type)
+      expect([type, actionType.icon]).toEqual([type, icon])
+      expect([type, actionType.label]).toEqual([type, label])
+      expect(actionType.image).toBeFalsy()
+    }
+    expect(en.databaseWorkflowActionType.sendEmail).toBe('Send email')
+    expect(en.databaseWorkflowActionType.deleteRow).toBe('Delete a row')
+
+    // Slack is the one drawn with its own logo rather than a glyph.
+    const slack = registry.get(
+      'databaseWorkflowActionType',
+      'slack_write_message'
+    )
+    expect(slack.icon).toBeNull()
+    // Vite inlines the asset in tests, so only the format is checkable.
+    expect(slack.image).toMatch(/svg/)
+    expect(slack.label).toBe('serviceType.slackWriteMessage')
   })
 
   test('each type resolves a service type with a form component', () => {
@@ -61,7 +104,7 @@ describe('databaseWorkflowActionType registry', () => {
       expect(actionType.serviceType).toBeTruthy()
       expect(actionType.serviceType.formComponent).toBeTruthy()
       expect(actionType.label).toBeTruthy()
-      expect(actionType.icon).toBeTruthy()
+      expect(actionType.icon || actionType.image).toBeTruthy()
     }
   })
 
@@ -445,16 +488,43 @@ describe('external database workflow action types', () => {
     expect(typeFor('http_request').serviceFormProps).toEqual({})
   })
 
+  test('an unsaved slack message already says what it will answer with', () => {
+    const actionType = typeFor('slack_write_message')
+
+    // Slack answers with the same three things whatever the message, so the
+    // action after it can point at the message timestamp before saving. Under
+    // `data`, which is where the dispatch puts them and what the backend's
+    // `generate_schema` describes.
+    for (const workflowAction of [{ service: {} }, {}]) {
+      const schema = actionType.getDataSchema({}, workflowAction)
+      expect(Object.keys(schema.properties)).toEqual(['data'])
+      const answer = schema.properties.data.properties
+      expect(Object.keys(answer)).toEqual(['ok', 'channel', 'ts'])
+      expect(answer.ok.type).toBe('boolean')
+      expect(answer.ts.type).toBe('string')
+      expect(schema.title).toBe(actionType.label)
+    }
+  })
+
+  test('slack keeps the integration dropdown, the others do not need one', () => {
+    // A Slack bot is the credential the action sends through, so its form
+    // must offer the dropdown and the editor must fetch what it can list.
+    expect(typeFor('slack_write_message').serviceFormProps).toEqual({})
+    expect(typeFor('slack_write_message').needsIntegration).toBe(true)
+    expect(typeFor('smtp_email').needsIntegration).toBe(false)
+    expect(typeFor('http_request').needsIntegration).toBe(false)
+    expect(typeFor('local_baserow_create_row').needsIntegration).toBe(false)
+  })
+
   test('each resolves the shared service type and its form', () => {
     for (const [actionType, serviceType] of [
       ['http_request', 'http_request'],
       ['smtp_email', 'smtp_email'],
+      ['slack_write_message', 'slack_write_message'],
     ]) {
       const type = typeFor(actionType)
       expect(type.serviceType.getType()).toBe(serviceType)
       expect(type.serviceType.formComponent).toBeTruthy()
-      expect(type.label).toBe(type.serviceType.name)
-      expect(type.icon).toBe(type.serviceType.icon)
     }
   })
 })

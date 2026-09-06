@@ -1,3 +1,4 @@
+import { vi } from 'vitest'
 import flushPromises from 'flush-promises'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
@@ -73,17 +74,63 @@ describe('DatabaseWorkflowActionWithService', () => {
     })
   }
 
-  const mountAction = async (type = 'local_baserow_create_row', service = {}) =>
+  const mountAction = async (
+    type = 'local_baserow_create_row',
+    service = {},
+    database = { id: OWN_DATABASE_ID, workspace: WORKSPACE }
+  ) =>
     testApp.mount(DatabaseWorkflowActionWithService, {
       props: {
         workflowAction: { id: 1, type, service },
-        database: { id: OWN_DATABASE_ID, workspace: WORKSPACE },
+        database,
         defaultValues: { service },
       },
       global: {
         provide: { workspace: WORKSPACE },
       },
     })
+
+  test('a slack action offers the bots its database holds', async () => {
+    // The list above it owns the fetch, so this form only has to render what
+    // the store already holds.
+    await seedApplications()
+    const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
+    await testApp.store.dispatch('integration/forceCreate', {
+      application: database,
+      integration: { id: 7, type: 'slack_bot', name: 'Bot', order: '1' },
+    })
+
+    const wrapper = await mountAction('slack_write_message', {}, database)
+    await flushPromises()
+
+    const dropdown = wrapper.findComponent({ name: 'IntegrationDropdown' })
+    expect(dropdown.exists()).toBe(true)
+    expect(dropdown.props('integrations').map((i) => i.name)).toEqual(['Bot'])
+  })
+
+  test('the form fetches nothing itself', async () => {
+    // The cards are hidden rather than unmounted, so a fetch tied to this
+    // form's own `created` runs once for the life of the editor and can never
+    // be retried. It belongs to the list, which knows when a card opens.
+    await seedApplications()
+    const database = testApp.store.getters['application/get'](OWN_DATABASE_ID)
+
+    await mountAction('slack_write_message', {}, database)
+    await flushPromises()
+
+    expect(
+      testApp.mock.history.get.filter((r) => r.url.includes('/integrations/'))
+    ).toHaveLength(0)
+  })
+
+  test('a row action fetches no integrations', async () => {
+    await seedApplications()
+
+    await mountAction('local_baserow_create_row')
+    await flushPromises()
+
+    expect(testApp.mock.history.get).toHaveLength(0)
+  })
 
   test('the service form gets the workspace databases', async () => {
     await seedApplications()

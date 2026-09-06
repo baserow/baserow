@@ -1,5 +1,5 @@
 from smtplib import SMTPAuthenticationError, SMTPNotSupportedError
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.urls import reverse
 
@@ -19,6 +19,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
+    SlackWriteMessageWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
@@ -26,6 +27,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.exceptions import PermissionException
 from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
@@ -82,6 +84,24 @@ def _add_email_action(data_fixture, user, button_field):
     service.to_emails = "'someone@example.com'"
     service.subject = "'Hello'"
     service.body = "'Hi'"
+    service.save()
+    return action
+
+
+def _add_slack_action(data_fixture, button_field):
+    bot = data_fixture.create_integration(
+        SlackBotIntegration,
+        application=button_field.table.database,
+        name="Bot",
+        token="xoxb-secret",
+    )
+    action = data_fixture.create_database_workflow_action(
+        SlackWriteMessageWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.integration = bot
+    service.channel = "general"
+    service.text = "'hi'"
     service.save()
     return action
 
@@ -547,3 +567,45 @@ def test_a_server_that_refused_after_answering_still_spends_the_slot(
         assert _click(api_client, token, button_field, row).status_code == (
             HTTP_429_TOO_MANY_REQUESTS
         )
+
+
+@pytest.mark.django_db
+def test_a_click_slack_refused_after_answering_still_spends_it(
+    api_client, data_fixture, settings
+):
+    """
+    Slack answers `ok: false` only after the post has been made, so the
+    traffic happened. Giving the slot back would let one row drive unbounded
+    requests at Slack.
+    """
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_slack_action(data_fixture, button_field)
+
+    refusal = Mock()
+    refusal.json.return_value = {"ok": False, "error": "not_in_channel"}
+    # The service streams the body in.
+    refusal.iter_content.return_value = iter([b'{"ok": false}'])
+    posted = Mock(return_value=refusal)
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=posted,
+    ):
+        failed = _click(api_client, token, button_field, row)
+
+    assert failed.status_code == HTTP_400_BAD_REQUEST
+    assert posted.call_count == 1
+
+    # The budget is spent, so the next click is refused rather than repeating
+    # the post.
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
+        return_value=posted,
+    ):
+        again = _click(api_client, token, button_field, row)
+
+    assert again.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert posted.call_count == 1

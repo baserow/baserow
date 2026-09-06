@@ -1,6 +1,7 @@
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from zipfile import ZipFile
 
+from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 
 from baserow.contrib.database.formula_importer import import_formula
@@ -46,6 +47,10 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     # contain one spend the rate limit's budget.
     is_external = False
 
+    # Integration types this action may carry, empty when it needs no
+    # credential of its own. See ADR 006 section 5.
+    allowed_integration_types: List[str] = []
+
     class SerializedDict(DatabaseWorkflowActionDict):
         pass
 
@@ -85,6 +90,17 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
                 self.get_deactivated_reason(workspace)
                 or "This workflow action type is deactivated."
             )
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[WorkflowAction] = None,
+    ) -> Dict[str, Any]:
+        # Handed in by the service for the type to read; the handler is given
+        # the field on its own.
+        values.pop("field", None)
+        return super().prepare_values(values, user, instance)
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}

@@ -1,3 +1,4 @@
+import { notifyIf } from '@baserow/modules/core/utils/error'
 // Recorded for a table whose fields could not be fetched. Kept apart from an
 // empty list, which is a table that really has no fields, and from an absent
 // entry, which is a table nothing has fetched yet.
@@ -57,4 +58,69 @@ export function urlWithAllowedProtocol(url) {
   return ALLOWED_BUTTON_URL_PROTOCOLS.includes(protocol.toLowerCase())
     ? url
     : ''
+}
+
+// Keyed by store, not by application id alone: one server process renders
+// every request, and a promise closed over one request's store must not be
+// handed to another's.
+const inFlightIntegrations = new WeakMap()
+
+/**
+ * Fetches a database's integrations, at most once per database. A database has
+ * no single entry point the way a builder does, so the first editor to need
+ * them asks. Loading is remembered on the application, so a refetch that
+ * replaces it asks again, and a failure is reported here rather than by the
+ * caller, since several callers can await one request.
+ *
+ * @param {Object} store The Vuex store.
+ * @param {Number} applicationId The database whose integrations are wanted.
+ * @return {Promise<Boolean>} Whether the list was loaded.
+ */
+export function fetchIntegrationsOnce(store, applicationId) {
+  const current = () => store.getters['application/get'](applicationId)
+  if (current()?._integrationsLoadedOnce) {
+    return Promise.resolve(true)
+  }
+  if (!inFlightIntegrations.has(store)) {
+    inFlightIntegrations.set(store, new Map())
+  }
+  const inFlight = inFlightIntegrations.get(store)
+  if (!inFlight.has(applicationId)) {
+    const request = (async () => {
+      // Resolved on both sides of the await: `forceSetAll` replaces the
+      // object, and filling one while marking another leaves both wrong.
+      const application = current()
+      if (!application) {
+        return false
+      }
+      let loaded
+      try {
+        loaded = await store.dispatch('integration/fetch', { application })
+      } catch (error) {
+        // Once for the request, whoever is waiting on it.
+        notifyIf(error, 'application')
+        return false
+      }
+      // Backed off because the list changed under it, so what is there now is
+      // not the whole list. Left unmarked, so the next ask fetches again.
+      if (loaded === null) {
+        return false
+      }
+      const settled = current()
+      if (!settled) {
+        return false
+      }
+      await store.dispatch('application/forceUpdate', {
+        application: settled,
+        data: { _integrationsLoadedOnce: true },
+      })
+      return true
+    })()
+    // Dropped once it settles, so a failed one is asked again.
+    inFlight.set(
+      applicationId,
+      request.finally(() => inFlight.delete(applicationId))
+    )
+  }
+  return inFlight.get(applicationId)
 }

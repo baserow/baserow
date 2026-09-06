@@ -13,6 +13,9 @@ from baserow.api.services.serializers import PolymorphicServiceRequestSerializer
 from baserow.contrib.database.api.workflow_actions.serializers import (
     DatabasePolymorphicServiceSerializer,
 )
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionInvalidIntegration,
+)
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
     CoreSMTPEmailWorkflowAction,
@@ -20,6 +23,7 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
+    SlackWriteMessageWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
@@ -33,8 +37,16 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.contrib.integrations.slack.integration_types import SlackBotIntegrationType
+from baserow.contrib.integrations.slack.service_types import (
+    SlackWriteMessageServiceType,
+)
 from baserow.core.db import specific_queryset
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.serializers import FormulaSerializerField
+from baserow.core.handler import CoreHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
@@ -92,6 +104,11 @@ class DefaultTypedServiceRequestSerializer(PolymorphicServiceRequestSerializer):
 
 class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     service_type = None  # Must be implemented by subclasses.
+
+    # Where `import_serialized` leaves the field it is importing into, for
+    # `deserialize_property`, which the base class hands the cache but not the
+    # parent.
+    IMPORTING_FIELD_CACHE_KEY = "database_workflow_action_field"
 
     # Service values that shape the answer a click remembers. Changing one
     # makes an earlier capture describe a request no longer being made, so it
@@ -227,9 +244,7 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
         if prop_name == "service" and value:
             return ServiceHandler().import_service(
-                # Database services carry no integration; the acting user comes
-                # from the dispatch context instead.
-                None,
+                self._imported_integration(value, id_mapping, cache),
                 value,
                 id_mapping,
                 storage=storage,
@@ -248,6 +263,151 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             **kwargs,
         )
 
+    def _imported_integration(
+        self,
+        serialized_service: Dict[str, Any],
+        id_mapping: Dict[str, Any],
+        cache: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Integration]:
+        """
+        The integration an imported service should carry: the copy made by
+        this import, or the original when the copy stays in the same database
+        (a duplicated table or field). Whether the action may keep it is still
+        settled in `import_serialized`; this only decides what to attach.
+
+        :param serialized_service: The service as the export wrote it.
+        :param id_mapping: What this import has remapped so far.
+        :param cache: Carries the field being imported, put there by
+            `import_serialized`.
+        :return: The integration to attach, or None when it names none this
+            database has.
+        """
+
+        integration_id = self._integration_id_to_look_up(
+            serialized_service.get("integration_id")
+        )
+        if integration_id is None:
+            return None
+        # After the coercion, not before: the mapping is keyed by integers
+        # and a JSON round trip can turn the value beside them into a string.
+        integration_id = id_mapping.get("integrations", {}).get(
+            integration_id, integration_id
+        )
+
+        # Scoped to the database the action lands in. Unmapped ids are the
+        # normal case for a duplicated field or table, and an export written
+        # before 4c carries none at all, so an unscoped lookup would match
+        # whatever row holds that number here — another workspace's bot. The
+        # later check would drop it, but the FK is written first.
+        field = (cache or {}).get(self.IMPORTING_FIELD_CACHE_KEY)
+        if field is None:
+            return None
+        return Integration.objects.filter(
+            id=integration_id, application_id=field.table.database_id
+        ).first()
+
+    @staticmethod
+    def _integration_id_to_look_up(value: Any) -> Optional[int]:
+        """
+        The id a serialized service names, as an integer, or None when it
+        names nothing usable.
+
+        Nothing coerces this the way the endpoint's serializer does, so a
+        hand-edited export would otherwise key the id mapping with a list or a
+        dict and fail the whole import job with a `TypeError`, or slip a
+        `True` through, which hashes equal to 1 and would pick up whatever
+        integration 1 was remapped to.
+
+        :param value: What the export named, which is whatever was in the file.
+        :return: The id to look up, or None.
+        """
+
+        if isinstance(value, bool) or value is None:
+            return None
+        if isinstance(value, int):
+            return value or None
+        if isinstance(value, str):
+            # `int` also accepts "+1", " 1 " and "1_0", which no export writes.
+            return int(value) or None if value.isdecimal() else None
+        return None
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> WorkflowAction:
+        """
+        Drops an integration the imported action may not carry: one of a type
+        this action does not allow, one outside the field's own database, which
+        an export made elsewhere could name by a number that happens to exist
+        here, or one the person asking for the copy may not read. The action
+        then says what it needs, as an unconfigured one does.
+
+        `copied_by` is set on the paths where a person copies an existing
+        action, since those never pass through the endpoint that checks the
+        credential. An import from a file has no such actor.
+
+        :param parent: The button field the action belongs to.
+        :param serialized_values: The action as the export wrote it.
+        :param id_mapping: What this import has remapped so far.
+        :param files_zip: The archive the export's files came in, if any.
+        :param storage: Where those files are written.
+        :param cache: Shared across one import, for values worth reusing.
+        :param kwargs: Passed on, and read for `copied_by`.
+        :return: The imported action.
+        """
+
+        copied_by = kwargs.pop("copied_by", None)
+        # `deserialize_property` needs the field to scope its integration
+        # lookup, and the base class hands it the cache but not the parent.
+        cache = {} if cache is None else cache
+        cache[self.IMPORTING_FIELD_CACHE_KEY] = parent
+        created_instance = super().import_serialized(
+            parent, serialized_values, id_mapping, files_zip, storage, cache, **kwargs
+        )
+        service = created_instance.service
+        integration = service.integration
+        if integration is not None and not self._may_carry_integration(
+            integration, created_instance.field, copied_by
+        ):
+            service.integration = None
+            service.save(update_fields=["integration"])
+        return created_instance
+
+    def _may_carry_integration(
+        self, integration: Integration, field, copied_by: Optional[AbstractUser]
+    ) -> bool:
+        """
+        Whether an imported action keeps the integration it came with: it has
+        to be usable by this action, and readable by whoever asked for the
+        copy when there is one.
+
+        :param integration: The integration the copy came with.
+        :param field: The button field the copy belongs to.
+        :param copied_by: Who asked for the copy, when a person did.
+        :return: True when the copy keeps it.
+        """
+
+        if not self._integration_is_usable(integration, field):
+            return False
+        if copied_by is None:
+            return True
+        try:
+            CoreHandler().check_permissions(
+                copied_by,
+                ReadIntegrationOperationType.type,
+                workspace=field.table.database.workspace,
+                context=integration,
+            )
+        except PermissionException:
+            return False
+        return True
+
     def prepare_values(
         self,
         values: Dict[str, Any],
@@ -257,6 +417,13 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         """
         Creates the backing service when the action is new, and forwards any
         supplied service values to it.
+
+        :param values: What the caller is setting on the action.
+        :param user: Who is configuring it.
+        :param instance: The action being updated, or None when creating one.
+        :raises WorkflowActionInvalidIntegration: When the integration named
+            cannot be carried, or the user may not read it.
+        :return: The values to save, with the service among them.
         """
 
         service_type = service_type_registry.get(self.service_type)
@@ -267,11 +434,26 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
             service = instance.service.specific
 
         service_values = values.pop("service", None) or {}
-        # Security, not tidiness: `integration_id` is writable and looked up
-        # without a permission check, and an integration's `authorized_user`
-        # outranks the actor, so a caller could make every click run as someone
-        # else. Database services carry no integration (ADR 006 section 5).
-        service_values.pop("integration_id", None)
+        # An explicit null clears the credential, which takes nothing away
+        # from anyone and so needs no permission to read the one going. A key
+        # the request never sent keeps the one already carried, and that is
+        # checked: an edit must not be a way to drive a credential the editor
+        # may not read: the channel and the message are the whole of what a
+        # bot does, so editing them is using it.
+        unset = object()
+        integration_id = service_values.get("integration_id", unset)
+        if integration_id is unset:
+            integration_id = service.integration_id if instance else None
+        if integration_id is not None:
+            field = values.get("field") or (instance.field if instance else None)
+            integration = self._check_integration(integration_id, user, field)
+            if "integration_id" in service_values:
+                # Handed over rather than left as an id: this resolved it
+                # already, and the service type would otherwise read the same
+                # row twice more. Its own checks are looser than the ones
+                # above, which have run.
+                service_values.pop("integration_id")
+                service_values["integration"] = integration
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
@@ -284,6 +466,67 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
         values["service"] = service
         return super().prepare_values(values, user, instance)
+
+    def _integration_is_usable(self, integration: Integration, field) -> bool:
+        """
+        The one rule save, import and dispatch all read, so they cannot
+        drift: a carried integration is of a type this action accepts, and
+        belongs to the field's own database.
+
+        :param integration: The integration in question.
+        :param field: The button field the action belongs to.
+        :return: True when this action may carry it.
+        """
+
+        return (
+            field is not None
+            and integration.get_type().type in self.allowed_integration_types
+            and integration.application_id == field.table.database_id
+        )
+
+    def _check_integration(
+        self, integration_id: int, user: AbstractUser, field
+    ) -> Integration:
+        """
+        Refuses an integration this type may not carry. `integration_id` is
+        writable, and the service type resolves it without a permission check,
+        so this is where a button is kept from using what its editor could not
+        see: the integration must be usable by this action, and readable by
+        the user.
+
+        :param integration_id: The integration the caller wants to attach.
+        :param user: The user configuring the action.
+        :param field: The button field the action belongs to.
+        :raises WorkflowActionInvalidIntegration: When it cannot be attached.
+        :return: The integration, so the caller can hand it on rather than
+            have the service type read the same row again.
+        """
+
+        integration = None
+        if field is not None:
+            # Scoped to the field's database, so someone else's integration
+            # reads the same as nothing.
+            integration = Integration.objects.filter(
+                id=integration_id, application_id=field.table.database_id
+            ).first()
+
+        if integration is None or not self._integration_is_usable(integration, field):
+            # One answer for every way of being wrong, or a caller could walk
+            # the ids and learn what this installation holds.
+            raise WorkflowActionInvalidIntegration(
+                "This action cannot use that integration. It must be one the "
+                "action accepts, from the database of the button field."
+            )
+
+        # Checked against the row already in hand.
+        CoreHandler().check_permissions(
+            user,
+            ReadIntegrationOperationType.type,
+            workspace=field.table.database.workspace,
+            context=integration,
+        )
+
+        return integration
 
     def _reshapes_the_request(
         self, service: Service, prepared_service_values: Dict[str, Any]
@@ -366,11 +609,16 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         dispatch_context: "DatabaseDispatchContext",
     ) -> DispatchResult:
         service = workflow_action.service.specific
-        # A database service runs as the dispatch actor, never as an
-        # integration's `authorized_user` (ADR 006 section 5).
-        if service.integration_id is not None:
+        # Never as an integration's `authorized_user` (ADR 006 section 5),
+        # however the service reached this state.
+        if service.integration_id is not None and not self._integration_is_usable(
+            # From the context: reading it back through the action costs two
+            # cold queries apiece, inside the lock.
+            service.integration,
+            dispatch_context.field,
+        ):
             raise ServiceImproperlyConfiguredDispatchException(
-                "A database service cannot use an integration."
+                "A database service cannot use this integration."
             )
         return ServiceHandler().dispatch_service(service, dispatch_context)
 
@@ -506,6 +754,22 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         service_type = service_type_registry.get(self.service_type)
         reason = service_type.instance_smtp_unavailable_reason()
         return self.DEACTIVATED_REASONS.get(reason)
+
+
+class SlackWriteMessageWorkflowActionType(DatabaseWorkflowServiceActionType):
+    type = "slack_write_message"
+    model_class = SlackWriteMessageWorkflowAction
+    service_type = SlackWriteMessageServiceType.type
+    is_external = True
+    allowed_integration_types = [SlackBotIntegrationType.type]
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
+        service_type = service_type_registry.get(self.service_type)
+        return {
+            "service": pytest_data_fixture.create_service(
+                service_type.model_class, integration=None
+            )
+        }
 
 
 class OpenUrlWorkflowActionType(DatabaseWorkflowActionType):

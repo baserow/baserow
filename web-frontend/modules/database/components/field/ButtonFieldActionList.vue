@@ -60,6 +60,7 @@
                 v-for="actionType in availableActionTypes"
                 :key="actionType.getType()"
                 :icon="actionType.icon"
+                :image="actionType.image"
                 :name="actionType.label"
                 :value="actionType.getType()"
                 :description="deactivatedReasonFor(actionType)"
@@ -118,7 +119,7 @@
             <ButtonFieldActionForm
               :ref="`actionForm_${actionKey(action)}`"
               :action="action"
-              :database="database"
+              :database="liveDatabase"
               @values-changed="onActionValuesChanged(index, $event)"
             />
           </div>
@@ -136,6 +137,7 @@ import {
   CLIENT_ID_KEY,
   workflowActionKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
+import { fetchIntegrationsOnce } from '@baserow/modules/database/utils/buttonField'
 
 /**
  * Controlled editor for a button field's ordered action list. Owns no state
@@ -171,6 +173,28 @@ export default {
     }
   },
   computed: {
+    /**
+     * The application object the store holds now. `forceSetAll` replaces it —
+     * a workspace switch, a permissions refresh, an application refetch — and
+     * `populate` gives the new object an empty integration list. The prop
+     * this list was handed keeps pointing at the discarded one, so reading
+     * integrations off it shows none and suppresses the token warning.
+     */
+    liveDatabase() {
+      return (
+        this.$store.getters['application/get'](this.database.id) ||
+        this.database
+      )
+    },
+    /** Whether any action in the list needs the database's integrations. */
+    needsIntegrations() {
+      return this.value.some(
+        (action) =>
+          action.type &&
+          this.$registry.get('databaseWorkflowActionType', action.type)
+            .needsIntegration
+      )
+    },
     availableActionTypes() {
       return this.$registry.getOrderedList('databaseWorkflowActionType')
     },
@@ -189,6 +213,9 @@ export default {
       const context = {
         workspace: this.workspace,
         workflowActions: this.value,
+        // Where an action's credential lives, so a type can say when it is
+        // not usable.
+        database: this.liveDatabase,
       }
       return Object.fromEntries(
         this.value.map((action) => [
@@ -200,6 +227,26 @@ export default {
             : null,
         ])
       )
+    },
+  },
+  watch: {
+    // Covers opening the editor, adding an action and picking a type.
+    needsIntegrations: {
+      immediate: true,
+      handler(needs) {
+        if (needs) {
+          this.fetchIntegrations()
+        }
+      },
+    },
+    // `forceSetAll` replaces the application object and `populate` gives the
+    // new one an empty integration list and no memory of having loaded it.
+    // Without this the editor stays open over a list that is gone: the bot
+    // dropdown is empty and the token warning is suppressed.
+    liveDatabase(now, before) {
+      if (now !== before) {
+        this.fetchIntegrations()
+      }
     },
   },
   methods: {
@@ -298,6 +345,23 @@ export default {
     toggleAction(action) {
       const key = workflowActionKey(action)
       this.expandedActions = this.expandedActions[key] ? {} : { [key]: true }
+      // Cards are hidden rather than unmounted, so opening one is the only
+      // moment a user can ask for a retry.
+      if (this.expandedActions[key]) {
+        this.fetchIntegrations()
+      }
+    },
+    /**
+     * Loads the database's integrations, when something in the list needs
+     * them. The list owns this rather than each form, so one failure is one
+     * message.
+     */
+    async fetchIntegrations() {
+      if (!this.needsIntegrations) {
+        return
+      }
+      // Reports its own failure.
+      await fetchIntegrationsOnce(this.$store, this.database.id)
     },
     /**
      * No type until the user picks one, and no `id` until the field is saved.

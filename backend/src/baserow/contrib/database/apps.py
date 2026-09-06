@@ -274,6 +274,7 @@ class DatabaseConfig(AppConfig):
             LocalBaserowDeleteRowWorkflowActionType,
             LocalBaserowUpdateRowWorkflowActionType,
             OpenUrlWorkflowActionType,
+            SlackWriteMessageWorkflowActionType,
         )
 
         database_workflow_action_type_registry.register(
@@ -291,6 +292,9 @@ class DatabaseConfig(AppConfig):
         )
         database_workflow_action_type_registry.register(
             CoreSMTPEmailWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            SlackWriteMessageWorkflowActionType()
         )
 
         from .fields.field_aggregations import (

@@ -1267,6 +1267,7 @@ class FieldType(
         original_field: Field,
         new_field: Field,
         serialized_field: Dict[str, Any],
+        user: Optional[AbstractUser] = None,
     ) -> None:
         """
         Called after a single field has been duplicated, once the new field
@@ -1278,6 +1279,8 @@ class FieldType(
         :param new_field: The newly created copy.
         :param serialized_field: The original field's exported representation,
             minus the keys `duplicate_field` strips.
+        :param user: Who asked for the copy, for anything the field type
+            carries that they have to be allowed to reuse.
         """
 
     def after_rows_imported(

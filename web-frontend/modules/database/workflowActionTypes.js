@@ -10,6 +10,8 @@ import {
   CoreHTTPRequestServiceType,
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
+import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
+import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import {
@@ -106,6 +108,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.icon
   }
 
+  /** A logo drawn in place of a glyph, for the types the design gives one. */
+  get image() {
+    return null
+  }
+
   get serviceType() {
     throw new Error('Must be set on the type.')
   }
@@ -136,6 +143,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
   /** Extra props for a type that narrows what the shared form offers. */
   get serviceFormProps() {
     return {}
+  }
+
+  /** Whether the form offers an integration dropdown (ADR 006 section 5). */
+  get needsIntegration() {
+    return false
   }
 
   getFormProps({ workflowAction, database }) {
@@ -410,7 +422,12 @@ export class LocalBaserowCreateRowWorkflowActionType extends DatabaseWorkflowAct
   }
 
   getOrder() {
-    return 10
+    return 30
+  }
+
+  /** The design draws this one circled (Figma 5206:9610). */
+  get icon() {
+    return 'iconoir-add-circle'
   }
 
   get mapsFields() {
@@ -431,7 +448,7 @@ export class LocalBaserowUpdateRowWorkflowActionType extends DatabaseWorkflowAct
   }
 
   getOrder() {
-    return 20
+    return 40
   }
 
   get mapsFields() {
@@ -452,7 +469,12 @@ export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowAct
   }
 
   getOrder() {
-    return 30
+    return 50
+  }
+
+  /** A button deletes the clicked row, so singular, as the design says. */
+  get label() {
+    return this.app.$i18n.t('databaseWorkflowActionType.deleteRow')
   }
 
   /**
@@ -511,7 +533,7 @@ export class CoreHTTPRequestWorkflowActionType extends DatabaseExternalWorkflowA
   }
 
   getOrder() {
-    return 40
+    return 10
   }
 
   get capturesSampleData() {
@@ -566,7 +588,15 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
   }
 
   getOrder() {
-    return 50
+    return 20
+  }
+
+  get icon() {
+    return 'iconoir-mail'
+  }
+
+  get label() {
+    return this.app.$i18n.t('databaseWorkflowActionType.sendEmail')
   }
 
   get serviceType() {
@@ -604,5 +634,105 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
     return instanceSmtp.unavailable_reason === 'turned_off'
       ? this.app.$i18n.t('databaseWorkflowActionType.instanceSmtpTurnedOff')
       : this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
+  }
+}
+
+export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflowActionType {
+  static getType() {
+    return 'slack_write_message'
+  }
+
+  getOrder() {
+    return 60
+  }
+
+  /** Drawn with the Slack logo rather than a glyph, as the design says. */
+  get icon() {
+    return null
+  }
+
+  get image() {
+    // The integration type owns the asset, so the two cannot drift.
+    return this.app.$registry.get(
+      'integration',
+      SlackBotIntegrationType.getType()
+    ).image
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      SlackWriteMessageServiceType.getType()
+    )
+  }
+
+  /** The bot is the credential the message goes out through. */
+  get needsIntegration() {
+    return true
+  }
+
+  /**
+   * An export strips the token, so an imported bot keeps its name and looks
+   * configured. Said here rather than after a doomed click.
+   */
+  getErrorMessage(workflowAction, applicationContext) {
+    const inherited = super.getErrorMessage(workflowAction, applicationContext)
+    if (inherited) {
+      return inherited
+    }
+    const integrationId = workflowAction.service?.integration_id
+    const database = applicationContext?.database
+    // Quiet until the list has been fetched: the dropdown is empty then too,
+    // and an empty list is what a load still running looks like.
+    if (!integrationId || !database?._integrationsLoadedOnce) {
+      return null
+    }
+    const bot = (database.integrations || []).find(
+      ({ id }) => id === integrationId
+    )
+    // Quiet when it is not in the list. The endpoint filters what the caller
+    // may list, so absence means deleted or hidden and there is no telling
+    // which. Saying it is gone would send someone to replace a bot that
+    // works.
+    if (!bot) {
+      return null
+    }
+    if (!bot.token) {
+      return this.app.$i18n.t('databaseWorkflowActionType.slackTokenMissing')
+    }
+    return null
+  }
+
+  /**
+   * Mirrors the backend's `generate_schema`, so a later action can point at
+   * the message timestamp before anything is saved.
+   */
+  get baselineDataSchema() {
+    return {
+      type: 'object',
+      properties: {
+        // Under `data`, the way the dispatch answers.
+        data: {
+          type: 'object',
+          title: this.app.$i18n.t('databaseWorkflowActionType.slackData'),
+          properties: {
+            ok: {
+              type: 'boolean',
+              title: this.app.$i18n.t('databaseWorkflowActionType.slackOk'),
+            },
+            channel: {
+              type: 'string',
+              title: this.app.$i18n.t(
+                'databaseWorkflowActionType.slackChannel'
+              ),
+            },
+            ts: {
+              type: 'string',
+              title: this.app.$i18n.t('databaseWorkflowActionType.slackTs'),
+            },
+          },
+        },
+      },
+    }
   }
 }

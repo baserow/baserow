@@ -5,6 +5,8 @@ from zipfile import ZipFile
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
+from loguru import logger
+
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
@@ -145,7 +147,7 @@ class IntegrationHandler:
             application.specific_class
         )
 
-        if not application_type.supports_integrations:
+        if not application_type.supports_integration_type(integration_type):
             raise ApplicationOperationNotSupported()
 
         if before:
@@ -265,11 +267,47 @@ class IntegrationHandler:
         cache: Optional[Dict] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
-    ):
+    ) -> Optional[Integration]:
+        """
+        Imports a serialized integration into an application.
+
+        :param application: The application it is imported into.
+        :param serialized_integration: The integration as the export wrote it.
+        :param id_mapping: What this import has remapped so far.
+        :param cache: Shared across one import, for values worth reusing.
+        :param files_zip: The archive the export's files came in, if any.
+        :param storage: Where those files are written.
+        :return: The imported integration, or None when the application does
+            not accept its type. `DatabaseApplicationType` is the only one
+            that narrows what it accepts, and it ignores what this returns, so
+            no caller reads a None today. A type that starts narrowing has to
+            look at its own call site.
+        """
+
         if "integrations" not in id_mapping:
             id_mapping["integrations"] = {}
 
         integration_type = integration_type_registry.get(serialized_integration["type"])
+
+        # The same gate `create_integration` applies, so an import cannot place
+        # what the endpoint would refuse (ADR 006 section 5). Skipped rather
+        # than raised: no export this instance writes can fail it today, but a
+        # release that stops registering an action type would turn every
+        # snapshot holding its integration into one that cannot be restored.
+        # An action referring to a skipped integration imports unconfigured,
+        # which is what it does for any integration it may not carry.
+        application_type = application_type_registry.get_by_model(
+            application.specific_class
+        )
+        if not application_type.supports_integration_type(integration_type):
+            logger.warning(
+                "Skipped a {type} integration on import: {application} does not "
+                "accept that type.",
+                type=integration_type.type,
+                application=application_type.type,
+            )
+            return None
+
         integration = integration_type.import_serialized(
             application,
             serialized_integration,

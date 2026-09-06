@@ -767,6 +767,7 @@ class TableHandler:
             reduce_disk_space_usage=False,
             is_duplicate=True,
             exclude_sensitive_data=False,
+            copied_by=user,
         )
 
         serialized_tables = database_type.export_tables_serialized([table], config)

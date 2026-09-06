@@ -49,3 +49,14 @@ class WorkflowActionDispatchError(Exception):
             *args,
             **kwargs,
         )
+
+
+class WorkflowActionInvalidIntegration(Exception):
+    """
+    The integration cannot be attached to this action. Carries a reason for
+    the person configuring the button.
+    """
+
+    def __init__(self, reason: str, *args, **kwargs):
+        self.reason = reason
+        super().__init__(reason, *args, **kwargs)

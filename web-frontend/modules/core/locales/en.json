@@ -864,7 +864,8 @@
     "addIntegration": "Add new integration",
     "noIntegrations": "No integrations found.",
     "selectTypeFirst": "Choose the type first",
-    "integrationPlaceholder": "Select an integration"
+    "integrationPlaceholder": "Select an integration",
+    "editIntegration": "Edit integration"
   },
   "dropdown": {
     "empty": "No items available",

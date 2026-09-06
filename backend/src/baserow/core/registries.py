@@ -114,6 +114,15 @@ class ImportExportConfig:
     ensures that sensitive data are excluded from the exported workspace file.
     """
 
+    copied_by: Optional["AbstractUser"] = None
+    """
+    Who asked for this copy, on the paths where a person did: duplicating a
+    table or an application. An import from a file has nobody, and so does
+    installing a template. What is copied can carry a credential the asker may
+    not read, and the serialized import path has no other way to know who to
+    check that against.
+    """
+
 
 class Plugin(APIUrlsInstanceMixin, Instance):
     """
@@ -330,6 +339,19 @@ class ApplicationType(
     # The data provider type registry applicable to this type. Must be set
     # by subclasses for runtime formula validation to work correctly.
     data_provider_type_registry = None
+
+    def supports_integration_type(self, integration_type) -> bool:
+        """
+        Whether this application accepts an integration of the given type.
+        An application that holds integrations at all accepts every type by
+        default; one that can only use some says so here, so an integration
+        it could never use cannot be created on it.
+
+        :param integration_type: The type in question.
+        :return: True when it may be created on this application.
+        """
+
+        return self.supports_integrations
 
     def prepare_value_for_db(self, values: dict, instance: "Application | None" = None):
         """

@@ -657,6 +657,13 @@ jobs:
       - name: Start all services in parallel
         run: |
           # Start backend
+          # Answers the Slack API for the button field's Slack action, from
+          # e2e-tests/stubs/slack, since the job never reaches slack.com.
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name slack-stub \
+            -v "$GITHUB_WORKSPACE/e2e-tests/stubs/slack:/home/wiremock:ro" \
+            wiremock/wiremock:3.13.1
+
           docker run -d --network="${{ job.services.db.network }}" \
             --name backend \
             -e DATABASE_HOST=db \
@@ -676,6 +683,7 @@ jobs:
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e MIGRATE_ON_STARTUP=true \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=mailhog \
             -e EMAIL_SMTP_PORT=1025 \
@@ -703,6 +711,7 @@ jobs:
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
             -e EMAIL_SMTP=yes \
             -e EMAIL_SMTP_HOST=mailhog \
             -e EMAIL_SMTP_PORT=1025 \
@@ -779,6 +788,7 @@ jobs:
           # The stub as the backend reaches it, on the job's own network, and
           # the limit the backend above was started with.
           E2E_HTTP_STUB_URL: http://httpbin:80
+          E2E_SLACK_STUB: "yes"
           # MailHog as the tests reach it, from the runner.
           E2E_MAIL_API_URL: http://localhost:8025
           E2E_BUTTON_RATE_LIMIT: "3"

@@ -201,3 +201,83 @@ def test_current_iteration_data_provider_import_path(data_fixture):
         "item",
         "field_1",
     ]
+
+
+@pytest.mark.django_db
+def test_previous_node_data_provider_reads_a_slack_answer(data_fixture):
+    """
+    A Slack node stores what the dispatch returned, and its schema is what the
+    data explorer offers a later node. The two have to name the same path, or
+    chaining off a Slack node resolves to nothing.
+    """
+
+    from baserow.contrib.automation.nodes.node_types import (
+        SlackWriteMessageActionNodeType,
+    )
+
+    workflow = data_fixture.create_automation_workflow()
+    workflow_history = AutomationHistoryHandler().create_workflow_history(
+        workflow,
+        workflow,
+        timezone.now(),
+        False,
+    )
+
+    slack_node = data_fixture.create_automation_node(
+        type=SlackWriteMessageActionNodeType.type, workflow=workflow
+    )
+    slack_node_history = AutomationHistoryHandler().create_node_history(
+        workflow_history=workflow_history,
+        node=slack_node,
+        started_on=timezone.now(),
+    )
+    # Built by the service itself rather than written out here, so a change to
+    # either side of the pair is caught: the node stores `DispatchResult.data`.
+    answer = {"ok": True, "channel": "C1", "ts": "1503435956.000247"}
+    dispatched = (
+        slack_node.service.specific.get_type().dispatch_transform({"data": answer}).data
+    )
+    AutomationHistoryHandler().create_node_result(
+        node_history=slack_node_history,
+        result=dispatched,
+    )
+    data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+
+    dispatch_context = AutomationDispatchContext(
+        workflow,
+        workflow_history,
+        event_payload=workflow_history.event_payload,
+    )
+
+    def leaf_paths(schema, prefix=()):
+        """Every path the data explorer can offer for this schema."""
+
+        properties = schema.get("properties") or {}
+        if not properties:
+            yield prefix
+            return
+        for name, child in properties.items():
+            yield from leaf_paths(child, prefix + (name,))
+
+    # Derived from the schema rather than written out, so unwrapping the
+    # dispatch without moving the schema, or the reverse, fails here.
+    service = slack_node.service.specific
+    schema = service.get_type().generate_schema(service)
+    offered = list(leaf_paths(schema))
+    assert offered, "the schema offers nothing"
+
+    for path in offered:
+        assert (
+            PreviousNodeProviderType().get_data_chunk(
+                dispatch_context, [str(slack_node.id), *path]
+            )
+            is not None
+        ), path
+
+    assert ("data", "ts") in offered
+    assert (
+        PreviousNodeProviderType().get_data_chunk(
+            dispatch_context, [str(slack_node.id), "data", "ts"]
+        )
+        == "1503435956.000247"
+    )

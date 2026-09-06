@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.db import connection
@@ -6,6 +7,7 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 
 from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionInvalidIntegration,
     WorkflowActionTypeDeactivated,
 )
 from baserow.contrib.database.workflow_actions.handler import (
@@ -40,6 +42,7 @@ def test_every_type_is_registered():
         "open_url",
         "http_request",
         "smtp_email",
+        "slack_write_message",
     }
 
 
@@ -103,22 +106,26 @@ def test_preparing_values_updates_an_existing_service(data_fixture):
 
 
 @pytest.mark.django_db
-def test_preparing_values_never_attaches_an_integration(data_fixture):
-    # `integration_id` is resolved without a permission check, so an
-    # integration the caller cannot reach would run every click as its user.
+def test_preparing_values_refuses_an_integration_the_type_does_not_allow(data_fixture):
+    # An integration's `authorized_user` would run every click as someone
+    # else, so a type has to say which integration types it accepts. A row
+    # action accepts none.
     user = data_fixture.create_user()
     victim = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
     victim_integration = data_fixture.create_local_baserow_integration(
-        user=victim, authorized_user=victim
+        application=table.database, authorized_user=victim
     )
     action = data_fixture.create_database_workflow_action(
-        LocalBaserowCreateRowWorkflowAction
+        LocalBaserowCreateRowWorkflowAction,
+        field=data_fixture.create_button_field(table=table),
     )
     action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
-    action_type.prepare_values(
-        {"service": {"integration_id": victim_integration.id}}, user, action
-    )
+    with pytest.raises(WorkflowActionInvalidIntegration):
+        action_type.prepare_values(
+            {"service": {"integration_id": victim_integration.id}}, user, action
+        )
     action.service.refresh_from_db()
 
     assert action.service.integration_id is None
@@ -140,8 +147,8 @@ def test_dispatching_refuses_a_service_carrying_an_integration(data_fixture):
     action_type = database_workflow_action_type_registry.get("local_baserow_create_row")
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
-        # The guard runs before the context is used.
-        action_type.dispatch(action, None)
+        # The guard reads the field the dispatch is for from the context.
+        action_type.dispatch(action, SimpleNamespace(field=action.field))
 
 
 @pytest.mark.django_db

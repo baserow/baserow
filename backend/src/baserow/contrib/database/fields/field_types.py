@@ -8197,6 +8197,11 @@ class ButtonFieldType(ReadOnlyFieldType):
                     serialized_action,
                     id_mapping,
                     import_export_config=import_export_config,
+                    # A duplicated table or application is copied by a person,
+                    # and this path never passes through the endpoint that
+                    # checks what they may read. An import from a file has
+                    # nobody, and leaves this None.
+                    copied_by=getattr(import_export_config, "copied_by", None),
                 )
 
         if serialized_actions:
@@ -8209,11 +8214,12 @@ class ButtonFieldType(ReadOnlyFieldType):
         original_field: ButtonField,
         new_field: ButtonField,
         serialized_field: Dict[str, Any],
+        user: Optional[AbstractUser] = None,
     ) -> None:
         # Field duplication skips the serialization import path, so without
         # this the actions would be dropped (ADR 006 section 8).
         self._recreate_workflow_actions(
-            new_field, serialized_field.get("workflow_actions") or []
+            new_field, serialized_field.get("workflow_actions") or [], user=user
         )
 
     def export_prepared_values(self, field: ButtonField) -> Dict[str, Any]:
@@ -8243,11 +8249,14 @@ class ButtonFieldType(ReadOnlyFieldType):
             return
 
         self._recreate_workflow_actions(
-            to_field, to_field_kwargs.get("workflow_actions") or []
+            to_field, to_field_kwargs.get("workflow_actions") or [], user=user
         )
 
     def _recreate_workflow_actions(
-        self, field: ButtonField, serialized_actions: List[Dict[str, Any]]
+        self,
+        field: ButtonField,
+        serialized_actions: List[Dict[str, Any]],
+        user: Optional[AbstractUser] = None,
     ) -> None:
         """Recreates the serialized actions on the field, in order."""
 
@@ -8268,4 +8277,6 @@ class ButtonFieldType(ReadOnlyFieldType):
                 action_type = database_workflow_action_type_registry.get(
                     serialized_action["type"]
                 )
-                action_type.import_serialized(field, serialized_action, id_mapping)
+                action_type.import_serialized(
+                    field, serialized_action, id_mapping, copied_by=user
+                )

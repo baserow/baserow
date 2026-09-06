@@ -29,6 +29,7 @@ from baserow.contrib.database.api.workflow_actions.errors import (
     ERROR_WORKFLOW_ACTION_DISPATCH_FAILED,
     ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS,
     ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
+    ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION,
     ERROR_WORKFLOW_ACTION_NOT_IN_FIELD,
     ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED,
 )
@@ -54,6 +55,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
+    WorkflowActionInvalidIntegration,
     WorkflowActionNotInField,
     WorkflowActionTypeDeactivated,
 )
@@ -102,6 +104,7 @@ class DatabaseWorkflowActionsView(APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION",
                 ]
             ),
             403: get_error_schema(
@@ -116,6 +119,7 @@ class DatabaseWorkflowActionsView(APIView):
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkflowActionTypeDeactivated: ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED,
+            WorkflowActionInvalidIntegration: ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION,
         }
     )
     @validate_body_custom_fields(
@@ -272,6 +276,7 @@ class DatabaseWorkflowActionView(APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION",
                 ]
             ),
             403: get_error_schema(
@@ -290,6 +295,7 @@ class DatabaseWorkflowActionView(APIView):
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             WorkflowActionTypeDeactivated: ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED,
+            WorkflowActionInvalidIntegration: ERROR_WORKFLOW_ACTION_INVALID_INTEGRATION,
         }
     )
     @require_request_data_type(dict)

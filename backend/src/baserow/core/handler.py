@@ -1601,6 +1601,7 @@ class CoreHandler:
             reduce_disk_space_usage=False,
             is_duplicate=True,
             exclude_sensitive_data=False,
+            copied_by=user,
         )
         # export the application
         specific_application = application.specific

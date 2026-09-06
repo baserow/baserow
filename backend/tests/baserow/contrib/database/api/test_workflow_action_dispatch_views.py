@@ -136,7 +136,7 @@ def test_dispatch_acts_as_the_clicker_after_an_integration_was_offered(
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert update.status_code == HTTP_200_OK, update.json()
+    assert update.status_code == HTTP_400_BAD_REQUEST, update.json()
 
     response = api_client.post(
         reverse(
