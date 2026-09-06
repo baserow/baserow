@@ -908,6 +908,11 @@
     },
     "aiPromptStep": {
         "title": "¿Qué debería Kuma construir para ti?",
-        "modelNotSupportedMessage": "No se puede contactar a Kuma porque ningún modelo de IA funcional está configurado, así que no puede construir una base de datos para ti ahora. Intentar de nuevo no ayudará hasta que eso se arregle."
+        "modelNotSupportedMessage": "No se puede contactar a Kuma porque ningún modelo de IA funcional está configurado, así que no puede construir una base de datos para ti ahora. Intentar de nuevo no ayudará hasta que eso se arregle.",
+        "description": "Hemos escrito una primera sugerencia basada en tus respuestas. Cámbiala, o elige otra a continuación.",
+        "errorOtherOptions": "Vuelve atrás para iniciar una base de datos de otra manera, por ejemplo desde una plantilla, una importación o desde cero."
+    },
+    "aiPromptOnboardingType": {
+        "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas."
     }
 }
