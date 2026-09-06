@@ -834,9 +834,10 @@ describe('ButtonFieldActionList', () => {
       expect(onScreen._integrationsLoadedOnce).toBe(true)
     })
 
-    test('a bot the list no longer holds reads as misconfigured', async () => {
-      // Deleted since, or named by an import made somewhere else. The action
-      // still carries the id, and an empty answer used to read as healthy.
+    test('a bot the list does not hold is not called missing', async () => {
+      // The endpoint filters the list by what the caller may list, so a bot
+      // absent from it may be hidden rather than deleted. Telling someone to
+      // pick another one would have them overwrite a working action.
       const database = await seedDatabase()
       testApp.mock
         .onGet(`application/${DATABASE_ID}/integrations/`)
@@ -858,9 +859,7 @@ describe('ButtonFieldActionList', () => {
       )
       await flushPromises()
 
-      expect(wrapper.find('[data-action-error]').text()).toBe(
-        'databaseWorkflowActionType.slackBotMissing'
-      )
+      expect(wrapper.find('[data-action-error]').exists()).toBe(false)
     })
 
     test('a bot whose token an export stripped reads as misconfigured', async () => {

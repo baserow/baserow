@@ -690,10 +690,12 @@ export class SlackWriteMessageWorkflowActionType extends DatabaseExternalWorkflo
     const bot = (database.integrations || []).find(
       ({ id }) => id === integrationId
     )
-    // Gone rather than unusable: deleted since, or named by an import from
-    // somewhere else. Either way the button has no bot to post through.
+    // Quiet when it is not in the list. The endpoint filters what the caller
+    // may list, so absence means deleted or hidden and there is no telling
+    // which. Saying it is gone would send someone to replace a bot that
+    // works.
     if (!bot) {
-      return this.app.$i18n.t('databaseWorkflowActionType.slackBotMissing')
+      return null
     }
     if (!bot.token) {
       return this.app.$i18n.t('databaseWorkflowActionType.slackTokenMissing')
