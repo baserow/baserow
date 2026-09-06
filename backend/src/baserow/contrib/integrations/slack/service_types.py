@@ -233,21 +233,19 @@ class SlackWriteMessageServiceType(ServiceType):
             "channel": {"type": "string", "title": _("Channel")},
             "ts": {"type": "string", "title": _("Message timestamp")},
         }
-        # Names what the caller wants out of the answer, so it applies inside
-        # the wrapper rather than to it.
-        properties = {
-            name: prop
-            for name, prop in answer.items()
-            if allowed_fields is None or name in allowed_fields
-        }
+        # `allowed_fields` names first-level properties, which since the
+        # wrapper means `data` and nothing else: `extract_properties` returns
+        # `path[0]`, and every path into this answer starts there. Filtering
+        # the names inside it would match nothing any caller can send.
+        properties = {}
+        if allowed_fields is None or "data" in allowed_fields:
+            properties["data"] = {
+                "type": "object",
+                "title": _("Data"),
+                "properties": answer,
+            }
         return {
             "title": self.get_schema_name(service),
             "type": "object",
-            "properties": {
-                "data": {
-                    "type": "object",
-                    "title": _("Data"),
-                    "properties": properties,
-                }
-            },
+            "properties": properties,
         }

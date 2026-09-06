@@ -417,13 +417,23 @@ def test_slack_write_message_generate_schema(data_fixture):
 
 @pytest.mark.django_db
 def test_slack_write_message_generate_schema_respects_allowed_fields(data_fixture):
+    """
+    `allowed_fields` holds first-level names, which `extract_properties` reads
+    off `path[0]`. Every path into this answer starts at `data`, so that is
+    the only name a caller can send, and filtering the names inside the
+    wrapper would answer an empty schema to everyone.
+    """
+
     service = data_fixture.create_slack_write_message_service()
+    service_type = service.get_type()
 
-    schema = service.get_type().generate_schema(service, allowed_fields=["ts"])
+    kept = service_type.generate_schema(service, allowed_fields=["data"])
+    assert list(kept["properties"]["data"]["properties"]) == ["ok", "channel", "ts"]
 
-    # Applied inside the wrapper: it names what the caller wants out of the
-    # answer, not whether the answer is there.
-    assert list(schema["properties"]["data"]["properties"]) == ["ts"]
+    dropped = service_type.generate_schema(service, allowed_fields=["something_else"])
+    assert dropped["properties"] == {}
+
+    assert service_type.extract_properties(service, ["data", "ts"]) == ["data"]
 
 
 @pytest.mark.django_db
