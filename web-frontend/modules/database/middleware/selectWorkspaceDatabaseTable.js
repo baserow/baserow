@@ -1,10 +1,15 @@
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
-import { getDefaultView } from '@baserow/modules/database/utils/view'
 
+/**
+ * Selects the workspace, database and table of the route params, and fetches the
+ * row of the row modal if there is one. Everything else the table page needs is
+ * fetched by the page itself, so that it can render its skeleton loading state
+ * without waiting for the network.
+ */
 export default defineNuxtRouteMiddleware(async (to, from) => {
   const nuxtApp = useNuxtApp()
-  const { $store, $registry } = nuxtApp
+  const { $store } = nuxtApp
 
   const databaseId = parseInt(to.params.databaseId)
   const tableId = parseInt(to.params.tableId)
@@ -36,62 +41,6 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
         report: errorStatus !== 404,
       },
       fatal: true,
-    })
-  }
-
-  // Fetch views only if the table has changed because there is no need
-  // to fetch them if the view or row changes.
-  if ($store.state.view.tableId !== table.id) {
-    await $store.dispatch('view/fetchAll', table)
-  }
-
-  // If the viewId is not provided, redirect to the default view. This prevents the
-  // page component from being created twice.
-  if (viewId === null) {
-    const rowId = to.params.rowId ? parseInt(to.params.rowId) : null
-    const defaultView = getDefaultView(
-      nuxtApp,
-      $store,
-      database.workspace.id,
-      rowId !== null
-    )
-
-    if (defaultView) {
-      return nuxtApp.runWithContext(() =>
-        navigateTo({
-          name: to.name,
-          params: { ...to.params, viewId: defaultView.id },
-          query: to.query,
-        })
-      )
-    }
-  }
-
-  // In some cases, the backend needs the view ID to scope which fields to list.
-  // This can happen when a user does not have full access to a table for
-  // example.
-  const view = $store.getters['view/get'](viewId)
-  let fieldsRequireViewId = false
-  if (view) {
-    const ownershipType = $registry.get(
-      'viewOwnershipType',
-      view.ownership_type
-    )
-    fieldsRequireViewId = ownershipType.fetchingFieldsRequiresViewId(
-      database,
-      table,
-      view
-    )
-  }
-  const fieldCheckViewId = fieldsRequireViewId ? viewId : null
-  const fieldsLoadedFor = $store.getters['field/isLoadedFor'](
-    tableId,
-    fieldCheckViewId
-  )
-  if (!fieldsLoadedFor) {
-    await $store.dispatch('field/fetchAll', {
-      table,
-      viewId: fieldCheckViewId,
     })
   }
 

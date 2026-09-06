@@ -4,7 +4,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
 "<div>
   <div>
     <header class="layout__col-2-1 header header--dark-border">
-      <div class="header__loading" style="display: none;"></div>
+      <!--v-if-->
       <ul class="header__filter">
         <!--v-if-->
         <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>
@@ -343,7 +343,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
 "<div>
   <div>
     <header class="layout__col-2-1 header header--dark-border">
-      <div class="header__loading" style="display: none;"></div>
+      <!--v-if-->
       <ul class="header__filter">
         <!--v-if-->
         <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>

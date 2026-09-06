@@ -28,11 +28,6 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'tableLoading',
-      path: resolve('./middleware/tableLoading'),
-    })
-
-    addRouteMiddleware({
       name: 'selectWorkspaceDatabaseTable',
       path: resolve('./middleware/selectWorkspaceDatabaseTable'),
     })

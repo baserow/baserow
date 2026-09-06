@@ -17,9 +17,6 @@ export function populateTable(table) {
 }
 
 export const state = () => ({
-  // Indicates whether the table is loading. This is used to show a loading
-  // animation when switching between views.
-  loading: false,
   selected: {},
 })
 
@@ -55,15 +52,9 @@ export const mutations = {
     const index = database.tables.findIndex((item) => item.id === id)
     database.tables.splice(index, 1)
   },
-  SET_LOADING(state, value) {
-    state.loading = value
-  },
 }
 
 export const actions = {
-  setLoading({ commit }, value) {
-    commit('SET_LOADING', value)
-  },
   /**
    * Trigger a new table creation based on the provided values. The job id corresponding
    * to the table creation task is returned. Once this job is finished a create_table
@@ -106,19 +97,11 @@ export const actions = {
   /**
    * Fetches one table for the authenticated user.
    */
-  async fetch({ commit, dispatch }, { database, tableId }) {
+  async fetch({ dispatch }, { database, tableId }) {
     const { $client } = this
-    commit('SET_LOADING', true)
-
-    try {
-      const { data } = await TableService($client).get(tableId)
-      dispatch('forceCreate', { database, data })
-      commit('SET_LOADING', false)
-      return data
-    } catch (error) {
-      commit('SET_LOADING', false)
-      throw error
-    }
+    const { data } = await TableService($client).get(tableId)
+    dispatch('forceCreate', { database, data })
+    return data
   },
   /**
    * Forcefully create or update an item in the store without making a call to

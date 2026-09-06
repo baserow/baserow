@@ -10,7 +10,7 @@
       :views="views"
       :view="view"
       :view-error="dataError"
-      :table-loading="tableLoading"
+      :table-loading="loading"
       store-prefix="page/"
       @selected-view="selectedView"
       @selected-row="navigateToRowModal"
@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, watch, onBeforeUnmount } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useHead } from '#imports'
 import { useAsyncData } from '#app'
@@ -36,6 +36,7 @@ import Table from '@baserow/modules/database/components/table/Table'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
+import { getDefaultView } from '@baserow/modules/database/utils/view'
 
 definePageMeta({
   name: 'database-table',
@@ -44,14 +45,9 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
-    // Because there is no hook that is called before the route changes, we need the
-    // tableLoading middleware to change the table loading state. This change will get
-    // rendered right away. This allows us to have a custom loading animation when
-    // switching views.
-    'tableLoading',
-    // Middleware specifically for the table. It makes sure that the workspace,
-    // database, table, fields, views, row, etc are all fetched based on the provided
-    // route parameters.
+    // Selects the workspace, database and table of the route params. It only does
+    // what must be done before the page can render, everything else is fetched by
+    // the page itself, so that the skeleton loading state shows immediately.
     'selectWorkspaceDatabaseTable',
     'pendingJobs',
   ],
@@ -71,46 +67,99 @@ function finishLoading() {
   nuxtApp.callHook('page:loading:end')
 }
 
-// We need the tableLoading state to show a small loading animation when switching
-// between views or tables. Because some of the data will be populated by the asyncData
-// function and some by mapping the state of a store it could look a bit strange for the
-// user when switching between views because not all data renders at the same time. That
-// is why we show this loading animation. Store changes are always rendered right away.
-const tableLoading = computed(() => $store.state.table.loading)
+// The database and table are selected by the `selectWorkspaceDatabaseTable`
+// middleware, so they're there when the page renders. The views and fields arrive
+// while the skeleton loading state is visible.
+const database = computed(() => $store.getters['application/getSelected'])
+const table = computed(() => $store.getters['table/getSelected'])
+const fields = computed(() => $store.getters['field/getAll'])
 const views = computed(() => $store.state.view.items)
 
-const { data, error } = await useAsyncData(
+/**
+ * Everything the page needs on top of the selected table is fetched here, without
+ * blocking the navigation. While it's running, the table shows a skeleton loading
+ * state in the header.
+ */
+const { data, status, error } = await useAsyncData(
   `database-table-page-${route.params.databaseId}-${route.params.tableId}-${route.params.viewId ?? 'null'}`,
   async () => {
-    // Use current route params (not captured params) so refresh works correctly.
-    const currentParams = { ...route.params }
-    const viewId = currentParams.viewId ? parseInt(currentParams.viewId) : null
-    // It's okay to use the `table/getSelected` because the correct ones are selected
-    // using the `modules/database/middleware/selectWorkspaceDatabaseTable.js`
-    // middleware.
     const currentTable = $store.getters['table/getSelected']
     const currentDatabase = $store.getters['application/getSelected']
-    const currentFields = $store.getters['field/getAll']
+    const viewId = route.params.viewId ? parseInt(route.params.viewId) : null
+    const rowId = route.params.rowId ? parseInt(route.params.rowId) : null
+    const result = { view: undefined }
 
-    const result = {
-      view: undefined,
-      database: currentDatabase,
-      table: currentTable,
-      fields: currentFields,
+    // The views only have to be fetched if the table changed, there is no need to
+    // fetch them again when only the view or the row changes.
+    const viewsLoadedForTable = $store.state.view.tableId === currentTable.id
+    if (!viewsLoadedForTable) {
+      await $store.dispatch('view/fetchAll', currentTable)
+    }
+
+    // Without a view in the route params the default one must be opened. The
+    // redirect is returned because it can only be done once the page is rendered.
+    if (viewId === null) {
+      const defaultView = getDefaultView(
+        nuxtApp,
+        $store,
+        currentDatabase.workspace.id,
+        rowId !== null
+      )
+      if (defaultView) {
+        result.redirect = {
+          name: route.name,
+          params: { ...route.params, viewId: defaultView.id },
+          query: route.query,
+        }
+        return result
+      }
+    }
+
+    // In some cases, the backend needs the view ID to scope which fields to list.
+    // This can happen when a user does not have full access to a table for
+    // example.
+    const routeView = $store.getters['view/get'](viewId)
+    let fieldsRequireViewId = false
+    if (routeView) {
+      const ownershipType = $registry.get(
+        'viewOwnershipType',
+        routeView.ownership_type
+      )
+      fieldsRequireViewId = ownershipType.fetchingFieldsRequiresViewId(
+        currentDatabase,
+        currentTable,
+        routeView
+      )
+    }
+
+    const fieldCheckViewId = fieldsRequireViewId ? viewId : null
+    const fieldsLoadedFor = $store.getters['field/isLoadedFor'](
+      currentTable.id,
+      fieldCheckViewId
+    )
+    if (!fieldsLoadedFor) {
+      await $store.dispatch('field/fetchAll', {
+        table: currentTable,
+        viewId: fieldCheckViewId,
+      })
     }
 
     if (viewId !== null && viewId !== 0) {
       try {
         const { view } = await $store.dispatch('view/selectById', viewId)
-        const type = $registry.get('view', view.type)
+        const viewType = $registry.get('view', view.type)
         result.view = view
 
-        if (type.isDeactivated(currentDatabase.workspace.id)) {
-          result.error = { statusCode: 400, message: type.getDeactivatedText() }
+        if (viewType.isDeactivated(currentDatabase.workspace.id)) {
+          result.error = {
+            statusCode: 400,
+            message: viewType.getDeactivatedText(),
+          }
           return result
         }
 
-        await type.fetch(
+        const currentFields = $store.getters['field/getAll']
+        await viewType.fetch(
           { store: $store, app: nuxtApp },
           currentDatabase,
           view,
@@ -126,23 +175,43 @@ const { data, error } = await useAsyncData(
     }
 
     return result
-  }
+  },
+  { lazy: true, server: false }
 )
 
-if (error.value) {
-  // If we have an unexpected error after the useAsyncData, we want to display it
-  // directly to the user.
-  throw error.value
-}
-
-// Expose the actual values via computed shortcuts to make sure that if the asyncData
-// recomputes, it will show the correct values.
-const database = computed(() => data.value?.database)
-const table = computed(() => data.value?.table)
+// While a redirect to the default view is pending the fetch has technically
+// finished, but the page is about to be rendered again for the view it redirects
+// to. It must keep showing the skeleton, otherwise the header briefly renders as
+// if the table has no views.
+const loading = computed(
+  () => ['idle', 'pending'].includes(status.value) || !!data.value?.redirect
+)
 const view = computed(() => data.value?.view)
-const fields = computed(() => data.value?.fields)
 const dataError = computed(() => data.value?.error)
-let realtimePage = null
+
+// The fetch no longer runs during setup, so an error arrives after the page has
+// rendered and has to be shown from here.
+watch(
+  error,
+  (value) => {
+    if (value) {
+      showError(value)
+    }
+  },
+  { immediate: true }
+)
+
+// The default view can only be resolved once the views have been fetched, so the
+// redirect to it happens after the page has rendered.
+watch(
+  data,
+  (value) => {
+    if (value?.redirect) {
+      router.replace(value.redirect)
+    }
+  },
+  { immediate: true }
+)
 
 useHead(() => ({
   title:
@@ -150,43 +219,60 @@ useHead(() => ({
     (table.value?.name ?? ''),
 }))
 
-/**
- * The onMounted hook is called right after the asyncData finishes and when the
- * page has been rendered for the first time. The perfect moment to stop the table
- * loading animation.
- */
-onMounted(() => {
-  if (table.value) {
-    realtimePage = {
-      page: 'table',
-      params: { table_id: table.value.id },
-    }
-    if (view.value) {
-      const viewOwnershipType = $registry.get(
-        'viewOwnershipType',
-        view.value.ownership_type
-      )
-      const { page, params } = viewOwnershipType.enhanceRealtimePagePayload(
-        database.value,
-        table.value,
-        view.value,
-        realtimePage
-      )
-      realtimePage.page = page
-      realtimePage.params = params
-    }
+let realtimePage = null
 
-    $realtime.subscribe(realtimePage.page, realtimePage.params)
-  }
-  $store.dispatch('table/setLoading', false)
-})
-
-onBeforeUnmount(() => {
-  if (table.value) {
+function unsubscribeRealtime() {
+  if (realtimePage !== null) {
     $realtime.unsubscribe(realtimePage.page, realtimePage.params)
+    realtimePage = null
   }
-  realtimePage = null
-})
+}
+
+/**
+ * Which page is subscribed to depends on the view, so it can only be done once the
+ * view has been fetched.
+ */
+function subscribeRealtime() {
+  unsubscribeRealtime()
+
+  if (!table.value?.id) {
+    return
+  }
+
+  realtimePage = {
+    page: 'table',
+    params: { table_id: table.value.id },
+  }
+
+  if (view.value) {
+    const viewOwnershipType = $registry.get(
+      'viewOwnershipType',
+      view.value.ownership_type
+    )
+    const { page, params } = viewOwnershipType.enhanceRealtimePagePayload(
+      database.value,
+      table.value,
+      view.value,
+      realtimePage
+    )
+    realtimePage.page = page
+    realtimePage.params = params
+  }
+
+  $realtime.subscribe(realtimePage.page, realtimePage.params)
+}
+
+watch(
+  [loading, view],
+  () => {
+    if (!loading.value && !data.value?.redirect) {
+      subscribeRealtime()
+    }
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(unsubscribeRealtime)
 
 /**
  * When the user leaves to another page we want to unselect the selected table. This

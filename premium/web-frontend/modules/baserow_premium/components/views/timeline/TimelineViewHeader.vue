@@ -1,5 +1,5 @@
 <template>
-  <ul v-if="!tableLoading" class="header__filter header__filter--full-width">
+  <ul class="header__filter header__filter--full-width">
     <li v-if="dateSettingsAreValid" class="header__filter-item">
       <a
         ref="dateSettingsLink"
@@ -69,7 +69,7 @@
 </template>
 
 <script>
-import { mapState, mapGetters } from 'vuex'
+import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFieldsContext'
@@ -95,9 +95,6 @@ export default {
         `${this.storePrefix}view/timeline/getAllFieldOptions`
       ]
     },
-    ...mapState({
-      tableLoading: (state) => state.table.loading,
-    }),
   },
   methods: {
     showChooseDatesFieldContext() {
