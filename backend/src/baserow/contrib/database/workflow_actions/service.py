@@ -60,6 +60,7 @@ from baserow.core.services.exceptions import (
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
 )
+from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
 from baserow.core.types import PermissionCheck
 
@@ -281,9 +282,7 @@ class DatabaseWorkflowActionService:
 
         return full_order
 
-    def _resolve_integrations(
-        self, server_actions: List[DatabaseWorkflowAction]
-    ) -> None:
+    def _resolve_integrations(self, services: List[Service]) -> None:
         """
         Puts the specific integration on each service that carries one, in one
         query for the whole click.
@@ -296,13 +295,10 @@ class DatabaseWorkflowActionService:
         `get_specific` returns the instance unchanged when it already is the
         subtype, so assigning these here means nothing queries again later.
 
-        :param server_actions: The actions this click will run.
+        :param services: The specific services this click will dispatch.
         :return: Nothing. The services are updated in place.
         """
 
-        services = [
-            workflow_action.service.specific for workflow_action in server_actions
-        ]
         carrying = [service for service in services if service.integration_id]
         if not carrying:
             return
@@ -323,7 +319,9 @@ class DatabaseWorkflowActionService:
             if integration is not None:
                 service.integration = integration
 
-    def _lock_ttl_for(self, server_actions: List[DatabaseWorkflowAction]) -> int:
+    def _lock_ttl_for(
+        self, server_actions: List[DatabaseWorkflowAction], services: List[Service]
+    ) -> int:
         """
         How long the lock outlives the click that took it. The setting is a
         floor rather than the answer: it covers a sequence of ordinary actions,
@@ -332,18 +330,16 @@ class DatabaseWorkflowActionService:
         stops protecting the row, which is what it is there for.
 
         :param server_actions: The actions this click will run, in order.
+        :param services: Their specific services, in the same order.
         :return: The TTL in seconds.
         """
 
         # The service type owns the number: an email waits on its server
         # without carrying a timeout field of its own.
-        services = [
-            workflow_action.service.specific
-            for workflow_action in server_actions
-            if workflow_action.get_type().is_external
-        ]
         waiting_on = sum(
-            service.get_type().max_dispatch_seconds(service) for service in services
+            service.get_type().max_dispatch_seconds(service)
+            for workflow_action, service in zip(server_actions, services)
+            if workflow_action.get_type().is_external
         )
         return max(settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS, waiting_on * 2)
 
@@ -592,12 +588,17 @@ class DatabaseWorkflowActionService:
         # so a click whose TTL ran out cannot drop a later click's lock. Keyed
         # on field and row together, so two buttons on one row do not block
         # each other.
+        # Resolved once for both: `specific` caches on the instance, but only
+        # while these are the objects the dispatch goes on to use.
+        services = [
+            workflow_action.service.specific for workflow_action in server_actions
+        ]
         # Before the lock: it holds nothing the lock protects.
-        self._resolve_integrations(server_actions)
+        self._resolve_integrations(services)
 
         lock = cache.lock(
             f"button_dispatch_{field.id}_{row.id}",
-            timeout=self._lock_ttl_for(server_actions),
+            timeout=self._lock_ttl_for(server_actions, services),
         )
         # Never waits: a second click is refused rather than queued behind one
         # that is still running.

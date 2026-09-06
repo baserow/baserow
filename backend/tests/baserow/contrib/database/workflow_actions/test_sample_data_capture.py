@@ -425,7 +425,8 @@ def test_the_lock_outlives_every_request_the_click_may_wait_for(data_fixture):
         service.save()
         actions.append(action)
 
-    ttl = DatabaseWorkflowActionService()._lock_ttl_for(actions)
+    services = [action.service.specific for action in actions]
+    ttl = DatabaseWorkflowActionService()._lock_ttl_for(actions, services)
 
     assert ttl >= 240
 
@@ -744,7 +745,8 @@ def test_the_lock_outlives_a_click_that_only_sends_email(data_fixture):
         for _ in range(5)
     ]
 
-    ttl = DatabaseWorkflowActionService()._lock_ttl_for(actions)
+    services = [action.service.specific for action in actions]
+    ttl = DatabaseWorkflowActionService()._lock_ttl_for(actions, services)
 
     assert ttl > settings.DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS
     assert ttl >= 5 * SMTP_EMAIL_TIMEOUT
