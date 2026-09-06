@@ -147,7 +147,7 @@ export const actions = {
    * selects a different table.
    */
   async fetchAll(
-    { commit, getters, dispatch, state },
+    { commit, getters, dispatch, state, rootGetters },
     { table, viewId = null }
   ) {
     const { $registry, $client } = this
@@ -157,6 +157,15 @@ export const actions = {
 
     try {
       const { data } = await FieldService($client).fetchAll(table.id, viewId)
+      // The table page fetches without blocking the navigation, so another table
+      // can have been selected while the request was running. Its fields must
+      // then not be replaced by the ones of the table that was navigated away
+      // from.
+      const selectedTableId = rootGetters['table/getSelectedId']
+      if (selectedTableId && selectedTableId !== table.id) {
+        commit('SET_LOADING', false)
+        return getters.getAll
+      }
       await dispatch('forceSetFields', { fields: data })
       commit('SET_LOADED', { tableId: table.id, viewId })
     } catch (error) {

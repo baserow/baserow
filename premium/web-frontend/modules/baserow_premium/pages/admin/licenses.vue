@@ -157,6 +157,7 @@
 
 <script setup>
 import LicenseService from '@baserow_premium/services/license'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import LicensesSkeleton from '@baserow_premium/components/license/LicensesSkeleton'
 import RegisterLicenseModal from '@baserow_premium/components/license/RegisterLicenseModal'
 import RedirectToBaserowModal from '@baserow_premium/components/RedirectToBaserowModal'
@@ -174,58 +175,37 @@ const { $client, $registry, $i18n } = useNuxtApp()
 
 useHead({ title: $i18n.t('licenses.titleLicenses') })
 
-// Fetched without blocking the navigation, so the page immediately renders with
-// a skeleton loading state.
-const { data, error, status } = await useAsyncData(
-  'licensesPage',
-  async () => {
-    try {
-      const [{ data: instanceData }, { data: licensesData }] =
-        await Promise.all([
-          SettingsService($client).getInstanceID(),
-          LicenseService($client).fetchAll(),
-        ])
+const { data, loading } = await usePageAsyncData('licensesPage', async () => {
+  try {
+    const [{ data: instanceData }, { data: licensesData }] = await Promise.all([
+      SettingsService($client).getInstanceID(),
+      LicenseService($client).fetchAll(),
+    ])
 
-      return {
-        licenses: licensesData,
-        instanceId: instanceData.instance_id,
-      }
-    } catch (e) {
-      const statusCode = e.response?.status || 500
+    return {
+      licenses: licensesData,
+      instanceId: instanceData.instance_id,
+    }
+  } catch (e) {
+    const statusCode = e.response?.status || 500
 
-      if (statusCode === 404) {
-        throw createError({
-          statusCode: 404,
-          message: 'Licenses not found.',
-          data: {
-            report: false,
-          },
-          fatal: true,
-        })
-      }
+    if (statusCode === 404) {
       throw createError({
-        statusCode: statusCode,
-        message: 'Something went wrong while fetching the licenses.',
+        statusCode: 404,
+        message: 'Licenses not found.',
+        data: {
+          report: false,
+        },
         fatal: true,
       })
     }
-  },
-  { lazy: true, server: false }
-)
-
-const loading = computed(() => ['idle', 'pending'].includes(status.value))
-
-// The fetch no longer runs during setup, so an error arrives after the page has
-// rendered and has to be shown from here.
-watch(
-  error,
-  (value) => {
-    if (value) {
-      showError(value)
-    }
-  },
-  { immediate: true }
-)
+    throw createError({
+      statusCode: statusCode,
+      message: 'Something went wrong while fetching the licenses.',
+      fatal: true,
+    })
+  }
+})
 
 const licenses = computed(() => data.value?.licenses || [])
 const instanceId = computed(() => data.value?.instanceId || '')

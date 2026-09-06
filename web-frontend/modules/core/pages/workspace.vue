@@ -54,7 +54,7 @@
           @workspace-updated="workspaceUpdated($event)"
         ></component>
         <SkeletonBlock
-          v-if="loading"
+          v-if="loading && canCreateCreateApplication"
           width="100px"
           height="32px"
         ></SkeletonBlock>
@@ -218,7 +218,7 @@
               {{ $t('dashboard.emptyWorkspaceMessage') }}
             </p>
             <SkeletonBlock
-              v-if="loading"
+              v-if="loading && canCreateCreateApplication"
               width="100px"
               height="32px"
             ></SkeletonBlock>
@@ -262,9 +262,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, watchEffect } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
-import { useHead, useAsyncData } from '#imports'
+import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
@@ -351,15 +352,11 @@ async function fetchWorkspaceExtraData(workspace) {
 }
 
 /**
- * Fetch all dashboard-related data for the current workspace, without blocking
- * the navigation, so that the page immediately renders with a skeleton loading
- * state. `useAsyncData` returns the data and we hydrate our refs from it.
+ * Fetches the workspace data the plugins contribute (usage, plan) and the
+ * invitations. The refs below are hydrated from it, because `workspaceUpdated`
+ * has to be able to replace them later.
  */
-const {
-  data: dashboardData,
-  status,
-  error,
-} = await useAsyncData(
+const { data: dashboardData, loading } = await usePageAsyncData(
   `current-workspace-${route.params.workspaceId}`,
   async () => {
     const workspaceId = parseInt(route.params.workspaceId, 10)
@@ -391,22 +388,7 @@ const {
         fatal: true,
       })
     }
-  },
-  { lazy: true, server: false }
-)
-
-const loading = computed(() => ['idle', 'pending'].includes(status.value))
-
-// The fetch no longer runs during setup, so an error arrives after the page has
-// rendered and has to be shown from here.
-watch(
-  error,
-  (value) => {
-    if (value) {
-      showError(value)
-    }
-  },
-  { immediate: true }
+  }
 )
 
 /**

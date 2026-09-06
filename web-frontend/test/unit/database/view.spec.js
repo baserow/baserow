@@ -8,6 +8,7 @@ import {
 } from '@baserow/modules/database/utils/view'
 import gallery from '~/modules/database/services/view/gallery'
 import { NuxtPage } from '#components'
+import { useError, clearError } from '#app'
 import flushPromises from 'flush-promises'
 
 // Mock out debounce so we don't have to wait or simulate waiting for the various
@@ -57,9 +58,7 @@ describe('View Tests', () => {
     // view it redirects to the default one first, so wait until it has settled.
     await waitFor(() => {
       const page = wrapper.findComponent(Table)
-      return (
-        page.exists() && page.vm.status === 'success' && !page.vm.data?.redirect
-      )
+      return page.exists() && !page.vm.loading
     })
 
     return wrapper
@@ -361,10 +360,10 @@ describe('View Tests', () => {
       route: `/database/${application.id}/table/${table.id}/123?token=fake`,
     })
 
-    await waitFor(() => tableComponent.vm.error !== null)
-    expect(tableComponent.vm.error.message).toContain(
-      'Request failed with status code 500'
-    )
+    const error = useError()
+    await waitFor(() => error.value !== null)
+    expect(error.value.message).toContain('Request failed with status code 500')
+    clearError()
     expect(tableComponent.find('div.grid-view').exists()).toBe(false)
   })
 

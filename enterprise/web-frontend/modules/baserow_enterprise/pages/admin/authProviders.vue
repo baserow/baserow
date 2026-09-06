@@ -68,13 +68,8 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 import { useStore } from 'vuex'
-import {
-  useNuxtApp,
-  definePageMeta,
-  useI18n,
-  useHead,
-  useAsyncData,
-} from '#imports'
+import { useNuxtApp, definePageMeta, useI18n, useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import CreateAuthProviderContext from '@baserow_enterprise/components/admin/contexts/CreateAuthProviderContext.vue'
 import CreateAuthProviderModal from '@baserow_enterprise/components/admin/modals/CreateAuthProviderModal.vue'
 
@@ -99,19 +94,11 @@ const createModal = ref(null)
 // Reactive state
 const authProviderTypeToCreate = ref(null)
 
-// Fetch the data without blocking the navigation, so the page immediately
-// renders with a skeleton loading state.
-const { status } = await useAsyncData(
-  'auth-provider-admin',
-  async () => {
-    await store.dispatch('authProviderAdmin/fetchAll')
-    await store.dispatch('authProviderAdmin/fetchNextProviderId')
-    return true
-  },
-  { lazy: true, server: false }
-)
-
-const loading = computed(() => ['idle', 'pending'].includes(status.value))
+const { loading } = await usePageAsyncData('auth-provider-admin', async () => {
+  await store.dispatch('authProviderAdmin/fetchAll')
+  await store.dispatch('authProviderAdmin/fetchNextProviderId')
+  return true
+})
 
 // Computed
 const authProviderMap = computed(

@@ -208,6 +208,7 @@ import {
 
 import { computed, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
 import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 
 import { useRoute, useRouter } from 'vue-router'
@@ -248,11 +249,7 @@ if (
   })
 }
 
-/**
- * The fields of every table are fetched without blocking the navigation, so that
- * the documentation immediately renders with a skeleton loading state.
- */
-const { data, status } = await useAsyncData(
+const { data, loading } = await usePageAsyncData(
   'api-docs-database-' + route.params.databaseId,
   async () => {
     const fieldData = {}
@@ -280,11 +277,8 @@ const { data, status } = await useAsyncData(
     )
 
     return { fieldData }
-  },
-  { lazy: true, server: false }
+  }
 )
-
-const loading = computed(() => ['idle', 'pending'].includes(status.value))
 const fieldData = computed(() => data.value?.fieldData ?? {})
 
 useHead({

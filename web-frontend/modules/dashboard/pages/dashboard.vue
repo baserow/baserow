@@ -6,10 +6,11 @@
 </template>
 
 <script setup>
-import { computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
-import { useNuxtApp, useAsyncData, createError, useHead } from '#app'
+import { useNuxtApp, createError, useHead } from '#app'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
@@ -31,14 +32,15 @@ const route = useRoute()
 const { $hasPermission, $realtime } = useNuxtApp()
 
 // The dashboard is selected by the `selectDashboard` middleware, so it's there
-// when the page renders. Only the widgets have to be fetched.
-const dashboard = computed(() => store.getters['application/getSelected'])
+// when the page renders. Only the widgets have to be fetched. It's read once
+// instead of being computed, because the selection changes while this page is
+// still rendered: the next route's middleware selects its own application before
+// this page unmounts, which would make the realtime unsubscribe below use the
+// wrong id, and a realtime deletion removes it from the store before the redirect
+// away has finished.
+const dashboard = ref(store.getters['application/getSelected'])
 
-/**
- * The widgets are fetched without blocking the navigation. While that's running,
- * the page renders a skeleton loading state.
- */
-const { status, error: fetchError } = await useAsyncData(
+const { status } = await usePageAsyncData(
   `dashboard-data-${route.params.dashboardId}`,
   async () => {
     try {
@@ -74,8 +76,7 @@ const { status, error: fetchError } = await useAsyncData(
         fatal: true,
       })
     }
-  },
-  { lazy: true, server: false }
+  }
 )
 
 // The store is loading from the moment the widgets are being fetched until they
@@ -86,18 +87,6 @@ const widgetsLoading = computed(
   () => store.getters['dashboardApplication/isLoading']
 )
 const loading = computed(() => status.value === 'idle' || widgetsLoading.value)
-
-// The fetch no longer runs during setup, so an error arrives after the page has
-// rendered and has to be shown from here.
-watch(
-  fetchError,
-  (value) => {
-    if (value) {
-      showError(value)
-    }
-  },
-  { immediate: true }
-)
 
 useHead(() => ({
   title: dashboard.value?.name || '',

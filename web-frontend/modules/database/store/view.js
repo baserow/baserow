@@ -402,7 +402,7 @@ export const actions = {
    * Fetches all the views of a given table. The is mostly called when the user
    * selects a different table.
    */
-  async fetchAll({ commit, getters, dispatch, state }, table) {
+  async fetchAll({ commit, getters, dispatch, state, rootGetters }, table) {
     const nuxtApp = this
     const { $client, $registry } = nuxtApp
     commit('SET_LOADING', true)
@@ -418,6 +418,14 @@ export const actions = {
         true,
         true
       )
+      // The table page fetches without blocking the navigation, so another table
+      // can have been selected while the request was running. Its views must then
+      // not be replaced by the ones of the table that was navigated away from.
+      const selectedTableId = rootGetters['table/getSelectedId']
+      if (selectedTableId && selectedTableId !== table.id) {
+        commit('SET_LOADING', false)
+        return
+      }
       data.forEach((part, index, d) => {
         populateView(data[index], $registry)
       })

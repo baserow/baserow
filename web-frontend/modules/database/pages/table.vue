@@ -17,8 +17,12 @@
       @navigate-previous="(row, term) => setAdjacentRow(true, row, term)"
       @navigate-next="(row, term) => setAdjacentRow(false, row, term)"
     />
+    <!--
+      The child routes open modals that snapshot the fields when they're shown, so
+      they can only mount once the fields of this table have been fetched.
+    -->
     <NuxtPage
-      v-if="hasChildRoute"
+      v-if="hasChildRoute && !loading"
       :database="database"
       :table="table"
       :fields="fields"
@@ -27,10 +31,10 @@
 </template>
 
 <script setup>
-import { computed, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useHead } from '#imports'
-import { useAsyncData } from '#app'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
 import Table from '@baserow/modules/database/components/table/Table'
 import DefaultErrorPage from '@baserow/modules/core/components/DefaultErrorPage'
@@ -69,22 +73,21 @@ function finishLoading() {
 
 // The database and table are selected by the `selectWorkspaceDatabaseTable`
 // middleware, so they're there when the page renders. The views and fields arrive
-// while the skeleton loading state is visible.
-const database = computed(() => $store.getters['application/getSelected'])
-const table = computed(() => $store.getters['table/getSelected'])
+// while the skeleton loading state is visible. They're read once instead of being
+// computed, because the selection changes while this page is still rendered: the
+// next route's middleware selects its own application before this page unmounts,
+// and a realtime deletion of the database removes it from the store before the
+// redirect away has finished.
+const database = ref($store.getters['application/getSelected'])
+const table = ref($store.getters['table/getSelected'])
 const fields = computed(() => $store.getters['field/getAll'])
 const views = computed(() => $store.state.view.items)
 
-/**
- * Everything the page needs on top of the selected table is fetched here, without
- * blocking the navigation. While it's running, the table shows a skeleton loading
- * state in the header.
- */
-const { data, status, error } = await useAsyncData(
+const { data, loading: fetching } = await usePageAsyncData(
   `database-table-page-${route.params.databaseId}-${route.params.tableId}-${route.params.viewId ?? 'null'}`,
   async () => {
-    const currentTable = $store.getters['table/getSelected']
-    const currentDatabase = $store.getters['application/getSelected']
+    const currentTable = table.value
+    const currentDatabase = database.value
     const viewId = route.params.viewId ? parseInt(route.params.viewId) : null
     const rowId = route.params.rowId ? parseInt(route.params.rowId) : null
     const result = { view: undefined }
@@ -175,31 +178,16 @@ const { data, status, error } = await useAsyncData(
     }
 
     return result
-  },
-  { lazy: true, server: false }
+  }
 )
 
 // While a redirect to the default view is pending the fetch has technically
 // finished, but the page is about to be rendered again for the view it redirects
 // to. It must keep showing the skeleton, otherwise the header briefly renders as
 // if the table has no views.
-const loading = computed(
-  () => ['idle', 'pending'].includes(status.value) || !!data.value?.redirect
-)
+const loading = computed(() => fetching.value || !!data.value?.redirect)
 const view = computed(() => data.value?.view)
 const dataError = computed(() => data.value?.error)
-
-// The fetch no longer runs during setup, so an error arrives after the page has
-// rendered and has to be shown from here.
-watch(
-  error,
-  (value) => {
-    if (value) {
-      showError(value)
-    }
-  },
-  { immediate: true }
-)
 
 // The default view can only be resolved once the views have been fetched, so the
 // redirect to it happens after the page has rendered.

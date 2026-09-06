@@ -218,6 +218,7 @@
 import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import LicenseService from '@baserow_premium/services/license'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import DisconnectLicenseModal from '@baserow_premium/components/license/DisconnectLicenseModal'
 import LicenseDetailSkeleton from '@baserow_premium/components/license/LicenseDetailSkeleton'
 import ManualLicenseSeatsForm from '@baserow_premium/components/license/ManualLicenseSeatForm'
@@ -232,9 +233,7 @@ const route = useRoute()
 const router = useRouter()
 const { $client, $registry, $i18n } = useNuxtApp()
 
-// Fetched without blocking the navigation, so the page immediately renders with
-// a skeleton loading state.
-const { data, error, status } = await useAsyncData(
+const { data, loading } = await usePageAsyncData(
   `license-${route.params.id}`,
   async () => {
     try {
@@ -261,22 +260,7 @@ const { data, error, status } = await useAsyncData(
         fatal: true,
       })
     }
-  },
-  { lazy: true, server: false }
-)
-
-const loading = computed(() => ['idle', 'pending'].includes(status.value))
-
-// The fetch no longer runs during setup, so an error arrives after the page has
-// rendered and has to be shown from here.
-watch(
-  error,
-  (value) => {
-    if (value) {
-      showError(value)
-    }
-  },
-  { immediate: true }
+  }
 )
 
 const license = computed(() => data.value)

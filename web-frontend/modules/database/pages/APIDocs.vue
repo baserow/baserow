@@ -45,44 +45,41 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useHead, useAsyncData } from '#imports'
+import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
+import {
+  fetchWorkspacesAndApplications,
+  getWorkspaceCookie,
+} from '@baserow/modules/core/utils/workspace'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const nuxtApp = useNuxtApp()
 
 const {
   $store,
   $config,
   $i18n: { t: $t },
-} = useNuxtApp()
+} = nuxtApp
 
 definePageMeta({
   layout: 'login',
 })
 
-/**
- * The workspaces and databases are fetched without blocking the navigation, so
- * that the page immediately renders with a skeleton loading state. It's not done
- * by the `workspacesAndApplications` middleware, because that would make the page
- * wait for it.
- */
-const { status } = await useAsyncData(
+// Not left to the `workspacesAndApplications` middleware, because that would
+// make the page wait for it.
+const { loading: fetching } = await usePageAsyncData(
   'api-docs-databases',
   async () => {
-    if (!$store.getters['auth/isAuthenticated']) {
-      return true
-    }
-    if (!$store.getters['workspace/isLoaded']) {
-      await $store.dispatch('workspace/fetchAll')
-    }
-    if (!$store.getters['application/isLoaded']) {
-      await $store.dispatch('application/fetchAll')
+    if ($store.getters['auth/isAuthenticated']) {
+      // Also selects the remembered workspace, like the middleware does, because
+      // the pages visited after this one skip that once the workspaces are loaded.
+      await fetchWorkspacesAndApplications(nuxtApp, getWorkspaceCookie(nuxtApp))
     }
     return true
-  },
-  { lazy: true, server: false }
+  }
 )
 
 useHead({
@@ -101,7 +98,5 @@ const isAuthenticated = computed(() => {
   return $store.getters['auth/isAuthenticated']
 })
 
-const loading = computed(
-  () => isAuthenticated.value && ['idle', 'pending'].includes(status.value)
-)
+const loading = computed(() => isAuthenticated.value && fetching.value)
 </script>

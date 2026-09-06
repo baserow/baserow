@@ -45,8 +45,14 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   }
 
   // Handle enlarged row modal state by already fetching the row if needed because
-  // it's provided in the params.
+  // it's provided in the params. Without a view in the params the page redirects
+  // to the default view, after which this middleware runs again with it. The row
+  // is only fetched then, because the backend needs the view to authorize the
+  // request of a user who has access to the table through that view only.
   const rowId = to.params.rowId ? parseInt(to.params.rowId) : null
+  if (rowId && viewId === null) {
+    return
+  }
   if (rowId) {
     const row = await $store.dispatch('rowModalNavigation/fetchRow', {
       tableId: table.id,

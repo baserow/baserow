@@ -8,8 +8,9 @@
 </template>
 
 <script setup>
-import { useHead, useAsyncData } from '#imports'
-import { ref, computed, watch } from 'vue'
+import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
+import { ref } from 'vue'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
@@ -47,12 +48,7 @@ const workspace = ref($store.getters['workspace/getSelected'])
 const builder = ref($store.getters['application/getSelected'])
 const currentPage = ref($store.getters['page/getSelected'])
 
-/**
- * Everything the editor needs on top of the selected page is fetched here,
- * without blocking the navigation. While it's running, the editor shows a
- * skeleton loading state.
- */
-const { status, error: pageError } = await useAsyncData(
+const { loading } = await usePageAsyncData(
   () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
     const loadedBuilder = builder.value
@@ -113,22 +109,7 @@ const { status, error: pageError } = await useAsyncData(
         fatal: true,
       })
     }
-  },
-  { lazy: true, server: false }
-)
-
-const loading = computed(() => ['idle', 'pending'].includes(status.value))
-
-// The fetch no longer runs during setup, so an error arrives after the page has
-// rendered and has to be shown from here.
-watch(
-  pageError,
-  (value) => {
-    if (value) {
-      showError(value)
-    }
-  },
-  { immediate: true }
+  }
 )
 
 // Navigation guards

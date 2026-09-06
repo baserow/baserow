@@ -9,8 +9,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useAsyncData } from '#imports'
+import { ref, computed } from 'vue'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 
 import AutomationWorkflowContent from '@baserow/modules/automation/components/AutomationWorkflowContent'
@@ -40,24 +40,20 @@ const { $store, $registry } = useNuxtApp()
 
 // The automation, workspace and workflow are selected by the
 // `selectWorkspaceAutomationWorkflow` middleware, so they're there when the page
-// renders. Only the nodes have to be fetched.
-const automation = computed(() => $store.getters['application/getSelected'])
-const workspace = computed(() => $store.getters['workspace/getSelected'])
-const workflow = computed(
-  () => $store.getters['automationWorkflow/getSelected']
-)
+// renders. Only the nodes have to be fetched. They're read once instead of being
+// computed, because the next route's middleware selects its own application
+// before this page unmounts, and a realtime deletion removes it from the store
+// before the redirect away has finished.
+const automation = ref($store.getters['application/getSelected'])
+const workspace = ref($store.getters['workspace/getSelected'])
+const workflow = ref($store.getters['automationWorkflow/getSelected'])
 
-// Load page data
 const automationApplicationType = $registry.get(
   'application',
   AutomationApplicationType.getType()
 )
 
-/**
- * The nodes are fetched without blocking the navigation, so that the page
- * immediately renders with a skeleton loading state in the header.
- */
-const { status, error } = await useAsyncData(
+const { loading } = await usePageAsyncData(
   () =>
     `automation-workflow-${route.params.automationId}-${route.params.workflowId}`,
   async () => {
@@ -88,22 +84,7 @@ const { status, error } = await useAsyncData(
         fatal: true,
       })
     }
-  },
-  { lazy: true, server: false }
-)
-
-const loading = computed(() => ['idle', 'pending'].includes(status.value))
-
-// The fetch no longer runs during setup, so an error arrives after the page has
-// rendered and has to be shown from here.
-watch(
-  error,
-  (value) => {
-    if (value) {
-      showError(value)
-    }
-  },
-  { immediate: true }
+  }
 )
 
 function onRouteChange(from) {

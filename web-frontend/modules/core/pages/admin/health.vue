@@ -93,6 +93,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import HealthService from '@baserow/modules/core/services/health'
 import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
@@ -107,20 +108,10 @@ const { $client, $i18n } = useNuxtApp()
 
 useHead({ title: $i18n.t('health.title') })
 
-// Fetched without blocking the navigation, so the page immediately renders with
-// a skeleton loading state.
-// Named `fetchStatus` because the template already uses `status` for the state
-// of a health check.
-const { data, status: fetchStatus } = await useAsyncData(
-  'health',
-  async () => {
-    const res = await HealthService($client).getAll()
-    return res.data
-  },
-  { lazy: true, server: false }
-)
-
-const loading = computed(() => ['idle', 'pending'].includes(fetchStatus.value))
+const { data, loading } = await usePageAsyncData('health', async () => {
+  const res = await HealthService($client).getAll()
+  return res.data
+})
 
 const healthChecks = computed(() => data.value?.checks ?? [])
 const celeryQueueSize = computed(() => data.value?.celery_queue_size ?? 0)
