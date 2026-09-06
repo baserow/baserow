@@ -346,7 +346,8 @@
         "baserowVersion": "Versión de Baserow",
         "baserowVersionDescription": "El número de versión de esta instancia.",
         "settingsVerifyImportSignature": "Verificar la firma de importación",
-        "settingsVerifyImportSignatureDescription": "Cuando está activada, la firma de los datos importados se verifica para garantizar que los datos no han sido manipulados."
+        "settingsVerifyImportSignatureDescription": "Cuando está activada, la firma de los datos importados se verifica para garantizar que los datos no han sido manipulados.",
+        "settingAllowReportingAbuseDescription": "Cuando está activado, los visitantes de vistas y formularios compartidos públicamente pueden denunciarlos por abuso, y todos los administradores de la instancia son notificados sobre el informe."
     },
     "copyingNotification": {
         "title": "Copiando...",
@@ -755,7 +756,7 @@
         "openaiApiKeyLabel": "Clave de API",
         "openaiOrganization": "Organización (opcional)",
         "openaiModelsLabel": "Modelos activados",
-        "openaiModelsDescription": "Proporciona una lista de [modelos OpenAI] separados por comas (https://platform.openai.com/docs/models/continuous-model-upgrades) que se pueden utilizar en Baserow. (por ejemplo, `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelsDescription": "Proporciona una lista separada por comas de [identificadores de modelos de OpenAI](https://developers.openai.com/api/docs/models) que puedan usarse en Baserow. Por ejemplo: `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`.",
         "ollama": "Ollama",
         "ollamaHostLabel": "Host",
         "ollamaHostDescription": "Proporciona el nombre del host a tu servidor [Ollama] (https://ollama.com/). Esto normalmente se ejecuta localmente en tu propio dispositivo.",
@@ -768,16 +769,16 @@
         "anthropic": "Anthropic",
         "anthropicModelsLabel": "Modelos habilitados",
         "anthropicApiKeyDescription": "Proporciona una clave API de Anthropic si deseas activar la integración. [Instrucciones para obtener una clave API](https://docs.anthropic.com/en/api/getting-started).",
-        "anthropicModelsDescription": "Proporciona una lista de [modelos de Anthropic] separados por comas (https://docs.anthropic.com/en/docs/about-claude/models) que puedan utilizarse en Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelsDescription": "Proporciona una lista separada por comas de identificadores de [modelos de Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview) que puedan usarse en Baserow. Por ejemplo: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
         "mistral": "Mistral",
         "mistralApiKeyLabel": "Clave API",
-        "mistralModelsDescription": "Proporciona una lista de [modelos Mistral] separados por comas (https://docs.mistral.ai/getting-started/models/models_overview/) que pueden utilizarse en Baserow. (por ejemplo, `mistral-large-latest,mistral-small-latest`)",
+        "mistralModelsDescription": "Proporciona una lista separada por comas de [identificadores de modelos de Mistral que puedan usarse en Baserow. Por ejemplo: mistral-large-latest,mistral-medium-latest,mistral-small-latest.",
         "openRouterApiKeyLabel": "Clave API",
         "openRouterOrganization": "Organización (opcional)",
         "openRouter": "OpenRouter",
         "openRouterApiKeyDescription": "Proporciona una clave API de OpenRouter si deseas habilitar la integración. [Obtener una clave de API](https://openrouter.ai/settings/keys).",
         "openRouterModelsLabel": "Modelos habilitados",
-        "openRouterModelsDescription": "Proporciona una lista de [OpenRouter models](https://openrouter.ai/models) separados por comas que pueden ser utilizados en Baserow. (por ejemplo, `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouterModelsDescription": "Proporciona una lista separada por comas de identificadores de [modelos de OpenRouter] que puedan usarse en Baserow. Por ejemplo: openai/gpt-5.6,anthropic/claude-sonnet-5.",
         "openaiBaseUrl": "URL base",
         "openaiBaseUrlDescription": "Utiliza la URL base predeterminada de OpenAI de forma predeterminada si está vacía. Opcionalmente puede cambiarse a https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, o cualquier otra API compatible con OpenAI."
     },
@@ -1312,6 +1313,13 @@
         "invalidNameTitle": "Nombre de espacio de trabajo no permitido"
     },
     "reportAbuseModal": {
-        "description": "¿Crees que esta página se está utilizando para «phishing», suplantación de identidad, estafas u otros fines abusivos? Haz saber a los administradores de esta instancia de Baseroy enviando el formulario a continuación."
+        "description": "¿Crees que esta página se está utilizando para «phishing», suplantación de identidad, estafas u otros fines abusivos? Haz saber a los administradores de esta instancia de Baseroy enviando el formulario a continuación.",
+        "successDescription": "El informe se ha enviado y los administradores de esta instancia de Baserow han sido notificados para que puedan tomar medidas."
+    },
+    "aiProviderAdmin": {
+        "noProvidersDescription": "Añade un proveedor manualmente, o previsualiza y ejecuta el comando de importación del entorno antes de habilitar la función para los usuarios."
+    },
+    "reportAbuseForm": {
+        "descriptionPlaceholder": "Por ejemplo: esta página finge ser una página de inicio de sesión de otra empresa y pide a los visitantes su contraseña."
     }
 }
