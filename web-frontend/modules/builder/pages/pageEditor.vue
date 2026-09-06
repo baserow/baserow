@@ -1,15 +1,15 @@
 <template>
   <PageEditorContent
-    v-if="!pending"
     :workspace="workspace"
     :builder="builder"
     :page="currentPage"
+    :loading="loading"
   />
 </template>
 
 <script setup>
 import { useHead, useAsyncData } from '#imports'
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
@@ -38,18 +38,25 @@ useHead(() => ({
   title: t('pageEditor.title'),
 }))
 
-// Load page data
-const {
-  data: pageData,
-  error: pageError,
-  pending,
-} = await useAsyncData(
+// The workspace, builder and page are selected by the `selectWorkspaceBuilderPage`
+// middleware, so they're there when the page renders. The elements, data sources
+// and workflow actions are fetched afterwards. They're read once instead of being
+// computed, because leaving the page unselects them while this page is still
+// rendered.
+const workspace = ref($store.getters['workspace/getSelected'])
+const builder = ref($store.getters['application/getSelected'])
+const currentPage = ref($store.getters['page/getSelected'])
+
+/**
+ * Everything the editor needs on top of the selected page is fetched here,
+ * without blocking the navigation. While it's running, the editor shows a
+ * skeleton loading state.
+ */
+const { status, error: pageError } = await useAsyncData(
   () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
-    // The objects are selected by the middleware
-    const loadedWorkspace = $store.getters['workspace/getSelected']
-    const loadedBuilder = $store.getters['application/getSelected']
-    const page = $store.getters['page/getSelected']
+    const loadedBuilder = builder.value
+    const page = currentPage.value
 
     try {
       $store.dispatch('userSourceUser/setCurrentApplication', {
@@ -86,15 +93,7 @@ const {
         mode,
       })
 
-      const sharedPage =
-        await $store.getters['page/getSharedPage'](loadedBuilder)
-
-      return {
-        workspace: loadedWorkspace,
-        builder: loadedBuilder,
-        page,
-        sharedPage,
-      }
+      return true
     } catch (e) {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
@@ -114,16 +113,23 @@ const {
         fatal: true,
       })
     }
-  }
+  },
+  { lazy: true, server: false }
 )
 
-if (pageError.value) {
-  throw pageError.value
-}
+const loading = computed(() => ['idle', 'pending'].includes(status.value))
 
-const workspace = computed(() => pageData.value.workspace)
-const builder = computed(() => pageData.value.builder)
-const currentPage = computed(() => pageData.value.page)
+// The fetch no longer runs during setup, so an error arrives after the page has
+// rendered and has to be shown from here.
+watch(
+  pageError,
+  (value) => {
+    if (value) {
+      showError(value)
+    }
+  },
+  { immediate: true }
+)
 
 // Navigation guards
 onBeforeRouteUpdate((to, from) => {

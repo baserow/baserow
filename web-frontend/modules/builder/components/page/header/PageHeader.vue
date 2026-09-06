@@ -1,11 +1,19 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
-    <PageHeaderMenuItems />
-    <DeviceSelector
-      :device-type-selected="deviceTypeSelected"
-      @selected="actionSetDeviceTypeSelected"
-    />
-    <PageActions />
+    <SkeletonBlock
+      v-if="loading"
+      class="header__loading"
+      width="140px"
+      height="12px"
+    ></SkeletonBlock>
+    <template v-else>
+      <PageHeaderMenuItems />
+      <DeviceSelector
+        :device-type-selected="deviceTypeSelected"
+        @selected="actionSetDeviceTypeSelected"
+      />
+      <PageActions />
+    </template>
   </header>
 </template>
 
@@ -21,6 +29,13 @@ export default {
     PageHeaderMenuItems,
     DeviceSelector,
     PageActions,
+  },
+  props: {
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   computed: {
     ...mapGetters({ deviceTypeSelected: 'page/getDeviceTypeSelected' }),
