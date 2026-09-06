@@ -1,6 +1,6 @@
 <template>
   <Dropdown
-    :value="value"
+    :value="currentValue"
     fixed-items
     class="integration-dropdown"
     :size="size"
@@ -71,6 +71,16 @@ export default {
       required: false,
       default: null,
     },
+    /**
+     * What a `v-model` parent binds. Declared rather than read out of
+     * `$attrs`, so this component passes one resolved value down instead of
+     * relying on the attribute also falling through to the dropdown below.
+     */
+    modelValue: {
+      type: Number,
+      required: false,
+      default: undefined,
+    },
     application: {
       type: Object,
       required: true,
@@ -123,12 +133,11 @@ export default {
   emits: ['input', 'update:modelValue'],
   computed: {
     /**
-     * What the parent has selected. `v-model` sends `modelValue`, which falls
-     * through to the dropdown below rather than arriving as a prop here.
+     * What the parent has selected, whichever way it bound it: `v-model`
+     * sends `modelValue`, older callers send `value`.
      */
     currentValue() {
-      const bound = this.$attrs.modelValue
-      return bound === undefined ? this.value : bound
+      return this.modelValue === undefined ? this.value : this.modelValue
     },
     selectedIntegration() {
       return this.integrations.find(({ id }) => id === this.currentValue)
