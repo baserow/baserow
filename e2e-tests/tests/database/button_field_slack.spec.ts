@@ -167,6 +167,11 @@ test.describe("Button field, Slack action", () => {
         hasText: exactly("Send a Slack message"),
       })
       .click();
+    // The answer is stored under `data`, and the schema says so, so the
+    // fields sit one level in. Opening it is what a user does to reach them.
+    await explorer(page)
+      .locator(".node-explorer-content__name", { hasText: exactly("Data") })
+      .click();
 
     // What the backend answers with, offered before any click has happened.
     await expect(explorer(page)).toContainText("Message timestamp");
