@@ -184,7 +184,7 @@ def test_a_database_accepts_what_its_actions_can_carry(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_an_import_refuses_an_integration_the_application_would_not_accept(
+def test_an_import_skips_an_integration_the_application_would_not_accept(
     data_fixture,
 ):
     """

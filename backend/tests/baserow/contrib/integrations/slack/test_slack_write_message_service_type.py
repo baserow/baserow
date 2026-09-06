@@ -792,8 +792,8 @@ def test_slack_write_message_replays_a_sample_in_the_shape_it_answers(data_fixtu
 @override_settings(INTEGRATIONS_SLACK_API_URL="http://unreachable.invalid/api")
 def test_slack_write_message_failure_does_not_repeat_the_request(data_fixture):
     """
-    `requests` builds its message out of the whole URL, and this one's query
-    string carries the channel and the resolved message.
+    `requests` can build its message out of what was sent, and this request
+    carries the resolved message in its body.
     """
 
     service = data_fixture.create_slack_write_message_service(
