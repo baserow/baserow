@@ -119,7 +119,7 @@
             <ButtonFieldActionForm
               :ref="`actionForm_${actionKey(action)}`"
               :action="action"
-              :database="database"
+              :database="liveDatabase"
               @values-changed="onActionValuesChanged(index, $event)"
             />
           </div>
@@ -173,6 +173,19 @@ export default {
     }
   },
   computed: {
+    /**
+     * The application object the store holds now. `forceSetAll` replaces it —
+     * a workspace switch, a permissions refresh, an application refetch — and
+     * `populate` gives the new object an empty integration list. The prop
+     * this list was handed keeps pointing at the discarded one, so reading
+     * integrations off it shows none and suppresses the token warning.
+     */
+    liveDatabase() {
+      return (
+        this.$store.getters['application/get'](this.database.id) ||
+        this.database
+      )
+    },
     /** Whether any action in the list needs the database's integrations. */
     needsIntegrations() {
       return this.value.some(
@@ -202,7 +215,7 @@ export default {
         workflowActions: this.value,
         // Where an action's credential lives, so a type can say when it is
         // not usable.
-        database: this.database,
+        database: this.liveDatabase,
       }
       return Object.fromEntries(
         this.value.map((action) => [
@@ -225,6 +238,15 @@ export default {
           this.fetchIntegrations()
         }
       },
+    },
+    // `forceSetAll` replaces the application object and `populate` gives the
+    // new one an empty integration list and no memory of having loaded it.
+    // Without this the editor stays open over a list that is gone: the bot
+    // dropdown is empty and the token warning is suppressed.
+    liveDatabase(now, before) {
+      if (now !== before) {
+        this.fetchIntegrations()
+      }
     },
   },
   methods: {

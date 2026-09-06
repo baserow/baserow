@@ -834,6 +834,66 @@ describe('ButtonFieldActionList', () => {
       expect(onScreen._integrationsLoadedOnce).toBe(true)
     })
 
+    test('a replaced application object is filled again, not read stale', async () => {
+      // `forceSetAll` builds new application objects and `populate` gives them
+      // an empty integration list. Reading the object the list was mounted
+      // with shows whatever was true before the replacement; reading the new
+      // one shows nothing at all until it is filled again.
+      const database = await seedDatabase()
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .replyOnce(200, [
+          { id: 7, type: 'slack_bot', name: 'Bot', order: '1', token: '' },
+        ])
+      testApp.mock
+        .onGet(`application/${DATABASE_ID}/integrations/`)
+        .reply(200, [
+          {
+            id: 7,
+            type: 'slack_bot',
+            name: 'Bot',
+            order: '1',
+            token: 'xoxb-pasted-since',
+          },
+        ])
+
+      const wrapper = await mountWith(
+        [
+          {
+            id: 1,
+            type: 'slack_write_message',
+            service: {
+              integration_id: 7,
+              channel: 'general',
+              text: { formula: "'hi'" },
+            },
+          },
+        ],
+        database
+      )
+      await flushPromises()
+      expect(wrapper.find('[data-action-error]').text()).toBe(
+        'databaseWorkflowActionType.slackTokenMissing'
+      )
+
+      await testApp.store.dispatch('application/forceSetAll', {
+        applications: [
+          {
+            id: DATABASE_ID,
+            name: 'Customers',
+            type: 'database',
+            workspace: { id: 1 },
+            tables: [],
+          },
+        ],
+      })
+      await flushPromises()
+
+      // The token was pasted in elsewhere; the editor reads the list the
+      // store holds now rather than the one it was handed.
+      expect(wrapper.find('[data-action-error]').exists()).toBe(false)
+    })
+
     test('a bot the list does not hold is not called missing', async () => {
       // The endpoint filters the list by what the caller may list, so a bot
       // absent from it may be hidden rather than deleted. Telling someone to
