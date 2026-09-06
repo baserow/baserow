@@ -226,7 +226,8 @@
         "createdBy": "El campo \"Creado por\" es un campo de sólo lectura que muestra el usuario que creó la fila.",
         "duration": "Acepta una duración basada en el tiempo como una cadena con el formato {formato} o como un número que representa el número total de segundos.",
         "password": "Un campo de sólo escritura que contiene una contraseña con hash. El valor será \"nulo\" si no se ha establecido, o \"verdadero\" si se ha establecido. Acepta una cadena para establecerla.",
-        "formViewEditRow": "Un campo de solo lectura que genera una URL única y firmada que permite editar la fila a través de la vista de formulario vinculada."
+        "formViewEditRow": "Un campo de solo lectura que genera una URL única y firmada que permite editar la fila a través de la vista de formulario vinculada.",
+        "button": "Un campo de botón. Al hacer clic en el botón se abre una URL construida a partir de los valores de la fila. La celda no almacena datos y las escrituras son rechazadas."
     },
     "viewFilter": {
         "contains": "contiene",
