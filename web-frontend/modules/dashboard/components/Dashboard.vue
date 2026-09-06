@@ -1,7 +1,15 @@
 <template>
   <div class="dashboard-app">
-    <DashboardHeader :dashboard="dashboard" :store-prefix="storePrefix" />
-    <DashboardContent :dashboard="dashboard" :store-prefix="storePrefix" />
+    <DashboardHeader
+      :dashboard="dashboard"
+      :store-prefix="storePrefix"
+      :loading="loading"
+    />
+    <DashboardContent
+      :dashboard="dashboard"
+      :store-prefix="storePrefix"
+      :loading="loading"
+    />
   </div>
 </template>
 
@@ -21,6 +29,10 @@ export default {
       type: String,
       required: false,
       default: '',
+    },
+    loading: {
+      type: Boolean,
+      required: true,
     },
   },
 }

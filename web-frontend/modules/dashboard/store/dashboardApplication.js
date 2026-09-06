@@ -81,9 +81,6 @@ export const mutations = {
 }
 
 export const actions = {
-  setLoading({ commit }, value) {
-    commit('SET_LOADING', value)
-  },
   reset({ commit }) {
     commit('RESET')
   },
@@ -159,12 +156,15 @@ export const actions = {
   async fetchInitial({ commit, dispatch }, { dashboardId, forEditing }) {
     const { $client } = this
     commit('RESET')
+    commit('SET_LOADING', true)
     commit('SET_DASHBOARD_ID', dashboardId)
     const { data } = await WidgetService($client).getAllWidgets(dashboardId)
     data.forEach((widget) => {
       commit('ADD_WIDGET', widget)
     })
-    await dispatch('setLoading', false)
+    // The widgets are known now, so they can be rendered while their data is
+    // still being fetched. They show a loading state of their own.
+    commit('SET_LOADING', false)
     await dispatch('fetchNewDataSources', dashboardId)
 
     if (forEditing) {

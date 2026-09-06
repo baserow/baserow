@@ -1,12 +1,12 @@
 <template>
-  <div v-if="dashboard" class="dashboard-app">
-    <DashboardHeader :dashboard="dashboard" />
-    <DashboardContent :dashboard="dashboard" />
+  <div class="dashboard-app">
+    <DashboardHeader :dashboard="dashboard" :loading="loading" />
+    <DashboardContent :dashboard="dashboard" :loading="loading" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
 import { useNuxtApp, useAsyncData, createError, useHead } from '#app'
@@ -22,7 +22,7 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
-    'dashboardLoading',
+    'selectDashboard',
   ],
 })
 
@@ -30,32 +30,31 @@ const store = useStore()
 const route = useRoute()
 const { $hasPermission, $realtime } = useNuxtApp()
 
-const {
-  data,
-  pending,
-  error: fetchError,
-} = await useAsyncData(
+// The dashboard is selected by the `selectDashboard` middleware, so it's there
+// when the page renders. Only the widgets have to be fetched.
+const dashboard = computed(() => store.getters['application/getSelected'])
+
+/**
+ * The widgets are fetched without blocking the navigation. While that's running,
+ * the page renders a skeleton loading state.
+ */
+const { status, error: fetchError } = await useAsyncData(
   `dashboard-data-${route.params.dashboardId}`,
   async () => {
     try {
-      const dashboard = store.getters['application/getSelected']
       const workspace = store.getters['workspace/getSelected']
-
       const forEditing = $hasPermission(
         'application.update',
-        dashboard,
+        dashboard.value,
         workspace.id
       )
 
       await store.dispatch('dashboardApplication/fetchInitial', {
-        dashboardId: dashboard.id,
+        dashboardId: dashboard.value.id,
         forEditing,
       })
 
-      return {
-        workspace,
-        dashboard,
-      }
+      return true
     } catch (e) {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
@@ -75,27 +74,41 @@ const {
         fatal: true,
       })
     }
-  }
+  },
+  { lazy: true, server: false }
 )
 
-if (fetchError.value) {
-  throw fetchError.value
-}
+// The store is loading from the moment the widgets are being fetched until they
+// have arrived, after which they render with a loading state of their own. The
+// `idle` status covers the tick before the fetch has started, because until then
+// the widgets of the previously opened dashboard are still in the store.
+const widgetsLoading = computed(
+  () => store.getters['dashboardApplication/isLoading']
+)
+const loading = computed(() => status.value === 'idle' || widgetsLoading.value)
 
-const dashboard = computed(() => data.value?.dashboard)
+// The fetch no longer runs during setup, so an error arrives after the page has
+// rendered and has to be shown from here.
+watch(
+  fetchError,
+  (value) => {
+    if (value) {
+      showError(value)
+    }
+  },
+  { immediate: true }
+)
 
 useHead(() => ({
   title: dashboard.value?.name || '',
 }))
 
-// Mounted logic
 onMounted(() => {
   if (dashboard.value) {
     $realtime.subscribe('dashboard', { dashboard_id: dashboard.value.id })
   }
 })
 
-// Cleanup
 onBeforeUnmount(() => {
   if (dashboard.value) {
     $realtime.unsubscribe('dashboard', { dashboard_id: dashboard.value.id })

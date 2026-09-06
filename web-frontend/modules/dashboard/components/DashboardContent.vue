@@ -1,42 +1,53 @@
 <template>
   <div>
-    <div v-if="!isLoading">
-      <div class="layout__col-2-2 dashboard-app__layout">
+    <div class="layout__col-2-2 dashboard-app__layout">
+      <div
+        class="dashboard-app__layout-scrollable"
+        :style="{ width: `calc(100% - ${sidebarWidth}px)` }"
+      >
         <div
-          class="dashboard-app__layout-scrollable"
-          :style="{ width: `calc(100% - ${sidebarWidth}px)` }"
+          class="dashboard-app__content"
+          :class="{ 'dashboard-app__content--small': isInTemplate }"
         >
-          <div
-            class="dashboard-app__content"
-            :class="{ 'dashboard-app__content--small': isInTemplate }"
-          >
-            <DashboardContentHeader
+          <DashboardContentHeader
+            :dashboard="dashboard"
+            :store-prefix="storePrefix"
+          />
+          <!--
+            The name and description of the dashboard are already known, only the
+            widgets have to be fetched, so only those are a placeholder.
+          -->
+          <div v-if="loading" class="skeleton" aria-hidden="true">
+            <div
+              v-for="index in 2"
+              :key="`widget-${index}`"
+              class="dashboard-widget"
+            >
+              <SkeletonBlock height="160px"></SkeletonBlock>
+            </div>
+          </div>
+          <EmptyDashboard
+            v-else-if="isEmpty"
+            :dashboard="dashboard"
+            @widget-variation-selected="createWidget($event)"
+          />
+          <template v-else>
+            <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
+            <CreateWidgetButton
+              v-if="isEditMode && canCreateWidget"
               :dashboard="dashboard"
               :store-prefix="storePrefix"
-            />
-            <EmptyDashboard
-              v-if="isEmpty"
-              :dashboard="dashboard"
               @widget-variation-selected="createWidget($event)"
             />
-            <template v-else>
-              <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
-              <CreateWidgetButton
-                v-if="isEditMode && canCreateWidget"
-                :dashboard="dashboard"
-                :store-prefix="storePrefix"
-                @widget-variation-selected="createWidget($event)"
-              />
-            </template>
-          </div>
+          </template>
         </div>
-        <DashboardSidebar
-          v-if="isEditMode"
-          :dashboard="dashboard"
-          :store-prefix="storePrefix"
-          :style="{ width: `${sidebarWidth}px` }"
-        />
       </div>
+      <DashboardSidebar
+        v-if="isEditMode && !loading"
+        :dashboard="dashboard"
+        :store-prefix="storePrefix"
+        :style="{ width: `${sidebarWidth}px` }"
+      />
     </div>
   </div>
 </template>
@@ -68,6 +79,10 @@ export default {
       required: false,
       default: '',
     },
+    loading: {
+      type: Boolean,
+      required: true,
+    },
   },
   data() {
     return {
@@ -89,11 +104,6 @@ export default {
     isEmpty() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/isEmpty`
-      ]
-    },
-    isLoading() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/isLoading`
       ]
     },
     isInTemplate() {
