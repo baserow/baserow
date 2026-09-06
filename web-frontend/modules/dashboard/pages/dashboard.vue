@@ -1,15 +1,16 @@
 <template>
-  <div v-if="dashboard" class="dashboard-app">
-    <DashboardHeader :dashboard="dashboard" />
-    <DashboardContent :dashboard="dashboard" />
+  <div class="dashboard-app">
+    <DashboardHeader :dashboard="dashboard" :loading="loading" />
+    <DashboardContent :dashboard="dashboard" :loading="loading" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
-import { useNuxtApp, useAsyncData, createError, useHead } from '#app'
+import { useNuxtApp, createError, useHead } from '#app'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
@@ -22,7 +23,7 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
-    'dashboardLoading',
+    'selectDashboard',
   ],
 })
 
@@ -30,32 +31,32 @@ const store = useStore()
 const route = useRoute()
 const { $hasPermission, $realtime } = useNuxtApp()
 
-const {
-  data,
-  pending,
-  error: fetchError,
-} = await useAsyncData(
+// The dashboard is selected by the `selectDashboard` middleware, so it's there
+// when the page renders. Only the widgets have to be fetched. It's read once
+// instead of being computed, because the selection changes while this page is
+// still rendered: the next route's middleware selects its own application before
+// this page unmounts, which would make the realtime unsubscribe below use the
+// wrong id, and a realtime deletion removes it from the store before the redirect
+// away has finished.
+const dashboard = ref(store.getters['application/getSelected'])
+
+const { status } = await usePageAsyncData(
   `dashboard-data-${route.params.dashboardId}`,
   async () => {
     try {
-      const dashboard = store.getters['application/getSelected']
       const workspace = store.getters['workspace/getSelected']
-
       const forEditing = $hasPermission(
         'application.update',
-        dashboard,
+        dashboard.value,
         workspace.id
       )
 
       await store.dispatch('dashboardApplication/fetchInitial', {
-        dashboardId: dashboard.id,
+        dashboardId: dashboard.value.id,
         forEditing,
       })
 
-      return {
-        workspace,
-        dashboard,
-      }
+      return true
     } catch (e) {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
@@ -78,24 +79,25 @@ const {
   }
 )
 
-if (fetchError.value) {
-  throw fetchError.value
-}
-
-const dashboard = computed(() => data.value?.dashboard)
+// The store is loading from the moment the widgets are being fetched until they
+// have arrived, after which they render with a loading state of their own. The
+// `idle` status covers the tick before the fetch has started, because until then
+// the widgets of the previously opened dashboard are still in the store.
+const widgetsLoading = computed(
+  () => store.getters['dashboardApplication/isLoading']
+)
+const loading = computed(() => status.value === 'idle' || widgetsLoading.value)
 
 useHead(() => ({
   title: dashboard.value?.name || '',
 }))
 
-// Mounted logic
 onMounted(() => {
   if (dashboard.value) {
     $realtime.subscribe('dashboard', { dashboard_id: dashboard.value.id })
   }
 })
 
-// Cleanup
 onBeforeUnmount(() => {
   if (dashboard.value) {
     $realtime.unsubscribe('dashboard', { dashboard_id: dashboard.value.id })

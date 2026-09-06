@@ -2,6 +2,8 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
+import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
+import SkeletonBlock from '@baserow/modules/core/components/SkeletonBlock'
 import flushPromises from 'flush-promises'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the search
@@ -38,6 +40,41 @@ describe('CrudTable component', () => {
       },
     })
   }
+
+  test('the header and the rows are skeletons spanning all columns', async () => {
+    let resolveFetch = null
+    const fetch = vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        resolveFetch = resolve
+      })
+    )
+    const crudTable = await mountCrudTable(aService(fetch), {
+      columns: [
+        new CrudTableColumn('name', 'Name', SimpleField),
+        new CrudTableColumn('more', '', MoreField, false, false, true),
+      ],
+    })
+
+    const headerCells = crudTable.findAll('thead th')
+    expect(headerCells.length).toBe(1)
+    expect(headerCells.at(0).attributes('colspan')).toBe('2')
+    expect(headerCells.at(0).findAllComponents(SkeletonBlock).length).toBe(1)
+
+    const skeletonRows = crudTable.findAll('tbody tr[aria-hidden="true"]')
+    expect(skeletonRows.length).toBe(10)
+    const cells = skeletonRows.at(0).findAll('td')
+    expect(cells.length).toBe(1)
+    expect(cells.at(0).attributes('colspan')).toBe('2')
+    expect(skeletonRows.at(0).findAllComponents(SkeletonBlock).length).toBe(1)
+
+    resolveFetch(aPage([{ id: 1, name: 'Row 1' }]))
+    await flushPromises()
+
+    expect(crudTable.findAll('tbody tr[aria-hidden="true"]').length).toBe(0)
+    expect(crudTable.findAll('thead th').length).toBe(2)
+    expect(crudTable.find('thead').text()).toContain('Name')
+    expect(crudTable.find('tbody').text()).toContain('Row 1')
+  })
 
   test('the default search is applied to the first fetch and the input', async () => {
     const fetch = vi.fn().mockResolvedValue(aPage([{ id: 1, name: 'Row 1' }]))

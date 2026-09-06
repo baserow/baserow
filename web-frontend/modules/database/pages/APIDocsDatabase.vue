@@ -54,82 +54,106 @@
       <APIDocsIntro :database="database" />
       <APIDocsAuth v-model:value="exampleData" />
 
-      <div v-for="table in database.tables" :key="table.id">
-        <APIDocsTableFields
-          v-if="fields"
-          :table="table"
-          :fields="fields"
-          :navigate="navigate"
-        />
-        <APIDocsTableListFields
-          v-model:value="exampleData"
-          :table="table"
-          :fields="fields"
-        />
-        <APIDocsTableListRows
-          v-model:value="exampleData"
-          :table="table"
-          :fields="fields"
-          :navigate="navigate"
-          :get-list-url="getListURL"
-          :get-response-item="getResponseItem"
-          :get-field-mapping="getFieldMapping"
-        />
-        <APIDocsTableGetRow
-          v-model:value="exampleData"
-          :table="table"
-          :get-item-url="getItemURL"
-          :get-response-item="getResponseItem"
-          :get-field-mapping="getFieldMapping"
-        />
-        <APIDocsTableCreateRow
-          v-model:value="exampleData"
-          :table="table"
-          :without-read-only="withoutReadOnly"
-          :user-field-names="exampleData.userFieldNames"
-          :get-list-url="getListURL"
-          :get-request-example="getRequestExample"
-          :get-batch-request-example="getBatchRequestExample"
-          :get-batch-response-item="getBatchResponseItems"
-          :get-response-item="getResponseItem"
-          :get-field-mapping="getFieldMapping"
-        />
-        <APIDocsTableUpdateRow
-          v-model:value="exampleData"
-          :table="table"
-          :without-read-only="withoutReadOnly"
-          :user-field-names="exampleData.userFieldNames"
-          :get-item-url="getItemURL"
-          :get-list-url="getListURL"
-          :get-request-example="getRequestExample"
-          :get-batch-request-example="getBatchRequestExample"
-          :get-batch-response-item="getBatchResponseItems"
-          :get-response-item="getResponseItem"
-          :get-field-mapping="getFieldMapping"
-        />
-        <APIDocsTableMoveRow
-          v-model:value="exampleData"
-          :table="table"
-          :user-field-names="exampleData.userFieldNames"
-          :get-item-url="getItemURL"
-          :get-response-item="getResponseItem"
-          :get-field-mapping="getFieldMapping"
-        />
-        <APIDocsTableDeleteRow
-          v-model:value="exampleData"
-          :table="table"
-          :get-item-url="getItemURL"
-          :get-delete-list-url="getDeleteListURL"
-          :get-batch-delete-request-example="getBatchDeleteRequestExample"
-        />
-        <div v-for="field in passwordFields[table.id]" :key="field.id">
-          <APIDocsTablePasswordFieldAuthentication
-            v-model:value="exampleData"
-            :field="field"
-            :table="table"
-          />
+      <!--
+        The fields of the tables aren't known yet, so a placeholder is shown for
+        every table instead of its endpoints.
+      -->
+      <template v-if="loading">
+        <div
+          v-for="table in database.tables"
+          :key="`skeleton-${table.id}`"
+          class="skeleton api-docs__item"
+          aria-hidden="true"
+        >
+          <div class="api-docs__left">
+            <SkeletonBlock width="240px" height="20px"></SkeletonBlock>
+            <SkeletonBlock width="70%" class="margin-top-2"></SkeletonBlock>
+            <SkeletonBlock width="55%" class="margin-top-1"></SkeletonBlock>
+            <SkeletonBlock height="120px" class="margin-top-3"></SkeletonBlock>
+          </div>
+          <div class="api-docs__right">
+            <SkeletonBlock height="180px"></SkeletonBlock>
+          </div>
         </div>
-      </div>
+      </template>
+      <template v-else>
+        <div v-for="table in database.tables" :key="table.id">
+          <APIDocsTableFields
+            v-if="fields"
+            :table="table"
+            :fields="fields"
+            :navigate="navigate"
+          />
+          <APIDocsTableListFields
+            v-model:value="exampleData"
+            :table="table"
+            :fields="fields"
+          />
+          <APIDocsTableListRows
+            v-model:value="exampleData"
+            :table="table"
+            :fields="fields"
+            :navigate="navigate"
+            :get-list-url="getListURL"
+            :get-response-item="getResponseItem"
+            :get-field-mapping="getFieldMapping"
+          />
+          <APIDocsTableGetRow
+            v-model:value="exampleData"
+            :table="table"
+            :get-item-url="getItemURL"
+            :get-response-item="getResponseItem"
+            :get-field-mapping="getFieldMapping"
+          />
+          <APIDocsTableCreateRow
+            v-model:value="exampleData"
+            :table="table"
+            :without-read-only="withoutReadOnly"
+            :user-field-names="exampleData.userFieldNames"
+            :get-list-url="getListURL"
+            :get-request-example="getRequestExample"
+            :get-batch-request-example="getBatchRequestExample"
+            :get-batch-response-item="getBatchResponseItems"
+            :get-response-item="getResponseItem"
+            :get-field-mapping="getFieldMapping"
+          />
+          <APIDocsTableUpdateRow
+            v-model:value="exampleData"
+            :table="table"
+            :without-read-only="withoutReadOnly"
+            :user-field-names="exampleData.userFieldNames"
+            :get-item-url="getItemURL"
+            :get-list-url="getListURL"
+            :get-request-example="getRequestExample"
+            :get-batch-request-example="getBatchRequestExample"
+            :get-batch-response-item="getBatchResponseItems"
+            :get-response-item="getResponseItem"
+            :get-field-mapping="getFieldMapping"
+          />
+          <APIDocsTableMoveRow
+            v-model:value="exampleData"
+            :table="table"
+            :user-field-names="exampleData.userFieldNames"
+            :get-item-url="getItemURL"
+            :get-response-item="getResponseItem"
+            :get-field-mapping="getFieldMapping"
+          />
+          <APIDocsTableDeleteRow
+            v-model:value="exampleData"
+            :table="table"
+            :get-item-url="getItemURL"
+            :get-delete-list-url="getDeleteListURL"
+            :get-batch-delete-request-example="getBatchDeleteRequestExample"
+          />
+          <div v-for="field in passwordFields[table.id]" :key="field.id">
+            <APIDocsTablePasswordFieldAuthentication
+              v-model:value="exampleData"
+              :field="field"
+              :table="table"
+            />
+          </div>
+        </div>
+      </template>
       <APIDocsUploadFile
         v-model:value="exampleData"
         :get-upload-file-list-url="getUploadFileListUrl"
@@ -184,6 +208,7 @@ import {
 
 import { computed, onMounted, onBeforeUnmount, useTemplateRef } from 'vue'
 import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 
 import { useRoute, useRouter } from 'vue-router'
@@ -204,18 +229,29 @@ const {
   $i18n: { t: $t },
 } = useNuxtApp()
 
-const { data, status, pending, error, refresh, clear } = await useAsyncData(
+// The applications are loaded by the `workspacesAndApplications` middleware, so
+// the database is there when the page renders. Only the fields of its tables have
+// to be fetched.
+const databaseId = parseInt(route.params.databaseId)
+const database = $store.getters['application/get'](databaseId)
+
+if (
+  database === undefined ||
+  database.type !== DatabaseApplicationType.getType()
+) {
+  throw createError({
+    statusCode: 404,
+    message: `database ${databaseId} not found`,
+    data: {
+      report: false,
+    },
+    fatal: true,
+  })
+}
+
+const { data, loading } = await usePageAsyncData(
   'api-docs-database-' + route.params.databaseId,
   async () => {
-    const params = route.params
-    const databaseId = parseInt(params.databaseId)
-    const database = $store.getters['application/get'](databaseId)
-    const type = DatabaseApplicationType.getType()
-
-    if (database === undefined || database.type !== type) {
-      throw new Error(`database ${databaseId} not found`)
-    }
-
     const fieldData = {}
     const tableIdsToRemove = []
 
@@ -240,11 +276,10 @@ const { data, status, pending, error, refresh, clear } = await useAsyncData(
       (table) => !tableIdsToRemove.includes(table.id)
     )
 
-    return { database, fieldData }
+    return { fieldData }
   }
 )
-
-const { database, fieldData } = data.value
+const fieldData = computed(() => data.value?.fieldData ?? {})
 
 useHead({
   title: $t('apiDocsDatabase.pageTitle', database),
@@ -269,14 +304,14 @@ const userFieldNamesParam = computed(() => {
 const fields = computed(() => {
   const { $registry } = useNuxtApp()
   return Object.fromEntries(
-    Object.entries(fieldData).map(([key, fields]) => {
+    Object.entries(fieldData.value).map(([key, fields]) => {
       return [key, fields.map((field) => populateField(field, $registry))]
     })
   )
 })
 const passwordFields = computed(() => {
   return Object.fromEntries(
-    Object.entries(fieldData).map(([key, fields]) => {
+    Object.entries(fieldData.value).map(([key, fields]) => {
       return [
         key,
         fields.filter(

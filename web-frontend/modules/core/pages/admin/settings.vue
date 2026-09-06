@@ -13,11 +13,21 @@
             </div>
           </div>
           <div class="admin-settings__control">
-            {{ instanceId }}
-            <a class="licenses__instance-id-copy" @click.prevent="handleCopy()">
-              {{ $t('action.copy') }}
-              <Copied ref="instanceIdCopied" />
-            </a>
+            <SkeletonBlock
+              v-if="instanceIdLoading"
+              width="240px"
+              height="14px"
+            ></SkeletonBlock>
+            <template v-else>
+              {{ instanceId }}
+              <a
+                class="licenses__instance-id-copy"
+                @click.prevent="handleCopy()"
+              >
+                {{ $t('action.copy') }}
+                <Copied ref="instanceIdCopied" />
+              </a>
+            </template>
           </div>
         </div>
         <div class="admin-settings__item">
@@ -259,7 +269,8 @@ import {
   getCurrentInstance,
   onMounted,
 } from 'vue'
-import { useAsyncData, useNuxtApp, useHead } from '#app'
+import { useNuxtApp, useHead } from '#app'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import { useStore } from 'vuex'
 import { useVuelidate } from '@vuelidate/core'
 import { required, integer, between, helpers } from '@vuelidate/validators'
@@ -318,10 +329,12 @@ const rules = computed(() => {
 
 const v$ = useVuelidate(rules, { values }, { $lazy: true })
 
-const { data: instanceData } = await useAsyncData('instance-id', async () => {
-  const { data } = await SettingsService($client).getInstanceID()
-  return data
-})
+// The instance id is the only thing on this page that has to be fetched.
+const { data: instanceData, loading: instanceIdLoading } =
+  await usePageAsyncData('instance-id', async () => {
+    const { data } = await SettingsService($client).getInstanceID()
+    return data
+  })
 
 const instanceId = computed(() => instanceData.value?.instance_id ?? '')
 

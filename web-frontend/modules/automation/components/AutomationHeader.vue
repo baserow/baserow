@@ -1,7 +1,13 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
+    <SkeletonBlock
+      v-if="loading"
+      class="header__loading"
+      width="140px"
+      height="12px"
+    ></SkeletonBlock>
     <ul
-      v-if="
+      v-else-if="
         $hasPermission(
           'application.update',
           automation,
@@ -71,6 +77,7 @@
 
     <div
       v-if="
+        !loading &&
         $hasPermission(
           'application.update',
           automation,
@@ -160,6 +167,11 @@ export default defineComponent({
     automation: {
       type: Object,
       required: true,
+    },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   emits: ['debug-toggled'],

@@ -19,12 +19,9 @@
         v-if="loaded && !loading && !initialLoadFailed"
       />
 
-      <div
+      <AIProviderAdminSkeleton
         v-if="loading || (!loaded && !initialLoadFailed)"
-        class="ai-provider-admin__loading"
-      >
-        <div class="loading" />
-      </div>
+      />
       <div v-else-if="initialLoadFailed && !loaded" class="placeholder">
         <div class="placeholder__icon">
           <i class="iconoir-warning-circle" />
@@ -102,6 +99,7 @@
 import { useHead } from '#imports'
 import { useNuxtApp } from '#app'
 
+import AIProviderAdminSkeleton from '@baserow/modules/core/components/ai/AIProviderAdminSkeleton'
 import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
@@ -112,6 +110,7 @@ import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 export default {
   name: 'AdminAIProviders',
   components: {
+    AIProviderAdminSkeleton,
     AIProviderConfirmModal,
     AIProviderFeatureSettings,
     AIProviderFormModal,

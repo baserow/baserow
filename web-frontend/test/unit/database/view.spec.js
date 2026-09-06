@@ -8,6 +8,8 @@ import {
 } from '@baserow/modules/database/utils/view'
 import gallery from '~/modules/database/services/view/gallery'
 import { NuxtPage } from '#components'
+import { useError, clearError } from '#app'
+import flushPromises from 'flush-promises'
 
 // Mock out debounce so we don't have to wait or simulate waiting for the various
 // debounces in the search functionality.
@@ -24,7 +26,23 @@ describe('View Tests', () => {
 
   afterEach(async () => await testApp.afterEach())
 
-  const mountRoute = (route) => {
+  /**
+   * Without a view in the route params the page first has to fetch the views to
+   * know which one is the default, and only then redirects to it. That's another
+   * couple of ticks after mounting.
+   */
+  const waitFor = async (condition, timeout = 5000) => {
+    const start = Date.now()
+    while (!condition()) {
+      if (Date.now() - start > timeout) {
+        throw new Error('Timed out while waiting for the condition.')
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      await flushPromises()
+    }
+  }
+
+  const mountRoute = async (route) => {
     // Let's mount a NuxtPage component for the route.
     // It allow the router to work properly
     const App = defineComponent({
@@ -32,9 +50,18 @@ describe('View Tests', () => {
       template: '<NuxtPage />',
     })
 
-    return testApp.mount(App, {
+    const wrapper = await testApp.mount(App, {
       route,
     })
+
+    // The page renders before it has fetched the view, and when the route has no
+    // view it redirects to the default one first, so wait until it has settled.
+    await waitFor(() => {
+      const page = wrapper.findComponent(Table)
+      return page.exists() && !page.vm.loading
+    })
+
+    return wrapper
   }
 
   test('forceCreate view metadata mutations are idempotent', async () => {
@@ -327,11 +354,17 @@ describe('View Tests', () => {
       viewsError,
     })
 
-    await expect(
-      testApp.mount(Table, {
-        route: `/database/${application.id}/table/${table.id}/123?token=fake`,
-      })
-    ).rejects.toThrow('Request failed with status code 500')
+    // The views are fetched by the page itself now, so the error doesn't reject the
+    // navigation anymore, it's shown once the page has rendered.
+    const tableComponent = await testApp.mount(Table, {
+      route: `/database/${application.id}/table/${table.id}/123?token=fake`,
+    })
+
+    const error = useError()
+    await waitFor(() => error.value !== null)
+    expect(error.value.message).toContain('Request failed with status code 500')
+    clearError()
+    expect(tableComponent.find('div.grid-view').exists()).toBe(false)
   })
 
   test.skip('API error during views loading is displayed correctly', async () => {

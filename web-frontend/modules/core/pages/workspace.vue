@@ -19,9 +19,15 @@
           </div>
           <i class="dashboard__workspace-name-icon iconoir-nav-arrow-down"></i>
         </h1>
+        <SkeletonBlock
+          v-if="loading && dashboardWorkspacePlanBadge.length > 0"
+          width="80px"
+          height="20px"
+        ></SkeletonBlock>
         <component
           :is="component"
           v-for="(component, index) in dashboardWorkspacePlanBadge"
+          v-else
           :key="index"
           :workspace="selectedWorkspace"
           :component-arguments="workspaceComponentArguments"
@@ -33,16 +39,27 @@
         @rename="enableRename()"
       ></WorkspaceContext>
       <div class="dashboard__header-right">
+        <SkeletonBlock
+          v-if="loading && dashboardWorkspaceRowUsageComponent.length > 0"
+          width="140px"
+          height="20px"
+        ></SkeletonBlock>
         <component
           :is="component"
           v-for="(component, index) in dashboardWorkspaceRowUsageComponent"
+          v-else
           :key="index"
           :workspace="selectedWorkspace"
           :component-arguments="workspaceComponentArguments"
           @workspace-updated="workspaceUpdated($event)"
         ></component>
+        <SkeletonBlock
+          v-if="!permissionsLoaded"
+          width="100px"
+          height="32px"
+        ></SkeletonBlock>
         <span
-          v-if="canCreateCreateApplication"
+          v-else-if="canCreateCreateApplication"
           ref="createApplicationContextLink"
         >
           <Button
@@ -200,8 +217,13 @@
             <p v-if="canCreateCreateApplication">
               {{ $t('dashboard.emptyWorkspaceMessage') }}
             </p>
+            <SkeletonBlock
+              v-if="!permissionsLoaded"
+              width="100px"
+              height="32px"
+            ></SkeletonBlock>
             <span
-              v-if="canCreateCreateApplication"
+              v-else-if="canCreateCreateApplication"
               ref="createApplicationContextLink2"
             >
               <Button
@@ -242,7 +264,8 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
-import { useHead, useAsyncData } from '#imports'
+import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
@@ -278,7 +301,13 @@ const { $store, $registry, $i18n, $hasPermission } = nuxtApp
 // ----------------------------------------------------------------------------
 // STATE
 // ----------------------------------------------------------------------------
-const selectedWorkspace = ref(null)
+// The workspaces are already in the store, so the page can render its header and
+// applications right away, while the rest is being fetched.
+const selectedWorkspace = ref(
+  $store.getters['workspace/getAll'].find(
+    (workspace) => workspace.id === parseInt(route.params.workspaceId, 10)
+  ) || null
+)
 const workspaceComponentArguments = ref({})
 const templates = ref([
   {
@@ -323,14 +352,11 @@ async function fetchWorkspaceExtraData(workspace) {
 }
 
 /**
- * Fetch all dashboard-related data for the current workspace.
- * `useAsyncData` now returns the data and we hydrate our refs from it.
+ * Fetches the workspace data the plugins contribute (usage, plan) and the
+ * invitations. The refs below are hydrated from it, because `workspaceUpdated`
+ * has to be able to replace them later.
  */
-const {
-  data: dashboardData,
-  pending,
-  error,
-} = await useAsyncData(
+const { data: dashboardData, loading } = await usePageAsyncData(
   `current-workspace-${route.params.workspaceId}`,
   async () => {
     const workspaceId = parseInt(route.params.workspaceId, 10)
@@ -364,10 +390,6 @@ const {
     }
   }
 )
-
-if (error.value) {
-  throw error.value
-}
 
 /**
  * Hydrate local refs from the async data.
@@ -426,6 +448,14 @@ const orderedApplicationsInSelectedWorkspace = computed(() =>
     : getAllOfWorkspace(selectedWorkspace.value).sort(
         (a, b) => a.order - b.order
       )
+)
+
+const permissionsLoaded = computed(
+  () =>
+    !!selectedWorkspace.value &&
+    $store.getters['workspace/haveWorkspacePermissionsBeenLoaded'](
+      selectedWorkspace.value.id
+    )
 )
 
 const canCreateCreateApplication = computed(() => {

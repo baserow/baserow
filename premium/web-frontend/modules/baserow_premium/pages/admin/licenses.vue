@@ -1,6 +1,7 @@
 <template>
   <div class="layout__col-2-scroll layout__col-2-scroll--white-background">
-    <div v-if="orderedLicenses.length === 0" class="placeholder">
+    <LicensesSkeleton v-if="loading" />
+    <div v-else-if="orderedLicenses.length === 0" class="placeholder">
       <div class="placeholder__icon">
         <i class="iconoir-shield-check"></i>
       </div>
@@ -156,6 +157,8 @@
 
 <script setup>
 import LicenseService from '@baserow_premium/services/license'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
+import LicensesSkeleton from '@baserow_premium/components/license/LicensesSkeleton'
 import RegisterLicenseModal from '@baserow_premium/components/license/RegisterLicenseModal'
 import RedirectToBaserowModal from '@baserow_premium/components/RedirectToBaserowModal'
 import moment from '@baserow/modules/core/moment'
@@ -172,8 +175,7 @@ const { $client, $registry, $i18n } = useNuxtApp()
 
 useHead({ title: $i18n.t('licenses.titleLicenses') })
 
-// Fetch data using useAsyncData and return the values from the callback
-const { data, error } = await useAsyncData('licensesPage', async () => {
+const { data, loading } = await usePageAsyncData('licensesPage', async () => {
   try {
     const [{ data: instanceData }, { data: licensesData }] = await Promise.all([
       SettingsService($client).getInstanceID(),
@@ -204,10 +206,6 @@ const { data, error } = await useAsyncData('licensesPage', async () => {
     })
   }
 })
-
-if (error.value) {
-  throw error.value
-}
 
 const licenses = computed(() => data.value?.licenses || [])
 const instanceId = computed(() => data.value?.instanceId || '')

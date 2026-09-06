@@ -402,12 +402,17 @@ export const actions = {
    * Fetches all the views of a given table. The is mostly called when the user
    * selects a different table.
    */
-  async fetchAll({ commit, getters, dispatch, state }, table) {
+  async fetchAll({ commit, getters, dispatch, state, rootGetters }, table) {
     const nuxtApp = this
     const { $client, $registry } = nuxtApp
     commit('SET_LOADING', true)
     commit('UNSELECT', {})
     commit('SET_DEFAULT_VIEW_ID', null)
+
+    const isStale = () => {
+      const selectedTableId = rootGetters['table/getSelectedId']
+      return selectedTableId && selectedTableId !== table.id
+    }
 
     try {
       const { data } = await ViewService($client).fetchAll(
@@ -418,6 +423,9 @@ export const actions = {
         true,
         true
       )
+      if (isStale()) {
+        return
+      }
       data.forEach((part, index, d) => {
         populateView(data[index], $registry)
       })
@@ -433,9 +441,11 @@ export const actions = {
         commit('SET_DEFAULT_VIEW_ID', defaultViewId)
       }
     } catch (error) {
-      commit('SET_ITEMS', [])
-      commit('SET_TABLE_ID', null)
-      commit('SET_LOADING', false)
+      if (!isStale()) {
+        commit('SET_ITEMS', [])
+        commit('SET_TABLE_ID', null)
+        commit('SET_LOADING', false)
+      }
       throw error
     }
   },

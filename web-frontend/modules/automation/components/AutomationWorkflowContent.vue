@@ -2,6 +2,7 @@
   <div class="automation-workflow">
     <AutomationHeader
       :automation="automation"
+      :loading="loading"
       @debug-toggled="handleDebugToggle"
     />
     <div

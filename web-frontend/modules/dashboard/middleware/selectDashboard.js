@@ -2,21 +2,17 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
 /**
- * Middleware that changes the dashboard loading state to true before the route
- * changes.
+ * Selects the dashboard and workspace of the route params. Everything else the
+ * dashboard page needs is fetched by the page itself, so that it can render its
+ * skeleton loading state without waiting for the network.
  */
-export default defineNuxtRouteMiddleware(async (to, from) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   const nuxtApp = useNuxtApp()
   const store = nuxtApp.$store
-  const { $i18n } = nuxtApp
 
-  function parseIntOrNull(x) {
-    return x != null ? parseInt(x) : null
-  }
-
-  const toDashboardId = parseIntOrNull(to?.params?.dashboardId)
-  const fromDashboardId = parseIntOrNull(from?.params?.dashboardId)
-  const differentDashboardId = fromDashboardId !== toDashboardId
+  const toDashboardId = to.params?.dashboardId
+    ? parseInt(to.params.dashboardId)
+    : null
 
   if (toDashboardId) {
     try {
@@ -43,11 +39,5 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
         fatal: true,
       })
     }
-  }
-
-  // If it's the first page or the server side rendered page, then always put the
-  // dashboard in the loading state for the correct animation.
-  if (import.meta.server || !from || differentDashboardId) {
-    await store.dispatch('dashboardApplication/setLoading', true)
   }
 })

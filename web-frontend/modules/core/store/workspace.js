@@ -52,12 +52,16 @@ export const state = () => ({
   loading: false,
   items: [],
   selected: {},
+  selectRequestId: 0,
   userIdsInSelected: new Set(),
   aiModelRevisions: {},
   aiFeatureRevisions: {},
 })
 
 export const mutations = {
+  INCREMENT_SELECT_REQUEST_ID(state) {
+    state.selectRequestId += 1
+  },
   SET_LOADED(state, loaded) {
     state.loaded = loaded
   },
@@ -519,11 +523,20 @@ export const actions = {
   /**
    * Select a workspace and fetch all the applications related to that workspace.
    */
-  async select({ commit, dispatch }, workspace) {
+  async select({ commit, dispatch, state }, workspace) {
     const nuxtApp = this
+
+    commit('INCREMENT_SELECT_REQUEST_ID')
+    const requestId = state.selectRequestId
 
     await dispatch('fetchPermissions', workspace)
     await dispatch('fetchRoles', workspace)
+    // Pages select without blocking the navigation, so a slower selection of the
+    // workspace that was navigated away from can finish after the current one.
+    // It must then not switch the selection, cookie and scopes back.
+    if (requestId !== state.selectRequestId) {
+      return workspace
+    }
     commit('SET_SELECTED', workspace)
     setWorkspaceCookie(workspace.id, nuxtApp)
     dispatch(

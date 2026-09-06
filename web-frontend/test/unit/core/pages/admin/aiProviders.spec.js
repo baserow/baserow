@@ -42,6 +42,17 @@ describe('AdminAIProviders', () => {
     expect(wrapper.text()).toContain('aiProviderAdmin.noProviders')
   })
 
+  test('shows the skeleton while the providers are being fetched', async () => {
+    vi.spyOn(testApp.store, 'dispatch').mockReturnValue(new Promise(() => {}))
+
+    const wrapper = await testApp.mount(AdminAIProviders)
+    await flushPromises()
+
+    expect(wrapper.find('.skeleton').exists()).toBe(true)
+    expect(wrapper.findAll('.ai-provider-card').length).toBeGreaterThan(0)
+    expect(wrapper.find('.loading').exists()).toBe(false)
+  })
+
   test('shows a recoverable error instead of an endless initial spinner', async () => {
     let fetchAttempt = 0
     const dispatch = vi
@@ -59,7 +70,7 @@ describe('AdminAIProviders', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('aiProviderAdmin.loadError')
-    expect(wrapper.find('.ai-provider-admin__loading').exists()).toBe(false)
+    expect(wrapper.find('.skeleton').exists()).toBe(false)
 
     await wrapper
       .findAll('button')
@@ -105,8 +116,8 @@ describe('AdminAIProviders', () => {
     testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.ai-provider-model__name').exists()).toBe(false)
-    expect(wrapper.find('.ai-provider-admin__loading').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('gpt-5.6')
+    expect(wrapper.find('.skeleton').exists()).toBe(true)
   })
 
   test('tests every provider model in one request', async () => {

@@ -5,7 +5,6 @@
       <div class="row margin-bottom-3">
         <div class="col col-4">
           <div class="admin-dashboard__box">
-            <div v-if="loading" class="loading-overlay"></div>
             <div class="admin-dashboard__box-title">
               {{ $t('adminDashboard.totals') }}
             </div>
@@ -13,7 +12,10 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.totalUsers') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.total_users }}
               </div>
               <div class="admin-dashboard__numbers-percentage">
@@ -26,7 +28,10 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.totalWorkspaces') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.total_workspaces }}
               </div>
               <div class="admin-dashboard__numbers-percentage">
@@ -39,7 +44,10 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.totalApplications') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.total_applications }}
               </div>
             </div>
@@ -47,7 +55,6 @@
         </div>
         <div class="col col-4">
           <div class="admin-dashboard__box">
-            <div v-if="loading" class="loading-overlay"></div>
             <div class="admin-dashboard__box-title">
               {{ $t('adminDashboard.newUsers') }}
             </div>
@@ -55,10 +62,16 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.newUsers24h') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.new_users_last_24_hours }}
               </div>
-              <div class="admin-dashboard__numbers-percentage">
+              <div
+                v-skeleton="{ loading, width: '48px' }"
+                class="admin-dashboard__numbers-percentage"
+              >
                 <span
                   class="admin-dashboard__numbers-percentage-value"
                   :class="{
@@ -73,10 +86,16 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.newUsers7days') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.new_users_last_7_days }}
               </div>
-              <div class="admin-dashboard__numbers-percentage">
+              <div
+                v-skeleton="{ loading, width: '48px' }"
+                class="admin-dashboard__numbers-percentage"
+              >
                 <span
                   class="admin-dashboard__numbers-percentage-value"
                   :class="{
@@ -91,10 +110,16 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.newUsers30days') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.new_users_last_30_days }}
               </div>
-              <div class="admin-dashboard__numbers-percentage">
+              <div
+                v-skeleton="{ loading, width: '48px' }"
+                class="admin-dashboard__numbers-percentage"
+              >
                 <span
                   class="admin-dashboard__numbers-percentage-value"
                   :class="{
@@ -109,7 +134,6 @@
         </div>
         <div class="col col-4">
           <div class="admin-dashboard__box">
-            <div v-if="loading" class="loading-overlay"></div>
             <div class="admin-dashboard__box-title">
               {{ $t('adminDashboard.activeUsers') }}
             </div>
@@ -117,10 +141,16 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.activeUsers24h') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.active_users_last_24_hours }}
               </div>
-              <div class="admin-dashboard__numbers-percentage">
+              <div
+                v-skeleton="{ loading, width: '48px' }"
+                class="admin-dashboard__numbers-percentage"
+              >
                 <span
                   class="admin-dashboard__numbers-percentage-value"
                   :class="{
@@ -135,10 +165,16 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.activeUsers7days') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.active_users_last_7_days }}
               </div>
-              <div class="admin-dashboard__numbers-percentage">
+              <div
+                v-skeleton="{ loading, width: '48px' }"
+                class="admin-dashboard__numbers-percentage"
+              >
                 <span
                   class="admin-dashboard__numbers-percentage-value"
                   :class="{
@@ -153,10 +189,16 @@
               <div class="admin-dashboard__numbers-name">
                 {{ $t('adminDashboard.activeUsers30days') }}
               </div>
-              <div class="admin-dashboard__numbers-value">
+              <div
+                v-skeleton="{ loading, width: '64px' }"
+                class="admin-dashboard__numbers-value"
+              >
                 {{ data.active_users_last_30_days }}
               </div>
-              <div class="admin-dashboard__numbers-percentage">
+              <div
+                v-skeleton="{ loading, width: '48px' }"
+                class="admin-dashboard__numbers-percentage"
+              >
                 <span
                   class="admin-dashboard__numbers-percentage-value"
                   :class="{
@@ -171,11 +213,12 @@
         </div>
       </div>
       <div class="admin-dashboard__box">
-        <div v-if="loading" class="loading-overlay"></div>
-        <ActiveUsers
-          :new-users="data.new_users_per_day"
-          :active-users="data.active_users_per_day"
-        ></ActiveUsers>
+        <div v-skeleton="{ loading, height: '100%' }">
+          <ActiveUsers
+            :new-users="data.new_users_per_day"
+            :active-users="data.active_users_per_day"
+          ></ActiveUsers>
+        </div>
       </div>
     </div>
   </div>
