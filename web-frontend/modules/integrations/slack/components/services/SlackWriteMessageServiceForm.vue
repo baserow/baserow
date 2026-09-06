@@ -85,6 +85,10 @@ export default {
      * A database has no integration settings page, so a bot that arrived
      * without its token can only be repaired from the picker. Everywhere else
      * has one, and a second route there would only be harder to find.
+     *
+     * Compared against the literal rather than `DatabaseApplicationType`: this
+     * module must not import from `database`, and the sibling forms compare
+     * `application.type === 'automation'` the same way.
      */
     editableFromHere() {
       return this.application?.type === 'database'
