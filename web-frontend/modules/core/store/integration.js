@@ -1,5 +1,10 @@
 import IntegrationService from '@baserow/modules/core/services/integration'
 
+// How many times a fetch asks again when the list changed while it was open.
+// Bounded: a list changing this often is not settling, and the caller is told
+// nothing was loaded rather than made to wait.
+const FETCH_ATTEMPTS = 3
+
 // Bumped by every write, so a fetch can tell its answer is older than
 // the list it would overwrite.
 const state = () => ({ generation: {} })
@@ -245,33 +250,40 @@ const actions = {
   async fetch({ commit, state, rootGetters }, { application }) {
     const { $client } = this
     const applicationId = application.id
-    const before = state.generation[applicationId] || 0
 
-    const { data: integrations } =
-      await IntegrationService($client).fetchAll(applicationId)
+    for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
+      const before = state.generation[applicationId] || 0
 
-    // Changed while this was open, so the answer is older than the list and
-    // writing it would lose the change. Null rather than the list, so a
-    // caller does not remember a load that did not happen.
-    if ((state.generation[applicationId] || 0) !== before) {
-      return null
+      const { data: integrations } =
+        await IntegrationService($client).fetchAll(applicationId)
+
+      // Changed while this was open, so the answer is older than the list and
+      // writing it would lose the change. Asked again rather than discarded:
+      // most callers await this and then mark the application loaded, and
+      // would keep an empty list until a reload.
+      if ((state.generation[applicationId] || 0) !== before) {
+        continue
+      }
+
+      // `forceSetAll` can have replaced the object this started with, and
+      // filling that one leaves the one on screen empty.
+      const current =
+        rootGetters['application/get'](applicationId) || application
+
+      // Committed rather than dispatched through `forceCreate`: writing the
+      // answer is not a change to back off from, and a bump here would make
+      // the next attempt back off from this one.
+      commit('CLEAR_ITEMS', { application: current })
+      integrations.forEach((integration) =>
+        commit('ADD_ITEM', { application: current, integration })
+      )
+
+      return integrations
     }
 
-    // `forceSetAll` can have replaced the object this started with, and
-    // filling that one leaves the one on screen empty.
-    const current = rootGetters['application/get'](applicationId) || application
-
-    // Committed rather than dispatched through `forceCreate`: writing the
-    // answer is not a change to back off from. Restoring the generation
-    // afterwards would have done it, but it would also have dropped a bump a
-    // create committed while this was running, which is the case the counter
-    // is here for.
-    commit('CLEAR_ITEMS', { application: current })
-    integrations.forEach((integration) =>
-      commit('ADD_ITEM', { application: current, integration })
-    )
-
-    return integrations
+    // Still moving. Null rather than a list older than the screen, so a
+    // caller does not remember a load that did not happen.
+    return null
   },
   async duplicate({ getters, dispatch }, { application, integrationId }) {
     const integration = getters.getIntegrations.find(

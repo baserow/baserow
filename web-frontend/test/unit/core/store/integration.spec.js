@@ -46,12 +46,15 @@ describe('integration store', () => {
 
   test('a delayed fetch does not erase an integration created after it started', async () => {
     // The response snapshots an empty list. By the time it lands the list
-    // holds a bot, and replacing it with the snapshot loses that bot for
-    // good: nothing refetches.
+    // holds a bot, and replacing it with the snapshot would lose that bot.
+    // The retry sees what the server has by then.
     const answer = held([])
     testApp.mock
       .onGet(`application/${APPLICATION_ID}/integrations/`)
-      .reply(answer.reply)
+      .replyOnce(answer.reply)
+    testApp.mock
+      .onGet(`application/${APPLICATION_ID}/integrations/`)
+      .reply(200, [{ id: 9, type: 'slack_bot', name: 'Fresh bot', order: '1' }])
 
     const fetching = store.dispatch('integration/fetch', {
       application: application(),
@@ -63,8 +66,10 @@ describe('integration store', () => {
     })
 
     answer.release()
-    await fetching
 
+    expect(await fetching).toEqual([
+      { id: 9, type: 'slack_bot', name: 'Fresh bot', order: '1' },
+    ])
     expect(application().integrations.map((i) => i.name)).toEqual(['Fresh bot'])
   })
 
@@ -111,7 +116,18 @@ describe('integration store', () => {
     ])
     testApp.mock
       .onGet(`application/${APPLICATION_ID}/integrations/`)
-      .reply(answer.reply)
+      .replyOnce(answer.reply)
+    testApp.mock
+      .onGet(`application/${APPLICATION_ID}/integrations/`)
+      .reply(200, [
+        {
+          id: 7,
+          type: 'slack_bot',
+          name: 'Bot',
+          order: '1',
+          token: 'xoxb-fresh',
+        },
+      ])
     await store.dispatch('integration/forceCreate', {
       application: application(),
       integration: { id: 7, type: 'slack_bot', name: 'Bot', order: '1' },
@@ -128,25 +144,29 @@ describe('integration store', () => {
     })
 
     answer.release()
+    await fetching
 
-    expect(await fetching).toBeNull()
     expect(application().integrations.map((i) => i.token)).toEqual([
       'xoxb-fresh',
     ])
   })
 
   test('a delayed fetch does not undo a reorder made while it was open', async () => {
-    const answer = held([
+    const stale = [
       { id: 7, type: 'slack_bot', name: 'First', order: '1' },
       { id: 8, type: 'slack_bot', name: 'Second', order: '2' },
-    ])
+    ]
+    const answer = held(stale)
     testApp.mock
       .onGet(`application/${APPLICATION_ID}/integrations/`)
-      .reply(answer.reply)
-    for (const integration of [
-      { id: 7, type: 'slack_bot', name: 'First', order: '1' },
-      { id: 8, type: 'slack_bot', name: 'Second', order: '2' },
-    ]) {
+      .replyOnce(answer.reply)
+    testApp.mock
+      .onGet(`application/${APPLICATION_ID}/integrations/`)
+      .reply(200, [
+        { id: 8, type: 'slack_bot', name: 'Second', order: '1' },
+        { id: 7, type: 'slack_bot', name: 'First', order: '2' },
+      ])
+    for (const integration of stale) {
       await store.dispatch('integration/forceCreate', {
         application: application(),
         integration,
@@ -164,8 +184,8 @@ describe('integration store', () => {
     })
 
     answer.release()
+    await fetching
 
-    expect(await fetching).toBeNull()
     expect(application().integrations.map((i) => i.name)).toEqual([
       'Second',
       'First',
@@ -174,17 +194,22 @@ describe('integration store', () => {
 
   test('a fetch does not clear the way for another to drop a newer bot', async () => {
     // Two fetches overlap and a create lands while the first is writing its
-    // answer. Restoring the counter afterwards drops that create's bump, so
-    // the second fetch reads its own snapshot as current and writes a list
-    // the new bot is not in.
+    // answer. Restoring the counter afterwards would drop that create's bump,
+    // leaving the second fetch to write a list the new bot is not in.
     const first = held([{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
-    testApp.mock
-      .onGet(`application/${APPLICATION_ID}/integrations/`)
-      .replyOnce(first.reply)
     const second = held([{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
     testApp.mock
       .onGet(`application/${APPLICATION_ID}/integrations/`)
-      .reply(second.reply)
+      .replyOnce(first.reply)
+    testApp.mock
+      .onGet(`application/${APPLICATION_ID}/integrations/`)
+      .replyOnce(second.reply)
+    testApp.mock
+      .onGet(`application/${APPLICATION_ID}/integrations/`)
+      .reply(200, [
+        { id: 7, type: 'slack_bot', name: 'Bot', order: '1' },
+        { id: 9, type: 'slack_bot', name: 'Fresh bot', order: '2' },
+      ])
 
     const fetchingFirst = store.dispatch('integration/fetch', {
       application: application(),
@@ -195,7 +220,7 @@ describe('integration store', () => {
     await flushPromises()
 
     // While the first fetch is writing, not after it has finished: that is
-    // the window the restored counter reopened.
+    // the window a restored counter reopened.
     let created = false
     const unsubscribe = store.subscribe(({ type }) => {
       if (type === 'integration/ADD_ITEM' && !created) {
@@ -217,32 +242,36 @@ describe('integration store', () => {
     unsubscribe()
 
     second.release()
+    await fetchingSecond
 
-    expect(await fetchingSecond).toBeNull()
     expect(application().integrations.map((i) => i.name)).toContain('Fresh bot')
   })
 
-  test('a fetch that backed off says it did not load the list', async () => {
-    // Backing off leaves the list holding only what was created during the
-    // request. A caller that reads this as a successful load would remember
-    // the database as loaded and never see the rest.
-    const answer = held([{ id: 7, type: 'slack_bot', name: 'Bot', order: '1' }])
+  test('a list that never settles says it did not load', async () => {
+    // Something writes to the list during every attempt, so no answer is ever
+    // current. A caller that read this as a successful load would remember the
+    // application as loaded and never see the rest.
+    let created = 0
     testApp.mock
       .onGet(`application/${APPLICATION_ID}/integrations/`)
-      .reply(answer.reply)
+      .reply(() => {
+        created += 1
+        store.dispatch('integration/forceCreate', {
+          application: application(),
+          integration: {
+            id: 100 + created,
+            type: 'slack_bot',
+            name: `Bot ${created}`,
+            order: `${created}`,
+          },
+        })
+        return [200, []]
+      })
 
-    const fetching = store.dispatch('integration/fetch', {
-      application: application(),
-    })
-    await flushPromises()
-    await store.dispatch('integration/forceCreate', {
-      application: application(),
-      integration: { id: 9, type: 'slack_bot', name: 'Fresh bot', order: '1' },
-    })
-
-    answer.release()
-
-    expect(await fetching).toBeNull()
-    expect(application().integrations.map((i) => i.name)).toEqual(['Fresh bot'])
+    expect(
+      await store.dispatch('integration/fetch', { application: application() })
+    ).toBeNull()
+    // It gave up rather than asking forever.
+    expect(created).toBe(3)
   })
 })
