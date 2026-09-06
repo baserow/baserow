@@ -19,9 +19,15 @@
           </div>
           <i class="dashboard__workspace-name-icon iconoir-nav-arrow-down"></i>
         </h1>
+        <SkeletonBlock
+          v-if="loading && dashboardWorkspacePlanBadge.length > 0"
+          width="80px"
+          height="20px"
+        ></SkeletonBlock>
         <component
           :is="component"
           v-for="(component, index) in dashboardWorkspacePlanBadge"
+          v-else
           :key="index"
           :workspace="selectedWorkspace"
           :component-arguments="workspaceComponentArguments"
@@ -33,16 +39,27 @@
         @rename="enableRename()"
       ></WorkspaceContext>
       <div class="dashboard__header-right">
+        <SkeletonBlock
+          v-if="loading && dashboardWorkspaceRowUsageComponent.length > 0"
+          width="140px"
+          height="20px"
+        ></SkeletonBlock>
         <component
           :is="component"
           v-for="(component, index) in dashboardWorkspaceRowUsageComponent"
+          v-else
           :key="index"
           :workspace="selectedWorkspace"
           :component-arguments="workspaceComponentArguments"
           @workspace-updated="workspaceUpdated($event)"
         ></component>
+        <SkeletonBlock
+          v-if="loading"
+          width="100px"
+          height="32px"
+        ></SkeletonBlock>
         <span
-          v-if="canCreateCreateApplication"
+          v-else-if="canCreateCreateApplication"
           ref="createApplicationContextLink"
         >
           <Button
@@ -200,8 +217,13 @@
             <p v-if="canCreateCreateApplication">
               {{ $t('dashboard.emptyWorkspaceMessage') }}
             </p>
+            <SkeletonBlock
+              v-if="loading"
+              width="100px"
+              height="32px"
+            ></SkeletonBlock>
             <span
-              v-if="canCreateCreateApplication"
+              v-else-if="canCreateCreateApplication"
               ref="createApplicationContextLink2"
             >
               <Button
@@ -240,7 +262,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watchEffect } from 'vue'
+import { ref, computed, watch, watchEffect } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
 import { useHead, useAsyncData } from '#imports'
 
@@ -278,7 +300,13 @@ const { $store, $registry, $i18n, $hasPermission } = nuxtApp
 // ----------------------------------------------------------------------------
 // STATE
 // ----------------------------------------------------------------------------
-const selectedWorkspace = ref(null)
+// The workspaces are already in the store, so the page can render its header and
+// applications right away, while the rest is being fetched.
+const selectedWorkspace = ref(
+  $store.getters['workspace/getAll'].find(
+    (workspace) => workspace.id === parseInt(route.params.workspaceId, 10)
+  ) || null
+)
 const workspaceComponentArguments = ref({})
 const templates = ref([
   {
@@ -323,12 +351,13 @@ async function fetchWorkspaceExtraData(workspace) {
 }
 
 /**
- * Fetch all dashboard-related data for the current workspace.
- * `useAsyncData` now returns the data and we hydrate our refs from it.
+ * Fetch all dashboard-related data for the current workspace, without blocking
+ * the navigation, so that the page immediately renders with a skeleton loading
+ * state. `useAsyncData` returns the data and we hydrate our refs from it.
  */
 const {
   data: dashboardData,
-  pending,
+  status,
   error,
 } = await useAsyncData(
   `current-workspace-${route.params.workspaceId}`,
@@ -362,12 +391,23 @@ const {
         fatal: true,
       })
     }
-  }
+  },
+  { lazy: true, server: false }
 )
 
-if (error.value) {
-  throw error.value
-}
+const loading = computed(() => ['idle', 'pending'].includes(status.value))
+
+// The fetch no longer runs during setup, so an error arrives after the page has
+// rendered and has to be shown from here.
+watch(
+  error,
+  (value) => {
+    if (value) {
+      showError(value)
+    }
+  },
+  { immediate: true }
+)
 
 /**
  * Hydrate local refs from the async data.
