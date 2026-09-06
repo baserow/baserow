@@ -170,7 +170,7 @@ up: _ensure-images
     if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-slack-stub$"; then
         echo "Starting Slack stub..."
         docker run -d --network={{ network }} --name e2e-slack-stub \
-            -v "$(pwd)/e2e-tests/stubs/slack:/home/wiremock:ro" \
+            -v "$(pwd)/stubs/slack:/home/wiremock:ro" \
             {{ slack_stub_image }}
     fi
 
