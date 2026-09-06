@@ -399,5 +399,8 @@
         "tab": "Tabulación",
         "separator": "Separador",
         "pipe": "Pleca"
+    },
+    "coreGotoServiceForm": {
+        "conditionDescription": "Cuando esta condición es verdadera, el flujo de trabajo salta al nodo de destino en lugar de continuar con el siguiente nodo."
     }
 }
