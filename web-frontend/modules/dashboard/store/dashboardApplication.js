@@ -153,12 +153,15 @@ export const actions = {
       })
     }
   },
-  async fetchInitial({ commit, dispatch }, { dashboardId, forEditing }) {
+  async fetchInitial({ commit, dispatch, state }, { dashboardId, forEditing }) {
     const { $client } = this
     commit('RESET')
     commit('SET_LOADING', true)
     commit('SET_DASHBOARD_ID', dashboardId)
     const { data } = await WidgetService($client).getAllWidgets(dashboardId)
+    if (state.dashboardId !== dashboardId) {
+      return
+    }
     data.forEach((widget) => {
       commit('ADD_WIDGET', widget)
     })
@@ -170,15 +173,21 @@ export const actions = {
     if (forEditing) {
       const { data: integrationsData } =
         await IntegrationService($client).fetchAll(dashboardId)
+      if (state.dashboardId !== dashboardId) {
+        return
+      }
       integrationsData.forEach((integration) => {
         commit('ADD_INTEGRATION', integration)
       })
     }
   },
-  async fetchNewDataSources({ commit, dispatch, getters }, dashboardId) {
+  async fetchNewDataSources({ commit, dispatch, getters, state }, dashboardId) {
     const { $client } = this
     const { data: dataSourcesData } =
       await DataSourceService($client).getAllDataSources(dashboardId)
+    if (state.dashboardId !== dashboardId) {
+      return
+    }
     dataSourcesData.forEach(async (dataSource) => {
       if (!getters.getDataSourceById(dataSource.id)) {
         commit('ADD_DATA_SOURCE', dataSource)

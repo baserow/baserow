@@ -54,6 +54,7 @@
     height: var(--skeleton-height, 0.8em);
     max-width: 100%;
     visibility: visible;
+    pointer-events: none;
     background-color: $palette-neutral-200;
     transform: translateY(-50%);
     animation: skeleton-pulse 1.2s ease-in-out infinite;

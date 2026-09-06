@@ -54,7 +54,7 @@
           @workspace-updated="workspaceUpdated($event)"
         ></component>
         <SkeletonBlock
-          v-if="loading && canCreateCreateApplication"
+          v-if="!permissionsLoaded"
           width="100px"
           height="32px"
         ></SkeletonBlock>
@@ -218,7 +218,7 @@
               {{ $t('dashboard.emptyWorkspaceMessage') }}
             </p>
             <SkeletonBlock
-              v-if="loading && canCreateCreateApplication"
+              v-if="!permissionsLoaded"
               width="100px"
               height="32px"
             ></SkeletonBlock>
@@ -448,6 +448,14 @@ const orderedApplicationsInSelectedWorkspace = computed(() =>
     : getAllOfWorkspace(selectedWorkspace.value).sort(
         (a, b) => a.order - b.order
       )
+)
+
+const permissionsLoaded = computed(
+  () =>
+    !!selectedWorkspace.value &&
+    $store.getters['workspace/haveWorkspacePermissionsBeenLoaded'](
+      selectedWorkspace.value.id
+    )
 )
 
 const canCreateCreateApplication = computed(() => {

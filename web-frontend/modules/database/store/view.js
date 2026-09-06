@@ -409,6 +409,11 @@ export const actions = {
     commit('UNSELECT', {})
     commit('SET_DEFAULT_VIEW_ID', null)
 
+    const isStale = () => {
+      const selectedTableId = rootGetters['table/getSelectedId']
+      return selectedTableId && selectedTableId !== table.id
+    }
+
     try {
       const { data } = await ViewService($client).fetchAll(
         table.id,
@@ -418,12 +423,7 @@ export const actions = {
         true,
         true
       )
-      // The table page fetches without blocking the navigation, so another table
-      // can have been selected while the request was running. Its views must then
-      // not be replaced by the ones of the table that was navigated away from.
-      const selectedTableId = rootGetters['table/getSelectedId']
-      if (selectedTableId && selectedTableId !== table.id) {
-        commit('SET_LOADING', false)
+      if (isStale()) {
         return
       }
       data.forEach((part, index, d) => {
@@ -441,9 +441,11 @@ export const actions = {
         commit('SET_DEFAULT_VIEW_ID', defaultViewId)
       }
     } catch (error) {
-      commit('SET_ITEMS', [])
-      commit('SET_TABLE_ID', null)
-      commit('SET_LOADING', false)
+      if (!isStale()) {
+        commit('SET_ITEMS', [])
+        commit('SET_TABLE_ID', null)
+        commit('SET_LOADING', false)
+      }
       throw error
     }
   },

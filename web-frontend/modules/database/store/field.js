@@ -155,23 +155,28 @@ export const actions = {
     commit('SET_ERROR_REFRESH_GENERATION', state.errorRefreshGeneration + 1)
     commit('UNSELECT', {})
 
+    // The table page fetches without blocking the navigation, so another table
+    // can have been selected while the request was running. Whether it succeeds
+    // or fails, the fields of the table that was navigated away from must then
+    // not replace or clear the ones of the selected table.
+    const isStale = () => {
+      const selectedTableId = rootGetters['table/getSelectedId']
+      return selectedTableId && selectedTableId !== table.id
+    }
+
     try {
       const { data } = await FieldService($client).fetchAll(table.id, viewId)
-      // The table page fetches without blocking the navigation, so another table
-      // can have been selected while the request was running. Its fields must
-      // then not be replaced by the ones of the table that was navigated away
-      // from.
-      const selectedTableId = rootGetters['table/getSelectedId']
-      if (selectedTableId && selectedTableId !== table.id) {
-        commit('SET_LOADING', false)
+      if (isStale()) {
         return getters.getAll
       }
       await dispatch('forceSetFields', { fields: data })
       commit('SET_LOADED', { tableId: table.id, viewId })
     } catch (error) {
-      commit('SET_ITEMS', [])
-      commit('SET_LOADING', false)
-      commit('SET_LOADED', null)
+      if (!isStale()) {
+        commit('SET_ITEMS', [])
+        commit('SET_LOADING', false)
+        commit('SET_LOADED', null)
+      }
 
       throw error
     }
