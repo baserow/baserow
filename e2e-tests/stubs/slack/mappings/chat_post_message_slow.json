@@ -3,9 +3,7 @@
   "request": {
     "method": "POST",
     "urlPath": "/api/chat.postMessage",
-    "queryParameters": {
-      "channel": { "equalTo": "#slow" }
-    }
+    "bodyPatterns": [{ "contains": "channel=%23slow" }]
   },
   "response": {
     "status": 200,
