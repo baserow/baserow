@@ -1,7 +1,7 @@
 <template>
   <AutomationWorkflowContent
     v-if="workspace && automation && workflow"
-    :loading="workflowLoading"
+    :loading="loading"
     :workspace="workspace"
     :automation="automation"
     :workflow="workflow"
@@ -9,7 +9,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAsyncData } from '#imports'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 
@@ -35,10 +35,17 @@ useHead(() => ({
   title: t('automationWorkflow.title'),
 }))
 
-const workflowLoading = ref(false)
-
 const route = useRoute()
 const { $store, $registry } = useNuxtApp()
+
+// The automation, workspace and workflow are selected by the
+// `selectWorkspaceAutomationWorkflow` middleware, so they're there when the page
+// renders. Only the nodes have to be fetched.
+const automation = computed(() => $store.getters['application/getSelected'])
+const workspace = computed(() => $store.getters['workspace/getSelected'])
+const workflow = computed(
+  () => $store.getters['automationWorkflow/getSelected']
+)
 
 // Load page data
 const automationApplicationType = $registry.get(
@@ -46,28 +53,22 @@ const automationApplicationType = $registry.get(
   AutomationApplicationType.getType()
 )
 
-const { data: pageData, error } = await useAsyncData(
+/**
+ * The nodes are fetched without blocking the navigation, so that the page
+ * immediately renders with a skeleton loading state in the header.
+ */
+const { status, error } = await useAsyncData(
   () =>
     `automation-workflow-${route.params.automationId}-${route.params.workflowId}`,
   async () => {
     try {
-      const automation = $store.getters['application/getSelected']
-      const workspace = $store.getters['workspace/getSelected']
-      const workflow = $store.getters['automationWorkflow/getSelected']
-
-      await automationApplicationType.loadExtraData(automation)
+      await automationApplicationType.loadExtraData(automation.value)
 
       await $store.dispatch('automationWorkflowNode/fetch', {
-        workflow,
+        workflow: workflow.value,
       })
 
-      workflowLoading.value = false
-
-      return {
-        automation,
-        workspace,
-        workflow,
-      }
+      return true
     } catch (e) {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
@@ -87,17 +88,23 @@ const { data: pageData, error } = await useAsyncData(
         fatal: true,
       })
     }
-  }
+  },
+  { lazy: true, server: false }
 )
 
-if (error.value) {
-  throw error.value
-}
+const loading = computed(() => ['idle', 'pending'].includes(status.value))
 
-// Computed properties from async data
-const automation = computed(() => pageData.value?.automation ?? null)
-const workspace = computed(() => pageData.value?.workspace ?? null)
-const workflow = computed(() => pageData.value?.workflow ?? null)
+// The fetch no longer runs during setup, so an error arrives after the page has
+// rendered and has to be shown from here.
+watch(
+  error,
+  (value) => {
+    if (value) {
+      showError(value)
+    }
+  },
+  { immediate: true }
+)
 
 function onRouteChange(from) {
   const currentAutomation = $store.getters['application/get'](
@@ -105,7 +112,6 @@ function onRouteChange(from) {
   )
   if (currentAutomation) {
     try {
-      workflowLoading.value = true
       const currentWorkflow = $store.getters['automationWorkflow/getById'](
         currentAutomation,
         parseInt(from.params.workflowId)
