@@ -1,6 +1,7 @@
 <template>
   <div class="layout__col-2-scroll layout__col-2-scroll--white-background">
-    <div v-if="orderedLicenses.length === 0" class="placeholder">
+    <LicensesSkeleton v-if="loading" />
+    <div v-else-if="orderedLicenses.length === 0" class="placeholder">
       <div class="placeholder__icon">
         <i class="iconoir-shield-check"></i>
       </div>
@@ -156,6 +157,7 @@
 
 <script setup>
 import LicenseService from '@baserow_premium/services/license'
+import LicensesSkeleton from '@baserow_premium/components/license/LicensesSkeleton'
 import RegisterLicenseModal from '@baserow_premium/components/license/RegisterLicenseModal'
 import RedirectToBaserowModal from '@baserow_premium/components/RedirectToBaserowModal'
 import moment from '@baserow/modules/core/moment'
@@ -172,42 +174,58 @@ const { $client, $registry, $i18n } = useNuxtApp()
 
 useHead({ title: $i18n.t('licenses.titleLicenses') })
 
-// Fetch data using useAsyncData and return the values from the callback
-const { data, error } = await useAsyncData('licensesPage', async () => {
-  try {
-    const [{ data: instanceData }, { data: licensesData }] = await Promise.all([
-      SettingsService($client).getInstanceID(),
-      LicenseService($client).fetchAll(),
-    ])
+// Fetched without blocking the navigation, so the page immediately renders with
+// a skeleton loading state.
+const { data, error, status } = await useAsyncData(
+  'licensesPage',
+  async () => {
+    try {
+      const [{ data: instanceData }, { data: licensesData }] =
+        await Promise.all([
+          SettingsService($client).getInstanceID(),
+          LicenseService($client).fetchAll(),
+        ])
 
-    return {
-      licenses: licensesData,
-      instanceId: instanceData.instance_id,
-    }
-  } catch (e) {
-    const statusCode = e.response?.status || 500
+      return {
+        licenses: licensesData,
+        instanceId: instanceData.instance_id,
+      }
+    } catch (e) {
+      const statusCode = e.response?.status || 500
 
-    if (statusCode === 404) {
+      if (statusCode === 404) {
+        throw createError({
+          statusCode: 404,
+          message: 'Licenses not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
+      }
       throw createError({
-        statusCode: 404,
-        message: 'Licenses not found.',
-        data: {
-          report: false,
-        },
+        statusCode: statusCode,
+        message: 'Something went wrong while fetching the licenses.',
         fatal: true,
       })
     }
-    throw createError({
-      statusCode: statusCode,
-      message: 'Something went wrong while fetching the licenses.',
-      fatal: true,
-    })
-  }
-})
+  },
+  { lazy: true, server: false }
+)
 
-if (error.value) {
-  throw error.value
-}
+const loading = computed(() => ['idle', 'pending'].includes(status.value))
+
+// The fetch no longer runs during setup, so an error arrives after the page has
+// rendered and has to be shown from here.
+watch(
+  error,
+  (value) => {
+    if (value) {
+      showError(value)
+    }
+  },
+  { immediate: true }
+)
 
 const licenses = computed(() => data.value?.licenses || [])
 const instanceId = computed(() => data.value?.instanceId || '')

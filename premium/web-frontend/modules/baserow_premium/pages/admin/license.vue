@@ -1,6 +1,7 @@
 <template>
   <div class="layout__col-2-scroll layout__col-2-scroll--white-background">
-    <div v-if="license" class="license-detail">
+    <LicenseDetailSkeleton v-if="loading" />
+    <div v-else-if="license" class="license-detail">
       <h1>
         {{ $t('license.title', { name: licenseType.getName() }) }}
       </h1>
@@ -218,6 +219,7 @@ import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import LicenseService from '@baserow_premium/services/license'
 import DisconnectLicenseModal from '@baserow_premium/components/license/DisconnectLicenseModal'
+import LicenseDetailSkeleton from '@baserow_premium/components/license/LicenseDetailSkeleton'
 import ManualLicenseSeatsForm from '@baserow_premium/components/license/ManualLicenseSeatForm'
 import AutomaticLicenseSeats from '@baserow_premium/components/license/AutomaticLicenseSeats'
 
@@ -230,8 +232,9 @@ const route = useRoute()
 const router = useRouter()
 const { $client, $registry, $i18n } = useNuxtApp()
 
-// Fetch license data
-const { data, error } = await useAsyncData(
+// Fetched without blocking the navigation, so the page immediately renders with
+// a skeleton loading state.
+const { data, error, status } = await useAsyncData(
   `license-${route.params.id}`,
   async () => {
     try {
@@ -258,12 +261,23 @@ const { data, error } = await useAsyncData(
         fatal: true,
       })
     }
-  }
+  },
+  { lazy: true, server: false }
 )
 
-if (error.value) {
-  throw error.value
-}
+const loading = computed(() => ['idle', 'pending'].includes(status.value))
+
+// The fetch no longer runs during setup, so an error arrives after the page has
+// rendered and has to be shown from here.
+watch(
+  error,
+  (value) => {
+    if (value) {
+      showError(value)
+    }
+  },
+  { immediate: true }
+)
 
 const license = computed(() => data.value)
 
@@ -275,9 +289,10 @@ const licenseType = computed(() => {
   return $registry.get('license', license.value.product_code)
 })
 
-useHead({
+// Reactive, because the license is only there once it has been fetched.
+useHead(() => ({
   title: $i18n.t('license.title', { name: licenseType.value?.getName() || '' }),
-})
+}))
 
 const licenseFeatureDescription = computed(() => {
   if (!licenseType.value) return []
