@@ -166,11 +166,7 @@ class AutomationApplicationType(ApplicationType):
                 files_zip=files_zip,
                 storage=storage,
             )
-            # None when the application type refuses that integration type,
-            # which it logs and skips. Only the database narrows what it takes
-            # today, but this list is typed and returned.
-            if integration is not None:
-                imported_integrations.append(integration)
+            imported_integrations.append(integration)
 
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
