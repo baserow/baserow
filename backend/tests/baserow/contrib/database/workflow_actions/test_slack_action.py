@@ -31,6 +31,7 @@ from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.handler import ServiceHandler
 
 
 def _button(data_fixture, user):
@@ -327,6 +328,48 @@ def test_a_slack_refusal_reaches_the_clicker_without_the_token(data_fixture):
 
     assert "invited to channel #general" in str(raised.value)
     assert "xoxb-secret" not in str(raised.value)
+
+
+@pytest.mark.django_db
+def test_an_import_never_attaches_a_bot_from_another_database(data_fixture):
+    """
+    An unmapped id is the normal case for a duplicated field, and an export
+    written before 4c carries no mapping at all. Looking it up without a scope
+    matches whatever row holds that number here, and the FK is written before
+    anything checks it.
+    """
+
+    user = data_fixture.create_user()
+    button_field = _button(data_fixture, user)
+    stranger = data_fixture.create_user()
+    elsewhere = data_fixture.create_database_application(user=stranger)
+    foreign = _bot(data_fixture, elsewhere)
+    action_type = database_workflow_action_type_registry.get("slack_write_message")
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        action_type,
+        button_field,
+        service={"channel": "general", "text": "'hi'"},
+    )
+    exported = action_type.export_serialized(action)
+    # The id the export names exists here, on someone else's database.
+    exported["service"]["integration_id"] = foreign.id
+
+    real = ServiceHandler.import_service
+    carried = []
+
+    def record(self, integration, *args, **kwargs):
+        carried.append(integration)
+        return real(self, integration, *args, **kwargs)
+
+    # What the import hands the service, not what survives: a later check
+    # nulls a foreign bot, but the FK is written before it runs.
+    with patch.object(ServiceHandler, "import_service", record):
+        with deferred_callback_context():
+            imported = action_type.import_serialized(button_field, exported, {})
+
+    assert carried == [None]
+    assert imported.service.integration_id is None
 
 
 @pytest.mark.django_db

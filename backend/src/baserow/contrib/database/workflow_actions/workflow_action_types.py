@@ -105,6 +105,11 @@ class DefaultTypedServiceRequestSerializer(PolymorphicServiceRequestSerializer):
 class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
     service_type = None  # Must be implemented by subclasses.
 
+    # Where `import_serialized` leaves the field it is importing into, for
+    # `deserialize_property`, which the base class hands the cache but not the
+    # parent.
+    IMPORTING_FIELD_CACHE_KEY = "database_workflow_action_field"
+
     # Service values that shape the answer a click remembers. Changing one
     # makes an earlier capture describe a request no longer being made, so it
     # is dropped. Only read by a type that sets `captures_sample_data`.
@@ -239,7 +244,7 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
 
         if prop_name == "service" and value:
             return ServiceHandler().import_service(
-                self._imported_integration(value, id_mapping),
+                self._imported_integration(value, id_mapping, cache),
                 value,
                 id_mapping,
                 storage=storage,
@@ -259,18 +264,23 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         )
 
     def _imported_integration(
-        self, serialized_service: Dict[str, Any], id_mapping: Dict[str, Any]
+        self,
+        serialized_service: Dict[str, Any],
+        id_mapping: Dict[str, Any],
+        cache: Optional[Dict[str, Any]] = None,
     ) -> Optional[Integration]:
         """
         The integration an imported service should carry: the copy made by
         this import, or the original when the copy stays in the same database
-        (a duplicated table or field). Whether it may be carried at all is
-        settled in `import_serialized`, once the field is known.
+        (a duplicated table or field). Whether the action may keep it is still
+        settled in `import_serialized`; this only decides what to attach.
 
         :param serialized_service: The service as the export wrote it.
         :param id_mapping: What this import has remapped so far.
+        :param cache: Carries the field being imported, put there by
+            `import_serialized`.
         :return: The integration to attach, or None when it names none this
-            installation has.
+            database has.
         """
 
         integration_id = self._integration_id_to_look_up(
@@ -283,7 +293,18 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         integration_id = id_mapping.get("integrations", {}).get(
             integration_id, integration_id
         )
-        return Integration.objects.filter(id=integration_id).first()
+
+        # Scoped to the database the action lands in. Unmapped ids are the
+        # normal case for a duplicated field or table, and an export written
+        # before 4c carries none at all, so an unscoped lookup would match
+        # whatever row holds that number here — another workspace's bot. The
+        # later check would drop it, but the FK is written first.
+        field = (cache or {}).get(self.IMPORTING_FIELD_CACHE_KEY)
+        if field is None:
+            return None
+        return Integration.objects.filter(
+            id=integration_id, application_id=field.table.database_id
+        ).first()
 
     @staticmethod
     def _integration_id_to_look_up(value: Any) -> Optional[int]:
@@ -342,6 +363,10 @@ class DatabaseWorkflowServiceActionType(DatabaseWorkflowActionType):
         """
 
         copied_by = kwargs.pop("copied_by", None)
+        # `deserialize_property` needs the field to scope its integration
+        # lookup, and the base class hands it the cache but not the parent.
+        cache = {} if cache is None else cache
+        cache[self.IMPORTING_FIELD_CACHE_KEY] = parent
         created_instance = super().import_serialized(
             parent, serialized_values, id_mapping, files_zip, storage, cache, **kwargs
         )
