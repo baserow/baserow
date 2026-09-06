@@ -13,7 +13,7 @@
       <div class="select-application__title">
         {{ $t('apiDocsComponent.selectApplicationTitle') }}
       </div>
-      <APIDocsSelectDatabase />
+      <APIDocsSelectDatabase :loading="loading" />
       <nuxt-link :to="{ name: 'dashboard' }" class="select-application__back">
         <i class="iconoir-arrow-left"></i>
         {{ $t('apiDocsComponent.back') }}
@@ -45,7 +45,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useHead } from '#imports'
+import { useHead, useAsyncData } from '#imports'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
 import { useRouter } from 'vue-router'
@@ -60,8 +60,30 @@ const {
 
 definePageMeta({
   layout: 'login',
-  middleware: ['workspacesAndApplications'],
 })
+
+/**
+ * The workspaces and databases are fetched without blocking the navigation, so
+ * that the page immediately renders with a skeleton loading state. It's not done
+ * by the `workspacesAndApplications` middleware, because that would make the page
+ * wait for it.
+ */
+const { status } = await useAsyncData(
+  'api-docs-databases',
+  async () => {
+    if (!$store.getters['auth/isAuthenticated']) {
+      return true
+    }
+    if (!$store.getters['workspace/isLoaded']) {
+      await $store.dispatch('workspace/fetchAll')
+    }
+    if (!$store.getters['application/isLoaded']) {
+      await $store.dispatch('application/fetchAll')
+    }
+    return true
+  },
+  { lazy: true, server: false }
+)
 
 useHead({
   title: 'REST API documentation',
@@ -78,4 +100,8 @@ useHead({
 const isAuthenticated = computed(() => {
   return $store.getters['auth/isAuthenticated']
 })
+
+const loading = computed(
+  () => isAuthenticated.value && ['idle', 'pending'].includes(status.value)
+)
 </script>

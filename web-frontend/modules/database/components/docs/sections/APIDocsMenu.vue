@@ -230,7 +230,9 @@ export default {
       return 'section-password-field-' + fieldId + '-authentication'
     },
     isPasswordFieldInTable(tableId) {
-      const passwordFields = this.passwordFields[tableId]
+      // The fields of the tables are fetched after the menu has rendered, so
+      // there isn't an entry for every table yet.
+      const passwordFields = this.passwordFields[tableId] || []
       const navNames = passwordFields.map((field) => {
         return this.getPasswordFieldNav(field.id)
       })
