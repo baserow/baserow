@@ -278,8 +278,9 @@ class IntegrationHandler:
         :param files_zip: The archive the export's files came in, if any.
         :param storage: Where those files are written.
         :return: The imported integration, or None when the application does
-            not accept its type. Only `DatabaseApplicationType` narrows what
-            it accepts, so nothing else sees None today.
+            not accept its type. Every caller has to allow for that: only
+            `DatabaseApplicationType` narrows what it accepts today, but this
+            PR is what makes narrowing possible.
         """
 
         if "integrations" not in id_mapping:
