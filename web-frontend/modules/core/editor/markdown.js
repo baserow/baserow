@@ -12,6 +12,11 @@ import {
   createRichTextContentExtensions,
   MARKDOWN_OPTIONS,
 } from '@baserow/modules/core/editor/richTextExtensions'
+import {
+  preprocessRichTextImages,
+  replaceImagesWithPlaceholder,
+  stripUnresolvedImageRefs,
+} from '@baserow/modules/core/editor/richTextImageUtils'
 
 const previewMarkdownManager = new MarkdownManager({
   extensions: createRichTextContentExtensions({ enableImages: true }),
@@ -59,6 +64,15 @@ export const parseMarkdown = (
     loggedUserId = null,
   } = {}
 ) => {
+  let content = value || ''
+
+  if (enableImages) {
+    content = preprocessRichTextImages(content).content
+    content = stripUnresolvedImageRefs(content)
+  } else {
+    content = replaceImagesWithPlaceholder(content)
+  }
+
   const md = new Markdown({ html: false })
 
   // task lists
@@ -100,10 +114,9 @@ export const parseMarkdown = (
 
   if (enableImages) {
     md.renderer.rules.image = function (tokens, idx, options, env, self) {
-      // Show only the first image in the preview.
       const style = tokens[idx].attrIndex('style')
       if (style < 0) {
-        tokens[idx].attrPush(['style', 'display: block;'])
+        tokens[idx].attrPush(['style', 'display: block; max-width: 100%;'])
       }
       return self.renderToken(tokens, idx, options)
     }
@@ -114,5 +127,5 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(prepareMarkdownForPreview(value || ''))
+  return md.render(prepareMarkdownForPreview(content))
 }

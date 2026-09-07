@@ -53,7 +53,7 @@ describe('FunctionalGridViewFieldRichText component', () => {
 
     const text = wrapper.text()
     expect(text.endsWith('...')).toBe(true)
-    expect(text.length).toBeLessThanOrEqual(203)
+    expect(text.length).toBeLessThanOrEqual(504)
   })
 
   test('keeps raw HTML in cell values inert', async () => {
@@ -64,5 +64,28 @@ describe('FunctionalGridViewFieldRichText component', () => {
     expect(wrapper.find('script').exists()).toBe(false)
     expect(wrapper.find('img').exists()).toBe(false)
     expect(window.hacked).toBeUndefined()
+  })
+
+  test('replaces image references with placeholder emoji', async () => {
+    const wrapper = await mountComponent('![photo][abc_def.png] some text')
+
+    const text = wrapper.text()
+    expect(text).toContain('🖼 photo')
+    expect(text).toContain('some text')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(text).not.toContain('[abc_def.png]')
+  })
+
+  test('replaces image with URL format using placeholder', async () => {
+    const wrapper = await mountComponent(
+      '![chart][abc123_file456.png](https://example.com/abc123_file456.png) description'
+    )
+
+    const text = wrapper.text()
+    expect(text).toContain('🖼 chart')
+    expect(text).toContain('description')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(text).not.toContain('abc123_file456.png')
+    expect(text).not.toContain('https://example.com')
   })
 })

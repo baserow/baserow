@@ -34,6 +34,9 @@ const RichTextEditorStub = {
       return this.content || ''
     },
     focus() {},
+    isDirty() {
+      return true
+    },
     isEventTargetInside() {
       return false
     },

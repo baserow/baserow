@@ -2,7 +2,7 @@ from django.db import transaction
 from django.dispatch import receiver
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
-from baserow.contrib.database.fields.models import FileField
+from baserow.contrib.database.fields.models import FileField, LongTextField
 from baserow.contrib.database.fields.signals import field_deleted, field_restored
 from baserow.contrib.database.rows.signals import (
     rows_created,
@@ -39,7 +39,12 @@ def on_rows_updated(
 
     for field_object in model.get_field_objects():
         field = field_object["field"]
-        if isinstance(field, FileField) and field.id in updated_field_ids:
+        if field.id not in updated_field_ids:
+            continue
+        has_files = isinstance(field, FileField) or (
+            isinstance(field, LongTextField) and field.long_text_enable_rich_text
+        )
+        if has_files:
             transaction.on_commit(lambda: update_table_usage.delay(table.id))
             break
 
@@ -76,5 +81,8 @@ def on_application_created(sender, application, **kwargs):
 # File field signals for storage usage
 @receiver([field_restored, field_deleted])
 def on_field_restored(sender, field, **kwargs):
-    if isinstance(field, FileField):
+    has_files = isinstance(field, FileField) or (
+        isinstance(field, LongTextField) and field.long_text_enable_rich_text
+    )
+    if has_files:
         transaction.on_commit(lambda: update_table_usage.delay(field.table_id))

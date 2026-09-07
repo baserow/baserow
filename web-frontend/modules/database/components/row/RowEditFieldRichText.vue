@@ -15,6 +15,7 @@
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
+      :upload-file="readOnly ? null : uploadUserFile"
       @focus="select()"
       @blur="unselect()"
     ></RichTextEditor>
@@ -27,6 +28,7 @@
 
 <script>
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import UserFileService from '@baserow/modules/core/services/userFile'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
@@ -55,6 +57,9 @@ export default {
   },
   methods: {
     resolveClipboardMarkdown: getRichTextClipboardContent,
+    async uploadUserFile(file) {
+      return await UserFileService(this.$client).uploadFile(file)
+    },
     getError() {
       return this.getValidationError(this.$refs.input?.serializeToMarkdown())
     },

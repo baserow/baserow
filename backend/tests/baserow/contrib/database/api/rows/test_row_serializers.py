@@ -701,3 +701,196 @@ def test_get_table_serializer_single_select_default(data_fixture):
     serializer_instance = serializer_class(data={"status": None})
     assert serializer_instance.is_valid()
     assert serializer_instance.data["status"] is None
+
+
+@pytest.mark.django_db
+def test_rich_text_inline_urls_in_response(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(
+        original_name="test.png", original_extension="png"
+    )
+
+    model = table.get_model()
+    content = f"Some text ![image][{user_file.name}] more text"
+    row = model.objects.create(**{f"field_{field.id}": content})
+
+    serializer_class = get_row_serializer_class(model=model, is_response=True)
+    data = serializer_class(row).data
+
+    field_key = f"field_{field.id}"
+    assert field_key in data
+    assert f"![image][{user_file.name}](" in data[field_key]
+    assert "user_files/" in data[field_key]
+    assert f"{field_key}__file_urls" not in data
+
+
+@pytest.mark.django_db
+def test_rich_text_plain_text_unchanged_in_response(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{field.id}": "Plain text only"})
+
+    serializer_class = get_row_serializer_class(model=model, is_response=True)
+    data = serializer_class(row).data
+
+    assert data[f"field_{field.id}"] == "Plain text only"
+
+
+@pytest.mark.django_db
+def test_rich_text_non_rich_text_field_unchanged(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=False
+    )
+
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{field.id}": "Some text"})
+
+    serializer_class = get_row_serializer_class(model=model, is_response=True)
+    data = serializer_class(row).data
+
+    assert data[f"field_{field.id}"] == "Some text"
+    assert f"field_{field.id}__file_urls" not in data
+
+
+@pytest.mark.django_db
+def test_rich_text_url_resolution_zero_queries(data_fixture, django_assert_num_queries):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="A", long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(
+        original_name="test.png", original_extension="png"
+    )
+
+    model = table.get_model()
+    for _ in range(10):
+        model.objects.create(**{f"field_{field.id}": f"![img][{user_file.name}]"})
+    rows = list(model.objects.all())
+
+    serializer_class = get_row_serializer_class(model=model, is_response=True)
+    with django_assert_num_queries(0):
+        data = serializer_class(rows, many=True).data
+
+    assert len(data) == 10
+    for row_data in data:
+        assert f"![img][{user_file.name}](" in row_data[f"field_{field.id}"]
+
+
+@pytest.mark.django_db
+def test_rich_text_api_round_trip_urls_not_stored(data_fixture):
+    """Serializing with ``is_response=True`` appends URLs inline, but the
+    raw DB content must still store ``![img][name]`` format without any URL
+    leak into storage."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(
+        original_name="roundtrip.png", original_extension="png"
+    )
+
+    model = table.get_model()
+    field_key = f"field_{field.id}"
+    db_content = f"Hello ![img][{user_file.name}] world"
+    row = model.objects.create(**{field_key: db_content})
+
+    # Serialize with is_response=True — URLs should be present
+    response_class = get_row_serializer_class(model=model, is_response=True)
+    response_data = response_class(row).data
+
+    assert f"![img][{user_file.name}](" in response_data[field_key]
+    assert "user_files/" in response_data[field_key]
+
+    # Reload from DB and verify the stored content has NO url
+    row.refresh_from_db()
+    raw_value = getattr(row, field_key)
+    assert raw_value == db_content
+    assert "(" not in raw_value
+    assert "user_files/" not in raw_value
+
+
+@pytest.mark.django_db
+def test_rich_text_response_field_null_value(data_fixture):
+    """When a rich text field value is NULL, the response serializer should
+    return ``None`` without raising. DRF short-circuits None attributes
+    before calling ``to_representation``, so ``append_user_file_urls`` is
+    never invoked for null values."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+
+    model = table.get_model()
+    field_key = f"field_{field.id}"
+    row = model.objects.create(**{field_key: None})
+
+    serializer_class = get_row_serializer_class(model=model, is_response=True)
+    data = serializer_class(row).data
+
+    # NULL is preserved as None — no crash, no URL resolution attempt
+    assert data[field_key] is None
+
+
+@pytest.mark.django_db
+def test_rich_text_input_serializer_strips_urls(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(
+        original_name="photo.png", original_extension="png"
+    )
+
+    model = table.get_model()
+    field_key = f"field_{field.id}"
+
+    # Simulate what the frontend sends: ![alt][name](url)
+    frontend_content = (
+        f"Hello ![photo][{user_file.name}]"
+        f"(https://example.com/media/user_files/{user_file.name})"
+    )
+
+    input_class = get_row_serializer_class(model=model)
+    serializer = input_class(data={field_key: frontend_content})
+    assert serializer.is_valid(), serializer.errors
+    validated = serializer.validated_data[field_key]
+
+    # URL must be stripped — DB stores reference-only format
+    assert validated == f"Hello ![photo][{user_file.name}]"
+    assert "https://" not in validated
+    assert "(" not in validated
+
+
+@pytest.mark.django_db
+def test_rich_text_input_serializer_plain_text_unchanged(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, name="Plain", long_text_enable_rich_text=False
+    )
+
+    model = table.get_model()
+    field_key = f"field_{field.id}"
+    content = "Some text with (parentheses) and [brackets]"
+
+    input_class = get_row_serializer_class(model=model)
+    serializer = input_class(data={field_key: content})
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data[field_key] == content
