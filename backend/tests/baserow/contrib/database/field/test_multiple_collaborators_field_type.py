@@ -324,14 +324,14 @@ def test_multiple_collaborators_field_type_sorting(
 
     sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_1.id, row_4.id, row_3.id, row_2.id]
 
     sort.order = "DESC"
     sort.save()
 
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_2.id, row_3.id, row_4.id, row_1.id, row_5.id]
 

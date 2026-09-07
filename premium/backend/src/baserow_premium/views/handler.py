@@ -94,7 +94,7 @@ def get_rows_grouped_by_single_select_field(
         base_queryset = model.objects.all().enhance_by_fields()
 
     if apply_view_sorts:
-        base_queryset = ViewHandler().apply_sorting(view, base_queryset)
+        base_queryset = ViewHandler().apply_ordering(view, base_queryset)
 
     if adhoc_filters is None:
         adhoc_filters = AdHocFilters()

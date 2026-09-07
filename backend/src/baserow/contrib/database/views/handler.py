@@ -48,7 +48,10 @@ from baserow.contrib.database.fields.field_filters import (
     AdvancedFilterBuilder,
     FilterBuilder,
 )
-from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
+from baserow.contrib.database.fields.field_sortings import (
+    OptionallyAnnotatedOrderBy,
+    serialize_sorts_to_string,
+)
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.contrib.database.fields.registries import (
@@ -405,7 +408,7 @@ class ViewIndexingHandler:
 
         field_order_bys = []
 
-        for view_sort_or_group_by in view.get_all_sorts():
+        for view_sort_or_group_by in view.get_all_ordering():
             field_object = model._field_objects[view_sort_or_group_by.field_id]
             annotated_order_by = field_object["type"].get_order(
                 field_object["field"],
@@ -2306,7 +2309,7 @@ class ViewHandler:
         """
 
         order_by = []
-        for view_sort_or_group_by in view.get_all_sorts(restrict_to_field_ids):
+        for view_sort_or_group_by in view.get_all_ordering(restrict_to_field_ids):
             # If the to be sort field is not present in the `_field_objects` we
             # cannot filter so we raise a ValueError.
             if view_sort_or_group_by.field_id not in model._field_objects:
@@ -2348,36 +2351,25 @@ class ViewHandler:
 
         return order_by, queryset
 
-    def apply_sorting(
+    def apply_ordering(
         self,
         view: View,
         queryset: QuerySet,
         restrict_to_field_ids: Optional[Iterable[int]] = None,
     ) -> QuerySet:
         """
-        Applies the view's sorting to the given queryset. The first sort, which for now
-        is the first created, will always be applied first. Secondary sortings are
-        going to be applied if the values of the first sort rows are the same.
+        Applies the view's full ordering — group-bys first, then sorts — to the
+        given queryset. Group-by fields use ``get_group_by_sort_order`` (set-based
+        ordering for M2M fields), while sort fields use ``get_order``.
 
-        Example:
-
-        id | field_1 | field_2
-        1  | Bram    | 20
-        2  | Bram    | 10
-        3  | Elon    | 30
-
-        If we are going to sort ascending on field_1 and field_2 the resulting ids are
-        going to be 2, 1 and 3 in that order.
-
-        :param view: The view where to fetch the sorting from.
-        :param queryset: The queryset where the sorting need to be applied to.
+        :param view: The view whose group-bys and sorts to apply.
+        :param queryset: The queryset to order.
         :param restrict_to_field_ids: Only field ids in this iterable will have their
-            view sorts applied in the resulting queryset.
+            view sorts/group-bys applied in the resulting queryset.
         :raises ValueError: When the queryset's model is not a table model or if the
-            table model does not contain the one of the fields.
-        :raises ViewSortDoesNotExist: When the view is trashed
-
-        :return: The queryset where the sorting has been applied to.
+            table model does not contain one of the fields.
+        :raises ViewSortDoesNotExist: When the view is trashed.
+        :return: The queryset with ordering applied.
         """
 
         model = queryset.model
@@ -3310,7 +3302,7 @@ class ViewHandler:
         if view_type.can_filter and apply_filters:
             queryset = self.apply_filters(view, queryset)
         if view_type.can_sort and apply_sorts:
-            queryset = self.apply_sorting(
+            queryset = self.apply_ordering(
                 view,
                 queryset,
                 only_sort_by_field_ids,
@@ -4120,23 +4112,30 @@ class ViewHandler:
         queryset = table_model.objects.all().enhance_by_fields()
         queryset = self.apply_filters(view, queryset)
 
-        if view_type.can_group_by:
-            has_group_by = group_by is not None and group_by != ""
-            has_order_by = order_by is not None and order_by != ""
-            # If both the group by and order by string is set, then we must merge the
-            # two so that it will be sorted the right way because the grouping is
-            # basically just sorting for the backend. However, the group by will take
-            # precedence.
-            if has_group_by and has_order_by:
-                order_by = f"{group_by},{order_by}"
-            # If only the group_by is set, then we can simply replace the order_by
-            # because that must be applied to the queryset.
-            elif has_group_by:
-                order_by = group_by
+        has_adhoc_sorting = order_by is not None
+        group_by_for_ordering = group_by if view_type.can_group_by else None
+        has_adhoc_grouping = (
+            group_by_for_ordering is not None and group_by_for_ordering != ""
+        )
+        has_any_adhoc_ordering = has_adhoc_sorting or has_adhoc_grouping
 
-        if order_by is not None and order_by != "":
+        if has_any_adhoc_ordering:
+            effective_group_by = group_by_for_ordering or ""
+            effective_order_by = order_by or ""
+
+            if not has_adhoc_grouping and view_type.can_group_by:
+                effective_group_by = serialize_sorts_to_string(
+                    view.viewgroupby_set.all()
+                )
+
+            if not has_adhoc_sorting:
+                effective_order_by = serialize_sorts_to_string(view.viewsort_set.all())
+
             queryset = queryset.order_by_fields_string(
-                order_by, False, visible_field_ids
+                effective_order_by,
+                False,
+                visible_field_ids,
+                group_by_string=effective_group_by or None,
             )
 
         if adhoc_filters.has_any_filters:

@@ -339,7 +339,7 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         # filters.
         if view:
             queryset = ViewHandler().apply_filters(view, queryset)
-            queryset = ViewHandler().apply_sorting(view, queryset)
+            queryset = ViewHandler().apply_ordering(view, queryset)
 
         progress.increment(by=1)  # makes the total `1`
         rows_queryset = queryset.values(*["id"] + enabled_property_field_ids)

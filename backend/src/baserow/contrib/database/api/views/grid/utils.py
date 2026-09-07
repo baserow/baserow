@@ -15,7 +15,6 @@ response, and key-building helpers used by both.
 """
 
 import json
-import re
 from collections import defaultdict
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Type
 
@@ -31,14 +30,13 @@ from rest_framework.request import Request
 from baserow.config.settings.utils import str_to_bool, try_int
 from baserow.contrib.database.api.views.utils import serialize_group_by_data_pages
 from baserow.contrib.database.fields.exceptions import OrderByFieldNotFound
+from baserow.contrib.database.fields.field_sortings import parse_order_string
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.views.constants import GROUP_BY_DATA_DEFAULT_LIMIT
 from baserow.contrib.database.views.exceptions import ViewGroupByFieldNotSupported
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY, ViewGroupBy
-from baserow.core.utils import split_comma_separated_string
+from baserow.contrib.database.views.models import ViewGroupBy
 
 GROUP_BY_DATA_DESCENDANT_MAX_GROUPS = 2000
 # Only a coarse backstop: a deep tree legitimately produces one parent page per internal
@@ -82,34 +80,34 @@ def parse_adhoc_view_group_bys(
         allowed_field_ids = set(allowed_field_ids)
 
     field_objects = model._field_objects
+    entries = parse_order_string(raw_group_by)
+
     group_bys = []
-    try:
-        raw_entries = split_comma_separated_string(raw_group_by)
-    except ValueError:
-        raise OrderByFieldNotFound(raw_group_by)
-    for raw_entry in raw_entries:
-        field_id = get_field_id_from_field_key(raw_entry, strict=False)
+    for entry in entries:
         if (
-            field_id is None
-            or field_id not in field_objects
-            or (allowed_field_ids is not None and field_id not in allowed_field_ids)
+            entry.field_key is None
+            or entry.field_key not in field_objects
+            or (
+                allowed_field_ids is not None
+                and entry.field_key not in allowed_field_ids
+            )
         ):
-            raise OrderByFieldNotFound(raw_entry)
+            raise OrderByFieldNotFound(entry.raw)
 
-        order = "DESC" if raw_entry.startswith("-") else "ASC"
-        type_match = re.search(r"\[(.*?)\]", raw_entry)
-        sort_type = type_match.group(1) if type_match else DEFAULT_SORT_TYPE_KEY
-
-        field_object = field_objects[field_id]
+        field_object = field_objects[entry.field_key]
         if not field_object["type"].check_can_group_by(
-            field_object["field"], sort_type
+            field_object["field"], entry.sort_type
         ):
             raise ViewGroupByFieldNotSupported(
                 f"It is not possible to group by field type "
-                f"{field_object['type'].type} using sort type {sort_type}."
+                f"{field_object['type'].type} using sort type {entry.sort_type}."
             )
 
-        group_bys.append(ViewGroupBy(field_id=field_id, order=order, type=sort_type))
+        group_bys.append(
+            ViewGroupBy(
+                field_id=entry.field_key, order=entry.direction, type=entry.sort_type
+            )
+        )
 
     return group_bys
 

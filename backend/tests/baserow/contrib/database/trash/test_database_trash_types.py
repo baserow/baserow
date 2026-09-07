@@ -862,7 +862,7 @@ def test_trashing_a_field_with_a_sort_trashes_the_sort(
     )
 
     model = customers_table.get_model()
-    filtered_qs = ViewHandler().apply_sorting(grid_view, model.objects.all())
+    filtered_qs = ViewHandler().apply_ordering(grid_view, model.objects.all())
     assert list(
         filtered_qs.values_list(f"field_{customers_primary_field.id}", flat=True)
     ) == ["1", "2"]
@@ -874,7 +874,7 @@ def test_trashing_a_field_with_a_sort_trashes_the_sort(
     )
 
     model = customers_table.get_model()
-    filtered_qs = ViewHandler().apply_sorting(grid_view, model.objects.all())
+    filtered_qs = ViewHandler().apply_ordering(grid_view, model.objects.all())
     assert list(
         filtered_qs.values_list(f"field_{customers_primary_field.id}", flat=True)
     ) == ["2", "1"]

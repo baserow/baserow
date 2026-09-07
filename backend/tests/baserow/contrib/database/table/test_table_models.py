@@ -1343,3 +1343,122 @@ def test_update_returning_ids_with_provably_empty_filter(data_fixture):
         **{name_field.db_column: "Falcon 1"}
     )
     assert updated_row_ids == []
+
+
+@pytest.mark.django_db
+def test_order_by_fields_string_without_group_by_string(data_fixture):
+    """
+    When group_by_string is not provided (the default), order_by_fields_string
+    behaves identically to the pre-refactor version: all fields use get_order.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, name="Name")
+    number_field = data_fixture.create_number_field(
+        table=table, name="Priority", number_decimal_places=0
+    )
+
+    model = table.get_model()
+    row_b = model.objects.create(
+        **{f"field_{text_field.id}": "B", f"field_{number_field.id}": 2}
+    )
+    row_a = model.objects.create(
+        **{f"field_{text_field.id}": "A", f"field_{number_field.id}": 1}
+    )
+    row_c = model.objects.create(
+        **{f"field_{text_field.id}": "C", f"field_{number_field.id}": 3}
+    )
+
+    results = model.objects.all().order_by_fields_string(f"field_{text_field.id}")
+    assert [r.id for r in results] == [row_a.id, row_b.id, row_c.id]
+
+    results = model.objects.all().order_by_fields_string(
+        f"field_{text_field.id}", group_by_string=None
+    )
+    assert [r.id for r in results] == [row_a.id, row_b.id, row_c.id]
+
+
+@pytest.mark.django_db
+def test_order_by_fields_string_with_group_by_string_uses_group_by_sort_order(
+    data_fixture,
+):
+    """
+    When group_by_string is provided, those fields use get_group_by_sort_order
+    (set-based ArrayAgg for M2M) while order_string fields use get_order
+    (insertion-order StringAgg). This test verifies the dispatch by checking
+    that rows with the same set of options in a multiple_select field are
+    grouped adjacently when using group_by_string.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    ms_field = FieldHandler().create_field(
+        user=user, table=table, name="Tags", type_name="multiple_select"
+    )
+    option_a = data_fixture.create_select_option(field=ms_field, value="A", color="red")
+    option_b = data_fixture.create_select_option(
+        field=ms_field, value="B", color="blue"
+    )
+    option_c = data_fixture.create_select_option(
+        field=ms_field, value="C", color="green"
+    )
+
+    # Row 1: A then C (insertion order: A, C)
+    row1 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=ms_field, values=[option_a.id, option_c.id], user=user
+    )
+    # Row 2: B only
+    row2 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=ms_field, values=[option_b.id], user=user
+    )
+    # Row 3: C then A (insertion order: C, A — same set as row 1)
+    row3 = data_fixture.create_row_for_many_to_many_field(
+        table=table, field=ms_field, values=[option_c.id, option_a.id], user=user
+    )
+
+    model = table.get_model()
+
+    # With group_by_string: rows with same option set {A, C} must be adjacent
+    results = model.objects.all().order_by_fields_string(
+        "", group_by_string=f"field_{ms_field.id}"
+    )
+    result_ids = [r.id for r in results]
+    idx1 = result_ids.index(row1.id)
+    idx3 = result_ids.index(row3.id)
+    assert abs(idx1 - idx3) == 1, (
+        f"Rows with same option set must be adjacent but were at "
+        f"positions {idx1} and {idx3}"
+    )
+
+    # With group_by_string for grouping + order_string for sorting:
+    # group-by fields come first in the ordering.
+    # Set text values such that sort-only would interleave the groups.
+    text_field = data_fixture.create_text_field(table=table, name="Label")
+    model = table.get_model()
+
+    # row1 ({A,C}) = "Zebra", row2 ({B}) = "Middle", row3 ({A,C}) = "Alpha"
+    # Sort-only by text: Alpha(row3), Middle(row2), Zebra(row1)
+    # Group-by ms_field then sort by text:
+    #   group {A,C}: Alpha(row3), Zebra(row1) — adjacent
+    #   group {B}: Middle(row2)
+    handler = RowHandler()
+    handler.update_row_by_id(user, table, row1.id, {f"field_{text_field.id}": "Zebra"})
+    handler.update_row_by_id(user, table, row2.id, {f"field_{text_field.id}": "Middle"})
+    handler.update_row_by_id(user, table, row3.id, {f"field_{text_field.id}": "Alpha"})
+
+    model = table.get_model()
+    results = model.objects.all().order_by_fields_string(
+        f"field_{text_field.id}",
+        group_by_string=f"field_{ms_field.id}",
+    )
+    result_ids = [r.id for r in results]
+    assert len(result_ids) == 3
+
+    # Group-by must keep {A,C} rows adjacent despite text ordering
+    idx1 = result_ids.index(row1.id)
+    idx3 = result_ids.index(row3.id)
+    assert abs(idx1 - idx3) == 1, (
+        f"Rows with same group-by set must be adjacent but were at "
+        f"positions {idx1} and {idx3}: {result_ids}"
+    )

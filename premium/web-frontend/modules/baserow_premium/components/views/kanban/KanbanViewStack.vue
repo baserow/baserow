@@ -541,7 +541,12 @@ export default {
       )
       candidates.push(this.draggingRow)
       candidates.sort(
-        getRowSortFunction(this.$registry, this.view.sortings, this.fields)
+        getRowSortFunction(
+          this.$registry,
+          this.view.sortings,
+          this.fields,
+          this.view.group_bys || []
+        )
       )
       const index = candidates.findIndex((r) => r.id === this.draggingRow.id)
       return index === -1 ? candidates.length - 1 : index

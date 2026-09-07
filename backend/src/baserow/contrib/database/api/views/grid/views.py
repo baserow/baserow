@@ -21,6 +21,7 @@ from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
     ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION,
     ADHOC_FILTERS_API_PARAMS_WITH_AGGREGATION_NO_COMBINE,
+    ADHOC_GROUP_BY_API_PARAM,
     ADHOC_SORTING_API_PARAM,
     EXCLUDE_COUNT_API_PARAM,
     EXCLUDE_FIELDS_API_PARAM,
@@ -231,6 +232,7 @@ class GridViewView(APIView):
             *PAGINATION_API_PARAMS,
             *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
             ADHOC_SORTING_API_PARAM,
+            ADHOC_GROUP_BY_API_PARAM,
             INCLUDE_FIELDS_API_PARAM,
             EXCLUDE_FIELDS_API_PARAM,
             SEARCH_VALUE_API_PARAM,
@@ -278,6 +280,7 @@ class GridViewView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
                 ]
             ),
             404: get_error_schema(
@@ -295,6 +298,7 @@ class GridViewView(APIView):
             ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
             ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
+            ViewGroupByFieldNotSupported: ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
         }
     )
     @allowed_includes("field_options", "row_metadata", "group_by_metadata")
@@ -321,6 +325,7 @@ class GridViewView(APIView):
         exclude_fields = request.GET.get("exclude_fields")
         adhoc_filters = AdHocFilters.from_request(request)
         order_by = request.GET.get("order_by")
+        group_by = request.GET.get("group_by")
 
         view_handler = ViewHandler()
         view = view_handler.get_view_as_user(
@@ -353,6 +358,7 @@ class GridViewView(APIView):
             order_by,
             query_params,
             hidden_field_ids=hidden_field_ids,
+            group_by=group_by,
         )
         model = queryset.model
 
@@ -363,15 +369,28 @@ class GridViewView(APIView):
             queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
-        if group_by_metadata and view_type.can_group_by and view.viewgroupby_set.all():
-            group_by_fields = [
-                model._field_objects[group_by.field_id]["field"]
-                for group_by in view.viewgroupby_set.all()
-            ]
-            serialized_group_by_metadata = serialize_group_by_fields_metadata(
-                queryset, group_by_fields, page
-            )
-            response.data.update(group_by_metadata=serialized_group_by_metadata)
+        if group_by_metadata and view_type.can_group_by:
+            if group_by:
+                adhoc_group_bys = parse_adhoc_view_group_bys(group_by, model)
+                group_by_fields = (
+                    [
+                        model._field_objects[gb.field_id]["field"]
+                        for gb in adhoc_group_bys
+                    ]
+                    if adhoc_group_bys
+                    else []
+                )
+            else:
+                group_by_fields = [
+                    model._field_objects[gb.field_id]["field"]
+                    for gb in view.viewgroupby_set.all()
+                ]
+
+            if group_by_fields:
+                serialized_group_by_metadata = serialize_group_by_fields_metadata(
+                    queryset, group_by_fields, page
+                )
+                response.data.update(group_by_metadata=serialized_group_by_metadata)
 
         if field_options:
             response.data.update(
@@ -1150,6 +1169,7 @@ class PublicGridViewRowsView(APIView):
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                    "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"]),
@@ -1169,6 +1189,7 @@ class PublicGridViewRowsView(APIView):
             ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
             NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
+            ViewGroupByFieldNotSupported: ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
         }
     )
     @allowed_includes("field_options", "group_by_metadata")

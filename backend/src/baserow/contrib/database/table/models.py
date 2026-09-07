@@ -28,6 +28,7 @@ from baserow.contrib.database.fields.field_filters import (
     FilterBuilder,
     parse_ids_from_csv_string,
 )
+from baserow.contrib.database.fields.field_sortings import parse_order_string
 from baserow.contrib.database.fields.fields import IgnoreMissingForeignKey
 from baserow.contrib.database.fields.models import (
     CreatedOnField,
@@ -35,7 +36,6 @@ from baserow.contrib.database.fields.models import (
     LastModifiedField,
 )
 from baserow.contrib.database.fields.registries import FieldType, field_type_registry
-from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.search.handler import (
     ALL_SEARCH_MODES,
     SearchHandler,
@@ -53,7 +53,6 @@ from baserow.contrib.database.table.constants import (
 )
 from baserow.contrib.database.table.queryset import BaserowCTEQuerySet
 from baserow.contrib.database.views.exceptions import ViewFilterTypeNotAllowedForField
-from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.cache import local_cache
 from baserow.core.db import MultiFieldPrefetchQuerysetMixin, specific_iterator
@@ -70,7 +69,7 @@ from baserow.core.mixins import (
     TrashableModelMixin,
 )
 from baserow.core.telemetry.utils import baserow_trace
-from baserow.core.utils import are_kwargs_default, split_comma_separated_string
+from baserow.core.utils import are_kwargs_default
 
 extract_filter_sections_regex = re.compile(r"filter__(.+)__(.+)$")
 field_id_regex = re.compile(r"field_(\d+)$")
@@ -232,8 +231,77 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         else:
             return field
 
+    def _parse_order_fields(
+        self,
+        order_string,
+        user_field_names,
+        field_object_dict,
+        only_order_by_field_ids,
+        for_group_by=False,
+    ):
+        """
+        Parses a comma-separated order string into a list of
+        ``(field_object, order_direction, sort_type)`` tuples, validating each
+        entry against the model's field objects.
+
+        When ``for_group_by`` is True, validation uses ``check_can_group_by``
+        instead of ``check_can_order_by`` and raises
+        ``ViewGroupByFieldNotSupported`` on failure.
+        """
+
+        entries = parse_order_string(
+            order_string,
+            user_field_names=user_field_names,
+            field_name_parser=self._get_field_name if user_field_names else None,
+        )
+
+        parsed = []
+        for entry in entries:
+            if entry.field_key not in field_object_dict or (
+                only_order_by_field_ids is not None
+                and entry.field_key not in only_order_by_field_ids
+            ):
+                raise OrderByFieldNotFound(entry.raw)
+
+            field_object = field_object_dict[entry.field_key]
+            field_type = field_object["type"]
+            field_name = field_object["name"]
+            user_field_name = field_object["field"].name
+            error_display_name = user_field_name if user_field_names else field_name
+
+            if for_group_by:
+                if not field_type.check_can_group_by(
+                    field_object["field"], entry.sort_type
+                ):
+                    from baserow.contrib.database.views.exceptions import (
+                        ViewGroupByFieldNotSupported,
+                    )
+
+                    raise ViewGroupByFieldNotSupported(
+                        f"It is not possible to group by field type "
+                        f"{field_type.type} using sort type {entry.sort_type}."
+                    )
+            else:
+                if not field_type.check_can_order_by(
+                    field_object["field"], entry.sort_type
+                ):
+                    raise OrderByFieldNotPossible(
+                        error_display_name,
+                        field_type.type,
+                        entry.sort_type,
+                        f"It is not possible to order by field type "
+                        f"{field_type.type} using sort type {entry.sort_type}.",
+                    )
+
+            parsed.append((field_object, entry.direction, entry.sort_type))
+        return parsed
+
     def order_by_fields_string(
-        self, order_string, user_field_names=False, only_order_by_field_ids=None
+        self,
+        order_string,
+        user_field_names=False,
+        only_order_by_field_ids=None,
+        group_by_string=None,
     ):
         """
         Orders the query by the given field order string. This string is often
@@ -244,6 +312,10 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         be provided as field_1, 1, id_1, etc. When user_field_names is True the
         order_string is treated as a comma separated list of the actual field names,
         use quotes to wrap field names containing commas.
+
+        When ``group_by_string`` is provided, those fields are ordered first using
+        ``get_group_by_sort_order`` (set-based ordering for M2M fields), followed
+        by the regular sort fields from ``order_string`` using ``get_order``.
 
         :param order_string: The field ids to order the queryset by separated by a
             comma. For example `field_1,2` which will order by field with id 1 first
@@ -256,6 +328,11 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
             ordered by. Other fields not in the iterable will be ignored and not be
             filtered.
         :type only_order_by_field_ids: Optional[Iterable[int]]
+        :param group_by_string: Optional comma-separated field string (same format
+            as ``order_string``) whose fields use ``get_group_by_sort_order``
+            instead of ``get_order``. Group-by fields are ordered before sort
+            fields.
+        :type group_by_string: Optional[str]
         :raises OrderByFieldNotFound: when the provided field id is not found in the
             model.
         :raises OrderByFieldNotPossible: when it is not possible to order by the
@@ -263,11 +340,6 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
         :return: The queryset ordered by the provided order_string.
         :rtype: QuerySet
         """
-
-        try:
-            order_by_fields = split_comma_separated_string(order_string)
-        except ValueError:
-            raise OrderByFieldNotFound(order_string)
 
         if user_field_names:
             field_object_dict = {
@@ -278,47 +350,44 @@ class TableModelQuerySet(MultiFieldPrefetchQuerysetMixin, BaserowCTEQuerySet):
 
         annotations = {}
         order_by = []
-        for order in order_by_fields:
-            if user_field_names:
-                field_name_or_id = self._get_field_name(order)
-            else:
-                field_name_or_id = get_field_id_from_field_key(order, False)
 
-            if field_name_or_id not in field_object_dict or (
-                only_order_by_field_ids is not None
-                and field_name_or_id not in only_order_by_field_ids
+        if group_by_string:
+            for field_object, direction, sort_type in self._parse_order_fields(
+                group_by_string,
+                user_field_names,
+                field_object_dict,
+                only_order_by_field_ids,
+                for_group_by=True,
             ):
-                raise OrderByFieldNotFound(order)
-
-            order_direction = "DESC" if order[:1] == "-" else "ASC"
-            type_match = re.search(r"\[(.*?)\]", order)
-            sort_type = type_match.group(1) if type_match else DEFAULT_SORT_TYPE_KEY
-            field_object = field_object_dict[field_name_or_id]
-            field_type = field_object["type"]
-            field_name = field_object["name"]
-            field = field_object["field"]
-            user_field_name = field_object["field"].name
-            error_display_name = user_field_name if user_field_names else field_name
-
-            if not field_object["type"].check_can_order_by(
-                field_object["field"], sort_type
-            ):
-                raise OrderByFieldNotPossible(
-                    error_display_name,
-                    field_type.type,
+                annotated = field_object["type"].get_group_by_sort_order(
+                    field_object["field"],
+                    field_object["name"],
+                    direction,
                     sort_type,
-                    f"It is not possible to order by field type {field_type.type} using sort type {sort_type}.",
+                    table_model=self.model,
                 )
+                if annotated.annotation is not None:
+                    annotations = {**annotations, **annotated.annotation}
+                order_by.extend(annotated.order_bys)
 
-            field_annotated_order_by = field_type.get_order(
-                field, field_name, order_direction, sort_type, table_model=self.model
-            )
-
-            if field_annotated_order_by.annotation is not None:
-                annotations = {**annotations, **field_annotated_order_by.annotation}
-            field_order_bys = field_annotated_order_by.order_bys
-            for field_order_by in field_order_bys:
-                order_by.append(field_order_by)
+        # Sort fields — use get_order for regular ordering.
+        if order_string:
+            for field_object, direction, sort_type in self._parse_order_fields(
+                order_string,
+                user_field_names,
+                field_object_dict,
+                only_order_by_field_ids,
+            ):
+                annotated = field_object["type"].get_order(
+                    field_object["field"],
+                    field_object["name"],
+                    direction,
+                    sort_type,
+                    table_model=self.model,
+                )
+                if annotated.annotation is not None:
+                    annotations = {**annotations, **annotated.annotation}
+                order_by.extend(annotated.order_bys)
 
         order_by.append("order")
         order_by.append("id")

@@ -514,20 +514,29 @@ export function newFieldMatchesActiveSearchTerm(
   return false
 }
 
+// Safe to call unconditionally: only GridViewType has can_group_by=True,
+// so view.group_bys is always empty for gallery/kanban/calendar views.
+export function serializeGroupBys(view) {
+  if (!view || !view.group_bys || view.group_bys.length === 0) {
+    return ''
+  }
+  return view.group_bys
+    .map((groupBy) => {
+      let serialized = `${groupBy.order === 'DESC' ? '-' : ''}field_${
+        groupBy.field
+      }`
+      if (groupBy.type !== DEFAULT_SORT_TYPE_KEY) {
+        serialized += `[${groupBy.type}]`
+      }
+      return serialized
+    })
+    .join(',')
+}
+
 export function getGroupBy(rootGetters, viewId, adhocGroupBy = false) {
   if (rootGetters['page/view/public/getIsPublic'] || adhocGroupBy) {
     const view = rootGetters['view/get'](viewId)
-    return view.group_bys
-      .map((groupBy) => {
-        let serialized = `${groupBy.order === 'DESC' ? '-' : ''}field_${
-          groupBy.field
-        }`
-        if (groupBy.type !== DEFAULT_SORT_TYPE_KEY) {
-          serialized += `[${groupBy.type}]`
-        }
-        return serialized
-      })
-      .join(',')
+    return serializeGroupBys(view)
   } else {
     return ''
   }
@@ -624,11 +633,8 @@ export function getOrderBy(view, adhocSorting) {
       }
       return serialized
     }
-    // Group bys first, then sorts to ensure that the order is correct.
-    const groupBys = view.group_bys ? view.group_bys.map(serializeSort) : []
     const sorts = view.sortings.map(serializeSort)
-
-    return [...groupBys, ...sorts].join(',')
+    return sorts.length > 0 ? sorts.join(',') : ''
   } else {
     return null
   }
