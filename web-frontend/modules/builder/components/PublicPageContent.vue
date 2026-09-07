@@ -32,6 +32,7 @@ import {
   userSourceCookieTokenName,
   setToken,
 } from '@baserow/modules/core/utils/auth'
+import { consumeUserSourceCallback } from '@baserow/modules/core/utils/userSourceCallback'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { ThemeConfigBlockType } from '@baserow/modules/builder/themeConfigBlockTypes'
@@ -311,6 +312,10 @@ watch(
 )
 
 onMounted(async () => {
+  // The server callback bridge has already authenticated the clean SSR request.
+  if (isAuthenticated.value && (await maybeRedirectToNextPage())) {
+    return
+  }
   await checkProviderAuthentication()
   checkProviderLoginError()
   await maybeRedirectUserToLoginPage()
@@ -358,10 +363,26 @@ const maybeRedirectUserToLoginPage = async () => {
 }
 
 const maybeRedirectToNextPage = async () => {
-  if (route.query.next) {
-    const decodedNext = decodeURIComponent(route.query.next)
-    await router.push(decodedNext)
+  const callback = consumeUserSourceCallback(
+    new URL(route.fullPath, window.location.origin)
+  )
+  const next = callback
+    ? callback.url.searchParams.get('next')
+    : route.query.next
+  if (typeof next !== 'string') {
+    return false
   }
+  let decodedNext
+  try {
+    decodedNext = decodeURIComponent(next)
+  } catch {
+    return false
+  }
+  if (decodedNext.startsWith('/') && !/^[/\\]{2}|[\\\r\n]/.test(decodedNext)) {
+    await router.push(decodedNext)
+    return true
+  }
+  return false
 }
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {
@@ -393,6 +414,16 @@ const checkProviderAuthentication = async () => {
   }
 
   if (refreshTokenFromProvider) {
+    // Client-side navigation can still deliver a callback. Keep browser cleanup
+    // separate from the providers' SSR-safe token extraction.
+    const callback = consumeUserSourceCallback(window.location.href)
+    if (callback) {
+      window.history.replaceState(
+        window.history.state,
+        document.title,
+        callback.url.toString()
+      )
+    }
     const previewUserSourceCookie = props.mode === 'preview'
     const cookieUrl =
       props.mode === 'preview'

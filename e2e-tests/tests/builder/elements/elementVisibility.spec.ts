@@ -83,6 +83,7 @@ test.describe("Builder element visibility on published pages", () => {
 
   test("visitors only see elements matching their visibility permissions @enterprise", async ({
     page,
+    browser,
     workspacePage,
   }) => {
     const { user, workspace } = workspacePage;
@@ -167,11 +168,12 @@ test.describe("Builder element visibility on published pages", () => {
     // the five headings render. `refreshToken` null means an anonymous visit.
     const assertVisibleFor = async (
       refreshToken: string | null,
-      expectedLabels: string[]
+      expectedLabels: string[],
+      callbackProvider?: "saml" | "oidc"
     ) => {
       // Reset to a clean visitor: no Baserow session, no user source token.
       await page.context().clearCookies();
-      if (refreshToken) {
+      if (refreshToken && !callbackProvider) {
         await page.context().addCookies([
           {
             name: cookieName,
@@ -180,6 +182,45 @@ test.describe("Builder element visibility on published pages", () => {
             path: "/",
           },
         ]);
+      }
+
+      const target = new URL(publishedUrl);
+      if (callbackProvider && refreshToken) {
+        target.searchParams.set(
+          `user_source_${callbackProvider}_token__${published.userSourceId}`,
+          refreshToken
+        );
+      }
+
+      // Disable JavaScript so protected headings must come from publicPage SSR.
+      // Reuse the visitor's cookies, but no client login or refetch can run here.
+      const ssrContext = await browser.newContext({ javaScriptEnabled: false });
+      try {
+        await ssrContext.addCookies(await page.context().cookies());
+        const ssrPage = await ssrContext.newPage();
+        const response = await ssrPage.goto(target.toString());
+        expect(response?.status()).toBe(200);
+        if (callbackProvider) {
+          const bridge = await response?.request().redirectedFrom()?.response();
+          expect(bridge?.status()).toBe(303);
+          expect(ssrPage.url()).toBe(publishedUrl);
+          const html = await response!.text();
+          // Do not print credentials if this assertion fails. Existing Vuex
+          // token serialization is outside this test's scope.
+          expect(html.includes(`user_source_${callbackProvider}_token__`)).toBe(
+            false
+          );
+        }
+        for (const label of ALL_LABELS) {
+          const heading = ssrPage.locator(".ab-heading", { hasText: label });
+          await expect(heading).toHaveCount(
+            expectedLabels.includes(label) ? 1 : 0
+          );
+        }
+        // Keep any refresh-token rotation performed during SSR.
+        await page.context().addCookies(await ssrContext.cookies());
+      } finally {
+        await ssrContext.close();
       }
 
       await page.goto(publishedUrl, { waitUntil: "networkidle" });
@@ -207,5 +248,17 @@ test.describe("Builder element visibility on published pages", () => {
     await assertVisibleFor(null, EXPECTED.anonymous);
     await assertVisibleFor(blankAuth.refreshToken, EXPECTED.loggedInNoRole);
     await assertVisibleFor(editorAuth.refreshToken, EXPECTED.loggedInEditor);
+    for (const provider of ["saml", "oidc"] as const) {
+      const callbackAuth = await userSourceTokenAuth(
+        published.userSourceId,
+        "editor@example.com",
+        PASSWORD
+      );
+      await assertVisibleFor(
+        callbackAuth.refreshToken,
+        EXPECTED.loggedInEditor,
+        provider
+      );
+    }
   });
 });
