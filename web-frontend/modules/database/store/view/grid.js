@@ -4977,10 +4977,8 @@ export const actions = {
       getters.getActiveSearchTerm
     )
 
-    // Optimistically commit the value only when it can't move or hide the row.
-    // Grouped/sorted/filtered views defer to the queued lifecycle path below while the
-    // old values are still intact; the PATCH and side-effects run in the task queue.
-    if (canUpdateOptimistically && !hasViewRulesThatCanMoveOrHideRows) {
+    // Commit immediately so the cell reflects the edit; lifecycle deferred to queue.
+    if (canUpdateOptimistically) {
       const storeRow = getters.getRow(row.id)
       if (storeRow !== undefined) {
         commit('UPDATE_ROW_FIELD_VALUE', { row: storeRow, field, value })
@@ -5000,7 +4998,12 @@ export const actions = {
        * This helper function will make sure that the values of the related row are
        * updated the right way.
        */
-      const updateValues = async (row, values, optimisticUpdate) => {
+      const updateValues = async (
+        row,
+        values,
+        optimisticUpdate,
+        beforeValues = null
+      ) => {
         const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
         if (rowExistsInBuffer) {
@@ -5019,6 +5022,7 @@ export const actions = {
               fields,
               row,
               values,
+              beforeValues,
               markGroupAggregationsLoading: optimisticUpdate,
             })
           } else {
@@ -5114,7 +5118,12 @@ export const actions = {
       // it feel instant for the user. If we can't safely do it in the frontend, then
       // we have to show a loading state and update the row after the request has been
       // made.
-      await updateValues(row, newRowValues, canUpdateOptimistically)
+      await updateValues(
+        row,
+        newRowValues,
+        canUpdateOptimistically,
+        oldRowValues
+      )
       try {
         const batchResponse = await RowService($client).batchUpdate(
           table.id,
@@ -5528,6 +5537,7 @@ export const actions = {
       updatedFieldIds = [],
       markGroupAggregationsLoading = false,
       forceGroupByRowMove = false,
+      beforeValues = null,
     }
   ) {
     const { $registry } = this
@@ -5537,7 +5547,11 @@ export const actions = {
     if (baseRow === null) {
       return
     }
-    const oldRow = clone(baseRow)
+    // Overlay old field values so filter/sort transition detection
+    // compares against the pre-optimistic state.
+    const oldRow = beforeValues
+      ? Object.assign(clone(baseRow), beforeValues)
+      : clone(baseRow)
     const newRow = Object.assign(clone(baseRow), values)
     populateRow(oldRow, metadata)
     populateRow(newRow, metadata)

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where editing a field value in a view with filters, sorts, or group-bys would briefly revert to the old value when another update was still in progress.",
+    "issue_origin": "github",
+    "issue_number": 5955,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-25"
+}
