@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Authenticate Builder SAML and OIDC callbacks before rendering protected public pages on the server.",
+    "issue_number": 5206,
+    "bullet_points": [],
+    "created_at": "2026-09-07",
+    "issue_origin": "github",
+    "domain": "builder"
+}
