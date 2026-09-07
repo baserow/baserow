@@ -53,8 +53,15 @@ from baserow.contrib.integrations.slack.service_types import (
 )
 from baserow.core.db import specific_queryset
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
-from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
+from baserow.core.formula.serializers import (
+    FormattedFormulaSerializerField,
+)
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaObject,
+    FormattedFormulaObject,
+)
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
@@ -71,35 +78,39 @@ class NotificationWorkflowActionType(BuilderWorkflowActionType):
     simple_formula_fields = ["title", "description"]
     serializer_field_names = ["title", "description"]
     serializer_field_overrides = {
-        "title": FormulaSerializerField(
+        "title": FormattedFormulaSerializerField(
             help_text="The title of the notification. Must be an formula.",
             required=False,
         ),
-        "description": FormulaSerializerField(
+        "description": FormattedFormulaSerializerField(
             help_text="The description of the notification. Must be an formula.",
             required=False,
         ),
     }
 
     class SerializedDict(BuilderWorkflowActionDict):
-        title: BaserowFormulaObject
-        description: BaserowFormulaObject
+        title: FormattedFormulaObject
+        description: FormattedFormulaObject
 
     @property
     def allowed_fields(self):
         return super().allowed_fields + ["title", "description"]
 
-    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, BaserowFormulaObject]:
+    def get_pytest_params(
+        self, pytest_data_fixture
+    ) -> Dict[str, FormattedFormulaObject]:
         return {
-            "title": BaserowFormulaObject(
+            "title": FormattedFormulaObject(
                 formula="'hello'",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
+                format=BASEROW_FORMULA_FORMAT_PLAIN,
             ),
-            "description": BaserowFormulaObject(
+            "description": FormattedFormulaObject(
                 formula="'there'",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
+                format=BASEROW_FORMULA_FORMAT_PLAIN,
             ),
         }
 

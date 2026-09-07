@@ -14,7 +14,7 @@
       class="ab-form-group__label"
       :class="{ 'ab-form-group__label--small': smallLabel }"
     >
-      {{ label }}
+      <slot name="label">{{ label }}</slot>
       <span v-if="required" :title="$t('error.requiredField')">*</span>
     </label>
     <div class="ab-form-group__children">
@@ -36,6 +36,10 @@ export default {
       required: false,
       default: null,
     },
+    /**
+     * The label text. The optional `label` slot customises its rendering, the
+     * prop still decides whether the label is shown at all.
+     */
     label: {
       type: String,
       required: false,

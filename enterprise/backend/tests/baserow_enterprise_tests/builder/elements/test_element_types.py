@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -11,14 +12,23 @@ from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.core.formula.field import FormattedFormulaField, FormulaField
+from baserow.core.formula.serializers import (
+    FormattedFormulaSerializerField,
+    FormulaSerializerField,
+)
+from baserow.core.formula.types import FormattedFormulaObject
+from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow_enterprise.builder.elements.element_types import (
     AuthFormElementType,
     FileInputElementType,
 )
+from baserow_enterprise.builder.elements.models import FileInputElement
 
 
 @pytest.mark.django_db
@@ -342,3 +352,53 @@ def test_auth_form_element_get_event_names(data_fixture):
     assert AuthFormElementType().get_event_names(auth_form) == [
         EventTypes.AFTER_LOGIN.value
     ]
+
+
+@pytest.mark.parametrize("field_name", ["label", "help_text"])
+def test_file_input_element_formulas_accept_a_format(field_name):
+    """
+    The label and the help text can be rendered as Markdown, so they are
+    declared with the formatted formula type on both sides. The other formulas
+    of the element are plain ones.
+    """
+
+    overrides = FileInputElementType().serializer_field_overrides
+    assert type(overrides[field_name]) is FormattedFormulaSerializerField
+    assert type(overrides["default_name"]) is FormulaSerializerField
+    assert type(overrides["default_url"]) is FormulaSerializerField
+
+    assert type(FileInputElement._meta.get_field(field_name)) is FormattedFormulaField
+    assert type(FileInputElement._meta.get_field("default_name")) is FormulaField
+    assert type(FileInputElement._meta.get_field("default_url")) is FormulaField
+
+
+@pytest.mark.django_db
+def test_export_import_file_input_element_formats(data_fixture, enable_enterprise):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_element(
+        FileInputElementType,
+        user,
+        page=page,
+        label=FormattedFormulaObject.create("'Your **CV**'", format="markdown"),
+        help_text=FormattedFormulaObject.create("'PDF **only**'", format="markdown"),
+    )
+    element_type = element.get_type()
+
+    exported = element_type.export_serialized(element)
+    assert exported["label"]["format"] == "markdown"
+    assert exported["help_text"]["format"] == "markdown"
+
+    id_mapping = defaultdict(lambda: MirrorDict())
+    imported_element = ElementHandler().import_element(page, exported, id_mapping)
+    assert imported_element.label["format"] == "markdown"
+    assert imported_element.help_text["format"] == "markdown"
+
+    # Exports made before the format existed don't have the key: they are plain.
+    del exported["label"]["format"]
+    del exported["help_text"]["format"]
+    imported_legacy_element = ElementHandler().import_element(
+        page, exported, id_mapping
+    )
+    assert imported_legacy_element.label["format"] == "plain"
+    assert imported_legacy_element.help_text["format"] == "plain"

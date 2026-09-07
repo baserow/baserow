@@ -18,6 +18,10 @@
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
+    <FormulaFormatSelector
+      v-model="v$.values.label.$model"
+      :label="$t('textFormatSelector.labelFormat')"
+    />
     <FormGroup
       :label="$t('fileInputElementForm.helpTextTitle')"
       class="margin-bottom-2"
@@ -29,6 +33,10 @@
         :placeholder="$t('fileInputElementForm.helpTextPlaceholder')"
       />
     </FormGroup>
+    <FormulaFormatSelector
+      v-model="v$.values.help_text.$model"
+      :label="$t('fileInputElementForm.helpTextFormat')"
+    />
     <hr />
     <FormGroup
       :label="
@@ -155,6 +163,7 @@
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
+import FormulaFormatSelector from '@baserow/modules/builder/components/elements/components/forms/FormulaFormatSelector'
 import { useVuelidate } from '@vuelidate/core'
 import {
   required,
@@ -166,7 +175,11 @@ import {
 
 export default {
   name: 'FileInputElementForm',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: {
+    InjectedFormulaInput,
+    CustomStyleButton,
+    FormulaFormatSelector,
+  },
   mixins: [formElementForm],
   setup() {
     return { v$: useVuelidate() }
