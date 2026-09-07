@@ -44,6 +44,8 @@ import {
   renderViewport,
   visibleGroupPagesInViewport,
   visibleSectionsInViewport,
+  GROUP_BY_LAYOUT_BANNER,
+  GROUP_BY_LAYOUT_COLUMN,
 } from '@baserow/modules/database/utils/gridGroupByRender'
 import {
   getGroupByCollapseAllState,
@@ -92,6 +94,11 @@ const REFRESH_ROW_DELAY_MS = 1000
 // geometry is unaffected. High enough that a viewport's working set never evicts, so
 // collapse then re-expand never refetches.
 const GROUP_BY_MAX_RETAINED_SECTIONS = 200
+// Loading a sparse group page can change the estimated height of earlier unloaded
+// pages, moving the same viewport onto another page. Refine until the geometry
+// converges, but cap the number of sequential network round trips for corrupt or
+// adversarial page data. The per-request seen sets below also prevent duplicate work.
+const GROUP_BY_MAX_VIEWPORT_REFINEMENT_PASSES = 100
 const DEFAULT_FLAT_VIEW = {
   group_bys: [],
   sortings: [],
@@ -240,6 +247,8 @@ function getGroupByLayoutFromState(state) {
     state.rowHeight,
     state.bufferRequestSize,
     state.activeGroupBys,
+    state.groupByLayout,
+    state.count,
   ]
   const cached = groupByLayoutCacheByState.get(state)
   if (
@@ -258,6 +267,8 @@ function getGroupByLayoutFromState(state) {
     fields: getGroupByFieldRefsFromState(state),
     rowHeight: state.rowHeight,
     pageSize: state.bufferRequestSize,
+    layout: state.groupByLayout,
+    rootRowCount: state.count,
   })
 
   groupByLayoutCacheByState.set(state, { key: cacheKey, value: layout })
@@ -535,6 +546,8 @@ function getGroupBySnapshotLayout(snapshot, activeGroupBys, fields, state) {
     fields: groupByFields,
     rowHeight: state.rowHeight,
     pageSize: state.bufferRequestSize,
+    layout: state.groupByLayout,
+    rootRowCount: state.count,
   })
 }
 
@@ -965,6 +978,7 @@ export const state = () => ({
   count: 0,
   // The height of a single row.
   rowHeight: 33,
+  groupByLayout: GROUP_BY_LAYOUT_BANNER,
   // The distance to the top in pixels the visible rows should have.
   rowsTop: 0,
   // The amount of rows that must be visible above and under the middle row.
@@ -1718,6 +1732,12 @@ export const mutations = {
   UPDATE_ROW_HEIGHT(state, value) {
     state.rowHeight = value
   },
+  SET_GROUP_BY_LAYOUT(state, value) {
+    state.groupByLayout =
+      value === GROUP_BY_LAYOUT_COLUMN
+        ? GROUP_BY_LAYOUT_COLUMN
+        : GROUP_BY_LAYOUT_BANNER
+  },
   ADD_CHECKBOX_SELECTED_ROW(state, rowId) {
     if (!state.checkboxSelectedRows.includes(rowId)) {
       state.checkboxSelectedRows.push(rowId)
@@ -2167,7 +2187,11 @@ export const actions = {
       fields
     )
     const viewport = getGroupByViewport(getters, scrollTop)
-    const useDepthPages = shouldUseGroupByDepthPages(state.groupBy)
+    // Columns always render every level expanded, even when the saved Banner
+    // collapse state is collapse-all. Its fetch strategy must match that layout.
+    const forceExpandedLayout = getters.isGroupByColumnLayout
+    const useDepthPages =
+      !forceExpandedLayout && shouldUseGroupByDepthPages(state.groupBy)
 
     let layout = getters.getGroupByLayout
     if (
@@ -2179,7 +2203,8 @@ export const actions = {
         view,
         fields,
         adhocFiltering: getters.getAdhocFiltering,
-        includeDescendants: state.groupBy.collapse?.mode === 'expand',
+        includeDescendants:
+          forceExpandedLayout || state.groupBy.collapse?.mode === 'expand',
         descendantLimit: getters.getBufferRequestSize,
         descendantRowBudget: getGroupByDescendantRowBudget(getters, scrollTop),
         signal,
@@ -2192,7 +2217,11 @@ export const actions = {
 
     const seenPageRequests = new Set()
     const seenDepthRequests = new Set()
-    for (let depth = 0; depth < groupByFields.length; depth += 1) {
+    for (
+      let pass = 0;
+      pass < GROUP_BY_MAX_VIEWPORT_REFINEMENT_PASSES;
+      pass += 1
+    ) {
       if (useDepthPages) {
         const pageToFetch = getVisibleGroupDepthPageToFetch({
           layout,
@@ -2214,6 +2243,9 @@ export const actions = {
           adhocFiltering: getters.getAdhocFiltering,
           signal,
         })
+        if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
+          return []
+        }
         layout = getters.getGroupByLayout
         continue
       }
@@ -2347,6 +2379,9 @@ export const actions = {
     { commit, dispatch, getters },
     { path, view, fields }
   ) {
+    if (getters.isGroupByColumnLayout) {
+      return
+    }
     const groupByFields = getGroupByFieldsFromActiveGroupBys(
       getters.getActiveGroupBys,
       fields
@@ -2368,6 +2403,9 @@ export const actions = {
     { commit, dispatch, getters },
     { view, fields, collapse }
   ) {
+    if (getters.isGroupByColumnLayout) {
+      return
+    }
     commit('SET_GROUP_BY_COLLAPSE', getGroupByCollapseAllState(collapse))
     commit('CLEAR_AREA_SELECTION')
     const scrollTop = getClampedGroupByScrollTop(getters)
@@ -3080,6 +3118,13 @@ export const actions = {
       groupByCollapse = getGroupByCollapseAllState(false)
     }
 
+    // Keep the persisted collapse state in the snapshot so switching back to
+    // Banners restores it. Only the fetch decisions are forced to expand for Columns.
+    const forceExpandedLayout = getters.isGroupByColumnLayout
+    const effectiveExpandAll =
+      forceExpandedLayout ||
+      (groupByCollapse.mode === 'expand' && groupByCollapse.paths.length === 0)
+
     commit('INVALIDATE_GROUP_BY_REQUESTS')
     const groupByGeneration = state.groupBy.generation || 0
     const snapshot = {
@@ -3093,9 +3138,7 @@ export const actions = {
     // first page is independent of the new tree and can be fetched in parallel with the
     // skeleton. Mixed/collapsed states tie their offsets to the tree, so they can't.
     const parallelExpandRows =
-      scrollTop === 0 &&
-      groupByCollapse.mode === 'expand' &&
-      groupByCollapse.paths.length === 0
+      scrollTop === 0 && effectiveExpandAll
         ? GridService($client).fetchRows({
             gridId,
             offset: 0,
@@ -3124,7 +3167,8 @@ export const actions = {
       filters: getFilters(view, getters.getAdhocFiltering),
       offset: 0,
       limit: getters.getBufferRequestSize,
-      includeDescendants: groupByCollapse.mode === 'expand',
+      includeDescendants:
+        forceExpandedLayout || groupByCollapse.mode === 'expand',
       descendantLimit: getters.getBufferRequestSize,
       descendantRowBudget: getGroupByDescendantRowBudget(getters),
       groupBy: getGroupBy(rootGetters, gridId, getters.getAdhocGrouping),
@@ -6405,6 +6449,9 @@ export const actions = {
   setRowHeight({ commit, dispatch, getters }, value) {
     commit('UPDATE_ROW_HEIGHT', value)
   },
+  setGroupByLayout({ commit }, value) {
+    commit('SET_GROUP_BY_LAYOUT', value)
+  },
   toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
     const { $registry, $client, $i18n, $config } = this
     const rowId = row.id
@@ -6765,6 +6812,12 @@ export const getters = {
   },
   getGroupByCollapse(state) {
     return state.groupBy.collapse
+  },
+  getGroupByLayoutMode(state) {
+    return state.groupByLayout
+  },
+  isGroupByColumnLayout(state) {
+    return state.groupByLayout === GROUP_BY_LAYOUT_COLUMN
   },
   // Takes no field arg so the memoization in getGroupByLayoutFromState holds: a
   // per-call fields array would be a new reference every time and defeat the cache.

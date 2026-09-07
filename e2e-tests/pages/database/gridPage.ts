@@ -41,9 +41,7 @@ export class GridPage {
 
   async goTo(database: Database, table: Table, view?: View): Promise<void> {
     const url = new URL(
-      `/database/${database.id}/table/${table.id}${
-        view ? `/${view.id}` : ""
-      }`,
+      `/database/${database.id}/table/${table.id}${view ? `/${view.id}` : ""}`,
       this.baseUrl,
     );
     url.searchParams.set("token", this.user.refreshToken);
@@ -261,6 +259,31 @@ export class GridPage {
         }),
       })
       .first();
+  }
+
+  groupSpanByValue(value: string): Locator {
+    return this.page.locator(".grid-view__left .grid-view__group-span", {
+      has: this.page
+        .locator(".grid-view__group-value")
+        .filter({ hasText: this.exactTextRegex(value) }),
+    });
+  }
+
+  async selectGroupLayout(label: "Banners" | "Columns"): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .locator(".segment-control__button", { hasText: label })
+      .click();
+    await this.closeGroupByContext();
+  }
+
+  async expectGroupSpanCount(value: string, count: number): Promise<void> {
+    const span = this.groupSpanByValue(value);
+    await expect(span).toHaveCount(1, { timeout: 10_000 });
+    await expect(span.locator(".grid-view__group-count")).toHaveText(
+      this.exactTextRegex(String(count)),
+      { timeout: 10_000 },
+    );
   }
 
   groupByContextToggle(): Locator {

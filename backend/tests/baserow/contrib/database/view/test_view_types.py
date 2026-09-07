@@ -39,6 +39,7 @@ def test_import_export_grid_view(data_fixture):
         filter_type="AND",
         filters_disabled=False,
         row_identifier_type="count",
+        group_by_layout="column",
     )
     field = data_fixture.create_text_field(table=grid_view.table)
     imported_field = data_fixture.create_text_field(table=grid_view.table)
@@ -85,6 +86,7 @@ def test_import_export_grid_view(data_fixture):
     assert grid_view.filter_type == imported_grid_view.filter_type
     assert grid_view.filters_disabled == imported_grid_view.filters_disabled
     assert grid_view.row_identifier_type == imported_grid_view.row_identifier_type
+    assert imported_grid_view.group_by_layout == "column"
     assert imported_grid_view.viewfilter_set.all().count() == 1
     assert imported_grid_view.viewsort_set.all().count() == 1
 

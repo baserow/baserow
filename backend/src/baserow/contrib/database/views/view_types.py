@@ -85,11 +85,17 @@ class GridViewType(ViewType):
     has_public_info = True
     can_group_by = True
     when_shared_publicly_requires_realtime_events = True
-    allowed_fields = ["row_identifier_type", "row_height_size", "frozen_column_count"]
+    allowed_fields = [
+        "row_identifier_type",
+        "row_height_size",
+        "frozen_column_count",
+        "group_by_layout",
+    ]
     copyable_view_attributes = [
         "row_height_size",
         "frozen_column_count",
         "row_identifier_type",
+        "group_by_layout",
     ]
     field_options_allowed_fields = [
         "width",
@@ -102,6 +108,7 @@ class GridViewType(ViewType):
         "row_identifier_type",
         "row_height_size",
         "frozen_column_count",
+        "group_by_layout",
     ]
     serializer_field_overrides = {
         "frozen_column_count": serializers.IntegerField(
@@ -142,6 +149,7 @@ class GridViewType(ViewType):
         serialized["row_identifier_type"] = grid.row_identifier_type
         serialized["row_height_size"] = grid.row_height_size
         serialized["frozen_column_count"] = grid.frozen_column_count
+        serialized["group_by_layout"] = grid.group_by_layout
 
         serialized_field_options = []
         for field_option in grid.get_field_options():

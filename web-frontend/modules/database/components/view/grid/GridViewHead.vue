@@ -1,10 +1,10 @@
 <template>
   <div class="grid-view__head">
     <div
-      v-for="groupBy in includeGroupBy ? activeGroupBys : []"
+      v-for="(groupBy, index) in includeGroupBy ? activeGroupBys : []"
       :key="'field-group-' + groupBy.field"
       class="grid-view__head-group"
-      :style="{ width: groupBy.width + 'px' }"
+      :style="{ width: getGroupByWidth(groupBy, index) + 'px' }"
       :set="field = $options.methods.getField(allFieldsInTable, groupBy)"
     >
       <div v-if="field" class="grid-view__group-cell">
@@ -130,6 +130,11 @@ export default {
       required: false,
       default: () => false,
     },
+    groupByWidths: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
     includeAddField: {
       type: Boolean,
       required: false,
@@ -197,6 +202,9 @@ export default {
     getField(allFieldsInTable, groupBy) {
       const field = allFieldsInTable.find((f) => f.id === groupBy.field)
       return field
+    },
+    getGroupByWidth(groupBy, index) {
+      return this.groupByWidths[index] ?? groupBy.width
     },
   },
 }

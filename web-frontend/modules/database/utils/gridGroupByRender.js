@@ -5,6 +5,102 @@ export const GROUP_GAP = 8
 // matching the fixed-height ungrouped `GridViewRowAdd`.
 export const ADD_ROW_HEIGHT = ROW_HEIGHT
 
+export const GROUP_BY_LAYOUT_BANNER = 'banner'
+export const GROUP_BY_LAYOUT_COLUMN = 'column'
+
+const BANNER_GEOMETRY = Object.freeze({
+  layout: GROUP_BY_LAYOUT_BANNER,
+  headerHeight: HEADER_HEIGHT,
+  groupGap: GROUP_GAP,
+  addRowHeight: ADD_ROW_HEIGHT,
+  addRowPerGroup: true,
+  unloadedGroupHeight: HEADER_HEIGHT,
+})
+
+const EXPAND_ALL = Object.freeze({ mode: 'expand', paths: [] })
+
+export function getLayoutGeometry(layout, rowHeight = ROW_HEIGHT) {
+  if (layout !== GROUP_BY_LAYOUT_COLUMN) {
+    return BANNER_GEOMETRY
+  }
+  return {
+    layout: GROUP_BY_LAYOUT_COLUMN,
+    headerHeight: 0,
+    groupGap: 0,
+    addRowHeight: ADD_ROW_HEIGHT,
+    addRowPerGroup: false,
+    // A row per unloaded group keeps the placeholder tall enough to reach the viewport.
+    unloadedGroupHeight: rowHeight,
+  }
+}
+
+function layoutGeometryOf(layout) {
+  return layout?.geometry || BANNER_GEOMETRY
+}
+
+function pushGroupHeader(items, geometry, rowHeight, node) {
+  if (geometry.headerHeight === 0) {
+    items.push({
+      type: 'groupSpan',
+      depth: node.depth,
+      path: node.path,
+      display: node.display,
+      rowCount: node.rowCount,
+      y: node.y,
+      height: node.rowCount * rowHeight,
+    })
+    return node.y
+  }
+  items.push({
+    type: 'header',
+    depth: node.depth,
+    path: node.path,
+    display: node.display,
+    rowCount: node.rowCount,
+    aggregationRowCount: node.aggregationRowCount,
+    y: node.y,
+    height: geometry.headerHeight,
+    collapsed: node.collapsed,
+    gapAbove: node.gapAbove,
+    aggregations: node.aggregations,
+  })
+  return node.y + geometry.headerHeight
+}
+
+function pushGroupAddRow(items, geometry, node) {
+  if (!geometry.addRowPerGroup) {
+    return node.y
+  }
+  items.push({
+    type: 'addRow',
+    depth: node.depth,
+    path: node.path,
+    display: node.display,
+    rowCount: node.rowCount,
+    y: node.y,
+    height: geometry.addRowHeight,
+  })
+  return node.y + geometry.addRowHeight
+}
+
+function pushTrailingAddRow(items, geometry, y, rootPageLoaded) {
+  // Without per-group add-row lines the grid must always end with one.
+  const needed = geometry.addRowPerGroup
+    ? rootPageLoaded && items.length === 0
+    : rootPageLoaded || items.length > 0
+  if (!needed) {
+    return y
+  }
+  items.push({
+    type: 'addRow',
+    depth: 0,
+    path: {},
+    y,
+    height: geometry.addRowHeight,
+  })
+  return y + geometry.addRowHeight
+}
+
 const GROUP_BANNER_DEPTH_INDENT_PX = 24
 const GROUP_BANNER_BASE_GUTTER = 12
 const GROUP_BANNER_CHEVRON_WIDTH = 24
@@ -104,9 +200,23 @@ export function buildLayout({
   fields,
   rowHeight = ROW_HEIGHT,
   pageSize = GROUP_PAGE_SIZE,
+  layout = GROUP_BY_LAYOUT_BANNER,
+  rootRowCount = null,
 }) {
+  const geometry = getLayoutGeometry(layout, rowHeight)
+  const effectiveCollapse =
+    geometry.layout === GROUP_BY_LAYOUT_COLUMN ? EXPAND_ALL : collapse
+
   if (pages !== null) {
-    return buildPagedLayout({ pages, collapse, fields, rowHeight, pageSize })
+    return buildPagedLayout({
+      pages,
+      collapse: effectiveCollapse,
+      fields,
+      rowHeight,
+      pageSize,
+      geometry,
+      rootRowCount,
+    })
   }
 
   const items = []
@@ -114,11 +224,11 @@ export function buildLayout({
   let visibleRowCount = 0
 
   if (!nodes || nodes.length === 0 || !fields || fields.length === 0) {
-    return { items, totalHeight: 0, totalRowCount: 0 }
+    return { items, totalHeight: 0, totalRowCount: 0, geometry }
   }
 
   const maxDepth = fields.length - 1
-  const exceptionKeys = collapseExceptionKeys(collapse, fields)
+  const exceptionKeys = collapseExceptionKeys(effectiveCollapse, fields)
   let skipDescendantsAtDepth = -1
   let lastPlacedDepth = null
 
@@ -139,13 +249,13 @@ export function buildLayout({
     // its parent's banner (a first child) sits flush against it.
     const gapAbove = lastPlacedDepth !== null && lastPlacedDepth >= node.depth
     if (gapAbove) {
-      y += GROUP_GAP
+      y += geometry.groupGap
     }
     lastPlacedDepth = node.depth
 
     const collapsed = pathCollapsedAgainst(
       node.path,
-      collapse.mode,
+      effectiveCollapse.mode,
       exceptionKeys,
       fields
     )
@@ -153,20 +263,17 @@ export function buildLayout({
     const aggregationRowCount =
       node.aggregationRowCount ?? node.aggregation_row_count ?? rowCount
 
-    items.push({
-      type: 'header',
+    y = pushGroupHeader(items, geometry, rowHeight, {
       depth: node.depth,
       path: node.path,
       display: node.display,
       rowCount,
       aggregationRowCount,
       y,
-      height: HEADER_HEIGHT,
       collapsed,
       gapAbove,
       aggregations: node.aggregations ?? null,
     })
-    y += HEADER_HEIGHT
 
     if (collapsed) {
       skipDescendantsAtDepth = node.depth
@@ -188,20 +295,19 @@ export function buildLayout({
       })
       y += sectionHeight
       visibleRowCount += rowCount
-      items.push({
-        type: 'addRow',
+      y = pushGroupAddRow(items, geometry, {
         depth: node.depth,
         path: node.path,
         display: node.display,
         rowCount,
         y,
-        height: ADD_ROW_HEIGHT,
       })
-      y += ADD_ROW_HEIGHT
     }
   }
 
-  return { items, totalHeight: y, totalRowCount: visibleRowCount }
+  y = pushTrailingAddRow(items, geometry, y, true)
+
+  return { items, totalHeight: y, totalRowCount: visibleRowCount, geometry }
 }
 
 function getPage(pages, parentPath, fields) {
@@ -214,38 +320,41 @@ function getSortedLoadedIndexes(page) {
     .sort((a, b) => a - b)
 }
 
-function unloadedGroupRangeHeight(startIndex, endIndex) {
+function unloadedGroupRangeHeight(
+  startIndex,
+  endIndex,
+  geometry,
+  rowSlotCount = null
+) {
   const count = Math.max(0, endIndex - startIndex)
   if (count === 0) {
     return 0
   }
+  if (geometry.layout === GROUP_BY_LAYOUT_COLUMN && rowSlotCount !== null) {
+    return Math.max(0, rowSlotCount) * geometry.unloadedGroupHeight
+  }
   const gaps = count - (startIndex === 0 ? 1 : 0)
-  return count * HEADER_HEIGHT + gaps * GROUP_GAP
+  return count * geometry.unloadedGroupHeight + gaps * geometry.groupGap
 }
 
-function placeholderStartIndexAtOffset(item, offset) {
+function placeholderStartIndexAtOffset(item, offset, geometry) {
   const startIndex = item.siblingStartIndex
   const endIndex = item.siblingEndIndex
   const clampedOffset = Math.max(0, Math.min(offset, item.height))
+  const slotHeight = geometry.unloadedGroupHeight
+  const stride = slotHeight + geometry.groupGap
 
   if (startIndex === 0) {
-    if (clampedOffset < HEADER_HEIGHT) {
+    if (clampedOffset < slotHeight) {
       return startIndex
     }
     return Math.min(
       endIndex,
-      startIndex +
-        1 +
-        Math.floor(
-          (clampedOffset - HEADER_HEIGHT) / (HEADER_HEIGHT + GROUP_GAP)
-        )
+      startIndex + 1 + Math.floor((clampedOffset - slotHeight) / stride)
     )
   }
 
-  return Math.min(
-    endIndex,
-    startIndex + Math.floor(clampedOffset / (HEADER_HEIGHT + GROUP_GAP))
-  )
+  return Math.min(endIndex, startIndex + Math.floor(clampedOffset / stride))
 }
 
 function pushUnloadedGroupPlaceholder({
@@ -256,8 +365,15 @@ function pushUnloadedGroupPlaceholder({
   endIndex,
   globalStartIndex,
   y,
+  geometry,
+  rowSlotCount = null,
 }) {
-  const height = unloadedGroupRangeHeight(startIndex, endIndex)
+  const height = unloadedGroupRangeHeight(
+    startIndex,
+    endIndex,
+    geometry,
+    rowSlotCount
+  )
   if (height <= 0) {
     return y
   }
@@ -282,13 +398,15 @@ function buildPagedLayout({
   fields,
   rowHeight = ROW_HEIGHT,
   pageSize = GROUP_PAGE_SIZE,
+  geometry = BANNER_GEOMETRY,
+  rootRowCount = null,
 }) {
   const items = []
   let y = 0
   let visibleRowCount = 0
 
   if (!fields || fields.length === 0) {
-    return { items, totalHeight: 0, totalRowCount: 0 }
+    return { items, totalHeight: 0, totalRowCount: 0, geometry }
   }
 
   const maxDepth = fields.length - 1
@@ -307,7 +425,12 @@ function buildPagedLayout({
   const advanceGlobalSiblingCount = (d, count) =>
     globalSiblingCountByDepth.set(d, globalSiblingCount(d) + count)
 
-  const walkPage = (parentPath, depth, fallbackSiblingCount = 0) => {
+  const walkPage = (
+    parentPath,
+    depth,
+    fallbackSiblingCount = 0,
+    parentRowCount = null
+  ) => {
     const pageCacheKey = pathKey(parentPath, fields)
     if (visitedPageKeys.has(pageCacheKey)) {
       return
@@ -319,6 +442,57 @@ function buildPagedLayout({
       page?.total_sibling_count ??
       fallbackSiblingCount
     const loadedIndexes = getSortedLoadedIndexes(page)
+    const validLoadedIndexes = loadedIndexes.filter(
+      (loadedIndex) => loadedIndex >= 0 && loadedIndex < totalSiblingCount
+    )
+    let remainingUnloadedSiblingCount = null
+    let remainingUnloadedRowCount = null
+    if (
+      geometry.layout === GROUP_BY_LAYOUT_COLUMN &&
+      Number.isFinite(parentRowCount)
+    ) {
+      const loadedRowCount = validLoadedIndexes.reduce((total, loadedIndex) => {
+        const loadedNode = page?.nodes?.[loadedIndex]
+        return total + (loadedNode?.rowCount ?? loadedNode?.row_count ?? 0)
+      }, 0)
+      remainingUnloadedSiblingCount = Math.max(
+        0,
+        totalSiblingCount - validLoadedIndexes.length
+      )
+      // Server groups are non-empty, so reserve at least one row for each sibling
+      // when optimistic/stale counts momentarily disagree. Otherwise distribute the
+      // parent's rows not accounted for by loaded siblings across the missing ranges.
+      remainingUnloadedRowCount = Math.max(
+        remainingUnloadedSiblingCount,
+        parentRowCount - loadedRowCount
+      )
+    }
+
+    const takeUnloadedRowSlots = (siblingCount) => {
+      if (
+        remainingUnloadedSiblingCount === null ||
+        remainingUnloadedRowCount === null
+      ) {
+        return null
+      }
+      if (siblingCount >= remainingUnloadedSiblingCount) {
+        const rowSlots = remainingUnloadedRowCount
+        remainingUnloadedSiblingCount = 0
+        remainingUnloadedRowCount = 0
+        return rowSlots
+      }
+
+      const extraRows = Math.max(
+        0,
+        remainingUnloadedRowCount - remainingUnloadedSiblingCount
+      )
+      const rowSlots =
+        siblingCount +
+        Math.floor((extraRows * siblingCount) / remainingUnloadedSiblingCount)
+      remainingUnloadedSiblingCount -= siblingCount
+      remainingUnloadedRowCount -= rowSlots
+      return rowSlots
+    }
     let loadedPointer = 0
     let index = 0
     // Whether a sibling was already placed at this depth. Drives the depth-0 gap, which a
@@ -332,6 +506,7 @@ function buildPagedLayout({
           loadedIndex === undefined ? totalSiblingCount : loadedIndex,
           Math.ceil((index + 1) / pageSize) * pageSize
         )
+        const unloadedSiblingCount = unloadedEnd - index
         y = pushUnloadedGroupPlaceholder({
           items,
           parentPath,
@@ -340,8 +515,10 @@ function buildPagedLayout({
           endIndex: unloadedEnd,
           globalStartIndex: globalSiblingCount(depth),
           y,
+          geometry,
+          rowSlotCount: takeUnloadedRowSlots(unloadedSiblingCount),
         })
-        advanceGlobalSiblingCount(depth, unloadedEnd - index)
+        advanceGlobalSiblingCount(depth, unloadedSiblingCount)
         index = unloadedEnd
         placedSibling = true
         continue
@@ -365,7 +542,7 @@ function buildPagedLayout({
       }
       const gapAbove = placedSibling
       if (gapAbove) {
-        y += GROUP_GAP
+        y += geometry.groupGap
       }
       placedSibling = true
 
@@ -380,24 +557,22 @@ function buildPagedLayout({
         node.aggregationRowCount ?? node.aggregation_row_count ?? rowCount
       const childrenCount = node.childrenCount ?? node.children_count ?? 0
 
-      items.push({
-        type: 'header',
+      y = pushGroupHeader(items, geometry, rowHeight, {
         depth: node.depth ?? depth,
         path: node.path,
         display: node.display,
         rowCount,
         aggregationRowCount,
         y,
-        height: HEADER_HEIGHT,
         collapsed,
         gapAbove,
         aggregations: node.aggregations ?? null,
       })
-      y += HEADER_HEIGHT
 
       if (!collapsed) {
         if ((node.depth ?? depth) === maxDepth) {
           const sectionHeight = rowCount * rowHeight
+          const absoluteRowOffset = node.rowOffset ?? node.row_offset
           items.push({
             type: 'rowSection',
             depth: node.depth ?? depth,
@@ -406,23 +581,30 @@ function buildPagedLayout({
             rowCount,
             y,
             height: sectionHeight,
-            firstGlobalRowOffset: visibleRowCount,
-            absoluteRowOffset: node.rowOffset ?? node.row_offset ?? 0,
+            firstGlobalRowOffset:
+              geometry.layout === GROUP_BY_LAYOUT_COLUMN &&
+              absoluteRowOffset !== undefined &&
+              absoluteRowOffset !== null
+                ? absoluteRowOffset
+                : visibleRowCount,
+            absoluteRowOffset: absoluteRowOffset ?? 0,
           })
           y += sectionHeight
           visibleRowCount += rowCount
-          items.push({
-            type: 'addRow',
+          y = pushGroupAddRow(items, geometry, {
             depth: node.depth ?? depth,
             path: node.path,
             display: node.display,
             rowCount,
             y,
-            height: ADD_ROW_HEIGHT,
           })
-          y += ADD_ROW_HEIGHT
         } else {
-          walkPage(node.path, (node.depth ?? depth) + 1, childrenCount)
+          walkPage(
+            node.path,
+            (node.depth ?? depth) + 1,
+            childrenCount,
+            rowCount
+          )
         }
       }
 
@@ -432,25 +614,12 @@ function buildPagedLayout({
     }
   }
 
-  walkPage({}, 0)
+  walkPage({}, 0, 0, rootRowCount)
 
-  // A loaded but group-less view (no rows, or every group emptied) would otherwise
-  // render nothing to click, so keep one top-level add-row line available. Gated on
-  // the loaded root page so nothing flashes while the first request is in flight,
-  // and on a fully empty layout so it never stacks under loading placeholders.
   const rootPageLoaded = getPage(pages, {}, fields) !== null
-  if (rootPageLoaded && items.length === 0) {
-    items.push({
-      type: 'addRow',
-      depth: 0,
-      path: {},
-      y,
-      height: ADD_ROW_HEIGHT,
-    })
-    y += ADD_ROW_HEIGHT
-  }
+  y = pushTrailingAddRow(items, geometry, y, rootPageLoaded)
 
-  return { items, totalHeight: y, totalRowCount: visibleRowCount }
+  return { items, totalHeight: y, totalRowCount: visibleRowCount, geometry }
 }
 
 /**
@@ -574,7 +743,8 @@ export function visibleGroupDepthPageInViewport(
 
     const visibleStart = placeholderStartIndexAtOffset(
       item,
-      Math.max(top, item.y) - item.y
+      Math.max(top, item.y) - item.y,
+      layoutGeometryOf(layout)
     )
     // globalSiblingStartIndex maps the placeholder's per-parent start into the
     // depth-wide sibling space the server offsets on, so batch-fetching the right page.
@@ -607,6 +777,7 @@ export function renderViewport({
   const items = []
   const top = viewport.scrollTop
   const bottom = viewport.scrollTop + viewport.clientHeight
+  const geometry = layoutGeometryOf(layout)
 
   for (const item of layout.items) {
     const itemBottom = item.y + item.height
@@ -615,6 +786,19 @@ export function renderViewport({
     }
     if (item.y >= bottom) {
       break
+    }
+
+    if (item.type === 'groupSpan') {
+      items.push({
+        type: 'groupSpan',
+        depth: item.depth,
+        path: item.path,
+        display: item.display,
+        rowCount: item.rowCount,
+        y: item.y,
+        height: item.height,
+      })
+      continue
     }
 
     if (item.type === 'header') {
@@ -646,16 +830,26 @@ export function renderViewport({
     }
 
     if (item.type === 'groupPlaceholder') {
+      const rangeBottom = item.y + item.height
+      if (geometry.headerHeight === 0) {
+        const visibleTop = Math.max(top, item.y)
+        items.push({
+          type: 'groupRangePlaceholder',
+          depth: item.depth,
+          y: visibleTop,
+          height: Math.min(bottom, rangeBottom) - visibleTop,
+        })
+        continue
+      }
       // Fill the unloaded region with a staircase of skeleton headers, one per level the
       // group still nests through (the level count is known before the data loads), so
       // the structure shows instead of blank space while the descendant request resolves.
-      const rangeBottom = item.y + item.height
       const maxDepth = Math.max((fields?.length ?? 1) - 1, item.depth)
       const levelsBelow = maxDepth - item.depth + 1
       // Sibling groups are laid out with a gap between them (see
       // `unloadedGroupRangeHeight`), so step by the same stride or the staircase
       // over-produces slots across the gapped range.
-      const slotStep = HEADER_HEIGHT + GROUP_GAP
+      const slotStep = geometry.unloadedGroupHeight + geometry.groupGap
       const firstSlotIndex = Math.max(0, Math.floor((top - item.y) / slotStep))
       let slotIndex = firstSlotIndex
       for (
@@ -667,7 +861,7 @@ export function renderViewport({
           type: 'groupSkeleton',
           depth: item.depth + (slotIndex % levelsBelow),
           y: slotY,
-          height: Math.min(HEADER_HEIGHT, rangeBottom - slotY),
+          height: Math.min(geometry.unloadedGroupHeight, rangeBottom - slotY),
         })
       }
       continue
@@ -697,6 +891,9 @@ export function renderViewport({
           sectionKey,
           position: i,
           globalRowOffset: item.firstGlobalRowOffset + i,
+          groupEnd:
+            geometry.layout === GROUP_BY_LAYOUT_COLUMN &&
+            i === item.rowCount - 1,
         })
       } else {
         items.push({
@@ -735,6 +932,9 @@ export function resolveGroupByRowMoveTarget({
   const sourceSectionKey = pathKey(sourcePath, fields)
 
   for (const item of layout.items) {
+    if (item.type === 'groupSpan') {
+      continue
+    }
     if (contentY < item.y || contentY >= item.y + item.height) {
       continue
     }
