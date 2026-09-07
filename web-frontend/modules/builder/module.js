@@ -5,6 +5,7 @@ import {
   extendPages,
   addTemplate,
   addRouteMiddleware,
+  addServerHandler,
 } from 'nuxt/kit'
 import { routes } from './routes'
 import { locales } from '../../config/locales.js'
@@ -38,6 +39,11 @@ export default defineNuxtModule({
     addRouteMiddleware({
       name: 'exchangePreviewToken',
       path: resolve('./middleware/exchangePreviewToken.js'),
+    })
+
+    addServerHandler({
+      middleware: true,
+      handler: resolve('./server/middleware/authCallback.js'),
     })
 
     // Add routes
