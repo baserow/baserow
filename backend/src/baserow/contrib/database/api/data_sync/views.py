@@ -44,6 +44,7 @@ from baserow.contrib.database.data_sync.operations import (
 )
 from baserow.contrib.database.data_sync.registries import data_sync_type_registry
 from baserow.contrib.database.handler import DatabaseHandler
+from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
 from baserow.core.handler import CoreHandler
@@ -315,12 +316,22 @@ class DataSyncTypePropertiesView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="database_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The database in whose workspace the permission check is "
+                "performed.",
+            ),
+        ],
         tags=["Database tables"],
         operation_id="get_table_data_sync_type_properties",
         description=(
             "Lists all the properties of the provided data sync type given the request "
             "data. This can be used to choose which properties should be included when "
-            "creating the data sync."
+            "creating the data sync. The user must have create table permissions in the "
+            "database's workspace."
         ),
         request=DiscriminatorCustomFieldsMappingSerializer(
             data_sync_type_registry, ListDataSyncPropertiesRequestSerializer
@@ -329,15 +340,19 @@ class DataSyncTypePropertiesView(APIView):
             200: ListDataSyncPropertySerializer(many=True),
             400: get_error_schema(
                 [
+                    "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_SYNC_ERROR",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
+            401: get_error_schema(["PERMISSION_DENIED"]),
+            404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
     )
-    @transaction.atomic
     @map_exceptions(
         {
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             SyncError: ERROR_SYNC_ERROR,
         }
     )
@@ -350,10 +365,20 @@ class DataSyncTypePropertiesView(APIView):
         self,
         request: Request,
         data,
+        database_id: int,
     ):
         """
         Lists the properties of the data sync related to the provided request data.
         """
+
+        database = DatabaseHandler().get_database(database_id)
+
+        CoreHandler().check_permissions(
+            request.user,
+            CreateTableDatabaseTableOperationType.type,
+            workspace=database.workspace,
+            context=database,
+        )
 
         type_name = data.pop("type")
 

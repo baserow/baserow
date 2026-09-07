@@ -309,8 +309,12 @@ def test_postgresql_data_sync_get_properties(
 ):
     default_database = settings.DATABASES["default"]
     user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -428,6 +432,7 @@ def test_postgresql_data_sync_get_properties_unsupported_column_types(
 ):
     default_database = settings.DATABASES["default"]
     user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
 
     with patch(
         "baserow.contrib.database.data_sync.postgresql_data_sync_type.column_type_to_baserow_field_type",
@@ -435,7 +440,10 @@ def test_postgresql_data_sync_get_properties_unsupported_column_types(
             "char": TextPostgreSQLSyncProperty,
         },
     ):
-        url = reverse("api:database:data_sync:properties")
+        url = reverse(
+            "api:database:data_sync:properties",
+            kwargs={"database_id": database.id},
+        )
         response = api_client.post(
             url,
             {
@@ -464,6 +472,75 @@ def test_postgresql_data_sync_get_properties_unsupported_column_types(
             "initially_selected": True,
         }
     ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_data_sync_get_properties_private_host_rejected(
+    data_fixture, api_client
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
+    with override_settings(BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=False, TESTS=False):
+        response = api_client.post(
+            url,
+            {
+                "type": "postgresql",
+                "postgresql_host": "192.168.1.1",
+                "postgresql_username": "user",
+                "postgresql_password": "pass",
+                "postgresql_port": 5432,
+                "postgresql_database": "db",
+                "postgresql_table": "t",
+                "postgresql_sslmode": "prefer",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SYNC_ERROR"
+    assert "not allowed" in response.json()["detail"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_postgresql_data_sync_sync_private_host_rejected(
+    data_fixture, create_postgresql_test_table
+):
+    """Syncing an existing data sync that points at a private host fails
+    gracefully when BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS is False."""
+
+    default_database = settings.DATABASES["default"]
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="postgresql",
+        synced_properties=["id"],
+        postgresql_host=default_database["HOST"],
+        postgresql_username=default_database["USER"],
+        postgresql_password=default_database["PASSWORD"],
+        postgresql_port=default_database["PORT"],
+        postgresql_database=default_database["NAME"],
+        postgresql_table=create_postgresql_test_table,
+        postgresql_sslmode=default_database["OPTIONS"].get("sslmode", "prefer"),
+    )
+
+    data_sync.postgresql_host = "192.168.1.1"
+    data_sync.save(update_fields=["postgresql_host"])
+
+    with override_settings(TESTS=False, BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS=False):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    data_sync.refresh_from_db()
+    assert data_sync.last_error == "It's not allowed to connect to this hostname."
 
 
 @pytest.mark.django_db(transaction=True)

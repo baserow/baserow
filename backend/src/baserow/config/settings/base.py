@@ -1687,6 +1687,9 @@ BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = (
     if BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
     else []
 )
+BASEROW_POSTGRESQL_DATA_SYNC_STATEMENT_TIMEOUT = int(
+    os.getenv("BASEROW_POSTGRESQL_DATA_SYNC_STATEMENT_TIMEOUT", "") or 180
+)
 
 # Default compression level for creating zip files. This setting balances the need to
 # save resources when compressing media files with the need to save space when

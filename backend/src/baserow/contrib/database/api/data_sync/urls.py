@@ -20,7 +20,7 @@ urlpatterns = [
         name="sync_table",
     ),
     re_path(
-        r"properties/$",
+        r"database/(?P<database_id>[0-9]+)/properties/$",
         DataSyncTypePropertiesView.as_view(),
         name="properties",
     ),
