@@ -22,10 +22,12 @@ from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
 )
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.license.license_types import PremiumLicenseType
 
 
-def test_grouped_aggregate_rows_data_source_feature_is_enterprise_only():
-    assert BUILDER_GROUPED_AGGREGATE_ROWS not in AdvancedLicenseType.features
+def test_grouped_aggregate_rows_data_source_feature_is_available_in_advanced_and_enterprise():
+    assert BUILDER_GROUPED_AGGREGATE_ROWS not in PremiumLicenseType.features
+    assert BUILDER_GROUPED_AGGREGATE_ROWS in AdvancedLicenseType.features
     assert (
         BUILDER_GROUPED_AGGREGATE_ROWS in EnterpriseWithoutSupportLicenseType.features
     )
