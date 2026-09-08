@@ -11,7 +11,7 @@
         "viewTrash": "Ver basura",
         "deleteApplication": "Borrar {type}",
         "duplicateApplication": "Duplicar {tipo}",
-        "snapshots": "Imágenes",
+        "snapshots": "Instantáneas",
         "rename": "Renombrar",
         "duplicate": "Duplicar",
         "delete": "Borrar"
@@ -765,10 +765,10 @@
         "ollamaModelsDescription": "Proporciona una lista separada por comas de [modelos instalados en Ollama](). Un modelo debe estar descargado e instalado antes de que Baserow pueda usarlo. Por ejemplo: gemma3,qwen3,llama3.3.",
         "anthropicApiKeyLabel": "Clave API",
         "mistralModelsLabel": "Modelos habilitados",
-        "mistralApiKeyDescription": "Proporciona una clave API de Mistral si deseas habilitar la integración. [Instrucciones para obtener una clave API](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralApiKeyDescription": "Ingresa una clave API de Mistral. [Instrucciones para obtener una clave API](https://docs.mistral.ai/getting-started/quickstart/).",
         "anthropic": "Anthropic",
         "anthropicModelsLabel": "Modelos habilitados",
-        "anthropicApiKeyDescription": "Proporciona una clave API de Anthropic si deseas activar la integración. [Instrucciones para obtener una clave API](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicApiKeyDescription": "Ingresa una clave API de Anthropic. [Instrucciones para obtener una clave API](https://docs.mistral.ai/getting-started/quickstart/).",
         "anthropicModelsDescription": "Proporciona una lista separada por comas de identificadores de [modelos de Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview) que puedan usarse en Baserow. Por ejemplo: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
         "mistral": "Mistral",
         "mistralApiKeyLabel": "Clave API",
@@ -780,7 +780,11 @@
         "openRouterModelsLabel": "Modelos habilitados",
         "openRouterModelsDescription": "Proporciona una lista separada por comas de identificadores de [modelos de OpenRouter] que puedan usarse en Baserow. Por ejemplo: openai/gpt-5.6,anthropic/claude-sonnet-5.",
         "openaiBaseUrl": "URL base",
-        "openaiBaseUrlDescription": "Utiliza la URL base predeterminada de OpenAI de forma predeterminada si está vacía. Opcionalmente puede cambiarse a https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, o cualquier otra API compatible con OpenAI."
+        "openaiBaseUrlDescription": "Utiliza la URL base predeterminada de OpenAI de forma predeterminada si está vacía. Opcionalmente puede cambiarse a https://eu.api.openai.com/v1, https://&#60;your-resource-name&#62;.openai.azure.com, o cualquier otra API compatible con OpenAI.",
+        "ollamaModelIdentifierDescription": "Ingresa el identificador de un [modelo instalado en Ollama](https://ollama.com/library). Por ejemplo: `gemma3`, `qwen3`, o `llama3.3`.",
+        "mistralModelIdentifierDescription": "Ingresa un [identificador de modelo de Mistral](https://docs.mistral.ai/models/). Por ejemplo: `mistral-large-latest`, `mistral-medium-latest`, o `mistral-small-latest`.",
+        "openaiModelIdentifierDescription": "Ingresa un[ identificador de modelo de OpenAI](https://developers.openai.com/api/docs/models). Por ejemplo: `gpt-5.6`, `gpt-5.6-terra`, o `gpt-5.6-luna`.",
+        "anthropicModelIdentifierDescription": "Ingresa un [identificador de modelo de Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Por ejemplo: `claude-sonnet-5`, `claude-opus-4-8`, o `claude-haiku-4-5`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Configuración de la IA generativa",
@@ -853,7 +857,8 @@
         "AIModel": "Modelo de IA",
         "fileField": "Campo de archivo",
         "temperatureLabel": "Temperatura",
-        "temperatureDescription": "La temperatura de un LLM, un parámetro establecido entre 0 y {max}, ajusta la aleatoriedad de la respuesta: los valores más bajos producen respuestas centradas, mientras que los valores más altos aumentan la creatividad."
+        "temperatureDescription": "La temperatura de un LLM, un parámetro establecido entre 0 y {max}, ajusta la aleatoriedad de la respuesta: los valores más bajos producen respuestas centradas, mientras que los valores más altos aumentan la creatividad.",
+        "modelUnavailable": "Este modelo está deshabilitado o ya no está disponible."
     },
     "inviteStep": {
         "title": "Invitar a colaboradores",
@@ -1314,10 +1319,18 @@
     },
     "reportAbuseModal": {
         "description": "¿Crees que esta página se está utilizando para «phishing», suplantación de identidad, estafas u otros fines abusivos? Haz saber a los administradores de esta instancia de Baseroy enviando el formulario a continuación.",
-        "successDescription": "El informe se ha enviado y los administradores de esta instancia de Baserow han sido notificados para que puedan tomar medidas."
+        "successDescription": "El informe se ha enviado y los administradores de esta instancia de Baserow han sido notificados para que puedan tomar medidas.",
+        "reportingDisabledDescription": "La denuncia de abusos ha sido deshabilitada por el administrador de esta instancia de Baserow."
     },
     "aiProviderAdmin": {
-        "noProvidersDescription": "Añade un proveedor manualmente, o previsualiza y ejecuta el comando de importación del entorno antes de habilitar la función para los usuarios."
+        "noProvidersDescription": "Añade un proveedor manualmente, o previsualiza y ejecuta el comando de importación del entorno antes de habilitar la función para los usuarios.",
+        "modelDiscoveryEmpty": "Pydantic AI no tiene modelos conocidos para este proveedor. Ingresa un identificador manualmente.",
+        "modelDiscoveryHelp": "Elige un modelo conocido por Pydantic AI o ingresa cualquier identificador personalizado.",
+        "modelDiscoveryNoMatch": "Ningún modelo conocido coincide. Puedes usar el identificador que ingresaste.",
+        "deleteProviderDescription": "Esto elimina permanentemente el proveedor y sus modelos.",
+        "loadError": "No se pudo cargar la configuración del proveedor de IA.",
+        "saveModelError": "No se pudo guardar el modelo del proveedor de IA.",
+        "actionError": "No se pudo completar el cambio del proveedor de IA."
     },
     "reportAbuseForm": {
         "descriptionPlaceholder": "Por ejemplo: esta página finge ser una página de inicio de sesión de otra empresa y pide a los visitantes su contraseña."
