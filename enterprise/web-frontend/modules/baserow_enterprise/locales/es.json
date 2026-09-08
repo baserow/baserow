@@ -74,10 +74,10 @@
         "description": "Descripción",
         "timestamp": "Marca de tiempo",
         "exportModalTitle": "Exportar a CSV",
-        "clearFilters": "Despejar",
+        "clearFilters": "Limpiar",
         "allUsers": "Todos los usuarios",
         "allWorkspaces": "Todos los grupos",
-        "allActionTypes": "Todos los tipos de actos",
+        "allActionTypes": "Todos los tipos de eventos",
         "ip_address": "Dirección IP",
         "exportToCsv": "Exportar a CSV",
         "workspaceTitle": "Registro de auditoría - {nombreDelEspacioDeTrabajo}",
@@ -913,6 +913,8 @@
         "errorOtherOptions": "Vuelve atrás para iniciar una base de datos de otra manera, por ejemplo desde una plantilla, una importación o desde cero."
     },
     "aiPromptOnboardingType": {
-        "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas."
+        "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas.",
+        "prompt": "Crea una base de datos que incluya tablas, campos, filas de ejemplo y vistas de ejemplo que coincidan con esta descripción: {prompt}",
+        "language": "Escribe todo lo que generes en el idioma con código ISO 639-1 \"{language}\"."
     }
 }
