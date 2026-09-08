@@ -139,7 +139,8 @@
         "localBaserowCreateRows": "Crear filas en lote",
         "errorNoRowsSelected": "No se seleccionaron filas",
         "coreManualTrigger": "Disparador manual",
-        "coreStartWorkflow": "Iniciar flujo de trabajo"
+        "coreStartWorkflow": "Iniciar flujo de trabajo",
+        "coreGotoDescription": "Salta a otro punto del flujo de trabajo cuando una condición es verdadera."
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
