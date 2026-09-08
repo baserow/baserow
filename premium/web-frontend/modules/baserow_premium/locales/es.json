@@ -284,7 +284,8 @@
     },
     "gridViewFieldAI": {
         "regenerate": "Regenerar",
-        "generate": "Generar"
+        "generate": "Generar",
+        "promptBroken": "El prompt está roto y debe arreglarse antes de que se puedan generar valores."
     },
     "fieldAISubForm": {
         "AIType": "Tipo de IA",
@@ -303,7 +304,8 @@
     },
     "rowEditFieldAI": {
         "generate": "Generar",
-        "createRowBefore": "El valor de IA puede generarse después de crear la fila."
+        "createRowBefore": "El valor de IA puede generarse después de crear la fila.",
+        "promptBroken": "El prompt está roto y debe arreglarse antes de que se puedan generar valores."
     },
     "premiumFieldType": {
         "ai": "Aviso de IA",
