@@ -150,9 +150,9 @@
         "dropdownDescription": "Elemento desplegable",
         "checkbox": "Casilla de verificación",
         "checkboxDescription": "Elemento casilla de verificación",
-        "iframe": "iframe",
+        "iframe": "iFrame",
         "iframeDescription": "Marco en línea",
-        "authForm": "Formulario de acceso",
+        "authForm": "Formulario de inicio de sesión",
         "authFormDescription": "Un formulario de acceso de usuario",
         "repeat": "Repetir",
         "repeatDescription": "Un conjunto repetible de elementos",
@@ -211,7 +211,7 @@
         "alignment": "Alineación vertical"
     },
     "dnsStatus": {
-        "hostHeader": "Anfitrión",
+        "hostHeader": "Servidor anfitrión",
         "valueHeader": "Valor",
         "typeHeader": "Tipo",
         "description": "Visita la configuración DNS de tu dominio y realiza los siguientes cambios"
@@ -330,7 +330,9 @@
         "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
         "errorPageParameterInError": "Al menos un parámetro de página está mal configurado",
         "errorNavigationUrlMissing": "Falta la propiedad «URL de navegación»",
-        "errorDataSourceMissing": "No se ha seleccionado ninguna fuente de datos"
+        "errorDataSourceMissing": "No se ha seleccionado ninguna fuente de datos",
+        "refreshDataSourceDescription": "Recarga una fuente de datos y actualiza los elementos que la usan.",
+        "openPageDescription": "Redirige al usuario a otra página o URL."
     },
     "widthTypes": {
         "full": "Anchura completa",
@@ -636,10 +638,10 @@
         "embedPlaceholder": "Contenido HTML en bruto para incrustar",
         "heightLabel": "Altura (en px)",
         "heightPlaceholder": "Altura en píxeles",
-        "missingValue": "Falta la fuente IFrame...",
-        "emptyValue": "Fuente IFrame vacía...",
-        "warningMessage": "El contenido del IFrame está en un entorno restringido en el editor, donde el HTML incrustado puede ejecutar scripts de forma aislada. En las previsualizaciones y aplicaciones publicadas, el HTML incrustado puede ejecutarse sin restricciones, mientras que las URLs externas pueden ejecutar scripts, enviar formularios y abrir ventanas emergentes.",
-        "allowSameOriginHelp": "Solo habilita esto para una URL externa de confianza. Permite que el iframe use cookies, almacenamiento y otras características del mismo origen en previsualizaciones y aplicaciones publicadas."
+        "missingValue": "Falta la fuente iFrame...",
+        "emptyValue": "Fuente iFrame vacía...",
+        "warningMessage": "El contenido del iFrame está en un entorno restringido en el editor, donde el HTML incrustado puede ejecutar scripts de forma aislada. En las previsualizaciones y aplicaciones publicadas, el HTML incrustado puede ejecutarse sin restricciones, mientras que las URLs externas pueden ejecutar scripts, enviar formularios y abrir ventanas emergentes.",
+        "allowSameOriginHelp": "Solo habilita esto para una URL externa de confianza. Permite que el iFrame use cookies, almacenamiento y otras características del mismo origen en previsualizaciones y aplicaciones publicadas."
     },
     "linkNavigationSelection": {
         "navigateTo": "Navegar a",
@@ -687,7 +689,7 @@
         "loggedInVisitors": "Visitantes registrados",
         "notLoggedInVisitors": "Visitantes no registrados",
         "warningTitle": "Esto es una característica de seguridad",
-        "warningMessage": "Revisa la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api'&gt;documentación&lt;/a&gt; para aprender más sobre cómo aseguramos los datos.",
+        "warningMessage": "Consulta el {link} para saber más sobre cómo protegemos los datos.",
         "excludedRolesLabel": "todos los roles excepto",
         "switchAllowLabel": "Permitir",
         "switchDisallowLabel": "No permitir",
@@ -921,7 +923,7 @@
         "borderSize": "Tamaño del borde",
         "backgroundAlternateColor": "Color de las filas pares",
         "alignment": "Alineación",
-        "cells": "Células",
+        "cells": "Celdas",
         "verticalSeparatorSize": "Tamaño vertical",
         "horizontalSeparatorColor": "Color horizontal",
         "horizontalSeparatorSize": "Tamaño horizontal",
@@ -1020,7 +1022,7 @@
         "titleOverview": "Tema"
     },
     "pageVisibilitySettingsTypes": {
-        "pageName": "Divulgación",
+        "pageName": "Visibilidad",
         "logInPageWarningTitle": "La página de inicio de sesión no está configurada",
         "logInPagewarningMessage": "Cuando un usuario anónimo intente acceder a esta página, será redirigido a una página de inicio de sesión. Establezca la página de inicio de sesión en la configuración general de la aplicación.",
         "logInPageInfoMessage": "Los usuarios anónimos que intenten acceder a esta página serán redirigidos a la página {logInPageName}.",
