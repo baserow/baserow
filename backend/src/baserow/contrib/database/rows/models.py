@@ -3,17 +3,24 @@ from django.db import models
 
 from baserow.core.action.signals import ActionCommandType
 from baserow.core.encoders import JSONEncoderSupportingDataClasses
+from baserow.core.subjects import UserSubjectType
 
 
 class RowHistory(models.Model):
-    user_id = models.PositiveIntegerField(
+    # Reuse the former user columns so existing entries become User actors without a
+    # data migration. The actor type must always be used together with the actor ID
+    # because User and Agent primary keys can overlap.
+    actor_id = models.PositiveIntegerField(
+        db_column="user_id",
         null=True,
-        help_text="The id of the user that performed the action.",
+        help_text="The ID of the actor that performed the action.",
     )
-    user_name = models.CharField(
-        max_length=150,
+    actor_type = models.CharField(max_length=255, db_default=UserSubjectType.type)
+    actor_name = models.CharField(
+        db_column="user_name",
+        max_length=160,
         blank=True,
-        help_text="The name of the user that performed the action.",
+        help_text="The name of the actor that performed the action.",
     )
     table = models.ForeignKey(
         "database.Table",

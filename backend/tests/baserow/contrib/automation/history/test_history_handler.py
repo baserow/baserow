@@ -23,6 +23,7 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
+from baserow.core.models import Agent
 
 
 class FakeMonotonicClock:
@@ -89,8 +90,6 @@ def test_wait_for_workflow_response_returns_during_backoff():
 
     assert response is expected_response
     assert clock.sleeps == pytest.approx([0.1, 0.2])
-
-
 @pytest.mark.django_db
 def test_get_workflow_histories_no_base_queryset(data_fixture):
     workflow = data_fixture.create_automation_workflow()
@@ -863,6 +862,27 @@ def test_create_workflow_history_records_who_triggered_it(data_fixture):
     assert history.triggered_by_id == user.id
     assert history.triggered_by_type == "auth.User"
     assert history.triggered_by_name == user.first_name
+
+
+@pytest.mark.django_db
+def test_create_workflow_history_records_agent_who_triggered_it(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    agent = Agent.objects.create(
+        workspace=workflow.automation.workspace,
+        name="Workflow agent",
+    )
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+        triggered_by=agent,
+    )
+
+    assert history.triggered_by_id == agent.id
+    assert history.triggered_by_type == "core.Agent"
+    assert history.triggered_by_name == agent.name
 
 
 @pytest.mark.django_db

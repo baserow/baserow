@@ -5,6 +5,9 @@ from typing import Any, Dict, List, Optional
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
+from rest_framework import serializers
+
+from baserow.api.agents.serializers import AgentSubjectSerializer
 from baserow.api.user.serializers import SubjectUserSerializer
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
@@ -12,10 +15,13 @@ from baserow.contrib.integrations.api.local_baserow.serializers import (
     LocalBaserowContextDataSerializer,
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.core.agents.exceptions import AgentDoesNotExist
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
-from baserow.core.models import Application
+from baserow.core.models import Application, Workspace
+from baserow.core.registries import ImportExportConfig
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -27,25 +33,57 @@ class LocalBaserowIntegrationType(IntegrationType):
 
     class SerializedDict(IntegrationDict):
         authorized_user: str
+        authorized_agent: Optional[int]
 
-    serializer_field_names = ["context_data", "authorized_user"]
-    allowed_fields = ["authorized_user"]
-    sensitive_fields = ["authorized_user"]
+    serializer_field_names = [
+        "context_data",
+        "authorized_user",
+        "authorized_agent",
+    ]
+    allowed_fields = ["authorized_user", "authorized_agent"]
+    sensitive_fields = ["authorized_user", "authorized_agent"]
 
     serializer_field_overrides = {
         "context_data": LocalBaserowContextDataSerializer(read_only=True),
         "authorized_user": SubjectUserSerializer(read_only=True),
+        "authorized_agent": AgentSubjectSerializer(read_only=True),
     }
 
-    request_serializer_field_names = []
-    request_serializer_field_overrides = {}
+    request_serializer_field_names = ["authorized_agent_id"]
+    request_serializer_field_overrides = {
+        "authorized_agent_id": serializers.IntegerField(
+            required=False,
+            allow_null=True,
+            help_text="The agent whose permissions will authenticate the integration.",
+        )
+    }
 
     def prepare_values(
-        self, values: Dict[str, Any], user: AbstractUser
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        application: Optional[Application] = None,
     ) -> Dict[str, Any]:
-        """Add the logged in user by default"""
+        """Set the fallback user and resolve an optional workspace agent."""
 
         values["authorized_user"] = user
+        if "authorized_agent_id" in values:
+            agent_id = values.pop("authorized_agent_id")
+            if agent_id is None:
+                values["authorized_agent"] = None
+            else:
+                agent_handler = AgentHandler()
+                agents = agent_handler.get_queryset(application.workspace).filter(
+                    trashed=False
+                )
+                try:
+                    values["authorized_agent"] = agent_handler.get_agent(
+                        agent_id, agents
+                    )
+                except AgentDoesNotExist as exc:
+                    raise serializers.ValidationError(
+                        {"authorized_agent_id": "The agent does not exist."}
+                    ) from exc
 
         return super().prepare_values(values, user)
 
@@ -67,9 +105,33 @@ class LocalBaserowIntegrationType(IntegrationType):
                 return integration.authorized_user.username
             return None
 
+        if prop_name == "authorized_agent":
+            return None
+
         return super().serialize_property(
             integration, prop_name, files_zip=files_zip, storage=storage, cache=cache
         )
+
+    def export_serialized(
+        self,
+        instance: LocalBaserowIntegration,
+        import_export_config: Optional[ImportExportConfig] = None,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        """Preserve the authorized agent only in same-workspace publications."""
+
+        serialized = super().export_serialized(
+            instance,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+        )
+        if import_export_config and import_export_config.is_publishing:
+            serialized["authorized_agent"] = instance.authorized_agent_id
+        return serialized
 
     def after_import(
         self, user: AbstractUser, instance: LocalBaserowIntegration
@@ -83,7 +145,8 @@ class LocalBaserowIntegrationType(IntegrationType):
         # the exported workspace. Since this value is needed for the integration
         # to work, it is manually set here using the current user.
         instance.authorized_user = user
-        instance.save()
+        instance.authorized_agent = None
+        instance.save(update_fields=["authorized_user", "authorized_agent"])
 
     def import_serialized(
         self,
@@ -93,6 +156,7 @@ class LocalBaserowIntegrationType(IntegrationType):
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> LocalBaserowIntegration:
         """
         Imports a serialized integration. Handles the user part with a cache for
@@ -120,17 +184,27 @@ class LocalBaserowIntegrationType(IntegrationType):
                 username, None
             )
 
+        agent_id = serialized_values.pop("authorized_agent", None)
+        if import_export_config and import_export_config.is_publishing and agent_id:
+            workspace = Workspace.objects.get(id=id_mapping["import_workspace_id"])
+            agent_handler = AgentHandler()
+            agents = agent_handler.get_queryset(workspace).filter(trashed=False)
+            serialized_values["authorized_agent"] = agent_handler.get_agent(
+                agent_id, agents
+            )
+
         return super().import_serialized(
             application,
             serialized_values,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
         )
 
     def enhance_queryset(self, queryset):
-        return queryset.select_related("authorized_user")
+        return queryset.select_related("authorized_user", "authorized_agent")
 
     def get_context_data(self, instance: LocalBaserowIntegration) -> Optional[Dict]:
         try:
@@ -161,12 +235,12 @@ class LocalBaserowIntegrationType(IntegrationType):
         if not integration.application.workspace_id:
             return []
 
-        user = integration.specific.authorized_user
+        subject = integration.specific.authorized_subject
         workspace = integration.application.workspace
 
-        tables = TableHandler().list_workspace_tables(user, workspace)
+        tables = TableHandler().list_workspace_tables(subject, workspace)
 
-        views = ViewHandler().list_workspace_views(user, workspace, specific=False)
+        views = ViewHandler().list_workspace_views(subject, workspace, specific=False)
 
         views = list(
             views.only(
