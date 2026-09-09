@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import MockAdapter from 'axios-mock-adapter'
+import { registerRealtimeEvents } from '@baserow/modules/dashboard/realtime'
 
 describe('dashboardApplication store', () => {
   const dashboardId = 1
@@ -99,25 +100,17 @@ describe('dashboardApplication store', () => {
     }).toMatchSnapshot()
   })
 
-  test('handleNewWidgetCreated replaces the optimistic widget and fetches its data source', async () => {
-    const tempWidgetId = 99999
-    store.commit('dashboardApplication/ADD_WIDGET', {
-      id: tempWidgetId,
-      type: 'summary',
-    })
-
-    await store.dispatch('dashboardApplication/handleNewWidgetCreated', {
-      tempWidgetId,
-      createdWidget,
+  test('local creation selects the persisted widget and fetches its data source', async () => {
+    mock.onPost(`/dashboard/${dashboardId}/widgets/`).reply(200, createdWidget)
+    await store.dispatch('dashboardApplication/createWidget', {
+      dashboard: { id: dashboardId },
+      widget: { type: 'summary' },
     })
     await flushPromises()
 
     expect(mock.history.get.map((request) => request.url)).toContain(
       `/dashboard/${dashboardId}/data-sources/`
     )
-    expect(
-      store.getters['dashboardApplication/getWidgetById'](tempWidgetId)
-    ).toBeUndefined()
     expect(
       store.getters['dashboardApplication/getWidgetById'](createdWidget.id)
     ).toMatchObject(createdWidget)
@@ -132,10 +125,21 @@ describe('dashboardApplication store', () => {
     )
   })
 
-  test('handleNewWidgetCreated adds a widget created elsewhere without selecting it', async () => {
-    await store.dispatch('dashboardApplication/handleNewWidgetCreated', {
-      createdWidget,
+  test('realtime adds a widget created elsewhere without selecting it', async () => {
+    const events = {}
+    registerRealtimeEvents({
+      registerEvent: (name, callback) => {
+        events[name] = callback
+      },
     })
+    mock.onGet(`/dashboard/${dashboardId}/widgets/`).reply(200, [createdWidget])
+    await events.widget_created(
+      { store },
+      {
+        dashboard_id: dashboardId,
+        widget: createdWidget,
+      }
+    )
     await flushPromises()
 
     expect(store.state.dashboardApplication.widgets).toHaveLength(1)
