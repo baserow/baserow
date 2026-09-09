@@ -146,7 +146,7 @@
         "errorIframeUrlMissing": "IFrame URL 속성이 없습니다",
         "errorIframeContentMissing": "IFrame 콘텐츠가 누락되었습니다",
         "errorNoMenuItem": "메뉴 항목이 구성되지 않았습니다",
-        "errorMenuItemInError": "최소한 하나의 메뉴가 잘못 구성되었습니다",
+        "errorMenuItemInError": "하나 이상의 메뉴 항목이 잘못 구성되었습니다",
         "errorSubMenuItemInError": "적어도 하나의 하위 메뉴가 잘못 구성되었습니다"
     },
     "addElementButton": {
@@ -269,7 +269,10 @@
         "embedPlaceholder": "삽입할 원시 HTML 콘텐츠",
         "heightLabel": "높이 (px)",
         "heightPlaceholder": "최대 높이 입력",
-        "warningTitle": "신뢰할 수 있는 콘텐츠만 사용하세요"
+        "warningTitle": "신뢰할 수 있는 콘텐츠만 사용하세요",
+        "allowSameOriginLabel": "iframe이 자체 사이트 데이터에 접근하도록 허용",
+        "allowSameOriginHelp": "신뢰할 수 있는 외부 URL에만 사용하세요. 미리 보기 및 게시된 애플리케이션에서 iframe이 쿠키, 저장소 및 기타 동일 출처 기능을 사용할 수 있도록 허용합니다.",
+        "warningMessage": "편집기에서는 iframe 콘텐츠가 샌드박스 처리되어 삽입된 HTML의 스크립트가 격리된 환경에서 실행됩니다. 미리 보기 및 게시된 애플리케이션에서는 삽입된 HTML을 제한 없이 실행할 수 있으며, 외부 URL은 스크립트를 실행하고 양식을 제출하며 팝업을 열 수 있습니다."
     },
     "columnElementForm": {
         "columnAmountTitle": "레이아웃",
@@ -432,10 +435,12 @@
         "namePlaceholder": "소스 이름",
         "nameLabel": "이름",
         "actionLabel": "작업",
-        "integrationLabel": "통합",
-        "servicePlaceholder": "서비스 선택",
-        "integrationPlaceholder": "통합 선택",
-        "errorUniqueName": "데이터 소스 이름은 고유해야 합니다."
+        "integrationLabel": "연결",
+        "servicePlaceholder": "작업 선택...",
+        "integrationPlaceholder": "연결 선택...",
+        "errorUniqueName": "데이터 소스 이름은 고유해야 합니다.",
+        "searchActionPlaceholder": "작업 검색",
+        "noActionsFound": "작업을 찾을 수 없습니다"
     },
     "dataSourceContext": {
         "addDataSource": "새 데이터 소스 추가",
@@ -731,7 +736,11 @@
         "errorNavigateToPageMissing": "이동대상 속성이 누락되었습니다",
         "errorPageParameterInError": "하나 이상의 페이지 매개변수가 잘못 구성되었습니다",
         "errorNavigationUrlMissing": "네비게이션 URL 속성이 없습니다",
-        "errorDataSourceMissing": "선택된 데이터 소스가 없습니다"
+        "errorDataSourceMissing": "선택된 데이터 소스가 없습니다",
+        "notificationDescription": "사용자에게 알림 메시지를 표시합니다.",
+        "openPageDescription": "사용자를 다른 페이지 또는 URL로 이동합니다.",
+        "logoutDescription": "현재 사용자를 로그아웃합니다.",
+        "refreshDataSourceDescription": "데이터 소스를 다시 불러오고 이를 사용하는 요소를 업데이트합니다."
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "제목",
@@ -740,7 +749,9 @@
         "descriptionPlaceholder": "텍스트 입력..."
     },
     "event": {
-        "addAction": "작업 추가"
+        "addAction": "작업 추가",
+        "searchActions": "작업 검색",
+        "noActionsFound": "작업을 찾을 수 없습니다"
     },
     "collectionFieldType": {
         "boolean": "불리언",
@@ -813,7 +824,8 @@
         "optionType": "옵션 유형",
         "manual": "수동",
         "dataSource": "데이터 소스",
-        "formulas": "수식"
+        "formulas": "수식",
+        "expressions": "표현식"
     },
     "dispatchWorkflowActionError": {
         "defaultTitle": "이벤트 오류",
@@ -878,7 +890,7 @@
         "errorFetchingRolesTitle": "사용자 역할을 가져올 수 없습니다",
         "errorFetchingRolesMessage": "사용자 역할을 가져오는 동안 문제가 발생했습니다.",
         "visibilityCondition": "표시성 조건",
-        "visibilityConditionHelper": "이 수식의 결과가 참이고 위의 방문자 선택 사항이 참이면 요소가 표시됩니다. 이 조건은 요소의 표시 여부에만 영향을 미칩니다. 서버 응답에서 데이터를 제외하려면 위의 사용자 역할 필터링 옵션을 사용하세요.",
+        "visibilityConditionHelper": "이 표현식의 결과가 참이고 위의 방문자 선택 조건도 참이면 요소가 표시됩니다. 이 조건은 요소의 표시 여부에만 영향을 줍니다. 서버 응답에서 데이터를 제외하려면 위의 사용자 역할 필터링 옵션을 사용하세요.",
         "visibilityConditionPlaceholder": "상태...",
         "documentationLink": "문서"
     },
@@ -1130,5 +1142,12 @@
         "sampleDataModalTitle": "{actionLabel}에 대한 페이로드",
         "sampleDataModalSubTitle": "JSON 페이로드",
         "testActionDescription": "이 작업을 미리 보기 모드에서 실행하여 출력을 캡처하고 후속 작업에서 사용할 수 있도록 하세요."
+    },
+    "getExpressionComponent": {
+        "errorTooltip": "잘못된 참조"
+    },
+    "pageElementBehaviour": {
+        "normal": "일반",
+        "fixed": "고정"
     }
 }
