@@ -66,7 +66,11 @@ init: _check-binary
             echo "  + added BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET (generated) to .env.local"
         fi
     fi
-    WEBHOOK_URL="${BASEROW_INBOUND_EMAIL_WEBHOOK_URL:-http://localhost:8000/api/inbound-email/}"
+    WEBHOOK_URL="${BASEROW_INBOUND_EMAIL_WEBHOOK_URL:-}"
+    if [ -z "$WEBHOOK_URL" ]; then
+        : "${PUBLIC_BACKEND_URL:?Set PUBLIC_BACKEND_URL in .env.local}"
+        WEBHOOK_URL="${PUBLIC_BACKEND_URL%/}/api/inbound-email/"
+    fi
 
     echo "Generating mox config in {{ MOX_DIR }} for domain '$DOMAIN'..."
     rm -rf "{{ MOX_DIR }}"
