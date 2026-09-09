@@ -16,20 +16,6 @@ from baserow_premium.integrations.local_baserow.models import (
 )
 
 
-@pytest.fixture(autouse=True)
-def enable_grouped_aggregate_rows_feature(mocker):
-    mocker.patch(
-        "baserow_premium.integrations.local_baserow.service_types."
-        "LicenseHandler.workspace_has_feature",
-        return_value=True,
-    )
-    mocker.patch(
-        "baserow_premium.integrations.local_baserow.service_types."
-        "LicenseHandler.raise_if_workspace_doesnt_have_feature",
-        return_value=None,
-    )
-
-
 def without_grouped_row_ids(result):
     return {
         **result,

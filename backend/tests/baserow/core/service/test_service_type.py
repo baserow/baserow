@@ -1,12 +1,35 @@
 from unittest.mock import MagicMock, Mock, PropertyMock
 
 import pytest
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow_premium.integrations.local_baserow.service_types import DispatchResult
+
+
+def test_service_type_is_active_by_default(mocker):
+    mocker.patch.object(ServiceType, "model_class", Service, create=True)
+    service_type = ServiceType()
+    workspace = Mock()
+
+    assert service_type.is_deactivated(workspace) is False
+    service_type.raise_if_deactivated(workspace)
+
+
+def test_service_type_raise_if_deactivated(mocker):
+    mocker.patch.object(ServiceType, "model_class", Service, create=True)
+    service_type = ServiceType()
+    workspace = Mock()
+    is_deactivated = mocker.patch.object(
+        service_type, "is_deactivated", return_value=True
+    )
+
+    with pytest.raises(PermissionDenied, match="This service type is deactivated"):
+        service_type.raise_if_deactivated(workspace)
+
+    is_deactivated.assert_called_once_with(workspace)
 
 
 def test_service_type_get_schema_name():
