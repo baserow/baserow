@@ -174,7 +174,8 @@
         "multipleCollaboratorsCheckboxes": "체크박스",
         "formViewEditRow": "행 편집 링크",
         "formViewEditRowShareWarning": "공유 링크를 가진 사람은 누구나 공개적으로 표시되는 행 편집 링크 필드를 통해 {formNames} 양식에서 행을 편집할 수 있습니다.",
-        "defaultValueFunctionNow": "현재 날짜"
+        "defaultValueFunctionNow": "현재 날짜",
+        "button": "버튼"
     },
     "fieldErrors": {
         "invalidNumber": "유효하지 않은 숫자",
@@ -443,8 +444,8 @@
         "cannotCreateFieldTypeDescription": "요청된 필드 유형은 현재 생성할 수 없습니다. 오래된 테이블로 인해 일시적인 문제일 수 있습니다. 나중에 다시 시도하세요.",
         "generativeAIDoesNotExistTitle": "생성적 AI가 존재하지 않습니다",
         "generativeAIDoesNotExistDescription": "생성적 AI 모델이 존재하지 않습니다.",
-        "modelDoesNotBelongToTypeTitle": "선택한 모델이 AI 유형에 속하지 않습니다",
-        "modelDoesNotBelongToTypeDescription": "선택한 모델이 선택한 AI 유형에 속하지 않습니다.",
+        "modelDoesNotBelongToTypeTitle": "AI 모델을 사용할 수 없습니다",
+        "modelDoesNotBelongToTypeDescription": "선택한 AI 모델이 비활성화되었거나 더 이상 사용할 수 없습니다.",
         "outputParserTitle": "잘못된 출력",
         "outputParserDescription": "모델이 잘못된 출력으로 응답했습니다. 다시 시도하세요.",
         "generateAIPromptTitle": "프롬프트 오류",
