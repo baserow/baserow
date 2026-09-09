@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from loguru import logger
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.core.formula import resolve_formula
@@ -21,6 +22,7 @@ from baserow.core.formula.validator import ensure_integer
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
     APIUrlsRegistryMixin,
@@ -94,6 +96,17 @@ class ServiceType(
     # By default all service data should be hidden
     public_serializer_field_names = []
     public_serializer_field_overrides = {}
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """Return whether this service type is unavailable in the workspace."""
+
+        return False
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        """Reject use of a deactivated service type when called by its consumer."""
+
+        if self.is_deactivated(workspace):
+            raise PermissionDenied("This service type is deactivated.")
 
     def can_be_dispatched_as(self, dispatch_type: DispatchTypes) -> bool:
         """
