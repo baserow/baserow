@@ -85,15 +85,6 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             BUILDER_GROUPED_AGGREGATE_ROWS, workspace
         )
 
-    def dispatch(
-        self,
-        service: LocalBaserowGroupedAggregateRows,
-        dispatch_context: DispatchContext,
-    ) -> DispatchResult:
-        self.raise_if_deactivated(dispatch_context.workspace)
-
-        return super().dispatch(service, dispatch_context)
-
     def get_schema_name(self, service: LocalBaserowGroupedAggregateRows) -> str:
         return f"GroupedAggregation{service.id}Schema"
 

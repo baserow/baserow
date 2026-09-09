@@ -20,6 +20,7 @@ from baserow_enterprise.license_types import (
 )
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
+    LocalBaserowTableServiceAggregationSeries,
 )
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.license.license_types import PremiumLicenseType
@@ -105,26 +106,52 @@ def test_grouped_aggregate_rows_data_source_dispatch_requires_enterprise_license
 
 
 @pytest.mark.django_db
-def test_grouped_aggregate_rows_dashboard_data_source_dispatch_requires_enterprise_license(
+def test_grouped_aggregate_rows_dashboard_data_source_dispatch_after_license_loss(
     enterprise_data_fixture,
 ):
+    """An existing dashboard returns the same aggregation after losing its license."""
     user = enterprise_data_fixture.create_user()
     dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
 
+    database = enterprise_data_fixture.create_database_application(
+        workspace=dashboard.workspace
+    )
+    table = enterprise_data_fixture.create_database_table(user=user, database=database)
+    field = enterprise_data_fixture.create_number_field(table=table)
     with override_settings(DEBUG=True):
         enterprise_data_fixture.enable_enterprise()
         service = enterprise_data_fixture.create_service(
             LocalBaserowGroupedAggregateRows,
-            integration_args={"application": dashboard},
+            integration_args={"application": dashboard, "authorized_user": user},
+            table=table,
         )
         data_source = enterprise_data_fixture.create_dashboard_data_source(
             dashboard=dashboard, service=service
         )
+        LocalBaserowTableServiceAggregationSeries.objects.create(
+            service=service, field=field, aggregation_type="sum", order=1
+        )
+        model = table.get_model()
+        model.objects.create(**{f"field_{field.id}": 42})
+        expected = DashboardDataSourceService().dispatch_data_source(
+            user,
+            data_source.id,
+            DashboardDispatchContext(HttpRequest(), dashboard.workspace),
+        )
 
     enterprise_data_fixture.delete_all_licenses()
+    assert service.get_type().is_deactivated(dashboard.workspace)
 
-    dispatch_context = DashboardDispatchContext(HttpRequest(), dashboard.workspace)
-    with pytest.raises(FeaturesNotAvailableError):
-        DashboardDataSourceService().dispatch_data_source(
-            user, data_source.id, dispatch_context
-        )
+    result = DashboardDataSourceService().dispatch_data_source(
+        user,
+        data_source.id,
+        DashboardDispatchContext(HttpRequest(), dashboard.workspace),
+    )
+    assert (
+        result
+        == expected
+        == {
+            "results": [{"id": "Result", f"{field.name} sum": 42.0}],
+            "has_next_page": False,
+        }
+    )
