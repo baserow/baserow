@@ -121,6 +121,13 @@ from .types import (
     UpdatedRowsData,
 )
 
+
+def user_for_row_audit_columns(actor):
+    """Return a real user for generated-table user foreign keys."""
+
+    return actor if isinstance(actor, AbstractUser) and actor.id else None
+
+
 if TYPE_CHECKING:
     from django.db.backends.utils import CursorWrapper
 
@@ -1242,7 +1249,7 @@ class RowHandler:
         if signal_params is None:
             signal_params = {}
 
-        user_id = user and user.id
+        audit_user = user_for_row_audit_columns(user)
 
         unique_orders = self.get_unique_orders_before_row(
             before_row, model, amount=len(rows_values)
@@ -1277,10 +1284,10 @@ class RowHandler:
             row_values["order"] = unique_orders[index]
 
             if getattr(model, CREATED_BY_COLUMN_NAME, None):
-                row_values[CREATED_BY_COLUMN_NAME] = user if user_id else None
+                row_values[CREATED_BY_COLUMN_NAME] = audit_user
 
             if getattr(model, LAST_MODIFIED_BY_COLUMN_NAME, None):
-                row_values[LAST_MODIFIED_BY_COLUMN_NAME] = user if user_id else None
+                row_values[LAST_MODIFIED_BY_COLUMN_NAME] = audit_user
 
             instance = model(**row_values)
             field_rules_handler.validate_row(instance)
@@ -2323,7 +2330,7 @@ class RowHandler:
         if model is None:
             model = table.get_model()
 
-        user_id = user and user.id
+        audit_user = user_for_row_audit_columns(user)
 
         if values_already_prepared:
             # Row IDs are removed below, so do not mutate the caller's dictionaries.
@@ -2412,7 +2419,7 @@ class RowHandler:
                 setattr(obj, name, value)
 
             if getattr(model, LAST_MODIFIED_BY_COLUMN_NAME, None):
-                setattr(obj, LAST_MODIFIED_BY_COLUMN_NAME, user if user_id else None)
+                setattr(obj, LAST_MODIFIED_BY_COLUMN_NAME, audit_user)
 
             relations = {
                 field_name: value

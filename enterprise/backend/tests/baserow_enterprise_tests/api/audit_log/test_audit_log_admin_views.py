@@ -23,15 +23,22 @@ from baserow.core.action.registries import (
     action_type_registry,
 )
 from baserow.core.actions import CreateWorkspaceActionType
+from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.models import Agent
+from baserow.core.subjects import UserSubjectType
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.audit_log.models import AuditLogEntry
+
+
+def expected_user_actor(user):
+    return {"id": user.id, "type": UserSubjectType.type, "name": user.email}
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "method,url_name",
     [
-        ("get", "users"),
+        ("get", "actors"),
         ("get", "action_types"),
         ("get", "list"),
         ("post", "async_export"),
@@ -52,7 +59,7 @@ def test_admins_cannot_access_audit_log_endpoints_without_an_enterprise_license(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("url_name", ["users", "action_types", "list"])
+@pytest.mark.parametrize("url_name", ["actors", "action_types", "list"])
 @override_settings(DEBUG=True)
 def test_non_admins_cannot_access_audit_log_endpoints(
     api_client, enterprise_data_fixture, url_name
@@ -86,46 +93,40 @@ def test_non_admins_cannot_export_audit_log_to_csv(api_client, enterprise_data_f
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_audit_log_user_filter_returns_users_correctly(
+def test_audit_log_actor_filter_returns_users_and_agents_in_separate_types(
     api_client, enterprise_data_fixture
 ):
-    (
-        admin_user,
-        admin_token,
-    ) = enterprise_data_fixture.create_enterprise_admin_user_and_token(
+    admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token(
         email="admin@test.com"
     )
-    user = enterprise_data_fixture.create_user(email="user@test.com")
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    agent = Agent.objects.create(workspace=workspace, name="Audit robot")
 
-    # no search query should return all users
     response = api_client.get(
-        reverse("api:enterprise:audit_log:users"),
+        reverse("api:enterprise:audit_log:actors"),
         format="json",
-        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
+
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "count": 2,
         "next": None,
         "previous": None,
         "results": [
-            {"id": admin_user.id, "value": admin_user.email},
-            {"id": user.id, "value": user.email},
+            {
+                "id": f"{UserSubjectType.type}:{admin.id}",
+                "actor_id": admin.id,
+                "actor_type": UserSubjectType.type,
+                "value": admin.email,
+            },
+            {
+                "id": f"{AgentSubjectType.type}:{agent.id}",
+                "actor_id": agent.id,
+                "actor_type": AgentSubjectType.type,
+                "value": agent.name,
+            },
         ],
-    }
-
-    # searching by email should return only the correct user
-    response = api_client.get(
-        reverse("api:enterprise:audit_log:users") + "?search=admin",
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {admin_token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "count": 1,
-        "next": None,
-        "previous": None,
-        "results": [{"id": admin_user.id, "value": admin_user.email}],
     }
 
 
@@ -255,6 +256,7 @@ def test_audit_log_entries_are_created_from_actions_and_returned_in_order(
         "ip_address": None,
         "type": "Create group",
         "user": f"{admin_user.email} ({admin_user.id})",
+        "actor": expected_user_actor(admin_user),
     }
 
     response = api_client.get(
@@ -331,6 +333,7 @@ def test_audit_log_entries_are_translated_in_the_user_language(
                 "timestamp": "2023-01-01T12:00:01Z",
                 "type": "Crea progetto",
                 "user": f"{admin_user.email} ({admin_user.id})",
+                "actor": expected_user_actor(admin_user),
             },
             {
                 "action_type": "create_group",
@@ -341,6 +344,7 @@ def test_audit_log_entries_are_translated_in_the_user_language(
                 "timestamp": "2023-01-01T12:00:00Z",
                 "type": "Crea progetto",
                 "user": f"{admin_user.email} ({admin_user.id})",
+                "actor": expected_user_actor(admin_user),
             },
         ],
     }
@@ -371,6 +375,7 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
         "timestamp": "2023-01-01T12:00:00Z",
         "type": "Create group",
         "user": f"{admin_user.email} ({admin_user.id})",
+        "actor": expected_user_actor(admin_user),
     }
     json_workspace_2 = {
         "action_type": "create_group",
@@ -381,7 +386,17 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
         "timestamp": "2023-01-01T12:00:01Z",
         "type": "Create group",
         "user": f"{user.email} ({user.id})",
+        "actor": expected_user_actor(user),
     }
+
+    # An Agent can have the same numeric ID as a user because they use different
+    # tables. The user filter must include the SubjectType to avoid mixing them.
+    agent_entry = AuditLogEntry.objects.get(actor_id=admin_user.id)
+    agent_entry.pk = None
+    agent_entry.actor_id = user.id
+    agent_entry.actor_type = AgentSubjectType.type
+    agent_entry.actor_name = "Agent with colliding ID"
+    agent_entry.save()
 
     # by user_id
     response = api_client.get(
@@ -396,6 +411,22 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
         "previous": None,
         "results": [json_workspace_2],
     }
+
+    # by actor type and id
+    response = api_client.get(
+        reverse("api:enterprise:audit_log:list")
+        + f"?actor_id={user.id}&actor_type={AgentSubjectType.type}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 1
+    assert response.json()["results"][0]["actor"] == {
+        "id": user.id,
+        "type": AgentSubjectType.type,
+        "name": "Agent with colliding ID",
+    }
+    agent_entry.delete()
 
     # by workspace_id
     response = api_client.get(
@@ -566,13 +597,14 @@ def test_audit_log_can_export_to_csv_all_entries(
     for key, value in csv_settings.items():
         assert job[key] == value
     for key in [
-        "filter_user_id",
+        "filter_actor_id",
         "filter_workspace_id",
         "filter_action_type",
         "filter_from_timestamp",
         "filter_to_timestamp",
     ]:
         assert job[key] is None
+    assert job["filter_actor_type"] == UserSubjectType.type
     assert job["exported_file_name"].endswith(".csv")
     assert job["url"].startswith("http://localhost:8000/media/export_files/")
     assert job["created_on"] == "2023-01-01T12:00:00Z"
@@ -599,7 +631,8 @@ def test_audit_log_can_export_to_csv_filtered_entries(
         "exclude_columns": "ip_address",
     }
     filters = {
-        "filter_user_id": admin_user.id,
+        "filter_actor_id": admin_user.id,
+        "filter_actor_type": UserSubjectType.type,
         "filter_workspace_id": workspace.id,
         "filter_action_type": "create_application",
         "filter_from_timestamp": "2023-01-01T00:00:00Z",
@@ -647,7 +680,8 @@ def test_audit_log_can_export_to_csv_filtered_entries(
     for key, value in csv_settings.items():
         assert job[key] == value
     for key in [
-        "filter_user_id",
+        "filter_actor_id",
+        "filter_actor_type",
         "filter_workspace_id",
         "filter_action_type",
         "filter_from_timestamp",
@@ -716,6 +750,7 @@ def test_log_entries_still_work_correctly_if_the_action_type_is_removed(
         "timestamp": "2023-01-01T12:00:00Z",
         "type": "Temporary action",
         "user": f"{admin.email} ({admin.id})",
+        "actor": expected_user_actor(admin),
     }
     for key, value in expected_data.items():
         assert entry[key] == value
@@ -763,6 +798,7 @@ def test_log_entries_still_work_correctly_if_the_action_type_is_removed(
         "timestamp": "2023-01-01T12:00:00Z",
         "type": "Temporary action",
         "user": f"{admin.email} ({admin.id})",
+        "actor": expected_user_actor(admin),
     }
     for key, value in expected_data.items():
         assert entry[key] == value
@@ -790,6 +826,7 @@ def test_log_entries_still_work_correctly_if_the_action_type_is_removed(
             "timestamp": "2023-01-01T12:01:00Z",
             "type": "Temporary action",
             "user": f"{admin.email} ({admin.id})",
+            "actor": expected_user_actor(admin),
         },
         {
             "action_type": "temporary",
@@ -799,6 +836,7 @@ def test_log_entries_still_work_correctly_if_the_action_type_is_removed(
             "timestamp": "2023-01-01T12:00:00Z",
             "type": "Temporary action",
             "user": f"{admin.email} ({admin.id})",
+            "actor": expected_user_actor(admin),
         },
     ]
     for entry, expected_data in zip(response_json["results"], expected_data):
