@@ -72,8 +72,9 @@
     "nameTitle": "Name",
     "roleTitle": "Default role",
     "inviteMembers": "Add members",
+    "agentLabel": "Agent",
     "membersTitle": "Members",
-    "noSubjectsSelected": "Click '{buttonLabel}' to optionally add team users.",
+    "noSubjectsSelected": "Click '{buttonLabel}' to optionally add team members.",
     "roleHelpText": "User specific roles will always override Team roles."
   },
   "editTeamContext": {
@@ -91,6 +92,10 @@
   },
   "subjectSampleField": {
     "titleAttr": "{subjectCount} members in this team."
+  },
+  "enterpriseAgents": {
+    "teams": "Teams",
+    "noTeams": "No teams"
   },
   "teamsSettings": {
     "teamsTabTitle": "Teams"
@@ -362,6 +367,7 @@
   },
   "roleAssignmentModal": {
     "membersTab": "Members",
+    "agentsTab": "Agents",
     "teamsTab": "Teams",
     "subjectTypeNameMembers": "members",
     "subjectTypeNameTeams": "teams"
@@ -374,13 +380,22 @@
     "searchPlaceholder": "Find teams...",
     "selectedAmountLabel": "{count} teams selected"
   },
+  "selectAgentsList": {
+    "searchPlaceholder": "Find agents...",
+    "selectedAmountLabel": "{count} agents selected"
+  },
+  "subjectType": {
+    "team": "Team",
+    "teams": "Teams"
+  },
   "selectSubjectsListFooter": {
     "invite": "Invite {count} {type}",
     "types": {
       "members": "members",
+      "agents": "agents",
       "teams": "teams"
     },
-    "helpTooltip": "Member role assignments override team role assignments."
+    "helpTooltip": "Member and Agent role assignments override team role assignments."
   },
   "membersRoleField": {
     "noAccessHelpText": "This user requires explicit access to resources.",
@@ -746,19 +761,19 @@
     "builderDescription": "Users with Builder and Admin roles",
     "adminTitle": "Admins only",
     "adminDescription": "Users with Admin roles",
-    "customTitle": "Specific users or teams",
-    "customDescription": "Only selected users and team members who already have an Editor, Builder, or Admin role",
+    "customTitle": "Specific users, agents, or teams",
+    "customDescription": "Only selected users, agents, and team members who already have an Editor, Builder, or Admin role",
     "nobodyTitle": "Nobody",
     "nobodyDescription": "No users",
     "allowInForms": "Allow this field to be set in rows created through forms",
     "linkRowWarning": "This is a 'Link to table' field. To ensure values cannot be changed from the linked table, please make ensure to set the right permissions on the linked table as well."
   },
   "fieldPermissionSubjectsSelector": {
-    "accessNote": "Selection does not grant table access. A selected user, or a member of a selected team, must also have an Editor, Builder, or Admin role where this table is located.",
-    "canEdit": "Selected users and teams",
-    "noSelectedSubjects": "Nobody is selected yet. Use the search above to add a user or team.",
-    "addPeopleOrTeams": "Add users or teams",
-    "searchPlaceholder": "Search users or teams",
+    "accessNote": "Selection does not grant table access. A selected user, agent, or a member of a selected team, must also have an Editor, Builder, or Admin role where this table is located.",
+    "canEdit": "Selected users, agents, and teams",
+    "noSelectedSubjects": "Nobody is selected yet. Use the search above to add a user, agent, or team.",
+    "addPeopleOrTeams": "Add users, agents, or teams",
+    "searchPlaceholder": "Search users, agents, or teams",
     "searchHint": "Search by name",
     "teamDescription": "Team",
     "teamSearchDescription": "Team · {count} member | Team · {count} members",

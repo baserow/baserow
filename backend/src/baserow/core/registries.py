@@ -1226,20 +1226,49 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     can execute an operation.
     """
 
-    def is_in_workspace(self, subject: Subject, workspace: "Workspace") -> bool:
+    display_name_field: Optional[str] = None
+
+    def get_workspace_role_uids(
+        self,
+        subjects: List[Subject],
+        workspace: "Workspace",
+        include_trash: bool = False,
+    ) -> Optional[Dict[int, str]]:
+        """Return direct workspace role UIDs, or `None` when unsupported."""
+
+        return None
+
+    def is_workspace_role_fallback(self, role_uid: str) -> bool:
+        """Return whether a direct workspace role should defer to inherited roles."""
+
+        return False
+
+    def is_in_workspace(
+        self,
+        subject: Subject,
+        workspace: "Workspace",
+        include_trash: bool = False,
+    ) -> bool:
         """
         This function checks if a subject belongs to a workspace
+        :param include_trash: Whether trashed workspace memberships should count.
         :return: If the subject belongs to the workspace
         """
 
-        return self.are_in_workspace([subject], workspace)[0]
+        return self.are_in_workspace([subject], workspace, include_trash=include_trash)[
+            0
+        ]
 
     @abc.abstractmethod
     def are_in_workspace(
-        self, subjects: List[Subject], workspace: "Workspace"
+        self,
+        subjects: List[Subject],
+        workspace: "Workspace",
+        include_trash: bool = False,
     ) -> List[bool]:
         """
         This function checks if the subjects belongs to a workspace
+        :param include_trash: Whether trashed workspace memberships should count.
         :return: a list of bool. For each index whether the user at the same index
             belongs to the workspace or not
         """
