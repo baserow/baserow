@@ -1,0 +1,11 @@
+.agent-teams-cell,
+.agent-teams-form-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-teams-cell__empty,
+.agent-teams-form-field__empty {
+  color: $palette-neutral-700;
+}

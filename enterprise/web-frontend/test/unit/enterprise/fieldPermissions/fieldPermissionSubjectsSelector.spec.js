@@ -109,6 +109,7 @@ describe('FieldPermissionSubjectsSelector', () => {
       search: '',
       exclude_user_ids: '1',
       exclude_team_ids: '',
+      exclude_agent_ids: '',
     })
     const options = wrapper.findAll(
       '.field-permission-subjects__dropdown-option'
@@ -117,7 +118,7 @@ describe('FieldPermissionSubjectsSelector', () => {
     expect(options[0].text()).toContain('Alan Turing')
     expect(options[0].text()).not.toContain('alan@example.com')
     expect(options[0].find('.avatar-stub').text()).toBe('AT')
-    expect(options[1].find('.iconoir-group').exists()).toBe(true)
+    expect(options[1].find('.iconoir-community').exists()).toBe(true)
 
     expect(wrapper.find('.remove-subject .iconoir-cancel').exists()).toBe(true)
     expect(wrapper.find('.remove-subject .iconoir-bin').exists()).toBe(false)
@@ -141,6 +142,7 @@ describe('FieldPermissionSubjectsSelector', () => {
       search: 'al',
       exclude_user_ids: '1',
       exclude_team_ids: '',
+      exclude_agent_ids: '',
     })
     expect(wrapper.find('.dropdown__items').text()).toContain('Alan Turing')
     expect(wrapper.find('.dropdown__items').text()).toContain(
@@ -154,5 +156,64 @@ describe('FieldPermissionSubjectsSelector', () => {
     expect(wrapper.text()).toContain('Alan Turing')
     expect(wrapper.find('.dropdown__items').classes()).toContain('hidden')
     expect(wrapper.emitted('selection-change').at(-1)).toEqual([2])
+  })
+  test('selects and removes an agent independently of a user with the same ID', async () => {
+    fetchSubjectOptions.mockResolvedValue({
+      data: {
+        count: 1,
+        results: [
+          {
+            subject_id: 1,
+            subject_type: 'core.Agent',
+            name: 'Import agent',
+            email: null,
+            subject_count: null,
+          },
+        ],
+      },
+    })
+    const wrapper = await mountComponent()
+    await wrapper.find('.dropdown__selected').trigger('click')
+    await flushPromises()
+    const option = wrapper.find('.field-permission-subjects__dropdown-option')
+    expect(option.find('.baserow-icon-agent').exists()).toBe(true)
+    await wrapper.find('.select__item-link').trigger('click')
+    await flushPromises()
+    const selected = wrapper.findAll('.field-permission-subjects__item')
+    expect(selected).toHaveLength(2)
+    expect(selected[1].text()).toContain('Import agent')
+    expect(selected[1].find('.baserow-icon-agent').exists()).toBe(true)
+    await wrapper.find('.dropdown__selected').trigger('click')
+    await flushPromises()
+    expect(fetchSubjectOptions).toHaveBeenLastCalledWith(
+      10,
+      expect.objectContaining({
+        exclude_user_ids: '1',
+        exclude_agent_ids: '1',
+      })
+    )
+    await selected[1].find('.remove-subject').trigger('click')
+    expect(wrapper.findAll('.field-permission-subjects__item')).toHaveLength(1)
+    expect(wrapper.find('.field-permission-subjects__item').text()).toContain(
+      'Ada Lovelace'
+    )
+    await wrapper.setProps({
+      subjects: [
+        {
+          subject_id: 1,
+          subject_type: 'core.Agent',
+          subject: { id: 1, name: 'Saved agent' },
+        },
+      ],
+    })
+    expect(wrapper.find('.field-permission-subjects__item').text()).toContain(
+      'Saved agent'
+    )
+    expect(
+      wrapper
+        .find('.field-permission-subjects__item .baserow-icon-agent')
+        .exists()
+    ).toBe(true)
+    wrapper.unmount()
   })
 })

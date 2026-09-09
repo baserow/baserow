@@ -17,6 +17,7 @@ from baserow.contrib.database.fields.operations import WriteFieldValuesOperation
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent
 from baserow_enterprise.field_permissions.handler import (
     FieldPermissionRead,
     FieldPermissionsHandler,
@@ -1000,3 +1001,66 @@ def test_if_license_expires_field_permissions_are_ignored(
     rows, _ = _import_rows_with_values(["nobody"])
     assert len(rows) == 1
     assert getattr(rows[0], text_field.db_column) == "nobody"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@pytest.mark.parametrize("via_team", [False, True])
+@pytest.mark.parametrize("role_uid", ["EDITOR", "VIEWER"])
+def test_custom_field_permissions_for_agents(
+    enterprise_data_fixture, synced_roles, via_team, role_uid
+):
+    """Agent selection requires table access and keeps User IDs independent."""
+
+    admin = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=admin)
+    workspace = database.workspace
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+    agent = Agent.objects.create(
+        id=admin.id, workspace=workspace, name="Selected", role_uid=role_uid
+    )
+    unselected = Agent.objects.create(
+        workspace=workspace, name="Unselected", role_uid="EDITOR"
+    )
+    subject = (
+        enterprise_data_fixture.create_team(workspace=workspace, members=[agent])
+        if via_team
+        else agent
+    )
+    enterprise_data_fixture.enable_enterprise()
+    FieldPermissionsHandler.update_field_permissions(
+        admin,
+        field,
+        "CUSTOM",
+        subjects=[
+            {
+                "subject_id": subject.id,
+                "subject_type": "baserow_enterprise.Team" if via_team else "core.Agent",
+            }
+        ],
+    )
+    manager = FieldPermissionManagerType()
+    selected = manager._get_custom_field_ids_by_actor(
+        workspace, [admin, agent, unselected], {field.id}
+    )
+    assert selected[agent] == {field.id}
+    assert selected[admin] == set()
+    assert selected[unselected] == set()
+    for actor in [agent, unselected, admin]:
+        allowed = actor == agent and role_uid == "EDITOR"
+        assert (
+            CoreHandler().check_permissions(
+                actor,
+                WriteFieldValuesOperationType.type,
+                workspace=workspace,
+                context=field,
+                raise_permission_exceptions=False,
+            )
+            is allowed
+        )
+        permissions = manager.get_permissions_object(actor, workspace)
+        assert (
+            field.id
+            not in permissions[WriteFieldValuesOperationType.type]["exceptions"]
+        ) is allowed

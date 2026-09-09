@@ -7,7 +7,7 @@
             {{ $t('membersSettings.membersTable.columns.role') }}
           </div>
           <div
-            v-if="atLeastOneBillableRole"
+            v-if="showCommercialInfo && atLeastOneBillableRole"
             class="edit-role-context__header-link"
           >
             <i class="iconoir-book"></i>
@@ -42,7 +42,9 @@
             <span class="context__menu-item-title">
               {{ role.name }}
               <Badge
-                v-if="role.showIsBillable && role.isBillable"
+                v-if="
+                  showCommercialInfo && role.showIsBillable && role.isBillable
+                "
                 color="cyan"
                 size="small"
                 bold
@@ -50,6 +52,7 @@
               </Badge>
               <Badge
                 v-else-if="
+                  showCommercialInfo &&
                   role.showIsBillable &&
                   !role.isBillable &&
                   atLeastOneBillableRole
@@ -123,6 +126,10 @@ export default {
     allowRemovingRole: {
       type: Boolean,
       default: false,
+    },
+    showCommercialInfo: {
+      type: Boolean,
+      default: true,
     },
   },
   emits: ['delete', 'update-role'],

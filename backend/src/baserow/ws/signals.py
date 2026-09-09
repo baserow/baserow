@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
 
+from baserow.api.agents.serializers import AgentSerializer
 from baserow.api.applications.serializers import (
     PolymorphicApplicationResponseSerializer,
 )
@@ -15,6 +16,7 @@ from baserow.api.workspaces.serializers import (
     WorkspaceUserWorkspaceSerializer,
 )
 from baserow.core import signals
+from baserow.core.agents import signals as agent_signals
 from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
@@ -329,6 +331,51 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
                 "type": "applications_reordered",
                 "workspace_id": workspace.id,
                 "order": order,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_signals.agent_created)
+def agent_created(sender, agent, user=None, **kwargs):
+    transaction.on_commit(
+        lambda: broadcast_to_group.delay(
+            agent.workspace_id,
+            {
+                "type": "agent_created",
+                "workspace_id": agent.workspace_id,
+                "agent": AgentSerializer(agent).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_signals.agent_updated)
+def agent_updated(sender, agent, user, **kwargs):
+    transaction.on_commit(
+        lambda: broadcast_to_group.delay(
+            agent.workspace_id,
+            {
+                "type": "agent_updated",
+                "workspace_id": agent.workspace_id,
+                "agent": AgentSerializer(agent).data,
+            },
+            getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_signals.agent_deleted)
+def agent_deleted(sender, agent, user, **kwargs):
+    transaction.on_commit(
+        lambda: broadcast_to_group.delay(
+            agent.workspace_id,
+            {
+                "type": "agent_deleted",
+                "workspace_id": agent.workspace_id,
+                "agent_id": agent.id,
             },
             getattr(user, "web_socket_id", None),
         )

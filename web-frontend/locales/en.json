@@ -353,6 +353,7 @@
   },
   "trashType": {
     "workspace": "workspace",
+    "agent": "agent",
     "application": "application",
     "table": "table",
     "field": "field",
