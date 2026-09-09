@@ -44,10 +44,16 @@ class BatchAssignRoleActionType(UndoableActionType):
     @classmethod
     def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
         if len(params_dict["assignments"]) == 1:
-            return (
-                cls.long_desc_if_one_assignment
-                % AssignmentTuple(*params_dict["assignments"][0])._asdict()
-            )
+            assignment = AssignmentTuple(*params_dict["assignments"][0])._asdict()
+            try:
+                subject_type = subject_type_registry.get(
+                    assignment["subject_type_name"]
+                )
+            except subject_type_registry.does_not_exist_exception_class:
+                pass
+            else:
+                assignment["subject_type_name"] = subject_type.get_type_display_name()
+            return cls.long_desc_if_one_assignment % assignment
         else:
             return super().get_long_description(params_dict, *args, **kwargs)
 

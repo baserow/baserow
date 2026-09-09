@@ -1,5 +1,6 @@
 import { markRaw } from 'vue'
 import { Registerable } from '@baserow/modules/core/registry'
+import { FF_AGENT_MCP } from '@baserow/modules/core/plugins/featureFlags'
 import AgentGeneralSettingsFormComponent from '@baserow/modules/core/components/settings/agents/AgentGeneralSettingsForm'
 import AgentMcpServerSettingsComponent from '@baserow/modules/core/components/settings/agents/AgentMcpServerSettings'
 
@@ -92,6 +93,10 @@ export class McpServerAgentSettingsType extends AgentSettingsType {
 
   get showInCreate() {
     return false
+  }
+
+  isActive() {
+    return this.app.$featureFlagIsEnabled(FF_AGENT_MCP)
   }
 
   getOrder() {
