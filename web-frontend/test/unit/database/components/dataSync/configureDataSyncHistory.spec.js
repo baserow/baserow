@@ -13,8 +13,8 @@ describe('ConfigureDataSyncHistory', () => {
     mockServer = testApp.mockServer
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const database = { id: 10, workspace: { id: 1 } }
@@ -169,12 +169,15 @@ describe('ConfigureDataSyncHistory', () => {
 
     const nextPageButton = () => wrapper.findAll('.paginator__button').at(1)
     await nextPageButton().trigger('click')
-    await flushPromises()
-    expect(wrapper.find('.alert').exists()).toBe(true)
+    await vi.waitFor(() => {
+      expect(wrapper.find('.alert').exists()).toBe(true)
+    })
 
     await nextPageButton().trigger('click')
-    await flushPromises()
-    expect(wrapper.find('.alert').exists()).toBe(false)
-    expect(wrapper.findAll('.data-sync-runs__item')).toHaveLength(1)
+    await vi.waitFor(() => {
+      expect(wrapper.find('.alert').exists()).toBe(false)
+      expect(wrapper.findAll('.data-sync-runs__item')).toHaveLength(1)
+      expect(wrapper.find('.paginator__content-input').element.value).toBe('2')
+    })
   })
 })
