@@ -169,7 +169,7 @@
         "displayTitle": "자동화 노드 생성"
     },
     "workflowNodeContext": {
-        "searchPlaceholderTrigger": "트리거를 검색하세요...",
+        "searchPlaceholderTrigger": "이벤트 검색...",
         "searchPlaceholderActions": "검색 결과를 확인하세요...",
         "noResults": "검색 결과가 없습니다"
     },
