@@ -1,9 +1,10 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application
+from baserow.core.registries import ImportExportConfig
 
 
 class SlackBotIntegrationType(IntegrationType):
@@ -36,6 +37,7 @@ class SlackBotIntegrationType(IntegrationType):
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> SlackBotIntegration:
         """
         Imports a serialized integration. Ensures that if we're importing an exported
@@ -49,6 +51,7 @@ class SlackBotIntegrationType(IntegrationType):
             application,
             serialized_values,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

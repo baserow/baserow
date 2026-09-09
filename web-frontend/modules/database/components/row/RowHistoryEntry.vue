@@ -70,10 +70,23 @@ export default {
   },
   computed: {
     name() {
-      if (this.entry.user.id === this.$store.getters['auth/getUserObject'].id) {
-        return this.$t('rowHistorySidebar.you')
+      if (!this.entry.actor) {
+        if (this.entry.user.id === this.$store.getters['auth/getUserId']) {
+          return this.$t('rowHistorySidebar.you')
+        }
+        return this.getCollaboratorName(this.entry.user, this.store)
       }
-      return this.getCollaboratorName(this.entry.user, this.store)
+
+      const actor = this.entry.actor
+      if (!this.$registry.exists('subject', actor.type)) {
+        return actor.name
+      }
+      return this.$registry.get('subject', actor.type).getDisplayName(actor, {
+        currentUserId: this.$store.getters['auth/getUserId'],
+        currentUserName: this.$t('rowHistorySidebar.you'),
+        anonymousName: this.$t('rowHistorySidebar.anonymousUser'),
+        resolveUserName: (user) => this.getCollaboratorName(user, this.store),
+      })
     },
     initials() {
       return this.name.slice(0, 1).toUpperCase()

@@ -160,7 +160,10 @@ describe('ManageAgentModal', () => {
                 generalSetting,
                 teamsSetting,
                 new McpServerAgentSettingsType({
-                  app: { $i18n: { t: (key) => key } },
+                  app: {
+                    $i18n: { t: (key) => key },
+                    $featureFlagIsEnabled: () => true,
+                  },
                 }),
               ],
             },
@@ -351,7 +354,10 @@ describe('ManageAgentModal', () => {
 
   test('shows registered settings in a sidebar when editing', async () => {
     const mcpSetting = new McpServerAgentSettingsType({
-      app: { $i18n: { t: () => 'MCP server' } },
+      app: {
+        $i18n: { t: () => 'MCP server' },
+        $featureFlagIsEnabled: () => true,
+      },
     })
     const teamsSetting = {
       ...generalSetting,

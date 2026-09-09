@@ -102,9 +102,7 @@ class AutomationHistoryHandler:
             triggered_by_values = {
                 "triggered_by_id": triggered_by.id,
                 "triggered_by_type": subject_type.type,
-                # TODO: use `subject_type.get_display_name` once agents are
-                #  subjects (#6064). Users are the only subject starting a run.
-                "triggered_by_name": triggered_by.first_name,
+                "triggered_by_name": subject_type.get_display_name(triggered_by),
             }
 
         return AutomationWorkflowHistory.objects.create(

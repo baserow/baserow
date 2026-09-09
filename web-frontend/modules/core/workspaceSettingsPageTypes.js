@@ -1,5 +1,4 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 
 export class WorkspaceSettingsPageType extends Registerable {
   /**
@@ -112,9 +111,10 @@ export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   }
 
   hasPermission(workspace) {
-    return (
-      this.app.$featureFlagIsEnabled(FF_AGENTS) &&
-      this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
+    return this.app.$hasPermission(
+      'workspace.list_agents',
+      workspace,
+      workspace.id
     )
   }
 

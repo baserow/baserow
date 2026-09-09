@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import Any, Dict, Optional, Type
 
-from django.contrib.auth.models import AbstractUser
 from django.dispatch import receiver
 
 from baserow.core.action.registries import ActionType
 from baserow.core.action.signals import ActionCommandType, action_done
 from baserow.core.models import Workspace
+from baserow.core.types import Actor
 
 from .handler import AuditLogHandler
 
@@ -14,7 +14,7 @@ from .handler import AuditLogHandler
 @receiver(action_done)
 def log_action(
     sender,
-    user: AbstractUser,
+    user: Actor,
     action_type: Type[ActionType],
     action_params: Dict[str, Any],
     action_timestamp: datetime,
