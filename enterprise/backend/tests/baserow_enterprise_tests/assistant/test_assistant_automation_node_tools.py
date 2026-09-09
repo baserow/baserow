@@ -536,7 +536,9 @@ def test_single_node_formula_pass_accepts_a_create_payload(data_fixture, monkeyp
     monkeypatch.setattr(
         automation_agents,
         "get_generate_formulas_tool",
-        lambda: lambda formulas, context: {k: "concat('gen')" for k in formulas},
+        lambda model_profile: lambda formulas, context: {
+            k: "concat('gen')" for k in formulas
+        },
     )
 
     node_create = ActionNodeCreate(

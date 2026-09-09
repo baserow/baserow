@@ -343,15 +343,21 @@ def _id_producer(key: str) -> str | None:
 
 
 def _is_placeholder_id(value: Any) -> bool:
-    """Every Baserow primary key is >= 1, so an ID <= 0 was invented."""
+    """Identify non-positive IDs, leaving malformed values for schema validation.
+
+    :param value: A raw tool argument that refers to a Baserow resource.
+    :return: Whether the argument represents an integer ID at or below zero.
+    """
 
     if value is None or isinstance(value, bool):
         return False
     if isinstance(value, int):
         return value <= 0
     if isinstance(value, str):
-        text = value.strip()
-        return bool(text) and text.lstrip("-").isdigit() and int(text) <= 0
+        try:
+            return int(value) <= 0
+        except ValueError:
+            return False
     return False
 
 
