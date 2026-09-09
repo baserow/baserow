@@ -18,7 +18,7 @@
     "lint": "yarn eslint && yarn stylelint && yarn prettier",
     "fix": "yarn eslint:fix && yarn stylelint:fix && yarn prettier:fix",
     "eslint": "[ -f .nuxt/eslint.config.mjs ] || yarn postinstall && cd .. && web-frontend/node_modules/.bin/eslint --cache --cache-location=web-frontend/.cache/eslint web-frontend premium/web-frontend enterprise/web-frontend",
-    "eslint:fix": "cd .. && web-frontend/node_modules/.bin/eslint --cache --cache-location=web-frontend/.cache/eslint --fix web-frontend premium/web-frontend enterprise/web-frontend",
+    "eslint:fix": "yarn eslint --fix",
     "stylelint": "stylelint --cache --cache-location=.cache/stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
     "stylelint:fix": "stylelint --cache --cache-location=.cache/stylelint --fix **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
     "prettier": "prettier --check --log-level=warn --cache --cache-location=.cache/prettier . ../premium/web-frontend ../enterprise/web-frontend",
