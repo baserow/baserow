@@ -37,7 +37,8 @@
         "adminSettings": "관리자 설정",
         "general": "일반",
         "people": "사람들",
-        "licenses": "라이선스"
+        "licenses": "라이선스",
+        "replayGuidedTour": "안내 투어 다시 보기"
     },
     "accountForm": {
         "nameLabel": "이름",
@@ -236,33 +237,38 @@
     "generativeAIModelType": {
         "openai": "OpenAI",
         "openaiApiKeyLabel": "API 키",
-        "openaiApiKeyDescription": "통합을 활성화하려면 OpenAI API 키를 제공하세요. [API 키 받는 방법](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiApiKeyDescription": "OpenAI API 키를 입력하세요. [API 키를 받는 방법](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "openaiOrganization": "조직 (선택 사항)",
         "openaiModelsLabel": "사용 가능한 모델",
-        "openaiModelsDescription": "Baserow에서 사용할 수 있는 쉼표로 구분된 [OpenAI 모델](https://platform.openai.com/docs/models/continuous-model-upgrades)을 제공하세요. (예: `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelsDescription": "Baserow에서 사용할 수 있는 [OpenAI 모델 식별자](https://developers.openai.com/api/docs/models)를 쉼표로 구분하여 입력하세요. 예: `gpt-5.6,gpt-5.6-terra,gpt-5.6-luna`.",
         "anthropic": "Anthropic",
         "anthropicApiKeyLabel": "API 키",
-        "anthropicApiKeyDescription": "통합을 활성화하려면 Anthropic API 키를 제공하세요. [API 키 받는 방법](https://docs.anthropic.com/en/api/getting-started).",
+        "anthropicApiKeyDescription": "Anthropic API 키를 입력하세요. [API 키를 받는 방법](https://docs.anthropic.com/en/api/getting-started).",
         "anthropicModelsLabel": "사용 가능한 모델",
-        "anthropicModelsDescription": "Baserow에서 사용할 수 있는 쉼표로 구분된 [Anthropic 모델](https://docs.anthropic.com/en/docs/about-claude/models)을 제공하세요. (예: `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelsDescription": "Baserow에서 사용할 수 있는 [Anthropic 모델 식별자](https://platform.claude.com/docs/en/about-claude/models/overview)를 쉼표로 구분하여 입력하세요. 예: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
         "mistral": "Mistral",
         "mistralApiKeyLabel": "API 키",
-        "mistralApiKeyDescription": "통합을 활성화하려면 Mistral API 키를 제공하세요. [API 키 받는 방법](https://docs.mistral.ai/getting-started/quickstart/).",
+        "mistralApiKeyDescription": "Mistral API 키를 입력하세요. [API 키를 받는 방법](https://docs.mistral.ai/getting-started/quickstart/).",
         "mistralModelsLabel": "사용 가능한 모델",
-        "mistralModelsDescription": "Baserow에서 사용할 수 있는 쉼표로 구분된 [Mistral 모델](https://docs.mistral.ai/getting-started/models/models_overview/)을 제공하세요. (예: `mistral-large-latest,mistral-small-latest`)",
+        "mistralModelsDescription": "Baserow에서 사용할 수 있는 [Mistral 모델 식별자](https://docs.mistral.ai/models/)를 쉼표로 구분하여 입력하세요. 예: `mistral-large-latest,mistral-medium-latest,mistral-small-latest`.",
         "ollama": "Ollama",
         "ollamaHostLabel": "호스트",
         "ollamaHostDescription": "[Ollama](https://ollama.com/) 서버의 호스트 이름을 제공하세요. 일반적으로 로컬 기기에서 실행됩니다.",
         "ollamaModelsLabel": "사용 가능한 모델",
-        "ollamaModelsDescription": "쉼표로 구분된 [Ollama 설치된 모델](https://ollama.com/library)을 제공하세요. 모델은 다운로드 및 설치되어야 사용 가능합니다. (예: `llama2,mistral`)",
-        "openRouterApiKeyDescription": "연동 하려면 OpenRouter API 키를 제공하세요. [API 키 받기](https://openrouter.ai/settings/keys).",
+        "ollamaModelsDescription": "[Ollama에 설치된 모델](https://ollama.com/library)을 쉼표로 구분하여 입력하세요. Baserow에서 사용하려면 모델을 먼저 다운로드하고 설치해야 합니다. 예: `gemma3,qwen3,llama3.3`.",
+        "openRouterApiKeyDescription": "OpenRouter API 키를 입력하세요. [API 키 받기](https://openrouter.ai/settings/keys).",
         "openRouterApiKeyLabel": "API 키",
-        "openRouterModelsDescription": "Baserow에서 사용할 수 있는 [OpenRouter 모델](https://openrouter.ai/models) 의 목록을 쉼표로 구분하여 제공하세요. (예 : `openai/gpt-4o,anthropic/claude-3-haiku`)",
+        "openRouterModelsDescription": "Baserow에서 사용할 수 있는 [OpenRouter 모델 식별자](https://openrouter.ai/models)를 쉼표로 구분하여 입력하세요. 예: `openai/gpt-5.6,anthropic/claude-sonnet-5`.",
         "openRouter": "OpenRouter",
         "openRouterOrganization": "조직 (선택 사항)",
         "openRouterModelsLabel": "활성화된 모델",
         "openaiBaseUrl": "기본 URL",
-        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://&lt;your-resource-name&gt;.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다."
+        "openaiBaseUrlDescription": "비어 있으면 기본적으로 기본 OpenAI 기반 URL을 사용합니다. 선택적으로 https://eu.api.openai.com/v1, https://&lt;your-resource-name&gt;.openai.azure.com 또는 기타 OpenAI 호환 API로 변경할 수 있습니다.",
+        "openRouterModelIdentifierDescription": "[OpenRouter 모델 식별자](https://openrouter.ai/models)를 입력하세요. 예: `openai/gpt-5.6` 또는 `anthropic/claude-sonnet-5`.",
+        "anthropicModelIdentifierDescription": "[Anthropic 모델 식별자](https://platform.claude.com/docs/en/about-claude/models/overview)를 입력하세요. 예: `claude-sonnet-5`, `claude-opus-4-8` 또는 `claude-haiku-4-5`.",
+        "openaiModelIdentifierDescription": "[OpenAI 모델 식별자](https://developers.openai.com/api/docs/models)를 입력하세요. 예: `gpt-5.6`, `gpt-5.6-terra` 또는 `gpt-5.6-luna`.",
+        "ollamaModelIdentifierDescription": "[Ollama에 설치된 모델](https://ollama.com/library)의 식별자를 입력하세요. 예: `gemma3`, `qwen3` 또는 `llama3.3`.",
+        "mistralModelIdentifierDescription": "[Mistral 모델 식별자](https://docs.mistral.ai/models/)를 입력하세요. 예: `mistral-large-latest`, `mistral-medium-latest` 또는 `mistral-small-latest`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "생성형 AI 설정",
@@ -444,7 +450,9 @@
         "addNew": "새로 추가...",
         "noWorkspace": "작업공간 없음",
         "noWorkspaceDescription": "새 작업공간을 생성하여 시작하세요",
-        "starOnGitHub": "GitHub에서 우리를 별표로 표시하세요"
+        "starOnGitHub": "GitHub에서 우리를 별표로 표시하세요",
+        "academy": "Baserow 아카데미",
+        "academyMessage": "강좌를 수강하고 전문가가 되어 보세요"
     },
     "dashboardApplication": {
         "createdAt": "생성됨"
@@ -538,7 +546,9 @@
         "emailVerificationRecommended": "권장",
         "emailVerificationEnforced": "강제",
         "settingsVerifyImportSignature": "가져오기 서명 확인",
-        "settingsVerifyImportSignatureDescription": "활성화되면, 가져온 데이터의 서명이 검증되어 데이터가 변조되지 않았는지 확인합니다."
+        "settingsVerifyImportSignatureDescription": "활성화되면, 가져온 데이터의 서명이 검증되어 데이터가 변조되지 않았는지 확인합니다.",
+        "settingAllowReportingAbuseName": "악용 신고 허용",
+        "settingAllowReportingAbuseDescription": "활성화하면 공개적으로 공유된 뷰와 양식의 방문자가 악용 사례를 신고할 수 있으며, 모든 인스턴스 관리자에게 신고 알림이 전송됩니다."
     },
     "formSidebar": {
         "actions": {
@@ -675,6 +685,10 @@
                 "userAlreadyInWorkspace": {
                     "title": "사용자가 이미 작업공간에 있습니다.",
                     "text": "사용자가 이미 작업공간의 멤버인 경우 초대를 보낼 수 없습니다."
+                },
+                "tooManyInvitations": {
+                    "title": "초대를 너무 많이 보냈습니다.",
+                    "text": "초대를 너무 많이 보냈습니다. 나중에 다시 시도해 주세요."
                 }
             }
         }
@@ -716,7 +730,8 @@
         "integrationPlaceholder": "통합 선택"
     },
     "dropdown": {
-        "empty": "사용 가능한 항목이 없습니다"
+        "empty": "사용 가능한 항목이 없습니다",
+        "clearSearch": "검색 지우기"
     },
     "richTextEditorMentionsList": {
         "notFound": "사용자를 찾을 수 없습니다"
@@ -782,7 +797,8 @@
         "AIModel": "AI 모델",
         "fileField": "파일 필드",
         "temperatureLabel": "온도",
-        "temperatureDescription": "온도는 0에서 {max} 사이의 매개변수로, LLM의 응답 랜덤성을 조정합니다. 낮은 값은 집중된 답변을 제공하고, 높은 값은 창의성을 높입니다."
+        "temperatureDescription": "온도는 0에서 {max} 사이의 매개변수로, LLM의 응답 랜덤성을 조정합니다. 낮은 값은 집중된 답변을 제공하고, 높은 값은 창의성을 높입니다.",
+        "modelUnavailable": "이 모델은 비활성화되었거나 더 이상 사용할 수 없습니다."
     },
     "onboarding": {
         "title": "온보딩",
@@ -793,7 +809,8 @@
         "failedTitle": "문제가 발생했습니다",
         "failedDescription": "온보딩이 완전히 완료되지 않았습니다. 일부 부분은 완료되었을 수 있습니다.",
         "failedTryAgain": "다시 시도",
-        "failedSkip": "온보딩 건너뛰기"
+        "failedSkip": "온보딩 건너뛰기",
+        "back": "뒤로"
     },
     "inviteStep": {
         "title": "협업자 초대",
@@ -858,7 +875,8 @@
     "adminType": {
         "dashboard": "대시보드",
         "users": "사용자",
-        "workspaces": "작업공간"
+        "workspaces": "작업공간",
+        "aiProviders": "AI 제공업체"
     },
     "workspacesAdminTable": {
         "allWorkspaces": "모든 작업공간",
@@ -969,7 +987,9 @@
         "step": "{totalSteps}단계 중 {step}단계",
         "gotIt": "알겠습니다",
         "next": "다음",
-        "back": "뒤로"
+        "back": "뒤로",
+        "watchVideo": "동영상 보기",
+        "stopTour": "투어 중지"
     },
     "welcomeGuidedTourStep": {
         "title": "Baserow에 오신 것을 환영합니다",
@@ -1213,5 +1233,89 @@
         "confirmation": "{name}님의 2단계 인증을 정말로 제거하시겠습니까?",
         "comment": "사용자는 비밀번호만으로 로그인할 수 있으며, 나중에 다시 2단계 인증을 설정할 수 있습니다.",
         "remove": "2단계 인증을 제거하세요"
+    },
+    "groupedMenu": {
+        "core": "핵심",
+        "files": "파일",
+        "http": "HTTP",
+        "workflow": "워크플로"
+    },
+    "abuseReportCreatedNotification": {
+        "title": "{resourceName}에 대한 악용 사례가 신고되었습니다(신고자: {reporterEmail})",
+        "openResource": "신고된 페이지 열기",
+        "showMore": "더 보기",
+        "detailsTitle": "악용 신고",
+        "reportedBy": "신고자: {reporterName}({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "악용 신고",
+        "description": "이 페이지가 피싱, 사칭, 사기 또는 기타 악의적인 목적으로 사용되고 있다고 생각하시나요? 아래 양식을 제출하여 이 Baserow 인스턴스 관리자에게 알려주세요.",
+        "submit": "신고 제출",
+        "close": "닫기",
+        "successTitle": "신고해 주셔서 감사합니다",
+        "successDescription": "신고가 제출되었으며, 조치를 취할 수 있도록 이 Baserow 인스턴스 관리자에게 알림을 보냈습니다.",
+        "reportingDisabledTitle": "신고 기능이 비활성화되었습니다",
+        "reportingDisabledDescription": "이 Baserow 인스턴스의 관리자가 악용 신고 기능을 비활성화했습니다."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "이름",
+        "emailLabel": "이메일 주소",
+        "descriptionLabel": "이 페이지를 신고하는 이유는 무엇인가요?",
+        "descriptionHelper": "이 페이지가 악용되고 있다고 판단한 이유를 자세히 설명해 주세요.",
+        "descriptionPlaceholder": "예: 이 페이지가 다른 회사의 로그인 페이지를 사칭하여 방문자에게 비밀번호를 요구합니다."
+    },
+    "aiProviderAdmin": {
+        "title": "AI 제공업체",
+        "description": "워크스페이스와 자동화에서 사용할 수 있는 인스턴스 수준의 제공업체와 모델을 관리합니다.",
+        "addProvider": "제공업체 추가",
+        "editProvider": "제공업체 수정",
+        "providerType": "제공업체 유형",
+        "apiKey": "API 키",
+        "changeApiKey": "API 키 변경",
+        "apiKeyUpdateHint": "기존 키를 바꾸려면 새 API 키를 입력하세요.",
+        "extraField_organization": "조직",
+        "extraField_base_url": "기본 URL",
+        "extraField_host": "호스트",
+        "models": "모델",
+        "addModel": "모델 추가",
+        "removeModel": "모델 제거",
+        "editModel": "모델 수정",
+        "modelIdentifier": "모델 식별자",
+        "modelDiscoveryHelp": "Pydantic AI에서 알려진 모델을 선택하거나 사용자 지정 식별자를 입력하세요.",
+        "modelDiscoveryUnavailable": "알려진 모델 제안을 사용할 수 없습니다. 식별자를 직접 입력하세요.",
+        "modelDiscoveryEmpty": "Pydantic AI에 이 제공업체의 알려진 모델이 없습니다. 식별자를 직접 입력하세요.",
+        "modelDiscoveryNoMatch": "일치하는 알려진 모델이 없습니다. 입력한 식별자를 사용할 수 있습니다.",
+        "noProviders": "구성된 인스턴스 AI 제공업체가 없습니다",
+        "noProvidersDescription": "제공업체를 수동으로 추가하거나, 사용자에게 기능을 활성화하기 전에 환경 가져오기 명령을 미리 보고 실행하세요.",
+        "noModels": "이 제공업체에 구성된 모델이 없습니다.",
+        "active": "활성",
+        "inactive": "비활성",
+        "enable": "활성화",
+        "disable": "비활성화",
+        "modelDisabled": "비활성화됨",
+        "test": "테스트",
+        "testAllModelsButtonTitle": "정의된 모든 모델 테스트",
+        "testModelButtonTitle": "이 모델 테스트",
+        "testPassed": "테스트 통과",
+        "testFailed": "테스트 실패",
+        "notTested": "테스트하지 않음",
+        "deleteProviderTitle": "{name}을(를) 삭제할까요?",
+        "deleteProviderDescription": "제공업체와 해당 모델이 영구적으로 삭제됩니다.",
+        "deleteModelTitle": "{name}을(를) 삭제할까요?",
+        "deleteModelDescription": "모델이 영구적으로 삭제됩니다.",
+        "loadError": "AI 제공업체 설정을 불러올 수 없습니다.",
+        "loadErrorDescription": "연결을 확인하고 다시 시도하세요.",
+        "retry": "다시 시도",
+        "saveError": "AI 제공업체를 저장할 수 없습니다.",
+        "saveModelError": "AI 제공업체 모델을 저장할 수 없습니다.",
+        "actionError": "AI 제공업체 변경을 완료할 수 없습니다."
+    },
+    "academy": {
+        "learnMore": "Baserow 아카데미에서 자세히 알아보기"
+    },
+    "guidedTourVideoModal": {
+        "previous": "이전 동영상",
+        "next": "다음 동영상",
+        "close": "닫기"
     }
 }
