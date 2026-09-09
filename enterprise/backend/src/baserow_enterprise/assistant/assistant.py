@@ -638,10 +638,16 @@ class Assistant:
         """Return True if *text* looks like a tool call dumped as JSON.
 
         Checks for ``{"name": ..., "arguments": ...}`` pattern in the first
-        200 chars. Does not require valid JSON (the output may be truncated).
+        200 chars after an optional code fence. Does not require valid JSON
+        because the output may be truncated.
+
+        :param text: The final text returned by the agent.
+        :return: Whether the text appears to contain an unexecuted tool call.
         """
 
         stripped = text.strip()
+        if stripped.startswith("```"):
+            stripped = stripped.split("\n", 1)[-1].strip()
         return (
             bool(stripped)
             and stripped[0] == "{"

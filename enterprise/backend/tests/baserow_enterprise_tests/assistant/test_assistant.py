@@ -11,6 +11,8 @@ import pytest
 from asgiref.sync import async_to_sync
 from pydantic_ai.messages import PartStartEvent
 from pydantic_ai.messages import TextPart as PaiTextPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_KUMA,
@@ -57,6 +59,8 @@ from baserow_enterprise.assistant.types import (
     ViewUIContext,
     WorkspaceUIContext,
 )
+
+from .utils import make_test_ctx
 
 
 @pytest.fixture(autouse=True)
@@ -1375,22 +1379,70 @@ class TestResolveAssistantModel:
         assert test_model.call_count == 2
 
 
-class TestMainAgentOutputValidator:
-    def test_tool_call_printed_as_text_is_sent_back(self):
-        from pydantic_ai import ModelRetry
+@pytest.mark.asyncio
+class TestAssistantTextToolCallRecovery:
+    @pytest.fixture
+    def assistant_for_responses(self):
+        def build(*responses):
+            calls = []
 
-        from baserow_enterprise.assistant.agents import _text_must_not_be_a_tool_call
+            async def stream(messages, info):
+                calls.append(messages)
+                yield responses[min(len(calls) - 1, len(responses) - 1)]
 
-        payload = '{"name": "create_rows_in_table_9", "arguments": {"rows": []}}'
-        with pytest.raises(ModelRetry):
-            _text_must_not_be_a_tool_call(None, payload)
+            assistant = Assistant.__new__(Assistant)
+            assistant._model = FunctionModel(stream_function=stream)
+            assistant._model_profile = MagicMock()
+            assistant._model_profile.get_settings.return_value = {}
+            assistant._toolset = FunctionToolset()
+            assistant._deps = make_test_ctx(None, None).deps
+            return assistant, calls
 
-        fenced = f"```json\n{payload}\n```"
-        with pytest.raises(ModelRetry):
-            _text_must_not_be_a_tool_call(None, fenced)
+        return build
 
-    def test_regular_answers_pass_through(self):
-        from baserow_enterprise.assistant.agents import _text_must_not_be_a_tool_call
+    @pytest.mark.parametrize("fenced", [False, True])
+    async def test_repeated_text_tool_calls_return_the_graceful_fallback(
+        self, assistant_for_responses, fenced
+    ):
+        payload = '{"name": "create_tables", "arguments": {"tables": []}}'
+        if fenced:
+            payload = f"```json\n{payload}\n```"
+        assistant, calls = assistant_for_responses(payload)
 
-        answer = 'Created the table. The field {"name": ...} maps to your schema.'
-        assert _text_must_not_be_a_tool_call(None, answer) == answer
+        answer, _result = await assistant._run_agent_with_retries(
+            "Create a table", None, asyncio.Queue()
+        )
+
+        assert answer == (
+            "I ran into a temporary issue processing "
+            "your request. Could you please try again?"
+        )
+        assert len(calls) == 3
+
+    async def test_a_corrected_answer_is_accepted_on_the_next_pass(
+        self, assistant_for_responses
+    ):
+        assistant, calls = assistant_for_responses(
+            '```json\n{"name": "list_tables", "arguments": {}}\n```',
+            "Which database should I use?",
+        )
+
+        answer, _result = await assistant._run_agent_with_retries(
+            "List the tables", None, asyncio.Queue()
+        )
+
+        assert answer == "Which database should I use?"
+        assert len(calls) == 2
+
+    async def test_ordinary_answers_are_accepted_without_retrying(
+        self, assistant_for_responses
+    ):
+        expected = 'The field {"name": "Arguments"} maps to your schema.'
+        assistant, calls = assistant_for_responses(expected)
+
+        answer, _result = await assistant._run_agent_with_retries(
+            "Explain this field", None, asyncio.Queue()
+        )
+
+        assert answer == expected
+        assert len(calls) == 1

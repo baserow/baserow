@@ -152,10 +152,16 @@ CANONICAL_TO_SHORT_TYPE = {
 
 
 def _fold_type_alias(data):
-    """Rewrite a registered node type to the short form the dispatch tables use."""
+    """Normalize node aliases while leaving malformed types for validation.
 
-    if isinstance(data, dict) and data.get("type") in CANONICAL_TO_SHORT_TYPE:
-        data["type"] = CANONICAL_TO_SHORT_TYPE[data["type"]]
+    :param data: The raw node payload before model validation.
+    :return: The payload with any registered type replaced by its short alias.
+    """
+
+    if isinstance(data, dict):
+        node_type = data.get("type")
+        if isinstance(node_type, str) and node_type in CANONICAL_TO_SHORT_TYPE:
+            data["type"] = CANONICAL_TO_SHORT_TYPE[node_type]
     return data
 
 

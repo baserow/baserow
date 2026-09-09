@@ -7,7 +7,7 @@ from django.utils.translation import gettext as _
 
 from loguru import logger
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import Field
+from pydantic import Field, TypeAdapter
 from pydantic_ai import Agent, ModelRetry, RunContext, Tool
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import (
@@ -91,16 +91,21 @@ formula_generation_agent: Agent[None, FormulaGenerationResult] = Agent(
 )
 
 GET_FORMULA_TYPE_TOOL_NAME = "get_formula_type"
+_TABLE_ID_ADAPTER = TypeAdapter(int)
 
 # One rejected candidate is not evidence that the language cannot express a request.
 FORMULA_MIN_ATTEMPTS_BEFORE_IMPOSSIBLE = 2
 
 
 def _normalize_formula(formula: str) -> str:
+    # Used only to discount repetitive attempts, never to prove validity:
+    # collapsing whitespace can change string literals and quoted field names.
     return " ".join(formula.split())
 
 
-def _formula_attempts(messages: Sequence[ModelMessage]) -> tuple[set[str], set[str]]:
+def _formula_attempts(
+    messages: Sequence[ModelMessage],
+) -> tuple[set[tuple[int, str, str]], set[str]]:
     """
     Split the formulas passed to get_formula_type during a run into accepted and
     rejected.
@@ -109,10 +114,11 @@ def _formula_attempts(messages: Sequence[ModelMessage]) -> tuple[set[str], set[s
     ToolReturnPart, so the two sets are the run's own record of what was checked.
 
     :param messages: The run's message history.
-    :returns: The normalized accepted and rejected formula sets.
+    :returns: Exact accepted (table ID, field name, formula) tuples, and normalized
+        rejected formulas used to count distinct attempts.
     """
 
-    attempted: dict[str, str] = {}
+    attempted: dict[str, dict] = {}
     accepted_ids: set[str] = set()
     rejected_ids: set[str] = set()
     for message in messages:
@@ -120,16 +126,31 @@ def _formula_attempts(messages: Sequence[ModelMessage]) -> tuple[set[str], set[s
             if getattr(part, "tool_name", None) != GET_FORMULA_TYPE_TOOL_NAME:
                 continue
             if isinstance(part, ToolCallPart):
-                formula = part.args_as_dict().get("formula")
+                args = part.args_as_dict()
+                formula = args.get("formula")
                 if isinstance(formula, str) and formula.strip():
-                    attempted[part.tool_call_id] = _normalize_formula(formula)
+                    attempted[part.tool_call_id] = args
             elif isinstance(part, RetryPromptPart):
                 rejected_ids.add(part.tool_call_id)
             elif isinstance(part, ToolReturnPart):
                 accepted_ids.add(part.tool_call_id)
 
-    accepted = {f for call_id, f in attempted.items() if call_id in accepted_ids}
-    rejected = {f for call_id, f in attempted.items() if call_id in rejected_ids}
+    # History retains raw arguments, including numeric strings the tool coerced.
+    # Use the same integer validation as the tool when identifying accepted calls.
+    accepted = {
+        (
+            _TABLE_ID_ADAPTER.validate_python(args["table_id"]),
+            args["field_name"],
+            args["formula"],
+        )
+        for call_id, args in attempted.items()
+        if call_id in accepted_ids
+    }
+    rejected = {
+        _normalize_formula(args["formula"])
+        for call_id, args in attempted.items()
+        if call_id in rejected_ids
+    }
     return accepted, rejected
 
 
@@ -141,8 +162,9 @@ def _verdict_must_be_backed_by_validation(
     Send back any verdict get_formula_type did not actually produce.
 
     Both directions are enforced: a valid verdict must name a formula the tool
-    accepted, and an impossible verdict must follow several materially different
-    candidates the tool rejected. A verdict with no tool call behind it is a guess.
+    accepted for that table and field name, and an impossible verdict must follow
+    several materially different candidates the tool rejected. A verdict with no
+    tool call behind it is a guess.
 
     :param ctx: The agent run context.
     :param output: The candidate result to validate.
@@ -153,14 +175,18 @@ def _verdict_must_be_backed_by_validation(
 
     accepted, rejected = _formula_attempts(ctx.messages)
     if output.is_formula_valid:
-        if _normalize_formula(output.formula) not in accepted:
+        if (output.table_id, output.field_name, output.formula) not in accepted:
             raise ModelRetry(
                 f"{output.formula!r} was never accepted by "
-                f"{GET_FORMULA_TYPE_TOOL_NAME} in this run, so its validity is "
+                f"{GET_FORMULA_TYPE_TOOL_NAME} for field {output.field_name!r} "
+                f"in table {output.table_id} in this run, so its validity is "
                 f"unverified. Call {GET_FORMULA_TYPE_TOOL_NAME} on it and return "
                 "the exact formula that passed."
             )
-    elif len(accepted | rejected) < FORMULA_MIN_ATTEMPTS_BEFORE_IMPOSSIBLE:
+    elif (
+        len({_normalize_formula(formula) for _, _, formula in accepted} | rejected)
+        < FORMULA_MIN_ATTEMPTS_BEFORE_IMPOSSIBLE
+    ):
         # This branch fires before any validation, so no type hint was seen yet.
         conversions = "; ".join(
             f"to {target} use {how}"

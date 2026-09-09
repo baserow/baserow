@@ -90,8 +90,16 @@ class DataSourceCreate(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _fold_registered_type(cls, data):
-        if isinstance(data, dict) and data.get("type") in _CANONICAL_TO_SHORT_TYPE:
-            data["type"] = _CANONICAL_TO_SHORT_TYPE[data["type"]]
+        """Normalize source aliases while leaving malformed types for validation.
+
+        :param data: The raw data source payload before model validation.
+        :return: The payload with any registered type replaced by its short alias.
+        """
+
+        if isinstance(data, dict):
+            source_type = data.get("type")
+            if isinstance(source_type, str) and source_type in _CANONICAL_TO_SHORT_TYPE:
+                data["type"] = _CANONICAL_TO_SHORT_TYPE[source_type]
         return data
 
     ref: str = Field(..., description="Reference ID for this data source.")
