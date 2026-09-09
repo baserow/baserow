@@ -2,6 +2,7 @@ from django.utils.functional import lazy
 
 from rest_framework import serializers
 
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.api.role.serializers import SubjectField, SubjectTypeField
@@ -12,7 +13,7 @@ from baserow_enterprise.teams.subjects import TeamSubjectType
 class FieldPermissionSubjectRequestSerializer(serializers.Serializer):
     subject_id = serializers.IntegerField(min_value=1)
     subject_type = serializers.ChoiceField(
-        choices=[UserSubjectType.type, TeamSubjectType.type]
+        choices=[UserSubjectType.type, TeamSubjectType.type, AgentSubjectType.type]
     )
 
 
@@ -49,13 +50,15 @@ class FieldPermissionSubjectOptionsRequestSerializer(serializers.Serializer):
         required=False, allow_blank=True, allow_null=True, default=None
     )
     exclude_user_ids = CommaSeparatedIntegerListField(required=False, default=list)
+    exclude_agent_ids = CommaSeparatedIntegerListField(required=False, default=list)
     exclude_team_ids = CommaSeparatedIntegerListField(required=False, default=list)
 
 
 class FieldPermissionSubjectOptionResponseSerializer(serializers.Serializer):
     subject_id = serializers.IntegerField(read_only=True)
     subject_type = serializers.ChoiceField(
-        read_only=True, choices=[UserSubjectType.type, TeamSubjectType.type]
+        read_only=True,
+        choices=[UserSubjectType.type, TeamSubjectType.type, AgentSubjectType.type],
     )
     name = serializers.CharField(read_only=True)
     email = serializers.EmailField(read_only=True, allow_null=True)

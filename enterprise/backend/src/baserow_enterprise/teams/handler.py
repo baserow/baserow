@@ -1,15 +1,17 @@
 from collections import defaultdict
 from typing import Any, Dict, List, NewType, Optional, Union, cast
 
-from django.contrib.auth.models import AbstractUser, User
+from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
-from django.db import DatabaseError, IntegrityError
+from django.db import DatabaseError, IntegrityError, connection
 from django.db.models import Count, OuterRef, QuerySet, Subquery
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
-from baserow.contrib.database.tokens.models import Token
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
@@ -38,9 +40,7 @@ from ..features import TEAMS
 TeamForUpdate = NewType("TeamForUpdate", Team)
 TeamSubjectForUpdate = NewType("TeamSubjectForUpdate", TeamSubject)
 
-SUBJECT_TYPE_USER = "auth.User"
-SUBJECT_TYPE_TOKEN = "database.Token"  # nosec
-SUPPORTED_SUBJECT_TYPES = {SUBJECT_TYPE_USER: User}
+SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type, AgentSubjectType.type)
 
 
 class TeamHandler:
@@ -84,31 +84,70 @@ class TeamHandler:
         Needs to narrowed down further to select a specific ID or Group.
         """
 
-        subject_sample_sql = """
+        subject_label_cases = []
+        subject_joins = []
+        case_params = []
+        join_params = []
+        quote_name = connection.ops.quote_name
+
+        # Each supported subject type has its own database table. Build one
+        # conditional label case and one matching join for each of those tables.
+        for index, subject_type_name in enumerate(SUPPORTED_SUBJECT_TYPES):
+            table_alias = f"team_subject_{index}"
+            subject_type = subject_type_registry.get(subject_type_name)
+            model_class = subject_type.model_class
+            model_meta = model_class._meta
+
+            display_name_field = subject_type.display_name_field
+            if display_name_field is None:
+                raise TeamSubjectTypeUnsupported(
+                    f"The subject type {subject_type_name} has no display name field."
+                )
+
+            label_column = model_meta.get_field(display_name_field).column
+            type_condition = "ct.app_label = %s AND ct.model = %s"
+            type_params = [model_meta.app_label, model_meta.model_name]
+
+            # Select the label from the table matching the subject's content type.
+            subject_label_cases.append(
+                f"WHEN ({type_condition}) THEN {table_alias}.{quote_name(label_column)}"
+            )
+            case_params.extend(type_params)
+
+            # Restrict the join by content type because subject IDs can overlap
+            # between the different subject tables.
+            subject_joins.append(
+                f"LEFT OUTER JOIN {quote_name(model_meta.db_table)} {table_alias} "
+                f"ON ({table_alias}.id = sub.subject_id AND {type_condition})"
+            )
+            join_params.extend(type_params)
+
+        # CASE placeholders occur before JOIN placeholders in the generated SQL.
+        subject_sample_params = [*case_params, *join_params, subject_sample_size]
+
+        subject_sample_sql = f"""
             SELECT COALESCE(json_agg(sub), '[]') FROM (
                 SELECT
                     sub.id AS team_subject_id,
                     sub.subject_id,
                     CONCAT(ct.app_label, '.', INITCAP(ct.model)) AS subject_type,
                     CASE
-                        WHEN (ct.app_label = 'auth' AND ct.model = 'user')
-                            THEN auth_user.first_name
+                        {" ".join(subject_label_cases)}
                     END AS subject_label
                 FROM baserow_enterprise_teamsubject sub
                 INNER JOIN django_content_type ct ON (ct.id = sub.subject_type_id)
-                LEFT OUTER JOIN auth_user ON (
-                    auth_user.id = sub.subject_id AND
-                    ct.app_label = 'auth' AND
-                    ct.model = 'user'
-                )
+                {" ".join(subject_joins)}
                 WHERE sub.team_id = baserow_enterprise_team.id
                 ORDER BY sub.created_on DESC
                 LIMIT %s
             ) sub
-        """
+        """  # noqa: S608
 
         return self.get_teams_queryset().annotate(
-            subject_sample=RawSQL(subject_sample_sql, [subject_sample_size]),  # nosec
+            subject_sample=RawSQL(  # nosec
+                subject_sample_sql,
+                subject_sample_params,
+            ),
         )
 
     def list_teams_in_workspace(
@@ -218,12 +257,12 @@ class TeamHandler:
             # `TeamSubject.subject_type_natural_key`, the value contains the list of
             # `subject_id` of that `subject_type`. We'll use this to determine if there
             # are subjects to add, or remove.
-            existing_subjects = defaultdict(list)
+            existing_subjects = defaultdict(dict)
             existing_subject_qs = team.subjects.select_related("subject_type").all()
             for existing_subject in existing_subject_qs:
-                existing_subjects[existing_subject.subject_type_natural_key].append(
-                    existing_subject.id
-                )
+                existing_subjects[existing_subject.subject_type_natural_key][
+                    existing_subject.subject_id
+                ] = existing_subject.id
 
             try:
                 team.name = name
@@ -241,7 +280,7 @@ class TeamHandler:
                     self.create_subject(user, {"id": subject_id}, subject_type, team)
 
             # Determine if any existing subjects need to be removed.
-            for existing_type, existing_type_ids in existing_subjects.items():
+            for existing_type, existing_subject_ids in existing_subjects.items():
                 # Find all the subjects in `subjects` which
                 # have the `subject_type` we're looping over.
                 payload_subjects_for_type = filter(
@@ -255,10 +294,12 @@ class TeamHandler:
                 # Find the difference between `existing_type_ids`
                 # and `payload_subject_ids_for_type`
                 removed_subjects = list(
-                    set(existing_type_ids) - set(payload_subject_ids_for_type)
+                    set(existing_subject_ids) - set(payload_subject_ids_for_type)
                 )
                 for removed_subject_id in removed_subjects:
-                    self.delete_subject_by_id(user, removed_subject_id, team)
+                    self.delete_subject_by_id(
+                        user, existing_subject_ids[removed_subject_id], team
+                    )
 
             # If we've been given a `default_role`, assign it to the team.
             RoleAssignmentHandler().assign_role(team, team.workspace, default_role)
@@ -350,7 +391,7 @@ class TeamHandler:
     ) -> List[TeamSubject]:
         """ """
 
-        # The list which will store our `User` or `Token` subjects.
+        # The list which will store our subject model instances.
         subject_models = []
 
         # A default dict which stores the unique ID we want to
@@ -369,7 +410,7 @@ class TeamHandler:
             subject_ids_of_type = []
 
             # Find the model class for this `subject_type`.
-            model_class = SUPPORTED_SUBJECT_TYPES[unique_subject_type]
+            model_class = subject_type_registry.get(unique_subject_type).model_class
 
             # Find the subjects we've been given for this `subject_type`...
             subjects_of_type = filter(
@@ -459,7 +500,7 @@ class TeamHandler:
             )
 
         # Get the model for this `subject_natural_key`.
-        model_class = SUPPORTED_SUBJECT_TYPES[subject_natural_key]
+        model_class = subject_type_registry.get(subject_natural_key).model_class
 
         try:
             subject = model_class.objects.get(**subject_lookup)
@@ -469,15 +510,9 @@ class TeamHandler:
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
-        # Verify that the subject belongs to the workspace the team belongs to.
-        if isinstance(subject, User):
-            if not team.workspace.users.filter(
-                workspaceuser__user_id=subject.id
-            ).exists():
-                raise TeamSubjectNotInGroup()
-        elif isinstance(subject, Token):
-            if subject.workspace_id != team.workspace_id:
-                raise TeamSubjectNotInGroup()
+        subject_type = subject_type_registry.get(subject_natural_key)
+        if not subject_type.is_in_workspace(subject, team.workspace):
+            raise TeamSubjectNotInGroup()
 
         signal = team_subject_created
         create_kwargs = {"team": team, "subject": subject}

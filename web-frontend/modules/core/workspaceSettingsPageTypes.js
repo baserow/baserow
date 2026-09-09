@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 
 export class WorkspaceSettingsPageType extends Registerable {
   /**
@@ -97,6 +98,30 @@ export class InvitesWorkspaceSettingsPageType extends WorkspaceSettingsPageType 
       params: {
         workspaceId: workspace.id,
       },
+    }
+  }
+}
+
+export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
+  static getType() {
+    return 'agents'
+  }
+
+  getName() {
+    return this.app.$i18n.t('agents.tabTitle')
+  }
+
+  hasPermission(workspace) {
+    return (
+      this.app.$featureFlagIsEnabled(FF_AGENTS) &&
+      this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
+    )
+  }
+
+  getRoute(workspace) {
+    return {
+      name: 'settings-agents',
+      params: { workspaceId: workspace.id },
     }
   }
 }

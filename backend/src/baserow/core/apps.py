@@ -32,6 +32,9 @@ class CoreConfig(AppConfig):
 
         trash_item_type_registry.register(WorkspaceTrashableItemType())
         trash_item_type_registry.register(ApplicationTrashableItemType())
+        from .agents.trash_types import AgentTrashableItemType
+
+        trash_item_type_registry.register(AgentTrashableItemType())
 
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
@@ -204,13 +207,21 @@ class CoreConfig(AppConfig):
 
         from baserow.core.registries import subject_type_registry
 
+        from .agents.subjects import AgentSubjectType
         from .subjects import AnonymousUserSubjectType, UserSubjectType
         from .user_sources.subjects import UserSourceUserSubjectType
 
         subject_type_registry.register(UserSubjectType())
         subject_type_registry.register(AnonymousUserSubjectType())
         subject_type_registry.register(UserSourceUserSubjectType())
+        subject_type_registry.register(AgentSubjectType())
 
+        from .agents.operations import (
+            CreateAgentOperationType,
+            DeleteAgentOperationType,
+            ListAgentsWorkspaceOperationType,
+            UpdateAgentOperationType,
+        )
         from .ai_provider.operations import ManageAIProvidersOperationType
         from .notifications.operations import (
             ClearNotificationsOperationType,
@@ -292,6 +303,10 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(RestoreApplicationOperationType())
         operation_type_registry.register(RestoreWorkspaceOperationType())
         operation_type_registry.register(ReadApplicationOperationType())
+        operation_type_registry.register(ListAgentsWorkspaceOperationType())
+        operation_type_registry.register(CreateAgentOperationType())
+        operation_type_registry.register(UpdateAgentOperationType())
+        operation_type_registry.register(DeleteAgentOperationType())
 
         from baserow.core.actions import (
             AcceptWorkspaceInvitationActionType,

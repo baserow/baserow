@@ -72,7 +72,7 @@
       <div class="col col-12">
         <h3>{{ $t('manageTeamForm.membersTitle') }}</h3>
         <div v-if="subjectsLoading" class="loading"></div>
-        <p v-if="!invitedUserSubjects.length">
+        <p v-if="!invitedSubjects.length">
           {{
             $t('manageTeamForm.noSubjectsSelected', {
               buttonLabel: $t('manageTeamForm.inviteMembers'),
@@ -80,15 +80,16 @@
           }}
         </p>
         <List
-          v-if="invitedUserSubjects.length && !subjectsLoading"
+          v-if="invitedSubjects.length && !subjectsLoading"
           class="select-members-list__items"
-          :items="invitedUserSubjects"
+          :items="invitedSubjects"
           :attributes="[]"
         >
           <template #left-side="{ item }">
             <Avatar
               rounded
               size="medium"
+              :color="getSubjectAvatarColor(item)"
               :initials="nameAbbreviation(item.name)"
             ></Avatar>
             <span class="margin-left-1">
@@ -100,7 +101,7 @@
             <ButtonIcon
               size="small"
               icon="iconoir-bin"
-              @click="$emit('remove-subject', item)"
+              @click.prevent="$emit('remove-subject', item)"
             ></ButtonIcon>
           </template>
         </List>
@@ -118,7 +119,11 @@
         </Button>
       </div>
       <div class="col col-6 align-right">
-        <Button type="primary" :disabled="loading" :loading="loading">
+        <Button
+          type="primary"
+          :disabled="loading || subjectsLoading || disabled"
+          :loading="loading"
+        >
           {{ $t('manageTeamForm.submit') }}</Button
         >
       </div>
@@ -143,13 +148,17 @@ export default {
       type: Object,
       required: true,
     },
-    invitedUserSubjects: {
+    invitedSubjects: {
       type: Array,
       required: true,
     },
     loading: {
       type: Boolean,
       required: true,
+    },
+    disabled: {
+      type: Boolean,
+      default: false,
     },
     subjectsLoading: {
       type: Boolean,
@@ -184,14 +193,14 @@ export default {
     },
   },
   watch: {
-    invitedUserSubjects(newValue) {
-      this.values.subjects = []
-      for (let s = 0; s < this.invitedUserSubjects.length; s++) {
-        this.values.subjects.push({
-          subject_id: this.invitedUserSubjects[s].user_id,
-          subject_type: 'auth.User',
-        })
-      }
+    invitedSubjects: {
+      immediate: true,
+      handler(subjects) {
+        this.values.subjects = subjects.map(({ subject_id, subject_type }) => ({
+          subject_id,
+          subject_type,
+        }))
+      },
     },
   },
 
@@ -227,6 +236,9 @@ export default {
   },
   methods: {
     nameAbbreviation,
+    getSubjectAvatarColor(subject) {
+      return this.$registry.get('subject', subject.subject_type).avatarColor
+    },
   },
 }
 </script>

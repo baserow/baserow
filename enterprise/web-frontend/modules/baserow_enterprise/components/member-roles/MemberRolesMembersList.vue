@@ -5,38 +5,38 @@
   <ul v-else class="list list margin-bottom-0">
     <li
       v-for="roleAssignment in roleAssignmentsSorted"
-      :key="roleAssignment.subject.id"
+      :key="`${roleAssignment.subject_type}:${roleAssignment.subject.id}`"
       class="list__item"
     >
-      <!-- User subjects -->
       <div
-        v-if="roleAssignment.subject_type === 'auth.User'"
+        v-if="!hasSubjectCount(roleAssignment.subject)"
         class="member-roles-members-list__subject-section"
       >
         <Avatar
           size="large"
-          :initials="nameAbbreviation(roleAssignment.subject.first_name)"
+          :initials="nameAbbreviation(getDisplayName(roleAssignment))"
+          :color="getSubjectType(roleAssignment).avatarColor"
           rounded
         ></Avatar>
 
         <div
-          v-tooltip="roleAssignment.subject.first_name"
+          v-tooltip="getDisplayName(roleAssignment)"
           class="margin-left-1 member-roles-members-list__user-name"
         >
-          {{ roleAssignment.subject.first_name }}
+          {{ getDisplayName(roleAssignment) }}
         </div>
       </div>
 
       <!-- Team subjects -->
       <div v-else class="member-roles-members-list__subject-section">
         <div class="member-roles-members-list__team-initials">
-          {{ nameAbbreviation(roleAssignment.subject.name) }}
+          {{ nameAbbreviation(getDisplayName(roleAssignment)) }}
         </div>
         <div
-          v-tooltip="roleAssignment.subject.name"
+          v-tooltip="getDisplayName(roleAssignment)"
           class="margin-left-1 member-roles-members-list__team-name"
         >
-          {{ roleAssignment.subject.name }}
+          {{ getDisplayName(roleAssignment) }}
           <div class="member-roles-members-list__team-member-count">
             {{
               $t('memberRolesMembersList.teamMembersCount', {
@@ -54,8 +54,10 @@
         />
         <RoleSelector
           :disabled="
-            roleAssignment.subject.id === userId &&
-            roleAssignment.subject_type === 'auth.User'
+            getSubjectType(roleAssignment).isCurrentUser(
+              roleAssignment.subject,
+              userId
+            )
           "
           :roles="getAvailableRoles(roles)"
           :value="getRole(roleAssignment)"
@@ -118,6 +120,17 @@ export default {
     },
   },
   methods: {
+    getSubjectType(roleAssignment) {
+      return this.$registry.get('subject', roleAssignment.subject_type)
+    },
+    getDisplayName(roleAssignment) {
+      return this.getSubjectType(roleAssignment).getDisplayName(
+        roleAssignment.subject
+      )
+    },
+    hasSubjectCount(subject) {
+      return subject.subject_count !== undefined
+    },
     getRole(roleAssignment) {
       return this.roles.find((role) => role.uid === roleAssignment.role)
     },
