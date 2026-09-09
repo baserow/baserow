@@ -31,7 +31,6 @@ import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
 import AgentService from '@baserow/modules/core/services/agent'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 import {
   getTeamSubjectKey,
   makeTeamSubject,
@@ -57,13 +56,10 @@ export default {
   },
   computed: {
     canListAgents() {
-      return (
-        this.$featureFlagIsEnabled(FF_AGENTS) &&
-        this.$hasPermission(
-          'workspace.list_agents',
-          this.workspace,
-          this.workspace.id
-        )
+      return this.$hasPermission(
+        'workspace.list_agents',
+        this.workspace,
+        this.workspace.id
       )
     },
     availableSubjects() {

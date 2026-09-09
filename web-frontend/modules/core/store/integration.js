@@ -134,15 +134,14 @@ const actions = {
     })
 
     try {
-      const { data } = await IntegrationService($client).update(
-        integration.id,
-        values
-      )
+      const { data: updatedIntegration } = await IntegrationService(
+        $client
+      ).update(integration.id, values)
       // Only the response carries the updated `has_*` credential flags.
       await dispatch('forceUpdate', {
         application,
         integration,
-        values: data,
+        values: updatedIntegration,
       })
     } catch (error) {
       await dispatch('forceUpdate', {

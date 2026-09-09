@@ -1,11 +1,16 @@
 from typing import Any
 
 from django.db.models import QuerySet
+from django.utils import timezone
 
 from baserow.core.agents.exceptions import AgentDoesNotExist
 from baserow.core.agents.registries import agent_extension_type_registry
+from baserow.core.cache import global_cache
 from baserow.core.models import Agent, Workspace
 from baserow.core.trash.handler import TrashHandler
+
+AGENT_LAST_ACTIVE_CACHE_TTL_SECONDS = 60
+AGENT_LAST_ACTIVE_CACHE_KEY = "agent_{agent_id}_last_active"
 
 
 class AgentHandler:
@@ -74,6 +79,26 @@ class AgentHandler:
                 update_fields.append(key)
         if update_fields:
             agent.save(update_fields=[*update_fields, "updated_on"])
+        return agent
+
+    def update_last_active(self, agent: Agent) -> Agent:
+        """
+        Sets the agent's last active time at most once per cache interval.
+
+        :param agent: The agent whose last active time should be updated.
+        :return: The updated agent.
+        """
+
+        def update_timestamp():
+            agent.last_active = timezone.now()
+            agent.save(update_fields=["last_active"])
+            return True
+
+        global_cache.get(
+            AGENT_LAST_ACTIVE_CACHE_KEY.format(agent_id=agent.id),
+            default=update_timestamp,
+            timeout=AGENT_LAST_ACTIVE_CACHE_TTL_SECONDS,
+        )
         return agent
 
     def delete_agent(self, user, agent: Agent) -> None:

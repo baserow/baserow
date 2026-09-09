@@ -1,7 +1,5 @@
 from typing import Any, Callable, Dict, List, Optional
 
-from django.contrib.auth.models import AbstractUser, AnonymousUser
-
 from opentelemetry import trace
 
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -11,22 +9,28 @@ from baserow.contrib.database.rows.types import (
     RelatedRowsDiff,
     RowChangeDiff,
 )
+from baserow.core.registries import subject_type_registry
+from baserow.core.types import Subject
 
 tracer = trace.get_tracer(__name__)
 
 
+def get_row_history_actor_values(actor: Subject) -> tuple[int | None, str, str]:
+    subject_type = subject_type_registry.get_by_model(actor)
+    return actor.id, subject_type.type, subject_type.get_display_name(actor)
+
+
 def construct_entry_from_action_and_diff(
-    user: AbstractUser,
+    actor: Subject,
     action: ActionData,
     fields_metadata: Dict[str, Any],
     row_diff: RowChangeDiff,
 ):
-    if isinstance(user, AnonymousUser):
-        user.first_name = "Anonymous"
-        user.last_name = "User"
+    actor_id, actor_type, actor_name = get_row_history_actor_values(actor)
     return RowHistory(
-        user_id=user.id,
-        user_name=user.first_name,
+        actor_id=actor_id,
+        actor_type=actor_type,
+        actor_name=actor_name,
         table_id=row_diff.table_id,
         row_id=row_diff.row_id,
         field_names=row_diff.changed_field_names,
@@ -183,7 +187,7 @@ def update_related_tables_entries(
 
 def construct_related_rows_entries(
     related_rows_diff: RelatedRowsDiff,
-    user: AbstractUser,
+    actor: Subject,
     action: ActionData,
 ) -> List[RowHistory]:
     """
@@ -195,7 +199,7 @@ def construct_related_rows_entries(
     :param related_rows_diff: A nested dictionary that tracks changes for each
         affected related row. It includes details about rows added or removed
         from link_row relationships.
-    :param user: The user who performed the action that triggered the changes.
+    :param actor: The subject that performed the action that triggered the changes.
     :param action: The action metadata that describes the operation performed.
     :return: A list of RowHistory entries representing the changes for the
         related rows.
@@ -213,9 +217,11 @@ def construct_related_rows_entries(
                 before_values[field_name] = row_field_changes["removed"]
                 after_values[field_name] = row_field_changes["added"]
 
+            actor_id, actor_type, actor_name = get_row_history_actor_values(actor)
             linked_entry = RowHistory(
-                user_id=user.id,
-                user_name=user.first_name,
+                actor_id=actor_id,
+                actor_type=actor_type,
+                actor_name=actor_name,
                 table_id=linked_table_id,
                 row_id=linked_row_id,
                 field_names=field_names,

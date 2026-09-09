@@ -3,6 +3,7 @@ from typing import List
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
+from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import Workspace
 from baserow.core.registries import SubjectType
@@ -16,6 +17,12 @@ User = get_user_model()
 class TeamSubjectType(SubjectType):
     type = "baserow_enterprise.Team"
     model_class = Team
+
+    def get_type_display_name(self):
+        return _("Team")
+
+    def get_display_name(self, subject: Team) -> str:
+        return subject.name
 
     def are_in_workspace(
         self,

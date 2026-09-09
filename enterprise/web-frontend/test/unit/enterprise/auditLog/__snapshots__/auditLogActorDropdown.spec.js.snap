@@ -1,0 +1,42 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AuditLogActorDropdown > renders users and agents in separate sections and selects an agent 1`] = `
+"<div class="dropdown" tabindex="0"><a class="dropdown__selected">All Actors<i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i></a>
+  <div class="dropdown__items hidden">
+    <!--v-if-->
+    <ul class="select__items prevent-scroll" tabindex="-1">
+      <li class="select__item select__item--no-options visible active hover" role="listitem"><a class="select__item-link">
+          <div class="select__item-name">
+            <!--v-if-->
+            <!--v-if-->
+            <!--v-if--><span class="select__item-name-text" title="All Actors">All Actors</span>
+          </div>
+          <!--v-if-->
+        </a><i class="select__item-active-icon iconoir-check"></i></li>
+      <div class="dropdown-section">
+        <div class="dropdown-section__title">subjectType.users</div>
+        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+            <div class="select__item-name">
+              <!--v-if--><i class="select__item-icon iconoir-user"></i>
+              <!--v-if--><span class="select__item-name-text" title="user@example.com">user@example.com</span>
+            </div>
+            <!--v-if-->
+          </a><i class="select__item-active-icon iconoir-check"></i></li>
+      </div>
+      <!--v-if-->
+      <div class="dropdown-section">
+        <div class="dropdown-section__title">subjectType.agents</div>
+        <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
+            <div class="select__item-name">
+              <!--v-if--><i class="select__item-icon baserow-icon-agent"></i>
+              <!--v-if--><span class="select__item-name-text" title="Row writer">Row writer</span>
+            </div>
+            <!--v-if-->
+          </a><i class="select__item-active-icon iconoir-check"></i></li>
+      </div>
+      <!--v-if-->
+      <!--v-if-->
+    </ul>
+  </div>
+</div>"
+`;

@@ -1,5 +1,6 @@
 from typing import Any, Dict, List
 
+from django.contrib.auth.models import AbstractUser
 from django.db.models import Count
 
 from rest_framework import serializers
@@ -47,10 +48,10 @@ class RowCommentsNotificationModeMetadataType(RowMetadataType):
         """
         Returns a dictionary keyed by row id with the value being the notification mode
         for the user and row.
-        If no or an anonymous user is provided then an empty dict is returned.
+        If no Django user is provided then an empty dict is returned.
         """
 
-        if not user or not user.id:
+        if not isinstance(user, AbstractUser) or not user.id:
             return {}
 
         return {

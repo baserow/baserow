@@ -80,6 +80,7 @@ import {
 } from '@baserow/modules/core/agentSettingsTypes'
 import {
   AgentSubjectType,
+  AnonymousUserSubjectType,
   UserSubjectType,
 } from '@baserow/modules/core/subjectTypes'
 import {
@@ -197,6 +198,7 @@ export default defineNuxtPlugin({
     const context = { app: nuxtApp }
 
     registry.register('subject', new UserSubjectType(context))
+    registry.register('subject', new AnonymousUserSubjectType(context))
     registry.register('subject', new AgentSubjectType(context))
 
     registry.register('invitationRoute', new EmailInvitationRouteType(context))
