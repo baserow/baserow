@@ -17,14 +17,18 @@ from baserow.api.decorators import (
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
-from baserow.api.pagination import PageNumberPaginationWithApproximateCount
+from baserow.api.pagination import (
+    PageNumberPagination,
+    PageNumberPaginationWithApproximateCount,
+)
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.core.actions import DeleteWorkspaceActionType, OrderWorkspacesActionType
 from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import User
+from baserow.core.registries import subject_type_registry
+from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.audit_log.utils import (
@@ -33,11 +37,12 @@ from baserow_enterprise.audit_log.utils import (
 
 from .serializers import (
     AuditLogActionTypeSerializer,
+    AuditLogActorFilterQueryParamsSerializer,
+    AuditLogActorFilterSerializer,
     AuditLogExportJobRequestSerializer,
     AuditLogExportJobResponseSerializer,
     AuditLogQueryParamsSerializer,
     AuditLogSerializer,
-    AuditLogUserSerializer,
     AuditLogWorkspaceFilterQueryParamsSerializer,
     serialize_filtered_action_types,
 )
@@ -50,7 +55,9 @@ class AuditLogView(APIListingView):
     # Every filter here is backed by an index leading with that column, so that a
     # filtered page stays a seek instead of a scan of the whole table.
     filters_field_mapping = {
-        "user_id": "user_id",
+        "user_id": "actor_id",
+        "actor_id": "actor_id",
+        "actor_type": "actor_type",
         "workspace_id": "workspace_id",
         "action_type": "action_type",
         "from_timestamp": "action_timestamp__gte",
@@ -63,7 +70,10 @@ class AuditLogView(APIListingView):
     default_order_by = "-action_timestamp"
 
     def get_queryset(self, request):
-        return AuditLogEntry.objects.all()
+        queryset = AuditLogEntry.objects.all()
+        if request.GET.get("user_id"):
+            queryset = queryset.filter(actor_type=UserSubjectType.type)
+        return queryset
 
     def get_serializer(self, request, *args, **kwargs):
         return super().get_serializer(
@@ -88,6 +98,18 @@ class AuditLogView(APIListingView):
                     location=OpenApiParameter.QUERY,
                     type=OpenApiTypes.INT,
                     description="Filter the audit log entries by user id.",
+                ),
+                OpenApiParameter(
+                    name="actor_id",
+                    location=OpenApiParameter.QUERY,
+                    type=OpenApiTypes.INT,
+                    description="Filter the audit log entries by actor id.",
+                ),
+                OpenApiParameter(
+                    name="actor_type",
+                    location=OpenApiParameter.QUERY,
+                    type=OpenApiTypes.STR,
+                    description="Filter the audit log entries by actor type.",
                 ),
                 OpenApiParameter(
                     name="workspace_id",
@@ -197,48 +219,67 @@ class AuditLogActionTypeFilterView(APIView):
         )
 
 
-class AuditLogUserFilterView(APIListingView):
+class AuditLogActorFilterView(APIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = AuditLogUserSerializer
-    filters_field_mapping = {"workspace_id": "workspaceuser__workspace_id"}
-    search_fields = ["email"]
-    default_order_by = "email"
+    serializer_class = AuditLogActorFilterSerializer
 
-    def get_queryset(self, request):
-        return User.objects.all()
+    def paginate_queryset(self, queryset, request):
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        return page, paginator.page.paginator.count
 
     @extend_schema(
         tags=["Audit log"],
-        operation_id="audit_log_users",
+        operation_id="audit_log_actors",
         description=(
-            "List all users that have performed an action in the audit log."
-            "\n\nThis is a **enterprise** feature."
+            "List users and agents available as audit log actor filters."
+            "\n\nThis is an **enterprise** feature."
         ),
-        **APIListingView.get_extend_schema_parameters(
-            "users",
-            serializer_class,
-            search_fields,
-            {},
-            extra_parameters=[
-                OpenApiParameter(
-                    name="workspace_id",
-                    location=OpenApiParameter.QUERY,
-                    type=OpenApiTypes.INT,
-                    description=("Return users belonging to the given workspace_id."),
-                ),
-            ],
-        ),
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Only return actors belonging to the workspace.",
+            ),
+        ],
+        responses={200: serializer_class(many=True)},
     )
-    @map_exceptions(
-        {
-            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
-        }
-    )
-    @validate_query_parameters(AuditLogWorkspaceFilterQueryParamsSerializer)
+    @map_exceptions({WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST})
+    @validate_query_parameters(AuditLogActorFilterQueryParamsSerializer)
     def get(self, request, query_params):
-        workspace_id = query_params.get("workspace_id", None)
+        """Return independently paginated actor types in one response."""
+
+        workspace_id = query_params.get("workspace_id")
         check_for_license_and_permissions_or_raise(request.user, workspace_id)
-        return super().get(request)
+
+        count = 0
+        results = []
+        for subject_type in subject_type_registry.get_all():
+            queryset = subject_type.get_queryset(workspace_id)
+            if queryset is None:
+                continue
+
+            page, subject_count = self.paginate_queryset(queryset, request)
+            count += subject_count
+            results.extend(
+                {
+                    "id": f"{subject_type.type}:{subject.id}",
+                    "actor_id": subject.id,
+                    "actor_type": subject_type.type,
+                    "value": subject_type.get_label(subject),
+                }
+                for subject in page
+            )
+
+        return Response(
+            {
+                "count": count,
+                "next": None,
+                "previous": None,
+                "results": self.serializer_class(results, many=True).data,
+            }
+        )
 
 
 class AsyncAuditLogExportView(APIView):

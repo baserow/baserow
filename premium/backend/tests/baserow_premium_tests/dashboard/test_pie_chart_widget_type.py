@@ -137,6 +137,7 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
         "type": "dashboard",
         "integrations": [
             {
+                "authorized_agent": None,
                 "authorized_user": user.email,
                 "id": integration.id,
                 "name": "",
@@ -219,6 +220,7 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
         "type": "dashboard",
         "integrations": [
             {
+                "authorized_agent": None,
                 "authorized_user": user.email,
                 "id": 1,
                 "name": "IntegrationName",

@@ -1,6 +1,7 @@
 from typing import Any
 
 from django.db.models import QuerySet
+from django.utils import timezone
 
 from baserow.core.agents.exceptions import AgentDoesNotExist
 from baserow.core.agents.registries import agent_extension_registry
@@ -68,6 +69,18 @@ class AgentHandler:
                 update_fields.append(key)
         if update_fields:
             agent.save(update_fields=[*update_fields, "updated_on"])
+        return agent
+
+    def update_last_active(self, agent: Agent) -> Agent:
+        """
+        Sets the agent's last active time to the current time.
+
+        :param agent: The agent whose last active time should be updated.
+        :return: The updated agent.
+        """
+
+        agent.last_active = timezone.now()
+        agent.save(update_fields=["last_active"])
         return agent
 
     def delete_agent(self, user, agent: Agent) -> None:

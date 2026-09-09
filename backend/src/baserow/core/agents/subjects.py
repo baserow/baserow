@@ -2,6 +2,7 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import Agent, Workspace
 from baserow.core.registries import SubjectType
@@ -12,6 +13,18 @@ class AgentSubjectType(SubjectType):
     type = "core.Agent"
     model_class = Agent
     display_name_field = "name"
+
+    def get_type_display_name(self):
+        return _("Agent")
+
+    def get_display_name(self, subject: Agent) -> str:
+        return subject.name
+
+    def get_queryset(self, workspace_id=None):
+        queryset = Agent.objects.all()
+        if workspace_id is not None:
+            queryset = queryset.filter(workspace_id=workspace_id)
+        return queryset.order_by("name")
 
     def get_workspace_role_uids(
         self,

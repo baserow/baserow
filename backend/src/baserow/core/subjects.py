@@ -2,6 +2,7 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, AnonymousUser
+from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import User, Workspace, WorkspaceUser
 from baserow.core.registries import SubjectType
@@ -11,7 +12,23 @@ from baserow.core.types import Subject
 class UserSubjectType(SubjectType):
     type = "auth.User"
     model_class = User
+    is_interactive_user = True
     display_name_field = "first_name"
+
+    def get_type_display_name(self):
+        return _("User")
+
+    def get_display_name(self, subject: AbstractUser) -> str:
+        return subject.first_name
+
+    def get_queryset(self, workspace_id=None):
+        queryset = User.objects.all()
+        if workspace_id is not None:
+            queryset = queryset.filter(workspaceuser__workspace_id=workspace_id)
+        return queryset.order_by("email")
+
+    def get_label(self, subject: AbstractUser) -> str:
+        return subject.email
 
     def get_workspace_role_uids(
         self,
@@ -72,6 +89,14 @@ class UserSubjectType(SubjectType):
 class AnonymousUserSubjectType(SubjectType):
     type = "anonymous"
     model_class = AnonymousUser
+
+    def get_type_display_name(self):
+        return _("Anonymous user")
+
+    def get_display_name(self, subject: AnonymousUser) -> str:
+        # Row history persists this as a stable fallback. Clients translate the
+        # anonymous actor label at render time so it uses the viewer's language.
+        return "Anonymous User"
 
     def are_in_workspace(
         self,

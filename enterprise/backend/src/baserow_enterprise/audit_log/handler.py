@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Any, Dict, Optional, Type
 
-from django.contrib.auth.models import AbstractUser
-
 from baserow.api.sessions import get_user_remote_addr_ip
 from baserow.core.action.registries import ActionType
 from baserow.core.action.signals import ActionCommandType
 from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
+from baserow.core.subjects import UserSubjectType
+from baserow.core.types import Actor
 
 from .models import AuditLogEntry
 
@@ -15,7 +16,7 @@ class AuditLogHandler:
     @classmethod
     def log_action(
         cls,
-        user: AbstractUser,
+        user: Optional[Actor],
         action_type: Type[ActionType],
         action_params: Dict[str, Any],
         action_timestamp: datetime,
@@ -48,11 +49,19 @@ class AuditLogHandler:
             workspace_id = workspace.id
             workspace_name = workspace.name
 
+        if user is None:
+            actor_type = UserSubjectType.type
+            actor_name = None
+        else:
+            subject_type = subject_type_registry.get_by_model(user)
+            actor_type = subject_type.type
+            actor_name = subject_type.get_label(user)
         ip_address = get_user_remote_addr_ip(user)
 
         return AuditLogEntry.objects.create(
-            user_id=getattr(user, "id", None),
-            user_email=getattr(user, "email", None),
+            actor_id=getattr(user, "id", None),
+            actor_type=actor_type,
+            actor_name=actor_name,
             workspace_id=workspace_id,
             workspace_name=workspace_name,
             action_uuid=action_uuid,

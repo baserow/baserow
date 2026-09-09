@@ -34,6 +34,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.cache import global_cache, local_cache
+from baserow.core.models import Agent
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
@@ -441,6 +442,28 @@ def test_publish_returns_published_workflow(data_fixture):
 
     assert published_workflow.is_published is True
     assert published_workflow.state == WorkflowState.LIVE
+
+
+@pytest.mark.django_db
+def test_publish_preserves_local_baserow_authorized_agent(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, create_trigger=False
+    )
+    agent = Agent.objects.create(workspace=workspace, name="Automation agent")
+    data_fixture.create_local_baserow_integration(
+        application=automation,
+        authorized_user=user,
+        authorized_agent=agent,
+    )
+
+    published_workflow = AutomationWorkflowHandler().publish(workflow)
+
+    published_integration = published_workflow.automation.integrations.get().specific
+    assert published_integration.authorized_agent == agent
+    assert published_integration.authorized_subject == agent
 
 
 @pytest.mark.django_db

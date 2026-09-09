@@ -20,6 +20,7 @@ def test_agent_subject_is_workspace_scoped_and_contains_no_users(data_fixture):
     subject_type = subject_type_registry.get_by_model(agent)
 
     assert isinstance(subject_type, AgentSubjectType)
+    assert not subject_type.is_interactive_user
     assert subject_type.is_in_workspace(agent, workspace)
     assert not subject_type.is_in_workspace(agent, other_workspace)
     assert subject_type.get_users_included_in_subject(agent) == []
