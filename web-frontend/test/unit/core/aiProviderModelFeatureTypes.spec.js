@@ -28,16 +28,16 @@ describe('getEnabledModelsForAIProviderFeature', () => {
     ).toEqual({ openai: ['legacy-model'] })
   })
 
-  test('uses live legacy models while feature filtering is disabled', () => {
+  test('an explicit empty feature allowlist never falls back to generic models', () => {
     const workspace = {
       generative_ai_models_enabled: { openai: ['updated-legacy-model'] },
       ai_features: {
-        ai_fields: { models: { openai: ['stale-model'] } },
+        ai_fields: { models: {} },
       },
     }
 
     expect(
-      getEnabledModelsForAIProviderFeature(workspace, 'ai_fields', false)
-    ).toEqual({ openai: ['updated-legacy-model'] })
+      getEnabledModelsForAIProviderFeature(workspace, 'ai_fields')
+    ).toEqual({})
   })
 })

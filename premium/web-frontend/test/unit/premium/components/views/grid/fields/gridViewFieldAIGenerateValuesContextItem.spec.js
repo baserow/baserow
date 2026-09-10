@@ -34,6 +34,7 @@ describe('GridViewFieldAIGenerateValuesContextItem component', () => {
 
   const mountComponent = (field, getRows) =>
     testApp.mount(GridViewFieldAIGenerateValuesContextItem, {
+      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: {
         field,
         getRows,
@@ -84,6 +85,17 @@ describe('GridViewFieldAIGenerateValuesContextItem component', () => {
     expect(field.error).toBe(
       'clientHandler.modelDoesNotBelongToTypeDescription'
     )
+    expect(wrapper.find('a').classes()).toContain('disabled')
+  })
+
+  test('respects feature eligibility when the retired flag is absent', async () => {
+    await testApp.getStore().dispatch('workspace/forceCreate', {
+      ...workspace,
+      ai_features: { ai_fields: { models: {} } },
+    })
+
+    const wrapper = await mountComponent(aiField, vi.fn())
+
     expect(wrapper.find('a').classes()).toContain('disabled')
   })
 })

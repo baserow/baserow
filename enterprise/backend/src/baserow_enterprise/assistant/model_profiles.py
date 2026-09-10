@@ -43,7 +43,6 @@ from baserow.core.ai_provider.resolution import (
     get_ai_provider_state,
 )
 from baserow.core.cache import global_cache
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.generative_ai.capabilities import test_model_text_and_tool_calling
 from baserow.core.generative_ai.generative_ai_model_types import (
     sanitize_google_model_settings,
@@ -201,9 +200,6 @@ def _get_database_model(
     :return: The selected model, if any, and its resolution source.
     """
 
-    if not feature_flag_is_enabled(FF_AI_PROVIDERS):
-        return None, "legacy"
-
     if state is None:
         state = get_ai_provider_state(workspace)
     settings_list = AIProviderHandler.list_feature_settings(workspace, state=state)
@@ -289,11 +285,7 @@ def resolve_assistant_model(
             database_model=None,
         )
 
-    state = (
-        get_ai_provider_state(workspace)
-        if feature_flag_is_enabled(FF_AI_PROVIDERS)
-        else None
-    )
+    state = get_ai_provider_state(workspace)
     database_model, source = _get_database_model(workspace, state=state)
     if source == "disabled":
         raise AssistantModelDisabledError("Kuma is disabled for this scope.")

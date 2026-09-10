@@ -33,6 +33,7 @@ describe('GridViewFieldAI component', () => {
 
   const mountComponent = (field) =>
     testApp.mount(GridViewFieldAI, {
+      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: {
         field,
         value: null,

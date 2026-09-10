@@ -111,7 +111,6 @@ import modal from '@baserow/modules/core/mixins/modal'
 import form from '@baserow/modules/core/mixins/form'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'SelectAIModelForm',
@@ -155,19 +154,9 @@ export default {
     workspace() {
       return this.$store.getters['workspace/get'](this.database.workspace.id)
     },
-    /**
-     * @returns {boolean} Whether database provider eligibility is enforced.
-     */
-    aiProvidersEnabled() {
-      return this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
-    },
     enabledModelsByType() {
       return this.featureType
-        ? getEnabledModelsForAIProviderFeature(
-            this.workspace,
-            this.featureType,
-            this.aiProvidersEnabled
-          )
+        ? getEnabledModelsForAIProviderFeature(this.workspace, this.featureType)
         : this.workspace.generative_ai_models_enabled || {}
     },
     /**
@@ -182,16 +171,12 @@ export default {
     },
     /**
      * @returns {Array<{type: string, name: string}>} Provider options, retaining
-     *   an unavailable saved provider for diagnosis when eligibility is enforced.
+     *   an unavailable saved provider for diagnosis.
      */
     availableProviders() {
       const providers = this.baseAvailableProviders
       const current = this.values.ai_generative_ai_type
-      if (
-        this.aiProvidersEnabled &&
-        current &&
-        !providers.some((provider) => provider.type === current)
-      ) {
+      if (current && !providers.some((provider) => provider.type === current)) {
         const modelType = this.$registry.getAll('generativeAIModel')[current]
         return [
           ...providers,
@@ -209,12 +194,12 @@ export default {
     },
     /**
      * @returns {string[]} Model options, retaining an unavailable saved model for
-     *   diagnosis when eligibility is enforced.
+     *   diagnosis.
      */
     availableModels() {
       const models = this.baseAvailableModels
       const current = this.values.ai_generative_ai_model
-      if (this.aiProvidersEnabled && current && !models.includes(current)) {
+      if (current && !models.includes(current)) {
         return [...models, current]
       }
       return models
@@ -224,11 +209,7 @@ export default {
      */
     selectedModelUnavailable() {
       const current = this.values.ai_generative_ai_model
-      return Boolean(
-        this.aiProvidersEnabled &&
-        current &&
-        !this.baseAvailableModels.includes(current)
-      )
+      return Boolean(current && !this.baseAvailableModels.includes(current))
     },
     /**
      * @returns {boolean} Whether the model field renders in its error state.

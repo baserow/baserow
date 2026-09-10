@@ -327,7 +327,7 @@ def test_workspace_updated(mock_broadcast_to_workspace, data_fixture):
 def test_workspace_ai_settings_change_broadcasts_enabled_models(
     mock_broadcast_to_workspace, data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     user.web_socket_id = "test"
     workspace = data_fixture.create_workspace(user=user)
@@ -412,7 +412,7 @@ def test_instance_ai_model_availability_change_schedules_complete_payload(
 def test_workspace_ai_provider_change_stays_inside_the_workspace(
     mock_broadcast_ai_provider_update, data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
@@ -436,7 +436,7 @@ def test_workspace_provider_metadata_update_skips_model_availability(
     data_fixture,
     settings,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     provider = AIProviderHandler.create_provider(
@@ -467,7 +467,7 @@ def test_workspace_provider_metadata_update_skips_model_availability(
 def test_deleting_imported_workspace_provider_broadcasts_fresh_model_availability(
     mock_broadcast, data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(
         user=user,

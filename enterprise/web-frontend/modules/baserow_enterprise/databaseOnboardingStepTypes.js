@@ -1,6 +1,5 @@
 import { DatabaseOnboardingStepType } from '@baserow/modules/database/databaseOnboardingStepTypes'
 import AIDatabaseOnboardingForm from '@baserow_enterprise/components/onboarding/AIDatabaseOnboardingForm'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 /**
  * AI-assisted database onboarding step type. Only visible when an LLM model is
@@ -31,9 +30,6 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
   isVisible() {
     const legacyConfigured =
       !!this.app.$config.public.baserowEnterpriseAssistantLlmModel
-    if (!this.app.$featureFlagIsEnabled(FF_AI_PROVIDERS)) {
-      return legacyConfigured
-    }
     return (
       this.app.$store.getters['settings/get'].kuma?.is_enabled ??
       legacyConfigured

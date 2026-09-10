@@ -13,7 +13,6 @@ from baserow.core.ai_provider.resolution import (
     ScopedAIProviderState,
     get_ai_provider_state,
 )
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
@@ -423,33 +422,32 @@ class GenerativeAIModelType(Instance):
         """
         Resolve a non-environment setting and report whether it is authoritative.
 
-        Explicit overrides come first. With database providers enabled, workspace
-        models override matching instance models while non-overridden instance
-        models remain inherited. Otherwise a complete legacy workspace JSON
+        Explicit overrides come first. Workspace models override matching instance
+        models while non-overridden instance models remain inherited. If no
+        workspace provider exists, a complete legacy workspace JSON
         configuration is checked before an inherited instance provider and
         environment settings. Incomplete legacy settings are never combined with
         credentials from another scope.
 
+        :param workspace: The workspace scope, or None for instance settings.
+        :param key: The provider setting to resolve.
+        :param settings_override: Explicit provider settings supplied by the caller.
+        :param feature_type: Restrict model availability to this feature, if given.
         :param state: Pre-loaded state for this scope. Callers resolving many
             settings, or many workspaces, load it once and pass it here so the
             provider rows are read from the database a single time.
+        :returns: Whether the resolved value is authoritative and the value itself.
+            An authoritative empty value suppresses the environment fallback.
         """
 
-        providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
         model_settings_override = None
         if settings_override is not None and key in settings_override:
-            if not providers_enabled or key != "models":
+            if key != "models":
                 return True, settings_override[key]
             complete_override = self._get_complete_provider_settings(settings_override)
             if complete_override is not None:
                 return True, complete_override["models"]
             model_settings_override = settings_override[key]
-
-        if not providers_enabled:
-            legacy_value = self.get_workspace_setting(workspace, key)
-            if legacy_value:
-                return True, legacy_value
-            return False, None
 
         if state is None:
             state = get_ai_provider_state(workspace)
@@ -622,14 +620,20 @@ class GenerativeAIModelType(Instance):
         settings_override: Optional[dict[str, Any]] = None,
         state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[dict[str, Any]]:
-        """Resolve the complete provider configuration owning ``model_name``."""
+        """Resolve the complete provider configuration owning ``model_name``.
+
+        :param model_name: The model whose connection settings are requested.
+        :param workspace: The owning workspace, or None for instance resolution.
+        :param settings_override: An explicit connection override, if supplied.
+        :param state: Pre-loaded provider state for this scope, if available.
+        :returns: The complete settings override, or None when provider getters
+            should resolve instance settings and environment compatibility defaults.
+        """
 
         if settings_override is not None:
             return settings_override
 
-        if not feature_flag_is_enabled(FF_AI_PROVIDERS) or not isinstance(
-            workspace, Workspace
-        ):
+        if not isinstance(workspace, Workspace):
             return None
 
         if state is None:

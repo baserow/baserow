@@ -124,7 +124,7 @@ export default {
     // `layout` and `middleware` component options.
     definePageMeta({
       layout: 'app',
-      middleware: ['staff', 'aiProvidersFeatureFlag'],
+      middleware: ['staff'],
     })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('aiProviderAdmin.title') })

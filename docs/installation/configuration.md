@@ -201,6 +201,13 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 
 ### Generative AI configuration
 
+Configure providers and models under **Admin → AI providers** or workspace
+**Settings → AI providers**. The environment variables below remain compatibility
+fallbacks; existing database providers take precedence at their scope. See
+[AI provider management](ai-providers.md) for legacy workspace precedence, imports,
+and upgrade checks. Kuma's legacy model and credentials are configured separately
+in the [AI assistant guide](ai-assistant.md).
+
 | Name                                             | Description                                                                                                                                                                                                                                                                                                                                                 | Defaults |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
 | BASEROW\_OPENAI\_API\_KEY                        | Provide an OpenAI API key to allow using OpenAI for the generative AI features like the AI field. (https://platform.openai.com/api-keys)                                                                                                                                                                                                                    |          |

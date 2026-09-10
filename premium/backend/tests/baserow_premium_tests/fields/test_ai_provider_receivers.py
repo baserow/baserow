@@ -11,7 +11,7 @@ from baserow.core.handler import CoreHandler
 def test_disabling_model_broadcasts_updated_ai_field_error(
     settings, premium_data_fixture, django_capture_on_commit_callbacks
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user(is_staff=True)
     table = premium_data_fixture.create_database_table(user=user)
     table.database.workspace.generative_ai_models_settings = {
@@ -61,7 +61,7 @@ def test_disabling_model_broadcasts_updated_ai_field_error(
 def test_provider_metadata_update_does_not_broadcast_ai_field_error(
     settings, premium_data_fixture, django_capture_on_commit_callbacks
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user(is_staff=True)
     table = premium_data_fixture.create_database_table(user=user)
     provider = AIProviderHandler.create_provider(
@@ -99,7 +99,7 @@ def test_provider_metadata_update_does_not_broadcast_ai_field_error(
 def test_workspace_ai_settings_change_broadcasts_updated_ai_field_error(
     settings, premium_data_fixture, django_capture_on_commit_callbacks
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user(is_staff=True)
     table = premium_data_fixture.create_database_table(user=user)
     workspace = table.database.workspace

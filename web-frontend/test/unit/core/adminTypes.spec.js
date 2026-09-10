@@ -1,20 +1,14 @@
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test } from 'vitest'
 
 import { AIProvidersAdminType } from '@baserow/modules/core/adminTypes'
 
 describe('AIProvidersAdminType', () => {
-  test('is only visible while its feature flag is enabled', () => {
-    const featureFlagIsEnabled = vi.fn().mockReturnValue(false)
+  test('is visible without an AI providers feature flag', () => {
     const adminType = new AIProvidersAdminType({
-      app: {
-        $i18n: { t: (key) => key },
-        $featureFlagIsEnabled: featureFlagIsEnabled,
-      },
+      app: { $i18n: { t: (key) => key } },
     })
 
-    expect(adminType.isVisible()).toBe(false)
-    expect(featureFlagIsEnabled).toHaveBeenCalledWith('ai-providers')
-    featureFlagIsEnabled.mockReturnValue(true)
     expect(adminType.isVisible()).toBe(true)
+    expect(adminType.getRouteName()).toBe('admin-ai-providers')
   })
 })
