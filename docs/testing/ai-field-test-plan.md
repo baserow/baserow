@@ -7,8 +7,9 @@
 As instance staff, configure a provider and working model under **Admin → AI
 providers**, make the model available to **AI fields**, and run **Test model**.
 
-Verify: the model appears in the AI field creation form. Also test an installation
-without database providers using the legacy environment variables documented in
+Verify: the model appears in the AI field creation form. For compatibility coverage,
+also test an installation without database providers using the deprecated environment
+variables documented in
 [Generative AI configuration](../installation/configuration.md#generative-ai-configuration).
 See the [rollout test plan](ai-provider-rollout-test-plan.md) for import transitions.
 
