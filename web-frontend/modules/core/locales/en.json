@@ -382,7 +382,6 @@
     "title": "Workspace Settings"
   },
   "workspaceSettingType": {
-    "generativeAI": "Generative AI",
     "aiProviders": "AI providers"
   },
   "generativeAIModelType": {
@@ -434,8 +433,6 @@
     "groqModelIdentifierDescription": "Enter a [Groq model identifier](https://console.groq.com/docs/models). For example: `openai/gpt-oss-120b` or `openai/gpt-oss-20b`."
   },
   "generativeAIWorkspaceSettings": {
-    "title": "Generative AI settings",
-    "description": "These settings can be used to optionally set generative AI configuration on workspace level. Features like the AI field can be disabled because they lack an API key for one of the supported models. By providing the settings here, you can enable those features. Leaving a value blank defaults back to the global instance settings. Note that everyone in the workspace will share these settings.",
     "providerTitle": "AI providers",
     "providerDescription": "Manage providers owned by this workspace or enable and disable providers inherited from the instance.",
     "sharedModelsTitle": "Shared across workspaces",
@@ -445,9 +442,6 @@
     "disabledInWorkspace": "Disabled in workspace",
     "noProviders": "No AI providers are available",
     "noProvidersDescription": "Add a provider for this workspace, or ask an instance administrator to configure one.",
-    "changedTitle": "Settings updated correctly",
-    "changedDescription": "The settings have been updated and they will be now used in this workspace.",
-    "submitButton": "Update settings",
     "openSettings": "Open settings",
     "hideSettings": "Hide settings"
   },
@@ -1155,7 +1149,7 @@
     "modelDiscoveryEmpty": "No known models for this provider. Enter an identifier manually.",
     "modelDiscoveryNoMatch": "No known model matches. You can use the identifier you entered.",
     "noProviders": "No instance AI providers configured",
-    "noProvidersDescription": "Add a provider manually, or preview and run the environment import command before enabling the feature for users.",
+    "noProvidersDescription": "Add a provider to configure the models available to your workspaces.",
     "noModels": "No models are configured for this provider.",
     "active": "Active",
     "inactive": "Inactive",

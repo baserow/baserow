@@ -183,8 +183,7 @@ export default {
         return 'invalid'
       }
       if (this.workspaceId === null && setting.state === 'unconfigured') {
-        // Also handles a rolling deployment where an older backend still
-        // reports the historical `disabled` mode for an absent instance row.
+        // An unconfigured instance uses the environment model.
         return 'legacy'
       }
       return setting.mode
@@ -224,8 +223,7 @@ export default {
       if (setting.inherited_state !== undefined) {
         return setting.inherited_state
       }
-      // A rolling deployment can still be serving a backend that omits the field.
-      // Infer only what the instance-wide availability flag can prove.
+      // Use instance availability when no inherited state is supplied.
       return this.$store.getters['settings/get'][setting.feature_type]
         ?.is_enabled === false
         ? 'disabled'
