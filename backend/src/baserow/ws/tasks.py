@@ -1,6 +1,3 @@
-import os
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from time import monotonic
 from typing import Any, Dict, Iterable, List, Optional
@@ -23,30 +20,6 @@ AI_PROVIDER_UPDATE_RENDER_LOCK_TIMEOUT = 300
 # ASGI channel layers only guarantee messages up to 1 MB when JSON encoded. Leave
 # headroom for the recorded event id and serializer framing.
 AI_PROVIDER_UPDATE_MAX_ENVELOPE_BYTES = 900 * 1024
-
-
-# Event recording must not run on the thread that called ``async_to_sync``. A
-# thread-sensitive ``sync_to_async`` inside ``async_to_sync`` executes on that caller's
-# own thread, where ``DatabaseSyncToAsync`` runs ``close_old_connections()`` against the
-# caller's connection. An eager task fired inside an open transaction then breaks the
-# connection it was called from. ``run_database_sync`` only opts out of the
-# thread-sensitive executor when it is given a bounded, reusable one.
-_recording_executor = None
-_recording_executor_pid = None
-_recording_executor_lock = threading.Lock()
-
-
-def _get_recording_executor() -> ThreadPoolExecutor:
-    global _recording_executor, _recording_executor_pid
-
-    with _recording_executor_lock:
-        # Celery's prefork pool forks after import; pool threads don't survive a fork.
-        if _recording_executor is None or _recording_executor_pid != os.getpid():
-            _recording_executor = ThreadPoolExecutor(
-                max_workers=1, thread_name_prefix="realtime-recording"
-            )
-            _recording_executor_pid = os.getpid()
-        return _recording_executor
 
 
 def _ai_provider_refresh_marker(
@@ -212,10 +185,7 @@ async def send_messages_to_channel_group(
         ]
         if recordable:
             event_ids = await run_database_sync(
-                "recording",
-                RealtimeEventHandler.record_events,
-                recordable,
-                executor=_get_recording_executor(),
+                "recording", RealtimeEventHandler.record_events, recordable
             )
             for channel_group_message, event_id in zip(recordable, event_ids):
                 RealtimeEventHandler.add_event_id_to_payload(
