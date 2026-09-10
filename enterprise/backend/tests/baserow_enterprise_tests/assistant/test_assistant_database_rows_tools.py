@@ -1,12 +1,81 @@
 import pytest
+from pydantic import ValidationError
+from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow_enterprise.assistant.agents import dynamic_toolset
 from baserow_enterprise.assistant.tools.database.tools import (
+    create_fields,
     list_rows,
     load_row_tools,
 )
+from baserow_enterprise.assistant.tools.database.types import FieldItemCreate
 
 from .utils import make_test_ctx
+
+
+@pytest.mark.django_db
+def test_create_rows_rejects_empty_payload_and_accepts_corrected_call(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare row creation")
+    tool = ctx.deps.dynamic_tools[0]
+    model = table.get_model()
+
+    with pytest.raises(ModelRetry, match="Nothing was changed"):
+        tool.function(rows=[], thought="Create rows")
+
+    assert model.objects.count() == 0
+
+    arguments = tool.function_schema.validator.validate_python(
+        {"rows": [{"Name": "Created after retry"}], "thought": "Create the row"}
+    )
+    result = tool.function(**arguments)
+
+    assert list(model.objects.values_list("id", name_field.db_column)) == [
+        (result["created_row_ids"][0], "Created after retry")
+    ]
+
+
+@pytest.mark.django_db
+def test_reload_row_tools_uses_new_schema_without_duplicate_tools(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create", "delete"], thought="Prepare rows")
+    old_create, delete = ctx.deps.dynamic_tools
+    arguments = {
+        "rows": [{"Name": "Batch 46", "Status": "Reviewed"}],
+        "thought": "Create a row with its status",
+    }
+
+    with pytest.raises(ValidationError, match="Status"):
+        old_create.function_schema.validator.validate_python(arguments)
+
+    create_fields(
+        ctx,
+        table_id=table.id,
+        fields=[FieldItemCreate(name="Status", type="text")],
+        thought="Add a status field",
+    )
+    load_row_tools(ctx, [table.id], ["create"], thought="Refresh row creation")
+    toolset = dynamic_toolset(ctx)
+    create = toolset.tools[f"create_rows_in_table_{table.id}"]
+
+    assert len(toolset.tools) == 2
+    assert toolset.tools[delete.name] is delete
+    assert create is not old_create
+    result = create.function(
+        **create.function_schema.validator.validate_python(arguments)
+    )
+
+    status_field = table.field_set.get(name="Status")
+    assert list(
+        table.get_model().objects.values_list("id", status_field.db_column)
+    ) == [(result["created_row_ids"][0], "Reviewed")]
 
 
 def _create_simple_database_with_linked_tables_and_rows(data_fixture):

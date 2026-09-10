@@ -311,7 +311,7 @@ def test_generate_formula_no_save(data_fixture):
     model_profile.get_settings.return_value = model_settings
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -353,7 +353,7 @@ def test_generate_formula_create_new_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -405,7 +405,7 @@ def test_generate_formula_update_existing_formula_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -457,7 +457,7 @@ def test_generate_formula_replace_non_formula_field(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -511,7 +511,7 @@ def test_generate_formula_invalid_formula(data_fixture):
     )
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model"
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model"
     ) as mock_agent:
         mock_agent.return_value = mock_result
 
@@ -558,7 +558,7 @@ def test_generate_formula_documentation_completeness(data_fixture):
         return mock_result
 
     with patch(
-        "baserow_enterprise.assistant.tools.database.tools.run_agent_sync_with_model",
+        "baserow_enterprise.assistant.tools.database.agents.run_agent_sync_with_model",
         side_effect=mock_run_sync,
     ):
         ctx = make_test_ctx(user, workspace)

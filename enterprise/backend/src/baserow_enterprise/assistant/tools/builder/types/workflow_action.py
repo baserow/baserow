@@ -354,7 +354,6 @@ class ActionCreate(BaseModel):
     Send all of them in the same call: a call missing any of them is rejected
     in full, and every retry costs a round trip. Numeric IDs must come from a
     tool result; string refs must name an item created in this same call.
-    0, null and invented IDs fail.
 
     The tag in parentheses on a field description names the types that field
     applies to; leave every other field unset. No key outside this model is
