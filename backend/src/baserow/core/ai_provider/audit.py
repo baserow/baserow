@@ -1,4 +1,7 @@
-"""Read-only configuration inventory for an operator-led rollout rehearsal."""
+"""Read-only AI configuration inventory for migration checks."""
+
+# TODO (#5749): Remove this module and audit_ai_provider_settings, including
+# their tests and documentation, after legacy AI configuration is migrated.
 
 from typing import Any
 
