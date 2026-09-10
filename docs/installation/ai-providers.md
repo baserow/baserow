@@ -9,6 +9,14 @@ AI Agent actions keep their existing model selections.
 
 ## Configuration and compatibility
 
+The `BASEROW_*` provider connection and model-list environment variables are
+**deprecated**. Configure new connections in the instance or workspace
+**AI providers** settings. For existing installations,
+[import legacy settings](#importing-legacy-settings) before managing those connections
+in the UI. See the
+[configuration reference](configuration.md#generative-ai-configuration) for the
+complete variable list. Compatibility fallbacks remain supported.
+
 An active workspace model overrides an instance model with the same identifier;
 other instance models remain inherited with their own complete connection. A disabled
 workspace model suppresses that identifier. Disabling the workspace provider reveals
@@ -93,8 +101,13 @@ conflicting database providers are preserved. Review the resulting behavior befo
 accepting either outcome. The two scopes are separate transactions.
 
 Imports do not inspect integration overrides or publications. They also do not import
-Kuma's legacy model selection or provider-native credentials; configure and test that
-selection separately. Existing fallbacks remain supported while this work is pending.
+Kuma's deprecated `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` selector, its
+`UDSPY_LM_MODEL` alias, or provider-native credentials. Configure the provider, mark
+a model available to Kuma, test it, then select it under **AI features**. For native
+provider/authentication paths without a database equivalent, such as Bedrock or
+Vertex AI, retain the verified environment fallback; see
+[AI assistant configuration](ai-assistant.md#3-legacy-fallback-provider-presets).
+Do not remove legacy settings needed by remaining consumers or the rollback window.
 
 ## Published applications
 

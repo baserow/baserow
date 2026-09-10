@@ -4,6 +4,8 @@
     "issue_origin": "github",
     "issue_number": 5182,
     "domain": "core",
-    "bullet_points": [],
+    "bullet_points": [
+        "Legacy Baserow provider and model environment variables are deprecated; use AI provider settings. Existing configuration remains supported during migration."
+    ],
     "created_at": "2026-09-10"
 }

@@ -26,6 +26,13 @@ Exercise every applicable starting state:
 | Missing, incomplete, conflicting, or stale configuration | Expected unavailable states and importer warnings are recorded; no unintended fallback account is used |
 | No AI configuration | Upgrade and non-AI workflows work; consumers show their expected unavailable state |
 
+Environment provider configuration and Kuma's environment model selector are
+deprecated, but their compatibility behavior remains part of the rollout checks.
+Verify imports and explicit Kuma selection before migrating an existing setup.
+Native provider/authentication paths without a database equivalent must keep their
+working fallback. Do not treat deprecation as permission to remove settings still
+needed by consumers or the rollback plan.
+
 ## 2. Inventory before imports or repairs
 
 Run the read-only management command in the candidate's backend environment:
