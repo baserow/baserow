@@ -828,6 +828,10 @@ def create_views(
                     ) from exc
 
             created = {"id": orm_view.id, **view.model_dump()}
+            if view.type == "form":
+                created["field_options"] = ViewItem.from_django_orm(
+                    orm_view
+                ).model_dump()["field_options"]
             if skipped_fields:
                 created["skipped_fields"] = (
                     "Not shown on the form, these field types cannot be a form "

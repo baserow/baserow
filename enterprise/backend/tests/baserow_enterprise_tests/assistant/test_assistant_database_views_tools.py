@@ -903,8 +903,9 @@ def test_create_views_wrong_field_type_asks_the_model_to_retry(data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_form_view_skips_incompatible_fields(data_fixture):
-    """Prod class: enabling a formula field used to abort the whole call."""
+@pytest.mark.parametrize("include_compatible", [True, False])
+def test_create_form_view_skips_incompatible_fields(data_fixture, include_compatible):
+    """Report only saved inputs, including when every requested field is skipped."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -913,6 +914,19 @@ def test_create_form_view_skips_incompatible_fields(data_fixture):
     name = data_fixture.create_text_field(table=table, name="Name", primary=True)
     formula = data_fixture.create_formula_field(
         table=table, name="Computed", formula="'x'"
+    )
+    supported_options = (
+        [
+            {
+                "field_id": name.id,
+                "name": "Your name",
+                "description": "Enter your name",
+                "required": True,
+                "order": 1,
+            }
+        ]
+        if include_compatible
+        else []
     )
 
     ctx = make_test_ctx(user, workspace)
@@ -926,13 +940,7 @@ def test_create_form_view_skips_incompatible_fields(data_fixture):
                 public=False,
                 type="form",
                 field_options=[
-                    FormFieldOption(
-                        field_id=name.id,
-                        name="Name",
-                        description="",
-                        required=True,
-                        order=1,
-                    ),
+                    *[FormFieldOption(**options) for options in supported_options],
                     FormFieldOption(
                         field_id=formula.id,
                         name="Computed",
@@ -947,6 +955,14 @@ def test_create_form_view_skips_incompatible_fields(data_fixture):
 
     created = response["created_views"][0]
     assert "Computed" in created["skipped_fields"]
+    assert "Not shown on the form" in created["skipped_fields"]
+    assert created["field_options"] == supported_options
     form = View.objects.get(name="Signup").specific
-    enabled = form.active_field_options.all()
-    assert [fo.field_id for fo in enabled] == [name.id]
+    assert (
+        list(
+            form.active_field_options.values(
+                "field_id", "name", "description", "required", "order"
+            )
+        )
+        == supported_options
+    )
