@@ -4,7 +4,7 @@ import AIProviderWorkspaceSettings from '@baserow/modules/core/components/worksp
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
 
 describe('GenerativeAIWorkspaceSettingsType', () => {
-  test('opens AI provider management without an AI providers feature flag', () => {
+  test('opens AI provider management', () => {
     const settingsType = new GenerativeAIWorkspaceSettingsType({
       app: { $i18n: { t: (key) => key } },
     })

@@ -91,7 +91,6 @@ async function mountForm({
       },
       mocks: {
         $t: (key) => key,
-        $featureFlagIsEnabled: () => false,
         $store: {
           getters: {
             'integration/getIntegrations': () => integrations,
@@ -118,7 +117,7 @@ async function mountForm({
 }
 
 describe('AIAgentServiceForm', () => {
-  test('lists ai_agent feature models without the retired flag', async () => {
+  test('lists models available to the ai_agent feature', async () => {
     const wrapper = await mountForm({
       integration: { id: 5, type: 'ai', ai_settings: {} },
       defaultValues: { integration_id: 5, ai_generative_ai_type: 'openai' },
@@ -129,7 +128,7 @@ describe('AIAgentServiceForm', () => {
     expect(wrapper.find('[data-value="legacy-model"]').exists()).toBe(false)
   })
 
-  test('uses generic models when an older backend omits feature availability', async () => {
+  test('uses generic models when feature availability is missing', async () => {
     const wrapper = await mountForm({
       workspace: { ...workspace, ai_features: undefined },
       integration: { id: 5, type: 'ai', ai_settings: {} },
@@ -141,7 +140,7 @@ describe('AIAgentServiceForm', () => {
     expect(wrapper.find('[data-value="db-model"]').exists()).toBe(false)
   })
 
-  test('preserves the selected model through rollout and availability changes', async () => {
+  test('preserves the selected model through availability updates', async () => {
     const workspaceValue = reactive({
       ...workspace,
       ai_features: undefined,
@@ -220,7 +219,7 @@ describe('AIAgentServiceForm', () => {
     expect(modelField.find('[data-value="legacy-model"]').exists()).toBe(false)
   })
 
-  test('limits partial integration settings to models supplied by an older backend', async () => {
+  test('limits partial integration settings to generic workspace models when feature availability is missing', async () => {
     const wrapper = await mountForm({
       workspace: { ...workspace, ai_features: undefined },
       integration: {

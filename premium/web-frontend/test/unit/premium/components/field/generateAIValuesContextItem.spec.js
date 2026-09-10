@@ -39,7 +39,6 @@ describe('GenerateAIValuesContextItem component', () => {
         database: { id: 1, workspace },
       },
       global: {
-        mocks: { $featureFlagIsEnabled: () => false },
         stubs: {
           GenerateAIValuesModal: true,
           PaidFeaturesModal: true,
@@ -66,7 +65,7 @@ describe('GenerateAIValuesContextItem component', () => {
     expect(wrapper.find('a').classes()).not.toContain('disabled')
   })
 
-  test('respects feature eligibility when the retired flag is absent', async () => {
+  test('disables generation when the selected model is ineligible for AI Fields', async () => {
     await testApp.getStore().dispatch('workspace/forceCreate', {
       ...workspace,
       ai_features: { ai_fields: { models: {} } },

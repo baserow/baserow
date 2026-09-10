@@ -33,7 +33,6 @@ describe('RowEditFieldAI component', () => {
 
   const mountComponent = (field) =>
     testApp.mount(RowEditFieldAI, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: {
         field,
         value: null,
@@ -58,7 +57,7 @@ describe('RowEditFieldAI component', () => {
     expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
   })
 
-  test('Generate button respects feature eligibility when the retired flag is absent', async () => {
+  test('Generate button is disabled when the selected model is ineligible for AI Fields', async () => {
     await testApp.getStore().dispatch('workspace/forceCreate', {
       ...workspace,
       ai_features: { ai_fields: { models: {} } },

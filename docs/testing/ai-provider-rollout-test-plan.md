@@ -1,11 +1,11 @@
 # AI provider rollout test plan
 
 Use this plan with the [upgrade guide](../installation/ai-providers.md) to collect
-release evidence for removing the `ai-providers` gates. Passing automated tests or
-preparing a candidate branch does not establish that an installation is ready for
-cutover. Run the rehearsal on an isolated representative installation with approved
-test data and provider accounts. Keep credentials, customer content, and connection
-values out of reports and shared logs.
+release evidence for AI provider configuration and migration. Passing automated
+tests or preparing a candidate branch does not establish that an installation is
+ready for cutover. Run the rehearsal on an isolated representative installation
+with approved test data and provider accounts. Keep credentials, customer content,
+and connection values out of reports and shared logs.
 
 ## 1. Record the candidate and baseline
 
@@ -18,17 +18,13 @@ queue age, migration lock duration, and cutover time before running the rehearsa
 
 Exercise every applicable starting state:
 
-| Starting state on the previous gated release | Candidate verification |
+| Starting state | Candidate verification |
 |---|---|
-| Flag absent, working environment and workspace JSON, no database providers | Upgrade without imports; supported legacy consumers still use their intended account and model |
-| Flag absent, previously created database providers | Newly authoritative rows are reconciled; stale credentials, missing models, or disabled features cannot change behavior unnoticed |
-| Flag enabled, including through `FEATURE_FLAGS=*` | Existing provider overlays and feature settings retain their behavior |
+| Working environment and workspace JSON, no database providers | Upgrade without imports; supported legacy consumers still use their intended account and model |
+| Database providers coexist with legacy settings | Precedence is verified and differences are reconciled; stale credentials, missing models, or disabled features cannot change behavior unnoticed |
+| Database providers and scoped feature settings | Existing provider overlays and feature settings retain their behavior |
 | Missing, incomplete, conflicting, or stale configuration | Expected unavailable states and importer warnings are recorded; no unintended fallback account is used |
 | No AI configuration | Upgrade and non-AI workflows work; consumers show their expected unavailable state |
-
-Run the candidate with the flag absent, explicitly present, and wildcard-enabled.
-Provider routes, payloads, feature eligibility, and UI must behave identically in all
-three cases. Change configuration on every service, not just one backend process.
 
 ## 2. Inventory before imports or repairs
 
@@ -157,11 +153,9 @@ changes compatible with previous code, and route representative requests/tasks t
 both versions during any proposed overlap. Compare the intended connection,
 availability, and disable decisions; a health check alone is insufficient.
 
-The previous image's flag only controls that image. Removing the flag from the
-candidate environment cannot restore its legacy-only behavior. Where previous and
-candidate behavior cannot be made equivalent, stop the proposed rolling path and
-prepare a coordinated cutover. Do not describe an untested mixed-version deployment
-as zero downtime.
+Where previous and candidate behavior cannot be made equivalent, stop the proposed
+rolling path and prepare a coordinated cutover. Do not describe an untested
+mixed-version deployment as zero downtime.
 
 Record when each old web, backend, worker, scheduler, and frontend process drains,
 including in-flight tasks and queue handling. Import or change provider configuration
@@ -181,9 +175,9 @@ the reload requirement.
    suppression, and existing/fresh publications against the actual previous image.
    A legacy path must not re-enable an intentionally disabled consumer or use an
    unintended provider. Stop rollback if equivalent behavior cannot be established.
-3. Pause relevant writes, deploy the recorded previous image with its rehearsed flag
+3. Pause relevant writes, deploy the recorded previous image with its rehearsed
    configuration, retain the schema and provider rows, drain candidate processes,
-   and reload browsers. Do not substitute a flag toggle on the candidate for this step.
+   and reload browsers.
 4. Repeat real-provider checks for AI Fields, formula suggestions, Kuma, and editable
    and published Agents. Verify task queues and non-AI workflows, record recovery
    time, and compare it with the agreed threshold. Reapply the candidate to confirm

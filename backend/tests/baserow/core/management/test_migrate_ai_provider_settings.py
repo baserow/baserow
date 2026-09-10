@@ -219,10 +219,7 @@ def test_workspace_scope_previews_then_imports_idempotently_without_secrets(
 
 
 @pytest.mark.django_db
-def test_workspace_scope_migrates_every_current_legacy_provider_setting(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = []
+def test_workspace_scope_migrates_every_current_legacy_provider_setting(data_fixture):
     legacy_settings = {
         "openai": {
             "api_key": "openai-key",

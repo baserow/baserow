@@ -1,8 +1,5 @@
 # AI provider management
 
-AI provider management is always available. The retired `ai-providers` feature flag
-has no effect, whether absent, explicitly listed, or included through `FEATURE_FLAGS=*`.
-
 Instance staff configure shared connections in **Admin → AI providers**. Workspace
 administrators configure their own connections in **Settings → AI providers**.
 Add models, choose their **Available for** features, and use **Test model** before
@@ -36,10 +33,9 @@ including installed extensions, before upgrading.
 
 ## Upgrading an existing installation
 
-Retiring the flag changes provider resolution even if it was previously disabled.
-Imports are not required to start the new release, but an upgrade without imports
-still needs compatibility verification: existing database rows may now take
-precedence, and incomplete legacy workspace settings may resolve differently.
+Imports are not required to start a new release, but an upgrade without imports
+still needs compatibility verification. Verify the precedence of existing database
+providers and legacy sources, including incomplete workspace settings.
 
 1. Back up the database and deployment configuration securely. Rehearse the exact
    candidate and intended rollback image against an isolated representative copy,
@@ -51,11 +47,9 @@ precedence, and incomplete legacy workspace settings may resolve differently.
    preserves existing model features and adds AI Agent eligibility once; imported
    models default to AI Fields and AI Agent. Kuma remains an explicit selection.
 3. A rolling deployment is appropriate only when the exact previous and candidate
-   versions have demonstrated equivalent behavior during overlap. The previous
-   release's flag still affects that release; it cannot disable the candidate.
-   Do not switch an already-enabled installation to the legacy path without proving
-   equivalent legacy settings. If overlap cannot preserve behavior, use a planned
-   coordinated cutover with old processes stopped before starting the candidate.
+   versions have demonstrated equivalent behavior during overlap. If overlap cannot
+   preserve behavior, use a planned coordinated cutover with old processes stopped
+   before starting the candidate.
 4. Drain every previous backend, worker, scheduler, and frontend process before
    changing provider configuration. Account for queued and in-flight AI work.
    Reload all active administrator/editor browsers before resuming writes. Before
@@ -121,8 +115,8 @@ credentials usable until an approved cutover.
 
 ## Rollback
 
-Changing `FEATURE_FLAGS` cannot roll back this release. Use the **exact previously
-rehearsed application image and its verified configuration**, or a forward repair.
+Use the **exact previously rehearsed application image and its verified
+configuration** for rollback, or prepare a forward repair.
 Retain the database schema and provider rows; do not reverse the compatibility
 migrations as part of an application rollback.
 

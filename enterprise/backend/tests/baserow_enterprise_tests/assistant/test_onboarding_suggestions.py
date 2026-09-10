@@ -161,8 +161,7 @@ def test_suggestions_reports_a_database_configured_model_failure(
 
 
 @pytest.mark.django_db
-def test_suggestions_reports_that_kuma_is_disabled(api_client, data_fixture, settings):
-    settings.FEATURE_FLAGS = []
+def test_suggestions_reports_that_kuma_is_disabled(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token()
     AIProviderHandler.update_feature_setting(
         AI_PROVIDER_FEATURE_KUMA,

@@ -1116,7 +1116,6 @@ class TestResolveAssistantModel:
     def test_unconfigured_database_feature_keeps_legacy_fallback(
         self, data_fixture, settings
     ):
-        settings.FEATURE_FLAGS = []
         settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "groq:legacy-model"
         workspace = data_fixture.create_workspace()
 
@@ -1200,8 +1199,7 @@ class TestResolveAssistantModel:
             model="google-vertex:gemini-2.0-flash"
         ).model_string == ("google-cloud:gemini-2.0-flash")
 
-    def test_uses_instance_model_and_workspace_override(self, data_fixture, settings):
-        settings.FEATURE_FLAGS = []
+    def test_uses_instance_model_and_workspace_override(self, data_fixture):
         workspace = data_fixture.create_workspace()
         instance_provider = AIProviderConfig.objects.create(
             provider_type="openai", api_key="instance-key"
@@ -1253,12 +1251,10 @@ class TestResolveAssistantModel:
     def test_database_selected_google_and_groq_models_use_database_credentials(
         self,
         data_fixture,
-        settings,
         monkeypatch,
         provider_type,
         model_identifier,
     ):
-        settings.FEATURE_FLAGS = []
         monkeypatch.setenv("GOOGLE_API_KEY", "legacy-kuma-key")
         monkeypatch.setenv("GROQ_API_KEY", "legacy-kuma-key")
         workspace = data_fixture.create_workspace()
@@ -1291,8 +1287,7 @@ class TestResolveAssistantModel:
         else:
             assert assistant_model._provider.client.api_key == "database-key"
 
-    def test_workspace_can_disable_kuma(self, data_fixture, settings):
-        settings.FEATURE_FLAGS = []
+    def test_workspace_can_disable_kuma(self, data_fixture):
         workspace = data_fixture.create_workspace()
         AIProviderHandler.update_feature_setting(
             AI_PROVIDER_FEATURE_KUMA,
@@ -1304,9 +1299,8 @@ class TestResolveAssistantModel:
             resolve_assistant_model(workspace=workspace).model_string
 
     def test_database_model_readiness_failure_has_database_specific_error(
-        self, data_fixture, settings
+        self, data_fixture
     ):
-        settings.FEATURE_FLAGS = []
         workspace = data_fixture.create_workspace()
         provider = AIProviderConfig.objects.create(
             provider_type="openai", api_key="database-key"
@@ -1335,10 +1329,7 @@ class TestResolveAssistantModel:
 
         run.assert_called_once()
 
-    def test_database_model_readiness_is_cached_per_configuration(
-        self, data_fixture, settings
-    ):
-        settings.FEATURE_FLAGS = []
+    def test_database_model_readiness_is_cached_per_configuration(self, data_fixture):
         workspace = data_fixture.create_workspace()
         provider = AIProviderConfig.objects.create(
             provider_type="openai", api_key="database-key"
