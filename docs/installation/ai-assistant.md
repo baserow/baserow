@@ -30,11 +30,11 @@ for a text response, while Kuma also checks tool calling.
 
 For an existing installation, see the
 [AI provider upgrade and import instructions](ai-providers.md).
-Provider management is always available; no feature flag is required. Legacy
-provider settings remain supported during upgrades without imports, subject to the
-compatibility checks in that guide. Existing publication snapshots and explicit
-integration overrides require separate review before they can use centrally managed
-credentials. Republishing a site or workflow also deploys its current draft changes.
+Legacy provider settings remain supported during upgrades without imports, subject
+to the compatibility checks in that guide. Existing publication snapshots and
+explicit integration overrides require separate review before they can use centrally
+managed credentials. Republishing a site or workflow also deploys its current draft
+changes.
 
 The `migrate_ai_provider_settings` command imports legacy AI provider configuration;
 it does not import `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` or the provider-native credentials

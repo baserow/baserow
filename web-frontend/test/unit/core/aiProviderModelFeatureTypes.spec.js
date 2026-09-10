@@ -18,7 +18,7 @@ describe('getEnabledModelsForAIProviderFeature', () => {
     ).toEqual({ openai: ['ai-fields-model'] })
   })
 
-  test('falls back to the generic models during a rolling upgrade', () => {
+  test('falls back to generic models when feature availability is missing', () => {
     const workspace = {
       generative_ai_models_enabled: { openai: ['legacy-model'] },
     }

@@ -252,10 +252,7 @@ def test_ai_integration_export_serialized_exclude_sensitive(data_fixture):
 
 
 @pytest.mark.django_db
-def test_publishing_does_not_materialize_legacy_settings_with_db_providers(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = []
+def test_publishing_defers_inherited_settings_to_original_workspace(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
@@ -346,10 +343,7 @@ def test_ai_integration_deletion(data_fixture):
 
 
 @pytest.mark.django_db
-def test_ai_integration_defers_legacy_workspace_settings_to_resolver(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = []
+def test_ai_integration_defers_legacy_workspace_settings_to_resolver(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_builder_application(
@@ -363,31 +357,6 @@ def test_ai_integration_defers_legacy_workspace_settings_to_resolver(
 
     integration_type = AIIntegrationType()
 
-    integration = IntegrationService().create_integration(
-        user,
-        integration_type,
-        application=application,
-        ai_settings={},
-    )
-
-    assert integration_type.get_provider_settings(integration, "openai") == {}
-
-
-@pytest.mark.django_db
-def test_db_provider_inheritance_is_deferred_to_the_model_resolver(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = []
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    workspace.generative_ai_models_settings = {
-        "openai": {"api_key": "legacy-key", "models": ["legacy-model"]}
-    }
-    workspace.save(update_fields=("generative_ai_models_settings",))
-    application = data_fixture.create_builder_application(
-        user=user, workspace=workspace
-    )
-    integration_type = AIIntegrationType()
     integration = IntegrationService().create_integration(
         user,
         integration_type,
@@ -467,7 +436,6 @@ def test_ai_integration_is_provider_overridden(data_fixture):
 
 @pytest.mark.django_db
 def test_ai_integration_settings_hierarchy(data_fixture, settings):
-    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_builder_application(
@@ -524,10 +492,7 @@ def test_get_integration_provider_settings_returns_blob_or_none(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_integration_provider_settings_ignores_workspace_settings(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = []
+def test_get_integration_provider_settings_ignores_workspace_settings(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {

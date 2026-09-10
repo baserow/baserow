@@ -46,7 +46,6 @@ describe('AIProviderWorkspaceSettings', () => {
     ).mockReturnValue('groq:legacy-model')
 
     const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: { workspace: { id: 42 } },
     })
     await flushPromises()
@@ -117,7 +116,6 @@ describe('AIProviderWorkspaceSettings', () => {
       })
 
     const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: { workspace: { id: 42 } },
     })
     await wrapper.vm.runAction('provider-delete', provider)
@@ -167,7 +165,6 @@ describe('AIProviderWorkspaceSettings', () => {
       .spyOn(testApp.store, 'dispatch')
       .mockResolvedValue(undefined)
     const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: { workspace: { id: 42 } },
     })
     await flushPromises()
@@ -265,7 +262,6 @@ describe('AIProviderWorkspaceSettings', () => {
     vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
 
     const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: { workspace: { id: 42 } },
     })
     await flushPromises()
@@ -352,7 +348,6 @@ describe('AIProviderWorkspaceSettings', () => {
     vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
 
     const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: { workspace: { id: 42 } },
     })
     await flushPromises()

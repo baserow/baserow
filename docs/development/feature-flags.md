@@ -10,14 +10,6 @@ Add/remove features flags to the list below:
 - `button-field`: enables the button field type
   ([#1722](https://github.com/baserow/baserow/issues/1722)).
 
-### Preparing the `ai-providers` feature
-
-The `ai-providers` flag is retired. AI provider management is always available;
-changing `FEATURE_FLAGS` no longer enables or disables it. See the
-[AI provider upgrade guide](../installation/ai-providers.md) for imports,
-compatibility, and rollback, and the
-[rollout test plan](../testing/ai-provider-rollout-test-plan.md) for release verification.
-
 ## Enabling feature flags
 
 To enable specific feature flags set the environment variable

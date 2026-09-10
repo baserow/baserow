@@ -42,11 +42,6 @@ AI_PROVIDER_API_CASES = (
 
 
 @pytest.fixture
-def retired_ai_provider_flag(settings):
-    settings.FEATURE_FLAGS = []
-
-
-@pytest.fixture
 def staff_headers(data_fixture):
     _, token = data_fixture.create_user_and_token(is_staff=True)
     return {"HTTP_AUTHORIZATION": f"JWT {token}"}
@@ -96,9 +91,7 @@ def _request_ai_provider_api(api_client, case, headers):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", AI_PROVIDER_API_CASES)
-def test_every_ai_provider_api_method_is_staff_only(
-    api_client, data_fixture, retired_ai_provider_flag, case
-):
+def test_every_ai_provider_api_method_is_staff_only(api_client, data_fixture, case):
     _, token = data_fixture.create_user_and_token()
 
     response = _request_ai_provider_api(
@@ -110,12 +103,8 @@ def test_every_ai_provider_api_method_is_staff_only(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", AI_PROVIDER_API_CASES)
-@pytest.mark.parametrize("feature_flags", [[], ["ai-providers"]])
-def test_every_ai_provider_api_method_is_available_after_flag_retirement(
-    api_client, data_fixture, settings, case, feature_flags
-):
+def test_staff_can_access_every_ai_provider_api_method(api_client, data_fixture, case):
     _, token = data_fixture.create_user_and_token(is_staff=True)
-    settings.FEATURE_FLAGS = feature_flags
 
     with patch(
         "baserow.core.ai_provider.handler.AIProviderHandler.test_models",
@@ -137,7 +126,7 @@ def test_every_ai_provider_api_method_is_available_after_flag_retirement(
 
 @pytest.mark.django_db
 def test_workspace_admin_manages_owned_and_inherited_providers(
-    api_client, data_fixture, retired_ai_provider_flag
+    api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -274,7 +263,7 @@ def test_workspace_admin_manages_owned_and_inherited_providers(
 
 @pytest.mark.django_db
 def test_workspace_provider_api_requires_workspace_admin_permission(
-    api_client, data_fixture, retired_ai_provider_flag
+    api_client, data_fixture
 ):
     owner = data_fixture.create_user()
     member, token = data_fixture.create_user_and_token()
@@ -294,7 +283,7 @@ def test_workspace_provider_api_requires_workspace_admin_permission(
 
 @pytest.mark.django_db
 def test_workspace_never_sees_instance_disabled_providers_and_models(
-    api_client, data_fixture, retired_ai_provider_flag, staff_headers
+    api_client, data_fixture, staff_headers
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -378,7 +367,7 @@ def test_workspace_never_sees_instance_disabled_providers_and_models(
 
 @pytest.mark.django_db
 def test_workspace_never_spends_the_instance_credentials(
-    api_client, data_fixture, retired_ai_provider_flag, staff_headers
+    api_client, data_fixture, staff_headers
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -454,7 +443,7 @@ def test_workspace_never_spends_the_instance_credentials(
 
 @pytest.mark.django_db
 def test_workspace_models_cannot_reuse_instance_provider_credentials(
-    api_client, data_fixture, retired_ai_provider_flag
+    api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -495,9 +484,7 @@ def test_workspace_models_cannot_reuse_instance_provider_credentials(
 
 
 @pytest.mark.django_db
-def test_provider_crud_never_returns_api_key(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_provider_crud_never_returns_api_key(api_client, staff_headers):
     response = api_client.post(
         reverse("api:ai_provider:list"),
         {
@@ -562,7 +549,7 @@ def test_provider_crud_never_returns_api_key(
 
 @pytest.mark.django_db
 def test_kuma_feature_setting_api_supports_workspace_inherit_override_and_disable(
-    api_client, data_fixture, retired_ai_provider_flag
+    api_client, data_fixture
 ):
     instance_user, instance_token = data_fixture.create_user_and_token(is_staff=True)
     workspace_user, workspace_token = data_fixture.create_user_and_token()
@@ -658,7 +645,6 @@ def test_kuma_feature_setting_api_supports_workspace_inherit_override_and_disabl
 def test_feature_setting_api_rejects_model_id_outside_model_mode(
     api_client,
     data_fixture,
-    retired_ai_provider_flag,
     mode,
     workspace_scoped,
 ):
@@ -699,9 +685,7 @@ def test_feature_setting_api_rejects_model_id_outside_model_mode(
 
 
 @pytest.mark.django_db
-def test_provider_connection_settings_are_required(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_provider_connection_settings_are_required(api_client, staff_headers):
     url = reverse("api:ai_provider:list")
     response = api_client.post(
         url,
@@ -748,9 +732,7 @@ def test_provider_connection_settings_are_required(
 
 
 @pytest.mark.django_db
-def test_blank_optional_provider_settings_are_not_stored(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_blank_optional_provider_settings_are_not_stored(api_client, staff_headers):
     response = api_client.post(
         reverse("api:ai_provider:list"),
         {
@@ -778,7 +760,6 @@ def test_blank_optional_provider_settings_are_not_stored(
 def test_google_and_groq_providers_can_be_created(
     api_client,
     staff_headers,
-    retired_ai_provider_flag,
     provider_type,
     model_identifier,
 ):
@@ -803,7 +784,7 @@ def test_google_and_groq_providers_can_be_created(
 
 @pytest.mark.django_db
 def test_provider_type_metadata_marks_required_connection_settings(
-    api_client, staff_headers, retired_ai_provider_flag
+    api_client, staff_headers
 ):
     response = api_client.get(reverse("api:ai_provider:types"), **staff_headers)
 
@@ -829,9 +810,7 @@ def test_provider_type_metadata_marks_required_connection_settings(
 
 
 @pytest.mark.django_db
-def test_provider_and_model_uniqueness_errors_are_mapped(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_provider_and_model_uniqueness_errors_are_mapped(api_client, staff_headers):
     url = reverse("api:ai_provider:list")
     payload = {
         "provider_type": "anthropic",
@@ -858,9 +837,7 @@ def test_provider_and_model_uniqueness_errors_are_mapped(
 
 
 @pytest.mark.django_db
-def test_models_can_be_created_updated_disabled_and_deleted(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_models_can_be_created_updated_disabled_and_deleted(api_client, staff_headers):
     provider = AIProviderConfig.objects.create(
         provider_type="mistral", api_key="secret"
     )
@@ -893,7 +870,7 @@ def test_models_can_be_created_updated_disabled_and_deleted(
 
 @pytest.mark.django_db
 def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
-    api_client, staff_headers, retired_ai_provider_flag
+    api_client, staff_headers
 ):
     provider = AIProviderConfig.objects.create(
         provider_type="mistral", api_key="never-return-this"
@@ -961,9 +938,7 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
 
 
 @pytest.mark.django_db
-def test_testing_models_pins_provider_reads_to_primary(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_testing_models_pins_provider_reads_to_primary(api_client, staff_headers):
     with (
         patch("baserow.api.ai_provider.views.set_db_alias") as set_db_alias,
         patch(
@@ -983,9 +958,7 @@ def test_testing_models_pins_provider_reads_to_primary(
 
 
 @pytest.mark.django_db
-def test_a_single_saved_model_uses_the_same_test_endpoint(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_a_single_saved_model_uses_the_same_test_endpoint(api_client, staff_headers):
     provider = AIProviderConfig.objects.create(
         provider_type="mistral", api_key="secret"
     )
@@ -1021,9 +994,7 @@ def test_a_single_saved_model_uses_the_same_test_endpoint(
         {"model_ids": [1, 1]},
     ],
 )
-def test_model_test_request_validation(
-    api_client, staff_headers, retired_ai_provider_flag, payload
-):
+def test_model_test_request_validation(api_client, staff_headers, payload):
     response = api_client.post(
         reverse("api:ai_provider:test_models"),
         payload,
@@ -1034,9 +1005,7 @@ def test_model_test_request_validation(
 
 
 @pytest.mark.django_db
-def test_testing_an_unknown_saved_model_returns_not_found(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_testing_an_unknown_saved_model_returns_not_found(api_client, staff_headers):
     response = api_client.post(
         reverse("api:ai_provider:test_models"),
         {"model_ids": [999999]},
@@ -1061,7 +1030,6 @@ def test_testing_an_unknown_saved_model_returns_not_found(
 def test_model_discovery_returns_pydantic_ai_known_models(
     api_client,
     staff_headers,
-    retired_ai_provider_flag,
     provider_type,
     expected_model,
 ):
@@ -1078,7 +1046,7 @@ def test_model_discovery_returns_pydantic_ai_known_models(
 
 @pytest.mark.django_db
 def test_model_discovery_handles_unsupported_catalogs_and_types(
-    api_client, staff_headers, retired_ai_provider_flag
+    api_client, staff_headers
 ):
     url = reverse("api:ai_provider:discover_models")
     response = api_client.get(url, {"provider_type": "ollama"}, **staff_headers)
@@ -1091,9 +1059,7 @@ def test_model_discovery_handles_unsupported_catalogs_and_types(
 
 
 @pytest.mark.django_db
-def test_groq_model_discovery_excludes_non_chat_models(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_groq_model_discovery_excludes_non_chat_models(api_client, staff_headers):
     response = api_client.get(
         reverse("api:ai_provider:discover_models"),
         {"provider_type": "groq"},
@@ -1116,9 +1082,7 @@ def test_groq_model_discovery_excludes_non_chat_models(
 
 
 @pytest.mark.django_db
-def test_google_model_discovery_excludes_image_output_models(
-    api_client, staff_headers, retired_ai_provider_flag
-):
+def test_google_model_discovery_excludes_image_output_models(api_client, staff_headers):
     response = api_client.get(
         reverse("api:ai_provider:discover_models"),
         {"provider_type": "google"},
@@ -1137,7 +1101,7 @@ def test_google_model_discovery_excludes_image_output_models(
 
 @pytest.mark.django_db
 def test_discovery_filters_do_not_reject_manual_groq_model_identifiers(
-    api_client, staff_headers, retired_ai_provider_flag
+    api_client, staff_headers
 ):
     response = api_client.post(
         reverse("api:ai_provider:list"),
@@ -1162,7 +1126,7 @@ def test_discovery_filters_do_not_reject_manual_groq_model_identifiers(
 
 @pytest.mark.django_db
 def test_discovery_filters_do_not_reject_manual_google_model_identifiers(
-    api_client, staff_headers, retired_ai_provider_flag
+    api_client, staff_headers
 ):
     response = api_client.post(
         reverse("api:ai_provider:list"),
@@ -1187,7 +1151,7 @@ def test_discovery_filters_do_not_reject_manual_google_model_identifiers(
 
 @pytest.mark.django_db
 def test_model_in_use_error_names_the_model_and_the_features_using_it(
-    api_client, staff_headers, retired_ai_provider_flag
+    api_client, staff_headers
 ):
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="instance-key"

@@ -30,35 +30,29 @@ describe('AIFormulaModal model availability', () => {
       available: false,
     },
     {
-      name: 'a legacy availability payload',
+      name: 'a generic availability payload',
       aiFeatures: undefined,
       available: true,
     },
-  ])(
-    'handles $name without the retired flag',
-    async ({ aiFeatures, available }) => {
-      await testApp.store.dispatch('workspace/forceCreate', {
-        id: 1,
-        generative_ai_models_enabled: { openai: ['gpt-4'] },
-        ai_features: aiFeatures,
-      })
-      const wrapper = await testApp.mount(AIFormulaModal, {
-        props: {
-          database: { id: 1, workspace: { id: 1 } },
-          table: { id: 1 },
-        },
-        global: {
-          mocks: { $featureFlagIsEnabled: () => false },
-          stubs: { Modal: ModalStub, AIFormulaForm: true },
-        },
-      })
+  ])('handles $name', async ({ aiFeatures, available }) => {
+    await testApp.store.dispatch('workspace/forceCreate', {
+      id: 1,
+      generative_ai_models_enabled: { openai: ['gpt-4'] },
+      ai_features: aiFeatures,
+    })
+    const wrapper = await testApp.mount(AIFormulaModal, {
+      props: {
+        database: { id: 1, workspace: { id: 1 } },
+        table: { id: 1 },
+      },
+      global: {
+        stubs: { Modal: ModalStub, AIFormulaForm: true },
+      },
+    })
 
-      expect(wrapper.text().includes('aiFormulaModal.description')).toBe(
-        available
-      )
-      expect(wrapper.text().includes('aiFormulaModal.noModels')).toBe(
-        !available
-      )
-    }
-  )
+    expect(wrapper.text().includes('aiFormulaModal.description')).toBe(
+      available
+    )
+    expect(wrapper.text().includes('aiFormulaModal.noModels')).toBe(!available)
+  })
 })

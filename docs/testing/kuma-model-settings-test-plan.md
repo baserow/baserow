@@ -12,9 +12,7 @@ choice per workspace.
 
 ### Environment
 
-- Use the release with always-available AI provider management on backend, Celery,
-  and web-frontend. The retired `ai-providers` flag is not required. Section 10 checks
-  that changing it has no effect.
+- Use matching release versions on backend, Celery, and web-frontend.
 - An **Enterprise** license is active — Kuma is enterprise-only. AI fields need
   **Premium**.
 - `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` **is set** together with the credentials
@@ -712,21 +710,9 @@ Verify: with Kuma disabled at the instance,
 
 ---
 
-## 10. Retired flag and retained legacy fallbacks
+## 10. Legacy configuration fallbacks
 
-Restart all services and reload browsers with `ai-providers` absent from
-`FEATURE_FLAGS`, explicitly listed, and included through `FEATURE_FLAGS=*`.
-Verify the same behavior each time:
-
-- Staff can use the admin **AI providers** page and API. Workspace administrators
-  see **AI providers** in workspace settings, with the same permission checks.
-- Database-backed model eligibility, overlays, Kuma settings, realtime updates,
-  and consumer validation remain active. A flag change never restores legacy-only
-  payloads or bypasses database disable rules.
-- Google and Groq remain available to configure in provider management regardless
-  of the retired flag; they do not gain legacy environment import support.
-
-On a separate disposable copy with no database provider rows, retain working legacy
+On a disposable copy with no database provider rows, retain working legacy
 environment settings and complete workspace settings. Verify:
 
 - AI Fields, formula suggestions, and inherited AI Agent services use the expected
@@ -749,35 +735,35 @@ Do not delete provider rows in a live installation to test fallback behavior.
 Rehearse on a disposable installation using the
 [upgrade and import sequence](../installation/ai-providers.md#upgrading-an-existing-installation)
 and the [release rollout plan](ai-provider-rollout-test-plan.md). Start on the exact
-previous gated image with the flag off, working instance environment settings, a
-different workspace connection, and inherited **AI prompt** consumers in both
-Automation and Application Builder. Include an existing live publication. Repeat
-the upgrade from a previous image with the flag enabled and database providers.
+previous image with working instance environment settings, a different workspace
+connection, and inherited **AI prompt** consumers in both Automation and Application
+Builder. Include an existing live publication. Repeat the upgrade with database
+providers and scoped feature settings already configured.
 
 Verify:
 
 - The candidate works without imports or republishing for supported legacy settings,
-  subject to the explicit-override compatibility rules in 6.5. Flag configuration
-  does not affect candidate behavior. Reconcile previously unused database rows and
-  incomplete workspace settings before accepting a change in resolution.
+  subject to the explicit-override compatibility rules in 6.5. Reconcile conflicting
+  database and legacy configuration and incomplete workspace settings before
+  accepting a change in resolution.
 - Migration `core.0120` adds `ai_agent` once to existing provider models, including
   models with an empty feature list, preserving other features and enabled states.
 - Instance and workspace import previews do not write. Applying each scope creates
   missing providers with `ai_fields` and `ai_agent` eligibility; repeating the import
   leaves existing configurations unchanged.
-- After deploying the candidate, importing, and reloading editors, saved selections resolve with their
-  expected instance or workspace credentials. An enabled workspace model overrides
-  a matching instance model; other instance models remain inherited. A disabled
-  workspace model suppresses that identifier; disabling its provider reveals the
-  inherited instance layer.
+- After deploying the candidate, importing, and reloading editors, saved selections
+  resolve with their expected instance or workspace credentials. An enabled workspace
+  model overrides a matching instance model; other instance models remain inherited.
+  A disabled workspace model suppresses that identifier; disabling its provider
+  reveals the inherited instance layer.
 - A publication containing a complete legacy snapshot keeps using that snapshot
   until republished. Review its draft first, then republish and verify that it follows
   live workspace credential and eligibility changes. An explicit complete integration
   override remains independent.
 - Verify rollback using the actual previous image and its rehearsed configuration,
-  retaining the schema. A flag toggle on the candidate is not rollback. Include key
-  rotations, workspace provider deletion, database-only selections, explicit disables,
-  drafts, and publications when proving equivalent previous-image behavior.
+  retaining the schema. Include key rotations, workspace provider deletion,
+  database-only selections, explicit disables, drafts, and publications when proving
+  equivalent previous-image behavior.
 
 ---
 

@@ -47,7 +47,7 @@ describe('Premium AIFieldType', () => {
     expect(spy).toHaveBeenCalledWith(field, 'x'.repeat(101))
   })
 
-  test('availability respects feature eligibility without the retired flag', () => {
+  test('availability respects feature eligibility', () => {
     const fieldType = new AIFieldType({
       app: { $i18n: { t: (key) => key } },
     })
