@@ -125,9 +125,8 @@ def test_0119_initializes_ai_provider_model_features_and_capabilities(
 
 @pytest.mark.once_per_day_in_ci
 def test_0120_makes_existing_ai_provider_models_available_to_ai_agents_and_reverses(
-    migrator, teardown_table_metadata, settings
+    migrator, teardown_table_metadata
 ):
-    settings.FEATURE_FLAGS = []
     old_state = migrator.migrate(
         [("core", "0119_aiproviderfeaturesetting_and_more")]
     )
