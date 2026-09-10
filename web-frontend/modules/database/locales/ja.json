@@ -28,11 +28,11 @@
             "example": "ペイロード・サンプル"
         },
         "errors": {
-            "urlField": "「https://」または「http://」で始まる正しいURLを入力して下さい。",
+            "urlField": "`https://` または `http://` で始まる有効な URL を入力してください。",
             "invalidHeaders": "ヘッダの一部が不正です。"
         },
         "checkbox": {
-            "sendUserFieldNames": "ID ではなくユーザフィールド名"
+            "sendUserFieldNames": "ID の代わりにフィールド名を使用"
         },
         "radio": {
             "allEvents": "私に全てを送信",
@@ -48,7 +48,9 @@
             "title": "使われていない event タイプ",
             "description": "この Webhook は全ての行情報を受け取れていません。バッチ型の event タイプに変更して下さい。この変更で JSON のbody部のペイロードに複数行の情報が入るように変更されます。",
             "convert": "変換"
-        }
+        },
+        "triggerWhenFieldsHaveChanged": "フィールドが変更されたときにトリガー",
+        "helpTriggerWhenFieldsHaveChanged": "選択したフィールドのセル値が変更された場合にのみトリガーされます。"
     },
     "webhook": {
         "details": "詳細",
@@ -63,14 +65,22 @@
     },
     "sidebar": {
         "viewAPI": "APIドキュメントを参照",
-        "createTable": "テーブル作成"
+        "createTable": "新しいテーブル",
+        "adminContentCategory": "コンテンツ"
     },
     "sidebarItem": {
-        "exportTable": "テーブル・エクスポート"
+        "exportTable": "テーブル・エクスポート",
+        "importFile": "ファイルをインポート",
+        "webhooks": "Webhook",
+        "lastSynced": "最終同期",
+        "notSynced": "未同期",
+        "sync": "テーブルを同期",
+        "updateSyncConfig": "同期設定を更新"
     },
     "duplicateTableJobType": {
         "duplicating": "複製中",
-        "duplicatedTitle": "テーブルが複製されました"
+        "duplicatedTitle": "テーブルが複製されました",
+        "name": "テーブルを複製"
     },
     "apiToken": {
         "create": "create",
@@ -140,15 +150,19 @@
         "description": "行の一覧を *{name}* テーブルより取得するには、`GET`リクエストを *{name}* エンドポイントへ投げます。 The response is paginated and by default the first page is returned. The correct page can be fetched by providing the `page` and `size` query parameters.",
         "page": "返却されるページ数を指定。",
         "size": "返却される１ページ毎の行数を指定。",
-        "userFieldNames": "`user_field_names` GET パラメタにどのような値でもセットすると、エンドポイントから返却されるフィールド名は実際のフィールド名になります。\n\n`user_field_names` GET パラメタが指定されないと、返却されるフィールド名は`field_`で始まり、フィールドのid を付した名前になります。例えば、`field_1` は id が `1`のフィールドになります。\n\n`user_field_names` GET パラメタが指定されると、`order_by` 、`include`、`exclude` GETパラメタの振る舞いも変わり、実際のフィールド名で指定する必要があります。",
+        "userFieldNames": "`user_field_names` GET パラメーターが指定され、その値が `y`、`yes`、`true`、`t`、`on`、`1`、または空文字列のいずれかの場合、このエンドポイントが返すフィールド名は実際のフィールド名になります。\n\n`user_field_names` GET パラメーターが指定されていないか、上記の値と一致しない場合、返されるすべてのフィールド名は `field_` の後にフィールド ID を付けたものになります。たとえば `field_1` は ID が `1` のフィールドを指します。\n\nさらに `user_field_names` を設定すると、他の GET パラメーター `order_by`、`include`、`exclude` の動作も変わり、実際のフィールド名をカンマ区切りで指定する必要があります。",
         "search": "指定されると条件に合致した行のみが返却されます。",
         "orderBy": "オプションとして、返却される行の並び替えはカンマ区切りで指定出来ます。'+' を頭に付けると昇順（A-Zの順、既定値）、'-' を頭に付けると降順で並びます。\n\n#### `user_field_names`を指定した場合\n\n`order_by`パラメタはカンマ区切りのフィールド名のリストで指定します。例えば次のようなGETパラメタは、`My Field` の昇順でならび、同じ値の場合は `My Field 2`の降順でならんで返却されます。\n\n`+`や`-`で始まるフィールド名の場合は、必ず昇順・降順を明示するために、頭に`+` / `-` を指定して下さい。例）`+-Name`。\n\nフィールド名がコンマを含む場合は、ダブルクォーテーションで囲む必要があります： 例）`\"Name,\"`　また、ダブルクォーテーションを含む場合は、`\\`記号でエスケープする必要があります。例）`\\\"Name\\\"`。\n\n#### `user_field_names`を指定しない場合\n\n`order_by`はコンマ区切りの、`field_`と数字で表される識別子のリストを使います。例えば、次のようなGETパラメタを考えます：`order_by=field_1,-field_2`。この場合、field_1 の昇順で並び、かつ、field_1 が同じ値の行は、field_2 の降順で並びます。",
-        "filter": "行はビュー・フィルターと同じフィルターで絞り込むことが出来ます。複数のフィルターも書式が同じであれば指定出来ます。フィールドと絞り込み方法を指定し、値で絞り込む行を指定します。\n\n例えば、次のようなGETパラメタを指定します：`filter__field_1__equal=test`。すると、field_1 が「test」と等しい行のみが返却されます。",
+        "filter": "ビューで利用できるものと同じフィルターを使って、必要に応じて行を絞り込めます。同じ形式に従えば複数のフィルターを適用できます。`field` 変数と `filter` 変数は、それぞれフィルターを適用する場所と方法を示します。\n\n#### `user_field_names` を使用する場合:\n\nたとえば GET パラメーター `filter__Name__equal=test` を任意で指定すると、`Name` の値が「test」と等しい行だけが返されます。この方法には後方互換性があり、名前で失敗した場合は `field_id` と照合します。\n\n#### `user_field_names` を使用しない場合:\n\nたとえば GET パラメーター `filter__field_1__equal=test` を任意で指定すると、`field_1` の値が「test」と等しい行だけが返されます。\n\nfilters パラメーターが指定されている場合、このパラメーターは無視されます。 ",
         "filterLink": "全てのフィルターの一覧です。",
         "filterType": "- `AND`：全ての条件に合致するものを検索します。\n- `OR`：いずれかの条件に合致するものを検索します。\n\n２つ以上のフィルターが指定された場合のみ有効です。",
-        "include": "デフォルトでは全てのフィールドがレスポンスに返却されます。「include」クエリ・パラメタを利用して返却するフィールドを指定することが出来ます。\n\n#### `user_field_names`を指定した場合\n\n`include`は返却したいフィールドを、コンマ区切りの一覧で指定します。例えば次のようなGETパラメタは：`include=My Field,-MyField2`この２つのフィールドのみ返却されます（`exclude`で指定されていない限り）。\n\nフィールド名がコンマを含む場合は、ダブルクォーテーションで囲む必要があります： 例）`\"Name,\"`　また、ダブルクォーテーションを含む場合は、`\\`記号でエスケープする必要があります。例）`\\\"Name\\\"`。\n\n#### `user_field_names`を指定しない場合\n\n`include`はコンマ区切りの、`field_`と数字で表される識別子のリストを使います。例えば、次のようなGETパラメタを考えます：`include=field_1,-field_2`。この場合、id が`1`と`2`のフィールドのみが返却されます（`exclude`で指定されていない限り）。",
+        "include": "既定では、すべてのフィールドが応答に含まれます。include クエリパラメーターを指定すると、含めるフィールドの一部を選択できます。\n\n#### `user_field_names` を使用する場合:\n\n`include` には、結果へ含めるフィールド名をカンマ区切りで指定します。たとえば GET パラメーター `include=My Field,-My Field 2` を指定すると、明示的に除外されていない限り、そのフィールドだけが含まれます。\n\nカンマを含むフィールド名は引用符で囲む必要があります: `\"Name ,\"`。フィールド名に引用符が含まれる場合は、`\\` 文字でエスケープする必要があります。例: `Name \\\"`。\n\n#### `user_field_names` を使用しない場合:\n\n`include` には、`field_` の後に結果へ含めるフィールド ID を付けた値をカンマ区切りで指定します。たとえば GET パラメーター `include=field_1,field_2` を指定すると、明示的に除外されていない限り、ID が `1` と `2` のフィールドだけが含まれます。",
         "exclude": "デフォルトでは全てのフィールドがレスポンスに返却されます。「exclude」クエリ・パラメタを利用して返却しないフィールドを指定することが出来ます。\n\n#### `user_field_names`を指定した場合\n\n`exclude`は返却しないフィールドを、コンマ区切りの一覧で指定します。例えば次のようなGETパラメタは：`exclude=My Field,-MyField2`この２つのフィールドは返却されません。\n\nフィールド名がコンマを含む場合は、ダブルクォーテーションで囲む必要があります： 例）`\"Name,\"`　また、ダブルクォーテーションを含む場合は、`\\`記号でエスケープする必要があります。例）`\\\"Name\\\"`。\n\n#### `user_field_names`を指定しない場合\n\n`exclude`はコンマ区切りの、`field_`と数字で表される識別子のリストを使います。例えば、次のようなGETパラメタを考えます：`exclude=field_1,-field_2`。この場合、id が`1`と`2`のフィールドは返却されません。",
-        "viewId": "デフォルトではクエリ・パラメタに指定されたフィルターと並び替え以外は適用されません。ビューのフィルターや並び替えを id で指定して加えることが出来ます。例えば、GETパラメタに `view_id=1` を加えると、id 「１」のビューに設定されているフィルターと並び替えが適用されます。`view_id` はビューのコンテキスト・メニューに表示されます。ビュー名の横に括弧付きいで表示されている数値が id になります。\n\n #### `filter__{field}___{filter}` を指定する場合\n\n クエリ・パラメタのフィルターとビューに定義されているフィルターの両方が適用されます。\n\n #### `order_by` を指定する場合\n\nクエリ・パラメタに並び替えを指定されると、ビューに定義されている序列は無視されます。"
+        "viewId": "既定では、クエリパラメーターで定義したもの以外のフィルターや並べ替えは適用されません。`view_id` GET パラメーターにビューの `id` を指定すると、そのビューのフィルターと並べ替えを追加できます。たとえば GET パラメーター `view_id=1` を指定すると、ID が `1` のビューに定義されたフィルターと並べ替えが適用されます。`view_id` は各ビューのコンテキストメニューで確認できます。ビュー名の後ろに括弧で表示される番号です。\n\n#### `filter__{'{'}field{'}'}__{'{'}filter{'}'}` を使用する場合\n\nクエリパラメーターで指定したフィルターと、ビューに定義されたフィルターの両方が適用されます。\n\n#### `order_by` を使用する場合\n\n`order_by` が指定されると、ビューに定義された並べ替えは無視されます。",
+        "test": "`{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}",
+        "filters": "ビューで利用できるものと同じフィルターを使用して、必要に応じて行を絞り込めます。このパラメーターには、このビューへ適用するフィルターツリーを含む JSON シリアライズ済み文字列を指定します。フィルターツリーは、適用するフィルターを含む入れ子構造です。\n\n#### `user_field_names` を使用する場合:\n\n有効なフィルターツリーの例: `{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": \"Name\", \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}`。\n\n#### `user_field_names` を使用しない場合:\n\nたとえば、次の GET パラメーターを任意で指定できます: `{'{'}\"filter_type\": \"AND\", \"filters\": [{'{'}\"field\": 1, \"type\": \"equal\", \"value\": \"test\"{'}'}]{'}'}`\n\nこのパラメーターを指定すると、他のすべての `filter__{'{'}field{'}'}__{'{'}filter{'}'}` と filter_type パラメーターは無視されます。",
+        "filtersBuilder": "フィルターパラメータービルダーを開く",
+        "join": "既存のリンク行フィールドを通じて、対象テーブルのフィールド値を検索できます。パラメーター名は、既存のリンク行フィールド名の後に __join を付けたものにする必要があります。値には、追加の値を検索するフィールド名の一覧を指定します。対象フィールドは 1 つでも複数でも指定できます。対象テーブル内のリンク行フィールドの値を検索することはできません。\n\n#### `user_field_names` を使用する場合:\n\n`join` には、結果へ含めるフィールド名をカンマ区切りで指定します。例: GET パラメーター `LinkRowField__join=MyField,MyField2` を指定すると、`LinkRowField` でリンクされたテーブルの `MyField` と `MyField2` の値が応答に含まれます。\n\n#### `user_field_names` を使用しない場合:\n\n`join` には、`field_` の後に結果へ含めるフィールド ID を付けた値をカンマ区切りで指定します。例: GET パラメーター `field_1__join=field_2,field_3` を指定すると、`field_1` でリンクされたテーブルの `field_2` と `field_3` の値が応答に含まれます。"
     },
     "apiDocsIntro": {
         "intro": "{name} データベースは外部システムとのデータ統合を行いやすくします。APIは REST に則り、 JSON オブジェクトを返し、標準HTTP コードを利用してコンピュータでも人間でも判断しやすいエラーで、操作上の問題が発生した場合警告してくれます。",
@@ -162,12 +176,13 @@
         "resultFieldProperties": "結果フィールドの属性",
         "id": "フィールド・プライマリ・キー。`field_` を付与してデータベースのカラム名として利用できます。",
         "name": "フィールド名。",
-        "tableId": "関連テーブルID。",
+        "tableId": "関連テーブルの ID。",
         "order": "フィールド順。0 が最初のフィールドになります。",
         "primary": "フィールドがプライマリ・キーかどうかを示します。`true` の場合、フィールドを削除することは出来ず、その値はテーブル内の唯一の行を表します。",
         "type": "フィールドの型。",
         "extraProps": "型に特有の属性は表示されていません。",
-        "readOnly": "フィールドが読み取り専用かどうかを表します。読み取り専用の場合はセルの値を変えることは出来ません。"
+        "readOnly": "フィールドが読み取り専用かどうかを表します。読み取り専用の場合はセルの値を変えることは出来ません。",
+        "descriptionField": "フィールドの説明"
     },
     "apiDocsTableDeleteRow": {
         "description": "{name} 行を削除する。",
@@ -175,7 +190,7 @@
     },
     "apiDocsTableDeleteRows": {
         "description": "{name} 行を削除します。",
-        "items": "削除する行ID の配列。"
+        "items": "削除する行 ID の配列。"
     },
     "apiDocsTableMoveRow": {
         "description": "{name} 行を別の行の前に移動します。 `before_id` が指定されない場合は、テーブルの一番最後の行まで移動します。",
@@ -197,7 +212,7 @@
     },
     "apiDocsTableUpdateRows": {
         "description": "{name} 行を更新する。",
-        "id": "行ID。"
+        "id": "行の ID。"
     },
     "apiDocsTableCreateRow": {
         "description": "{name} 行を新規作成する。",
@@ -215,13 +230,15 @@
         "filter": "フィルター",
         "exampleValue": "値の例",
         "example": "完全な例",
-        "field": "{name} フィールド"
+        "field": "{name} フィールド",
+        "deprecated": "非推奨"
     },
     "fieldTextSubForm": {
         "placeholder": "既定のテキスト"
     },
     "fieldSingleSelectSubForm": {
-        "optionsLabel": "オプション"
+        "optionsLabel": "オプション",
+        "defaultOptionLabel": "既定のオプション"
     },
     "fieldSingleSelectDropdown": {
         "notFound": "オプションが見つかりません"
@@ -247,7 +264,10 @@
     "fieldLinkRowSubForm": {
         "noTable": "リンクするには、データベース内に、少なくとももう１つのテーブルが必要です。",
         "selectTableLabel": "リンクするテーブルを選択",
-        "hasRelatedFieldLabel": "リンクテーブルの関係フィールドを作成"
+        "hasRelatedFieldLabel": "リンクテーブルの関係フィールドを作成",
+        "limitToView": "選択をビューに制限",
+        "limitToViewDescription": "これは表示上の制限にすぎません。関連テーブルまたは API を通じて、ビュー外の関係を作成することは引き続き可能です。",
+        "allowMultipleRelations": "複数の関係を許可"
     },
     "fieldSelectOptions": {
         "add": "オプションを追加"
@@ -257,19 +277,39 @@
         "integer": "整数型",
         "decimal": "固定小数点型",
         "decimalPlacesLabel": "小数点桁数",
-        "allowNegative": "負の値を許容する"
+        "allowNegative": "負の値を許容する",
+        "defaultValueLabel": "既定値",
+        "separatorLabel": "桁区切りと小数点の記号",
+        "prefixPlaceholder": "接頭辞",
+        "suffixPlaceholder": "接尾辞",
+        "prefixAndSuffixLabel": "接頭辞／接尾辞",
+        "spaceComma": "スペース、カンマ（1 000 000,00）",
+        "spacePeriod": "スペース、ピリオド（1 000 000.00）",
+        "commaPeriod": "カンマ、ピリオド（1,000,000.00）",
+        "periodComma": "ピリオド、カンマ（1.000.000,00）",
+        "noFormatting": "書式なし",
+        "defaultValuePlaceholder": "既定値を入力"
     },
     "fieldContext": {
         "editField": "フィールドを編集",
         "deleteField": "フィールドを削除",
         "hideField": "フィールドを隠す",
-        "showField": "フィールドを表示する"
+        "showField": "フィールドを表示する",
+        "changePrimaryField": "プライマリフィールドを変更"
     },
     "fieldForm": {
         "name": "名前",
         "fieldAlreadyExists": "同じ名前のフィールドが既に存在します。",
         "nameNotAllowed": "フィールド名は使えません。",
-        "nameTooLong": "フィールド名が長すぎます。"
+        "nameTooLong": "フィールド名が長すぎます。",
+        "description": "説明",
+        "dbIndex": "インデックス",
+        "dbIndexError": "このフィールドの種類にはインデックスを設定できません。保存する前に削除するか、フィールドの種類を変更してください。",
+        "defaultValueDisabledByConstraint": "一意制約があるため既定値を設定できません",
+        "addDescription": "説明を追加",
+        "dbIndexDescription": "インデックスを設定するとフィルターの性能を大幅に改善できますが、作成、更新、削除の操作は遅くなります。",
+        "defaultValueOverriddenByView": "このフィールドにはビュー単位の既定値が設定されており、こちらの既定値より優先されます。",
+        "dbIndexDisabledTooltip": "このフィールドの種類ではインデックスを利用できません。"
     },
     "fieldLookupSubForm": {
         "noTable": "ルックアップ・フィールドを作成するには少なくとも１つのリンク行が必要です。",
@@ -289,13 +329,14 @@
         "style": "スタイル"
     },
     "rowCreateModal": {
-        "addField": "フィールド追加"
+        "addField": "フィールドを追加"
     },
     "selectRowContent": {
-        "search": "行の検索"
+        "search": "行の検索",
+        "hideFields": "フィールドを非表示"
     },
     "rowEditModal": {
-        "addField": "フィールド追加",
+        "addField": "フィールドを追加",
         "showHiddenFields": "隠れたフィールドを表示",
         "hideHiddenFields": "隠れたフィールドを隠す"
     },
@@ -317,7 +358,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "リンクを選択"
+        "addLink": "リンクを選択",
+        "keepOnlyOneValue": "値を 1 つだけ保持します。このフィールドが対応する関係は 1 つだけです。関係が 1 つだけ残っている場合、その値が保存されます。"
     },
     "tableCSVImporter": {
         "chooseFileLabel": "CSVファイル選択",
@@ -394,7 +436,10 @@
         "fieldMappingDescription": "Baserow は自動的にテーブルのカラムを設定しました。ここで修正することが出来ます。型が不一致の場合、インポート後、セルの値は空になります。",
         "selectImportMessage": "インポートするデータを選択して下さい。",
         "filePreview": "ファイル・プレビュー",
-        "importPreview": "インポート・プレビュー"
+        "importPreview": "インポート・プレビュー",
+        "useUpsertField": "既存の行を更新",
+        "upsertTooltip": "一意フィールドで既存の行を照合し、インポートした値でデータを上書きします。",
+        "restoredFile": "ファイル「{name}」をインポート中..."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "クリックして式を編集",
@@ -429,13 +474,14 @@
         "disableAllFilters": "全て無効化",
         "noFilterTitle": "まだフィルターを作成していません",
         "noFilterText": "フィルターを使うと、条件に合う行のみ表示します。",
-        "where": "WHERE",
-        "and": "AND",
-        "or": "OR",
+        "where": "条件",
+        "and": "かつ",
+        "or": "または",
         "relatedFieldNotFound": "関係しているフィールドは見つかりません。",
         "filterTypeNotFound": "フィルター型に互換性がありません。",
         "noCompatibleFilterTypesErrorTitle": "互換性のあるフィルター型が見つかりません",
-        "noCompatibleFilterTypesErrorMessage": "どのフィールドにも互換性のあるフィルターが存在しません"
+        "noCompatibleFilterTypesErrorMessage": "どのフィールドにも互換性のあるフィルターが存在しません",
+        "addFilterGroup": "フィルターグループを追加"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "画像",
@@ -447,28 +493,34 @@
     },
     "shareViewLink": {
         "shareView": "{viewTypeSharingLinkName} 共有",
-        "shareViewTitle": "プライベートな共有リンクを作成する： {viewTypeSharingLinkName}",
+        "shareViewTitle": "このビューはまだ共有されていません",
         "sharedViewTitle": "この {viewTypeSharingLinkName} はプライベートな共有リンクで共有されています",
         "sharedViewDescription": "共有リンクを持っているユーザは {viewTypeSharingLinkName} を参照出来ます。",
-        "disableLink": "共有リンクを無効にする",
-        "generateNewUrl": "新しいURL生成",
+        "disableLink": "共有リンクを無効化",
+        "generateNewUrl": "新しい URL を生成",
         "copyURL": "URLコピー",
         "EnablePassword": "パスワード保護する",
         "DisablePassword": "パスワード保護されています",
-        "ChangePassword": "変更"
+        "ChangePassword": "変更",
+        "notSharedYetText": "このビューのデータを誰でも閲覧できるようにするか、外部カレンダーへイベントを同期します。",
+        "shareViewWarningTitle": "警告",
+        "shareViewText": "非公開の共有リンクを使うと、誰でもこのビューのデータを表示できます。",
+        "createPrivateLink": "非公開リンクを作成"
     },
     "viewSortContext": {
         "noSortTitle": "ソートを未だ作成していません",
         "noSortText": "ソートは行の並べ替えを行います。",
         "sortBy": "並び順",
         "thenBy": "それから",
-        "addSort": "ソートを指定するフィールドを選択"
+        "addSort": "ソートを指定するフィールドを選択",
+        "hiddenFieldWarning": "1 つ以上の並べ替えが、編集者以下のロールには表示されない非表示フィールドを参照しています。"
     },
     "viewSort": {
         "sort": "ソート | 1 ソート | {count} ソート"
     },
     "viewDecorator": {
-        "decorator": "色 | 1 色 | {count} 色"
+        "decorator": "色 | 1 色 | {count} 色",
+        "hiddenFieldWarning": "装飾が非表示フィールドを参照する可能性があるため、編集者以下のロールでは削除されます。"
     },
     "viewRotateSlugModal": {
         "title": "URLを更新",
@@ -508,7 +560,16 @@
         "selected": "選択中"
     },
     "viewFilter": {
-        "filter": "フィルター | 1 フィルター | {count} フィルター"
+        "filter": "フィルター | 1 フィルター | {count} フィルター",
+        "hasAllValuesEqual": "すべての値が等しい",
+        "hasValueHigherThan": "次より大きい値がある",
+        "hasValueHigherThanOrEqual": "次以上の値がある",
+        "hasValueLowerThan": "次より小さい値がある",
+        "hasValueLowerThanOrEqual": "次以下の値がある",
+        "hasNotValueHigherThan": "次より大きい値がない",
+        "hasNotValueHigherThanOrEqual": "次以上の値がない",
+        "hasNotValueLowerThan": "次より小さい値がない",
+        "hasNotValueLowerThanOrEqual": "次以下の値がない"
     },
     "viewContext": {
         "exportView": "ビューのエクスポート",
@@ -516,7 +577,10 @@
         "renameView": "ビューの名前を変更",
         "webhooks": "Webhook",
         "importFile": "ファイル・インポート",
-        "deleteView": "ビュー削除"
+        "deleteView": "ビュー削除",
+        "defaultRowValues": "行の既定値",
+        "toPersonal": "個人用に変更",
+        "toCollaborative": "共同編集用に変更"
     },
     "deleteViewModal": {
         "title": "{name} 削除",
@@ -525,7 +589,7 @@
     },
     "viewForm": {
         "name": "名前",
-        "whoCanEdit": "編集可能なユーザ"
+        "whoCanEdit": "このビューを編集できるユーザー"
     },
     "galleryViewHeader": {
         "customizeCards": "カードのカスタマイズ"
@@ -539,7 +603,12 @@
         "createFilter": "フィルター作成",
         "duplicate": "フィールド複製",
         "sortField": "ソート",
-        "hideField": "フィールドを隠す"
+        "hideField": "フィールドを隠す",
+        "groupByField": "グループ化",
+        "ungroupByField": "このフィールドではグループ化しない",
+        "dataSyncField": "このフィールドは読み取り専用で、テーブルのデータ同期に含まれています。",
+        "dataSyncFieldTwoWaySync": "このフィールドはテーブルのデータ同期と同期されています。",
+        "noWriteValues": "このフィールドへの変更は制限されています。"
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "行はフィルターにマッチしません",
@@ -557,14 +626,26 @@
         "copyCells": "セルのコピー",
         "rowCount": "0 行 | 1 行 | {count} 行",
         "hiddenRowsInsertedTitle": "行が追加されました",
-        "hiddenRowsInsertedMessage": "{number} 行が新規追加されましたが、現在有効なフィルターのために表示出来ません。"
+        "hiddenRowsInsertedMessage": "{number} 行が新規追加されましたが、現在有効なフィルターのために表示出来ません。",
+        "generateAllAiValues": "すべての AI 値を生成",
+        "promptBroken": "プロンプトが壊れています。値を生成する前に修正してください。",
+        "copyRowURL": "行の URL をコピー",
+        "copiedRowURL": "行の URL をコピーしました",
+        "copiedRowURLMessage": "行 {id} の URL をクリップボードにコピーしました。",
+        "copyCellsWithHeader": "ヘッダー付きでセルをコピー",
+        "generateCellsValues": "AI で値を生成",
+        "tooManyItemsTitle": "項目が多すぎます",
+        "tooManyItemsDescription": "一度に {limit} 行を超えて更新できないため、最初の {limit} 行だけを更新しました。",
+        "AIValuesGenerationErrorTitle": "AI による値の生成に失敗しました",
+        "AIValuesGenerationErrorMessage": "API_KEY を確認し、選択したモデルを検証してください。"
     },
     "gridViewFieldFile": {
         "dropHere": "ここにドロップ",
         "dropFileHere": "ファイルをここにドロップ"
     },
     "gridViewFieldLinkRow": {
-        "unnamed": "新しい行 {value}"
+        "unnamed": "新しい行 {value}",
+        "keepOnlyOneValue": "値を 1 つだけ保持"
     },
     "gridViewIdentifierOptions": {
         "id": "行識別子",
@@ -580,14 +661,17 @@
         "failedTitle": "エクスポート失敗",
         "failedDescription": "サーバーエラーのためにエクスポートが失敗しました。",
         "cancelledTitle": "エクスポートはキャンセルされました",
-        "cancelledDescription": "エクスポートはキャンセルされました。"
+        "cancelledDescription": "エクスポートはキャンセルされました。",
+        "title": "{name} をエクスポート"
     },
     "exporterTypeChoices": {
         "formatLabel": "エクスポート・フォーマットを選択して下さい"
     },
     "exportTableForm": {
         "viewLabel": "エクスポートするビューヲ選択：",
-        "typeError": "エクスポーターが利用できません。他のビューを選択するか、テーブル全体をエクスポートして下さい。"
+        "typeError": "エクスポーターが利用できません。他のビューを選択するか、テーブル全体をエクスポートして下さい。",
+        "includeRowId": "行 ID を含める",
+        "includePrimaryField": "プライマリフィールドを含める"
     },
     "exportTableLoadingBar": {
         "export": "エクスポート",
@@ -601,7 +685,8 @@
         "recordSeparator": "行区切り文字",
         "unitSeparator": "単位区切り文字",
         "encodingLabel": "エンコーディング",
-        "firstRowIsHeaderLabel": "一行目をヘッダーとして扱う"
+        "firstRowIsHeaderLabel": "一行目をヘッダーとして扱う",
+        "includeHeader": "フィールド名をヘッダーに含める"
     },
     "apiDocsDatabase": {
         "pageTitle": "{name} データベース API ドキュメント",
@@ -617,7 +702,7 @@
         "back": "ダッシュボードへ戻る"
     },
     "viewAggregationType": {
-        "emptyCount": "空",
+        "emptyCount": "（空）",
         "notEmptyCount": "値有り",
         "emptyPercentage": "空き率",
         "notEmptyPercentage": "値有り率",
@@ -637,17 +722,20 @@
         "median": "中央値",
         "stdDev": "標準偏差",
         "stdDevShort": "標準偏差",
-        "variance": "分散"
+        "variance": "分散",
+        "count": "カウント",
+        "othersCount": "その他",
+        "distribution": "分布"
     },
     "databaseForm": {
         "importLabel": "データをインポートしますか？",
         "emptyLabel": "最初からやり直す",
-        "airtableLabel": "Airtableからインポート (beta)"
+        "airtableLabel": "Airtable からインポート"
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Base にリンクを共有する",
-        "airtableShareLinkDescription": "Airtable の base にインポートするには、base 全体への共有リンクが必要です。 Airtable で base を開いた後、右上にある共有ボタンをクリックします。\"Access to base\" オプションを選択します。共有モデルでは \"Create a shared link to the whole base\" ボタンをクリックし、 \"Private read-only link\" を選択します。パブリック・リンクをコピーして下のテキストボックスに貼り付けて下さい。",
-        "airtableShareLinkBeta": "この機能はベータ版です。テーブルとフィールドとデータはインポートされます。ビュー、式、ルックアップ、カウント、はインポートされません。",
+        "airtableShareLinkDescription": "Airtable のベースをインポートするには、ベース全体の共有リンクが必要です。Airtable でベースを開き、右上の共有ボタンをクリックします。次に「リンクで共有」オプションを選択します。共有ダイアログで「一般公開」タブをクリックし、「ベースの共有リンクを有効にする」をクリックします。公開リンクをコピーして、下の入力欄に貼り付けてください。一般公開されているビューへのリンクも使用でき、その場合はその 1 つのテーブルだけを含むデータベースとしてインポートされます。",
+        "airtableShareLinkBeta": "この機能ではほとんどのデータをインポートできますが、一部に互換性がありません。そのため、インポートされなかった項目や一部だけインポートされた項目の一覧を含む「Airtable import report」というテーブルが追加されます。",
         "airtableShareLinkPaste": "リンクをここに貼り付けて下さい",
         "importButtonLabel": "Airtable からインポート",
         "openButtonLabel": "インポートしたデータベースを開く",
@@ -662,10 +750,23 @@
         "stateImportingTable": "テーブル {table} をインポート中",
         "errorJobAlreadyRunningTitle": "既に実行中です",
         "errorJobAlreadyRunningDescription": "他のインポート・ジョブが実行中です。そちらが終了してから開始して下さい。",
-        "linkError": "リンクは以下の書式です：https://airtable.com/shrxxxxxxxxxxxxxx"
+        "linkError": "リンクは以下の書式です：https://airtable.com/shrxxxxxxxxxxxxxx",
+        "errorRequiresAuthenticationTitle": "認証が必要です",
+        "errorRequiresAuthenticationDescription": "このベースをインポートするには追加の認証が必要です。下の「セッション認証」オプションを有効にしました。手順に従って「__Host-airtable-session」と「__Host-airtable-session.sig」の Cookie 値を各フィールドへコピーし、もう一度お試しください。",
+        "errorBaseNotPublicTitle": "ベースにアクセスできませんでした",
+        "errorBaseNotPublicDescription": "このリンクから公開共有されたベースが Airtable より返されませんでした。ブラウザーでリンクを開き、インポートするベースが読み込まれることと、完全な URL が正しくコピーされていることを確認してから、もう一度お試しください。",
+        "openSharedLink": "共有リンクを開く",
+        "skipFiles": "ファイルのインポートをスキップ",
+        "skipFilesHelper": "ファイルが多い Airtable ベースはインポートが遅くなることがあります。有効にするとファイルのインポートをスキップします。",
+        "useSession": "セッション認証",
+        "useSessionHelper": "公開共有されたベースで認証が必要な場合に使用します。",
+        "sessionDescription": "ベースで認証が必要なためインポートに失敗する場合、Airtable の組織設定によって、事前に認証しないと Airtable ベースへアクセスできない可能性があります。その場合はセッションと署名を手動で取得する必要があります。公開共有されたベースの URL をブラウザーで開き、必要に応じてログインします。右上をクリックしてアプリケーションメニューを開き、「More tools」->「Developer tools」をクリックします。「Application」タブ（Firefox では「Storage」）を開き、「https://airtable.com」をクリックします。「__Host-airtable-session」と「__Host-airtable-session.sig」の Cookie 値を見つけ、下の入力欄へ貼り付けます。",
+        "sessionLabel": "セッション Cookie（__Host-airtable-session）",
+        "sessionSignatureLabel": "セッション署名 Cookie（__Host-airtable-session.sig）"
     },
     "chooseSingleSelectField": {
-        "addSelectField": "単一選択肢フィールドを追加"
+        "addSelectField": "単一選択フィールドを追加",
+        "warningWhenNothingToChooseOrCreate": "選択できる単一選択フィールドがなく、作成する権限もありません。"
     },
     "viewDecoratorContext": {
         "addDecorator": "デコレーターを追加"
@@ -677,7 +778,14 @@
         "required": "必須",
         "descriptionPlaceholder": "詳細",
         "showWhenMatchingConditions": "条件に一致するものを表示",
-        "addCondition": "条件追加"
+        "addCondition": "条件追加",
+        "addConditionGroup": "条件グループを追加",
+        "includeAllSelectOptions": "すべての選択肢を含める",
+        "includeAllSelectOptionsHelper": "このドロップダウンを使って、フォームに含める選択肢を選びます",
+        "showFieldAs": "フィールドの表示形式",
+        "noSelectOptions": "利用可能な選択肢がありません。",
+        "noCollaboratorsAvailable": "利用可能な共同編集者がいません。",
+        "cannotSumitValues": "このフィールドは読み取り専用のため、フォームには表示されません。"
     },
     "duplicateFieldContext": {
         "duplicate": "フィールド複製",
@@ -686,8 +794,8 @@
     },
     "snapshotsModal": {
         "title": "スナップショット",
-        "description": "スナップショットはその時点のデータベースの完全なコピーです。復旧するとデータがコピーされます。スナップショットは１年で自動的に削除されます。",
-        "descriptionLimits": "グループ毎に、最大 {n} のスナップショットを作成出来ます。 | グループ毎に、最大 {n} のスナップショットを作成出来ます。 | グループ毎に、最大 {n} のスナップショットを作成出来ます。",
+        "description": "スナップショットは、作成時点の {applicationTypeName} の完全なコピーです。復元すると、そのデータの複製が作成されます。スナップショットは 1 年後に自動的に削除されます。",
+        "descriptionLimits": "ワークスペースごとに最大 {n} 個のスナップショットを作成できます。 | ワークスペースごとに最大 {n} 個のスナップショットを作成できます。 | ワークスペースごとに最大 {n} 個のスナップショットを作成できます。",
         "createLabel": "スナップショット作成",
         "create": "スナップショット作成",
         "snapshotRestoredErrorTitle": "エラーが起きました",
@@ -697,7 +805,10 @@
         "limitReached": "スナップショットの最大数に達しました。",
         "snapshot": "スナップショット",
         "importingState": "作成中",
-        "reset": "さらに作成する"
+        "reset": "さらに作成する",
+        "cancel": "キャンセル",
+        "noSnapshots": "このアプリケーションにはまだスナップショットがありません。",
+        "nameAlreadyExists": "同じ名前のスナップショットがすでに存在します。"
     },
     "deleteSnapshotModal": {
         "title": "スナップショット削除",
@@ -723,7 +834,9 @@
         "addLogo": "ロゴを追加",
         "titlePlaceholder": "タイトル",
         "descriptionPlaceholder": "詳細",
-        "noFields": "フォームにはフィールドがありません。左のサイドバーからクリックしてフィールドを追加して下さい。"
+        "noFields": "フォームにはフィールドがありません。左のサイドバーからクリックしてフィールドを追加して下さい。",
+        "noFieldsTitle": "このフォームにはフィールドがありません",
+        "noFieldsContent": "左側のサイドバーでフィールドをクリックして追加します。"
     },
     "table": {
         "adjacentRow": {
@@ -742,6 +855,22 @@
                     "title": "エラーが起きました",
                     "message": "次の行の取得中にエラーが発生しました"
                 }
+            },
+            "toast": {
+                "notFound": {
+                    "next": {
+                        "title": "これ以上行はありません",
+                        "message": "次の行はありません"
+                    },
+                    "previous": {
+                        "title": "これ以上行はありません",
+                        "message": "前の行はありません"
+                    }
+                },
+                "error": {
+                    "title": "エラーが発生しました",
+                    "message": "隣接する行の取得中にエラーが発生しました"
+                }
             }
         },
         "chooseView": "ビューを選択"
@@ -752,10 +881,449 @@
     },
     "viewOwnershipType": {
         "collaborative": "共有中",
-        "personal": "パーソナル"
+        "personal": "パーソナル",
+        "collaborativeDescription": "権限がある場合、全員がすべてのデータを表示してプロパティを変更できます。"
     },
     "gridViewRowsAddContext": {
         "title": "複数の行を作成",
         "choice": "{rowAmountChoice} 行追加"
+    },
+    "viewsAdminTable": {
+        "name": "ビュー",
+        "type": "種類",
+        "table": "テーブル",
+        "database": "データベース",
+        "workspace": "ワークスペース",
+        "passwordProtected": "パスワード",
+        "ownedBy": "所有者",
+        "createdOn": "作成日",
+        "allViews": "すべてのビュー",
+        "onlyPublic": "公開共有されているビューのみ",
+        "public": "公開共有",
+        "allWorkspaces": "すべてのワークスペース"
+    },
+    "apiDocsListTables": {
+        "listTables": "すべてのテーブルを一覧表示",
+        "listTablesDescription": "このエンドポイントはトークン認証と組み合わせた場合にのみ機能します。トークンに作成、読み取り、更新、削除のいずれかのアクセス権があるすべてのテーブルを一覧表示します。"
+    },
+    "fieldMultipleSelectSubForm": {
+        "optionsLabel": "オプション",
+        "defaultOptionsLabel": "既定のオプション"
+    },
+    "fieldBooleanSubForm": {
+        "defaultValue": "デフォルト"
+    },
+    "adminType": {
+        "databaseViews": "ビュー"
+    },
+    "viewsAdmin": {
+        "title": "ビュー"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "URL を更新",
+        "refreshWarning": "{viewName} の URL を更新してもよろしいですか？更新すると新しい URL が生成され、古い URL からはビューにアクセスできなくなります。古い URL を持っているユーザーも、このビューにアクセスできなくなります。",
+        "generateNewURL": "新しい URL を生成"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "公開 URL をコピー",
+        "openPublicView": "公開ビューを新しいタブで開く",
+        "filterWorkspace": "ワークスペースでフィルター",
+        "rotateSlug": "スラッグを変更",
+        "makePrivate": "非公開にする",
+        "makePublic": "公開する",
+        "publicUrlCopiedTitle": "公開 URL をコピーしました",
+        "publicUrlCopiedMessage": "ビューの公開 URL をクリップボードにコピーしました。"
+    },
+    "apiDocsFiltersBuilderModal": {
+        "title": "フィルターパラメータービルダー",
+        "userFieldNames": "ユーザーフィールド名",
+        "json": "JSON",
+        "queryParameter": "クエリパラメーター"
+    },
+    "apiDocsPasswordFieldAuthentication": {
+        "title": "{name} 認証",
+        "description": "指定したパスワードと行が、セルに保存されている内容と一致するか確認します。",
+        "fieldId": "パスワードを確認するフィールドの ID。",
+        "rowId": "パスワードを確認する行の ID。",
+        "password": "正しいかどうかを確認するパスワード。"
+    },
+    "fieldDurationSubForm": {
+        "durationFormatLabel": "期間の形式"
+    },
+    "createTableModal": {
+        "defaultName": "テーブル",
+        "title": "新しいテーブルを作成",
+        "importLabel": "既存のデータをインポートしますか？",
+        "newTable": "新しいテーブルから開始"
+    },
+    "createTable": {
+        "stateRowCreation": "インポート中...",
+        "showTable": "テーブルを表示",
+        "addButton": "テーブルを追加",
+        "uploading": "アップロード中...",
+        "preparing": "データを準備中...",
+        "importError": "ファイルのインポート中に問題が発生しました",
+        "statePreValidation": "データを検証中...",
+        "stateCreateTable": "テーブルを作成中...",
+        "importingTable": "テーブル「{name}」をインポート中..."
+    },
+    "viewSearch": {
+        "clearSearch": "検索を消去"
+    },
+    "viewFieldConditionsForm": {
+        "addConditionGroup": "条件グループを追加",
+        "addCondition": "条件を追加"
+    },
+    "viewGroupByContext": {
+        "groupBy": "グループ化",
+        "noGroupByTitle": "グループ化はまだ作成されていません",
+        "noGroupByText": "フィールドごとに行をグループ化します。",
+        "thenBy": "次に",
+        "addGroupBy": "グループ化するフィールドを選択",
+        "maxGroupBysReached": "最大 {count} 個のフィールドでグループ化できます。",
+        "collapseAllGroups": "すべて折りたたむ",
+        "expandAllGroups": "すべて展開",
+        "hiddenFieldWarning": "1 つ以上のグループ化が、編集者以下のロールには表示されない非表示フィールドを参照しています。"
+    },
+    "defaultValuesModal": {
+        "removeDefaultValue": "デフォルト値を削除",
+        "title": "{name} の既定値",
+        "setDefaultValue": "既定値を設定",
+        "staticValue": "静的な値"
+    },
+    "fieldSelectThroughFieldSubForm": {
+        "noTable": "このフィールドを作成するには、少なくとも 1 つのテーブルリンクフィールドが必要です。",
+        "selectThroughFieldLabel": "テーブルリンクフィールドを選択"
+    },
+    "fieldRollupSubForm": {
+        "label": "ロールアップ関数",
+        "selectTargetFieldLabel": "ロールアップするフィールドを選択"
+    },
+    "tableExcelImporter": {
+        "chooseFileLabel": "Excel ファイルを選択",
+        "chooseFileDescription": "既存のスプレッドシートは .xlsx、.xls、.ods ファイルをアップロードしてインポートできます。複数のシートが含まれる場合は、インポートするシートを選択できます。",
+        "chooseFile": "Excel ファイルを選択",
+        "sheet": "シート",
+        "firstRowHeader": "先頭行をヘッダーとして使用",
+        "limitFileSize": "最大ファイルサイズは {limit} MB です。",
+        "limitError": "{limit} 行を超えてインポートすることはできません。",
+        "processingError": "Excel ファイルの処理中にエラーが発生しました: {error}",
+        "emptyError": "この Excel ファイルにはシートがありません。",
+        "emptySheetError": "選択したシートは空です。"
+    },
+    "importErrorReport": {
+        "reportTitleFailure": "失敗した行",
+        "reportTitleSuccess": "インポートは成功しましたが...",
+        "reportMessage": "次の行番号はインポートできませんでした。"
+    },
+    "fieldLongTextSubForm": {
+        "enableRichTextFormatting": "リッチテキスト形式を有効化"
+    },
+    "viewFieldConditionItem": {
+        "filterMisconfigured": "このフィルターに関連付けられたフィールドはごみ箱に移動されています。"
+    },
+    "createViewLink": {
+        "inCompatibleWithDataSync": "このビューの種類はデータ同期テーブルと互換性がありません。"
+    },
+    "viewGroupBy": {
+        "groupBy": "グループ | 1 フィールドでグループ化 | {count} フィールドでグループ化"
+    },
+    "gridViewGroupByBanner": {
+        "emptyValue": "（空）",
+        "expandGroup": "グループを展開",
+        "collapseGroup": "グループを折りたたむ"
+    },
+    "databaseDashboardResourceLinks": {
+        "title": "API ドキュメント",
+        "description": "コードの詳細を見る"
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "不正使用を報告"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "不正使用を報告",
+        "moreOptions": "その他のオプション"
+    },
+    "dataProviderTypes": {
+        "fieldsName": "フィールド"
+    },
+    "userMentionInRichTextFieldNotification": {
+        "deletedUser": "削除済みユーザー",
+        "title": "{sender} が {tableName} の行 {rowId} にあるフィールド {fieldName} であなたをメンションしました"
+    },
+    "databaseScratchTrackFieldsStep": {
+        "fieldName": "名前",
+        "fieldDescription": "説明",
+        "fieldDetails": "詳細",
+        "fieldNumber": "数値",
+        "fieldDate": "日付",
+        "fieldDuration": "期間",
+        "fieldUrl": "URL",
+        "fieldEmail": "メールアドレス",
+        "fieldRating": "評価",
+        "title": "各行のフィールドを選択",
+        "description": "最大 {selectedFieldsLimitCount} 個のフィールドを選択します。後から追加できます。",
+        "fieldType": "フィールドの種類",
+        "fieldBoolean": "完了",
+        "fieldCategory": "カテゴリー",
+        "fieldKickoffDate": "開始日",
+        "fieldDueDate": "期限",
+        "fieldCompleted": "完了",
+        "fieldRole": "ロール",
+        "fieldActive": "有効",
+        "fieldStartDate": "開始日",
+        "fieldEndDate": "終了日",
+        "projectsCategoryMarketing": "マーケティング",
+        "fieldEstimatedDays": "見積日数",
+        "fieldBudget": "予算",
+        "projectsCategoryDevelopment": "開発",
+        "projectsCategoryDesign": "デザイン",
+        "fieldPhone": "電話番号",
+        "fieldNotes": "メモ",
+        "projectsNotesRow1": "Acme は、次のガイドラインに沿ったウェブサイト全体のリブランディングを希望しています。",
+        "projectsNotesRow2": "Soylent の現在のユーザーが新しいユーザーポータルに関心を持っているか調査します。",
+        "projectsNotesRow3": "Facebook 広告ボイコット後に実施する価値があるか検討中です。調査では、有料広告キャンペーンの効果がますます低下していることが示されています。",
+        "teamsRoleDesigner": "デザイナー",
+        "teamsRoleDeveloper": "開発者",
+        "teamsRoleMarketer": "マーケター",
+        "tasksDetailsRow1": "CTA をより明確にするため、ロゴを改善する必要があります。",
+        "tasksDetailsRow2": "構成が少しずれているため、ここではサイトマップも調整する必要がありそうです。",
+        "tasksDetailsRow3": "新しいフッターには連絡先情報と、小さくても明確な CTA を含める必要があります。",
+        "campaignsDetailsRow1": "人気商品が驚きの割引になる真夏のセールで、お得な買い物を楽しみましょう！",
+        "campaignsDetailsRow2": "特に大切なお客様へ特典を提供する魅力的なロイヤルティプログラムで、顧客維持率とエンゲージメントを高めましょう。",
+        "campaignsDetailsRow3": "現在の市場動向と顧客ニーズに合ったダイナミックなブランド再展開で、ビジネスを活性化し、オーディエンスを魅了しましょう。",
+        "customFieldsDescriptionRow1": "これはサンプルの説明文です。",
+        "customFieldsDescriptionRow2": "詳細を記載するためのサンプルテキストです。",
+        "customFieldsDescriptionRow3": "この欄には任意の説明を入力できます。"
+    },
+    "formViewMetaControls": {
+        "urlRedirect": "URL にリダイレクト",
+        "showMessage": "メッセージを表示",
+        "whenSubmittedLabel": "フォームの送信時",
+        "theMessage": "メッセージ",
+        "theURL": "URL"
+    },
+    "changePrimaryFieldModal": {
+        "title": "プライマリフィールドを変更",
+        "change": "変更",
+        "primaryFieldLabel": "プライマリフィールド",
+        "existingPrimary": "現在「{name}」がプライマリフィールドです。"
+    },
+    "fieldCollaboratorSubForm": {
+        "notifyUserWhenAdded": "追加時にユーザーへ通知"
+    },
+    "collaboratorAddedToRowNotification": {
+        "title": "{sender} が {tableName} の行 {rowId} にある {fieldName} にあなたを割り当てました",
+        "unknownUser": "不明なユーザー"
+    },
+    "formSubmittedNotification": {
+        "title": "{formName} がテーブル {tableName} に送信されました。",
+        "moreValues": "0 | ほか 1 個のフィールド。 | ほか {count} 個のフィールド。"
+    },
+    "rowHistorySidebar": {
+        "name": "履歴",
+        "empty": "まだ変更はありません。この行への変更はここで追跡できます。",
+        "you": "あなた",
+        "created": "この行を作成しました",
+        "updated": "この行を更新しました",
+        "submitted": "この行を送信しました",
+        "deleted": "この行を削除しました",
+        "restored": "この行を復元しました",
+        "createdUndo": "行の作成を元に戻す",
+        "updatedUndo": "行の更新を元に戻す",
+        "deletedUndo": "行の削除を元に戻す"
+    },
+    "fieldPasswordSubForm": {
+        "allowEndpointAuthentication": "API エンドポイント認証を許可",
+        "allowEndpointAuthenticationHelp": "行 ID とパスワードが正しいか確認できるエンドポイントを公開します。これにより、Baserow を認証バックエンドとして使用できます。",
+        "description": "パスワードフィールドは、アプリケーションビルダーのユーザー認証にも使用できます。"
+    },
+    "rowEditFieldPassword": {
+        "setPassword": "パスワードを設定"
+    },
+    "rowHistoryFieldPassword": {
+        "passwordSet": "パスワードを設定しました",
+        "passwordUpdated": "パスワードを更新しました",
+        "passwordDeleted": "パスワードを削除しました"
+    },
+    "databaseImportStep": {
+        "title": "データをインポート",
+        "description": "数回クリックするだけで、データを Baserow に移行できます。",
+        "tableNameLabel": "テーブル名",
+        "tableNamePrefill": "{name} のテーブル"
+    },
+    "databaseScratchTrackStep": {
+        "tableName": "テーブル名",
+        "teams": "チーム",
+        "teamsRow3": "マーケティング",
+        "title": "何を管理しますか？",
+        "description": "よく使われる用途から選ぶか、独自に作成します。",
+        "addYourOwn": "独自に追加",
+        "rowName": "行の名前",
+        "thisIncludes": "含まれる内容:",
+        "projects": "プロジェクト",
+        "productsRow1": "ウェブサイトのリブランディング",
+        "productsRow2": "顧客調査",
+        "productsRow3": "有料広告キャンペーン",
+        "teamsRow1": "営業",
+        "teamsRow2": "人事",
+        "tasks": "タスク",
+        "tasksRow1": "ロゴの再デザイン",
+        "tasksRow2": "メールを送信",
+        "tasksRow3": "ブログ記事を作成",
+        "campaigns": "キャンペーン",
+        "campaignsRow1": "サマーセール",
+        "campaignsRow2": "ロイヤルティ特典",
+        "campaignsRow3": "ブランド再展開"
+    },
+    "postgreSQLDataSync": {
+        "host": "ホスト",
+        "username": "ユーザー名",
+        "password": "パスワード",
+        "database": "データベース",
+        "table": "テーブル",
+        "description": "下に指定した情報に一致する PostgreSQL テーブルを Baserow テーブルと同期します。同期を開始すると、指定したテーブルのすべての行が選択されます。Baserow はデータを読み取るだけですが、ユーザーの接続を読み取り専用に制限することを強くおすすめします。",
+        "schema": "スキーマ",
+        "port": "ポート",
+        "sslMode": "SSL モード"
+    },
+    "createDataSync": {
+        "next": "次へ",
+        "fields": "同期するフィールドを選択",
+        "create": "テーブルを作成して同期",
+        "error": "同期中に問題が発生しました",
+        "autoAddLabel": "新しいプロパティを自動追加",
+        "autoAddHelper": "データソースで新たに利用可能になったプロパティを Baserow テーブルへ自動的に追加して同期します。この機能を利用するには、すべてのプロパティを同期する必要があります。",
+        "twoWaySyncLabel": "双方向同期",
+        "deleteUnmatchedRowsLabel": "ソースで削除または非表示になった行を削除",
+        "deleteUnmatchedRowsHelper": "有効にすると、ソースで削除されたか表示されなくなった行も、同期のたびにこのテーブルから削除されます。無効の場合、これらの行は保持され、ソースの行が再表示されたときに再利用されます。",
+        "syncing": "データを同期中..."
+    },
+    "syncTableModal": {
+        "sync": "テーブルを同期",
+        "hide": "非表示",
+        "title": "{name} を同期",
+        "description": "このテーブルはデータ同期にリンクされています。同期ボタンをクリックすると、データがソースと同期されます。処理中は更新される行がロックされるため、API リクエストやテーブルの変更が一時的に遅くなることがあります。"
+    },
+    "gridViewRowHeight": {
+        "small": "小",
+        "name": "高さ",
+        "medium": "中",
+        "large": "大"
+    },
+    "configureDataSyncModal": {
+        "title": "データ同期",
+        "syncedFields": "同期済みフィールド",
+        "syncSettings": "同期設定",
+        "syncHistory": "同期履歴"
+    },
+    "databaseStep": {
+        "title": "最初のデータベースを作成",
+        "description": "開始方法を選択してください。",
+        "databaseNameLabel": "データベース名",
+        "databaseNamePrefill": "{name} のデータベース",
+        "scratch": "新規作成",
+        "import": "ファイル",
+        "airtable": "Airtable",
+        "template": "テンプレート",
+        "workspaceName": "{name} のワークスペース"
+    },
+    "templateOnboardingCancelModal": {
+        "title": "開始するテンプレートを選択",
+        "description": "オンボーディングをスキップするには、下のテンプレートから 1 つ選択してください。テンプレートから始めると、テーブル、フィールド、サンプルデータが自動で設定されるため、Baserow を理解するのに最適です。後からいつでも変更または削除できます。",
+        "continue": "このテンプレートを使用"
+    },
+    "ViewFilterTypeDateUpgradeToMultiStep": {
+        "migrateButtonText": "複数ステップの日付フィルターへ移行",
+        "migrateButtonTooltip": "新しいフィルターを利用できます。クリックしてアップグレードしてください。動作は同じです。"
+    },
+    "dataSyncType": {
+        "syncError": "同期エラー",
+        "icalCalendar": "iCal フィードを同期",
+        "postgresql": "PostgreSQL テーブルを同期"
+    },
+    "iCalCalendarDataSync": {
+        "name": "iCal URL",
+        "description": "iCal カレンダー同期は、URL にあるカレンダーファイルの予定と自動的に同期します。対応するファイル形式は ICS（Internet Calendar and Scheduling）のみです。"
+    },
+    "gridViewFreezeHandle": {
+        "freeze": "列を固定しない | 1 列を固定 | {count} 列を固定",
+        "hoverHint": "ドラッグして列を固定"
+    },
+    "dataSyncRuns": {
+        "triggerManual": "手動",
+        "title": "同期履歴",
+        "triggerPeriodic": "定期",
+        "previousRuns": "以前の実行",
+        "noRuns": "このテーブルはまだ同期されていません。",
+        "description": "誰が、または何が開始したかにかかわらず、このテーブルの最新の同期実行を表示します。",
+        "byUser": "{name} による実行",
+        "duration": "{seconds} 秒"
+    },
+    "configureDataSyncVisibleFields": {
+        "fields": "同期済みフィールド",
+        "title": "同期するフィールドを変更",
+        "syncTable": "保存時に同期"
+    },
+    "fieldButtonSubForm": {
+        "label": "ラベル",
+        "url": "URL",
+        "labelPlaceholder": "開く",
+        "urlPlaceholder": "例: concat('https://example.com/', get('fields.field_1'))",
+        "invalidUrl": "URL の数式が無効です。"
+    },
+    "configureDataSyncSettings": {
+        "title": "データ同期を変更",
+        "syncTable": "保存時に同期"
+    },
+    "webhookDeactivatedNotification": {
+        "body": "{name} Webhook は連続して失敗した回数が多すぎるため、無効になりました。"
+    },
+    "webhookPayloadTooLargeNotification": {
+        "body": "イベント ID {event_id} の {name} Webhook のペイロードが大きすぎました。内容は複数のバッチに分割されましたが、バッチ上限 {batch_limit} を超えるデータは破棄されました。"
+    },
+    "tablesGuidedTourStep": {
+        "title": "テーブルを設定",
+        "content": "テーブルは情報を整理して保存します。データベース内に新しいテーブルを作成し、データの構造化を始めましょう。"
+    },
+    "filterSortGroupGuidedTourStep": {
+        "title": "データを検索して整理",
+        "content": "行をフィルターおよび並べ替えて、情報をすばやく見つけます。任意のフィールドですぐにグループ化し、傾向を明確に可視化してワークフローを簡素化できます。"
+    },
+    "addFieldGuidedTourStep": {
+        "title": "データをカスタマイズ",
+        "content": "「+」をクリックして新しいフィールド（列）を追加します。さまざまなフィールドの種類から選び、プロジェクトで最も重要な情報を記録できます。"
+    },
+    "createViewGuidedTourStep": {
+        "title": "ビューをカスタマイズ",
+        "content": "グリッド、カレンダー、カンバン、ギャラリーなどのカスタムビューを作成し、思いどおりにデータを可視化できます。"
+    },
+    "createFormViewGuidedTourStep": {
+        "title": "フォームを作成",
+        "content": "テーブルからフォームをすばやく作成し、回答をテーブルへ直接収集してデータ収集を効率化できます。"
+    },
+    "viewOptionsGuidedTourStep": {
+        "title": "ビューのオプション",
+        "content": "ビューの横にある 3 点メニューをクリックして、エクスポート、インポート、複製、Webhook の設定を行います。"
+    },
+    "fieldRules": {
+        "errorTitle": "フィールドルールの処理中にエラーが発生しました",
+        "ruleDoesNotExist": "ルールが存在しません",
+        "ruleTypeDoesNotExist": "ルールの種類が存在しません",
+        "ruleAlreadyExists": "ルールはすでに存在します"
+    },
+    "fieldFormViewEditRowSubForm": {
+        "selectFormViewLabel": "フォームビュー",
+        "description": "各行には、その行のデータが入力済みの状態でこのフォームを開く固有のリンクが割り当てられます。テーブルとフィールドへの読み取り権限があるすべてのユーザーは、フォームビューを通じて行を編集できます。これには閲覧者と、公開共有されたビューの訪問者も含まれます。",
+        "notPublicWarning": "このフォームビューは公開共有されていません。フォームを公開するまで編集リンクは機能しません。",
+        "notPublic": "（非公開）",
+        "formDoesNotExist": "選択したフォームは存在しません。"
+    },
+    "editRowLink": {
+        "editRow": "行を編集"
+    },
+    "rowEditFieldFormViewEditRow": {
+        "copyLink": "リンクをコピー",
+        "noFormView": "フォームビューが設定されていません"
     }
 }
