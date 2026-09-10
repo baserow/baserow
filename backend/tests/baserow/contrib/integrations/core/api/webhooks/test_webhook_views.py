@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -12,7 +13,10 @@ from rest_framework.status import (
     HTTP_405_METHOD_NOT_ALLOWED,
 )
 
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.contrib.integrations.core.models import CoreResponseHeader
 from baserow.core.services.registries import service_type_registry
@@ -259,13 +263,34 @@ def test_http_trigger_with_response_node_returns_workflow_response(
         key="X-Workflow",
         value="'done'",
     )
-
     url = get_url(trigger.service.uid) + "?test=true"
     resp = api_client.post(url)
 
     assert resp.status_code == HTTP_200_OK
     assert resp.content == b"Hello"
     assert resp["X-Workflow"] == "done"
+
+
+@pytest.mark.parametrize(
+    "content_type_header_key",
+    ["Content-Type", "content-type", "CoNtEnT-TyPe"],
+)
+def test_text_workflow_response_content_type_is_case_insensitive(
+    content_type_header_key,
+):
+    workflow_response = SimpleNamespace(
+        headers={content_type_header_key: "text/custom", "X-Workflow": "done"},
+        status_code=HTTP_200_OK,
+        body_type=RESPONSE_BODY_TYPE.TEXT,
+        body="Hello",
+    )
+
+    response = CoreHTTPTriggerView().response_to_http_response(workflow_response)
+
+    assert response.status_code == HTTP_200_OK
+    assert response.content == b"Hello"
+    assert response["Content-Type"] == "text/custom"
+    assert response["X-Workflow"] == "done"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -282,3 +307,33 @@ def test_http_trigger_does_not_wait_for_response_when_disabled(
     resp = api_client.post(get_url(trigger.service.uid) + "?test=true")
 
     assert resp.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db(transaction=True)
+def test_http_trigger_rolls_back_mutations_before_waiting(api_client, data_fixture):
+    """A mutation failure rolls back history and discards deferred scheduling."""
+
+    trigger = data_fixture.create_http_trigger_node(
+        service_kwargs={"wait_for_response": True}
+    )
+    workflow = trigger.workflow
+    workflow.state = WorkflowState.LIVE
+    workflow.allow_test_run_until = timezone.now()
+    workflow.save()
+
+    with (
+        patch.object(
+            AutomationWorkflowHandler,
+            "reset_workflow_temporary_states",
+            side_effect=[None, RuntimeError("reset failed")],
+        ),
+        patch(
+            "baserow.contrib.automation.workflows.handler."
+            "start_workflow_celery_task.delay"
+        ) as mock_delay,
+        pytest.raises(RuntimeError, match="reset failed"),
+    ):
+        api_client.post(get_url(trigger.service.uid) + "?test=true")
+
+    assert AutomationWorkflowHistory.objects.count() == 0
+    mock_delay.assert_not_called()

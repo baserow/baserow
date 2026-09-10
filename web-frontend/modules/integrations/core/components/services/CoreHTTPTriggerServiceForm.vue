@@ -107,7 +107,7 @@ export default {
       values: {
         exclude_get: this.defaultValues.exclude_get,
         wait_for_response: false,
-        response_timeout_seconds: 30,
+        response_timeout_seconds: 10,
       },
       isPublishedUrl: false,
       urlVersions: [
@@ -161,8 +161,13 @@ export default {
             minValue(1)
           ),
           maxValue: helpers.withMessage(
-            this.$t('error.maxValueField', { max: 120 }),
-            maxValue(120)
+            this.$t('error.maxValueField', {
+              max: this.$config.public
+                .automationWorkflowResponseTimeoutMaxSeconds,
+            }),
+            maxValue(
+              this.$config.public.automationWorkflowResponseTimeoutMaxSeconds
+            )
           ),
           required: helpers.withMessage(
             this.$t('error.requiredField'),

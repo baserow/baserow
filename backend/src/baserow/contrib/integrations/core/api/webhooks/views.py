@@ -101,7 +101,14 @@ class CoreHTTPTriggerView(APIView):
         status = workflow_response.status_code
 
         if workflow_response.body_type == RESPONSE_BODY_TYPE.TEXT:
-            content_type = headers.get("Content-Type", "text/plain")
+            content_type = next(
+                (
+                    value
+                    for key, value in headers.items()
+                    if key.lower() == "content-type"
+                ),
+                "text/plain",
+            )
             headers = {
                 key: value
                 for key, value in headers.items()

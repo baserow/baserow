@@ -186,9 +186,11 @@ test.describe("Builder workflow responses", () => {
         "notification",
         "click"
       );
+      // HTTP Request normalizes response headers; internal workflows keep their keys.
+      const headerKey = caller === "http" ? "x-workflow-result" : "X-Workflow-Result";
       await client.patch(`builder/workflow_action/${notification.id}/`, {
         title: raw("Workflow response received"),
-        description: `concat(to_json(get('previous_action.${action.id}.status_code')), ' | ', to_json(get('previous_action.${action.id}.body')), ' | ', get('previous_action.${action.id}.headers.X-Workflow-Result'))`,
+        description: `concat(to_json(get('previous_action.${action.id}.status_code')), ' | ', to_json(get('previous_action.${action.id}.body')), ' | ', get('previous_action.${action.id}.headers.${headerKey}'))`,
       });
 
       const { data: grant } = await client.post(
@@ -210,7 +212,7 @@ test.describe("Builder workflow responses", () => {
       expect(await result.json()).toMatchObject({
         status_code: 201,
         body: { message: "Created by child", count: 3 },
-        headers: { "X-Workflow-Result": "first" },
+        headers: { [headerKey]: "first" },
       });
       await expect(
         preview.getByText("Workflow response received", { exact: true })

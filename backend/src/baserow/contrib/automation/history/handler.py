@@ -32,7 +32,9 @@ from baserow.core.types import Subject
 
 
 class AutomationHistoryHandler:
-    RESPONSE_POLL_INTERVAL_SECONDS = 0.3
+    RESPONSE_POLL_INITIAL_INTERVAL_SECONDS = 0.1
+    RESPONSE_POLL_MAX_INTERVAL_SECONDS = 1.0
+    RESPONSE_POLL_BACKOFF_MULTIPLIER = 2
 
     def get_workflow_histories(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
@@ -335,10 +337,11 @@ class AutomationHistoryHandler:
         timeout_seconds: int,
     ) -> Optional[AutomationWorkflowHistoryResponse]:
         """
-        Polls until a workflow response exists or the timeout expires.
+        Polls with bounded backoff until a response exists or the timeout expires.
         """
 
         deadline = time.monotonic() + timeout_seconds
+        poll_interval = self.RESPONSE_POLL_INITIAL_INTERVAL_SECONDS
         while time.monotonic() < deadline:
             workflow_history.refresh_from_db(fields=["status", "completed_on"])
             if response := self.get_workflow_history_response(workflow_history):
@@ -347,7 +350,15 @@ class AutomationHistoryHandler:
             if workflow_history.status != HistoryStatusChoices.STARTED:
                 return self.ensure_default_response(workflow_history)
 
-            time.sleep(self.RESPONSE_POLL_INTERVAL_SECONDS)
+            remaining_seconds = deadline - time.monotonic()
+            if remaining_seconds <= 0:
+                break
+
+            time.sleep(min(poll_interval, remaining_seconds))
+            poll_interval = min(
+                poll_interval * self.RESPONSE_POLL_BACKOFF_MULTIPLIER,
+                self.RESPONSE_POLL_MAX_INTERVAL_SECONDS,
+            )
 
         return None
 

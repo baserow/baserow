@@ -136,6 +136,15 @@ def ensure_http_status_code(value: Any) -> int:
     return status_code
 
 
+def ensure_http_header_value(value: Any) -> str:
+    value = ensure_string(value)
+    if "\r" in value or "\n" in value:
+        raise ValidationError(
+            "Header values cannot contain carriage returns or newlines."
+        )
+    return value
+
+
 class CoreServiceType(ServiceType):
     """
     The base class for all core service types. Currently only used
@@ -548,6 +557,12 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     sample_data.get("data", {}).get("headers", {})
                 )
                 schema = schema_builder.to_schema()
+                for key, property_schema in schema.get("properties", {}).items():
+                    if key != key.lower():
+                        property_schema["deprecated"] = True
+                        property_schema["description"] = (
+                            f"Deprecated: use the lowercase `{key.lower()}` key instead."
+                        )
 
             properties.update(
                 **{
@@ -556,13 +571,31 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                         "properties": {
                             "Content-Type": {
                                 "type": "string",
+                                "description": "Deprecated: use the lowercase "
+                                "`content-type` key instead.",
+                                "deprecated": True,
+                            },
+                            "content-type": {
+                                "type": "string",
                                 "description": "The MIME type of the response body",
                             },
                             "Content-Length": {
                                 "type": "number",
+                                "description": "Deprecated: use the lowercase "
+                                "`content-length` key instead.",
+                                "deprecated": True,
+                            },
+                            "content-length": {
+                                "type": "number",
                                 "description": "The length of the response body in octets (8-bit bytes)",
                             },
                             "ETag": {
+                                "type": "string",
+                                "description": "Deprecated: use the lowercase `etag` key "
+                                "instead.",
+                                "deprecated": True,
+                            },
+                            "etag": {
                                 "type": "string",
                                 "description": "An identifier for a specific version of "
                                 "a resource",
@@ -756,8 +789,11 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             # Otherwise, fall back to text
             response_body = response.text
 
-        # Extract the response headers
-        response_headers = {key: value for key, value in response.headers.items()}
+        # Preserve the original keys for existing formulas and add normalized
+        # aliases so new formulas don't depend on the server's casing.
+        response_headers = dict(response.headers.items())
+        for key, value in tuple(response_headers.items()):
+            response_headers.setdefault(key.lower(), value)
 
         data = {
             "raw_body": ensure_string(response_body, allow_empty=True),
@@ -2217,7 +2253,7 @@ class CoreResponseServiceType(CoreServiceType):
             FormulaToResolve(
                 f"header_{header.id}",
                 header.value,
-                ensure_string,
+                ensure_http_header_value,
                 f"'{header.key}' header",
             )
             for header in service.headers.all()
@@ -2328,8 +2364,8 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             "response_timeout_seconds": serializers.IntegerField(
                 required=False,
                 min_value=1,
-                max_value=120,
-                default=30,
+                max_value=settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                default=10,
                 help_text=CoreHTTPTriggerService._meta.get_field(
                     "response_timeout_seconds"
                 ).help_text,
@@ -2412,7 +2448,8 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         if request_data["method"] == "GET" and service.exclude_get:
             raise CoreHTTPTriggerServiceMethodNotAllowed()
 
-        histories = self.on_event([service], request_data)
+        with transaction.atomic():
+            histories = self.on_event([service], request_data)
         history = histories[0] if histories else None
         return service, history
 
@@ -2814,8 +2851,8 @@ class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
             "response_timeout_seconds": serializers.IntegerField(
                 required=False,
                 min_value=1,
-                max_value=120,
-                default=30,
+                max_value=settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                default=10,
                 help_text=CoreManualTriggerService._meta.get_field(
                     "response_timeout_seconds"
                 ).help_text,
@@ -3486,7 +3523,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         trigger_service = published_workflow.get_trigger().service.specific
         should_wait = bool(getattr(trigger_service, "wait_for_response", False))
         response_timeout_seconds = getattr(
-            trigger_service, "response_timeout_seconds", 30
+            trigger_service, "response_timeout_seconds", 10
         )
         if should_wait:
             history = workflow_handler.async_start_workflow(

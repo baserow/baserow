@@ -53,7 +53,7 @@ describe('CoreManualTriggerServiceForm', () => {
     const wrapper = await mountComponent()
 
     expect(wrapper.findComponent({ name: 'FormInput' }).exists()).toBe(false)
-    expect(wrapper.vm.values.response_timeout_seconds).toBe(30)
+    expect(wrapper.vm.values.response_timeout_seconds).toBe(10)
 
     wrapper
       .findComponent({ name: 'Checkbox' })

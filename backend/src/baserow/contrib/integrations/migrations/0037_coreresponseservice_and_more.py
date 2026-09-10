@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='corehttptriggerservice',
             name='response_timeout_seconds',
-            field=models.PositiveSmallIntegerField(db_default=30, default=30, help_text='The maximum time to wait for the workflow response in seconds.', validators=[django.core.validators.MinValueValidator(1, message='Value cannot be less than 1.'), django.core.validators.MaxValueValidator(120, message='Value cannot be greater than 120.')]),
+            field=models.PositiveSmallIntegerField(db_default=10, default=10, help_text='The maximum time to wait for the workflow response in seconds.', validators=[django.core.validators.MinValueValidator(1, message='Value cannot be less than 1.'), django.core.validators.MaxValueValidator(20, message='Value exceeds the maximum workflow response timeout.')]),
         ),
         migrations.AddField(
             model_name='corehttptriggerservice',
@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='coremanualtriggerservice',
             name='response_timeout_seconds',
-            field=models.PositiveSmallIntegerField(db_default=30, default=30, help_text='The maximum time to wait for the workflow response in seconds.', validators=[django.core.validators.MinValueValidator(1, message='Value cannot be less than 1.'), django.core.validators.MaxValueValidator(120, message='Value cannot be greater than 120.')]),
+            field=models.PositiveSmallIntegerField(db_default=10, default=10, help_text='The maximum time to wait for the workflow response in seconds.', validators=[django.core.validators.MinValueValidator(1, message='Value cannot be less than 1.'), django.core.validators.MaxValueValidator(20, message='Value exceeds the maximum workflow response timeout.')]),
         ),
         migrations.AddField(
             model_name='coremanualtriggerservice',
