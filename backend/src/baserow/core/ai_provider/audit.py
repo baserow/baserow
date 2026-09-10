@@ -1,4 +1,21 @@
-"""Read-only AI configuration inventory for migration checks."""
+"""
+Read-only inventory for moving legacy AI configuration into database providers.
+
+Reports legacy environment/workspace sources, database providers and feature
+settings, AI Agent selections, and AI Fields when Premium is installed. Includes
+integration overrides, published copies, and trashed records for manual review.
+
+Run before and after imports to compare stored configuration and identify overrides
+to reconcile. Use the candidate code and schema in the deployment's backend
+environment; from a repository checkout, inspect all workspaces or just one with:
+
+    just b manage audit_ai_provider_settings
+    just b manage audit_ai_provider_settings --workspace-id <id>
+
+The command emits JSON metadata without credentials or connection values. It does
+not write data, call providers, measure migration time, or verify runtime behavior.
+This is optional diagnostic tooling; migrations and imports do not depend on it.
+"""
 
 # TODO (#5749): Remove this module and audit_ai_provider_settings, including
 # their tests and documentation, after legacy AI configuration is migrated.
