@@ -532,15 +532,15 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     "headers": {
                         "type": "object",
                         "properties": {
-                            "Content-Type": {
+                            "content-type": {
                                 "type": "string",
                                 "description": "The MIME type of the response body",
                             },
-                            "Content-Length": {
+                            "content-length": {
                                 "type": "number",
                                 "description": "The length of the response body in octets (8-bit bytes)",
                             },
-                            "ETag": {
+                            "etag": {
                                 "type": "string",
                                 "description": "An identifier for a specific version of "
                                 "a resource",
@@ -729,8 +729,11 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             # Otherwise, fall back to text
             response_body = response.text
 
-        # Extract the response headers
-        response_headers = {key: value for key, value in response.headers.items()}
+        # HTTP header names are case-insensitive, but formula paths and JSON keys
+        # are not. Normalize them so server casing cannot change formula results.
+        response_headers = {
+            key.lower(): value for key, value in response.headers.items()
+        }
 
         data = {
             "raw_body": ensure_string(response_body, allow_empty=True),
