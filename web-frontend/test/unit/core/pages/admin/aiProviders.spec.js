@@ -35,9 +35,7 @@ describe('AdminAIProviders', () => {
     ])
     vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
 
-    const wrapper = await testApp.mount(AdminAIProviders, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
-    })
+    const wrapper = await testApp.mount(AdminAIProviders)
     await flushPromises()
 
     const header = wrapper.find('.ai-provider-admin__header')
@@ -49,9 +47,7 @@ describe('AdminAIProviders', () => {
   test('shows the skeleton while the providers are being fetched', async () => {
     vi.spyOn(testApp.store, 'dispatch').mockReturnValue(new Promise(() => {}))
 
-    const wrapper = await testApp.mount(AdminAIProviders, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
-    })
+    const wrapper = await testApp.mount(AdminAIProviders)
     await flushPromises()
 
     expect(wrapper.find('.skeleton').exists()).toBe(true)
@@ -72,9 +68,7 @@ describe('AdminAIProviders', () => {
         }
         return Promise.resolve()
       })
-    const wrapper = await testApp.mount(AdminAIProviders, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
-    })
+    const wrapper = await testApp.mount(AdminAIProviders)
     await flushPromises()
 
     expect(wrapper.text()).toContain('aiProviderAdmin.loadError')
@@ -115,9 +109,7 @@ describe('AdminAIProviders', () => {
     ])
     vi.spyOn(testApp.store, 'dispatch').mockResolvedValue(undefined)
 
-    const wrapper = await testApp.mount(AdminAIProviders, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
-    })
+    const wrapper = await testApp.mount(AdminAIProviders)
     await flushPromises()
 
     expect(wrapper.find('.ai-provider-model__name').text()).toBe('gpt-5.6')

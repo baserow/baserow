@@ -46,7 +46,6 @@ describe('FieldAISubForm component', () => {
       },
     ])
     const wrapper = await testApp.mount(FieldAISubForm, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: {
         table: { id: 10 },
         view: {},

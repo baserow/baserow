@@ -11,14 +11,6 @@ Add/remove features flags to the list below:
 - `ai-providers` — AI provider management for the instance admin area and for
   workspace settings.
 
-### Preparing the `ai-providers` feature
-
-The `ai-providers` flag is retired. AI provider management is always available;
-changing `FEATURE_FLAGS` no longer enables or disables it. See the
-[AI provider upgrade guide](../installation/ai-providers.md) for imports,
-compatibility, and rollback, and the
-[rollout test plan](../testing/ai-provider-rollout-test-plan.md) for release verification.
-
 ## Enabling feature flags
 
 To enable specific feature flags set the environment variable

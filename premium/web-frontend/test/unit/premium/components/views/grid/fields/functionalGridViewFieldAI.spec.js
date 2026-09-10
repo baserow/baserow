@@ -33,7 +33,6 @@ describe('FunctionalGridViewFieldAI component', () => {
 
   const mountComponent = (field) =>
     testApp.mount(FunctionalGridViewFieldAI, {
-      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: {
         field,
         row: { id: 1 },
@@ -62,7 +61,7 @@ describe('FunctionalGridViewFieldAI component', () => {
     expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
   })
 
-  test('respects feature eligibility when the retired flag is absent', async () => {
+  test('disables generation when the selected model is ineligible for AI Fields', async () => {
     await testApp.getStore().dispatch('workspace/forceCreate', {
       ...workspace,
       ai_features: { ai_fields: { models: {} } },

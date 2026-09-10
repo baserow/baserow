@@ -87,7 +87,7 @@ describe('AI database onboarding visibility', () => {
     expect(type.isVisible()).toBe(false)
   })
 
-  test('uses the legacy model when an older backend omits Kuma availability', () => {
+  test('uses the configured environment model when Kuma availability is missing', () => {
     const type = makeStepType({
       legacyModel: 'groq:legacy-model',
     })

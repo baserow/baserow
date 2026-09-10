@@ -1964,9 +1964,8 @@ def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
 @pytest.mark.field_ai
 @pytest.mark.django_db
 def test_ai_field_list_api_serializes_disabled_instance_model_error(
-    settings, api_client, premium_data_fixture
+    api_client, premium_data_fixture
 ):
-    settings.FEATURE_FLAGS = []
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
     )
@@ -2008,9 +2007,8 @@ def test_ai_field_list_api_serializes_disabled_instance_model_error(
 @pytest.mark.field_ai
 @pytest.mark.django_db
 def test_create_ai_field_rejects_disabled_instance_model(
-    settings, api_client, premium_data_fixture
+    api_client, premium_data_fixture
 ):
-    settings.FEATURE_FLAGS = []
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
     )
