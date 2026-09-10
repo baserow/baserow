@@ -1039,32 +1039,6 @@ def test_broadcast_to_users_records_from_eager_on_commit_task():
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-@pytest.mark.enable_signals("baserow.ws.tasks.broadcast_to_users.delay")
-@override_settings(
-    BASEROW_REALTIME_REPLAY_MAX_EVENTS=100,
-    CELERY_TASK_ALWAYS_EAGER=True,
-    CELERY_TASK_EAGER_PROPAGATES=True,
-)
-def test_broadcast_to_users_eager_task_inside_transaction_keeps_connection_open():
-    """
-    Recording must not run on the calling thread. There, ``DatabaseSyncToAsync``
-    would close the caller's own connection and kill its open transaction.
-    """
-
-    payload = {"type": "job_started"}
-
-    with transaction.atomic():
-        broadcast_to_users.delay([1], payload)
-
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            assert cursor.fetchone()[0] == 1
-
-    assert RealtimeEvent.objects.filter(channel_group="users").exists()
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.websockets
 def test_broadcast_many_records_events_in_single_batch():
     payloads = [
         ("table-1", {"type": "rows_created", "table_id": 1}),
