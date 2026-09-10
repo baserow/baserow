@@ -100,6 +100,12 @@ with later environment or workspace changes. Incomplete settings are skipped, an
 conflicting database providers are preserved. Review the resulting behavior before
 accepting either outcome. The two scopes are separate transactions.
 
+The workspace importer creates independent workspace providers. If an instance
+provider of the same type already exists, this can change the effective model list:
+imported models no longer depend on its eligibility restrictions, and other instance
+models become inherited. Compare availability before and after on the rehearsal
+copy; the preview does not check behavioral equivalence.
+
 Imports do not inspect integration overrides or publications. They also do not import
 Kuma's deprecated `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` selector, its
 `UDSPY_LM_MODEL` alias, or provider-native credentials. Configure the provider, mark
@@ -108,6 +114,67 @@ provider/authentication paths without a database equivalent, such as Bedrock or
 Vertex AI, retain the verified environment fallback; see
 [AI assistant configuration](ai-assistant.md#3-legacy-fallback-provider-presets).
 Do not remove legacy settings needed by remaining consumers or the rollback window.
+
+### Measuring migration and import time
+
+On the existing production database, run the read-only
+[workspace configuration count query](ai-provider-workspace-counts.sql). It requires
+only `core_workspace`, so it also works before the provider tables are installed.
+It reports aggregate counts for active and trashed workspaces without exposing
+credentials, workspace names, or model identifiers. The query has a 30-second
+statement timeout; it still consumes database resources while scanning the table.
+Execute it in your production SQL console or, with your normal read-only connection
+configured, run it from the repository root:
+
+```bash
+psql -X -v ON_ERROR_STOP=1 -f docs/installation/ai-provider-workspace-counts.sql
+```
+
+These are workload counts, **not eligible imports**. Empty entries, duplicates,
+incomplete connections, and existing database providers change how many rows are
+actually inserted. Resolve malformed data on the rehearsal copy before using the
+importer. The current command scans active workspaces only; the query also counts
+trashed workspaces because they can be restored.
+
+With the candidate code and its schema installed, preview the current importer in
+the backend environment:
+
+```bash
+time just b manage migrate_ai_provider_settings --scope workspace
+```
+
+Omitting `--apply` is the dry run; there is no `--dry-run` argument. It performs no
+writes or provider requests. Its output includes workspace names and model
+identifiers, so keep logs private. Elapsed time covers startup, reads, validation,
+and reporting; it does **not** estimate the cost of inserts or transaction commit.
+
+For a useful deployment estimate, restore a recent production backup to an isolated
+database with comparable CPU, storage, indexes, and PostgreSQL configuration. Point
+the candidate backend at that copy and leave its workers and scheduled jobs stopped.
+Run the exact planned upgrade and import sequence there, timing each step:
+
+```bash
+# Rehearsal database only: these commands write data.
+time just b manage migrate
+time just b manage migrate_ai_provider_settings --scope instance --apply
+time just b manage migrate_ai_provider_settings --scope workspace --apply
+```
+
+Include the instance import only if it is part of the intended deployment, using
+the same relevant environment configuration: it affects runtime model availability
+before and after the workspace import. Use the normal backend command wrapper in
+place of `just b manage` when running outside a repository checkout.
+
+Record the imported provider/model counts, elapsed time, database lock waits, and
+replication lag where applicable. Repeat from a **fresh restored baseline**; reruns
+against an imported copy mainly measure skips. A smaller sample can give a rough
+throughput estimate, but use a full representative copy for the deployment window
+and allow for production load. There is no reliable fixed duration per workspace.
+
+Measure migrations and imports separately; their batching and transaction strategies
+can differ. `migrate --plan` lists operations without measuring their execution.
+Do not benchmark writes on production and roll them back as a dry run: that still
+takes locks and generates WAL.
 
 ## Published applications
 
