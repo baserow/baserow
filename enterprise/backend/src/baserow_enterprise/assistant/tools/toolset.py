@@ -122,13 +122,14 @@ def _unwrap_union(node: Any) -> dict:
 
 
 def _schema_at(schema: dict, loc: tuple) -> tuple[dict, bool]:
-    """
-    Follow a pydantic error ``loc`` into an already ref-inlined schema.
+    """Follow a Pydantic error location into a schema with inlined references.
 
-    Returns the deepest node reached and whether the whole path resolved.
-    A union branch tag in ``loc`` (``('parent_element', 'int')``) does not
-    resolve, so callers must never present a partial result as the
-    authoritative key set.
+    Union branch tags do not resolve, so a partial result must not be used
+    as the authoritative key set.
+
+    :param schema: The tool's parameter schema after reference inlining.
+    :param loc: Property names and array indices from a validation error.
+    :return: The deepest node reached and whether the full location resolved.
     """
 
     node = _unwrap_union(schema)
@@ -152,7 +153,12 @@ def _keys_of(node: dict) -> list[str]:
 
 
 def _describe_shape(node: dict, exact: bool) -> str:
-    """One-line description of the value a schema node expects."""
+    """Describe an expected value without guessing from a partial schema match.
+
+    :param node: The schema node reached while resolving an error location.
+    :param exact: Whether the complete error location resolved to this node.
+    :return: A brief expected shape, or a generic schema reference.
+    """
 
     if not node or not exact:
         return "the value this tool's schema documents at that path"
@@ -171,6 +177,8 @@ def _describe_shape(node: dict, exact: bool) -> str:
 
 
 def _discovery_hint(field_name: str) -> str:
+    """Suggest an ID lookup tool, or return no hint for other fields."""
+
     tool = _ID_DISCOVERY_TOOL.get(field_name)
     if tool:
         return f" Call {tool} to get a real id."
@@ -180,6 +188,8 @@ def _discovery_hint(field_name: str) -> str:
 
 
 def _short(value: Any, limit: int = 60) -> str:
+    """Render a value for error feedback, truncating it after ``limit`` characters."""
+
     try:
         text = json.dumps(value, default=str)
     except (TypeError, ValueError):
@@ -190,12 +200,13 @@ def _short(value: Any, limit: int = 60) -> str:
 def format_tool_arg_errors(
     tool_name: str, schema: dict, wrong_args: Any, errors: list[dict]
 ) -> str:
-    """
-    Render pydantic errors as instructions the model can act on.
+    """Render Pydantic errors as recovery instructions, with a fallback on failure.
 
-    Raw error dicts name only the rejected key; each line here also states
-    what is legal at that path and which tool returns real ids. Runs on the
-    failure path of every tool call, so it must never raise.
+    :param tool_name: The tool whose arguments failed validation.
+    :param schema: The tool's parameter schema after reference inlining.
+    :param wrong_args: The raw arguments that failed validation.
+    :param errors: Error details returned by Pydantic validation.
+    :return: Correction instructions, or the original errors if rendering fails.
     """
 
     try:
@@ -208,6 +219,15 @@ def format_tool_arg_errors(
 def _render_tool_arg_errors(
     tool_name: str, schema: dict, wrong_args: Any, errors: list[dict]
 ) -> str:
+    """Build a bounded error report with expected shapes and ID lookup hints.
+
+    :param tool_name: The tool to call again with corrected arguments.
+    :param schema: The tool's parameter schema after reference inlining.
+    :param wrong_args: The rejected arguments, used to report the supplied keys.
+    :param errors: Pydantic errors, capped at ``_MAX_REPORTED_ERRORS`` in the report.
+    :return: A report describing rejected values and how to correct them.
+    """
+
     lines: list[str] = []
     id_rejected = False
 
@@ -362,8 +382,12 @@ def _is_placeholder_id(value: Any) -> bool:
 
 
 def _find_placeholder_ids(node: Any, path: str = "") -> list[tuple[str, str, Any]]:
-    """Return ``(json_path, producer_tool, value)`` for every invented resource
-    ID in the raw tool arguments, at any nesting depth."""
+    """Find non-positive resource IDs in nested raw tool arguments.
+
+    :param node: The argument value to inspect recursively.
+    :param path: The JSON path leading to this value, empty at the root.
+    :return: ``(json_path, producer_tool, value)`` tuples for rejected resource IDs.
+    """
 
     found: list[tuple[str, str, Any]] = []
     if isinstance(node, dict):

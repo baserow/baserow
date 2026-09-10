@@ -8,7 +8,6 @@ from loguru import logger
 from pydantic import Field, create_model
 from pydantic_ai import ModelRetry, RunContext, Tool
 from pydantic_ai.toolsets import FunctionToolset
-from pydantic_ai.usage import UsageLimits
 
 from baserow.contrib.database.fields.actions import (
     CreateFieldActionType,
@@ -30,7 +29,6 @@ from baserow.contrib.database.views.actions import (
     UpdateViewFieldOptionsActionType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AssistantDeps
@@ -41,11 +39,9 @@ from baserow_premium.prompts import get_formula_docs
 
 from . import helpers
 from .agents import (
-    FORMULA_AGENT_RETRIES,
-    formula_generation_agent,
     generate_sample_rows,
-    get_formula_type_tool,
     make_formula_fixer,
+    run_formula_generation,
 )
 from .prompts import format_formula_generation_prompt
 from .types import (
@@ -966,9 +962,9 @@ def generate_formula(
     :param save_to_field: Whether to save the formula to a field.
     :param thought: Brief reasoning for invoking the tool.
     :return: Formula metadata, including an integer table ID when a field is saved.
-    :raises Exception: If the formula is invalid or targets an unavailable table.
+    :raises ModelRetry: If generation fails, the formula is invalid, or its target
+        table is unavailable.
     """
-    from baserow_enterprise.assistant.model_profiles import UTILITY
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
@@ -984,25 +980,13 @@ def generate_formula(
     tool_helpers.update_status(_("Generating formula..."))
 
     formula_docs = get_formula_docs()
-    formula_type_tool = Tool(get_formula_type_tool(user, workspace))
-    formula_toolset = FunctionToolset(
-        [formula_type_tool], max_retries=FORMULA_AGENT_RETRIES
-    )
-
     prompt = format_formula_generation_prompt(
         description, database_tables_schema, formula_docs
     )
 
     try:
-        model_profile = tool_helpers.model_profile
-        model = model_profile.create_model()
-        agent_result = run_agent_sync_with_model(
-            formula_generation_agent,
-            prompt,
-            model=model,
-            model_settings=model_profile.get_settings(UTILITY),
-            toolsets=[formula_toolset],
-            usage_limits=UsageLimits(request_limit=20),
+        agent_result = run_formula_generation(
+            user, workspace, prompt, tool_helpers.model_profile
         )
     except ModelRetry:
         raise
@@ -1144,10 +1128,9 @@ def _build_row_tools(
         name=f"create_rows_in_table_{table.id}",
         description=(
             f"WHEN: Creating new rows in '{table.name}' (ID: {table.id}). "
-            f"WHAT: Inserts a batch of AT MOST 20 rows with field values matching "
-            f"the table schema. For more rows, call this tool again with the next "
-            f"batch — a single oversized call fails to generate and creates "
-            f"nothing. "
+            f"WHAT: Inserts rows with field values matching the table schema. "
+            f"Keep batches to at most 20 rows to avoid oversized generated arguments; "
+            f"for more rows, call this tool again with the next batch. "
             f"RETURNS: Created row IDs. "
             f"DO NOT USE: For other tables — each table has its own create tool. "
             f"HOW: Fill EVERY field including ALL link_row (relationship) fields. Never skip a field unless data is genuinely unavailable."

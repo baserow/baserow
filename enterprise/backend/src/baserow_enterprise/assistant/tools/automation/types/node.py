@@ -184,9 +184,6 @@ ROW_TRIGGER_TYPES = frozenset(
         "rows_created",
         "rows_updated",
         "rows_deleted",
-        "local_baserow_rows_created",
-        "local_baserow_rows_updated",
-        "local_baserow_rows_deleted",
     }
 )
 

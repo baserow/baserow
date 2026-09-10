@@ -9,6 +9,12 @@ def require_payload(tool_name: str, arg_name: str, items: Any) -> None:
     """Reject a call that named a target but carried nothing to act on.
 
     An empty success result would let a dropped payload read as done work.
+
+    :param tool_name: The collection-creating tool receiving the call.
+    :param arg_name: The argument containing the items to create.
+    :param items: The collection supplied for that argument.
+    :return: None when the collection is nonempty.
+    :raises ModelRetry: When the payload is empty and must be supplied again.
     """
 
     if not items:

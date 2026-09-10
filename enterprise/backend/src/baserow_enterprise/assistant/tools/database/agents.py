@@ -163,8 +163,8 @@ def _verdict_must_be_backed_by_validation(
 
     Both directions are enforced: a valid verdict must name a formula the tool
     accepted for that table and field name, and an impossible verdict must follow
-    several materially different candidates the tool rejected. A verdict with no
-    tool call behind it is a guess.
+    multiple distinct candidates checked by the tool. A verdict with no tool call
+    behind it is a guess.
 
     :param ctx: The agent run context.
     :param output: The candidate result to validate.
@@ -187,7 +187,6 @@ def _verdict_must_be_backed_by_validation(
         len({_normalize_formula(formula) for _, _, formula in accepted} | rejected)
         < FORMULA_MIN_ATTEMPTS_BEFORE_IMPOSSIBLE
     ):
-        # This branch fires before any validation, so no type hint was seen yet.
         conversions = "; ".join(
             f"to {target} use {how}"
             for target, how in sorted(_CONVERSION_TO_TARGET_TYPE.items())
