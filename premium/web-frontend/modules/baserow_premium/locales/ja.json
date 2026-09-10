@@ -1,14 +1,18 @@
 {
     "premium": {
         "adminType": {
-            "licenses": "ライセンス"
+            "licenses": "ライセンスを管理"
         },
         "viewType": {
-            "kanban": "カンバン"
+            "kanban": "カンバン",
+            "timeline": "タイムライン",
+            "calendar": "カレンダー"
         },
         "exporterType": {
             "json": "JSONへエクスポート",
-            "xml": "XMLへエクスポート"
+            "xml": "XMLへエクスポート",
+            "excel": "Excel にエクスポート",
+            "file": "ファイルをエクスポート"
         },
         "deactivated": "プレミアム・バージョンが必要"
     },
@@ -23,11 +27,21 @@
         "noComment": "この行にはコメントがありません。下のフォームよりコメントを追加して下さい。",
         "comment": "コメント",
         "more": "詳細情報",
-        "name": "行コメント"
+        "name": "コメント"
     },
     "rowComment": {
         "you": "あなた",
-        "anonymous": "匿名"
+        "anonymous": "匿名",
+        "creating": "作成中",
+        "deleting": "削除中",
+        "created": "作成済み",
+        "edited": "編集済み",
+        "updating": "更新中",
+        "commentTrashed": "このコメントは削除されました。",
+        "errorUserNotCommentAuthorTitle": "更新または削除できません。",
+        "errorUserNotCommentAuthor": "コメントを更新または削除できるのは、そのコメントの作成者だけです。",
+        "errorInvalidCommentMentionTitle": "無効なメンション",
+        "errorInvalidCommentMention": "メンションされたユーザーは存在しません。"
     },
     "registerLicenseModal": {
         "titleRegisterLicense": "ライセンスを登録する",
@@ -87,12 +101,29 @@
     "premiumFeatures": {
         "rowComments": "行コメント",
         "kanbanView": "カンバン・ビュー",
-        "exports": "JSON / XML エクスポート",
+        "exports": "テーブルのエクスポート",
         "admin": "管理者機能",
         "rowColoring": "行カラー",
         "surveyForm": "調査フォーム",
         "publicLogoRemoval": "公開ロゴ削除",
-        "personalViews": "パーソナル・ビュー"
+        "personalViews": "パーソナル・ビュー",
+        "rowCommentsContent": "テーブル上で直接共同作業できます。各行にコメントを追加し、チームメンバーをメンションして、文脈を保ったまま会話できます。",
+        "kanbanViewContent": "かんばんボードでデータを視覚的に整理できます。カードは単一選択フィールドに基づいてスタックにまとめられ、スタック間を簡単にドラッグ＆ドロップできます。",
+        "calendarView": "カレンダービュー",
+        "calendarViewContent": "選択した日付フィールドを使って、行をカレンダー上で簡単に確認できます。期限、イベント、予定をひと目で把握するのに最適です。",
+        "timelineView": "タイムラインビュー",
+        "timelineViewContent": "開始日と終了日を使って、横方向のタイムライン上に行を表示します。プロジェクト計画やロードマップに最適です。",
+        "exportsContent": "Excel、JSON、XML などの追加形式でデータを簡単にエクスポートしたり、テーブル内の全ファイルを一括ダウンロードしたりできます。バックアップ、レポート、共有に最適です。",
+        "rowColoringContent": "単一選択フィールドやカスタム条件に基づいて、行を色で強調表示します。パターンや優先順位を見つけやすくなります。",
+        "rowNotifications": "行の通知",
+        "rowNotificationsContent": "行コメントの通知をカスタマイズして最新情報を把握できます。すべてのコメントを通知するか、自分がメンションされた場合だけ通知するかを選べます。",
+        "surveyFormContent": "アンケートモードでは、質問を 1 つずつ表示して回答を集められます。フォームビューを簡略化し、回答への集中と使いやすさを高めた形式です。",
+        "personalViewsContent": "作成者だけが見られるビューを作成できます。他のユーザーのワークスペースに影響を与えず、データの試行、絞り込み、並べ替えを行えます。",
+        "aiFeatures": "AI 機能",
+        "publicLogoRemovalContent": "公開ビューから Baserow のロゴを削除し、共有コンテンツをよりすっきりとブランドに合った外観にできます。",
+        "aiFeaturesContent": "AI を使ってワークフローを自動化・強化できます。AI プロンプトフィールドでは、他のフィールドを参照できる動的なプロンプトに基づき、セル内で文章、要約、洞察を生成できます。また、AI に数式の作成を依頼することもできます。",
+        "chartWidget": "グラフウィジェット",
+        "chartWidgetContent": "ダッシュボード上のグラフでデータを視覚化します。任意のテーブルをデータソースにし、複数の系列を追加して、豊富な集計方法とともにフィールドでグループ化や並べ替えができます。"
     },
     "licenses": {
         "titleNoLicenses": "ライセンスが見つかりません",
@@ -105,7 +136,8 @@
         "premium": "プレミアム",
         "expired": "期限切れ",
         "validity": "{start} から {end} まで有効",
-        "seats": "シート"
+        "seats": "シート",
+        "applicationUsers": "アプリケーションユーザー"
     },
     "license": {
         "title": "{name} プラン",
@@ -132,13 +164,16 @@
         "rowUsage": "利用行数",
         "storeUsage": "ストレージ利用",
         "disconnectLicense": "ライセンスを解除",
-        "disconnectDescription": "本当にライセンスを解消しても良いですか？有効なうちにライセンスを解消すると、関連するユーザーはこのプランにアクセス出来なくなり、ライセンスは削除されます。ライセンスを他のインスタンスへ移したい場合は、サポートチーム（ {contact} ）へご連絡下さい。",
+        "disconnectDescription": "このライセンスを切断してもよろしいですか？有効なライセンスを切断すると、関連するユーザーはこのプランを利用できなくなります。これにより、このインスタンスからライセンスが実質的に削除されます。{subscriptions} のサブスクリプションページでサブスクリプションのインスタンス ID を変更できます。Enterprise をご利用の場合は、{contact} からサポートチームにお問い合わせいただくこともできます。",
         "moreSeatsNeededTitle": "シート不足",
         "contactSalesMoreSeats": "営業にシートの追加について連絡",
         "automaticSeatsProgressBarStatus": "{seats_taken} / 購入済 {seats} シートと無料 {free_users_count} シートを利用中",
         "premiumFeatureName": "プレミアム",
         "enterpriseFeatureName": "エンタープライズ",
-        "supportFeatureName": "サポート"
+        "supportFeatureName": "サポート",
+        "applicationUsers": "アプリケーションユーザー",
+        "applicationUsersDescription": "公開済みアプリケーションビルダーのユーザーソースに含まれる、アプリケーションユーザーの合計数です。",
+        "advancedFeatureName": "アドバンスト"
     },
     "viewDecoratorType": {
         "leftBorderColor": "左枠線",
@@ -158,13 +193,17 @@
         "chooseAColor": "どの選択肢の値を行の色に指定しますか？"
     },
     "conditionalColorValueProviderForm": {
-        "addCondition": "条件追加",
-        "colorAlwaysApply": "この色が既定の色になります。「条件追加」ボタンで条件を追加出来ます。",
-        "addColor": "色の追加"
+        "addCondition": "条件を追加",
+        "colorAlwaysApply": "「条件を追加」ボタンをクリックして条件を追加できます。",
+        "addColor": "色を追加",
+        "addConditionGroup": "条件グループを追加",
+        "colorAlwaysApplyTitle": "この色はデフォルトで適用されます。",
+        "deleteColor": "色を削除",
+        "title": "色"
     },
     "redirectToBaserowModal": {
-        "title": "http://baserow.io へリダイレクト中",
-        "content": "あなたのインスタンスを出て、http://baserow.io へリダイレクト中です。"
+        "title": "https://baserow.io へリダイレクト中",
+        "content": "セルフホスト型インスタンスを離れ、https://baserow.io へリダイレクトします。"
     },
     "premiumTopSidebar": {
         "impersonateDescription": "インパーソネート中のアカウントです。ページの更新をすると終了します。",
@@ -186,9 +225,195 @@
         "baserowLogo": {
             "label": "共有ビューでは Baserow ロゴを隠す",
             "premiumModalName": "公開ロゴ削除"
-        }
+        },
+        "allowPublicExportLabel": "共有ビューでのエクスポートを許可"
     },
     "viewsContext": {
         "personal": "パーソナル"
+    },
+    "paidFeaturesModal": {
+        "description": "この機能は {plan} プランで利用できます。利用するには、サブスクリプションに登録してアカウントをアップグレードしてください。下のボタンから料金プランを確認できます。",
+        "viewPricing": "料金を見る"
+    },
+    "rowCommentContext": {
+        "edit": "コメントを編集",
+        "delete": "コメントを削除"
+    },
+    "rowCommentMentionNotification": {
+        "title": "{sender} が {table} の行 {row} であなたをメンションしました",
+        "deletedUser": "削除済みユーザー"
+    },
+    "rowCommentNotification": {
+        "title": "{sender} が {table} の行 {row} にコメントを投稿しました",
+        "deletedUser": "削除済みユーザー"
+    },
+    "trashType": {
+        "row_comment": "行コメント"
+    },
+    "tableExcelExporter": {
+        "includeHeader": "フィールド名をヘッダーに含める"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "行 ID ごとにファイルをまとめる"
+    },
+    "kanbanView": {
+        "addStack": "スタックを追加"
+    },
+    "calendarViewType": {
+        "sharedViewText": "このビューのデータを誰でも閲覧できるようにするか、外部カレンダーへイベントを同期します。",
+        "sharedViewEnableSyncToExternalCalendar": "外部カレンダーと同期",
+        "sharedViewDisableSyncToExternalCalendar": "外部同期を無効化",
+        "sharedViewDescription": "このリンクをカレンダーアプリに貼り付けてください",
+        "sharedViewTitle": "外部カレンダーと同期"
+    },
+    "calendarViewHeader": {
+        "displayBy": "表示基準",
+        "displayedBy": "「{fieldName}」フィールドを基準に表示",
+        "labels": "ラベル"
+    },
+    "timelineViewHeader": {
+        "dateSettings": "日付設定",
+        "labels": "ラベル"
+    },
+    "selectDateFieldContext": {
+        "save": "保存"
+    },
+    "timelineDateSettingsForm": {
+        "startDateField": "開始日",
+        "endDateField": "終了日",
+        "noCompatibleDateFields": "テーブルに日付フィールドがありません。まず、テーブルに開始日と終了日のフィールドを作成してください。",
+        "incompatibleFieldsErrorTitle": "互換性のないフィールド",
+        "incompatibleFieldsErrorMessage": "フィールドに互換性がありません。「時刻を含める」の設定が同じで、すべての共同作業者に同じタイムゾーンを使用する 2 つの有効な日付フィールドを選択してください。",
+        "forceTimezone": "{timezone}",
+        "includeTime": "日付と時刻",
+        "dateOnly": "日付のみ"
+    },
+    "timelineTimescaleContext": {
+        "hour": "時間",
+        "day": "日",
+        "week": "週",
+        "month": "月",
+        "quarter": "四半期",
+        "year": "年",
+        "disabledTooltip": "`include time` が有効な日付フィールドでのみ利用できます。"
+    },
+    "initTimelineViewSettings": {
+        "settings": "日付設定"
+    },
+    "viewDateSelector": {
+        "today": "今日"
+    },
+    "calendarMonthDay": {
+        "hiddenRowsCount": "0 | あと 1 件... | あと {hiddenRowsCount} 件..."
+    },
+    "calendarMonthDayExpanded": {
+        "tryAgain": "もう一度試す"
+    },
+    "timelineGridRow": {
+        "days": "0 | 1 日 | {count} 日"
+    },
+    "dateFieldSelectForm": {
+        "dateField": "このビューで使用するフィールドを選択してください",
+        "noCompatibleDateFields": "このテーブルには日付フィールドがありません。まず日付フィールドを作成してください。"
+    },
+    "selectDateFieldModal": {
+        "chooseDateField": "日付フィールドを選択",
+        "save": "保存"
+    },
+    "RowEditModalCommentNotificationMode": {
+        "modeAllTitle": "すべてのコメント",
+        "modeMentionsDesc": "自分がメンションされたときだけ通知を受け取ります。",
+        "modeMentionsTitle": "メンションのみ",
+        "modeAllDesc": "この行のすべてのコメントについて通知を受け取ります。"
+    },
+    "premiumFieldType": {
+        "aiDescription": "フィールドのプロンプトに基づいて AI が生成したテキストを保持する、読み取り専用フィールドです。",
+        "ai": "AI プロンプト"
+    },
+    "functionalGridViewFieldAI": {
+        "generate": "生成"
+    },
+    "gridViewFieldAI": {
+        "generate": "生成",
+        "regenerate": "再生成",
+        "promptBroken": "プロンプトが壊れています。値を生成する前に修正してください。"
+    },
+    "fieldAISubForm": {
+        "prompt": "プロンプト",
+        "promptPlaceholder": "Baserow とは何ですか？",
+        "premiumFeature": "AI フィールドはプレミアム機能です",
+        "emptyFileField": "なし",
+        "fileFieldHelp": "フィールド内で最初に見つかった対応ファイルを、プロンプトのナレッジベースとして使用します。ファイルは .txt、.md、.pdf、.docx など、対応する拡張子のテキストファイルである必要があります。",
+        "outputType": "出力形式",
+        "outputTypeTooltip": "希望する出力形式を選択すると、指定した選択肢に合う回答を LLM が生成しやすくなります。",
+        "outputTypeChangedWarning": "生成済みのセル値が消去されます。",
+        "autoUpdate": "自動更新",
+        "autoUpdateHelp": "有効にすると、プロンプトで参照しているフィールドが更新されたときに AI フィールドの値が自動的に再生成されます。",
+        "autoUpdateDescription": "参照フィールドの変更時に再生成",
+        "invalidPrompt": "プロンプトの数式が無効です。"
+    },
+    "rowEditFieldAI": {
+        "generate": "生成",
+        "createRowBefore": "AI の値は、行を作成した後に生成できます。",
+        "promptBroken": "プロンプトが壊れています。値を生成する前に修正してください。"
+    },
+    "aiFormulaModal": {
+        "title": "AI で数式を生成",
+        "description": "生成された数式が常に期待どおり動作するとは限りません。モデル用のプロンプトを作成し、その出力を数式入力欄に読み込みます。gpt-4-turbo-preview のような高性能モデルを使用すると最も良好に動作します。",
+        "label": "プロンプト",
+        "labelDescription": "生成したい数式を説明してください",
+        "generate": "生成",
+        "noModels": "Baserow インスタンスとワークスペースに AI モデルが設定されていません。ホームページでワークスペース名をクリックし、設定からモデルを登録してください。"
+    },
+    "formulaFieldAI": {
+        "generateWithAI": "AI を使って生成",
+        "featureName": "AI で数式を生成"
+    },
+    "aiOutputType": {
+        "text": "テキスト",
+        "textDescription": "プロンプトに基づいて自由形式のテキストを生成します。",
+        "choice": "選択肢",
+        "choiceDescription": "フィールドの選択肢から 1 つだけ選びます。"
+    },
+    "publicViewExport": {
+        "export": "エクスポート"
+    },
+    "chart": {
+        "true": "真",
+        "false": "偽",
+        "other": "その他"
+    },
+    "generateAIValuesModal": {
+        "title": "すべての AI 値を生成",
+        "noPreviousJobs": "以前の処理はありません",
+        "started": "開始済み",
+        "finished": "完了",
+        "running": "実行中",
+        "failed": "失敗",
+        "cancelled": "キャンセル済み",
+        "pending": "待機中",
+        "view": "ビュー: {name}",
+        "table": "テーブル: すべての行",
+        "deletedView": "ビュー: ID {viewId}（削除済み）",
+        "rows": "行: {count} 行",
+        "autoUpdate": "自動更新: 参照フィールドが変更されました"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "対象範囲",
+        "entireTable": "テーブル全体",
+        "skipPopulated": "空のセルだけに値を生成",
+        "warningTitle": "トークン使用量に関する警告",
+        "warningMessage": "すべての AI 値を生成すると API トークンを消費し、行数によってはかなりの時間がかかる場合があります。"
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "AI で生成",
+        "close": "閉じる"
+    },
+    "jobType": {
+        "generateAIValues": "AI フィールド値を再生成"
+    },
+    "viewOwnershipType": {
+        "personal": "個人用",
+        "personalDescription": "このビューを表示できるのはあなただけです。"
     }
 }
