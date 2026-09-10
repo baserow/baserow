@@ -1,8 +1,8 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
 /**
- * Resolve feature eligibility, falling back to the generic model payload for
- * responses from an older application version during a rolling upgrade.
+ * Resolve feature eligibility, falling back to generic model availability when
+ * the workspace has no availability metadata for this feature.
  *
  * @param {object|null} workspace The workspace with model availability.
  * @param {string} featureType The AI feature that consumes the models.
