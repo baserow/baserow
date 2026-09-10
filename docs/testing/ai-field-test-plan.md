@@ -2,24 +2,27 @@
 
 ## Prerequisites
 
-### 1. Instance-level configuration (env vars)
+### 1. Instance-level configuration
 
-Configure at least one AI provider using the env vars documented in the
-[Generative AI configuration](../installation/configuration.md#generative-ai-configuration)
-section of `configuration.md`.
+As instance staff, configure a provider and working model under **Admin → AI
+providers**, make the model available to **AI fields**, and run **Test model**.
+No feature flag is required.
 
-Verify: after setting env vars and restarting, the configured providers and models
-appear in the AI field creation form.
+Verify: the model appears in the AI field creation form. Also test an installation
+without database providers using the legacy environment variables documented in
+[Generative AI configuration](../installation/configuration.md#generative-ai-configuration).
+See the [rollout test plan](ai-provider-rollout-test-plan.md) for import transitions.
 
 ### 2. Workspace-level configuration
 
-1. Go to workspace **Settings → AI models**
-2. Add an API key and select models for at least one provider
+1. Go to workspace **Settings → AI providers**
+2. Add a complete provider connection and models available to **AI fields**
 3. Verify: the workspace-level models appear in the AI field form for that
    workspace
-4. Verify: workspace keys override instance keys — if instance has provider X
-   configured and workspace also sets provider X with different models, only the
-   workspace models appear
+4. Verify: a workspace model overrides the same instance model identifier and uses
+   the workspace connection. Other instance models remain inherited and use the
+   instance connection. Disabling a workspace model suppresses that identifier;
+   disabling its provider reveals the inherited instance layer again
 5. Verify: a provider configured only at instance level (no workspace override)
    still appears and works
 

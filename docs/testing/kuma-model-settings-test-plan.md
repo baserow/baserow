@@ -12,8 +12,9 @@ choice per workspace.
 
 ### Environment
 
-- The `ai-providers` feature flag is enabled (`FEATURE_FLAGS=*` or an explicit list
-  containing `ai-providers`) on backend, celery and web-frontend.
+- Use the release with always-available AI provider management on backend, Celery,
+  and web-frontend. The retired `ai-providers` flag is not required. Section 10 checks
+  that changing it has no effect.
 - An **Enterprise** license is active — Kuma is enterprise-only. AI fields need
   **Premium**.
 - `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` **is set** together with the credentials
@@ -525,8 +526,8 @@ curl -s http://localhost:8000/api/workspaces/ -H "Authorization: JWT <token>" \
 `ai_features.ai_agent.models` must exclude every model without AI Agent eligibility,
 and a model with no feature ticked must be absent from all feature lists. The legacy
 `generative_ai_models_enabled` field still lists **all** of them, including the
-no-feature model — which is exactly why the frontend must read `ai_features` while the
-flag is on, and why section 10's legacy path still offers those models.
+no-feature model — which is why the frontend must always read `ai_features` for
+feature eligibility.
 
 `ai_features.kuma` carries `is_enabled` plus a `state`. That `state` is not the
 helper's: `unconfigured` and `invalid` are both reported here as `legacy`, because
@@ -571,13 +572,14 @@ Verify:
 
 ### 6.5 Explicit integration overrides
 
-Use API-created AI integrations to test these built-in provider overrides in both
-feature-flag states, in Automation and Application Builder:
+Use API-created AI integrations to test these built-in provider overrides in
+Automation and Application Builder. Repeat with database providers and with only
+legacy environment/workspace configuration:
 
 | Override | Expected connection and model list |
 |---|---|
 | Complete connection with `models: ["custom-model"]` | Own connection and explicit list, independent of database eligibility |
-| Complete connection without `models` | Own connection and inherited allowed list, filtered for AI Agent while the flag is on |
+| Complete connection without `models` | Own connection and inherited allowed list, filtered for AI Agent when database models govern availability |
 | Complete connection with `models: []` | No available models |
 | Incomplete connection with a model list | Inherited connection; only models also present in the inherited allowed list |
 | Incomplete connection without `models` | Inherited connection and allowed list |
@@ -637,8 +639,7 @@ this plan assumes, or the codes will not match.
 ### 8.1 Instance settings need staff
 
 Verify: **builder** has no **AI providers** admin entry, `/admin/ai-providers` is not
-reachable (the route carries an `aiProvidersFeatureFlag` middleware and a `staff`
-middleware), and `GET /api/ai-providers/features/` returns
+reachable (the route requires staff), and `GET /api/ai-providers/features/` returns
 `401 PERMISSION_DENIED`. Note that a workspace admin who is not instance staff is
 refused here too.
 
@@ -711,45 +712,60 @@ Verify: with Kuma disabled at the instance,
 
 ---
 
-## 10. Feature flag off (legacy behaviour)
+## 10. Retired flag and retained legacy fallbacks
 
-Restart the stack with `ai-providers` removed from `FEATURE_FLAGS` (all services)
-and verify nothing from this feature leaks into the old path:
+Restart all services and reload browsers with `ai-providers` absent from
+`FEATURE_FLAGS`, explicitly listed, and included through `FEATURE_FLAGS=*`.
+Verify the same behavior each time:
 
-- The admin **AI providers** page and `/api/ai-providers/...` are unavailable.
-- The workspace settings tab is the old **Generative AI** form again, and it lists
-  only providers that support legacy workspace settings — **Google Gemini** and
-  **Groq** must not appear there.
-- Kuma is visible exactly when `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is set, and
-  uses it; stored feature settings are ignored (the helper prints `source=legacy`).
-- AI fields offer the env-var and legacy workspace models, unfiltered by
-  `feature_types`.
-- Automation AI Agent nodes and Application Builder AI Agent actions likewise use
-  the legacy integration/workspace/environment model lists without feature filtering.
-  A complete provider connection with no `models` key inherits that model list;
-  explicit `models: []` remains empty. Partial overrides cannot introduce models
-  outside the inherited list or supply connection settings from another scope.
+- Staff can use the admin **AI providers** page and API. Workspace administrators
+  see **AI providers** in workspace settings, with the same permission checks.
+- Database-backed model eligibility, overlays, Kuma settings, realtime updates,
+  and consumer validation remain active. A flag change never restores legacy-only
+  payloads or bypasses database disable rules.
+- Google and Groq remain available to configure in provider management regardless
+  of the retired flag; they do not gain legacy environment import support.
+
+On a separate disposable copy with no database provider rows, retain working legacy
+environment settings and complete workspace settings. Verify:
+
+- AI Fields, formula suggestions, and inherited AI Agent services use the expected
+  legacy account and model without running imports. Workspace settings are an atomic
+  connection; partial fields do not borrow credentials from another scope.
+- The provider administration page lists database rows only; a legacy connection can
+  work before it appears there. Importing a complete connection makes it manageable.
+- Kuma's unconfigured/invalid database selection uses its legacy model and credentials
+  (`source=legacy`), while an explicit instance/workspace disable remains authoritative.
+- Complete integration connections with omitted `models` inherit the allowed list;
+  explicit `models: []` remains empty. Partial overrides only narrow inherited models
+  and cannot supply connection settings. Verify the full matrix in 6.5.
+
+Do not delete provider rows in a live installation to test fallback behavior.
 
 ---
 
 ## 11. Transition from legacy settings to database providers
 
 Rehearse on a disposable installation using the
-[upgrade and import sequence](../development/feature-flags.md#preparing-the-ai-providers-feature).
-Start with the flag off, working instance environment settings, a different workspace
-connection, and inherited **AI prompt** consumers in both Automation and Application
-Builder. Include a publication created while the flag is off.
+[upgrade and import sequence](../installation/ai-providers.md#upgrading-an-existing-installation)
+and the [release rollout plan](ai-provider-rollout-test-plan.md). Start on the exact
+previous gated image with the flag off, working instance environment settings, a
+different workspace connection, and inherited **AI prompt** consumers in both
+Automation and Application Builder. Include an existing live publication. Repeat
+the upgrade from a previous image with the flag enabled and database providers.
 
 Verify:
 
-- Upgrading while the flag stays off preserves execution without imports or
-  republishing, subject to the explicit-override compatibility rules in 6.5.
+- The candidate works without imports or republishing for supported legacy settings,
+  subject to the explicit-override compatibility rules in 6.5. Flag configuration
+  does not affect candidate behavior. Reconcile previously unused database rows and
+  incomplete workspace settings before accepting a change in resolution.
 - Migration `core.0120` adds `ai_agent` once to existing provider models, including
   models with an empty feature list, preserving other features and enabled states.
 - Instance and workspace import previews do not write. Applying each scope creates
   missing providers with `ai_fields` and `ai_agent` eligibility; repeating the import
   leaves existing configurations unchanged.
-- After enabling the flag and reloading editors, saved selections resolve with their
+- After deploying the candidate, importing, and reloading editors, saved selections resolve with their
   expected instance or workspace credentials. An enabled workspace model overrides
   a matching instance model; other instance models remain inherited. A disabled
   workspace model suppresses that identifier; disabling its provider reveals the
@@ -758,9 +774,10 @@ Verify:
   until republished. Review its draft first, then republish and verify that it follows
   live workspace credential and eligibility changes. An explicit complete integration
   override remains independent.
-- Before turning the flag off again, verify equivalent legacy settings exist. With
-  the schema retained, flag-off execution returns to those settings in drafts and
-  publications; database eligibility changes no longer filter the legacy model list.
+- Verify rollback using the actual previous image and its rehearsed configuration,
+  retaining the schema. A flag toggle on the candidate is not rollback. Include key
+  rotations, workspace provider deletion, database-only selections, explicit disables,
+  drafts, and publications when proving equivalent previous-image behavior.
 
 ---
 

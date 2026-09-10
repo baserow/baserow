@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Manage AI providers and model availability across your instance and workspaces",
+    "issue_origin": "github",
+    "issue_number": 5182,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-10"
+}

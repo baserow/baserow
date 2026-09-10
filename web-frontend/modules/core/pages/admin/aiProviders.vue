@@ -120,7 +120,7 @@ export default {
   },
   mixins: [aiProviderModelUsage],
   layout: 'app',
-  middleware: ['staff', 'aiProvidersFeatureFlag'],
+  middleware: ['staff'],
   setup() {
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('aiProviderAdmin.title') })

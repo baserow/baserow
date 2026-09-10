@@ -1966,7 +1966,7 @@ def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
 def test_ai_field_list_api_serializes_disabled_instance_model_error(
     settings, api_client, premium_data_fixture
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
     )
@@ -2010,7 +2010,7 @@ def test_ai_field_list_api_serializes_disabled_instance_model_error(
 def test_create_ai_field_rejects_disabled_instance_model(
     settings, api_client, premium_data_fixture
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
     )

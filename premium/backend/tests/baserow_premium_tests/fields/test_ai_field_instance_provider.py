@@ -34,7 +34,7 @@ def create_instance_openai_provider(model_identifier="gpt-instance"):
 def test_ai_field_can_select_an_instance_provider_model(
     premium_data_fixture, api_client, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user, token = premium_data_fixture.create_user_and_token()
     table = premium_data_fixture.create_database_table(user=user)
     provider, model = create_instance_openai_provider()
@@ -95,7 +95,7 @@ def test_ai_field_can_select_an_instance_provider_model(
 def test_ai_field_generation_uses_instance_provider_configuration(
     premium_data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
     _, model = create_instance_openai_provider()
@@ -128,7 +128,7 @@ def test_ai_field_generation_uses_instance_provider_configuration(
 def test_ai_formula_generation_uses_instance_provider_configuration(
     premium_data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
     _, model = create_instance_openai_provider()
@@ -155,7 +155,7 @@ def test_ai_formula_generation_uses_instance_provider_configuration(
 def test_ai_field_keeps_workspace_settings_precedence_until_they_are_migrated(
     premium_data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
     _, instance_model = create_instance_openai_provider()
@@ -194,7 +194,7 @@ def test_ai_field_keeps_workspace_settings_precedence_until_they_are_migrated(
 def test_ai_field_uses_workspace_owned_database_provider(
     premium_data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
     _, instance_model = create_instance_openai_provider()
@@ -240,7 +240,7 @@ def test_ai_field_uses_workspace_owned_database_provider(
 def test_ai_field_inherits_an_instance_model_alongside_a_workspace_provider(
     premium_data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
     _, instance_model = create_instance_openai_provider()
@@ -277,7 +277,7 @@ def test_ai_field_inherits_an_instance_model_alongside_a_workspace_provider(
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
-def test_ai_field_keeps_legacy_resolution_when_feature_flag_is_disabled(
+def test_ai_field_keeps_legacy_resolution_without_a_database_provider(
     premium_data_fixture, settings
 ):
     settings.FEATURE_FLAGS = []
@@ -285,7 +285,6 @@ def test_ai_field_keeps_legacy_resolution_when_feature_flag_is_disabled(
     settings.BASEROW_OPENAI_MODELS = ["gpt-environment"]
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
-    create_instance_openai_provider()
 
     field = FieldHandler().create_field(
         user,
@@ -313,7 +312,7 @@ def test_ai_field_keeps_legacy_resolution_when_feature_flag_is_disabled(
 def test_ai_field_becomes_unavailable_when_its_instance_model_is_disabled(
     premium_data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
     _, model = create_instance_openai_provider()
@@ -341,7 +340,7 @@ def test_ai_field_becomes_unavailable_when_its_instance_model_is_disabled(
 def test_ai_field_rejects_models_not_available_from_the_effective_provider(
     premium_data_fixture, api_client, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user, token = premium_data_fixture.create_user_and_token()
     table = premium_data_fixture.create_database_table(user=user)
     create_instance_openai_provider()

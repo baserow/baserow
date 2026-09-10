@@ -111,7 +111,7 @@ def test_generic_model_map_preserves_enabled_providers_with_no_models():
 def test_legacy_plugin_provider_survives_database_provider_feature_flag(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     model_type = _LegacyPluginGenerativeAIModelType()
     registry = GenerativeAIModelTypeRegistry()
     registry.register(model_type)

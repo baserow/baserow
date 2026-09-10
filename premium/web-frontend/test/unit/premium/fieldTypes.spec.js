@@ -1,6 +1,8 @@
+import { AIFieldType } from '@baserow_premium/fieldTypes'
+
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 
-describe('Premium AIFieldType filter delegation', () => {
+describe('Premium AIFieldType', () => {
   let testApp = null
   let registry = null
 
@@ -9,8 +11,8 @@ describe('Premium AIFieldType filter delegation', () => {
     registry = testApp.getRegistry()
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   // Guards the regression where AIFieldType only delegated the contains filter
@@ -43,5 +45,20 @@ describe('Premium AIFieldType filter delegation', () => {
       'too long'
     )
     expect(spy).toHaveBeenCalledWith(field, 'x'.repeat(101))
+  })
+
+  test('availability respects feature eligibility without the retired flag', () => {
+    const fieldType = new AIFieldType({
+      app: { $i18n: { t: (key) => key } },
+    })
+    const workspace = {
+      generative_ai_models_enabled: { openai: ['gpt-4'] },
+      ai_features: { ai_fields: { models: {} } },
+    }
+
+    expect(fieldType.isEnabled(workspace)).toBe(false)
+    expect(fieldType.isEnabled({ ...workspace, ai_features: undefined })).toBe(
+      true
+    )
   })
 })

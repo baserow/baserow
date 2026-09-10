@@ -61,7 +61,7 @@ def test_disabled_kuma_returns_a_disable_specific_chat_error(
     enterprise_data_fixture,
     settings,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user, token = enterprise_data_fixture.create_user_and_token()
     workspace = enterprise_data_fixture.create_workspace(user=user)
     enterprise_data_fixture.enable_enterprise()

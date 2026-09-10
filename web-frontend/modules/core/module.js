@@ -170,11 +170,6 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'aiProvidersFeatureFlag',
-      path: resolve('./middleware/aiProvidersFeatureFlag'),
-    })
-
-    addRouteMiddleware({
       name: 'impersonate',
       path: resolve('./middleware/impersonate'),
     })
