@@ -69,7 +69,7 @@ def resume_deferred_node_celery_task(
         and not timed_out
     ):
         raise self.retry(
-            countdown=history_handler.RESPONSE_POLL_INTERVAL_SECONDS,
+            countdown=history_handler.RESPONSE_POLL_INITIAL_INTERVAL_SECONDS,
         )
 
     @atomic_with_retry_on_deadlock()

@@ -59,7 +59,7 @@
       :label="$t('coreResponseServiceForm.headers')"
     >
       <template v-if="v$.values.headers.$model.length">
-        <div class="row" style="--gap: 6px">
+        <div class="row service-form__row">
           <label class="col col-5 control__label control__label--small">
             {{ $t('coreResponseServiceForm.name') }}
           </label>
@@ -70,8 +70,7 @@
         <div
           v-for="(header, index) in v$.values.headers.$model"
           :key="header.id"
-          class="row margin-bottom-1"
-          style="--gap: 6px"
+          class="row service-form__row margin-bottom-1"
         >
           <div class="col col-5">
             <FormInput

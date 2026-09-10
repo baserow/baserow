@@ -222,7 +222,7 @@ def test_start_workflow_service_does_not_wait_when_manual_trigger_disables_it(
     ) as async_start_workflow:
         result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
 
-    async_start_workflow.assert_called_once_with(published_workflow)
+    async_start_workflow.assert_called_once_with(published_workflow, triggered_by=None)
     assert result.data is None
 
 

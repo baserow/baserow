@@ -1,9 +1,12 @@
+from unittest.mock import MagicMock, patch
+
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import pytest
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
     AutomationWorkflowHistoryDoesNotExist,
@@ -17,6 +20,72 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
+
+
+class FakeMonotonicClock:
+    def __init__(self):
+        self.now = 0.0
+        self.sleeps = []
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def test_wait_for_workflow_response_uses_bounded_incremental_backoff():
+    """The polling delay grows to its cap without exceeding the deadline."""
+
+    clock = FakeMonotonicClock()
+    history = MagicMock(status=HistoryStatusChoices.STARTED)
+    handler = AutomationHistoryHandler()
+
+    with (
+        patch.object(handler, "get_workflow_history_response", return_value=None),
+        patch(
+            "baserow.contrib.automation.history.handler.time.monotonic",
+            side_effect=clock.monotonic,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler.time.sleep",
+            side_effect=clock.sleep,
+        ),
+    ):
+        response = handler.wait_for_workflow_response(history, timeout_seconds=3)
+
+    assert response is None
+    assert clock.sleeps == pytest.approx([0.1, 0.2, 0.4, 0.8, 1.0, 0.5])
+
+
+def test_wait_for_workflow_response_returns_during_backoff():
+    """A response is returned on the first poll that observes it."""
+
+    clock = FakeMonotonicClock()
+    history = MagicMock(status=HistoryStatusChoices.STARTED)
+    expected_response = MagicMock()
+    handler = AutomationHistoryHandler()
+
+    with (
+        patch.object(
+            handler,
+            "get_workflow_history_response",
+            side_effect=[None, None, expected_response],
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler.time.monotonic",
+            side_effect=clock.monotonic,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler.time.sleep",
+            side_effect=clock.sleep,
+        ),
+    ):
+        response = handler.wait_for_workflow_response(history, timeout_seconds=3)
+
+    assert response is expected_response
+    assert clock.sleeps == pytest.approx([0.1, 0.2])
 
 
 @pytest.mark.django_db

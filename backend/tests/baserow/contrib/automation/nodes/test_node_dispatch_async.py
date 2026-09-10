@@ -1,3 +1,5 @@
+import time
+from types import SimpleNamespace
 from unittest.mock import ANY, patch
 
 from django.test.utils import override_settings
@@ -13,6 +15,7 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.tasks import resume_deferred_node_celery_task
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
 from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.test_utils.helpers import AnyInt, AnyStr
@@ -22,6 +25,35 @@ TRIGGER_NODE_TYPE_PATH = (
 )
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
 TASKS_PATH = "baserow.contrib.automation.workflows.tasks"
+
+
+def test_resume_deferred_node_retries_with_response_poll_interval():
+    """An unfinished child workflow schedules another response poll."""
+
+    deferred_history = SimpleNamespace(status=HistoryStatusChoices.STARTED)
+    retry_error = RuntimeError("retry requested")
+
+    with (
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history",
+            return_value=deferred_history,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history_response",
+            return_value=None,
+        ),
+        patch.object(
+            resume_deferred_node_celery_task,
+            "retry",
+            side_effect=retry_error,
+        ) as retry,
+        pytest.raises(RuntimeError, match="retry requested"),
+    ):
+        resume_deferred_node_celery_task.run(1, 2, "", time.time() + 10)
+
+    retry.assert_called_once_with(countdown=0.1)
 
 
 def assert_dispatches_next_node(result, *expected_tasks):

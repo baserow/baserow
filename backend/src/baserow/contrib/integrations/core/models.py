@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -106,11 +107,14 @@ class CoreManualTriggerService(Service):
         help_text="Whether the caller should wait for the workflow response.",
     )
     response_timeout_seconds = models.PositiveSmallIntegerField(
-        default=30,
-        db_default=30,
+        default=10,
+        db_default=10,
         validators=[
             MinValueValidator(1, message="Value cannot be less than 1."),
-            MaxValueValidator(120, message="Value cannot be greater than 120."),
+            MaxValueValidator(
+                settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                message="Value exceeds the maximum workflow response timeout.",
+            ),
         ],
         help_text="The maximum time to wait for the workflow response in seconds.",
     )
@@ -413,11 +417,14 @@ class CoreHTTPTriggerService(Service):
         help_text="Whether the caller should wait for the workflow response.",
     )
     response_timeout_seconds = models.PositiveSmallIntegerField(
-        default=30,
-        db_default=30,
+        default=10,
+        db_default=10,
         validators=[
             MinValueValidator(1, message="Value cannot be less than 1."),
-            MaxValueValidator(120, message="Value cannot be greater than 120."),
+            MaxValueValidator(
+                settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                message="Value exceeds the maximum workflow response timeout.",
+            ),
         ],
         help_text="The maximum time to wait for the workflow response in seconds.",
     )

@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0035_coregotoactionnode'),
+        ('automation', '0036_triggered_by'),
     ]
 
     operations = [

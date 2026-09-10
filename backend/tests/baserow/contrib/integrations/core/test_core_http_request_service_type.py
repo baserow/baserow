@@ -98,6 +98,52 @@ def test_core_http_request_basic(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "header_name",
+    [
+        "X-Workflow-Result",
+        "x-workflow-result",
+        "X-WORKFLOW-RESULT",
+        "x-WoRkFlOw-ReSuLt",
+    ],
+)
+def test_core_http_request_preserves_and_normalizes_response_headers(
+    data_fixture, header_name
+):
+    """Existing formula keys remain valid alongside stable lowercase aliases."""
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'"
+    )
+    service_type = service.get_type()
+    with mock_advocate_request(
+        {"message": "Created"},
+        headers={header_name: "First", "Content-Type": "application/json"},
+    ):
+        result = service_type.dispatch(service, FakeDispatchContext())
+
+    # Normalization must survive serialization to browser formula contexts.
+    data = json.loads(json.dumps(result.data))
+    expected_headers = {
+        header_name: "First",
+        header_name.lower(): "First",
+        "Content-Type": "application/json",
+        "content-type": "application/json",
+    }
+    assert data["headers"] == expected_headers
+    service.sample_data = {"data": data}
+    header_schema = service_type.generate_schema(service)["properties"]["headers"]
+    expected_schema = {key: {"type": "string"} for key in expected_headers}
+    for key in expected_headers:
+        if key != key.lower():
+            expected_schema[key].update(
+                deprecated=True,
+                description=f"Deprecated: use the lowercase `{key.lower()}` key instead.",
+            )
+    assert header_schema["properties"] == expected_schema
+
+
+@pytest.mark.django_db
 def test_core_http_request_request_error(
     data_fixture,
 ):
@@ -653,14 +699,29 @@ def test_core_http_request_generate_schema():
             "headers": {
                 "properties": {
                     "Content-Length": {
+                        "deprecated": True,
+                        "description": "Deprecated: use the lowercase `content-length` key instead.",
+                        "type": "number",
+                    },
+                    "content-length": {
                         "description": "The length of the response body in octets (8-bit bytes)",
                         "type": "number",
                     },
                     "Content-Type": {
+                        "deprecated": True,
+                        "description": "Deprecated: use the lowercase `content-type` key instead.",
+                        "type": "string",
+                    },
+                    "content-type": {
                         "description": "The MIME type of the response body",
                         "type": "string",
                     },
                     "ETag": {
+                        "deprecated": True,
+                        "description": "Deprecated: use the lowercase `etag` key instead.",
+                        "type": "string",
+                    },
+                    "etag": {
                         "description": "An identifier for a specific version of a resource",
                         "type": "string",
                     },
@@ -789,7 +850,10 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": {"fighters": {"Ryu": {"power": "Hadogen"}}},
         "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
-        "headers": headers,
+        "headers": {
+            "Content-Type": content_type,
+            "content-type": content_type,
+        },
         "status_code": 204,
     }
 
@@ -844,7 +908,10 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": "Hello world!",
         "raw_body": "Hello world!",
-        "headers": headers,
+        "headers": {
+            "Content-Type": content_type,
+            "content-type": content_type,
+        },
         "status_code": 204,
     }
 
