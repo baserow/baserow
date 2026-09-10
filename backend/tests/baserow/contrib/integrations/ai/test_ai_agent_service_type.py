@@ -284,7 +284,7 @@ def test_ai_agent_service_dispatch_text_output(data_fixture, settings):
 def test_ai_agent_service_prepare_values_uses_inherited_db_provider(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
@@ -322,7 +322,7 @@ def test_ai_agent_service_prepare_values_uses_inherited_db_provider(
 def test_ai_agent_service_inherits_db_provider_in_draft_applications(
     data_fixture, settings, surface
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
@@ -370,7 +370,7 @@ def test_ai_agent_service_inherits_db_provider_in_draft_applications(
 @pytest.mark.django_db
 @pytest.mark.parametrize("scope", ["instance", "workspace"])
 @pytest.mark.parametrize("surface", ["builder", "automation"])
-def test_ai_agent_provider_import_and_flag_transition(
+def test_ai_agent_provider_import_preserves_existing_services_after_flag_retirement(
     data_fixture, settings, scope, surface
 ):
     settings.FEATURE_FLAGS = []
@@ -426,11 +426,7 @@ def test_ai_agent_provider_import_and_flag_transition(
     AIProviderHandler.update_provider(provider, api_key="database-key")
 
     openai_type = generative_ai_model_type_registry.get("openai")
-    legacy_key = "workspace-key" if scope == "workspace" else "environment-key"
-    for feature_flags, expected_key in (
-        ([], legacy_key),
-        (["ai-providers"], "database-key"),
-    ):
+    for feature_flags in ([], ["ai-providers"]):
         settings.FEATURE_FLAGS = feature_flags
         with mock_ai_prompt() as prompt:
             result = service_type.dispatch(service, dispatch_context)
@@ -440,10 +436,10 @@ def test_ai_agent_provider_import_and_flag_transition(
             openai_type.get_api_key(
                 workspace, prompt.call_args.kwargs.get("settings_override")
             )
-            == expected_key
+            == "database-key"
         )
 
-    # Once enabled, an explicit removal must take effect without runtime backfill.
+    # Eligibility removals remain authoritative with or without the retired flag.
     AIProviderHandler.update_model(model, feature_types=["ai_fields"])
     with (
         mock_ai_prompt() as prompt,
@@ -455,15 +451,14 @@ def test_ai_agent_provider_import_and_flag_transition(
     prompt.assert_not_called()
 
     settings.FEATURE_FLAGS = []
-    with mock_ai_prompt() as prompt:
-        result = service_type.dispatch(service, dispatch_context)
-    assert result.data == {"result": "AI response"}
-    assert (
-        openai_type.get_api_key(
-            workspace, prompt.call_args.kwargs.get("settings_override")
-        )
-        == legacy_key
-    )
+    with (
+        mock_ai_prompt() as prompt,
+        pytest.raises(
+            ServiceImproperlyConfiguredDispatchException, match="not available"
+        ),
+    ):
+        service_type.dispatch(service, dispatch_context)
+    prompt.assert_not_called()
     service.refresh_from_db()
     integration.refresh_from_db()
     workspace.refresh_from_db()
@@ -477,7 +472,7 @@ def test_ai_agent_provider_import_and_flag_transition(
 def test_ai_agent_service_rejects_model_disabled_after_configuration(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     _, model = create_openai_db_provider(application.workspace)
@@ -764,7 +759,7 @@ def test_ai_agent_service_dispatch_ai_error(data_fixture, settings):
 
 @pytest.mark.django_db
 def test_ai_agent_service_dispatch_with_integration_settings(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     settings.BASEROW_OPENAI_API_KEY = "sk-env-key"
     settings.BASEROW_OPENAI_MODELS = ["gpt-3.5-turbo"]
 
@@ -1052,7 +1047,7 @@ def test_ai_agent_service_dispatch_in_published_workflow(data_fixture, settings)
 def test_ai_agent_service_inherits_db_provider_in_published_automation(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
@@ -1109,7 +1104,7 @@ def test_ai_agent_service_inherits_db_provider_in_published_automation(
 def test_ai_agent_service_inherits_db_provider_in_published_builder(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
@@ -1165,12 +1160,11 @@ def test_ai_agent_service_inherits_db_provider_in_published_builder(
 
 
 @pytest.mark.django_db
-def test_legacy_workspace_settings_are_materialized_when_publishing(
+def test_published_workflow_resolves_legacy_settings_from_its_original_workspace(
     data_fixture, settings
 ):
     """
-    Legacy workspace settings remain self-contained in published workflows while
-    database-backed providers are disabled.
+    Published workflows recover legacy settings through their original workspace.
     """
 
     settings.FEATURE_FLAGS = []
@@ -1203,9 +1197,7 @@ def test_legacy_workspace_settings_are_materialized_when_publishing(
         .specific
     )
 
-    # Before publishing, integration can access workspace settings
-    provider_settings = integration_type.get_provider_settings(integration, "openai")
-    assert provider_settings["api_key"] == "sk-workspace-key"
+    assert integration_type.get_provider_settings(integration, "openai") == {}
 
     # Create AI agent service
     service = ServiceHandler().create_service(
@@ -1236,18 +1228,17 @@ def test_legacy_workspace_settings_are_materialized_when_publishing(
     # Verify workspace is None in published automation
     assert published_integration.application.workspace is None
 
-    # After publishing, verify workspace settings were materialized into integration
-    assert published_integration.ai_settings == {
-        "openai": {"api_key": "sk-workspace-key", "models": ["gpt-4"]}
-    }
+    assert published_integration.ai_settings == {}
 
-    # After publishing, integration should still have access to settings
-    provider_settings = integration_type.get_provider_settings(
-        published_integration, "openai"
-    )
-    # Settings should be available because they were materialized during export
-    assert provider_settings["api_key"] == "sk-workspace-key"
-    assert provider_settings["models"] == ["gpt-4"]
+    with mock_ai_prompt() as prompt:
+        result = published_service.get_type().dispatch(
+            published_service, AutomationDispatchContext(published_workflow, None)
+        )
+
+    assert result.data == {"result": "AI response"}
+    assert prompt.call_args.kwargs["workspace"] == workspace
+    model_type = generative_ai_model_type_registry.get("openai")
+    assert model_type.get_api_key(workspace) == "sk-workspace-key"
 
 
 @pytest.mark.django_db
@@ -1359,8 +1350,8 @@ def test_prepare_values_rejects_nonexistent_integration(
 
 
 @pytest.mark.django_db
-def test_prepare_values_accepts_database_backed_model_with_flag(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_prepare_values_accepts_database_backed_model(data_fixture, settings):
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     provider = AIProviderConfig.objects.create(
@@ -1391,7 +1382,7 @@ def test_prepare_values_accepts_database_backed_model_with_flag(data_fixture, se
 def test_prepare_values_rejects_model_restricted_to_other_features(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     provider = AIProviderConfig.objects.create(
@@ -1421,7 +1412,7 @@ def test_prepare_values_rejects_model_restricted_to_other_features(
 def test_prepare_values_skips_validation_when_selection_unchanged(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     integration = IntegrationService().create_integration(
@@ -1452,7 +1443,7 @@ def test_prepare_values_skips_validation_when_selection_unchanged(
 
 @pytest.mark.django_db
 def test_prepare_values_validates_changed_selection_on_update(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     provider = AIProviderConfig.objects.create(
@@ -1484,8 +1475,8 @@ def test_prepare_values_validates_changed_selection_on_update(data_fixture, sett
 
 
 @pytest.mark.django_db
-def test_dispatch_uses_database_provider_settings_with_flag(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_dispatch_uses_database_provider_settings(data_fixture, settings):
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     provider = AIProviderConfig.objects.create(
@@ -1521,7 +1512,7 @@ def test_dispatch_uses_database_provider_settings_with_flag(data_fixture, settin
 
 @pytest.mark.django_db
 def test_dispatch_rejects_model_restricted_to_other_features(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     provider = AIProviderConfig.objects.create(
@@ -1554,7 +1545,7 @@ def test_dispatch_rejects_model_restricted_to_other_features(data_fixture, setti
 
 @pytest.mark.django_db
 def test_dispatch_reports_uninstalled_provider_as_unavailable(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     integration = IntegrationService().create_integration(
@@ -1578,7 +1569,7 @@ def test_dispatch_reports_uninstalled_provider_as_unavailable(data_fixture, sett
 
 @pytest.mark.django_db
 def test_dispatch_partial_blob_does_not_bypass_feature_gate(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     provider = AIProviderConfig.objects.create(
@@ -1613,8 +1604,10 @@ def test_dispatch_partial_blob_does_not_bypass_feature_gate(data_fixture, settin
 
 
 @pytest.mark.django_db
-def test_dispatch_keeps_env_configured_model_working_with_flag(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_dispatch_keeps_env_configured_model_working_without_database_provider(
+    data_fixture, settings
+):
+    settings.FEATURE_FLAGS = []
     settings.BASEROW_OPENAI_API_KEY = "sk-env-key"
     settings.BASEROW_OPENAI_MODELS = ["env-model"]
     user = data_fixture.create_user()
@@ -1642,10 +1635,8 @@ def test_dispatch_keeps_env_configured_model_working_with_flag(data_fixture, set
 
 
 @pytest.mark.django_db
-def test_dispatch_integration_settings_win_over_database_with_flag(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_dispatch_integration_settings_win_over_database(data_fixture, settings):
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     provider = AIProviderConfig.objects.create(
@@ -1683,18 +1674,19 @@ def test_dispatch_integration_settings_win_over_database_with_flag(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "feature_flags, inherited_scope, expected_model",
-    [
-        ([], "instance", "env-model"),
-        ([], "workspace", "workspace-model"),
-        (["ai-providers"], "instance", "agent-model"),
-        (["ai-providers"], "workspace", "agent-model"),
-    ],
-)
+@pytest.mark.parametrize("feature_flags", [[], ["ai-providers"]])
+@pytest.mark.parametrize("inherited_scope", ["instance", "workspace"])
+@pytest.mark.parametrize("database_provider", [False, True])
 def test_connection_only_override_inherits_available_models(
-    data_fixture, settings, feature_flags, inherited_scope, expected_model
+    data_fixture, settings, feature_flags, inherited_scope, database_provider
 ):
+    expected_model = (
+        "agent-model"
+        if database_provider
+        else "workspace-model"
+        if inherited_scope == "workspace"
+        else "env-model"
+    )
     settings.FEATURE_FLAGS = feature_flags
     settings.BASEROW_OPENAI_API_KEY = "env-key"
     settings.BASEROW_OPENAI_MODELS = ["env-model"]
@@ -1713,7 +1705,7 @@ def test_connection_only_override_inherits_available_models(
             }
         }
         workspace.save(update_fields=("generative_ai_models_settings",))
-    if feature_flags:
+    if database_provider:
         provider, _ = create_openai_db_provider(
             workspace if inherited_scope == "workspace" else None,
             "agent-model",
@@ -1756,7 +1748,7 @@ def test_connection_only_override_inherits_available_models(
 
     # An omitted model list still respects the inherited allowlist, including
     # feature eligibility for database-backed models.
-    unavailable_model = "fields-only-model" if feature_flags else "unknown-model"
+    unavailable_model = "fields-only-model" if database_provider else "unknown-model"
     service_values["ai_generative_ai_model"] = unavailable_model
     with pytest.raises(DRFValidationError, match="not available"):
         service_type.prepare_values(service_values, user)
@@ -1779,8 +1771,7 @@ def test_complete_override_preserves_explicit_empty_models(
     settings.BASEROW_OPENAI_MODELS = ["configured-model"]
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
-    if feature_flags:
-        create_openai_db_provider(application.workspace, "configured-model")
+    create_openai_db_provider(application.workspace, "configured-model")
     integration = IntegrationService().create_integration(
         user,
         AIIntegrationType(),
@@ -1871,7 +1862,7 @@ def test_complete_override_does_not_inherit_optional_connection_settings(
 
 
 @pytest.mark.django_db
-def test_prepare_values_rejects_unknown_env_model_without_provider_flag(
+def test_prepare_values_rejects_unknown_env_model_without_database_provider(
     data_fixture, settings
 ):
     settings.FEATURE_FLAGS = []
@@ -1924,7 +1915,7 @@ def test_prepare_values_rejects_partial_override_model_not_in_legacy_allowlist(
 
 @pytest.mark.django_db
 def test_dispatch_does_not_forward_partial_integration_override(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     create_openai_db_provider(application.workspace)
@@ -2029,7 +2020,7 @@ def test_dispatch_rejects_partial_override_model_not_in_legacy_allowlist(
 def test_dispatch_rejects_model_removed_from_complete_integration_override(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
     integration = IntegrationService().create_integration(

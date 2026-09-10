@@ -33,6 +33,7 @@ describe('FunctionalGridViewFieldAI component', () => {
 
   const mountComponent = (field) =>
     testApp.mount(FunctionalGridViewFieldAI, {
+      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: {
         field,
         row: { id: 1 },
@@ -59,5 +60,16 @@ describe('FunctionalGridViewFieldAI component', () => {
     const wrapper = await mountComponent(aiField)
 
     expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
+  })
+
+  test('respects feature eligibility when the retired flag is absent', async () => {
+    await testApp.getStore().dispatch('workspace/forceCreate', {
+      ...workspace,
+      ai_features: { ai_fields: { models: {} } },
+    })
+
+    const wrapper = await mountComponent(aiField)
+
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
   })
 })

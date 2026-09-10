@@ -13,7 +13,7 @@ from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 
 @pytest.mark.django_db
 def test_public_settings_expose_database_kuma_availability(api_client, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="database-key"
     )
@@ -36,7 +36,7 @@ def test_public_settings_expose_database_kuma_availability(api_client, settings)
 
 @pytest.mark.django_db
 def test_public_settings_respect_explicit_kuma_disable(api_client, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "groq:legacy-model"
     AIProviderHandler.update_feature_setting(
         AI_PROVIDER_FEATURE_KUMA,

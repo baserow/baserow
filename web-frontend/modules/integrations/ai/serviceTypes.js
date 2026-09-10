@@ -6,7 +6,6 @@ import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationT
 import AIAgentServiceForm from '@baserow/modules/integrations/ai/components/services/AIAgentServiceForm'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import { AIAgentAIProviderModelFeatureType } from '@baserow/modules/integrations/ai/aiProviderModelFeatureTypes'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 import { getEffectiveAIAgentModels } from '@baserow/modules/integrations/ai/utils'
 
 export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
@@ -41,8 +40,7 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   /**
-   * Resolve the selected provider's models for service validation while the
-   * AI providers feature flag is enabled.
+   * Resolve the selected provider's models for service validation.
    *
    * @param {object} context The service and its owning application context.
    * @param {object} context.service The AI Agent service to validate.
@@ -62,8 +60,7 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
       this.app.$registry.getAll('generativeAIModel')[providerType] || null
     const workspaceModels = getEnabledModelsForAIProviderFeature(
       workspace,
-      AIAgentAIProviderModelFeatureType.getType(),
-      true
+      AIAgentAIProviderModelFeatureType.getType()
     )[providerType]
 
     let integrationSettings = null
@@ -87,7 +84,7 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   /**
-   * Validate configuration and, when enabled, AI Agent model availability.
+   * Validate configuration and AI Agent model availability.
    *
    * @param {object} context The service and its owning application context.
    * @param {object|undefined} context.service The service, possibly redacted on
@@ -113,18 +110,16 @@ export class AIAgentServiceType extends WorkflowActionServiceTypeMixin(
     if (!service.ai_generative_ai_model) {
       return this.app.$i18n.t('serviceType.errorNoAIModelSelected')
     }
-    if (this.app.$featureFlagIsEnabled(FF_AI_PROVIDERS)) {
-      const effectiveModels = this.getEffectiveModels({
-        service,
-        workspace,
-        application,
-      })
-      if (
-        effectiveModels !== null &&
-        !effectiveModels.includes(service.ai_generative_ai_model)
-      ) {
-        return this.app.$i18n.t('serviceType.errorAIModelUnavailable')
-      }
+    const effectiveModels = this.getEffectiveModels({
+      service,
+      workspace,
+      application,
+    })
+    if (
+      effectiveModels !== null &&
+      !effectiveModels.includes(service.ai_generative_ai_model)
+    ) {
+      return this.app.$i18n.t('serviceType.errorAIModelUnavailable')
     }
     if (!service.ai_prompt.formula) {
       return this.app.$i18n.t('serviceType.errorNoPromptProvided')

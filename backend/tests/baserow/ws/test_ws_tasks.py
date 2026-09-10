@@ -39,7 +39,7 @@ from baserow.ws.tasks import (
 def test_workspace_ai_provider_update_payloads_are_complete_permission_scoped_and_bounded(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     staff = data_fixture.create_user(is_staff=True)
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
@@ -107,7 +107,7 @@ def test_workspace_ai_provider_update_payloads_are_complete_permission_scoped_an
 def test_workspace_ai_provider_metadata_update_only_notifies_permitted_users(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -134,7 +134,7 @@ def test_workspace_ai_provider_metadata_update_only_notifies_permitted_users(
 def test_oversized_workspace_ai_provider_payloads_use_permission_scoped_markers(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -173,7 +173,7 @@ def test_oversized_workspace_ai_provider_payloads_use_permission_scoped_markers(
 def test_ai_provider_renderer_is_primary_repeatable_and_cross_worker_locked(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
     events = []
@@ -241,7 +241,7 @@ def test_instance_ai_provider_update_schedules_bounded_workspace_batches(
 def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     staff_users = [data_fixture.create_user(is_staff=True) for _ in range(3)]
     inactive_staff = data_fixture.create_user(is_staff=True, is_active=False)
     data_fixture.create_user()
@@ -286,7 +286,7 @@ def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(
 def test_oversized_instance_provider_payload_uses_staff_only_refresh_marker(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     staff = data_fixture.create_user(is_staff=True)
     data_fixture.create_user()
 
@@ -320,7 +320,7 @@ def test_oversized_instance_provider_payload_uses_staff_only_refresh_marker(
 def test_instance_ai_provider_availability_update_reaches_every_connected_user(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     data_fixture.create_user(is_staff=True)
     data_fixture.create_user()
 
@@ -949,7 +949,7 @@ def test_workspace_ai_provider_broadcast_reuses_the_loaded_provider_state(
     workspace must not go back to the provider tables per workspace.
     """
 
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     settings.BASEROW_USE_LOCAL_CACHE = False
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -986,7 +986,7 @@ def test_broadcast_keeps_instance_disabled_providers_and_models_private(
     about the individual models disabled on an active one.
     """
 
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
     inactive_provider = AIProviderHandler.create_provider(

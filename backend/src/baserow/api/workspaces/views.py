@@ -55,7 +55,6 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceUserIsLastAdmin,
 )
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
@@ -124,11 +123,9 @@ class WorkspacesView(RealtimeRecoveryPrimaryReadMixin, APIView):
         )
 
         workspaceuser_workspaces = list(workspaceuser_workspaces)
-        ai_provider_states = None
-        if feature_flag_is_enabled(FF_AI_PROVIDERS):
-            ai_provider_states = load_ai_provider_state(
-                workspaceuser.workspace for workspaceuser in workspaceuser_workspaces
-            )
+        ai_provider_states = load_ai_provider_state(
+            workspaceuser.workspace for workspaceuser in workspaceuser_workspaces
+        )
 
         serializer = WorkspaceUserWorkspaceSerializer(
             workspaceuser_workspaces,

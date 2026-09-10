@@ -103,7 +103,6 @@ import modal from '@baserow/modules/core/mixins/modal'
 import form from '@baserow/modules/core/mixins/form'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'SelectAIModelForm',
@@ -149,11 +148,7 @@ export default {
     },
     enabledModelsByType() {
       return this.featureType
-        ? getEnabledModelsForAIProviderFeature(
-            this.workspace,
-            this.featureType,
-            this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
-          )
+        ? getEnabledModelsForAIProviderFeature(this.workspace, this.featureType)
         : this.workspace.generative_ai_models_enabled || {}
     },
     aITypes() {

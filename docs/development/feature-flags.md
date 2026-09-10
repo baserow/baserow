@@ -7,66 +7,16 @@ and/or released.
 
 Add/remove features flags to the list below:
 
-- `ai-providers` — AI provider management for the instance admin area and for
-  workspace settings.
 - `button-field`: enables the button field type
   ([#1722](https://github.com/baserow/baserow/issues/1722)).
 
 ### Preparing the `ai-providers` feature
 
-Migration `core.0120` runs in both flag states. It adds AI Agent eligibility to
-existing models, preserves their other features, and defaults omitted feature
-selections to AI Fields and AI Agent. Keeping the flag disabled requires no provider
-imports or republishing.
-
-Review [integration override compatibility](../testing/kuma-model-settings-test-plan.md#65-explicit-integration-overrides)
-before upgrading: these rules apply in both flag states, including to existing
-publications.
-
-To enable database-backed providers on an existing installation:
-
-1. Pause AI settings changes and deploy with the flag disabled. Drain old web and
-   worker processes. With `FEATURE_FLAGS=*`, first roll out an explicit list of the
-   other flags and drain wildcard processes before deploying; alternatively, stop
-   the old processes first.
-2. Preview both imports: environment settings become instance providers, and legacy
-   workspace JSON becomes workspace providers. Review warnings and reconcile conflicts.
-
-   ```bash
-   just b manage migrate_ai_provider_settings --scope instance
-   just b manage migrate_ai_provider_settings --scope workspace
-   ```
-
-3. Apply instance settings first, then workspace settings:
-
-   ```bash
-   just b manage migrate_ai_provider_settings --scope instance --apply
-   just b manage migrate_ai_provider_settings --scope workspace --apply
-   ```
-
-   Each scope is atomic and imports only missing providers, without printing
-   credentials. Repeating an import does not synchronize changes to existing providers.
-4. Restart all web, backend, and worker processes with `ai-providers` enabled and
-   drain the previous processes. Reload administrator/editor tabs before resuming
-   settings changes, and all browser tabs before adding new provider types such as
-   Google or Groq.
-5. Republish sites and workflows containing inherited legacy AI settings snapshots
-   to adopt live database credentials and eligibility. Review pending draft changes
-   first: republishing makes them live too. Explicit complete integration overrides
-   remain independent.
-
-For installations already using the flag, pause settings changes, upgrade with old
-processes stopped, and reload administrator/editor tabs before resuming. Keep the
-flag enabled unless usable legacy settings have been verified.
-
-For rollback, retain the schema and verify legacy settings before disabling the
-flag. Database changes are not copied back; deleting an imported workspace provider
-also removes its legacy JSON. Verify published sites and workflows too.
-
-Kuma's legacy model and provider-native credentials are not imported; see
-[AI assistant configuration](../installation/ai-assistant.md#2-minimal-enablement).
-Use the [transition test plan](../testing/kuma-model-settings-test-plan.md#11-transition-from-legacy-settings-to-database-providers)
-to rehearse adoption and rollback.
+The `ai-providers` flag is retired. AI provider management is always available;
+changing `FEATURE_FLAGS` no longer enables or disables it. See the
+[AI provider upgrade guide](../installation/ai-providers.md) for imports,
+compatibility, and rollback, and the
+[rollout test plan](../testing/ai-provider-rollout-test-plan.md) for release verification.
 
 ## Enabling feature flags
 

@@ -8,20 +8,19 @@ server.
 
 - The assistant is built on [**pydantic-ai**](https://ai.pydantic.dev/) — a
   Python agent framework that supports multiple LLM providers out of the box.
-- With database-backed AI providers enabled, an instance administrator configures
+- An instance administrator configures
   providers and chooses one Kuma model under **Admin > AI providers > AI features**.
   A workspace can inherit that choice, select another model available to Kuma, or
   disable Kuma in its workspace AI provider settings.
 - `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` remains the legacy fallback while the
-  `ai-providers` feature is disabled, or while its Kuma selection is unconfigured
-  or invalid. While the feature is enabled, an explicit instance or workspace
+  Kuma selection is unconfigured or invalid. An explicit instance or workspace
   disable remains authoritative.
 - The assistant has been mostly tested with the `gpt-oss-120b` family. Other models can
   work as well.
 
 ## 2) Minimal enablement
 
-For a fresh database-backed setup, enable `ai-providers`, then add a provider and
+For a fresh setup, add a provider and
 its models in the admin UI. On each model, choose whether it is available to Kuma,
 AI Fields, AI Agent actions, or any combination of them, then select the
 Kuma model in the **AI features** section. Availability permits a feature to choose
@@ -30,13 +29,12 @@ a model; it does not force AI Fields or AI Agent actions to use Kuma's model. Us
 for a text response, while Kuma also checks tool calling.
 
 For an existing installation, see the
-[AI provider upgrade and import instructions](../development/feature-flags.md#preparing-the-ai-providers-feature).
-Schema migrations run during the normal upgrade. Provider imports and republishing
-are needed when adopting database-backed settings, not just to upgrade with the
-feature disabled. Integrations with explicit provider overrides retain their own
-connection settings; check the compatibility notes for model lists, partial overrides,
-and optional endpoints. Review pending draft changes before republishing a site or
-workflow, since those changes will also become live.
+[AI provider upgrade and import instructions](ai-providers.md).
+Provider management is always available; no feature flag is required. Legacy
+provider settings remain supported during upgrades without imports, subject to the
+compatibility checks in that guide. Existing publication snapshots and explicit
+integration overrides require separate review before they can use centrally managed
+credentials. Republishing a site or workflow also deploys its current draft changes.
 
 The `migrate_ai_provider_settings` command imports legacy AI provider configuration;
 it does not import `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` or the provider-native credentials

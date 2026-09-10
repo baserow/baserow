@@ -33,6 +33,7 @@ describe('RowEditFieldAI component', () => {
 
   const mountComponent = (field) =>
     testApp.mount(RowEditFieldAI, {
+      global: { mocks: { $featureFlagIsEnabled: () => false } },
       props: {
         field,
         value: null,
@@ -57,10 +58,10 @@ describe('RowEditFieldAI component', () => {
     expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
   })
 
-  test('Generate button is disabled when the selected model is unavailable', async () => {
+  test('Generate button respects feature eligibility when the retired flag is absent', async () => {
     await testApp.getStore().dispatch('workspace/forceCreate', {
       ...workspace,
-      generative_ai_models_enabled: { openai: [] },
+      ai_features: { ai_fields: { models: {} } },
     })
 
     const wrapper = await mountComponent(aiField)

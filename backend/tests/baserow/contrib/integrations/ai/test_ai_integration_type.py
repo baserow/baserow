@@ -255,7 +255,7 @@ def test_ai_integration_export_serialized_exclude_sensitive(data_fixture):
 def test_publishing_does_not_materialize_legacy_settings_with_db_providers(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
@@ -346,7 +346,9 @@ def test_ai_integration_deletion(data_fixture):
 
 
 @pytest.mark.django_db
-def test_ai_integration_get_provider_settings_from_workspace(data_fixture, settings):
+def test_ai_integration_defers_legacy_workspace_settings_to_resolver(
+    data_fixture, settings
+):
     settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -368,16 +370,14 @@ def test_ai_integration_get_provider_settings_from_workspace(data_fixture, setti
         ai_settings={},
     )
 
-    # Should get settings from workspace
-    provider_settings = integration_type.get_provider_settings(integration, "openai")
-    assert provider_settings["api_key"] == "sk-workspace-key"
+    assert integration_type.get_provider_settings(integration, "openai") == {}
 
 
 @pytest.mark.django_db
 def test_db_provider_inheritance_is_deferred_to_the_model_resolver(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
@@ -499,10 +499,8 @@ def test_ai_integration_settings_hierarchy(data_fixture, settings):
     IntegrationService().update_integration(user, integration, ai_settings={})
     integration.refresh_from_db()
 
-    # Should now get workspace settings
-    provider_settings = integration_type.get_provider_settings(integration, "openai")
-    assert provider_settings["api_key"] == "sk-workspace-key"
-    assert provider_settings["models"] == ["gpt-4"]
+    # Removing the override delegates workspace inheritance to the model resolver.
+    assert integration_type.get_provider_settings(integration, "openai") == {}
 
 
 @pytest.mark.django_db
@@ -548,7 +546,4 @@ def test_get_integration_provider_settings_ignores_workspace_settings(
         integration_type.get_integration_provider_settings(integration, "openai")
         is None
     )
-    assert integration_type.get_provider_settings(integration, "openai") == {
-        "api_key": "sk-workspace",
-        "models": ["gpt-4"],
-    }
+    assert integration_type.get_provider_settings(integration, "openai") == {}

@@ -11,7 +11,6 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_AI_AGENT,
     AI_PROVIDER_TYPES,
 )
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_string
 from baserow.core.generative_ai.exceptions import (
@@ -145,7 +144,6 @@ class AIAgentServiceType(ServiceType):
         ai_model_type: GenerativeAIModelType,
         workspace: Workspace | None,
         integration_settings: dict[str, Any] | None,
-        providers_enabled: bool,
     ) -> tuple[list[str], dict[str, Any] | None]:
         """Resolve one integration override without mixing configuration scopes.
 
@@ -158,8 +156,6 @@ class AIAgentServiceType(ServiceType):
         :param workspace: The owning workspace, or None if unavailable.
         :param integration_settings: The explicit provider override, or None when
             the integration inherits all settings.
-        :param providers_enabled: Whether to enforce AI Agent eligibility through
-            database-backed providers rather than the legacy model allowlist.
         :returns: The selectable model identifiers and the complete connection
             override to pass to the provider, or None to inherit its connection.
         """
@@ -173,28 +169,17 @@ class AIAgentServiceType(ServiceType):
             ai_model_type.type not in AI_PROVIDER_TYPES
             or "models" in integration_settings
         ):
-            if providers_enabled:
-                available_models = ai_model_type.get_enabled_models_for_feature(
-                    AI_PROVIDER_FEATURE_AI_AGENT,
-                    workspace=workspace,
-                    settings_override=atomic_settings,
-                )
-            else:
-                available_models = ai_model_type.call_get_enabled_models(
-                    workspace=workspace,
-                    settings_override=atomic_settings,
-                )
-            return available_models, atomic_settings
-
-        if providers_enabled:
             available_models = ai_model_type.get_enabled_models_for_feature(
                 AI_PROVIDER_FEATURE_AI_AGENT,
                 workspace=workspace,
+                settings_override=atomic_settings,
             )
-        else:
-            available_models = ai_model_type.call_get_enabled_models(
-                workspace=workspace,
-            )
+            return available_models, atomic_settings
+
+        available_models = ai_model_type.get_enabled_models_for_feature(
+            AI_PROVIDER_FEATURE_AI_AGENT,
+            workspace=workspace,
+        )
 
         if atomic_settings is not None:
             # Legacy callers may override only their connection. Preserve the
@@ -222,11 +207,10 @@ class AIAgentServiceType(ServiceType):
         """
         Validate the effective provider selection before creating or updating.
 
-        With database providers enabled, an unchanged selection is retained even
-        when its model becomes unavailable. Dispatch still checks availability.
-        Legacy selections are validated on every update. An unavailable integration
-        skips the model check. The base type preserves trashed references for undo/redo
-        but rejects missing IDs; dispatch blocks trashed integrations until restored.
+        An unchanged selection is retained even when its model becomes unavailable.
+        Dispatch still checks availability. An unavailable integration skips the
+        model check. The base type preserves trashed references for undo/redo but
+        rejects missing IDs; dispatch blocks trashed integrations until restored.
 
         :param values: The service values supplied for creation or a partial update.
         :param user: The user creating or updating the service.
@@ -251,13 +235,8 @@ class AIAgentServiceType(ServiceType):
             or ai_model != instance.ai_generative_ai_model
             or integration_id != instance.integration_id
         )
-        providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
 
-        # The relaxed validation gate belongs to the database-backed provider
-        # feature only. The legacy path has always validated the stored selection
-        # against the environment/workspace allowlist, including on unrelated
-        # updates.
-        if ai_type and (selection_changed or not providers_enabled):
+        if ai_type and selection_changed:
             try:
                 ai_model_type = generative_ai_model_type_registry.get(ai_type)
             except GenerativeAITypeDoesNotExist as e:
@@ -286,7 +265,6 @@ class AIAgentServiceType(ServiceType):
                         ai_model_type,
                         integration.application.workspace,
                         integration_settings,
-                        providers_enabled,
                     )
                 )
                 if ai_model not in available_models:
@@ -384,7 +362,6 @@ class AIAgentServiceType(ServiceType):
                 if workflow is not None:
                     workspace = workflow.get_original().automation.workspace
 
-        providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
         integration_settings = integration_type.get_integration_provider_settings(
             integration, service.ai_generative_ai_type
         )
@@ -393,10 +370,9 @@ class AIAgentServiceType(ServiceType):
                 ai_model_type,
                 workspace,
                 integration_settings,
-                providers_enabled,
             )
         )
-        if providers_enabled and settings_override is None and workspace is None:
+        if settings_override is None and workspace is None:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The workspace context for the AI integration is missing."
             )

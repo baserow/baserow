@@ -17,7 +17,7 @@ def test_ai_agent_feature_type_is_registered():
 
 @pytest.mark.django_db
 def test_ai_agent_availability_lists_only_feature_models(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     workspace = data_fixture.create_workspace()
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="database-key"
@@ -43,7 +43,7 @@ def test_ai_agent_availability_lists_only_feature_models(data_fixture, settings)
 
 @pytest.mark.django_db
 def test_agent_selection_does_not_block_model_deletion(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    settings.FEATURE_FLAGS = []
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="database-key"
     )
