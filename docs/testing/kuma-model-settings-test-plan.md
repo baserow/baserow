@@ -15,9 +15,10 @@ choice per workspace.
 - Use matching release versions on backend, Celery, and web-frontend.
 - An **Enterprise** license is active — Kuma is enterprise-only. AI fields need
   **Premium**.
-- `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` **is set** together with the credentials
-  its provider needs. This matters: the legacy fallback must exist, otherwise
-  "unconfigured" and "disabled" look identical in the UI.
+- For compatibility coverage, the deprecated `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`
+  **is set** together with the credentials its provider needs. The fallback must
+  exist to distinguish "unconfigured" from "disabled" in these tests. Fresh setups
+  use configured and tested models selected under **AI providers → AI features**.
 - At least one real API key so model tests and Kuma messages actually reach a
   provider. Two working model identifiers on the same provider make the
   "changed the model" tests decisive.
@@ -111,7 +112,7 @@ model is, and `AssistantModelDisabledError` means Kuma is off with no fallback.
 
 | Instance selection | Workspace selection | Kuma in that workspace |
 |---|---|---|
-| Use legacy environment model: `<env model>` | Use instance setting | legacy env model |
+| Use environment model (deprecated): `<env model>` | Use instance setting | legacy env model |
 | Model A | Use instance setting | model A |
 | Model A | Model B | model B |
 | Model A | Disabled in this workspace | off, no fallback |
@@ -220,7 +221,7 @@ Verify:
 
 Verify, before touching anything:
 - The **AI features** section shows one row, **Kuma**, set to
-  **Use legacy environment model: `<env model>`**, quoting the value of
+  **Use environment model (deprecated): `<env model>`**, quoting the value of
   `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`.
 - The helper prints `mode=legacy state=unconfigured` and `source=legacy`.
 - Kuma is visible in the sidebar of every workspace that inherits, and answers a
@@ -297,7 +298,7 @@ Verify:
 
 ### 2.6 Back to the fallback
 
-1. Set **Kuma** back to **Use legacy environment model: `<env model>`**.
+1. Set **Kuma** back to **Use environment model (deprecated): `<env model>`**.
 
 Verify: the sidebar item returns without a reload, `kuma.is_enabled` is `true`
 again, and the helper prints `source=legacy`.
@@ -321,8 +322,8 @@ Verify:
   | instance situation | `inherited_state` | inherit option reads | selectable |
   |---|---|---|---|
   | model A, reachable here | `configured` | **— `<Provider> · A`** | yes |
-  | no instance row | `unconfigured` | **— legacy environment model: `<env model>`** | yes |
-  | no instance row, env var unset | `unconfigured` | **— legacy environment model: empty** | no |
+  | no instance row | `unconfigured` | **— environment model (deprecated): `<env model>`** | yes |
+  | no instance row, env var unset | `unconfigured` | **— environment model (deprecated): empty** | no |
   | instance row **Disabled** | `disabled` | **— Disabled** | yes |
   | model A, unreachable here | `invalid` | **— selected model unavailable in this workspace** | no |
 
@@ -421,7 +422,7 @@ of the same inherited provider does not unblock it.
 Verify:
 - The inherit option now reads **Use instance setting — selected model unavailable in
   this workspace** and is **disabled**, so the rejection cannot be reached by clicking.
-  It must not read *"legacy environment model: …"* — the instance is still pointing at
+  It must not read *"environment model (deprecated): …"* — the instance is still pointing at
   model A, this workspace just cannot reach it.
 - The helper prints `inherited_state=invalid` for this workspace while the instance
   scope still prints `state=configured`.
@@ -480,11 +481,12 @@ EOF
 
 Reload the admin page and verify:
 - The **AI features** dropdown shows the disabled entry **"Selected model
-  unavailable — using legacy environment model: `<env model>`"**.
+  unavailable — using deprecated environment model: `<env model>`"**.
 - The helper prints `state=invalid` and `source=legacy` — Kuma keeps working on the
   env-var model, it does not go off.
 - Kuma is still visible in the sidebar (because the fallback exists). With
-  `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` unset it would disappear instead.
+  `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` unset it would disappear instead, and the
+  dropdown would read **"Selected model unavailable — no environment model configured"**.
 
 Re-enable the provider (`update(is_active=True)`) and confirm the selection becomes
 `configured` again.
@@ -492,7 +494,7 @@ Re-enable the provider (`update(is_active=True)`) and confirm the selection beco
 The workspace scope has its own `invalid` branch, reached without the shell: have a
 workspace select an instance model, then disable that provider instance-wide. Verify
 its **AI features** dropdown shows the same disabled
-**"Selected model unavailable — using legacy environment model: `<env model>`"** entry,
+**"Selected model unavailable — using deprecated environment model: `<env model>`"** entry,
 and that Kuma there also falls back rather than switching off.
 
 ---
@@ -711,6 +713,9 @@ Verify: with Kuma disabled at the instance,
 ---
 
 ## 10. Legacy configuration fallbacks
+
+These cases verify compatibility for deprecated environment configuration; new
+connections and model selections belong in **AI providers** settings.
 
 On a disposable copy with no database provider rows, retain working legacy
 environment settings and complete workspace settings. Verify:

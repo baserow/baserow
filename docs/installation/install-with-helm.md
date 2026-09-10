@@ -174,50 +174,42 @@ helm rollback my-baserow 1 -n baserow
 
 ### Configuring AI Features
 
-Baserow supports multiple AI providers for generative AI features and the AI assistant. To enable AI capabilities, you need to configure the embeddings service and AI providers.
+Baserow supports multiple providers for AI Fields, AI Agent actions, formula
+suggestions, and the AI assistant. Configure provider connections and models under
+**Admin → AI providers** or workspace **Settings → AI providers**. Choose each
+model's feature availability and run **Test model**. Kuma also requires a selected
+model under **AI features**; see [AI assistant setup](ai-assistant.md).
 
 #### Enable AI Assistant with Embeddings
 
-Add to your `config.yaml`:
+Configure and select a tested Kuma model in Baserow. To add knowledge-base lookups,
+enable the embeddings service in your `config.yaml`:
 
 ```yaml
-global:
-  baserow:
-    assistantLLMModel: "groq:openai/gpt-oss-120b"
-
 baserow-embeddings:
   enabled: true
-
-backendSecrets:
-  GROQ_API_KEY: "your-groq-api-key"
 ```
 
-#### Configure Additional AI Providers
+Embeddings support documentation lookup; they are not required to configure providers
+or generate AI Field values.
 
-To enable AI field with multiple providers:
+#### Migrate Existing Environment Configuration
 
-```yaml
-backendSecrets:
-  # OpenAI
-  BASEROW_OPENAI_API_KEY: "sk-..."
-  BASEROW_OPENAI_MODELS: "gpt-3.5-turbo,gpt-4o"
+The `BASEROW_*` provider connection and model-list variables, and the Helm
+`global.baserow.assistantLLMModel` setting, are **deprecated**. Their compatibility
+behavior is retained. Use the
+[AI provider import procedure](ai-providers.md#importing-legacy-settings) to preview
+and import existing environment and workspace settings from the backend container.
+Review conflicts before applying; repeated imports do not synchronize existing
+database providers.
 
-  # Anthropic
-  BASEROW_ANTHROPIC_API_KEY: "sk-ant-..."
-  BASEROW_ANTHROPIC_MODELS: "claude-3-5-sonnet-20241022"
-
-  # Mistral
-  BASEROW_MISTRAL_API_KEY: "..."
-  BASEROW_MISTRAL_MODELS: "mistral-large-latest"
-```
-
-For self-hosted Ollama:
-
-```yaml
-backendConfigMap:
-  BASEROW_OLLAMA_HOST: "http://ollama-service:11434"
-  BASEROW_OLLAMA_MODELS: "llama2,mistral"
-```
+Kuma's environment model and provider-native credentials are not imported. Configure
+and test its connection and model, then explicitly select that model under
+**AI features**. Keep a verified fallback for native providers or authentication
+without an equivalent database configuration, such as Bedrock or Vertex AI. Their
+SDK credentials remain supported; see the
+[fallback presets](ai-assistant.md#3-legacy-fallback-provider-presets).
+Retain legacy values needed by remaining consumers and the rollback window.
 
 See the [official Helm chart documentation](https://github.com/baserow/baserow/blob/develop/deploy/helm/baserow/README.md) for detailed AI configuration options.
 

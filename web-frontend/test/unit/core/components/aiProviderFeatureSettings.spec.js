@@ -8,19 +8,19 @@ describe('AIProviderFeatureSettings', () => {
 
   const translate = (key, values = {}) => {
     if (key === 'aiProviderAdmin.kumaUseLegacy') {
-      return `Use legacy environment model: ${values.model}`
+      return `Use environment model (deprecated): ${values.model}`
     }
     if (key === 'aiProviderAdmin.kumaLegacyFallback') {
-      return `legacy environment model: ${values.model}`
+      return `environment model (deprecated): ${values.model}`
     }
     if (key === 'aiProviderAdmin.kumaLegacyEmpty') {
       return 'empty'
     }
     if (key === 'aiProviderAdmin.kumaInvalidFallback') {
-      return `Selected model unavailable — using legacy environment model: ${values.model}`
+      return `Selected model unavailable — using deprecated environment model: ${values.model}`
     }
     if (key === 'aiProviderAdmin.kumaInvalidNoFallback') {
-      return 'Selected model unavailable — no legacy environment model configured'
+      return 'Selected model unavailable — no environment model configured'
     }
     if (key === 'aiProviderAdmin.kumaUseInstance') {
       return `Use instance setting — ${values.model}`
@@ -262,7 +262,7 @@ describe('AIProviderFeatureSettings', () => {
     const legacyOption = wrapper.find('.select__item')
 
     expect(legacyOption.text()).toBe(
-      'Use legacy environment model: groq:legacy-model'
+      'Use environment model (deprecated): groq:legacy-model'
     )
     expect(legacyOption.classes()).not.toContain('disabled')
 
@@ -290,9 +290,11 @@ describe('AIProviderFeatureSettings', () => {
     const legacyOption = wrapper.find('.select__item')
 
     expect(wrapper.find('.dropdown__selected-text').text()).toBe(
-      'Use legacy environment model: empty'
+      'Use environment model (deprecated): empty'
     )
-    expect(legacyOption.text()).toBe('Use legacy environment model: empty')
+    expect(legacyOption.text()).toBe(
+      'Use environment model (deprecated): empty'
+    )
     expect(legacyOption.classes()).toContain('disabled')
     expect(wrapper.findAll('.select__item')[1].classes()).not.toContain(
       'disabled'
@@ -321,7 +323,7 @@ describe('AIProviderFeatureSettings', () => {
     const invalidOption = wrapper.find('.select__item')
 
     expect(invalidOption.text()).toBe(
-      'Selected model unavailable — using legacy environment model: groq:legacy-model'
+      'Selected model unavailable — using deprecated environment model: groq:legacy-model'
     )
     expect(invalidOption.classes()).toContain('disabled')
   })
@@ -342,7 +344,7 @@ describe('AIProviderFeatureSettings', () => {
     const invalidOption = wrapper.find('.select__item')
 
     expect(invalidOption.text()).toBe(
-      'Selected model unavailable — no legacy environment model configured'
+      'Selected model unavailable — no environment model configured'
     )
     expect(invalidOption.classes()).toContain('disabled')
   })
@@ -367,7 +369,7 @@ describe('AIProviderFeatureSettings', () => {
     const inheritOption = wrapper.find('.select__item')
 
     expect(inheritOption.text()).toBe(
-      'Use instance setting — legacy environment model: groq:legacy-model'
+      'Use instance setting — environment model (deprecated): groq:legacy-model'
     )
     expect(inheritOption.classes()).not.toContain('disabled')
   })
@@ -387,7 +389,7 @@ describe('AIProviderFeatureSettings', () => {
     const inheritOption = wrapper.find('.select__item')
 
     expect(inheritOption.text()).toBe(
-      'Use instance setting — legacy environment model: empty'
+      'Use instance setting — environment model (deprecated): empty'
     )
     expect(inheritOption.classes()).toContain('disabled')
   })

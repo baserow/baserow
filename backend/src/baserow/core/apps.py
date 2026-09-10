@@ -673,6 +673,10 @@ class CoreConfig(AppConfig):
             dispatch_uid="baserow_core_pgvector_post_migrate",
         )
 
+        from baserow.config.helpers import log_ai_provider_env_deprecations
+
+        log_ai_provider_env_deprecations()
+
 
 # noinspection PyPep8Naming
 def start_sync_templates_task_after_migrate(sender, **kwargs):
