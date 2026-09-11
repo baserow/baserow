@@ -53,6 +53,7 @@ def populate_widget_grid_layout(apps, schema_editor):
                         widget_manager.filter(
                             dashboard_id=dashboard_id,
                             grid_layout_initialized=True,
+                            trashed=False,
                         ).aggregate(max_bottom=Max(F("grid_y") + F("grid_height")))[
                             "max_bottom"
                         ]
@@ -81,7 +82,8 @@ def populate_widget_grid_layout(apps, schema_editor):
                         widget.grid_height = grid_height
                         widget.grid_layout_initialized = True
                         widgets_to_update.append(widget)
-                        next_grid_y += grid_height
+                        if not widget.trashed:
+                            next_grid_y += grid_height
 
                     if widgets_to_update:
                         widget_manager.bulk_update(
