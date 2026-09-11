@@ -324,6 +324,41 @@ test.describe('Dashboard widget grid', () => {
     await observerPage.close()
   })
 
+  test('refreshes widget and data-source lists once after remote creation', async ({
+    page,
+    workspacePage,
+  }) => {
+    const dashboard = await createDashboard(
+      'Dashboard remote creation requests',
+      workspacePage.workspace
+    )
+    await goToDashboard(page, dashboard)
+    const observer = await page.context().newPage()
+    await goToDashboard(observer, dashboard)
+
+    const requests: string[] = []
+    observer.on('request', (request) => {
+      const path = new URL(request.url()).pathname
+      if (request.method() === 'GET') {
+        requests.push(path)
+      }
+    })
+    const widget = await createSummaryWidget(dashboard, 'Remote widget')
+    await expect(
+      observer.getByTestId(`dashboard-widget-grid-item-${widget.id}`)
+    ).toBeVisible()
+    await observer.waitForLoadState('networkidle')
+
+    for (const collection of ['widgets', 'data-sources']) {
+      expect(
+        requests.filter(
+          (path) => path === `/api/dashboard/${dashboard.id}/${collection}/`
+        )
+      ).toHaveLength(1)
+    }
+    await observer.close()
+  })
+
   test('keeps a dragged widget below a full-width row after saving and reloading', async ({
     page,
     workspacePage,

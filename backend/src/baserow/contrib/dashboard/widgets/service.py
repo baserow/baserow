@@ -228,12 +228,11 @@ class WidgetService:
 
         new_layout = [*original_layout, WidgetLayoutHandler.from_widget(new_widget)]
         widget_created.send(self, user=user, widget=new_widget)
-        # Keep the pre-grid event for clients running the previous frontend bundle,
-        # and publish the canonical invalidation understood by current clients.
-        self._send_widgets_layout_updated(
-            dashboard,
-            None if layouts_initialized else user,
-        )
+        # The creation event already refreshes remote widget/data-source lists.
+        # Only initializing older widgets also changes existing geometry, which
+        # must be refreshed by the initiating client as well.
+        if layouts_initialized:
+            self._send_widgets_layout_updated(dashboard)
 
         return CreatedWidget(
             new_widget,
