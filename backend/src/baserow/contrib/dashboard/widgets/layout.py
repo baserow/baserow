@@ -9,6 +9,7 @@ from .grid_layout import (
     compact_widget_layout,
     fits_within_grid_columns,
     layouts_overlap,
+    resolve_widget_layout_collisions,
 )
 from .models import Widget
 from .types import WidgetLayoutDelta, WidgetLayoutDict
@@ -182,6 +183,26 @@ class WidgetLayoutHandler:
             merged_layout,
             enforce_vertical_bound=enforce_vertical_bound,
         )
+
+    def validate_restored_delta(
+        self, layout_delta: list[WidgetLayoutDict]
+    ) -> dict[int, WidgetLayoutDict]:
+        """Merges saved action geometry without displacing unrelated widgets.
+
+        Recorded positions can have been occupied since the action was performed.
+        Move only the recorded widgets down to resolve those collisions, then use
+        the same complete-layout validation as other mutations.
+        """
+
+        restored_ids = {item["id"] for item in layout_delta}
+        fixed_layouts = [
+            item for item in self.current_layout if item["id"] not in restored_ids
+        ]
+        restored_layout = resolve_widget_layout_collisions(layout_delta, fixed_layouts)
+        _, layout_by_widget_id = self.merge_delta(
+            restored_layout, enforce_vertical_bound=False
+        )
+        return layout_by_widget_id
 
     def apply(
         self,

@@ -38,6 +38,30 @@ def horizontal_ranges_overlap(
     )
 
 
+def get_non_overlapping_grid_y(
+    layout: Mapping[str, int], obstacles: Iterable[Mapping[str, int]]
+) -> int:
+    """Finds the first free row at or below the requested position.
+
+    Jump to obstacle edges instead of visiting each row, so even large gaps have
+    a cost bounded by the number of widgets rather than their coordinates.
+    """
+
+    grid_y = layout["grid_y"]
+    occupied_intervals = sorted(
+        (other["grid_y"], other["grid_y"] + other["grid_height"])
+        for other in obstacles
+        if horizontal_ranges_overlap(layout, other)
+    )
+    for start, end in occupied_intervals:
+        if end <= grid_y:
+            continue
+        if start >= grid_y + layout["grid_height"]:
+            break
+        grid_y = end
+    return grid_y
+
+
 def compact_widget_layout(
     layouts: Iterable[Mapping[str, int]],
     fixed_layouts: Iterable[Mapping[str, int]] = (),
@@ -57,27 +81,36 @@ def compact_widget_layout(
         key=lambda layout: (layout["grid_y"], layout["grid_x"], layout["id"]),
     ):
         layout = dict(source_layout)
-        grid_y = 0
-        occupied_intervals = sorted(
-            (
-                other["grid_y"],
-                other["grid_y"] + other["grid_height"],
-            )
-            for other in chain(fixed_layout, compacted_layout)
-            if horizontal_ranges_overlap(layout, other)
+        layout["grid_y"] = 0
+        layout["grid_y"] = get_non_overlapping_grid_y(
+            layout, chain(fixed_layout, compacted_layout)
         )
-        for interval_start, interval_end in occupied_intervals:
-            if interval_end <= grid_y:
-                continue
-            if interval_start >= grid_y + layout["grid_height"]:
-                break
-            grid_y = max(grid_y, interval_end)
-
-        layout["grid_y"] = grid_y
 
         compacted_layout.append(layout)
 
     return compacted_layout
+
+
+def resolve_widget_layout_collisions(
+    layouts: Iterable[Mapping[str, int]],
+    fixed_layouts: Iterable[Mapping[str, int]],
+) -> list[dict[str, int]]:
+    """Moves recorded layouts down only when their old positions are occupied.
+
+    Widgets outside the recorded action are fixed obstacles. Preserve each saved
+    position where possible, including gaps, so undo does not compact newer edits.
+    """
+
+    occupied = list(fixed_layouts)
+    resolved = []
+    for source in sorted(
+        layouts, key=lambda item: (item["grid_y"], item["grid_x"], item["id"])
+    ):
+        item = dict(source)
+        item["grid_y"] = get_non_overlapping_grid_y(item, occupied)
+        occupied.append(item)
+        resolved.append(item)
+    return resolved
 
 
 def get_first_available_grid_position(
@@ -93,26 +126,14 @@ def get_first_available_grid_position(
     layout = list(layouts)
     available_positions = []
     for grid_x in range(DASHBOARD_GRID_COLUMNS - grid_width + 1):
-        grid_y = 0
-        while True:
-            candidate = {
-                "grid_x": grid_x,
-                "grid_y": grid_y,
-                "grid_width": grid_width,
-                "grid_height": grid_height,
-            }
-            collisions = [
-                existing for existing in layout if layouts_overlap(candidate, existing)
-            ]
-            if not collisions:
-                available_positions.append((grid_y, grid_x))
-                break
-
-            # At least one of the current collisions remains until the greatest
-            # bottom edge, so no position before it can fit at this grid_x.
-            grid_y = max(
-                existing["grid_y"] + existing["grid_height"] for existing in collisions
-            )
+        candidate = {
+            "grid_x": grid_x,
+            "grid_y": 0,
+            "grid_width": grid_width,
+            "grid_height": grid_height,
+        }
+        grid_y = get_non_overlapping_grid_y(candidate, layout)
+        available_positions.append((grid_y, grid_x))
 
     grid_y, grid_x = min(available_positions)
     return grid_x, grid_y
