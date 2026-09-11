@@ -187,7 +187,7 @@ class WidgetLayoutHandler:
     def validate_restored_delta(
         self, recorded_delta: WidgetLayoutDelta
     ) -> dict[int, WidgetLayoutDict]:
-        """Restores saved positions and pushes colliding current widgets down.
+        """Restores saved positions and moves colliding neighbors right or down.
 
         Saved geometry takes priority over positions occupied since the action.
         Only reverse a neighbor's recorded change if it still matches the expected

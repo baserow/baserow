@@ -106,10 +106,10 @@ def resolve_widget_layout_collisions(
     layouts: Iterable[Mapping[str, int]],
     fixed_layouts: Iterable[Mapping[str, int]],
 ) -> list[dict[str, int]]:
-    """Pushes layouts down around fixed obstacles without changing their order.
+    """Resolves collisions rightward on the same row, then downward.
 
-    Preserve columns, dimensions and gaps. Earlier overlapping widgets remain
-    above later ones even when an obstacle forces them past an otherwise free gap.
+    Preserve dimensions and gaps. When falling back to lower rows, keep earlier
+    overlapping widgets above later ones instead of passing them through gaps.
     """
 
     occupied = list(fixed_layouts)
@@ -118,6 +118,13 @@ def resolve_widget_layout_collisions(
         layouts, key=lambda item: (item["grid_y"], item["grid_x"], item["id"])
     ):
         item = dict(source)
+        for grid_x in range(
+            item["grid_x"], DASHBOARD_GRID_COLUMNS - item["grid_width"] + 1
+        ):
+            candidate = {**item, "grid_x": grid_x}
+            if not any(layouts_overlap(candidate, other) for other in occupied):
+                item = candidate
+                break
         item["grid_y"] = max(
             item["grid_y"],
             max(

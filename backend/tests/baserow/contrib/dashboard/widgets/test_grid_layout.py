@@ -214,8 +214,8 @@ def test_get_first_available_grid_position_rejects_invalid_dimensions(
 @pytest.mark.parametrize("reverse", [False, True])
 def test_resolve_collisions_pushes_a_chain_without_reordering_or_compacting(reverse):
     fixed = [
-        {"id": 1, "grid_x": 0, "grid_y": 4, "grid_width": 2, "grid_height": 4},
-        {"id": 2, "grid_x": 0, "grid_y": 12, "grid_width": 2, "grid_height": 4},
+        {"id": 1, "grid_x": 0, "grid_y": 4, "grid_width": 6, "grid_height": 4},
+        {"id": 2, "grid_x": 0, "grid_y": 12, "grid_width": 6, "grid_height": 4},
     ]
     current = [
         {"id": 3, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 8},
@@ -238,3 +238,23 @@ def test_resolve_collisions_pushes_a_chain_without_reordering_or_compacting(reve
         current[3],
     ]
     assert [*fixed, *current] == original
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_resolve_collisions_moves_a_row_right_before_falling_back_down(reverse):
+    fixed = [{"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4}]
+    current = [
+        {"id": 2, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 3, "grid_x": 2, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 4, "grid_x": 4, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+    ]
+
+    resolved = resolve_widget_layout_collisions(
+        reversed(current) if reverse else current, fixed
+    )
+
+    assert resolved == [
+        {**current[0], "grid_x": 2},
+        {**current[1], "grid_x": 4},
+        {**current[2], "grid_y": 4},
+    ]
