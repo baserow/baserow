@@ -13,23 +13,7 @@
             :dashboard="dashboard"
             :store-prefix="storePrefix"
           />
-          <!--
-            The name and description of the dashboard are already known, only the
-            widgets have to be fetched, so only those are a placeholder.
-          -->
-          <div
-            v-if="loading"
-            class="dashboard-app__loading skeleton"
-            aria-hidden="true"
-          >
-            <div
-              v-for="index in 2"
-              :key="`widget-${index}`"
-              class="dashboard-widget"
-            >
-              <SkeletonBlock height="160px"></SkeletonBlock>
-            </div>
-          </div>
+          <DashboardWidgetGridLoading v-if="loading" />
           <EmptyDashboard
             v-else-if="isEmpty"
             :dashboard="dashboard"
@@ -58,12 +42,14 @@ import EmptyDashboard from '@baserow/modules/dashboard/components/EmptyDashboard
 import DashboardSidebar from '@baserow/modules/dashboard/components/DashboardSidebar'
 import DashboardContentHeader from '@baserow/modules/dashboard/components/DashboardContentHeader'
 import WidgetBoard from '@baserow/modules/dashboard/components/WidgetBoard'
+import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 
 export default {
   name: 'DashboardContent',
   components: {
     EmptyDashboard,
     WidgetBoard,
+    DashboardWidgetGridLoading,
     DashboardContentHeader,
     DashboardSidebar,
   },

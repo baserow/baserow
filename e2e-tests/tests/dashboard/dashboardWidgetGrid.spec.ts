@@ -119,7 +119,7 @@ test.describe('Dashboard widget grid', () => {
 
     const loadingIndicator = page
       .getByTestId(`dashboard-widget-grid-item-${widget.id}`)
-      .locator('.dashboard-summary-widget__loading')
+      .locator('.skeleton-loading')
     await expect(loadingIndicator).toHaveCount(0, { timeout: 10_000 })
   })
 

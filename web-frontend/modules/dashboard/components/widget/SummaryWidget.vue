@@ -11,7 +11,6 @@
         {{ result }}
       </div>
     </template>
-    <div v-else class="dashboard-summary-widget__loading loading-spinner"></div>
   </div>
 </template>
 

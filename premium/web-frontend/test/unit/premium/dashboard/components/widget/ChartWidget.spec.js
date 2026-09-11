@@ -1,9 +1,13 @@
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
-import ChartWidget from '@baserow_premium/dashboard/components/widget/ChartWidget'
+import {
+  ChartWidgetType,
+  PieChartWidgetType,
+} from '@baserow_premium/dashboard/widgetTypes'
 
 describe.each([
-  { name: 'ChartWidget', Component: ChartWidget },
-])('Premium dashboard $name component', ({ Component }) => {
+  { name: 'ChartWidget', WidgetType: ChartWidgetType },
+  { name: 'PieChartWidget', WidgetType: PieChartWidgetType },
+])('Premium dashboard $name component', ({ WidgetType }) => {
   let testApp = null
 
   beforeEach(() => {
@@ -30,6 +34,7 @@ describe.each([
   const mountComponent = async () => {
     seedDataSource()
 
+    const Component = new WidgetType({ app: useNuxtApp() }).component
     return await testApp.mount(Component, {
       props: {
         dashboard: {
