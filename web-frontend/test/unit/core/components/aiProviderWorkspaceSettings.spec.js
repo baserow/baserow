@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
+import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -16,6 +17,206 @@ describe('AIProviderWorkspaceSettings', () => {
   afterEach(async () => {
     await testApp.afterEach()
     vi.restoreAllMocks()
+  })
+
+  const enabledModel = () => ({
+    id: 21,
+    model_identifier: 'workspace-model',
+    is_enabled: true,
+    last_test_status: null,
+    feature_types: ['ai_fields', 'ai_agent'],
+  })
+
+  const mountWithModel = async (model, usage) => {
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [
+      {
+        id: 2,
+        provider_type: 'openai',
+        is_active: true,
+        workspace_enabled: true,
+        read_only: false,
+        models: [model],
+      },
+    ])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation(async (action) => {
+        if (action === 'aiProvider/fetchModelUsage') {
+          return typeof usage === 'function' ? usage() : usage
+        }
+      })
+    const wrapper = await testApp.mount(AIProviderWorkspaceSettings, {
+      props: { workspace: { id: 42 } },
+    })
+    await flushPromises()
+    return { wrapper, dispatch }
+  }
+
+  const selectModelAction = async (wrapper, action) => {
+    wrapper
+      .find('.ai-provider-model__actions')
+      .findComponent(AIProviderActionsMenu)
+      .vm.$emit('select', action)
+    await flushPromises()
+  }
+
+  test('warns with the usage counts before disabling a model in use', async () => {
+    const model = enabledModel()
+    const { wrapper, dispatch } = await mountWithModel(model, {
+      usage: [
+        { featureType: 'ai_fields', count: 3 },
+        { featureType: 'ai_agent', count: 0 },
+      ],
+      blockingFeatureTypes: [],
+    })
+
+    await selectModelAction(wrapper, 'toggle')
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/fetchModelUsage', {
+      modelId: 21,
+      workspaceId: 42,
+    })
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/updateModel',
+      expect.anything()
+    )
+    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    expect(confirmModal.props('title')).toBe(
+      'aiProviderAdmin.disableModelTitle'
+    )
+    expect(confirmModal.props('message')).toContain(
+      'aiProviderAdmin.modelInUse'
+    )
+    expect(confirmModal.props('confirmLabel')).toBe('aiProviderAdmin.disable')
+
+    confirmModal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 21,
+      workspaceId: 42,
+      values: { is_enabled: false },
+    })
+  })
+
+  test('disables a model nothing uses without a confirmation', async () => {
+    const model = enabledModel()
+    const { wrapper, dispatch } = await mountWithModel(model, {
+      usage: [
+        { featureType: 'ai_fields', count: 0 },
+        { featureType: 'ai_agent', count: 0 },
+      ],
+      blockingFeatureTypes: [],
+    })
+
+    await selectModelAction(wrapper, 'toggle')
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 21,
+      workspaceId: 42,
+      values: { is_enabled: false },
+    })
+  })
+
+  test('disables a model when the usage lookup fails', async () => {
+    const model = enabledModel()
+    const { wrapper, dispatch } = await mountWithModel(model, () => {
+      throw new Error('Usage unavailable')
+    })
+
+    await selectModelAction(wrapper, 'toggle')
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 21,
+      workspaceId: 42,
+      values: { is_enabled: false },
+    })
+  })
+
+  test('does not look up usage when enabling a model', async () => {
+    const model = { ...enabledModel(), is_enabled: false }
+    const { wrapper, dispatch } = await mountWithModel(model, {
+      usage: [],
+      blockingFeatureTypes: [],
+    })
+
+    await selectModelAction(wrapper, 'toggle')
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/fetchModelUsage',
+      expect.anything()
+    )
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 21,
+      workspaceId: 42,
+      values: { is_enabled: true },
+    })
+  })
+
+  test('names the usage counts before deleting a model in use', async () => {
+    const model = enabledModel()
+    const { wrapper, dispatch } = await mountWithModel(model, {
+      usage: [
+        { featureType: 'ai_fields', count: 1 },
+        { featureType: 'ai_agent', count: 2 },
+      ],
+      blockingFeatureTypes: [],
+    })
+
+    await selectModelAction(wrapper, 'delete')
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/deleteModel',
+      expect.anything()
+    )
+    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    expect(confirmModal.props('title')).toBe('aiProviderAdmin.deleteModelTitle')
+    expect(confirmModal.props('message')).toMatch(
+      /^aiProviderAdmin\.modelInUse.* aiProviderAdmin\.deleteModelDescription$/
+    )
+
+    confirmModal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/deleteModel', {
+      modelId: 21,
+      workspaceId: 42,
+    })
+  })
+
+  test('keeps the plain delete message when nothing uses the model', async () => {
+    const model = enabledModel()
+    const { wrapper } = await mountWithModel(model, {
+      usage: [{ featureType: 'ai_fields', count: 0 }],
+      blockingFeatureTypes: [],
+    })
+
+    await selectModelAction(wrapper, 'delete')
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).props('message')).toBe(
+      'aiProviderAdmin.deleteModelDescription'
+    )
+  })
+
+  test('warns that a default-model feature blocks the delete', async () => {
+    const model = enabledModel()
+    const { wrapper } = await mountWithModel(model, {
+      usage: [{ featureType: 'ai_fields', count: 0 }],
+      blockingFeatureTypes: ['kuma'],
+    })
+
+    await selectModelAction(wrapper, 'delete')
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).props('message')).toBe(
+      'aiProviderAdmin.modelBlockedByFeature aiProviderAdmin.deleteModelDescription'
+    )
   })
 
   test('keeps legacy Kuma controls available without providers', async () => {

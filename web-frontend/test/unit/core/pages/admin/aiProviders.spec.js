@@ -1,5 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 
+import AIProviderActionsMenu from '@baserow/modules/core/components/ai/AIProviderActionsMenu'
+import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
 import AdminAIProviders from '@baserow/modules/core/pages/admin/aiProviders'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -118,6 +120,100 @@ describe('AdminAIProviders', () => {
 
     expect(wrapper.text()).not.toContain('gpt-5.6')
     expect(wrapper.find('.skeleton').exists()).toBe(true)
+  })
+
+  const mountWithModel = async (model, usage) => {
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', null)
+    testApp.store.commit('aiProvider/SET_LOADED', true)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [
+      {
+        id: 1,
+        provider_type: 'openai',
+        is_active: true,
+        extra_settings: {},
+        models: [model],
+      },
+    ])
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI', uses_api_key: true, extra_fields: [] },
+    ])
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation(async (action) => {
+        if (action === 'aiProvider/fetchModelUsage') {
+          return usage
+        }
+      })
+    const wrapper = await testApp.mount(AdminAIProviders)
+    await flushPromises()
+    return { wrapper, dispatch }
+  }
+
+  const selectModelAction = async (wrapper, action) => {
+    wrapper
+      .find('.ai-provider-model__actions')
+      .findComponent(AIProviderActionsMenu)
+      .vm.$emit('select', action)
+    await flushPromises()
+  }
+
+  test('warns with the instance-wide usage counts before disabling a model', async () => {
+    const { wrapper, dispatch } = await mountWithModel(
+      {
+        id: 2,
+        model_identifier: 'gpt-5.6',
+        is_enabled: true,
+        last_test_status: null,
+      },
+      {
+        usage: [{ featureType: 'ai_fields', count: 3 }],
+        blockingFeatureTypes: [],
+      }
+    )
+
+    await selectModelAction(wrapper, 'toggle')
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/fetchModelUsage', {
+      modelId: 2,
+    })
+    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    expect(confirmModal.props('title')).toBe(
+      'aiProviderAdmin.disableModelTitle'
+    )
+    expect(confirmModal.props('message')).toMatch(
+      /^aiProviderAdmin\.modelInUse.* aiProviderAdmin\.disableModelDescription$/
+    )
+
+    confirmModal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: { is_enabled: false },
+    })
+  })
+
+  test('disables a model nothing depends on without a confirmation', async () => {
+    const { wrapper, dispatch } = await mountWithModel(
+      {
+        id: 2,
+        model_identifier: 'gpt-5.6',
+        is_enabled: true,
+        last_test_status: null,
+      },
+      {
+        usage: [{ featureType: 'ai_fields', count: 0 }],
+        blockingFeatureTypes: [],
+      }
+    )
+
+    await selectModelAction(wrapper, 'toggle')
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: { is_enabled: false },
+    })
   })
 
   test('tests every provider model in one request', async () => {

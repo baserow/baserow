@@ -53,6 +53,9 @@ export default (client, workspaceId = null) => {
     deleteModel(modelId) {
       return client.delete(`/ai-providers/models/${modelId}/`, config())
     },
+    fetchModelUsage(modelId) {
+      return client.get(`/ai-providers/models/${modelId}/usage/`, config())
+    },
     testModels(values) {
       return client.post('/ai-providers/models/test/', values, config())
     },

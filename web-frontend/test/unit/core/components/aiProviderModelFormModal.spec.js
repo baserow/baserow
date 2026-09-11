@@ -1,6 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
+import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
 import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -14,6 +16,252 @@ describe('AIProviderModelFormModal', () => {
   afterEach(async () => {
     await testApp.afterEach()
     vi.restoreAllMocks()
+  })
+
+  const mountEditForm = async (usage, modelValues = {}) => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation(async (action) => {
+        if (action === 'aiProvider/fetchModelUsage') {
+          return usage
+        }
+        if (action === 'aiProvider/updateModel') {
+          return { id: 2, model_identifier: 'gpt-5.6' }
+        }
+      })
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', models: [] },
+        model: {
+          id: 2,
+          model_identifier: 'gpt-5.6',
+          feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+          ...modelValues,
+        },
+      },
+    })
+    await wrapper.vm.show()
+    await flushPromises()
+    return { wrapper, dispatch }
+  }
+
+  const uncheckFeatures = async (wrapper, featureTypes) => {
+    wrapper
+      .findComponent(AIProviderModelFeatureSelector)
+      .vm.$emit('update:modelValue', featureTypes)
+    await flushPromises()
+  }
+
+  test('confirms before saving when a feature in use is unchecked', async () => {
+    const { wrapper, dispatch } = await mountEditForm({
+      usage: [
+        { featureType: 'ai_fields', count: 2 },
+        { featureType: 'ai_agent', count: 0 },
+      ],
+      blockingFeatureTypes: [],
+    })
+    await uncheckFeatures(wrapper, ['ai_agent', 'kuma'])
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/fetchModelUsage', {
+      modelId: 2,
+    })
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/updateModel',
+      expect.anything()
+    )
+    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    expect(confirmModal.props('title')).toBe(
+      'aiProviderAdmin.modelFeaturesRemovedTitle'
+    )
+    expect(confirmModal.props('message')).toMatch(
+      /^aiProviderAdmin\.modelInUse.* aiProviderAdmin\.modelFeaturesRemovedDescription$/
+    )
+
+    confirmModal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: {
+        model_identifier: 'gpt-5.6',
+        feature_types: ['ai_agent', 'kuma'],
+      },
+    })
+  })
+
+  test('saves without a confirmation when the unchecked feature is unused', async () => {
+    const { wrapper, dispatch } = await mountEditForm({
+      usage: [
+        { featureType: 'ai_fields', count: 2 },
+        { featureType: 'ai_agent', count: 0 },
+      ],
+      blockingFeatureTypes: [],
+    })
+    await uncheckFeatures(wrapper, ['ai_fields', 'kuma'])
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: {
+        model_identifier: 'gpt-5.6',
+        feature_types: ['ai_fields', 'kuma'],
+      },
+    })
+  })
+
+  test('does not look up usage when no feature is unchecked', async () => {
+    const { wrapper, dispatch } = await mountEditForm({
+      usage: [{ featureType: 'ai_fields', count: 2 }],
+      blockingFeatureTypes: [],
+    })
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/fetchModelUsage',
+      expect.anything()
+    )
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: {
+        model_identifier: 'gpt-5.6',
+        feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+      },
+    })
+  })
+
+  test('saves when the usage lookup fails', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockImplementation(async (action) => {
+        if (action === 'aiProvider/fetchModelUsage') {
+          throw new Error('Usage unavailable')
+        }
+      })
+    const wrapper = await testApp.mount(AIProviderModelFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', models: [] },
+        model: {
+          id: 2,
+          model_identifier: 'gpt-5.6',
+          feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+        },
+      },
+    })
+    await wrapper.vm.show()
+    await uncheckFeatures(wrapper, ['ai_agent', 'kuma'])
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: {
+        model_identifier: 'gpt-5.6',
+        feature_types: ['ai_agent', 'kuma'],
+      },
+    })
+  })
+
+  test('confirms a rename while consumers still point at the old identifier', async () => {
+    const { wrapper, dispatch } = await mountEditForm({
+      usage: [
+        { featureType: 'ai_fields', count: 2 },
+        { featureType: 'ai_agent', count: 1 },
+      ],
+      blockingFeatureTypes: [],
+    })
+    wrapper.vm.values.model_identifier = 'gpt-5.7'
+    await flushPromises()
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/updateModel',
+      expect.anything()
+    )
+    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    expect(confirmModal.props('title')).toBe(
+      'aiProviderAdmin.modelIdentifierRenamedTitle'
+    )
+    expect(confirmModal.props('message')).toMatch(
+      /^aiProviderAdmin\.modelInUse.* aiProviderAdmin\.modelIdentifierRenamedDescription$/
+    )
+
+    confirmModal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: {
+        model_identifier: 'gpt-5.7',
+        feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+      },
+    })
+  })
+
+  test('saves a rename nothing depends on without a confirmation', async () => {
+    const { wrapper, dispatch } = await mountEditForm({
+      usage: [{ featureType: 'ai_fields', count: 0 }],
+      blockingFeatureTypes: [],
+    })
+    wrapper.vm.values.model_identifier = 'gpt-5.7'
+    await flushPromises()
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
+      modelId: 2,
+      values: {
+        model_identifier: 'gpt-5.7',
+        feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+      },
+    })
+  })
+
+  test('keeps the confirmation open across a re-render and closes both on save', async () => {
+    const { wrapper, dispatch } = await mountEditForm({
+      usage: [{ featureType: 'ai_fields', count: 2 }],
+      blockingFeatureTypes: [],
+    })
+    await uncheckFeatures(wrapper, ['ai_agent', 'kuma'])
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    const uid = confirmModal.vm.$.uid
+    expect(confirmModal.vm.$refs.modal.open).toBe(true)
+
+    wrapper.vm.loading = true
+    await flushPromises()
+    wrapper.vm.loading = false
+    await flushPromises()
+
+    const reRendered = wrapper.findComponent(AIProviderConfirmModal)
+    expect(reRendered.vm.$.uid).toBe(uid)
+    expect(reRendered.vm.$refs.modal.open).toBe(true)
+
+    reRendered.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith(
+      'aiProvider/updateModel',
+      expect.anything()
+    )
+    expect(wrapper.emitted('saved')).toBeTruthy()
+    expect(wrapper.vm.$refs.modal.open).toBe(false)
+    expect(document.body.classList.contains('prevent-scroll')).toBe(false)
   })
 
   test('shows discovered models, excludes configured models, and accepts a suggestion', async () => {

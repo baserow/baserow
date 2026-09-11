@@ -324,6 +324,22 @@ export const actions = {
       'BUMP_PROVIDERS_REVISION'
     )
   },
+  async fetchModelUsage(_context, payload) {
+    const modelId = typeof payload === 'object' ? payload.modelId : payload
+    const workspaceId =
+      typeof payload === 'object' ? (payload.workspaceId ?? null) : null
+    const { data } = await aiProviderService(
+      this.$client,
+      workspaceId
+    ).fetchModelUsage(modelId)
+    return {
+      usage: data.usage.map(({ feature_type: featureType, count }) => ({
+        featureType,
+        count,
+      })),
+      blockingFeatureTypes: data.blocking_feature_types,
+    }
+  },
   async testModels({ commit, state }, payload) {
     const workspaceId = payload.workspaceId ?? null
     const values = workspaceId === null ? payload : payload.values
