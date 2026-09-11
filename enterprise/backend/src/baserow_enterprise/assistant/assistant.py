@@ -472,7 +472,11 @@ class Assistant:
         """
 
         try:
-            with self._telemetry.trace(self._chat, user_prompt) as tracer:
+            with self._telemetry.trace(
+                self._chat,
+                user_prompt,
+                cancelled_by_user=lambda: self._tool_helpers.is_cancelled,
+            ) as tracer:
                 answer, run_result = await self._run_agent_with_retries(
                     user_prompt, message_history, queue
                 )
