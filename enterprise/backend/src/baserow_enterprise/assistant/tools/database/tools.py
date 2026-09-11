@@ -1003,6 +1003,7 @@ def generate_formula(
             user, workspace, prompt, tool_helpers.model_profile
         )
     except ModelRetry:
+        # A retry prompt for the model, not a failure to rewrite as one below.
         raise
     except Exception as exc:
         # A sub-agent failure must not end the turn; create_tables does the same.
