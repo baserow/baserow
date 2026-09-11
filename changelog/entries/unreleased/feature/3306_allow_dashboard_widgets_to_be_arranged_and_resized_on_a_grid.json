@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Allow dashboard widgets to be arranged and resized on a grid",
+    "message": "Allow dashboard widgets to be arranged and resized on a grid.",
     "issue_origin": "github",
     "issue_number": 3306,
     "domain": "dashboard",
