@@ -66,16 +66,59 @@ function collides(first, second) {
   )
 }
 
-function firstAvailableRow(layout, item) {
-  let y = 0
-  const candidate = { ...item, y }
+function firstAvailableRow(layout, item, minimumY = 0) {
+  const candidate = { ...item, y: minimumY }
 
-  while (layout.some((other) => collides(candidate, other))) {
-    y += 1
-    candidate.y = y
+  let collisions = layout.filter((other) => collides(candidate, other))
+  while (collisions.length > 0) {
+    candidate.y = Math.max(...collisions.map((other) => other.y + other.h))
+    collisions = layout.filter((other) => collides(candidate, other))
   }
 
-  return y
+  return candidate.y
+}
+
+/**
+ * Plans a resize from the saved layout so reversing the gesture also restores
+ * neighbors. Width growth pushes right first; height growth pushes downward.
+ */
+export function resizeWidgetGridLayout(layout, widgetId, width, height) {
+  const original = layout.find((item) => String(item.i) === String(widgetId))
+  const resized = { ...original, w: width, h: height }
+  const occupied = [resized]
+  const resolved = []
+  const neighbors = layout
+    .filter((item) => item !== original)
+    .toSorted(
+      (first, second) =>
+        first.y - second.y ||
+        first.x - second.x ||
+        Number(first.i) - Number(second.i)
+    )
+
+  for (const source of neighbors) {
+    let item = { ...source }
+    if (width > original.w) {
+      for (let x = item.x; x <= DASHBOARD_DESKTOP_GRID_COLUMNS - item.w; x++) {
+        const candidate = { ...item, x }
+        if (!occupied.some((other) => collides(candidate, other))) {
+          item = candidate
+          break
+        }
+      }
+    }
+    const minimumY = resolved.reduce((y, other) => {
+      return item.x < other.x + other.w && other.x < item.x + item.w
+        ? Math.max(y, other.y + other.h)
+        : y
+    }, item.y)
+    item.y = firstAvailableRow(occupied, item, minimumY)
+    occupied.push(item)
+    resolved.push(item)
+  }
+
+  const byId = new Map(occupied.map((item) => [String(item.i), item]))
+  return layout.map((item) => byId.get(String(item.i)))
 }
 
 function projectLayoutItem(item, columns) {

@@ -127,6 +127,7 @@ test.describe('Dashboard widget grid', () => {
     page,
     workspacePage,
   }) => {
+    test.setTimeout(60_000)
     const dashboard = await createDashboard(
       'Dashboard widget grid snap',
       workspacePage.workspace
@@ -144,11 +145,17 @@ test.describe('Dashboard widget grid', () => {
     await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
     const gridItem = page.getByTestId(`dashboard-widget-grid-item-${widget.id}`)
     const dashboardWidget = page.getByTestId(`dashboard-widget-${widget.id}`)
+    const adjacentItem = page.getByTestId(
+      `dashboard-widget-grid-item-${adjacentWidget.id}`
+    )
+    // Hover waits for the edit sidebar's layout transition to finish.
+    await adjacentItem.hover()
     const layoutBox = await grid.locator('.vgl-layout').boundingBox()
     const resizer = gridItem.locator('.vgl-item__resizer')
     const resizerBox = await resizer.boundingBox()
     const initialWidgetBox = await gridItem.boundingBox()
-    if (!layoutBox || !resizerBox || !initialWidgetBox) {
+    const initialAdjacentBox = await adjacentItem.boundingBox()
+    if (!layoutBox || !resizerBox || !initialWidgetBox || !initialAdjacentBox) {
       throw new Error('Could not measure the dashboard widget grid resizer')
     }
 
@@ -189,6 +196,26 @@ test.describe('Dashboard widget grid', () => {
 
       await page.mouse.move(x + gridStep, y, { steps: 12 })
       await expect(grid).toHaveClass(/dashboard-widget-grid--interacting/)
+      await expect
+        .poll(async () => {
+          const resizedBox = await gridItem.boundingBox()
+          const adjacentBox = await adjacentItem.boundingBox()
+          if (!resizedBox || !adjacentBox) return false
+          return (
+            Math.abs(resizedBox.y - adjacentBox.y) < 1 &&
+            adjacentBox.x >= resizedBox.x + resizedBox.width
+          )
+        })
+        .toBe(true)
+
+      await page.mouse.move(x, y, { steps: 12 })
+      await expect
+        .poll(async () => (await gridItem.boundingBox())?.width)
+        .toBeCloseTo(initialWidgetBox.width, 0)
+      await expect
+        .poll(async () => (await adjacentItem.boundingBox())?.x)
+        .toBeCloseTo(initialAdjacentBox.x, 0)
+      await page.mouse.move(x + gridStep, y, { steps: 12 })
     } finally {
       await page.mouse.up()
     }
@@ -200,6 +227,20 @@ test.describe('Dashboard widget grid', () => {
     ).toHaveCSS('user-select', 'auto')
 
     await expectWidgetLayout(dashboard, widget.id, { grid_width: 3 })
+    await expectWidgetLayout(dashboard, adjacentWidget.id, {
+      grid_x: 3,
+      grid_y: 0,
+    })
+    await page.reload({ waitUntil: 'networkidle' })
+    const resizedBox = await gridItem.boundingBox()
+    const adjacentBox = await adjacentItem.boundingBox()
+    if (!resizedBox || !adjacentBox) {
+      throw new Error('Could not measure the reloaded widgets')
+    }
+    expect(adjacentBox.y).toBeCloseTo(resizedBox.y, 0)
+    expect(adjacentBox.x).toBeGreaterThanOrEqual(
+      resizedBox.x + resizedBox.width
+    )
   })
 
   test('persists drag and horizontal/vertical resize, then broadcasts the layout', async ({
