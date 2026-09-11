@@ -106,10 +106,10 @@ def resolve_widget_layout_collisions(
     layouts: Iterable[Mapping[str, int]],
     fixed_layouts: Iterable[Mapping[str, int]],
 ) -> list[dict[str, int]]:
-    """Moves recorded layouts down only when their old positions are occupied.
+    """Pushes layouts down around fixed obstacles without changing their order.
 
-    Widgets outside the recorded action are fixed obstacles. Preserve each saved
-    position where possible, including gaps, so undo does not compact newer edits.
+    Preserve columns, dimensions and gaps. Earlier overlapping widgets remain
+    above later ones even when an obstacle forces them past an otherwise free gap.
     """
 
     occupied = list(fixed_layouts)
@@ -118,6 +118,17 @@ def resolve_widget_layout_collisions(
         layouts, key=lambda item: (item["grid_y"], item["grid_x"], item["id"])
     ):
         item = dict(source)
+        item["grid_y"] = max(
+            item["grid_y"],
+            max(
+                (
+                    other["grid_y"] + other["grid_height"]
+                    for other in resolved
+                    if horizontal_ranges_overlap(item, other)
+                ),
+                default=0,
+            ),
+        )
         item["grid_y"] = get_non_overlapping_grid_y(item, occupied)
         occupied.append(item)
         resolved.append(item)

@@ -11,7 +11,7 @@ from baserow.core.action.scopes import ApplicationActionScopeType
 
 from .models import Widget
 from .service import WidgetService
-from .types import UpdatedWidgetLayout, WidgetLayoutDict
+from .types import UpdatedWidgetLayout, WidgetLayoutDelta, WidgetLayoutDict
 
 
 class CreateWidgetActionType(UndoableActionType):
@@ -77,10 +77,17 @@ class CreateWidgetActionType(UndoableActionType):
         if params.original_layout is None:
             widget_service.delete_widget_legacy(user, params.widget_id)
         else:
-            widget_service.delete_widget_and_restore_layout(
+            assert params.new_layout is not None
+            updated_layout = widget_service.delete_widget_and_restore_layout(
                 user,
                 params.widget_id,
-                params.original_layout,
+                WidgetLayoutDelta(params.new_layout, params.original_layout),
+            )
+            action_to_undo.params["new_layout"] = (
+                updated_layout.layout_delta.original_layout
+            )
+            action_to_undo.params["original_layout"] = (
+                updated_layout.layout_delta.new_layout
             )
 
     @classmethod
@@ -95,12 +102,17 @@ class CreateWidgetActionType(UndoableActionType):
         if params.new_layout is None:
             widget_service.restore_widget_legacy(user, params.widget_id)
         else:
-            widget_service.restore_widget_and_update_layout(
+            assert params.original_layout is not None
+            updated_layout = widget_service.restore_widget_and_update_layout(
                 user,
                 params.dashboard_id,
                 params.widget_id,
-                params.new_layout,
+                WidgetLayoutDelta(params.original_layout, params.new_layout),
             )
+            action_to_redo.params["original_layout"] = (
+                updated_layout.layout_delta.original_layout
+            )
+            action_to_redo.params["new_layout"] = updated_layout.layout_delta.new_layout
 
 
 class UpdateWidgetActionType(UndoableActionType):
@@ -305,11 +317,18 @@ class DeleteWidgetActionType(UndoableActionType):
         if params.original_layout is None:
             widget_service.restore_widget_legacy(user, params.widget_id)
         else:
-            widget_service.restore_widget_and_update_layout(
+            assert params.new_layout is not None
+            updated_layout = widget_service.restore_widget_and_update_layout(
                 user,
                 params.dashboard_id,
                 params.widget_id,
-                params.original_layout,
+                WidgetLayoutDelta(params.new_layout, params.original_layout),
+            )
+            action_to_undo.params["new_layout"] = (
+                updated_layout.layout_delta.original_layout
+            )
+            action_to_undo.params["original_layout"] = (
+                updated_layout.layout_delta.new_layout
             )
 
     @classmethod
@@ -323,8 +342,13 @@ class DeleteWidgetActionType(UndoableActionType):
         if params.new_layout is None:
             widget_service.delete_widget_legacy(user, params.widget_id)
         else:
-            widget_service.delete_widget_and_restore_layout(
+            assert params.original_layout is not None
+            updated_layout = widget_service.delete_widget_and_restore_layout(
                 user,
                 params.widget_id,
-                params.new_layout,
+                WidgetLayoutDelta(params.original_layout, params.new_layout),
             )
+            action_to_redo.params["original_layout"] = (
+                updated_layout.layout_delta.original_layout
+            )
+            action_to_redo.params["new_layout"] = updated_layout.layout_delta.new_layout

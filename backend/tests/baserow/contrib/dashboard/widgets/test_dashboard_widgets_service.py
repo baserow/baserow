@@ -14,6 +14,7 @@ from baserow.contrib.dashboard.widgets.exceptions import (
 )
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
 from baserow.contrib.dashboard.widgets.service import WidgetService
+from baserow.contrib.dashboard.widgets.types import WidgetLayoutDelta
 from baserow.core.exceptions import PermissionException
 
 
@@ -601,7 +602,9 @@ def test_restore_widget_broadcasts_legacy_event_and_layout_invalidation(
             "grid_height": 4,
         },
     ]
-    WidgetService().delete_widget(user, restored_widget.id)
+    deletion = WidgetService().delete_widget_and_compact_layout(
+        user, restored_widget.id
+    )
 
     with (
         patch(
@@ -615,7 +618,7 @@ def test_restore_widget_broadcasts_legacy_event_and_layout_invalidation(
             user,
             dashboard.id,
             restored_widget.id,
-            original_layout,
+            WidgetLayoutDelta(deletion.layout_delta.new_layout, original_layout),
         )
 
     widget_created_mock.assert_called_once()

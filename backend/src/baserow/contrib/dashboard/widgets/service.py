@@ -384,11 +384,11 @@ class WidgetService:
         self,
         user: AbstractUser,
         widget_id: int,
-        layout: list[WidgetLayoutDict] | None,
+        recorded_delta: WidgetLayoutDelta | None,
     ) -> UpdatedWidgetLayout:
         """Trashes a widget and publishes the resulting canonical layout.
 
-        ``layout`` is the recorded delta for remaining widgets when replaying a
+        ``recorded_delta`` contains the expected and desired geometry when replaying a
         create/delete action. When omitted, deletion vertically compacts the layout.
         Moving other widgets is a consequence of deletion, so it deliberately
         requires only delete permission.
@@ -417,7 +417,7 @@ class WidgetService:
         original_layout = WidgetLayoutHandler(widgets).current_layout
         remaining_widgets = [widget for widget in widgets if widget.id != widget_id]
         remaining_layout_handler = WidgetLayoutHandler(remaining_widgets)
-        if layout is None:
+        if recorded_delta is None:
             layout = remaining_layout_handler.compacted_layout
             # Existing dashboards can still contain rollout-era geometry that is
             # outside the current type constraints. Compaction preserves that
@@ -425,7 +425,7 @@ class WidgetService:
             layout_by_widget_id = {item["id"]: item for item in layout}
         else:
             layout_by_widget_id = remaining_layout_handler.validate_restored_delta(
-                layout
+                recorded_delta
             )
 
         layout_delta = remaining_layout_handler.apply(
@@ -447,18 +447,20 @@ class WidgetService:
     ) -> UpdatedWidgetLayout:
         """Trashes a widget and vertically compacts the remaining layout."""
 
-        return self._delete_widget_and_apply_layout(user, widget_id, layout=None)
+        return self._delete_widget_and_apply_layout(
+            user, widget_id, recorded_delta=None
+        )
 
     @transaction.atomic
     def delete_widget_and_restore_layout(
         self,
         user: AbstractUser,
         widget_id: int,
-        layout: list[WidgetLayoutDict],
+        recorded_delta: WidgetLayoutDelta,
     ) -> UpdatedWidgetLayout:
         """Trashes a widget and applies the recorded layout delta."""
 
-        return self._delete_widget_and_apply_layout(user, widget_id, layout)
+        return self._delete_widget_and_apply_layout(user, widget_id, recorded_delta)
 
     def delete_widget(self, user: AbstractUser, widget_id: int) -> Widget:
         """
@@ -506,7 +508,7 @@ class WidgetService:
         user: AbstractUser,
         dashboard_id: int,
         widget_id: int,
-        layout: list[WidgetLayoutDict],
+        recorded_delta: WidgetLayoutDelta,
     ) -> UpdatedWidgetLayout:
         """Restores a widget and atomically applies a recorded layout delta.
 
@@ -516,7 +518,8 @@ class WidgetService:
         """
 
         dashboard = self.dashboard_handler.get_dashboard(dashboard_id)
-        self._get_widgets_for_layout_mutation(dashboard)
+        widgets, _ = self._get_widgets_for_layout_mutation(dashboard)
+        original_layout = WidgetLayoutHandler(widgets).current_layout
 
         restored_widget = TrashHandler.restore_item(
             user,
@@ -527,7 +530,8 @@ class WidgetService:
         widgets = self.handler.get_widgets_for_update(dashboard)
         layout_handler = WidgetLayoutHandler(widgets)
         layout_delta = layout_handler.apply(
-            layout_handler.validate_restored_delta(layout)
+            layout_handler.validate_restored_delta(recorded_delta),
+            original_layout=original_layout,
         )
         updated_layout = self._layout_update_result(
             user,

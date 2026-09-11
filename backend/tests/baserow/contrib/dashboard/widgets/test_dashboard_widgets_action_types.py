@@ -572,12 +572,14 @@ def test_grid_delete_action_undo_redo_uses_layout_delta(data_fixture):
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @pytest.mark.parametrize("stacked", [False, True])
-def test_delete_undo_preserves_concurrent_widgets_in_recorded_positions(
+def test_delete_undo_restores_recorded_positions_and_displaces_concurrent_widgets(
     data_fixture, stacked
 ):
     session_id = "deleting-tab"
     user = data_fixture.create_user(session_id=session_id)
     dashboard = data_fixture.create_dashboard_application(user=user)
+    collaborator = data_fixture.create_user(session_id="moving-tab")
+    data_fixture.create_user_workspace(user=collaborator, workspace=dashboard.workspace)
     deleted = data_fixture.create_summary_widget(
         dashboard=dashboard, grid_x=0, grid_y=0, grid_width=2, grid_height=4
     )
@@ -590,13 +592,23 @@ def test_delete_undo_preserves_concurrent_widgets_in_recorded_positions(
     )
     DeleteWidgetActionType.do(user, deleted.id)
 
-    # Another tab occupies a position recorded by the deletion: either the
+    # Another user occupies a position recorded by the deletion: either the
     # deleted widget's position or a sibling's position before compaction.
-    concurrent.grid_x = 0
-    concurrent.grid_y = 4 if stacked else 0
-    concurrent.save()
+    current_layout = WidgetLayoutHandler(
+        Widget.objects.filter(dashboard=dashboard)
+    ).current_layout
+    UpdateWidgetLayoutActionType.do(
+        collaborator,
+        dashboard.id,
+        [
+            {**item, "grid_x": 0, "grid_y": 4 if stacked else 0, "grid_height": 5}
+            if item["id"] == concurrent.id
+            else item
+            for item in current_layout
+        ],
+    )
+    concurrent.refresh_from_db()
     concurrent_layout = WidgetLayoutHandler.from_widget(concurrent)
-    concurrent_updated_on = concurrent.updated_on
     scopes = [ApplicationActionScopeType.value(dashboard.id)]
 
     for _ in range(2):
@@ -605,12 +617,14 @@ def test_delete_undo_preserves_concurrent_widgets_in_recorded_positions(
         deleted.refresh_from_db()
         concurrent.refresh_from_db()
         assert not deleted.trashed
-        assert (deleted.grid_x, deleted.grid_y) == (0, 0 if stacked else 4)
-        assert WidgetLayoutHandler.from_widget(concurrent) == concurrent_layout
-        assert concurrent.updated_on == concurrent_updated_on
+        assert (deleted.grid_x, deleted.grid_y) == (0, 0)
+        assert WidgetLayoutHandler.from_widget(concurrent) == {
+            **concurrent_layout,
+            "grid_y": 8 if stacked else 4,
+        }
         if stacked:
             shifted.refresh_from_db()
-            assert (shifted.grid_x, shifted.grid_y) == (0, 8)
+            assert (shifted.grid_x, shifted.grid_y) == (0, 4)
 
         redone = ActionHandler.redo(user, scopes, session_id)
         assert_undo_redo_actions_are_valid(redone, [DeleteWidgetActionType])
@@ -618,7 +632,107 @@ def test_delete_undo_preserves_concurrent_widgets_in_recorded_positions(
         concurrent.refresh_from_db()
         assert deleted.trashed
         assert WidgetLayoutHandler.from_widget(concurrent) == concurrent_layout
-        assert concurrent.updated_on == concurrent_updated_on
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_create_redo_restores_original_position_after_another_user_moves_a_widget(
+    data_fixture,
+):
+    session_id = "creating-tab"
+    user = data_fixture.create_user(session_id=session_id)
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    collaborator = data_fixture.create_user(session_id="moving-tab")
+    data_fixture.create_user_workspace(user=collaborator, workspace=dashboard.workspace)
+    concurrent = data_fixture.create_summary_widget(
+        dashboard=dashboard, grid_x=2, grid_y=0, grid_width=2, grid_height=4
+    )
+    untouched = data_fixture.create_summary_widget(
+        dashboard=dashboard, grid_x=4, grid_y=0, grid_width=2, grid_height=4
+    )
+    untouched_updated_on = untouched.updated_on
+    created = CreateWidgetActionType.do(
+        user, dashboard.id, "summary", {"title": "Restored widget"}
+    )
+    scopes = [ApplicationActionScopeType.value(dashboard.id)]
+    ActionHandler.undo(user, scopes, session_id)
+    UpdateWidgetLayoutActionType.do(
+        collaborator,
+        dashboard.id,
+        [
+            {**WidgetLayoutHandler.from_widget(concurrent), "grid_x": 0},
+            WidgetLayoutHandler.from_widget(untouched),
+        ],
+    )
+
+    for _ in range(2):
+        redone = ActionHandler.redo(user, scopes, session_id)
+        assert_undo_redo_actions_are_valid(redone, [CreateWidgetActionType])
+        created.refresh_from_db()
+        concurrent.refresh_from_db()
+        untouched.refresh_from_db()
+        assert not created.trashed
+        assert (created.grid_x, created.grid_y) == (0, 0)
+        assert (concurrent.grid_x, concurrent.grid_y) == (0, created.grid_height)
+        assert untouched.updated_on == untouched_updated_on
+
+        undone = ActionHandler.undo(user, scopes, session_id)
+        assert_undo_redo_actions_are_valid(undone, [CreateWidgetActionType])
+        created.refresh_from_db()
+        concurrent.refresh_from_db()
+        assert created.trashed
+        assert (concurrent.grid_x, concurrent.grid_y) == (0, 0)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_delete_redo_preserves_a_displaced_widget_edited_again_by_another_user(
+    data_fixture,
+):
+    session_id = "deleting-tab"
+    user = data_fixture.create_user(session_id=session_id)
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    collaborator = data_fixture.create_user(session_id="moving-tab")
+    data_fixture.create_user_workspace(user=collaborator, workspace=dashboard.workspace)
+    deleted = data_fixture.create_summary_widget(
+        dashboard=dashboard, grid_x=0, grid_y=0, grid_width=2, grid_height=4
+    )
+    concurrent = data_fixture.create_summary_widget(
+        dashboard=dashboard, grid_x=2, grid_y=0, grid_width=2, grid_height=4
+    )
+    DeleteWidgetActionType.do(user, deleted.id)
+    UpdateWidgetLayoutActionType.do(
+        collaborator,
+        dashboard.id,
+        [{**WidgetLayoutHandler.from_widget(concurrent), "grid_x": 0}],
+    )
+    scopes = [ApplicationActionScopeType.value(dashboard.id)]
+    ActionHandler.undo(user, scopes, session_id)
+    deleted.refresh_from_db()
+    concurrent.refresh_from_db()
+    UpdateWidgetLayoutActionType.do(
+        collaborator,
+        dashboard.id,
+        [
+            WidgetLayoutHandler.from_widget(deleted),
+            {
+                **WidgetLayoutHandler.from_widget(concurrent),
+                "grid_x": 2,
+                "grid_y": 0,
+                "grid_height": 6,
+            },
+        ],
+    )
+    concurrent.refresh_from_db()
+    latest_layout = WidgetLayoutHandler.from_widget(concurrent)
+    latest_updated_on = concurrent.updated_on
+
+    for replay in [ActionHandler.redo, ActionHandler.undo]:
+        replayed = replay(user, scopes, session_id)
+        assert_undo_redo_actions_are_valid(replayed, [DeleteWidgetActionType])
+        concurrent.refresh_from_db()
+        assert WidgetLayoutHandler.from_widget(concurrent) == latest_layout
+        assert concurrent.updated_on == latest_updated_on
 
 
 @pytest.mark.django_db

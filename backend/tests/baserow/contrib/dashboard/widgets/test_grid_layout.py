@@ -6,6 +6,7 @@ from baserow.contrib.dashboard.widgets.grid_layout import (
     fits_within_grid_columns,
     get_first_available_grid_position,
     layouts_overlap,
+    resolve_widget_layout_collisions,
 )
 
 
@@ -208,3 +209,32 @@ def test_get_first_available_grid_position_rejects_invalid_dimensions(
 ):
     with pytest.raises(ValueError, match="dimensions"):
         get_first_available_grid_position([], grid_width, grid_height)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_resolve_collisions_pushes_a_chain_without_reordering_or_compacting(reverse):
+    fixed = [
+        {"id": 1, "grid_x": 0, "grid_y": 4, "grid_width": 2, "grid_height": 4},
+        {"id": 2, "grid_x": 0, "grid_y": 12, "grid_width": 2, "grid_height": 4},
+    ]
+    current = [
+        {"id": 3, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 8},
+        {"id": 4, "grid_x": 0, "grid_y": 8, "grid_width": 2, "grid_height": 4},
+        {"id": 5, "grid_x": 2, "grid_y": 8, "grid_width": 4, "grid_height": 4},
+        {"id": 6, "grid_x": 0, "grid_y": 40, "grid_width": 2, "grid_height": 4},
+    ]
+    original = [dict(item) for item in [*fixed, *current]]
+
+    # Widget 4 could fit in the gap at row 8, but must remain below widget 3.
+    resolved = resolve_widget_layout_collisions(
+        reversed(current) if reverse else current,
+        reversed(fixed) if reverse else fixed,
+    )
+
+    assert resolved == [
+        {**current[0], "grid_y": 16},
+        {**current[1], "grid_y": 24},
+        current[2],
+        current[3],
+    ]
+    assert [*fixed, *current] == original

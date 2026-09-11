@@ -185,22 +185,35 @@ class WidgetLayoutHandler:
         )
 
     def validate_restored_delta(
-        self, layout_delta: list[WidgetLayoutDict]
+        self, recorded_delta: WidgetLayoutDelta
     ) -> dict[int, WidgetLayoutDict]:
-        """Merges saved action geometry without displacing unrelated widgets.
+        """Restores saved positions and pushes colliding current widgets down.
 
-        Recorded positions can have been occupied since the action was performed.
-        Move only the recorded widgets down to resolve those collisions, then use
-        the same complete-layout validation as other mutations.
+        Saved geometry takes priority over positions occupied since the action.
+        Only reverse a neighbor's recorded change if it still matches the expected
+        geometry. Otherwise preserve its newer edit, subject to collision recovery.
         """
 
-        restored_ids = {item["id"] for item in layout_delta}
-        fixed_layouts = [
-            item for item in self.current_layout if item["id"] not in restored_ids
+        current_by_id = {item["id"]: item for item in self.current_layout}
+        previous_by_id = {item["id"]: item for item in recorded_delta.original_layout}
+        restored_layout = [
+            item
+            for item in recorded_delta.new_layout
+            if item["id"] in current_by_id
+            and (
+                item["id"] not in previous_by_id
+                or current_by_id[item["id"]] == previous_by_id[item["id"]]
+            )
         ]
-        restored_layout = resolve_widget_layout_collisions(layout_delta, fixed_layouts)
+        restored_ids = {item["id"] for item in restored_layout}
+        current_layouts = [
+            item for item in current_by_id.values() if item["id"] not in restored_ids
+        ]
+        displaced_layout = resolve_widget_layout_collisions(
+            current_layouts, restored_layout
+        )
         _, layout_by_widget_id = self.merge_delta(
-            restored_layout, enforce_vertical_bound=False
+            [*restored_layout, *displaced_layout], enforce_vertical_bound=False
         )
         return layout_by_widget_id
 
