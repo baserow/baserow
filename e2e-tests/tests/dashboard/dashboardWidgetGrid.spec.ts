@@ -406,7 +406,7 @@ test.describe('Dashboard widget grid', () => {
       .toBeGreaterThan(0)
   })
 
-  test('restores a deleted widget in place after another tab occupies its position', async ({
+  test('restores three widgets on one row after another tab occupies the middle position', async ({
     page,
     workspacePage,
   }) => {
@@ -415,8 +415,9 @@ test.describe('Dashboard widget grid', () => {
       'Dashboard collaborative undo',
       workspacePage.workspace
     )
-    const deleted = await createSummaryWidget(dashboard, 'Restored widget')
-    const moved = await createSummaryWidget(dashboard, 'Moved widget')
+    const first = await createSummaryWidget(dashboard, 'Summary 1')
+    const deleted = await createSummaryWidget(dashboard, 'Summary 2')
+    const moved = await createSummaryWidget(dashboard, 'Summary 3')
     await goToDashboard(page, dashboard)
     await enterEditMode(page)
     const observer = await page.context().newPage()
@@ -444,7 +445,7 @@ test.describe('Dashboard widget grid', () => {
       const layoutUpdate = waitForWidgetLayoutUpdate(observer, dashboard)
       await dragBy(observer, movedHeader, -(movedBox.width + 16), 0)
       await layoutUpdate
-      await expectWidgetLayout(dashboard, moved.id, { grid_x: 0, grid_y: 0 })
+      await expectWidgetLayout(dashboard, moved.id, { grid_x: 2, grid_y: 0 })
 
       for (let cycle = 0; cycle < 2; cycle++) {
         const undoResponse = page.waitForResponse((response) =>
@@ -453,12 +454,12 @@ test.describe('Dashboard widget grid', () => {
         await page.keyboard.press('ControlOrMeta+z')
         expect((await undoResponse).ok()).toBe(true)
         await expectWidgetLayout(dashboard, deleted.id, {
-          grid_x: 0,
+          grid_x: 2,
           grid_y: 0,
         })
         await expectWidgetLayout(dashboard, moved.id, {
-          grid_x: 0,
-          grid_y: deleted.grid_height,
+          grid_x: 4,
+          grid_y: 0,
         })
 
         for (const tab of [page, observer]) {
@@ -467,12 +468,17 @@ test.describe('Dashboard widget grid', () => {
           await expect(restoredCard.locator('.widget__header')).toBeVisible()
           await expect
             .poll(async () => {
+              const firstBox = await tab
+                .getByTestId(`dashboard-widget-${first.id}`)
+                .boundingBox()
               const restoredBox = await restoredCard.boundingBox()
               const shiftedBox = await shiftedCard.boundingBox()
-              if (!restoredBox || !shiftedBox) return false
+              if (!firstBox || !restoredBox || !shiftedBox) return false
               return (
-                Math.abs(restoredBox.x - shiftedBox.x) < 1 &&
-                shiftedBox.y >= restoredBox.y + restoredBox.height
+                Math.abs(firstBox.y - restoredBox.y) < 1 &&
+                Math.abs(restoredBox.y - shiftedBox.y) < 1 &&
+                restoredBox.x >= firstBox.x + firstBox.width &&
+                shiftedBox.x >= restoredBox.x + restoredBox.width
               )
             })
             .toBe(true)
@@ -483,7 +489,7 @@ test.describe('Dashboard widget grid', () => {
         )
         await page.keyboard.press('ControlOrMeta+Shift+z')
         expect((await redoResponse).ok()).toBe(true)
-        await expectWidgetLayout(dashboard, moved.id, { grid_x: 0, grid_y: 0 })
+        await expectWidgetLayout(dashboard, moved.id, { grid_x: 2, grid_y: 0 })
         for (const tab of [page, observer]) {
           await expect(
             tab.getByTestId(`dashboard-widget-${deleted.id}`)
