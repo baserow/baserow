@@ -40,6 +40,13 @@ def test_widget_grid_layout_backfill_resumes_after_a_failed_batch(
         title="Summary",
         order=1,
     )
+    trashed_widget = Widget.objects.create(
+        dashboard=mixed_dashboard,
+        content_type=other_content_type,
+        title="Trashed",
+        order=1,
+        trashed=True,
+    )
     Widget.objects.create(
         dashboard=mixed_dashboard,
         content_type=other_content_type,
@@ -53,6 +60,9 @@ def test_widget_grid_layout_backfill_resumes_after_a_failed_batch(
                 content_type=summary_content_type,
                 title=f"Summary {index}",
                 order=index,
+                # A trashed widget at the batch boundary must not reserve space
+                # when the next batch resumes from the initialized layout.
+                trashed=index == 999,
             )
             for index in range(1_001)
         ]
@@ -90,7 +100,9 @@ def test_widget_grid_layout_backfill_resumes_after_a_failed_batch(
     Widget = new_state.apps.get_model("dashboard", "Widget")
 
     mixed_widgets = list(
-        Widget.objects.filter(dashboard_id=mixed_dashboard.id).order_by("order", "id")
+        Widget.objects.filter(dashboard_id=mixed_dashboard.id, trashed=False).order_by(
+            "order", "id"
+        )
     )
     assert [
         (
@@ -101,11 +113,14 @@ def test_widget_grid_layout_backfill_resumes_after_a_failed_batch(
         )
         for widget in mixed_widgets
     ] == [(0, 6, 4, True), (4, 6, 9, True)]
+    trashed_widget = Widget._base_manager.get(id=trashed_widget.id)
+    assert trashed_widget.grid_layout_initialized
+    assert trashed_widget.grid_height == 9
 
     large_widgets = Widget.objects.filter(dashboard_id=large_dashboard.id).order_by(
         "order", "id"
     )
     assert large_widgets.count() == 1_001
     assert large_widgets.first().grid_y == 0
-    assert large_widgets.last().grid_y == 4_000
+    assert large_widgets.last().grid_y == 3_996
     assert not large_widgets.filter(grid_layout_initialized=False).exists()
