@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-03 16:15+0000\n"
+"POT-Creation-Date: 2026-09-11 12:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,12 +53,54 @@ msgstr ""
 msgid "Last name"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_providers/data_provider_types.py:650
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:656
 #, python-format
 msgid "%(user_source_name)s member"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_sources/service.py:173
+#: src/baserow/contrib/builder/data_sources/actions.py:29
+#: src/baserow/contrib/builder/workflow_actions/actions.py:36
+#, python-format
+msgid "of page (%(page_id)s) in builder \"%(builder_name)s\" (%(builder_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:50
+msgid "Create data source"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:51
+#, python-format
+msgid "Data source (%(data_source_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:114
+msgid "Update data source"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:115
+#, python-format
+msgid "Data source (%(data_source_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:206
+msgid "Delete data source"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:207
+#, python-format
+msgid "Data source (%(data_source_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:262
+msgid "Move data source"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/actions.py:263
+#, python-format
+msgid "Data source (%(data_source_id)s) moved"
+msgstr ""
+
+#: src/baserow/contrib/builder/data_sources/service.py:176
 msgid "Data source"
 msgstr ""
 
@@ -111,93 +153,179 @@ msgstr ""
 msgid "Column"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:338
+#: src/baserow/contrib/builder/elements/element_types.py:351
 msgid "Form"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:413
+#: src/baserow/contrib/builder/elements/element_types.py:426
 msgid "Container"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:425
+#: src/baserow/contrib/builder/elements/element_types.py:438
 msgid "Table"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:490
+#: src/baserow/contrib/builder/elements/element_types.py:503
 msgid "Repeat"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:558
+#: src/baserow/contrib/builder/elements/element_types.py:571
 msgid "Record selector"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:818
+#: src/baserow/contrib/builder/elements/element_types.py:825
 msgid "Heading"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:885
+#: src/baserow/contrib/builder/elements/element_types.py:892
 msgid "Text"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1107
+#: src/baserow/contrib/builder/elements/element_types.py:1114
 msgid "Link"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1245
+#: src/baserow/contrib/builder/elements/element_types.py:1252
 msgid "Image"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1409
+#: src/baserow/contrib/builder/elements/element_types.py:1416
 msgid "Rating"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1456
+#: src/baserow/contrib/builder/elements/element_types.py:1463
 msgid "Rating input"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1551
+#: src/baserow/contrib/builder/elements/element_types.py:1549
 msgid "Input text"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1700
+#: src/baserow/contrib/builder/elements/element_types.py:1689
 msgid "Button"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1748
+#: src/baserow/contrib/builder/elements/element_types.py:1737
 msgid "Checkbox"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1829
+#: src/baserow/contrib/builder/elements/element_types.py:1811
 msgid "Choice"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2162
+#: src/baserow/contrib/builder/elements/element_types.py:2124
 msgid "Iframe"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2234
+#: src/baserow/contrib/builder/elements/element_types.py:2196
 msgid "Date time picker"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2389
+#: src/baserow/contrib/builder/elements/element_types.py:2340
 msgid "Shared header"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2399
+#: src/baserow/contrib/builder/elements/element_types.py:2350
 msgid "Shared footer"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2409
+#: src/baserow/contrib/builder/elements/element_types.py:2360
 msgid "Menu"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/mixins.py:719
-#: src/baserow/contrib/builder/elements/mixins.py:724
-#: src/baserow/contrib/builder/elements/mixins.py:729
+#: src/baserow/contrib/builder/elements/mixins.py:744
+#: src/baserow/contrib/builder/elements/mixins.py:749
+#: src/baserow/contrib/builder/elements/mixins.py:754
 #, python-format
 msgid "Column %(count)s"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/registries.py:69
+#: src/baserow/contrib/builder/elements/registries.py:68
 msgid "Unnamed element"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:24
+#, python-format
+msgid "in builder \"%(builder_name)s\" (%(builder_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:30
+msgid "Create page"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:31
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:86
+msgid "Update page"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:87
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:141
+msgid "Delete page"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:142
+#, python-format
+msgid "Page \"%(page_name)s\" (%(page_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:185
+msgid "Duplicate page"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:187
+#, python-format
+msgid ""
+"Page \"%(page_name)s\" (%(page_id)s) duplicated from "
+"\"%(original_page_name)s\" (%(original_page_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:251
+msgid "Order pages"
+msgstr ""
+
+#: src/baserow/contrib/builder/pages/actions.py:252
+msgid "Pages ordered"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:57
+msgid "Create workflow action"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:58
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) created"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:120
+msgid "Update workflow action"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:121
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) updated"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:188
+msgid "Delete workflow action"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:189
+#, python-format
+msgid "Workflow action (%(workflow_action_id)s) deleted"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:244
+msgid "Order workflow actions"
+msgstr ""
+
+#: src/baserow/contrib/builder/workflow_actions/actions.py:245
+msgid "Workflow actions ordered"
 msgstr ""

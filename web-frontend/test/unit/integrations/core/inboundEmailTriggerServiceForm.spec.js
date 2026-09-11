@@ -44,7 +44,10 @@ async function mountComponent({ defaultValues = {} } = {}) {
         Copied: CopiedStub,
       },
       mocks: {
-        $t: (key) => key,
+        // Render the key plus any interpolation params so tests can assert
+        // on the values passed to translations.
+        $t: (key, params) =>
+          params ? `${key}(${Object.values(params).join(',')})` : key,
       },
     },
   })
@@ -58,6 +61,26 @@ describe('Core email trigger service form', () => {
 
     expect(wrapper.text()).toContain(EMAIL_ADDRESS)
     expect(wrapper.find('.alert-stub').exists()).toBe(false)
+  })
+
+  test('shows the size limit and attachment note when the limit is known', async () => {
+    const wrapper = await mountComponent({
+      defaultValues: { email_address: EMAIL_ADDRESS, max_message_size_mb: 25 },
+    })
+
+    expect(wrapper.text()).toContain(
+      'inboundEmailTriggerServiceForm.limits(25)'
+    )
+  })
+
+  test('hides the size limit note when the limit is unknown', async () => {
+    const wrapper = await mountComponent({
+      defaultValues: { email_address: EMAIL_ADDRESS },
+    })
+
+    expect(wrapper.text()).not.toContain(
+      'inboundEmailTriggerServiceForm.limits'
+    )
   })
 
   test('shows the not configured alert when there is no email address', async () => {

@@ -15,6 +15,10 @@
 #      to the URL the user's browser can access the files on.
 #   4. Ensure requests sent to the backend in /ws path are upgraded to websocket
 #      connections.
+#   5. (Optional) To use the "Start workflow by email" automation trigger, set
+#      BASEROW_INBOUND_EMAIL_DOMAIN, BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET and
+#      BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP=0.0.0.0 so the email-receiver's SMTP
+#      port is reachable by sending mail servers. See the email-receiver service.
 #
 # See the following guides for more details and example configurations:
 #   1. https://baserow.io/docs/installation%2Finstall-behind-nginx
@@ -177,6 +181,9 @@ x-backend-variables:
   BASEROW_INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES:
   BASEROW_INTEGRATIONS_SLACK_API_URL:
   BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
+  BASEROW_INBOUND_EMAIL_DOMAIN:
+  BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:
+  BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:
   BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS:
   BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE:
   BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST:
@@ -313,13 +320,6 @@ services:
       BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT:
       BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
       BASEROW_INBOUND_EMAIL_DOMAIN:
-      BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:
-      BASEROW_INBOUND_EMAIL_WEBHOOK_URL:
-      BASEROW_INBOUND_EMAIL_SMTP_HOSTNAME:
-      BASEROW_INBOUND_EMAIL_SMTP_PORT:
-      BASEROW_INBOUND_EMAIL_TLS_MODE:
-      BASEROW_INBOUND_EMAIL_TLS_CERT_FILE:
-      BASEROW_INBOUND_EMAIL_TLS_KEY_FILE:
       BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
@@ -405,13 +405,19 @@ services:
   # BASEROW_INBOUND_EMAIL_DOMAIN and BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET are
   # set. Runs as root because mox binds its sockets as root and then drops
   # privileges itself.
+  #
+  # Like the other services in this file, the SMTP port is only published on the
+  # loopback address by default. Sending mail servers connect to port 25 directly
+  # (a HTTP reverse proxy cannot forward SMTP), so to receive inbound email set
+  # BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP=0.0.0.0 to publish only this port on all
+  # interfaces without also exposing the backend and web-frontend ports.
   email-receiver:
-    image: baserow/backend:2.3.1
+    image: baserow/backend:2.3.3
     restart: unless-stopped
     user: root
     command: email-receiver
     ports:
-      - "${HOST_PUBLISH_IP:-0.0.0.0}:${BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT:-25}:25"
+      - "${BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP:-${HOST_PUBLISH_IP:-127.0.0.1}}:${BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT:-25}:25"
     healthcheck:
       test:
         [
@@ -419,7 +425,18 @@ services:
           "/baserow/backend/docker/docker-entrypoint.sh email-receiver-healthcheck",
         ]
     environment:
-      <<: *backend-variables
+      BASEROW_INBOUND_EMAIL_DOMAIN:
+      BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:
+      BASEROW_INBOUND_EMAIL_WEBHOOK_URL:
+      BASEROW_INBOUND_EMAIL_SMTP_HOSTNAME:
+      BASEROW_INBOUND_EMAIL_SMTP_PORT:
+      BASEROW_INBOUND_EMAIL_TLS_MODE:
+      BASEROW_INBOUND_EMAIL_TLS_CERT_FILE:
+      BASEROW_INBOUND_EMAIL_TLS_KEY_FILE:
+      BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:
+      PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
+      BASEROW_DEPLOYMENT_ENV:
+      OTEL_RESOURCE_ATTRIBUTES:
     depends_on:
       - backend
     volumes:
