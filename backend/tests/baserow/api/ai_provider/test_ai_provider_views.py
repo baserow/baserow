@@ -15,6 +15,7 @@ from rest_framework.status import (
 )
 
 from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_AI_AGENT,
     AI_PROVIDER_FEATURE_AI_FIELDS,
     AI_PROVIDER_TEST_MAX_TOKENS,
     AI_PROVIDER_TEST_TIMEOUT_SECONDS,
@@ -39,6 +40,7 @@ AI_PROVIDER_API_CASES = (
     ("post", "test_models"),
     ("patch", "model_item"),
     ("delete", "model_item"),
+    ("get", "model_usage"),
 )
 
 
@@ -83,7 +85,7 @@ def _request_ai_provider_api(api_client, case, headers):
         data = {"provider_type": "openai"}
     elif url_name == "test_models":
         data = {"model_ids": [model.id]}
-    elif url_name == "model_item":
+    elif url_name in ("model_item", "model_usage"):
         kwargs = {"model_id": model.id}
         if method == "patch":
             data = {"is_enabled": False}
@@ -879,6 +881,151 @@ def test_models_can_be_created_updated_disabled_and_deleted(
     )
     assert response.status_code == HTTP_204_NO_CONTENT
     assert not AIProviderModel.objects.exists()
+
+
+@pytest.mark.django_db
+def test_model_usage_reports_every_per_consumer_feature(
+    api_client, staff_headers, enabled_ai_providers
+):
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-5"
+    )
+
+    response = api_client.get(
+        reverse("api:ai_provider:model_usage", kwargs={"model_id": model.id}),
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "usage": [
+            {"feature_type": AI_PROVIDER_FEATURE_AI_AGENT, "count": 0},
+            {"feature_type": AI_PROVIDER_FEATURE_AI_FIELDS, "count": 0},
+        ],
+        "blocking_feature_types": [],
+    }
+
+
+@pytest.mark.django_db
+def test_model_usage_reports_a_default_model_feature_as_blocking(
+    api_client, staff_headers, enabled_ai_providers
+):
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-5", feature_types=["kuma"]
+    )
+    response = api_client.put(
+        reverse("api:ai_provider:feature_item", kwargs={"feature_type": "kuma"}),
+        {"mode": "model", "model_id": model.id},
+        format="json",
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    response = api_client.get(
+        reverse("api:ai_provider:model_usage", kwargs={"model_id": model.id}),
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["blocking_feature_types"] == ["kuma"]
+    assert all(entry["count"] == 0 for entry in response.json()["usage"])
+
+    response = api_client.delete(
+        reverse("api:ai_provider:model_item", kwargs={"model_id": model.id}),
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_IN_USE"
+
+
+@pytest.mark.django_db
+def test_model_usage_is_scoped_like_the_other_model_endpoints(
+    api_client, data_fixture, staff_headers, enabled_ai_providers
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    workspace_query = f"?workspace_id={workspace.id}"
+    instance_provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+    instance_model = AIProviderModel.objects.create(
+        provider_config=instance_provider, model_identifier="gpt-5"
+    )
+    workspace_provider = AIProviderConfig.objects.create(
+        provider_type="mistral", api_key="workspace-secret", workspace=workspace
+    )
+    workspace_model = AIProviderModel.objects.create(
+        provider_config=workspace_provider, model_identifier="mistral-large"
+    )
+
+    response = api_client.get(
+        reverse("api:ai_provider:model_usage", kwargs={"model_id": workspace_model.id})
+        + workspace_query,
+        **headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert [entry["feature_type"] for entry in response.json()["usage"]] == [
+        AI_PROVIDER_FEATURE_AI_AGENT,
+        AI_PROVIDER_FEATURE_AI_FIELDS,
+    ]
+
+    response = api_client.get(
+        reverse("api:ai_provider:model_usage", kwargs={"model_id": instance_model.id})
+        + workspace_query,
+        **headers,
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_DOES_NOT_EXIST"
+
+    response = api_client.get(
+        reverse("api:ai_provider:model_usage", kwargs={"model_id": workspace_model.id}),
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_model_usage_requires_workspace_admin_permission(
+    api_client, data_fixture, enabled_ai_providers
+):
+    owner = data_fixture.create_user()
+    member, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=owner)
+    data_fixture.create_user_workspace(
+        user=member, workspace=workspace, permissions="MEMBER"
+    )
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="secret", workspace=workspace
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-5"
+    )
+
+    response = api_client.get(
+        reverse("api:ai_provider:model_usage", kwargs={"model_id": model.id})
+        + f"?workspace_id={workspace.id}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
+
+
+@pytest.mark.django_db
+def test_model_usage_of_an_unknown_model_returns_not_found(
+    api_client, staff_headers, enabled_ai_providers
+):
+    response = api_client.get(
+        reverse("api:ai_provider:model_usage", kwargs={"model_id": 999999}),
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_DOES_NOT_EXIST"
 
 
 @pytest.mark.django_db

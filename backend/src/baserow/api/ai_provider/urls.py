@@ -6,6 +6,7 @@ from .views import (
     AIProviderModelDiscoveryView,
     AIProviderModelsTestView,
     AIProviderModelsView,
+    AIProviderModelUsageView,
     AIProviderModelView,
     AIProvidersView,
     AIProviderTypesView,
@@ -36,4 +37,9 @@ urlpatterns = [
     ),
     path("models/test/", AIProviderModelsTestView.as_view(), name="test_models"),
     path("models/<int:model_id>/", AIProviderModelView.as_view(), name="model_item"),
+    path(
+        "models/<int:model_id>/usage/",
+        AIProviderModelUsageView.as_view(),
+        name="model_usage",
+    ),
 ]

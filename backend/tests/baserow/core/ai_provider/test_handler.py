@@ -971,3 +971,39 @@ def test_get_model_usage_passes_the_provider_scope(monkeypatch, data_fixture):
 
     assert AIProviderHandler.get_model_usage(model) == {"recording_feature": 0}
     assert calls == [("openai", "gpt-4o", workspace)]
+
+
+@pytest.mark.django_db
+def test_get_model_blocking_feature_types_reports_default_model_selections(monkeypatch):
+    class ConsumerFeatureType(AIProviderModelFeatureType):
+        type = "consumer_feature"
+
+    class DefaultModelFeatureType(AIProviderModelFeatureType):
+        type = "default_model_feature"
+        supports_default_model = True
+
+    monkeypatch.setattr(
+        ai_provider_model_feature_type_registry,
+        "registry",
+        {
+            "consumer_feature": ConsumerFeatureType(),
+            "default_model_feature": DefaultModelFeatureType(),
+        },
+    )
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="gpt-4o",
+        feature_types=["consumer_feature", "default_model_feature"],
+    )
+
+    assert AIProviderHandler.get_model_blocking_feature_types(model) == []
+
+    AIProviderHandler.update_feature_setting(
+        "default_model_feature", AI_PROVIDER_FEATURE_MODE_MODEL, model=model
+    )
+
+    assert AIProviderHandler.get_model_usage(model) == {"consumer_feature": 0}
+    assert AIProviderHandler.get_model_blocking_feature_types(model) == [
+        "default_model_feature"
+    ]

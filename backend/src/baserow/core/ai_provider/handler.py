@@ -572,6 +572,20 @@ class AIProviderHandler:
         }
 
     @staticmethod
+    def get_model_blocking_feature_types(model: AIProviderModel) -> list[str]:
+        """
+        Return the features whose selection refuses a change to a model.
+
+        Default-model features hold a restricted foreign key, so they must be
+        repointed before the model can be deleted or narrowed.
+
+        :param model: The model about to be disabled, deleted or narrowed.
+        :return: Sorted feature identifiers currently selecting the model.
+        """
+
+        return sorted(AIProviderHandler._feature_types_using_model(model))
+
+    @staticmethod
     def _registered_default_model_feature_types() -> set[str]:
         """
         Return feature types whose default-model selection is currently active.

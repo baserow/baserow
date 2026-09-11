@@ -100,6 +100,16 @@ class AIProviderModelUpdateSerializer(serializers.Serializer):
     )
 
 
+class AIProviderModelUsageEntrySerializer(serializers.Serializer):
+    feature_type = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+class AIProviderModelUsageSerializer(serializers.Serializer):
+    usage = AIProviderModelUsageEntrySerializer(many=True)
+    blocking_feature_types = serializers.ListField(child=serializers.CharField())
+
+
 class AIProviderFeatureModelSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     model_identifier = serializers.CharField()
