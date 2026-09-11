@@ -4,6 +4,7 @@ from django.core.cache import cache
 from django.test import override_settings
 
 import pytest
+from loguru import logger
 
 from baserow.contrib.integrations.core.exceptions import InvalidInboundEmailPayload
 from baserow.contrib.integrations.core.inbound_email import (
@@ -26,6 +27,19 @@ ADDRESS = f"{TOKEN}@{INBOUND_DOMAIN}"
 @pytest.fixture(autouse=True)
 def clear_cache():
     cache.clear()
+
+
+@pytest.fixture
+def inbound_email_logs():
+    """
+    Collects the loguru messages emitted by the handler so tests can assert on
+    the outcome that operators see in the server log.
+    """
+
+    messages = []
+    sink_id = logger.add(messages.append, level="INFO")
+    yield messages
+    logger.remove(sink_id)
 
 
 def test_normalize_mox_payload():
@@ -292,3 +306,79 @@ def test_handle_webhook_payload_removes_dedupe_entry_on_error(data_fixture):
         assert handler.handle_webhook_payload(payload) == HANDLE_STATUS_ACCEPTED
 
     mocked.assert_called_once()
+
+
+def _inbound_email_log(messages):
+    (record,) = [str(m) for m in messages if "Inbound email" in str(m)]
+    return record
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_handle_webhook_payload_logs_automated_discard(inbound_email_logs):
+    payload = make_mox_payload(ADDRESS)
+    payload["Meta"]["Automated"] = True
+
+    InboundEmailHandler().handle_webhook_payload(payload)
+
+    record = _inbound_email_log(inbound_email_logs)
+    assert "Inbound email discarded: automated message" in record
+    assert "token=-" in record
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_handle_webhook_payload_logs_no_matching_recipient(inbound_email_logs):
+    InboundEmailHandler().handle_webhook_payload(
+        make_mox_payload("someone@example.com")
+    )
+
+    record = _inbound_email_log(inbound_email_logs)
+    assert "discarded: no recipient matches a trigger address" in record
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN="")
+def test_handle_webhook_payload_logs_domain_not_configured(inbound_email_logs):
+    InboundEmailHandler().handle_webhook_payload(make_mox_payload(ADDRESS))
+
+    record = _inbound_email_log(inbound_email_logs)
+    assert "discarded: inbound email domain not configured" in record
+
+
+@pytest.mark.django_db
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_handle_webhook_payload_logs_unknown_token(inbound_email_logs):
+    InboundEmailHandler().handle_webhook_payload(make_mox_payload(ADDRESS))
+
+    record = _inbound_email_log(inbound_email_logs)
+    assert "Inbound email discarded: no trigger for token" in record
+    # Only a prefix of the token is logged; it is the trigger's routing secret.
+    assert f"token={TOKEN[:8]}…" in record
+    assert TOKEN not in record
+
+
+@pytest.mark.django_db
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_handle_webhook_payload_logs_accepted_and_duplicate(
+    data_fixture, inbound_email_logs
+):
+    data_fixture.create_inbound_email_trigger_node(service_kwargs={"token": TOKEN})
+
+    from baserow.core.services.registries import service_type_registry
+
+    service_type = service_type_registry.get("email_trigger")
+    with patch.object(service_type, "on_event", MagicMock()):
+        handler = InboundEmailHandler()
+        payload = make_mox_payload(ADDRESS)
+        handler.handle_webhook_payload(payload)
+        handler.handle_webhook_payload(payload)
+
+    first, second = [str(m) for m in inbound_email_logs if "Inbound email" in str(m)]
+    assert "Inbound email accepted: dispatched to trigger" in first
+    assert "Inbound email duplicate: message already processed" in second
+
+    # Both deliveries of the same message share a reference so retries can be
+    # correlated, and neither leaks the sender or recipient address.
+    message_ref = first.split("message=")[1].split(",")[0]
+    assert len(message_ref) == 12
+    assert f"message={message_ref}" in second
+    assert "ada@example.com" not in first
+    assert ADDRESS not in first

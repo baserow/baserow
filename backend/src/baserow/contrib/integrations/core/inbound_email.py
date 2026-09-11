@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional
 from django.conf import settings
 from django.core.cache import cache
 
+from loguru import logger
+
 from baserow.contrib.integrations.core.exceptions import (
     CoreInboundEmailTriggerServiceDoesNotExist,
     InvalidInboundEmailPayload,
@@ -269,14 +271,18 @@ class InboundEmailHandler:
         # delivery reports, etc), otherwise a forward rule plus an
         # auto-responder could create an infinite loop.
         if email.is_automated:
-            return HANDLE_STATUS_DISCARDED
+            return self._log_status(HANDLE_STATUS_DISCARDED, "automated message", email)
 
         if not settings.INBOUND_EMAIL_DOMAIN:
-            return HANDLE_STATUS_DISCARDED
+            return self._log_status(
+                HANDLE_STATUS_DISCARDED, "inbound email domain not configured", email
+            )
 
         tokens = self.extract_tokens(email)
         if not tokens:
-            return HANDLE_STATUS_DISCARDED
+            return self._log_status(
+                HANDLE_STATUS_DISCARDED, "no recipient matches a trigger address", email
+            )
 
         service_type = service_type_registry.get("email_trigger")
 
@@ -304,12 +310,16 @@ class InboundEmailHandler:
         if cache_key is not None and not cache.add(
             cache_key, True, timeout=INBOUND_EMAIL_DEDUPE_TIMEOUT_SECONDS
         ):
-            return HANDLE_STATUS_DUPLICATE
+            return self._log_status(
+                HANDLE_STATUS_DUPLICATE, "message already processed", email, token
+            )
 
         try:
             service_type.process_inbound_email(token, email)
         except CoreInboundEmailTriggerServiceDoesNotExist:
-            return HANDLE_STATUS_DISCARDED
+            return self._log_status(
+                HANDLE_STATUS_DISCARDED, "no trigger for token", email, token
+            )
         except Exception:
             # The message was not processed, so remove the dedupe entry to
             # make sure the next retried delivery is not treated as a
@@ -318,4 +328,39 @@ class InboundEmailHandler:
                 cache.delete(cache_key)
             raise
 
-        return HANDLE_STATUS_ACCEPTED
+        return self._log_status(
+            HANDLE_STATUS_ACCEPTED, "dispatched to trigger", email, token
+        )
+
+    def _log_status(
+        self,
+        status: str,
+        reason: str,
+        email: InboundEmail,
+        token: Optional[str] = None,
+    ) -> str:
+        """
+        Logs the outcome of handling an inbound message and returns the status
+        so callers can `return self._log_status(...)`. Every outcome is answered
+        with HTTP 200 (a non-2xx would make mox retry, and a distinct code would
+        let an outsider probe which tokens exist), so this log line is the only
+        place operators can tell accepted, duplicate and discarded apart.
+
+        Neither the addresses nor the full token are logged: the token is the
+        routing secret of a trigger. The message is identified by a short prefix
+        of the hashed Message-ID, which is enough to correlate retried
+        deliveries of the same message.
+        """
+
+        message_id = email.message_id or email.internal_message_id
+        message_ref = (
+            sha256(message_id.encode()).hexdigest()[:12] if message_id else "-"
+        )
+        logger.info(
+            "Inbound email {status}: {reason} (message={message_ref}, token={token})",
+            status=status,
+            reason=reason,
+            message_ref=message_ref,
+            token=f"{token[:8]}…" if token else "-",
+        )
+        return status

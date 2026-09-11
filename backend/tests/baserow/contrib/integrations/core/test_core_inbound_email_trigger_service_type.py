@@ -52,6 +52,37 @@ def test_email_address_property(data_fixture):
 
 
 @pytest.mark.django_db
+def test_max_message_size_mb_property_mirrors_setting(data_fixture):
+    service = data_fixture.create_core_inbound_email_trigger_service(token=TOKEN)
+
+    with override_settings(INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB=40):
+        assert service.max_message_size_mb == 40
+
+
+@pytest.mark.django_db
+@override_settings(INBOUND_EMAIL_DOMAIN="inbound.test")
+def test_serializer_exposes_address_and_size_limit_read_only(data_fixture):
+    from baserow.api.services.serializers import ServiceSerializer
+    from baserow.core.services.registries import service_type_registry
+
+    service = data_fixture.create_core_inbound_email_trigger_service(token=TOKEN)
+
+    with override_settings(INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB=40):
+        data = service_type_registry.get_serializer(service, ServiceSerializer).data
+
+    assert data["email_address"] == f"{TOKEN}@inbound.test"
+    assert data["max_message_size_mb"] == 40
+
+    # Both values describe the instance, not the service, so they must not be
+    # writable.
+    request_data = service_type_registry.get_serializer(
+        service, ServiceSerializer, request=True
+    ).data
+    assert "email_address" not in request_data
+    assert "max_message_size_mb" not in request_data
+
+
+@pytest.mark.django_db
 def test_process_inbound_email_raises_if_unknown_token(data_fixture):
     with pytest.raises(CoreInboundEmailTriggerServiceDoesNotExist):
         CoreInboundEmailTriggerServiceType().process_inbound_email(TOKEN, make_email())
