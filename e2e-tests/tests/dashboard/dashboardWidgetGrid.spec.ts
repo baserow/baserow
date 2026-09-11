@@ -406,6 +406,95 @@ test.describe('Dashboard widget grid', () => {
       .toBeGreaterThan(0)
   })
 
+  test('restores a deleted widget in place after another tab occupies its position', async ({
+    page,
+    workspacePage,
+  }) => {
+    test.setTimeout(60_000)
+    const dashboard = await createDashboard(
+      'Dashboard collaborative undo',
+      workspacePage.workspace
+    )
+    const deleted = await createSummaryWidget(dashboard, 'Restored widget')
+    const moved = await createSummaryWidget(dashboard, 'Moved widget')
+    await goToDashboard(page, dashboard)
+    await enterEditMode(page)
+    const observer = await page.context().newPage()
+
+    try {
+      await goToDashboard(observer, dashboard)
+      await enterEditMode(observer)
+      const deletedCard = page.getByTestId(`dashboard-widget-${deleted.id}`)
+      await deletedCard.hover()
+      await page.getByTestId(`dashboard-widget-context-${deleted.id}`).click()
+      await page.getByText('Delete', { exact: true }).click()
+      await expect(deletedCard).toHaveCount(0)
+      await expect(
+        observer.getByTestId(`dashboard-widget-${deleted.id}`)
+      ).toHaveCount(0)
+
+      const movedHeader = observer
+        .getByTestId(`dashboard-widget-${moved.id}`)
+        .locator('.widget__header')
+      await movedHeader.hover()
+      const movedBox = await observer
+        .getByTestId(`dashboard-widget-${moved.id}`)
+        .boundingBox()
+      if (!movedBox) throw new Error('Could not measure the moved widget')
+      const layoutUpdate = waitForWidgetLayoutUpdate(observer, dashboard)
+      await dragBy(observer, movedHeader, -(movedBox.width + 16), 0)
+      await layoutUpdate
+      await expectWidgetLayout(dashboard, moved.id, { grid_x: 0, grid_y: 0 })
+
+      for (let cycle = 0; cycle < 2; cycle++) {
+        const undoResponse = page.waitForResponse((response) =>
+          response.url().endsWith('/user/undo/')
+        )
+        await page.keyboard.press('ControlOrMeta+z')
+        expect((await undoResponse).ok()).toBe(true)
+        await expectWidgetLayout(dashboard, deleted.id, {
+          grid_x: 0,
+          grid_y: 0,
+        })
+        await expectWidgetLayout(dashboard, moved.id, {
+          grid_x: 0,
+          grid_y: deleted.grid_height,
+        })
+
+        for (const tab of [page, observer]) {
+          const restoredCard = tab.getByTestId(`dashboard-widget-${deleted.id}`)
+          const shiftedCard = tab.getByTestId(`dashboard-widget-${moved.id}`)
+          await expect(restoredCard.locator('.widget__header')).toBeVisible()
+          await expect
+            .poll(async () => {
+              const restoredBox = await restoredCard.boundingBox()
+              const shiftedBox = await shiftedCard.boundingBox()
+              if (!restoredBox || !shiftedBox) return false
+              return (
+                Math.abs(restoredBox.x - shiftedBox.x) < 1 &&
+                shiftedBox.y >= restoredBox.y + restoredBox.height
+              )
+            })
+            .toBe(true)
+        }
+
+        const redoResponse = page.waitForResponse((response) =>
+          response.url().endsWith('/user/redo/')
+        )
+        await page.keyboard.press('ControlOrMeta+Shift+z')
+        expect((await redoResponse).ok()).toBe(true)
+        await expectWidgetLayout(dashboard, moved.id, { grid_x: 0, grid_y: 0 })
+        for (const tab of [page, observer]) {
+          await expect(
+            tab.getByTestId(`dashboard-widget-${deleted.id}`)
+          ).toHaveCount(0)
+        }
+      }
+    } finally {
+      await observer.close()
+    }
+  })
+
   test('keeps the canonical desktop layout when deleting from a tablet layout', async ({
     page,
     workspacePage,
