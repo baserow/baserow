@@ -1,22 +1,15 @@
-from importlib import import_module
+from django.db.migrations.recorder import MigrationRecorder
+from django.db.models.query import QuerySet
 
 import pytest
 
 
-def test_0004_widget_grid_layout_migration_is_non_atomic():
-    migration_module = import_module(
-        "baserow.contrib.dashboard.migrations.0004_widget_grid_layout"
-    )
-
-    assert migration_module.Migration.atomic is False
-
-
 @pytest.mark.once_per_day_in_ci
-def test_0004_widget_grid_layout_backfills_type_heights_and_multiple_batches(
-    migrator,
+def test_widget_grid_layout_backfill_resumes_after_a_failed_batch(
+    migrator, monkeypatch
 ):
     migrate_from = [("dashboard", "0003_widget_dashboarddatasource_summarywidget")]
-    migrate_to = [("dashboard", "0004_widget_grid_layout")]
+    migrate_to = [("dashboard", "0005_populate_widget_grid_layout")]
     old_state = migrator.migrate(migrate_from)
 
     ContentType = old_state.apps.get_model("contenttypes", "ContentType")
@@ -63,6 +56,34 @@ def test_0004_widget_grid_layout_backfills_type_heights_and_multiple_batches(
             )
             for index in range(1_001)
         ]
+    )
+
+    bulk_update = QuerySet.bulk_update
+
+    def fail_second_large_batch(queryset, objects, *args, **kwargs):
+        if (
+            queryset.model._meta.label_lower == "dashboard.widget"
+            and objects[0].title == "Summary 1000"
+        ):
+            raise RuntimeError("Interrupted backfill")
+        return bulk_update(queryset, objects, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(QuerySet, "bulk_update", fail_second_large_batch)
+        with pytest.raises(RuntimeError, match="Interrupted backfill"):
+            migrator.migrate(migrate_to)
+
+    applied = MigrationRecorder.Migration.objects.filter(app="dashboard")
+    assert applied.filter(name="0004_widget_grid_layout").exists()
+    assert not applied.filter(name="0005_populate_widget_grid_layout").exists()
+
+    partial_state = migrator.migrate([("dashboard", "0004_widget_grid_layout")])
+    Widget = partial_state.apps.get_model("dashboard", "Widget")
+    assert (
+        Widget.objects.filter(
+            dashboard_id=large_dashboard.id, grid_layout_initialized=True
+        ).count()
+        == 1_000
     )
 
     new_state = migrator.migrate(migrate_to)
