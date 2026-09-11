@@ -1,6 +1,7 @@
 [run]
 # Also required for gitlab MR coverage to be shown correctly.
 relative_files = True
+concurrency = multiprocessing
 omit =
     */generated/*
 # We can't set source as it changes the xml reports file paths to be relative from
