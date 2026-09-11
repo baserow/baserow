@@ -201,9 +201,15 @@ def test_create_widget_places_widgets_in_first_available_positions(data_fixture)
 
 
 @pytest.mark.django_db
-def test_create_widget_broadcasts_legacy_event_and_layout_invalidation(data_fixture):
+@pytest.mark.parametrize("initialize_existing_layout", [False, True])
+def test_create_widget_invalidates_layout_only_when_existing_geometry_changes(
+    data_fixture, initialize_existing_layout
+):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
+    data_fixture.create_summary_widget(
+        dashboard=dashboard, grid_layout_initialized=not initialize_existing_layout
+    )
 
     with (
         patch(
@@ -218,9 +224,12 @@ def test_create_widget_broadcasts_legacy_event_and_layout_invalidation(data_fixt
         )
 
     widget_created_mock.assert_called_once_with(ANY, user=user, widget=widget)
-    widgets_layout_updated_mock.assert_called_once_with(
-        ANY, user=user, dashboard=dashboard
-    )
+    if initialize_existing_layout:
+        widgets_layout_updated_mock.assert_called_once_with(
+            ANY, user=None, dashboard=dashboard
+        )
+    else:
+        widgets_layout_updated_mock.assert_not_called()
 
 
 @pytest.mark.django_db
