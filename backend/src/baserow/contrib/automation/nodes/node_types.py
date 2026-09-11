@@ -758,7 +758,7 @@ class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
 
 
 class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
-    display_name = _("Start workflow by email")
+    display_name = _("Email trigger")
     type = "email_trigger"
     model_class = CoreInboundEmailTriggerNode
     service_type = CoreInboundEmailTriggerServiceType.type

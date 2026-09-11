@@ -398,3 +398,13 @@ class CoreInboundEmailTriggerService(Service):
             return None
 
         return f"{self.token}@{settings.INBOUND_EMAIL_DOMAIN}"
+
+    @property
+    def max_message_size_mb(self) -> int:
+        """
+        The largest email, in MB, the instance's inbound mail server accepts.
+        Mirrors the receiver's configuration so the limit can be shown next to
+        the address.
+        """
+
+        return settings.INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB

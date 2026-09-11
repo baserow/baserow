@@ -1316,6 +1316,7 @@
     "title": "Email address",
     "copyAddress": "Copy email address",
     "description": "Any email sent to this address will start the workflow with the email's sender, subject, body and attachment details as the payload.",
+    "limits": "Emails up to {size} MB are accepted. Attachments are not stored: only their name, type and size are included in the payload.",
     "autoForwardTip": "Tip: you can also add this address as an auto-forward rule in your own inbox, so the workflow runs whenever you receive an email.",
     "secretWarning": "Treat this address as a secret: anyone who knows it can start this workflow.",
     "regenerate": "Regenerate address",

@@ -20,9 +20,22 @@
         <Copied ref="addressCopied" />
       </a>
 
-      <p>{{ $t('inboundEmailTriggerServiceForm.description') }}</p>
-      <p>{{ $t('inboundEmailTriggerServiceForm.autoForwardTip') }}</p>
-      <p>{{ $t('inboundEmailTriggerServiceForm.secretWarning') }}</p>
+      <p class="margin-bottom-1">
+        {{ $t('inboundEmailTriggerServiceForm.description') }}
+      </p>
+      <p v-if="maxMessageSizeMb" class="margin-bottom-1">
+        {{
+          $t('inboundEmailTriggerServiceForm.limits', {
+            size: maxMessageSizeMb,
+          })
+        }}
+      </p>
+      <p class="margin-bottom-1">
+        {{ $t('inboundEmailTriggerServiceForm.autoForwardTip') }}
+      </p>
+      <p>
+        {{ $t('inboundEmailTriggerServiceForm.secretWarning') }}
+      </p>
 
       <Button
         type="secondary"
@@ -61,6 +74,9 @@ export default {
   computed: {
     emailAddress() {
       return this.defaultValues.email_address
+    },
+    maxMessageSizeMb() {
+      return this.defaultValues.max_message_size_mb
     },
   },
   methods: {

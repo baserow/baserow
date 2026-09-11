@@ -2195,13 +2195,23 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     # client-chosen token could collide with another workspace's address. It
     # can only be regenerated via the `regenerate_token` flag.
     allowed_fields = ["token", "is_public"]
-    serializer_field_names = ["token", "email_address", "is_public"]
+    serializer_field_names = [
+        "token",
+        "email_address",
+        "max_message_size_mb",
+        "is_public",
+    ]
     serializer_field_overrides = {
         "email_address": serializers.CharField(
             read_only=True,
             allow_null=True,
             help_text="The generated inbound email address of this trigger, or "
             "null when the instance has no inbound email domain configured.",
+        ),
+        "max_message_size_mb": serializers.IntegerField(
+            read_only=True,
+            help_text="The largest email, in MB, the inbound mail server of this "
+            "instance accepts. Larger emails are refused during delivery.",
         ),
     }
     request_serializer_field_names = ["regenerate_token"]

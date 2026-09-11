@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-03 16:15+0000\n"
+"POT-Creation-Date: 2026-09-11 12:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -279,9 +279,51 @@ msgstr ""
 msgid "Unlabeled"
 msgstr ""
 
-#: src/baserow/core/handler.py:2239 src/baserow/core/user/handler.py:284
+#: src/baserow/core/handler.py:2241 src/baserow/core/user/handler.py:284
 #, python-format
 msgid "%(name)s's workspace"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:19
+#: src/baserow/core/user_sources/actions.py:19
+#, python-format
+msgid "in application \"%(application_name)s\" (%(application_id)s)."
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:26
+msgid "Create integration"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:27
+#, python-format
+msgid "Integration (%(integration_id)s) created"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:87
+msgid "Update integration"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:88
+#, python-format
+msgid "Integration (%(integration_id)s) updated"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:150
+msgid "Delete integration"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:151
+#, python-format
+msgid "Integration (%(integration_id)s) deleted"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:203
+msgid "Move integration"
+msgstr ""
+
+#: src/baserow/core/integrations/actions.py:204
+#, python-format
+msgid "Integration (%(integration_id)s) moved"
 msgstr ""
 
 #: src/baserow/core/mcp/actions.py:20
@@ -715,4 +757,40 @@ msgstr ""
 
 #: src/baserow/core/user/emails.py:110
 msgid "Confirm email address change - Baserow"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:26
+msgid "Create user source"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:27
+#, python-format
+msgid "User source (%(user_source_id)s) created"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:87
+msgid "Update user source"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:88
+#, python-format
+msgid "User source (%(user_source_id)s) updated"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:150
+msgid "Delete user source"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:151
+#, python-format
+msgid "User source (%(user_source_id)s) deleted"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:203
+msgid "Move user source"
+msgstr ""
+
+#: src/baserow/core/user_sources/actions.py:204
+#, python-format
+msgid "User source (%(user_source_id)s) moved"
 msgstr ""

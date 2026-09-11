@@ -303,6 +303,11 @@ receiver offers STARTTLS with a self-signed certificate; see
 `BASEROW_INBOUND_EMAIL_TLS_MODE` in [configuration](configuration.md) to
 provide a real certificate.
 
+Emails larger than 25 MB (`BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB`) are
+refused during delivery and bounce back to the sender. Attachments are never
+stored: the workflow only receives their name, type and size, and text or HTML
+bodies over 1 MB are truncated.
+
 ```bash
 docker run \
   -d \
@@ -315,7 +320,7 @@ docker run \
   -p 443:443 \
   -p 25:25 \
   --restart unless-stopped \
-  baserow/baserow:2.3.1
+  baserow/baserow:2.3.3
 ```
 
 ### With a Postgresql server running on the same host as the Baserow docker container

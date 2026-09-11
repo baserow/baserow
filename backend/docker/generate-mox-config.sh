@@ -30,6 +30,14 @@ TLS_MODE="${BASEROW_INBOUND_EMAIL_TLS_MODE:-self-signed}"
 # Mox must be started as root (it binds its sockets as root and then drops
 # privileges itself); this is the unprivileged uid it drops to.
 MOX_USER="${BASEROW_INBOUND_EMAIL_MOX_USER:-9999}"
+# The largest raw message (attachments included) mox accepts. Larger messages
+# are refused during SMTP delivery and bounce back to the sender.
+MAX_MESSAGE_SIZE_MB="${BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:-25}"
+if ! [[ "$MAX_MESSAGE_SIZE_MB" =~ ^[0-9]+$ ]] || [[ "$MAX_MESSAGE_SIZE_MB" -eq 0 ]]; then
+  echo "BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB must be a positive whole number of MB, got: $MAX_MESSAGE_SIZE_MB" >&2
+  exit 1
+fi
+MAX_MESSAGE_SIZE=$((MAX_MESSAGE_SIZE_MB * 1024 * 1024))
 
 mkdir -p "$CONFIG_DIR" "$DATA_DIR/data"
 
@@ -103,6 +111,10 @@ Listeners:
 	inbound:
 		IPs:
 			- 0.0.0.0
+		# Baserow only uses attachment metadata and mox caps the text/HTML bodies it
+		# forwards at 1MB each, so there is no reason to accept mox's default of
+		# 100MB per message.
+		SMTPMaxMessageSize: $MAX_MESSAGE_SIZE
 		TLS:
 			KeyCerts:
 				-
