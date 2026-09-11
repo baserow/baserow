@@ -96,5 +96,4 @@ class WidgetLayoutDelta:
 class UpdatedWidgetLayout:
     dashboard: "Dashboard"
     layout_delta: WidgetLayoutDelta
-    visible_layout: list[WidgetLayoutDict] | None = None
     deleted_widget: Widget | None = None

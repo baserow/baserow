@@ -389,7 +389,7 @@ def test_update_layout_action_noop_has_no_write_signal_or_action(data_fixture):
     bulk_update_mock.assert_not_called()
     layout_signal_mock.assert_not_called()
     assert Action.objects.filter(type=UpdateWidgetLayoutActionType.type).count() == 0
-    assert updated_layout.visible_layout == current_layout
+    assert not updated_layout.layout_delta.has_changes
 
 
 @pytest.mark.django_db

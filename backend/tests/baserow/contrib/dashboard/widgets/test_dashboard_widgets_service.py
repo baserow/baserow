@@ -468,7 +468,7 @@ def test_update_visible_widget_layout_pushes_widget_below_hidden_collision(
     hidden_widget.refresh_from_db()
     assert (visible_widget.grid_x, visible_widget.grid_y) == (2, 4)
     assert (hidden_widget.grid_x, hidden_widget.grid_y) == (2, 0)
-    assert updated_layout.visible_layout == [
+    assert updated_layout.layout_delta.new_layout == [
         {
             "id": visible_widget.id,
             "grid_x": 2,
@@ -537,10 +537,6 @@ def test_update_visible_layout_compacts_around_hidden_obstacles(
     assert hidden_widget.updated_on == hidden_updated_on
     assert (blocked_widget.grid_x, blocked_widget.grid_y) == (0, 4)
     assert (free_widget.grid_x, free_widget.grid_y) == (2, 0)
-    assert [(item["id"], item["grid_y"]) for item in updated_layout.visible_layout] == [
-        (free_widget.id, 0),
-        (blocked_widget.id, 4),
-    ]
     assert [item["id"] for item in updated_layout.layout_delta.new_layout] == [
         free_widget.id
     ]

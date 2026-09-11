@@ -78,7 +78,6 @@ class WidgetService:
         dashboard: Dashboard,
         layout_delta: WidgetLayoutDelta,
         *,
-        visible_layout: list[WidgetLayoutDict] | None = None,
         deleted_widget: Widget | None = None,
         force_invalidation: bool = False,
     ) -> UpdatedWidgetLayout:
@@ -89,7 +88,6 @@ class WidgetService:
         return UpdatedWidgetLayout(
             dashboard,
             layout_delta,
-            visible_layout=visible_layout,
             deleted_widget=deleted_widget,
         )
 
@@ -375,15 +373,10 @@ class WidgetService:
             merged_layout_by_widget_id,
             allowed_widget_ids=visible_widget_ids,
         )
-        visible_layout = sorted(
-            visible_layout_by_widget_id.values(),
-            key=lambda item: (item["grid_y"], item["grid_x"], item["id"]),
-        )
         return self._layout_update_result(
             None if layouts_initialized else user,
             dashboard,
             layout_delta,
-            visible_layout=visible_layout,
             force_invalidation=layouts_initialized,
         )
 
