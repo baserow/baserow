@@ -17,7 +17,11 @@
             The name and description of the dashboard are already known, only the
             widgets have to be fetched, so only those are a placeholder.
           -->
-          <div v-if="loading" class="skeleton" aria-hidden="true">
+          <div
+            v-if="loading"
+            class="dashboard-app__loading skeleton"
+            aria-hidden="true"
+          >
             <div
               v-for="index in 2"
               :key="`widget-${index}`"
