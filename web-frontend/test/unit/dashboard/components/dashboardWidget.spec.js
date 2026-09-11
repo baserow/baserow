@@ -76,35 +76,37 @@ function mountDashboardWidget({
 }
 
 describe('DashboardWidget', () => {
-  test('keeps the header and context menu available while a chart is loading', () => {
+  test('covers the header and data with one skeleton while the widget is loading', () => {
     const { wrapper } = mountDashboardWidget()
 
-    expect(wrapper.find('.widget__header-title').text()).toBe('Loading chart')
-    expect(wrapper.find('widget-context-menu-stub').exists()).toBe(true)
-    expect(wrapper.find('.loading-widget-content').text()).toBe('true')
-    expect(wrapper.get('.loading-widget-content').classes()).toContain(
-      'skeleton-loading'
-    )
-    expect(wrapper.get('.widget__header').classes()).not.toContain(
-      'skeleton-loading'
-    )
+    expect(wrapper.classes()).toContain('skeleton-loading')
+    for (const selector of [
+      '.widget__header',
+      'widget-context-menu-stub',
+      '.loading-widget-content',
+    ]) {
+      expect(wrapper.get(selector).element.closest('.skeleton-loading')).toBe(
+        wrapper.element
+      )
+    }
   })
 
-  test('fills the widget content with a skeleton until its data arrives', async () => {
+  test('reveals the complete widget when its data arrives', async () => {
     const { wrapper, data } = mountDashboardWidget()
-    const content = wrapper.get('.loading-widget-content')
 
-    expect(content.attributes('aria-busy')).toBe('true')
-    expect(content.element.style.getPropertyValue('--skeleton-height')).toBe(
+    expect(wrapper.attributes('aria-busy')).toBe('true')
+    expect(wrapper.element.style.getPropertyValue('--skeleton-height')).toBe(
       '100%'
     )
 
     data[1] = { result: 42 }
     await nextTick()
 
-    expect(content.classes()).not.toContain('skeleton-loading')
-    expect(content.attributes('aria-busy')).toBeUndefined()
-    expect(content.text()).toBe('false')
+    expect(wrapper.classes()).not.toContain('skeleton-loading')
+    expect(wrapper.attributes('aria-busy')).toBeUndefined()
+    expect(wrapper.get('.widget__header-title').text()).toBe('Loading chart')
+    expect(wrapper.find('widget-context-menu-stub').exists()).toBe(true)
+    expect(wrapper.get('.loading-widget-content').text()).toBe('false')
   })
 
   test('keeps invalid widget content visible with a configuration tooltip', () => {

@@ -90,35 +90,30 @@ for (const width of [1920, 1200, 900]) {
       );
       const loadingBoxes = [];
       for (const card of cards) {
-        await expect(card.locator(".skeleton-loading")).toHaveAttribute(
-          "aria-busy",
-          "true"
-        );
-        await card.locator(".widget__header").hover();
+        await expect(card).toHaveClass(/skeleton-loading/);
+        await expect(card).toHaveAttribute("aria-busy", "true");
+        await expect(card.locator(".widget__header")).toBeHidden();
         const box = await card.boundingBox();
-        const headerBox = await card.locator(".widget__header").boundingBox();
-        if (!box || !headerBox)
-          throw new Error("Could not measure the loading widget");
-        const placeholder = await card
-          .locator(".skeleton-loading")
-          .evaluate((element) => {
-            const style = getComputedStyle(element, "::after");
-            return {
-              width: parseFloat(style.width),
-              height: parseFloat(style.height),
-            };
-          });
+        if (!box) throw new Error("Could not measure the loading widget");
+        const placeholder = await card.evaluate((element) => {
+          const style = getComputedStyle(element, "::after");
+          return {
+            width: parseFloat(style.width),
+            height: parseFloat(style.height),
+          };
+        });
         expect(placeholder.width).toBeCloseTo(box.width - 2, 0);
-        expect(placeholder.height).toBeCloseTo(
-          box.height - headerBox.height - 2,
-          0
-        );
+        expect(placeholder.height).toBeCloseTo(box.height - 2, 0);
         loadingBoxes.push(box);
       }
 
       releaseDataSources();
       await expect(grid.locator(".skeleton-loading")).toHaveCount(0);
       for (const [index, card] of cards.entries()) {
+        await expect(card.locator(".widget__header")).toBeVisible();
+        await expect(
+          card.locator(".dashboard-summary-widget__summary")
+        ).toBeVisible();
         await expect
           .poll(() => card.boundingBox())
           .toEqual(loadingBoxes[index]);
