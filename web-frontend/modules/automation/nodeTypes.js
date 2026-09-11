@@ -380,6 +380,17 @@ export class NodeType extends Registerable {
     return [{ uid: '', label: '' }]
   }
 
+  /**
+   * Whether this node type is offered at all. Unlike `isDeactivated`, which
+   * keeps the entry in the add-node menu but disabled with a reason, a type
+   * that is not enabled is omitted from the menu entirely. Types that only make
+   * sense when the instance is configured for them override this.
+   * @returns {boolean}
+   */
+  isEnabled() {
+    return true
+  }
+
   isDeactivatedReason({ workspace }) {
     const serviceReason = this.serviceType.isDeactivatedReason({ workspace })
     if (serviceReason) {
@@ -677,6 +688,18 @@ export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(
 
   getOrder() {
     return 4.5
+  }
+
+  /**
+   * Only offered when the instance has an inbound email domain, exposed as
+   * public runtime config. The backend additionally requires the webhook
+   * secret, which is never exposed to the frontend, and refuses to create the
+   * node unless both are set, so the domain is the visible proxy here. Without
+   * it the trigger is left out of the menu rather than shown deactivated, so
+   * instances that never use inbound email do not carry a dead entry.
+   */
+  isEnabled() {
+    return Boolean(this.app.$config.public.baserowInboundEmailDomain)
   }
 
   getDefaultLabel({ automation, node }) {

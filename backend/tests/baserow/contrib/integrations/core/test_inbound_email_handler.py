@@ -11,9 +11,11 @@ from baserow.contrib.integrations.core.inbound_email import (
     HANDLE_STATUS_ACCEPTED,
     HANDLE_STATUS_DISCARDED,
     HANDLE_STATUS_DUPLICATE,
+    INBOUND_EMAIL_TEST_PREFIX,
     InboundEmail,
     InboundEmailAddress,
     InboundEmailHandler,
+    InboundEmailTarget,
     normalize_mox_payload,
 )
 
@@ -22,6 +24,7 @@ from .inbound_email_test_utils import make_mox_payload
 INBOUND_DOMAIN = "inbound.test"
 TOKEN = "a" * 32
 ADDRESS = f"{TOKEN}@{INBOUND_DOMAIN}"
+TEST_ADDRESS = f"{INBOUND_EMAIL_TEST_PREFIX}{TOKEN}@{INBOUND_DOMAIN}"
 
 
 @pytest.fixture(autouse=True)
@@ -108,24 +111,26 @@ def test_normalize_mox_payload_invalid(data):
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
-def test_extract_tokens_prefers_rcpt_to():
+def test_extract_targets_prefers_rcpt_to():
     email = InboundEmail(rcpt_to=ADDRESS)
-    assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+    assert InboundEmailHandler().extract_targets(email) == [InboundEmailTarget(TOKEN)]
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
-def test_extract_tokens_falls_back_to_headers():
+def test_extract_targets_falls_back_to_headers():
     other_token = "b" * 32
     email = InboundEmail(
         rcpt_to="",
         to=[InboundEmailAddress(address=f"someone@example.com")],
         cc=[InboundEmailAddress(address=f"{other_token}@{INBOUND_DOMAIN}")],
     )
-    assert InboundEmailHandler().extract_tokens(email) == [other_token]
+    assert InboundEmailHandler().extract_targets(email) == [
+        InboundEmailTarget(other_token)
+    ]
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
-def test_extract_tokens_multiple_and_deduplicated():
+def test_extract_targets_multiple_and_deduplicated():
     other_token = "b" * 32
     email = InboundEmail(
         rcpt_to=ADDRESS,
@@ -134,7 +139,10 @@ def test_extract_tokens_multiple_and_deduplicated():
             InboundEmailAddress(address=f"{other_token}@{INBOUND_DOMAIN}"),
         ],
     )
-    assert InboundEmailHandler().extract_tokens(email) == [TOKEN, other_token]
+    assert InboundEmailHandler().extract_targets(email) == [
+        InboundEmailTarget(TOKEN),
+        InboundEmailTarget(other_token),
+    ]
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
@@ -148,33 +156,35 @@ def test_extract_tokens_multiple_and_deduplicated():
         "",
     ],
 )
-def test_extract_tokens_rejects_invalid_recipients(address):
+def test_extract_targets_rejects_invalid_recipients(address):
     email = InboundEmail(rcpt_to=address)
-    assert InboundEmailHandler().extract_tokens(email) == []
+    assert InboundEmailHandler().extract_targets(email) == []
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
-def test_extract_tokens_is_case_insensitive():
+def test_extract_targets_is_case_insensitive():
     email = InboundEmail(rcpt_to=f"{TOKEN.upper()}@{INBOUND_DOMAIN.upper()}")
-    assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+    assert InboundEmailHandler().extract_targets(email) == [InboundEmailTarget(TOKEN)]
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
-def test_extract_tokens_strips_subaddress_tag():
+def test_extract_targets_strips_subaddress_tag():
     # `token+anything@domain` must resolve to the same `token` trigger.
     for tag in ["gmail", "hotmail", "with+extra+pluses", "MixedCase"]:
         email = InboundEmail(rcpt_to=f"{TOKEN}+{tag}@{INBOUND_DOMAIN}")
-        assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+        assert InboundEmailHandler().extract_targets(email) == [
+            InboundEmailTarget(TOKEN)
+        ]
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
-def test_extract_tokens_deduplicates_across_tags():
+def test_extract_targets_deduplicates_across_tags():
     # The same token reached via different tags must dispatch the trigger once.
     email = InboundEmail(
         rcpt_to=f"{TOKEN}+gmail@{INBOUND_DOMAIN}",
         to=[InboundEmailAddress(address=f"{TOKEN}+hotmail@{INBOUND_DOMAIN}")],
     )
-    assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+    assert InboundEmailHandler().extract_targets(email) == [InboundEmailTarget(TOKEN)]
 
 
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
@@ -182,7 +192,7 @@ def test_tagged_recipient_full_mox_path():
     # Full wire-format path: a mox webhook for `token+bob@domain` resolves to the
     # `token` trigger and carries the tag through to the workflow payload.
     email = normalize_mox_payload(make_mox_payload(f"{TOKEN}+bob@{INBOUND_DOMAIN}"))
-    assert InboundEmailHandler().extract_tokens(email) == [TOKEN]
+    assert InboundEmailHandler().extract_targets(email) == [InboundEmailTarget(TOKEN)]
     assert email.to_payload()["recipient_tag"] == "bob"
 
 
@@ -205,7 +215,7 @@ def test_handle_webhook_payload_discards_automated_email():
     payload["Meta"]["Automated"] = True
 
     handler = InboundEmailHandler()
-    with patch.object(handler, "_process_token") as mocked:
+    with patch.object(handler, "_process_target") as mocked:
         assert handler.handle_webhook_payload(payload) == HANDLE_STATUS_DISCARDED
 
     mocked.assert_not_called()
@@ -251,7 +261,7 @@ def test_handle_webhook_payload_accepts_and_deduplicates(data_fixture):
     service_type = service_type_registry.get("email_trigger")
     with patch.object(service_type, "on_event", MagicMock()) as mocked:
         handler = InboundEmailHandler()
-        payload = make_mox_payload(ADDRESS)
+        payload = make_mox_payload(TEST_ADDRESS)
 
         assert handler.handle_webhook_payload(payload) == HANDLE_STATUS_ACCEPTED
         assert mocked.call_count == 1
@@ -275,7 +285,7 @@ def test_handle_webhook_payload_skips_dedupe_without_message_id(data_fixture):
     service_type = service_type_registry.get("email_trigger")
     with patch.object(service_type, "on_event", MagicMock()) as mocked:
         handler = InboundEmailHandler()
-        payload = make_mox_payload(ADDRESS, MessageID="")
+        payload = make_mox_payload(TEST_ADDRESS, MessageID="")
         payload["Meta"]["MsgID"] = 0
 
         assert handler.handle_webhook_payload(payload) == HANDLE_STATUS_ACCEPTED
@@ -292,7 +302,7 @@ def test_handle_webhook_payload_removes_dedupe_entry_on_error(data_fixture):
 
     service_type = service_type_registry.get("email_trigger")
     handler = InboundEmailHandler()
-    payload = make_mox_payload(ADDRESS)
+    payload = make_mox_payload(TEST_ADDRESS)
 
     with patch.object(
         service_type, "on_event", MagicMock(side_effect=Exception("boom"))
@@ -367,7 +377,7 @@ def test_handle_webhook_payload_logs_accepted_and_duplicate(
     service_type = service_type_registry.get("email_trigger")
     with patch.object(service_type, "on_event", MagicMock()):
         handler = InboundEmailHandler()
-        payload = make_mox_payload(ADDRESS)
+        payload = make_mox_payload(TEST_ADDRESS)
         handler.handle_webhook_payload(payload)
         handler.handle_webhook_payload(payload)
 
@@ -382,3 +392,107 @@ def test_handle_webhook_payload_logs_accepted_and_duplicate(
     assert f"message={message_ref}" in second
     assert "ada@example.com" not in first
     assert ADDRESS not in first
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_extract_targets_test_prefix_targets_the_draft():
+    email = InboundEmail(rcpt_to=TEST_ADDRESS)
+
+    assert InboundEmailHandler().extract_targets(email) == [
+        InboundEmailTarget(TOKEN, simulate=True)
+    ]
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+@pytest.mark.parametrize(
+    "rcpt_to",
+    [
+        f"TEST-{TOKEN.upper()}@{INBOUND_DOMAIN}",
+        f"test-{TOKEN}+sales@{INBOUND_DOMAIN}",
+        f"Test-{TOKEN}+Sales@{INBOUND_DOMAIN.upper()}",
+    ],
+)
+def test_extract_targets_test_prefix_is_case_insensitive_and_keeps_tags(rcpt_to):
+    email = InboundEmail(rcpt_to=rcpt_to)
+
+    assert InboundEmailHandler().extract_targets(email) == [
+        InboundEmailTarget(TOKEN, simulate=True)
+    ]
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+@pytest.mark.parametrize(
+    "rcpt_to",
+    [
+        f"test{TOKEN}@{INBOUND_DOMAIN}",
+        f"test--{TOKEN}@{INBOUND_DOMAIN}",
+        f"tset-{TOKEN}@{INBOUND_DOMAIN}",
+        f"test-@{INBOUND_DOMAIN}",
+    ],
+)
+def test_extract_targets_rejects_malformed_test_prefix(rcpt_to):
+    email = InboundEmail(rcpt_to=rcpt_to)
+
+    assert InboundEmailHandler().extract_targets(email) == []
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_extract_targets_keeps_test_and_published_addresses_apart():
+    email = InboundEmail(
+        rcpt_to=TEST_ADDRESS,
+        to=[
+            InboundEmailAddress(address=ADDRESS),
+            InboundEmailAddress(address=TEST_ADDRESS),
+        ],
+    )
+
+    assert InboundEmailHandler().extract_targets(email) == [
+        InboundEmailTarget(TOKEN, simulate=True),
+        InboundEmailTarget(TOKEN, simulate=False),
+    ]
+
+
+def test_dedupe_cache_key_differs_between_test_and_published_targets():
+    handler = InboundEmailHandler()
+    email = InboundEmail(message_id="<id@example.com>")
+
+    published_key = handler.get_dedupe_cache_key(InboundEmailTarget(TOKEN), email)
+    test_key = handler.get_dedupe_cache_key(
+        InboundEmailTarget(TOKEN, simulate=True), email
+    )
+
+    assert published_key != test_key
+    assert TOKEN in published_key and f"test-{TOKEN}" in test_key
+
+
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_handle_webhook_payload_passes_simulate_to_the_service_type():
+    from baserow.core.services.registries import service_type_registry
+
+    service_type = service_type_registry.get("email_trigger")
+    handler = InboundEmailHandler()
+
+    with patch.object(service_type, "process_inbound_email") as mocked:
+        assert (
+            handler.handle_webhook_payload(make_mox_payload(TEST_ADDRESS))
+            == HANDLE_STATUS_ACCEPTED
+        )
+        assert (
+            handler.handle_webhook_payload(
+                make_mox_payload(ADDRESS, MessageID="<other@example.com>")
+            )
+            == HANDLE_STATUS_ACCEPTED
+        )
+
+    (test_call, live_call) = mocked.call_args_list
+    assert test_call.args[0] == TOKEN and test_call.kwargs == {"simulate": True}
+    assert live_call.args[0] == TOKEN and live_call.kwargs == {"simulate": False}
+
+
+@pytest.mark.django_db
+@override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
+def test_handle_webhook_payload_logs_test_prefix(inbound_email_logs):
+    InboundEmailHandler().handle_webhook_payload(make_mox_payload(TEST_ADDRESS))
+
+    record = _inbound_email_log(inbound_email_logs)
+    assert f"token=test-{TOKEN[:8]}…" in record

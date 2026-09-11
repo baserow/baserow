@@ -231,6 +231,32 @@ services:
     stdin_open: true
     tty: true
 
+  # Inbound email receiver (mox) for the "Start workflow by email" automation
+  # trigger. Opt-in via the "mox" profile: `just mox up` starts it next to a
+  # natively running backend, and `COMPOSE_PROFILES=optional,mox` starts it as
+  # part of `just dc-dev up`. Same `email-receiver` role as production, but
+  # built from the dev image so no Go toolchain or `brew install mox` is needed.
+  email-receiver:
+    image: baserow_backend:dev
+    profiles: ["mox"]
+    build:
+      dockerfile: ./backend/Dockerfile
+      context: .
+      target: dev
+      args:
+        UID: $UID
+        GID: $GID
+    # The SMTP port mapping comes from the base file and is env-driven:
+    # .env.docker-dev publishes it on 127.0.0.1:2025 (off port 25, like mailhog).
+    # Lets the container reach a backend running natively on the host.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # The dev image expects the source and plugin helpers bind-mounted, like
+    # the backend service above.
+    volumes:
+      - ./backend:/baserow/backend
+      - ./deploy/plugins/:/baserow/plugins/
+
   mailhog:
     image: mailhog/mailhog
     logging:

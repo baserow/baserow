@@ -30,6 +30,7 @@ function makeNodeType({
   integrationType = null,
   isTrigger = false,
   description = null,
+  isEnabled = true,
 }) {
   return {
     type,
@@ -43,6 +44,7 @@ function makeNodeType({
     serviceType: { integrationType },
     getType: () => type,
     getOrder: () => order,
+    isEnabled: () => isEnabled,
     isDeactivated: () => false,
     isDeactivatedReason: () => null,
     getDeactivatedClickModal: () => null,
@@ -78,6 +80,18 @@ const triggerNodeType = makeNodeType({
   isTrigger: true,
 })
 
+// A trigger the instance is not configured for, e.g. the email trigger without
+// an inbound email domain: it must be left out of the menu entirely rather than
+// listed as deactivated.
+const disabledTriggerNodeType = makeNodeType({
+  type: 'email_trigger',
+  name: 'Email Trigger',
+  description: 'Triggered when an email is received.',
+  order: 2,
+  isTrigger: true,
+  isEnabled: false,
+})
+
 const workflowTrigger = { id: 1, type: 'rows_created' }
 
 const mountComponent = ({
@@ -107,6 +121,7 @@ const mountComponent = ({
             getRowNodeType,
             repeatNodeType,
             triggerNodeType,
+            disabledTriggerNodeType,
           ],
           get: (registry, type) =>
             registry === 'node' && type === triggerNodeType.getType()
@@ -213,6 +228,24 @@ describe('WorkflowAddNodeMenu', () => {
     expect(
       wrapper.find('.grouped-menu__actions .menu-list__item-description').text()
     ).toBe('Triggered when rows are created.')
+  })
+
+  test('omits node types that are not enabled instead of listing them disabled', () => {
+    const wrapper = mountComponent({ onlyTrigger: true, workflowNodes: [] })
+
+    expect(wrapper.vm.nodeTypes.map((nodeType) => nodeType.getType())).toEqual([
+      'rows_created',
+    ])
+    expect(
+      wrapper
+        .findAll('.grouped-menu__actions .menu-list__item-label')
+        .map((item) => item.text())
+    ).toEqual(['Rows are created'])
+    expect(
+      wrapper
+        .findAll('.grouped-menu__navigation .menu-list__item-label')
+        .map((item) => item.text())
+    ).toEqual(['Local Baserow'])
   })
 
   test('uses the trigger search when workflow nodes do not include a trigger', () => {

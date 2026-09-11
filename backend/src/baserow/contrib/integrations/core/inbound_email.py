@@ -20,6 +20,11 @@ INBOUND_EMAIL_DEDUPE_TIMEOUT_SECONDS = 60 * 60 * 48
 
 INBOUND_EMAIL_TOKEN_REGEX = re.compile(r"^[0-9a-f]{32}$")
 
+# Prefixing the token with this in the localpart targets the draft version of
+# the workflow instead of the published one, mirroring the HTTP trigger's
+# `?test=true` query string: `test-{token}@domain` starts a test run.
+INBOUND_EMAIL_TEST_PREFIX = "test-"
+
 # The catch-all sub-address separator configured on the receiving mail server
 # (mox's LocalpartCatchallSeparator). Everything after it in the localpart is an
 # optional recipient "tag": `token+tag@domain` still routes to the `token`
@@ -47,6 +52,36 @@ def split_catchall_localpart(address: str) -> "tuple[str, str]":
 HANDLE_STATUS_ACCEPTED = "accepted"
 HANDLE_STATUS_DUPLICATE = "duplicate"
 HANDLE_STATUS_DISCARDED = "discarded"
+
+
+@dataclass(frozen=True)
+class InboundEmailTarget:
+    """
+    A trigger address found among a message's recipients: which trigger token
+    it names, and whether it targets the draft (`test-` prefixed) or the
+    published version of the workflow.
+    """
+
+    token: str
+    simulate: bool = False
+
+    @property
+    def localpart(self) -> str:
+        return f"{INBOUND_EMAIL_TEST_PREFIX if self.simulate else ''}{self.token}"
+
+
+def parse_inbound_localpart(localpart: str) -> Optional[InboundEmailTarget]:
+    """
+    Parses the base localpart of a recipient address (already lowercased and
+    stripped of any `+tag`) into a target, or None when it is not a trigger
+    address.
+    """
+
+    simulate = localpart.startswith(INBOUND_EMAIL_TEST_PREFIX)
+    token = localpart[len(INBOUND_EMAIL_TEST_PREFIX) :] if simulate else localpart
+    if not INBOUND_EMAIL_TOKEN_REGEX.match(token):
+        return None
+    return InboundEmailTarget(token=token, simulate=simulate)
 
 
 @dataclass
@@ -214,14 +249,15 @@ class InboundEmailHandler:
     deduplication and dispatching of the matching email trigger services.
     """
 
-    def extract_tokens(self, email: InboundEmail) -> List[str]:
+    def extract_targets(self, email: InboundEmail) -> List[InboundEmailTarget]:
         """
-        Extracts the trigger tokens from the email's recipients. The envelope
+        Extracts the trigger targets from the email's recipients. The envelope
         recipient (RcptTo) is the most reliable source; the To and Cc headers
-        are scanned as a fallback.
+        are scanned as a fallback. A `test-` prefixed localpart targets the
+        draft version of the workflow, a bare token the published one.
 
         :param email: The normalized inbound email.
-        :return: The unique list of valid tokens found.
+        :return: The unique list of targets found.
         """
 
         candidates = [email.rcpt_to] + [
@@ -229,28 +265,31 @@ class InboundEmailHandler:
         ]
 
         domain = settings.INBOUND_EMAIL_DOMAIN.lower()
-        tokens = []
+        targets = []
         for candidate in candidates:
             candidate_domain = (candidate or "").rpartition("@")[2].lower()
+            if candidate_domain != domain:
+                continue
             # Strip any `+tag` sub-address so `token+tag@domain` resolves to the
             # `token` trigger; the tag is surfaced separately in the payload.
-            token, _ = split_catchall_localpart(candidate)
-            if (
-                candidate_domain == domain
-                and INBOUND_EMAIL_TOKEN_REGEX.match(token)
-                and token not in tokens
-            ):
-                tokens.append(token)
+            localpart, _ = split_catchall_localpart(candidate)
+            target = parse_inbound_localpart(localpart)
+            if target is not None and target not in targets:
+                targets.append(target)
 
-        return tokens
+        return targets
 
-    def get_dedupe_cache_key(self, token: str, email: InboundEmail) -> Optional[str]:
+    def get_dedupe_cache_key(
+        self, target: InboundEmailTarget, email: InboundEmail
+    ) -> Optional[str]:
         message_id = email.message_id or email.internal_message_id
         if not message_id:
             return None
 
+        # The test and published addresses of a trigger are separate targets,
+        # so one message sent to both is processed for both.
         digest = sha256(message_id.encode()).hexdigest()
-        return f"{INBOUND_EMAIL_DEDUPE_CACHE_PREFIX}:{token}:{digest}"
+        return f"{INBOUND_EMAIL_DEDUPE_CACHE_PREFIX}:{target.localpart}:{digest}"
 
     def handle_webhook_payload(self, data: Dict[str, Any]) -> str:
         """
@@ -278,8 +317,8 @@ class InboundEmailHandler:
                 HANDLE_STATUS_DISCARDED, "inbound email domain not configured", email
             )
 
-        tokens = self.extract_tokens(email)
-        if not tokens:
+        targets = self.extract_targets(email)
+        if not targets:
             return self._log_status(
                 HANDLE_STATUS_DISCARDED, "no recipient matches a trigger address", email
             )
@@ -287,8 +326,8 @@ class InboundEmailHandler:
         service_type = service_type_registry.get("email_trigger")
 
         statuses = set()
-        for token in tokens:
-            statuses.add(self._process_token(service_type, token, email))
+        for target in targets:
+            statuses.add(self._process_target(service_type, target, email))
 
         for status in (
             HANDLE_STATUS_ACCEPTED,
@@ -300,8 +339,10 @@ class InboundEmailHandler:
 
         return HANDLE_STATUS_DISCARDED
 
-    def _process_token(self, service_type, token: str, email: InboundEmail) -> str:
-        cache_key = self.get_dedupe_cache_key(token, email)
+    def _process_target(
+        self, service_type, target: InboundEmailTarget, email: InboundEmail
+    ) -> str:
+        cache_key = self.get_dedupe_cache_key(target, email)
 
         # `cache.add` is atomic; it returns False when the key already exists,
         # meaning this message was processed before. Mox delivers webhooks
@@ -311,14 +352,16 @@ class InboundEmailHandler:
             cache_key, True, timeout=INBOUND_EMAIL_DEDUPE_TIMEOUT_SECONDS
         ):
             return self._log_status(
-                HANDLE_STATUS_DUPLICATE, "message already processed", email, token
+                HANDLE_STATUS_DUPLICATE, "message already processed", email, target
             )
 
         try:
-            service_type.process_inbound_email(token, email)
+            service_type.process_inbound_email(
+                target.token, email, simulate=target.simulate
+            )
         except CoreInboundEmailTriggerServiceDoesNotExist:
             return self._log_status(
-                HANDLE_STATUS_DISCARDED, "no trigger for token", email, token
+                HANDLE_STATUS_DISCARDED, "no trigger for token", email, target
             )
         except Exception:
             # The message was not processed, so remove the dedupe entry to
@@ -329,7 +372,7 @@ class InboundEmailHandler:
             raise
 
         return self._log_status(
-            HANDLE_STATUS_ACCEPTED, "dispatched to trigger", email, token
+            HANDLE_STATUS_ACCEPTED, "dispatched to trigger", email, target
         )
 
     def _log_status(
@@ -337,7 +380,7 @@ class InboundEmailHandler:
         status: str,
         reason: str,
         email: InboundEmail,
-        token: Optional[str] = None,
+        target: Optional[InboundEmailTarget] = None,
     ) -> str:
         """
         Logs the outcome of handling an inbound message and returns the status
@@ -347,8 +390,9 @@ class InboundEmailHandler:
         place operators can tell accepted, duplicate and discarded apart.
 
         Neither the addresses nor the full token are logged: the token is the
-        routing secret of a trigger. The message is identified by a short prefix
-        of the hashed Message-ID, which is enough to correlate retried
+        routing secret of a trigger. The `test-` prefix is kept so test runs
+        can be told apart from live ones. The message is identified by a short
+        prefix of the hashed Message-ID, which is enough to correlate retried
         deliveries of the same message.
         """
 
@@ -361,6 +405,11 @@ class InboundEmailHandler:
             status=status,
             reason=reason,
             message_ref=message_ref,
-            token=f"{token[:8]}…" if token else "-",
+            token=(
+                f"{INBOUND_EMAIL_TEST_PREFIX if target.simulate else ''}"
+                f"{target.token[:8]}…"
+                if target
+                else "-"
+            ),
         )
         return status
