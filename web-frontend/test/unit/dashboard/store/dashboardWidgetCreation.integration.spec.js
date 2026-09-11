@@ -20,11 +20,18 @@ describe('dashboardApplication store', () => {
 
   let store = null
   let mock = null
+  let events = null
 
   beforeEach(async () => {
     const { $store, $client } = useNuxtApp()
     store = $store
     mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+    events = {}
+    registerRealtimeEvents({
+      registerEvent: (name, callback) => {
+        events[name] = callback
+      },
+    })
 
     mock.onGet(`/dashboard/${dashboardId}/widgets/`).reply(200, [])
     mock.onGet(`/dashboard/${dashboardId}/data-sources/`).replyOnce(200, [])
@@ -126,12 +133,6 @@ describe('dashboardApplication store', () => {
   })
 
   test('realtime adds a widget created elsewhere without selecting it', async () => {
-    const events = {}
-    registerRealtimeEvents({
-      registerEvent: (name, callback) => {
-        events[name] = callback
-      },
-    })
     mock.onGet(`/dashboard/${dashboardId}/widgets/`).reply(200, [createdWidget])
     await events.widget_created(
       { store },
@@ -154,4 +155,93 @@ describe('dashboardApplication store', () => {
       dataSourceResult
     )
   })
+
+  test.each(['local', 'realtime'])(
+    '%s creation keeps an existing unconfigured widget out of loading',
+    async (creation) => {
+      const existingDataSource = { ...dataSource, id: 20 }
+      const existingWidget = {
+        ...createdWidget,
+        id: 6,
+        data_source_id: existingDataSource.id,
+      }
+      mock
+        .onGet(`/dashboard/${dashboardId}/widgets/`)
+        .reply(200, [existingWidget])
+      mock
+        .onGet(`/dashboard/${dashboardId}/data-sources/`)
+        .reply(200, [existingDataSource])
+      mock
+        .onPost(`/dashboard/data-sources/${existingDataSource.id}/dispatch/`)
+        .reply(400, { error: 'ERROR_SERVICE_INVALID' })
+      await store.dispatch('dashboardApplication/fetchInitial', {
+        dashboardId,
+        forEditing: false,
+      })
+
+      const widgetType = useNuxtApp().$registry.get(
+        'dashboardWidget',
+        'summary'
+      )
+      expect(
+        widgetType.isMisconfigured(
+          existingWidget,
+          store.state.dashboardApplication.data
+        )
+      ).toBe(true)
+      const loadingStates = []
+      const unsubscribe = store.subscribe((_mutation, state) => {
+        loadingStates.push(
+          widgetType.isLoading(existingWidget, state.dashboardApplication.data)
+        )
+      })
+      mock
+        .onGet(`/dashboard/${dashboardId}/data-sources/`)
+        .reply(200, [existingDataSource, dataSource])
+
+      try {
+        if (creation === 'local') {
+          mock
+            .onPost(`/dashboard/${dashboardId}/widgets/`)
+            .reply(200, createdWidget)
+          await store.dispatch('dashboardApplication/createWidget', {
+            dashboard: { id: dashboardId },
+            widget: { type: 'summary' },
+          })
+        } else {
+          mock
+            .onGet(`/dashboard/${dashboardId}/widgets/`)
+            .reply(200, [existingWidget, createdWidget])
+          await events.widget_created(
+            { store },
+            { dashboard_id: dashboardId, widget: createdWidget }
+          )
+        }
+        await flushPromises()
+
+        expect(loadingStates.length).toBeGreaterThan(0)
+        expect(loadingStates).not.toContain(true)
+        expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
+          dataSourceResult
+        )
+      } finally {
+        unsubscribe()
+      }
+
+      const configuredDataSource = { ...existingDataSource, table_id: 1 }
+      mock
+        .onPatch(`/dashboard/data-sources/${existingDataSource.id}/`)
+        .reply(200, configuredDataSource)
+      mock
+        .onPost(`/dashboard/data-sources/${existingDataSource.id}/dispatch/`)
+        .reply(200, dataSourceResult)
+      await store.dispatch('dashboardApplication/updateDataSource', {
+        dataSourceId: existingDataSource.id,
+        values: { table_id: 1 },
+      })
+      expect(
+        store.state.dashboardApplication.data[existingDataSource.id]
+      ).toEqual(dataSourceResult)
+    }
+  )
 })
