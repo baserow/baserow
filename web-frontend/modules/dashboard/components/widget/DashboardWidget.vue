@@ -44,6 +44,7 @@
     </div>
     <component
       :is="widgetComponent(widget.type)"
+      v-skeleton="{ loading: isLoading, height: '100%' }"
       :widget="widget"
       :store-prefix="storePrefix"
       :loading="isLoading"
