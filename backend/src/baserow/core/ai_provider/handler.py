@@ -551,6 +551,27 @@ class AIProviderHandler:
         clear_ai_provider_state_cache()
 
     @staticmethod
+    def get_model_usage(model: AIProviderModel) -> dict[str, int]:
+        """
+        Count the consumers referencing a model, per feature.
+
+        Default-model features are skipped: their RESTRICT foreign key already
+        blocks the change instead of warning about it.
+
+        :param model: The model about to be disabled, deleted or narrowed.
+        :return: The reference count of every per-consumer feature.
+        """
+
+        config = model.provider_config
+        return {
+            feature_type.type: feature_type.count_model_references(
+                config.provider_type, model.model_identifier, config.workspace
+            )
+            for feature_type in ai_provider_model_feature_type_registry.get_all()
+            if not feature_type.supports_default_model
+        }
+
+    @staticmethod
     def _registered_default_model_feature_types() -> set[str]:
         """
         Return feature types whose default-model selection is currently active.

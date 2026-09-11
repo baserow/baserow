@@ -1,3 +1,4 @@
+from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
 from .constants import (
@@ -23,6 +24,29 @@ class AIProviderModelFeatureType(Instance):
 
     supports_default_model = False
     required_model_capabilities = (AI_PROVIDER_MODEL_CAPABILITY_TEXT,)
+
+    def count_model_references(
+        self,
+        provider_type: str,
+        model_identifier: str,
+        workspace: Workspace | None = None,
+    ) -> int:
+        """
+        Count the rows this feature stores referencing one provider model.
+
+        Consumers persist a provider type and model identifier instead of the
+        provider row id, so an instance model and a workspace override of the
+        same type share a count. The result is an upper bound: it may warn an
+        administrator, but it must never block a change.
+
+        :param provider_type: The provider type owning the model.
+        :param model_identifier: The identifier consumers persist.
+        :param workspace: The workspace owning the provider, or None for the
+            instance scope, which counts every workspace.
+        :return: The number of references this feature holds.
+        """
+
+        return 0
 
     def get_workspace_availability(self, workspace, state=None) -> dict:
         """Return the client-facing effective availability for this feature.

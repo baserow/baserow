@@ -904,3 +904,70 @@ def test_in_use_error_pairs_the_named_model_with_only_its_own_features(monkeypat
     assert exc_info.value.model_identifier == "first-model"
     assert exc_info.value.feature_types == ["first_feature"]
     assert second_model.id
+
+
+@pytest.mark.django_db
+def test_get_model_usage_counts_per_consumer_features_only(monkeypatch):
+    class CountingFeatureType(AIProviderModelFeatureType):
+        type = "counting_feature"
+
+        def count_model_references(
+            self, provider_type, model_identifier, workspace=None
+        ):
+            return 3
+
+    class PlainFeatureType(AIProviderModelFeatureType):
+        type = "plain_feature"
+
+    class DefaultModelFeatureType(AIProviderModelFeatureType):
+        type = "default_model_feature"
+        supports_default_model = True
+
+    monkeypatch.setattr(
+        ai_provider_model_feature_type_registry,
+        "registry",
+        {
+            "counting_feature": CountingFeatureType(),
+            "plain_feature": PlainFeatureType(),
+            "default_model_feature": DefaultModelFeatureType(),
+        },
+    )
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-4o"
+    )
+
+    assert AIProviderHandler.get_model_usage(model) == {
+        "counting_feature": 3,
+        "plain_feature": 0,
+    }
+
+
+@pytest.mark.django_db
+def test_get_model_usage_passes_the_provider_scope(monkeypatch, data_fixture):
+    calls = []
+
+    class RecordingFeatureType(AIProviderModelFeatureType):
+        type = "recording_feature"
+
+        def count_model_references(
+            self, provider_type, model_identifier, workspace=None
+        ):
+            calls.append((provider_type, model_identifier, workspace))
+            return 0
+
+    monkeypatch.setattr(
+        ai_provider_model_feature_type_registry,
+        "registry",
+        {"recording_feature": RecordingFeatureType()},
+    )
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="secret", workspace=workspace
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-4o"
+    )
+
+    assert AIProviderHandler.get_model_usage(model) == {"recording_feature": 0}
+    assert calls == [("openai", "gpt-4o", workspace)]
