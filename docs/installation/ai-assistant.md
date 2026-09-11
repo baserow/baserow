@@ -29,6 +29,19 @@ a model; it does not force AI Fields or AI Agent actions to use Kuma's model. Us
 **Test model** to check every selected feature. AI Fields and AI Agent actions check
 for a text response, while Kuma also checks tool calling.
 
+Changing a model that is already in use is confirmed, not applied silently. Disabling
+or deleting a model, unchecking one of its features, or renaming its identifier first
+reports how many AI Fields and AI Agent actions use it, and applies the change once
+confirmed: those consumers store the provider type and the model identifier rather
+than a reference to the model, so they keep the old selection and stop working until
+they are repointed. Counts are per provider type and identifier, so an instance model
+and a workspace model sharing an identifier report the same consumers. The Kuma
+selection is a real reference instead, so the same change is refused while a model is
+selected as the Kuma model: repoint that selection first, in the **AI features**
+section of the scope that holds it. A consumer left on a model that is disabled or
+gone keeps showing its saved provider and model, marked unavailable, so it can be
+found and repointed.
+
 For an existing installation, see the
 [AI provider upgrade and import instructions](../development/feature-flags.md#preparing-the-ai-providers-feature).
 Schema migrations run during the normal upgrade. Provider imports and republishing
