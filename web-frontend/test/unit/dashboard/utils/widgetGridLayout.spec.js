@@ -2,6 +2,7 @@ import {
   createWidgetGridLayout,
   getDashboardGridColumns,
   getWidgetGridItemConstraints,
+  resizeWidgetGridLayout,
   toWidgetLayoutPayload,
 } from '@baserow/modules/dashboard/utils/widgetGridLayout'
 
@@ -88,6 +89,53 @@ describe('widgetGridLayout', () => {
         grid_width: 3,
         grid_height: 9,
       },
+    ])
+  })
+
+  test.each([
+    [3, { i: 2, x: 3, y: 0, w: 2, h: 4 }],
+    [5, { i: 2, x: 2, y: 4, w: 2, h: 4 }],
+    [2, { i: 2, x: 2, y: 0, w: 2, h: 4 }],
+  ])(
+    'resizes to %s columns, using the right-hand space before moving down',
+    (width, neighbor) => {
+      const layout = createWidgetGridLayout([
+        summary(1, 0, 0, 2, 4),
+        summary(2, 2, 0, 2, 4),
+      ])
+      const original = layout.map((item) => ({ ...item }))
+
+      expect(resizeWidgetGridLayout(layout, 1, width, 4)).toEqual([
+        { i: 1, x: 0, y: 0, w: width, h: 4 },
+        neighbor,
+      ])
+      expect(layout).toEqual(original)
+    }
+  )
+
+  test('keeps a vertical resize in the original columns', () => {
+    const layout = createWidgetGridLayout([
+      summary(1, 0, 0, 2, 4),
+      summary(2, 0, 4, 2, 4),
+    ])
+
+    expect(resizeWidgetGridLayout(layout, 1, 2, 6)).toEqual([
+      { i: 1, x: 0, y: 0, w: 2, h: 6 },
+      { i: 2, x: 0, y: 6, w: 2, h: 4 },
+    ])
+  })
+
+  test('pushes a row of neighbors right, then down at the grid edge', () => {
+    const layout = createWidgetGridLayout([
+      summary(1, 0, 0, 2, 4),
+      summary(2, 2, 0, 2, 4),
+      summary(3, 4, 0, 2, 4),
+    ])
+
+    expect(resizeWidgetGridLayout(layout, 1, 3, 4)).toEqual([
+      { i: 1, x: 0, y: 0, w: 3, h: 4 },
+      { i: 2, x: 3, y: 0, w: 2, h: 4 },
+      { i: 3, x: 4, y: 4, w: 2, h: 4 },
     ])
   })
 })

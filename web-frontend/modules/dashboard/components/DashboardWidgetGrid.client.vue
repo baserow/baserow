@@ -88,6 +88,7 @@ import {
   createWidgetGridLayout,
   getDashboardGridColumns,
   getWidgetGridItemConstraints,
+  resizeWidgetGridLayout,
   toWidgetLayoutPayload,
 } from '@baserow/modules/dashboard/utils/widgetGridLayout'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -279,16 +280,24 @@ export default {
       document.body.classList.add('dashboard-widget-grid--resizing')
     },
     updateResizeState(widgetId, height, width) {
-      if (!this.canManipulateLayout) {
+      if (!this.canManipulateLayout || !this.widgetsById[String(widgetId)]) {
         return
       }
 
-      const layoutItem = this.layout.find(
-        (item) => String(item.i) === String(widgetId)
+      const resizedLayout = resizeWidgetGridLayout(
+        createWidgetGridLayout(this.widgets, this.columns),
+        widgetId,
+        width,
+        height
       )
-      if (!layoutItem) {
-        return
-      }
+      const resizedById = new Map(
+        resizedLayout.map((item) => [String(item.i), item])
+      )
+      // GridItem emits resize before GridLayout compacts its shared layout.
+      // Update the existing objects so that compaction sees collision-free positions.
+      this.layout.forEach((item) => {
+        Object.assign(item, resizedById.get(String(item.i)))
+      })
 
       this.resizeState = {
         widgetId,
