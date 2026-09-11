@@ -115,6 +115,28 @@ def test_compact_widget_layout_fills_holes_across_overlapping_column_ranges():
     ]
 
 
+@pytest.mark.parametrize("fixed_row", [False, True])
+def test_compact_widget_layout_keeps_widgets_below_a_full_width_row(fixed_row):
+    layouts = [
+        {"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 2, "grid_x": 0, "grid_y": 4, "grid_width": 6, "grid_height": 4},
+        {"id": 3, "grid_x": 2, "grid_y": 12, "grid_width": 2, "grid_height": 4},
+    ]
+
+    # The gap above widget 2 is wide enough for widget 3, but reaching it would
+    # cross the full-width row the user deliberately placed widget 3 below.
+    if fixed_row:
+        assert compact_widget_layout(
+            [layouts[0], layouts[2]], fixed_layouts=[layouts[1]]
+        ) == [layouts[0], {**layouts[2], "grid_y": 8}]
+    else:
+        assert compact_widget_layout(layouts) == [
+            layouts[0],
+            layouts[1],
+            {**layouts[2], "grid_y": 8},
+        ]
+
+
 def test_compact_widget_layout_treats_fixed_layouts_as_immutable_obstacles():
     fixed_layout = [
         {"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4}
