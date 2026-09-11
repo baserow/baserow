@@ -5,11 +5,20 @@
     small-label
     required
   >
-    <Alert v-if="!emailAddress" type="warning">
+    <Alert v-if="!defaultValues.email_address" type="warning">
       {{ $t('inboundEmailTriggerServiceForm.notConfigured') }}
     </Alert>
 
     <template v-else>
+      <FormGroup class="margin-bottom-2">
+        <RadioGroup
+          v-model="isPublishedAddress"
+          :options="addressVersions"
+          type="button"
+        >
+        </RadioGroup>
+      </FormGroup>
+
       <a
         v-tooltip="$t('inboundEmailTriggerServiceForm.copyAddress')"
         class="inbound-email-trigger-service-form__copy-address"
@@ -69,11 +78,30 @@ export default {
     return {
       allowedValues: [],
       values: {},
+      // Like the HTTP trigger's `?test=true`, the `test-` prefixed address
+      // targets the draft workflow (a test run) and the bare one the
+      // published workflow. Default to the test address, as the HTTP trigger
+      // form does, since the draft is what the user is editing right here.
+      isPublishedAddress: false,
+      addressVersions: [
+        {
+          value: false,
+          label: this.$t('inboundEmailTriggerServiceForm.addressVersionTest'),
+        },
+        {
+          value: true,
+          label: this.$t(
+            'inboundEmailTriggerServiceForm.addressVersionPublished'
+          ),
+        },
+      ],
     }
   },
   computed: {
     emailAddress() {
-      return this.defaultValues.email_address
+      return this.isPublishedAddress
+        ? this.defaultValues.email_address
+        : this.defaultValues.test_email_address
     },
     maxMessageSizeMb() {
       return this.defaultValues.max_message_size_mb

@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django.core.cache import cache
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 import pytest
 from rest_framework.status import (
@@ -19,6 +22,8 @@ INBOUND_DOMAIN = "inbound.test"
 SECRET = "super-secret-value"
 TOKEN = "a" * 32
 ADDRESS = f"{TOKEN}@{INBOUND_DOMAIN}"
+# Like the HTTP trigger's `?test=true`, this targets the draft workflow.
+TEST_ADDRESS = f"test-{TOKEN}@{INBOUND_DOMAIN}"
 
 
 def get_url():
@@ -209,12 +214,95 @@ def test_draft_workflow_not_started_outside_test_window(api_client, data_fixture
 
     resp = api_client.post(
         get_url(),
+        make_mox_payload(TEST_ADDRESS),
+        format="json",
+        HTTP_AUTHORIZATION=SECRET,
+    )
+
+    # The test address matches the draft service, so the message is accepted,
+    # but the draft workflow is not started because it is not in a test run
+    # window.
+    assert resp.json() == {"status": "accepted"}
+    assert AutomationWorkflowHistory.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+)
+def test_test_address_starts_draft_workflow_in_test_window(api_client, data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        state=WorkflowState.DRAFT,
+        create_trigger=False,
+        allow_test_run_until=timezone.now() + timedelta(minutes=5),
+    )
+    data_fixture.create_inbound_email_trigger_node(
+        workflow=workflow,
+        service_kwargs={"token": TOKEN},
+    )
+
+    resp = api_client.post(
+        get_url(),
+        make_mox_payload(TEST_ADDRESS),
+        format="json",
+        HTTP_AUTHORIZATION=SECRET,
+    )
+
+    assert resp.json() == {"status": "accepted"}
+    assert AutomationWorkflowHistory.objects.count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+)
+def test_bare_address_does_not_reach_a_draft_workflow(api_client, data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        state=WorkflowState.DRAFT,
+        create_trigger=False,
+        allow_test_run_until=timezone.now() + timedelta(minutes=5),
+    )
+    data_fixture.create_inbound_email_trigger_node(
+        workflow=workflow,
+        service_kwargs={"token": TOKEN},
+    )
+
+    resp = api_client.post(
+        get_url(),
         make_mox_payload(ADDRESS),
         format="json",
         HTTP_AUTHORIZATION=SECRET,
     )
 
-    # The message matches a service, so it is accepted, but the draft
-    # workflow is not started because it is not in a test run window.
-    assert resp.json() == {"status": "accepted"}
+    # Only the published version answers to the bare address; there is none.
+    assert resp.json() == {"status": "discarded"}
+    assert AutomationWorkflowHistory.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+)
+def test_test_address_does_not_reach_a_published_workflow(api_client, data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user, state=WorkflowState.LIVE, create_trigger=False
+    )
+    data_fixture.create_inbound_email_trigger_node(
+        workflow=workflow,
+        service_kwargs={"token": TOKEN, "is_public": True},
+    )
+
+    resp = api_client.post(
+        get_url(),
+        make_mox_payload(TEST_ADDRESS),
+        format="json",
+        HTTP_AUTHORIZATION=SECRET,
+    )
+
+    assert resp.json() == {"status": "discarded"}
     assert AutomationWorkflowHistory.objects.count() == 0

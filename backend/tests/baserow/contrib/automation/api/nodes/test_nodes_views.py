@@ -14,6 +14,7 @@ from rest_framework.status import (
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
+    CoreInboundEmailTriggerNodeType,
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
@@ -973,6 +974,36 @@ def test_simulate_dispatch_trigger_node(
 
     assert workflow.simulate_until_node_id == trigger_node.id
     mock_async_start_workflow.assert_not_called()
+
+
+@pytest.mark.django_db()
+@patch(
+    "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
+)
+def test_simulate_dispatch_email_trigger_node_waits_for_an_email(
+    mock_async_start_workflow, api_client, data_fixture
+):
+    # The email trigger is not immediately dispatchable: testing it must arm
+    # the workflow to wait for a message sent to the `test-` address, and must
+    # not fabricate sample data in the meantime.
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(
+        user=user, trigger_type=CoreInboundEmailTriggerNodeType.type
+    )
+    trigger_node = workflow.get_trigger()
+    assert workflow.simulate_until_node is None
+
+    api_kwargs = get_api_kwargs(token)
+    url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
+    response = api_client.post(url, **api_kwargs)
+
+    assert response.status_code == HTTP_202_ACCEPTED
+
+    workflow.refresh_from_db()
+    assert workflow.simulate_until_node_id == trigger_node.id
+    mock_async_start_workflow.assert_not_called()
+    trigger_node.service.refresh_from_db()
+    assert trigger_node.service.specific.sample_data is None
 
 
 @pytest.mark.django_db()

@@ -1,11 +1,22 @@
 # Mox mail server recipes for local development of the "Start workflow by email"
 # automation trigger. Delegated to from the root justfile as `just mox <recipe>`.
 #
-# Typical flow:
-#   just mox init      # one-time (or after a reset): generate + validate config
-#   just mox up        # run the mail server (foreground, Ctrl+C to stop)
-#   just mox address   # print the trigger's inbound address (copy from here)
+# Typical flow (backend running natively with `just dev`):
+#   just mox up               # run the receiver in Docker (foreground, Ctrl+C to stop)
+#   just mox address          # print the trigger's inbound address (copy from here)
 #   just mox send <address>   # send a test email through mox
+#
+# `just mox up` runs the same `email-receiver` role as production from the
+# backend dev image (compose profile "mox"), so nothing has to be installed on
+# the host. It posts webhooks to the natively running backend through
+# host.docker.internal. Once BASEROW_INBOUND_EMAIL_DOMAIN and
+# BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET are set in .env.local, `just dev up`
+# starts the receiver automatically (`just mox up -d`) and `just dev stop`
+# stops it. The fully dockerised stack does the same from .env.docker-dev.
+#
+# Native alternative, if you have the `mox` binary installed (brew install mox):
+#   just mox init             # one-time (or after a reset): generate + validate config
+#   just mox up-native        # run `mox localserve` (foreground, Ctrl+C to stop)
 
 set unstable := true
 
@@ -13,13 +24,18 @@ set unstable := true
 # mox's unix control socket hits the macOS ~104 char sun_path limit otherwise.
 MOX_DIR := "/tmp/baserow-mox"
 
-# SMTP port mox listens on. Deliberately 2025, not localserve's default 1025,
-# which collides with MailHog in the standard Baserow dev stack.
-MOX_SMTP_PORT := "2025"
+# Host port the receiver's SMTP listener is published on. Deliberately 2025, not
+# localserve's default 1025, which collides with MailHog in the standard Baserow
+# dev stack. Override with BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT if 2025 is taken.
+MOX_SMTP_PORT := env_var_or_default("BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT", "2025")
 
 # Load the repo-root .env.local so the mox config uses the SAME inbound domain
 # and webhook secret the backend reads, keeping the two sides in sync.
 _load_env := 'set -a; [ -f .env.local ] && . ./.env.local; set +a'
+
+# The dev compose stack; the receiver lives in docker-compose.dev.yml behind the
+# "mox" profile.
+_dc := 'docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml'
 
 # Show the available mox recipes.
 [doc("List mox recipes")]
@@ -38,34 +54,70 @@ _check-binary:
         exit 1
     fi
 
-# Wipe {{ MOX_DIR }} and generate a fresh, validated mox config for the inbound
-# email trigger. Reads the inbound domain and webhook secret from .env.local,
-# adding sensible defaults there if they are missing so both mox and the backend
-# agree. Safe to re-run: it always starts from a clean directory.
-[doc("Wipe, regenerate and validate the local mox config")]
-init: _check-binary
+# Ensure .env.local carries the two variables both the backend and the receiver
+# need, generating a secret if absent. Appended only when the key is missing.
+_ensure-env:
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
+    if [ -z "${BASEROW_INBOUND_EMAIL_DOMAIN:-}" ]; then
+        echo "BASEROW_INBOUND_EMAIL_DOMAIN=inbound.baserow.local" >> .env.local
+        echo "  + added BASEROW_INBOUND_EMAIL_DOMAIN=inbound.baserow.local to .env.local"
+    fi
+    if [ -z "${BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:-}" ]; then
+        echo "BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET=$(openssl rand -hex 16)" >> .env.local
+        echo "  + added BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET (generated) to .env.local"
+    fi
 
-    # Ensure .env.local carries the two variables the backend needs, generating
-    # a secret if absent. Appended only when the key is not already present.
-    DOMAIN="${BASEROW_INBOUND_EMAIL_DOMAIN:-}"
-    SECRET="${BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:-}"
-    if [ -z "$DOMAIN" ]; then
-        DOMAIN="inbound.baserow.local"
-        if ! grep -q '^BASEROW_INBOUND_EMAIL_DOMAIN=' .env.local 2>/dev/null; then
-            echo "BASEROW_INBOUND_EMAIL_DOMAIN=$DOMAIN" >> .env.local
-            echo "  + added BASEROW_INBOUND_EMAIL_DOMAIN=$DOMAIN to .env.local"
-        fi
+# Run the receiver in Docker from the backend dev image, next to a backend that
+# runs natively on the host. Builds the dev image on first use. Pass -d to run
+# detached (used by `just dev up`).
+[doc("Run the mox receiver in Docker (foreground, Ctrl+C to stop; -d to detach)")]
+up *FLAGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    DETACHED=false
+    for flag in {{ FLAGS }}; do
+        [ "$flag" = "-d" ] && DETACHED=true
+    done
+    just --justfile mox.just _ensure-env
+    {{ _load_env }}
+    if [ ! -f .env.docker-dev ] && [ -f .env.docker-dev.example ]; then
+        cp .env.docker-dev.example .env.docker-dev
     fi
-    if [ -z "$SECRET" ]; then
-        SECRET="$(openssl rand -hex 16)"
-        if ! grep -q '^BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET=' .env.local 2>/dev/null; then
-            echo "BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET=$SECRET" >> .env.local
-            echo "  + added BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET (generated) to .env.local"
-        fi
+    # Build args for the dev image, as `just dc-dev` sets them.
+    if [[ -z "${UID:-}" ]]; then UID=$(id -u); fi; export UID
+    if [[ -z "${GID:-}" ]]; then GID=$(id -g); fi; export GID
+    # The container reaches the host's backend through Docker's host gateway.
+    BACKEND_URL="${PUBLIC_BACKEND_URL:-http://localhost:8000}"
+    BACKEND_URL="${BACKEND_URL/localhost/host.docker.internal}"
+    BACKEND_URL="${BACKEND_URL/127.0.0.1/host.docker.internal}"
+    export BASEROW_INBOUND_EMAIL_WEBHOOK_URL="${BASEROW_INBOUND_EMAIL_WEBHOOK_URL:-${BACKEND_URL%/}/api/inbound-email/}"
+    export BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT="{{ MOX_SMTP_PORT }}"
+    export BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP="${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}"
+    export BASEROW_INBOUND_EMAIL_DOMAIN BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET
+    if ! docker image inspect baserow_backend:dev >/dev/null 2>&1; then
+        echo "Building the backend dev image (first run only, takes a few minutes)..."
+        {{ _dc }} build email-receiver
     fi
+    if [ "$DETACHED" = true ]; then
+        {{ _dc }} --profile mox up -d --no-deps email-receiver
+        echo "Mox receiver started for '$BASEROW_INBOUND_EMAIL_DOMAIN' (SMTP on localhost:{{ MOX_SMTP_PORT }}, webhooks to $BASEROW_INBOUND_EMAIL_WEBHOOK_URL). Logs: docker logs -f baserow-email-receiver-1"
+    else
+        echo "Starting the mox receiver for '$BASEROW_INBOUND_EMAIL_DOMAIN' (SMTP on localhost:{{ MOX_SMTP_PORT }}, webhooks to $BASEROW_INBOUND_EMAIL_WEBHOOK_URL). Press Ctrl+C to stop."
+        exec {{ _dc }} --profile mox up --no-deps email-receiver
+    fi
+
+# Wipe {{ MOX_DIR }} and generate a fresh, validated config for the native
+# `mox localserve` flow. Safe to re-run: it always starts from a clean directory.
+[doc("Native flow: wipe, regenerate and validate the local mox config")]
+init: _check-binary
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just --justfile mox.just _ensure-env
+    {{ _load_env }}
+    DOMAIN="$BASEROW_INBOUND_EMAIL_DOMAIN"
+    SECRET="$BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET"
     WEBHOOK_URL="${BASEROW_INBOUND_EMAIL_WEBHOOK_URL:-}"
     if [ -z "$WEBHOOK_URL" ]; then
         : "${PUBLIC_BACKEND_URL:?Set PUBLIC_BACKEND_URL in .env.local}"
@@ -152,14 +204,14 @@ init: _check-binary
     just --justfile mox.just test
     echo ""
     echo "Mox is configured. Next:"
-    echo "  just mox up                       # start the mail server"
+    echo "  just mox up-native                # start the native mail server"
     echo "  just mox address                  # copy the trigger's inbound address"
     echo "  just mox send <address>           # send a test email"
 
-# Run the mox mail server in the foreground (Ctrl+C to stop). Auto-initialises
-# the config if it does not exist yet.
-[doc("Run the mox mail server (foreground, Ctrl+C to stop)")]
-up: _check-binary
+# Run the native mox mail server in the foreground (Ctrl+C to stop).
+# Auto-initialises the config if it does not exist yet.
+[doc("Native flow: run `mox localserve` (foreground, Ctrl+C to stop)")]
+up-native: _check-binary
     #!/usr/bin/env bash
     set -euo pipefail
     if [ ! -f "{{ MOX_DIR }}/mox.conf" ]; then
@@ -169,19 +221,35 @@ up: _check-binary
     echo "Starting mox (SMTP on localhost:{{ MOX_SMTP_PORT }}). Press Ctrl+C to stop."
     exec mox localserve -dir "{{ MOX_DIR }}"
 
-# Stop a running (e.g. backgrounded) mox localserve for this directory.
-[doc("Stop a running mox localserve")]
+# Stop and remove the Docker receiver only (used by `just dev stop`). Prints
+# nothing when it is not running.
+_down-docker:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f .env.docker-dev ] && {{ _dc }} --profile mox ps -q email-receiver 2>/dev/null | grep -q .; then
+        {{ _dc }} --profile mox rm -sf email-receiver >/dev/null 2>&1
+        echo "Stopped the mox receiver container."
+    fi
+
+# Stop the receiver, whether it runs as the Docker service or as a
+# (backgrounded) native `mox localserve`.
+[doc("Stop the mox receiver (Docker or native)")]
 down:
     #!/usr/bin/env bash
     set -euo pipefail
-    if pkill -f "mox localserve -dir {{ MOX_DIR }}"; then
-        echo "Stopped mox localserve."
-    else
-        echo "No running 'mox localserve -dir {{ MOX_DIR }}' process found."
+    stopped=0
+    if [ -n "$(just --justfile mox.just _down-docker)" ]; then
+        echo "Stopped the mox receiver container."
+        stopped=1
     fi
+    if pkill -f "mox localserve -dir {{ MOX_DIR }}"; then
+        echo "Stopped native mox localserve."
+        stopped=1
+    fi
+    [ "$stopped" = 1 ] || echo "No running mox receiver found."
 
 # Validate the generated mox config.
-[doc("Validate the generated mox config")]
+[doc("Native flow: validate the generated mox config")]
 test:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -192,7 +260,7 @@ test:
     MOXCONF="{{ MOX_DIR }}/mox.conf" mox config test
 
 # Remove the mox config and message store entirely.
-[doc("Remove the mox config and message store")]
+[doc("Native flow: remove the mox config and message store")]
 clean:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -209,7 +277,8 @@ address:
     just manage shell <<'PY' 2>/dev/null | grep '@' || echo "No configured inbound email trigger services found (create one in the UI, or check BASEROW_INBOUND_EMAIL_DOMAIN)."
     from baserow.contrib.integrations.core.models import CoreInboundEmailTriggerService
     for s in CoreInboundEmailTriggerService.objects.all():
-        addr = s.email_address
+        # The draft is reached through the `test-` prefixed address.
+        addr = s.email_address if s.is_public else s.test_email_address
         if addr:
             print(f"{addr}  (service {s.id}, {'published' if s.is_public else 'draft'})")
     PY

@@ -400,6 +400,25 @@ class CoreInboundEmailTriggerService(Service):
         return f"{self.token}@{settings.INBOUND_EMAIL_DOMAIN}"
 
     @property
+    def test_email_address(self) -> str | None:
+        """
+        The `test-` prefixed address that targets the draft version of the
+        workflow (a test run) instead of the published one, or None when the
+        instance has no inbound email domain configured.
+        """
+
+        from baserow.contrib.integrations.core.inbound_email import (
+            INBOUND_EMAIL_TEST_PREFIX,
+        )
+
+        if not settings.INBOUND_EMAIL_DOMAIN:
+            return None
+
+        return (
+            f"{INBOUND_EMAIL_TEST_PREFIX}{self.token}@{settings.INBOUND_EMAIL_DOMAIN}"
+        )
+
+    @property
     def max_message_size_mb(self) -> int:
         """
         The largest email, in MB, the instance's inbound mail server accepts.

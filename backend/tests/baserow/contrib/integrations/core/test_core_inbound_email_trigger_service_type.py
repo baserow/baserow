@@ -46,9 +46,11 @@ def test_email_address_property(data_fixture):
     service = data_fixture.create_core_inbound_email_trigger_service(token=TOKEN)
 
     assert service.email_address == f"{TOKEN}@inbound.test"
+    assert service.test_email_address == f"test-{TOKEN}@inbound.test"
 
     with override_settings(INBOUND_EMAIL_DOMAIN=""):
         assert service.email_address is None
+        assert service.test_email_address is None
 
 
 @pytest.mark.django_db
@@ -71,6 +73,7 @@ def test_serializer_exposes_address_and_size_limit_read_only(data_fixture):
         data = service_type_registry.get_serializer(service, ServiceSerializer).data
 
     assert data["email_address"] == f"{TOKEN}@inbound.test"
+    assert data["test_email_address"] == f"test-{TOKEN}@inbound.test"
     assert data["max_message_size_mb"] == 40
 
     # Both values describe the instance, not the service, so they must not be
@@ -79,6 +82,7 @@ def test_serializer_exposes_address_and_size_limit_read_only(data_fixture):
         service, ServiceSerializer, request=True
     ).data
     assert "email_address" not in request_data
+    assert "test_email_address" not in request_data
     assert "max_message_size_mb" not in request_data
 
 
@@ -89,12 +93,66 @@ def test_process_inbound_email_raises_if_unknown_token(data_fixture):
 
 
 @pytest.mark.django_db
-def test_process_inbound_email_dispatches_all_matching_services(data_fixture):
+@pytest.mark.parametrize(
+    "is_public,simulate",
+    [
+        (True, True),
+        (False, False),
+    ],
+)
+def test_process_inbound_email_raises_if_no_service_of_that_version(
+    data_fixture, is_public, simulate
+):
+    # Like the HTTP trigger's `?test=true`: the `test-` address only reaches
+    # the draft, the bare address only the published version.
+    data_fixture.create_core_inbound_email_trigger_service(
+        token=TOKEN, is_public=is_public
+    )
+
+    with pytest.raises(CoreInboundEmailTriggerServiceDoesNotExist):
+        CoreInboundEmailTriggerServiceType().process_inbound_email(
+            TOKEN, make_email(), simulate=simulate
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "is_public,simulate",
+    [
+        (True, False),
+        (False, True),
+    ],
+)
+def test_process_inbound_email_dispatches_only_the_targeted_version(
+    data_fixture, is_public, simulate
+):
     trigger_node = data_fixture.create_inbound_email_trigger_node(
         service_kwargs={"token": TOKEN},
     )
     draft_service = trigger_node.service.specific
     published_service = data_fixture.create_core_inbound_email_trigger_service(
+        token=TOKEN, is_public=True
+    )
+    expected = published_service if is_public else draft_service
+
+    service_type = CoreInboundEmailTriggerServiceType()
+    service_type.on_event = MagicMock()
+
+    service_type.process_inbound_email(TOKEN, make_email(), simulate=simulate)
+
+    services, event_payload = service_type.on_event.call_args.args
+    assert [service.id for service in services] == [expected.id]
+    payload = event_payload(expected)
+    assert payload["subject"] == "Hello"
+    assert payload["from"] == {"name": "Ada", "address": "ada@example.com"}
+
+
+@pytest.mark.django_db
+def test_process_inbound_email_uses_the_latest_published_service(data_fixture):
+    # Publishing can keep the previous published service around for a while;
+    # both share the token, so the newest one must win.
+    data_fixture.create_core_inbound_email_trigger_service(token=TOKEN, is_public=True)
+    latest = data_fixture.create_core_inbound_email_trigger_service(
         token=TOKEN, is_public=True
     )
 
@@ -103,14 +161,8 @@ def test_process_inbound_email_dispatches_all_matching_services(data_fixture):
 
     service_type.process_inbound_email(TOKEN, make_email())
 
-    services, event_payload = service_type.on_event.call_args.args
-    assert {service.id for service in services} == {
-        draft_service.id,
-        published_service.id,
-    }
-    payload = event_payload(draft_service)
-    assert payload["subject"] == "Hello"
-    assert payload["from"] == {"name": "Ada", "address": "ada@example.com"}
+    services, _ = service_type.on_event.call_args.args
+    assert [service.id for service in services] == [latest.id]
 
 
 @pytest.mark.django_db

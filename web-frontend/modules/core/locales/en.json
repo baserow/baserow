@@ -1314,6 +1314,8 @@
   },
   "inboundEmailTriggerServiceForm": {
     "title": "Email address",
+    "addressVersionTest": "Test",
+    "addressVersionPublished": "Published",
     "copyAddress": "Copy email address",
     "description": "Any email sent to this address will start the workflow with the email's sender, subject, body and attachment details as the payload.",
     "limits": "Emails up to {size} MB are accepted. Attachments are not stored: only their name, type and size are included in the payload.",

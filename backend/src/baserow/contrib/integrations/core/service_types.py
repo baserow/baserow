@@ -2198,6 +2198,7 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     serializer_field_names = [
         "token",
         "email_address",
+        "test_email_address",
         "max_message_size_mb",
         "is_public",
     ]
@@ -2206,6 +2207,13 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             read_only=True,
             allow_null=True,
             help_text="The generated inbound email address of this trigger, or "
+            "null when the instance has no inbound email domain configured.",
+        ),
+        "test_email_address": serializers.CharField(
+            read_only=True,
+            allow_null=True,
+            help_text="The `test-` prefixed inbound email address that starts a "
+            "test run of the draft workflow instead of the published one, or "
             "null when the instance has no inbound email domain configured.",
         ),
         "max_message_size_mb": serializers.IntegerField(
@@ -2248,30 +2256,43 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
 
         return super().prepare_values(values, user, instance)
 
-    def process_inbound_email(self, token: str, email: InboundEmail) -> None:
+    def process_inbound_email(
+        self, token: str, email: InboundEmail, simulate: bool = False
+    ) -> None:
         """
-        Finds the CoreInboundEmailTriggerService instances matching the provided
-        token and calls the on_event handler for them with the email payload.
-        The email is passed through as-is; the trigger doesn't care which
-        provider sent or forwarded it.
+        Finds the CoreInboundEmailTriggerService matching the provided token and
+        calls the on_event handler for it with the email payload. The email is
+        passed through as-is; the trigger doesn't care which provider sent or
+        forwarded it.
 
-        Both the draft and the published version of a service share the same
-        token, so all matches are passed to on_event, which only starts
-        workflows that are live, in a test run window, or being simulated.
+        The draft and the published version of a service share the same token,
+        so `simulate` decides which one is targeted, exactly like the HTTP
+        trigger's `?test=true`: the `test-` prefixed address reaches the draft,
+        the bare one the published version.
 
         :param token: The token extracted from the recipient address.
         :param email: The normalized inbound email.
+        :param simulate: True when the message was sent to the `test-` address,
+            targeting the draft version of the service; False targets the
+            published version.
         :raises CoreInboundEmailTriggerServiceDoesNotExist: When the token doesn't
-            match any service.
+            match a service of the requested version.
         """
 
-        services = list(self.model_class.objects.filter(token=token))
+        # When the service is published, the previous published service may be
+        # kept (e.g. see `AutomationWorkflowHandler::publish()`). Since the
+        # token is the same between the two, only the latest one is used.
+        service = (
+            self.model_class.objects.filter(token=token, is_public=not simulate)
+            .order_by("-id")
+            .first()
+        )
 
-        if not services:
+        if not service:
             raise CoreInboundEmailTriggerServiceDoesNotExist(token)
 
         payload = email.to_payload()
-        self.on_event(services, lambda service: payload)
+        self.on_event([service], lambda service: payload)
 
     def dispatch_data(
         self,

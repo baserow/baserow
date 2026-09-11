@@ -89,3 +89,8 @@ try:
     from .local import *  # noqa: F403, F401
 except ImportError:
     pass
+
+# Containers in the dev stack, such as the opt-in inbound email receiver started
+# by `just mox up`, reach a natively running backend through Docker's host
+# alias. Dev only: production deployments set PRIVATE_BACKEND_URL instead.
+ALLOWED_HOSTS.append("host.docker.internal")  # noqa: F405
