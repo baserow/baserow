@@ -498,6 +498,9 @@ def create_tables(
         user, tables, created_tables, tool_helpers, formula_fixer
     )
 
+    # A link_row or lookup to an existing table adds a reverse field there.
+    _refresh_row_tools(ctx)
+
     last_table = created_tables[-1]
     tool_helpers.navigate_to(
         TableNavigationType(
@@ -584,16 +587,19 @@ def create_fields(
         created_fields, field_errors, formula_errors = helpers.create_fields(
             user, table, fields, tool_helpers, formula_fixer=formula_fixer
         )
-        result = {"created_fields": [field.model_dump() for field in created_fields]}
-        if field_errors:
-            result["field_errors"] = field_errors
-        if formula_errors:
-            for err in formula_errors:
-                err["hint"] = (
-                    "Use generate_formula to create a valid formula for this field."
-                )
-            result["formula_errors"] = formula_errors
-        return result
+
+    _refresh_row_tools(ctx)
+
+    result = {"created_fields": [field.model_dump() for field in created_fields]}
+    if field_errors:
+        result["field_errors"] = field_errors
+    if formula_errors:
+        for err in formula_errors:
+            err["hint"] = (
+                "Use generate_formula to create a valid formula for this field."
+            )
+        result["formula_errors"] = formula_errors
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -649,6 +655,8 @@ def update_fields(
             except Exception as e:
                 errors.append(f"Error updating field {field_update.field_id}: {e}")
 
+    _refresh_row_tools(ctx)
+
     result: dict[str, Any] = {"updated_fields": updated}
     if errors:
         result["errors"] = errors
@@ -701,6 +709,8 @@ def delete_fields(
                 deleted.append(field_id)
             except Exception as e:
                 errors.append(f"Error deleting field {field_id}: {e}")
+
+    _refresh_row_tools(ctx)
 
     result: dict[str, Any] = {"deleted_field_ids": deleted}
     if errors:
@@ -1074,6 +1084,9 @@ def generate_formula(
                 }
             )
 
+        # Saving over a non-formula field trashes it, changing the row schema.
+        _refresh_row_tools(ctx)
+
     return data
 
 
@@ -1130,6 +1143,7 @@ def _build_row_tools(
     create_rows_tool = Tool(
         _create_rows,
         name=f"create_rows_in_table_{table.id}",
+        metadata={"table_id": table.id},
         description=(
             f"WHEN: Creating new rows in '{table.name}' (ID: {table.id}). "
             f"WHAT: Inserts rows with field values matching the table schema. "
@@ -1172,6 +1186,7 @@ def _build_row_tools(
     update_rows_tool = Tool(
         _update_rows,
         name=f"update_rows_in_table_{table.id}",
+        metadata={"table_id": table.id},
         description=(
             f"WHEN: Updating existing rows in '{table.name}' (ID: {table.id}) by row ID. "
             f"WHAT: Updates specified fields on up to 20 rows. Only include fields you want to change — omit fields to keep them unchanged. "
@@ -1206,6 +1221,7 @@ def _build_row_tools(
     delete_rows_tool = Tool(
         _delete_rows,
         name=f"delete_rows_in_table_{table.id}",
+        metadata={"table_id": table.id},
         description=(
             f"WHEN: Deleting rows from '{table.name}' (ID: {table.id}) by row ID. "
             f"WHAT: Permanently removes up to 20 specified rows. "
@@ -1219,6 +1235,51 @@ def _build_row_tools(
         "update": update_rows_tool,
         "delete": delete_rows_tool,
     }
+
+
+def _refresh_row_tools(ctx: RunContext[AssistantDeps]) -> None:
+    """
+    Rebuild the loaded row tools so their schema matches the table's fields.
+
+    Row tools bake the table schema into their signature when loaded, so a field
+    change leaves them rejecting new fields or writing to dropped columns. Every
+    loaded table is rebuilt, because a link_row field also adds a reverse field
+    to the table it points at.
+
+    :param ctx: The run context holding the dynamic tool registry.
+    """
+
+    dynamic_tools = ctx.deps.dynamic_tools
+    if not dynamic_tools:
+        return
+
+    table_ids = {
+        tool.metadata["table_id"]
+        for tool in dynamic_tools
+        if tool.metadata and "table_id" in tool.metadata
+    }
+    tables = helpers.filter_tables(ctx.deps.user, ctx.deps.workspace).filter(
+        id__in=table_ids
+    )
+
+    rebuilt: dict[str, Tool] = {}
+    for table in tables:
+        try:
+            row_tools = _build_row_tools(
+                ctx.deps.user, ctx.deps.workspace, ctx.deps.tool_helpers, table
+            )
+        except Exception:
+            # Raising would fail a field change that already succeeded.
+            logger.exception(
+                "[assistant] could not refresh row tools for table {}", table.id
+            )
+            continue
+        # delete_rows takes row IDs only, so its signature cannot go stale.
+        rebuilt.update(
+            {row_tools[op].name: row_tools[op] for op in ("create", "update")}
+        )
+
+    dynamic_tools[:] = [rebuilt.get(tool.name, tool) for tool in dynamic_tools]
 
 
 # ---------------------------------------------------------------------------
@@ -1247,7 +1308,8 @@ def load_row_tools(
     WHEN to use: You need to directly create, update, or delete rows in a database table. Must be called before any row manipulation.
     WHAT it does: Unlocks table-specific tools and their schema: create_rows_in_table_X, update_rows_in_table_X, delete_rows_in_table_X for each table ID provided. The loaded tools include the full field schema — no need to call get_tables_schema.
     RETURNS: Names of newly available tools.
-    DO NOT USE when: Row tools for these tables are already loaded from a previous call in this session.
+    DO NOT USE when: Row tools for these tables are already loaded and no field has changed since — one call per table is enough.
+    AFTER A SCHEMA CHANGE: create_fields, update_fields and delete_fields refresh the loaded row tools automatically, so no reload is needed. If a row tool still rejects a field you just created, call this again: reloading replaces the stale tools with ones matching the current schema.
     DO NOT USE for builder workflow actions — if you want a button/form in an Application Builder page to create/update/delete rows, use create_actions instead. load_row_tools is for direct database manipulation, NOT for configuring app behavior.
     HOW: Just call this with the table ID(s) and operations you need. The loaded row tools already contain the complete field schema in their parameters — do NOT call get_tables_schema or search_user_docs before or after this tool.
 
