@@ -432,9 +432,8 @@ class WidgetService:
             # geometry and is not a client-supplied layout to validate.
             layout_by_widget_id = {item["id"]: item for item in layout}
         else:
-            _, layout_by_widget_id = remaining_layout_handler.merge_delta(
-                layout,
-                enforce_vertical_bound=False,
+            layout_by_widget_id = remaining_layout_handler.validate_restored_delta(
+                layout
             )
 
         layout_delta = remaining_layout_handler.apply(
@@ -534,9 +533,9 @@ class WidgetService:
         )
 
         widgets = self.handler.get_widgets_for_update(dashboard)
-        layout_delta = WidgetLayoutHandler(widgets).apply_delta(
-            layout,
-            enforce_vertical_bound=False,
+        layout_handler = WidgetLayoutHandler(widgets)
+        layout_delta = layout_handler.apply(
+            layout_handler.validate_restored_delta(layout)
         )
         updated_layout = self._layout_update_result(
             user,
