@@ -75,7 +75,7 @@
 }
 
 .dashboard-widget--selected {
-  border: 1.5px solid #4e5cfe;
+  border: 1.5px solid $palette-blue-500;
 }
 
 .dashboard-widget--selectable {
@@ -109,7 +109,7 @@
   font-weight: 500;
   line-height: 12px;
   letter-spacing: 0.2px;
-  background-color: #4e5cfe;
+  background-color: $palette-blue-500;
   color: $white;
   cursor: default;
   padding: 4px 8px;
@@ -160,7 +160,7 @@ body.dashboard-widget-grid--resizing * {
   .dashboard-widget.dashboard-widget--layout-editable {
   border-width: 1.5px;
   border-style: solid;
-  border-color: #4e5cfe;
+  border-color: $palette-blue-500;
   background-color: $palette-blue-50;
 }
 
@@ -231,6 +231,6 @@ body.dashboard-widget-grid--resizing * {
   }
 
   &__item--snap-resizing .vgl-item__resizer {
-    color: #4e5cfe;
+    color: $palette-blue-500;
   }
 }
