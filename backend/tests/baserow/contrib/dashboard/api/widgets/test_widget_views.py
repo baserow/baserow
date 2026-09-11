@@ -800,6 +800,39 @@ def test_update_widget_layout_rejects_grid_y_beyond_total_layout_height(
 
 
 @pytest.mark.django_db
+def test_update_widget_layout_keeps_a_widget_below_a_full_width_row(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widgets = [
+        WidgetService().create_widget(user, "summary", dashboard.id, title=str(index))
+        for index in range(3)
+    ]
+    layout = [
+        {
+            "id": widget.id,
+            "grid_x": grid_x,
+            "grid_y": grid_y,
+            "grid_width": width,
+            "grid_height": 4,
+        }
+        for widget, (grid_x, grid_y, width) in zip(
+            widgets, [(0, 0, 2), (0, 4, 6), (2, 8, 2)], strict=True
+        )
+    ]
+    url = reverse("api:dashboard:widgets:layout", kwargs={"dashboard_id": dashboard.id})
+    response = api_client.patch(
+        url, {"widgets": layout}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert [item["grid_y"] for item in response.json()] == [0, 4, 8]
+    widgets[2].refresh_from_db()
+    assert (widgets[2].grid_x, widgets[2].grid_y) == (2, 8)
+
+
+@pytest.mark.django_db
 def test_update_widget_layout_rejects_collisions(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     dashboard = data_fixture.create_dashboard_application(user=user)

@@ -1,9 +1,9 @@
 import type { Locator, Page } from '@playwright/test'
 
+import type { Dashboard } from '../../fixtures/dashboard/dashboard'
 import {
   createDashboard,
   createSummaryWidget,
-  Dashboard,
   getDashboardWidgets,
   updateDashboardWidgetLayout,
 } from '../../fixtures/dashboard/dashboard'
@@ -36,6 +36,7 @@ async function dragBy(
   deltaX: number,
   deltaY: number
 ) {
+  await source.hover()
   const box = await source.boundingBox()
   if (!box) {
     throw new Error('Could not measure the dashboard widget drag source')
@@ -53,9 +54,7 @@ function waitForWidgetLayoutUpdate(page: Page, dashboard: Dashboard) {
   return page.waitForResponse(
     (response) =>
       response.request().method() === 'PATCH' &&
-      response
-        .url()
-        .includes(`/dashboard/${dashboard.id}/widgets/layout/`)
+      response.url().includes(`/dashboard/${dashboard.id}/widgets/layout/`)
   )
 }
 
@@ -323,6 +322,53 @@ test.describe('Dashboard widget grid', () => {
       .toBeGreaterThan(0)
 
     await observerPage.close()
+  })
+
+  test('keeps a dragged widget below a full-width row after saving and reloading', async ({
+    page,
+    workspacePage,
+  }) => {
+    const dashboard = await createDashboard(
+      'Dashboard full-width row',
+      workspacePage.workspace
+    )
+    const first = await createSummaryWidget(dashboard, 'First widget')
+    const fullWidth = await createSummaryWidget(dashboard, 'Full-width widget')
+    const moved = await createSummaryWidget(dashboard, 'Moved widget')
+    await updateDashboardWidgetLayout(dashboard, [
+      { id: first.id, grid_x: 0, grid_y: 0, grid_width: 2, grid_height: 4 },
+      { id: fullWidth.id, grid_x: 0, grid_y: 4, grid_width: 6, grid_height: 4 },
+      { id: moved.id, grid_x: 2, grid_y: 0, grid_width: 2, grid_height: 4 },
+    ])
+
+    await goToDashboard(page, dashboard)
+    await enterEditMode(page)
+    const response = waitForWidgetLayoutUpdate(page, dashboard)
+    await dragBy(
+      page,
+      page
+        .getByTestId(`dashboard-widget-${moved.id}`)
+        .locator('.widget__header'),
+      0,
+      8 * (24 + 16)
+    )
+    expect((await response).ok()).toBeTruthy()
+    await expectWidgetLayout(dashboard, moved.id, { grid_x: 2, grid_y: 8 })
+
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect
+      .poll(async () => {
+        const movedBox = await page
+          .getByTestId(`dashboard-widget-grid-item-${moved.id}`)
+          .boundingBox()
+        const fullWidthBox = await page
+          .getByTestId(`dashboard-widget-grid-item-${fullWidth.id}`)
+          .boundingBox()
+        return movedBox && fullWidthBox
+          ? movedBox.y - fullWidthBox.y - fullWidthBox.height
+          : null
+      })
+      .toBeGreaterThan(0)
   })
 
   test('keeps the canonical desktop layout when deleting from a tablet layout', async ({

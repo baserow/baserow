@@ -66,7 +66,7 @@ def compact_widget_layout(
     layouts: Iterable[Mapping[str, int]],
     fixed_layouts: Iterable[Mapping[str, int]] = (),
 ) -> list[dict[str, int]]:
-    """Vertically compacts layouts while preserving their horizontal geometry.
+    """Vertically compacts layouts without crossing widgets in overlapping columns.
 
     Layouts are processed top-to-bottom, then left-to-right, to make the result
     deterministic independently from the browser grid implementation. Fixed layouts
@@ -81,7 +81,18 @@ def compact_widget_layout(
         key=lambda layout: (layout["grid_y"], layout["grid_x"], layout["id"]),
     ):
         layout = dict(source_layout)
-        layout["grid_y"] = 0
+        preceding_layouts = chain(
+            compacted_layout,
+            (other for other in fixed_layout if other["grid_y"] < layout["grid_y"]),
+        )
+        layout["grid_y"] = max(
+            (
+                other["grid_y"] + other["grid_height"]
+                for other in preceding_layouts
+                if horizontal_ranges_overlap(layout, other)
+            ),
+            default=0,
+        )
         layout["grid_y"] = get_non_overlapping_grid_y(
             layout, chain(fixed_layout, compacted_layout)
         )
