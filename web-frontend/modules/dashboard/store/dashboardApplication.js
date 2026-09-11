@@ -543,8 +543,7 @@ export const actions = {
         const shouldDispatch =
           !existingDataSource ||
           !existingData ||
-          Object.keys(existingData).length === 0 ||
-          existingData._error === true
+          Object.keys(existingData).length === 0
         return shouldDispatch ? [dataSource.id] : []
       })
     )

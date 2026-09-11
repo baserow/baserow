@@ -6,6 +6,69 @@ import {
 import { baserowConfig } from "../../playwright.config";
 import { expect, test } from "../baserowTest";
 
+test("keeps unconfigured widgets visible while creating another widget", async ({
+  page,
+  workspacePage,
+}) => {
+  test.setTimeout(60_000);
+  const dashboard = await createDashboard(
+    "Dashboard widget creation loading",
+    workspacePage.workspace
+  );
+  const widget = await createSummaryWidget(dashboard, "Unconfigured widget");
+  await page.goto(
+    `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/dashboard/${dashboard.id}`
+  );
+  const existingCard = page.getByTestId(`dashboard-widget-${widget.id}`);
+  await expect(
+    existingCard.locator(".dashboard-widget__configuration-status")
+  ).toBeVisible();
+  await page.getByText("Edit mode", { exact: true }).click();
+
+  let releaseDispatches!: () => void;
+  const dispatchesReady = new Promise<void>((resolve) => {
+    releaseDispatches = resolve;
+  });
+  let pendingDispatches = 0;
+  await page.route(
+    "**/api/dashboard/data-sources/*/dispatch/",
+    async (route) => {
+      pendingDispatches += 1;
+      await dispatchesReady;
+      await route.continue();
+    }
+  );
+
+  try {
+    await page.getByRole("button", { name: "Add widget", exact: true }).click();
+    const creationResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith(`/dashboard/${dashboard.id}/widgets/`)
+    );
+    await page
+      .locator(".create-widget-card")
+      .filter({ hasText: "Summary" })
+      .click();
+    const createdWidget = await (await creationResponse).json();
+    const newCard = page.getByTestId(`dashboard-widget-${createdWidget.id}`);
+    await expect.poll(() => pendingDispatches).toBeGreaterThan(0);
+    await expect(newCard).toHaveClass(/skeleton-loading/);
+    await expect(existingCard).not.toHaveClass(/skeleton-loading/);
+    await expect(existingCard.locator(".widget__header")).toBeVisible();
+    await expect(
+      existingCard.locator(".dashboard-widget__configuration-status")
+    ).toBeVisible();
+
+    releaseDispatches();
+    await expect(newCard).not.toHaveClass(/skeleton-loading/);
+    await expect(newCard.locator(".widget__header")).toBeVisible();
+  } finally {
+    releaseDispatches();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
 for (const width of [1920, 1200, 900]) {
   test(`keeps loading widgets at their final size and position at ${width}px`, async ({
     page,
