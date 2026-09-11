@@ -56,7 +56,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 # =============================================================================
 # Builder for mox (inbound SMTP receiver for the email trigger feature)
 # =============================================================================
-FROM golang:1.23-bookworm AS mox-builder
+FROM golang:1.25-bookworm AS mox-builder
 ARG MOX_VERSION=v0.0.17
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

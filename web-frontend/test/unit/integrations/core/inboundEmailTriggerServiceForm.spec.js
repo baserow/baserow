@@ -29,7 +29,26 @@ const CopiedStub = defineComponent({
   template: '<div class="copied-stub" />',
 })
 
+const RadioGroupStub = defineComponent({
+  name: 'RadioGroup',
+  props: ['modelValue', 'options'],
+  emits: ['update:modelValue'],
+  template: `
+    <div class="radio-group-stub">
+      <button
+        v-for="option in options"
+        :key="String(option.value)"
+        class="radio-option-stub"
+        @click="$emit('update:modelValue', option.value)"
+      >
+        {{ option.label }}
+      </button>
+    </div>
+  `,
+})
+
 const EMAIL_ADDRESS = `${'a'.repeat(32)}@inbound.baserow.io`
+const TEST_EMAIL_ADDRESS = `test-${EMAIL_ADDRESS}`
 
 async function mountComponent({ defaultValues = {} } = {}) {
   return await mountSuspended(CoreInboundEmailTriggerServiceForm, {
@@ -42,6 +61,7 @@ async function mountComponent({ defaultValues = {} } = {}) {
         Alert: AlertStub,
         Button: ButtonStub,
         Copied: CopiedStub,
+        RadioGroup: RadioGroupStub,
       },
       mocks: {
         // Render the key plus any interpolation params so tests can assert
@@ -54,18 +74,48 @@ async function mountComponent({ defaultValues = {} } = {}) {
 }
 
 describe('Core email trigger service form', () => {
-  test('renders the generated email address', async () => {
+  test('renders the test address by default, like the HTTP trigger', async () => {
     const wrapper = await mountComponent({
-      defaultValues: { email_address: EMAIL_ADDRESS },
+      defaultValues: {
+        email_address: EMAIL_ADDRESS,
+        test_email_address: TEST_EMAIL_ADDRESS,
+      },
     })
 
-    expect(wrapper.text()).toContain(EMAIL_ADDRESS)
+    expect(wrapper.find('code').text()).toBe(TEST_EMAIL_ADDRESS)
     expect(wrapper.find('.alert-stub').exists()).toBe(false)
+  })
+
+  test('switches to the published address', async () => {
+    const wrapper = await mountComponent({
+      defaultValues: {
+        email_address: EMAIL_ADDRESS,
+        test_email_address: TEST_EMAIL_ADDRESS,
+      },
+    })
+
+    const [testOption, publishedOption] = wrapper.findAll('.radio-option-stub')
+    expect(testOption.text()).toBe(
+      'inboundEmailTriggerServiceForm.addressVersionTest'
+    )
+    expect(publishedOption.text()).toBe(
+      'inboundEmailTriggerServiceForm.addressVersionPublished'
+    )
+
+    await publishedOption.trigger('click')
+    expect(wrapper.find('code').text()).toBe(EMAIL_ADDRESS)
+
+    await testOption.trigger('click')
+    expect(wrapper.find('code').text()).toBe(TEST_EMAIL_ADDRESS)
   })
 
   test('shows the size limit and attachment note when the limit is known', async () => {
     const wrapper = await mountComponent({
-      defaultValues: { email_address: EMAIL_ADDRESS, max_message_size_mb: 25 },
+      defaultValues: {
+        email_address: EMAIL_ADDRESS,
+        test_email_address: TEST_EMAIL_ADDRESS,
+        max_message_size_mb: 25,
+      },
     })
 
     expect(wrapper.text()).toContain(
@@ -75,7 +125,10 @@ describe('Core email trigger service form', () => {
 
   test('hides the size limit note when the limit is unknown', async () => {
     const wrapper = await mountComponent({
-      defaultValues: { email_address: EMAIL_ADDRESS },
+      defaultValues: {
+        email_address: EMAIL_ADDRESS,
+        test_email_address: TEST_EMAIL_ADDRESS,
+      },
     })
 
     expect(wrapper.text()).not.toContain(
@@ -97,7 +150,10 @@ describe('Core email trigger service form', () => {
 
   test('regenerate button emits values-changed with the regenerate flag', async () => {
     const wrapper = await mountComponent({
-      defaultValues: { email_address: EMAIL_ADDRESS },
+      defaultValues: {
+        email_address: EMAIL_ADDRESS,
+        test_email_address: TEST_EMAIL_ADDRESS,
+      },
     })
 
     await wrapper.find('.button-stub').trigger('click')

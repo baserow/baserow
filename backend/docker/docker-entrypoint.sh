@@ -433,6 +433,10 @@ case "$1" in
       fi
       /baserow/backend/docker/generate-mox-config.sh
       MOX_DATA_DIR="${BASEROW_INBOUND_EMAIL_DATA_DIR:-/baserow/data/mox}"
+      # Mox "fixes" the ownership and mode of its working directory on start.
+      # Run it from its own data directory so that never touches the backend
+      # code directory, which is a bind-mounted checkout in the dev stack.
+      cd "$MOX_DATA_DIR"
       exec /usr/local/bin/mox -config "$MOX_DATA_DIR/config/mox.conf" serve
     ;;
     email-receiver-healthcheck)
