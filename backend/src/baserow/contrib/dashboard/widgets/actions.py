@@ -238,11 +238,16 @@ class UpdateWidgetLayoutActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
-        WidgetService().update_widget_layout(
+        updated_layout = WidgetService().replay_widget_layout(
             user,
             params.dashboard_id,
-            params.original_layout,
-            enforce_vertical_bound=False,
+            WidgetLayoutDelta(params.new_layout, params.original_layout),
+        )
+        action_to_undo.params["new_layout"] = (
+            updated_layout.layout_delta.original_layout
+        )
+        action_to_undo.params["original_layout"] = (
+            updated_layout.layout_delta.new_layout
         )
 
     @classmethod
@@ -252,12 +257,15 @@ class UpdateWidgetLayoutActionType(UndoableActionType):
         params: Params,
         action_to_redo: Action,
     ):
-        WidgetService().update_widget_layout(
+        updated_layout = WidgetService().replay_widget_layout(
             user,
             params.dashboard_id,
-            params.new_layout,
-            enforce_vertical_bound=False,
+            WidgetLayoutDelta(params.original_layout, params.new_layout),
         )
+        action_to_redo.params["original_layout"] = (
+            updated_layout.layout_delta.original_layout
+        )
+        action_to_redo.params["new_layout"] = updated_layout.layout_delta.new_layout
 
 
 class DeleteWidgetActionType(UndoableActionType):

@@ -184,6 +184,27 @@ class WidgetLayoutHandler:
             enforce_vertical_bound=enforce_vertical_bound,
         )
 
+    def _get_replayable_layout(
+        self, recorded_delta: WidgetLayoutDelta
+    ) -> list[WidgetLayoutDict]:
+        """Selects recorded changes whose expected geometry still matches.
+
+        A newly restored widget has no expected geometry. Deleted widgets and
+        widgets edited since the recorded action are excluded.
+        """
+
+        current_by_id = {item["id"]: item for item in self.current_layout}
+        previous_by_id = {item["id"]: item for item in recorded_delta.original_layout}
+        return [
+            item
+            for item in recorded_delta.new_layout
+            if item["id"] in current_by_id
+            and (
+                item["id"] not in previous_by_id
+                or current_by_id[item["id"]] == previous_by_id[item["id"]]
+            )
+        ]
+
     def validate_restored_delta(
         self, recorded_delta: WidgetLayoutDelta
     ) -> dict[int, WidgetLayoutDict]:
@@ -194,20 +215,10 @@ class WidgetLayoutHandler:
         geometry. Otherwise preserve its newer edit, subject to collision recovery.
         """
 
-        current_by_id = {item["id"]: item for item in self.current_layout}
-        previous_by_id = {item["id"]: item for item in recorded_delta.original_layout}
-        restored_layout = [
-            item
-            for item in recorded_delta.new_layout
-            if item["id"] in current_by_id
-            and (
-                item["id"] not in previous_by_id
-                or current_by_id[item["id"]] == previous_by_id[item["id"]]
-            )
-        ]
+        restored_layout = self._get_replayable_layout(recorded_delta)
         restored_ids = {item["id"] for item in restored_layout}
         current_layouts = [
-            item for item in current_by_id.values() if item["id"] not in restored_ids
+            item for item in self.current_layout if item["id"] not in restored_ids
         ]
         displaced_layout = resolve_widget_layout_collisions(
             current_layouts, restored_layout
@@ -276,18 +287,34 @@ class WidgetLayoutHandler:
 
         return layout_delta
 
-    def apply_delta(
+    def apply_recorded_delta(
         self,
-        layout_delta: list[WidgetLayoutDict],
+        recorded_delta: WidgetLayoutDelta,
         *,
-        enforce_vertical_bound: bool = True,
-        allowed_widget_ids: set[int] | None = None,
+        allowed_widget_ids: set[int],
     ) -> WidgetLayoutDelta:
-        """Merges a partial layout into the locked state and persists its delta."""
+        """Replays still-current changes around all preserved widget positions.
 
+        Hidden widgets and newer edits are fixed obstacles. Only the replayed
+        widgets can move to resolve collisions, and the actual delta is returned
+        so the next undo/redo reverses exactly the changes made here.
+        """
+
+        replayed_layout = [
+            item
+            for item in self._get_replayable_layout(recorded_delta)
+            if item["id"] in allowed_widget_ids
+        ]
+        replayed_ids = {item["id"] for item in replayed_layout}
+        fixed_layout = [
+            item for item in self.current_layout if item["id"] not in replayed_ids
+        ]
+        resolved_layout = resolve_widget_layout_collisions(
+            replayed_layout, fixed_layout
+        )
         original_layout, layout_by_widget_id = self.merge_delta(
-            layout_delta,
-            enforce_vertical_bound=enforce_vertical_bound,
+            resolved_layout,
+            enforce_vertical_bound=False,
         )
         return self.apply(
             layout_by_widget_id,

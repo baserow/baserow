@@ -301,13 +301,11 @@ class WidgetService:
         return updated_widget
 
     @transaction.atomic
-    def update_widget_layout(
+    def replay_widget_layout(
         self,
         user: AbstractUser,
         dashboard_id: int,
-        layout: list[WidgetLayoutDict],
-        *,
-        enforce_vertical_bound: bool = True,
+        recorded_delta: WidgetLayoutDelta,
     ) -> UpdatedWidgetLayout:
         """Replays recorded geometry only for widgets still visible to the user."""
 
@@ -315,10 +313,8 @@ class WidgetService:
         widgets, visible_widget_ids, layouts_initialized = (
             self._get_widgets_for_visible_layout_mutation(user, dashboard)
         )
-        visible_delta = [item for item in layout if item["id"] in visible_widget_ids]
-        layout_delta = WidgetLayoutHandler(widgets).apply_delta(
-            visible_delta,
-            enforce_vertical_bound=enforce_vertical_bound,
+        layout_delta = WidgetLayoutHandler(widgets).apply_recorded_delta(
+            recorded_delta,
             allowed_widget_ids=visible_widget_ids,
         )
         return self._layout_update_result(
