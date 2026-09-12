@@ -1,6 +1,6 @@
 .dashboard-widget {
   border: 1px solid $palette-neutral-200;
-  background-color: $white;
+  background-color: $palette-neutral-0;
   box-shadow: 0 1px 2px 0 rgba(7, 8, 16, 0.1);
   position: relative;
   display: flex;
@@ -35,7 +35,7 @@
   justify-content: center;
   gap: 12px;
   min-height: 240px;
-  background-color: rgba($white, 0.8);
+  background-color: rgba($palette-neutral-0, 0.8);
 }
 
 .dashboard-widget-grid__loading-spinner {
