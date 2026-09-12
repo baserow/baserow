@@ -59,6 +59,35 @@ class WidgetService:
         self.handler.initialize_uninitialized_widget_grid_layouts(widgets)
         return widgets, layouts_initialized
 
+    def _get_widgets_for_visible_layout_mutation(
+        self, user: AbstractUser, dashboard: Dashboard
+    ) -> tuple[list[Widget], set[int], bool]:
+        """Checks layout permissions and filters the locked widget snapshot."""
+
+        core_handler = CoreHandler()
+        core_handler.check_permissions(
+            user,
+            UpdateWidgetLayoutOperationType.type,
+            workspace=dashboard.workspace,
+            context=dashboard,
+        )
+        core_handler.check_permissions(
+            user,
+            ListWidgetsOperationType.type,
+            workspace=dashboard.workspace,
+            context=dashboard,
+        )
+
+        widgets, layouts_initialized = self._get_widgets_for_layout_mutation(dashboard)
+        visible_queryset = core_handler.filter_queryset(
+            user,
+            ListWidgetsOperationType.type,
+            Widget.objects.filter(id__in=[widget.id for widget in widgets]),
+            workspace=dashboard.workspace,
+        )
+        visible_widget_ids = set(visible_queryset.values_list("id", flat=True))
+        return widgets, visible_widget_ids, layouts_initialized
+
     def _send_widgets_layout_updated(
         self,
         dashboard: Dashboard,
@@ -280,20 +309,17 @@ class WidgetService:
         *,
         enforce_vertical_bound: bool = True,
     ) -> UpdatedWidgetLayout:
-        """Merges and persists a recorded delta against the current layout."""
+        """Replays recorded geometry only for widgets still visible to the user."""
 
         dashboard = self.dashboard_handler.get_dashboard(dashboard_id)
-        CoreHandler().check_permissions(
-            user,
-            UpdateWidgetLayoutOperationType.type,
-            workspace=dashboard.workspace,
-            context=dashboard,
+        widgets, visible_widget_ids, layouts_initialized = (
+            self._get_widgets_for_visible_layout_mutation(user, dashboard)
         )
-
-        widgets, layouts_initialized = self._get_widgets_for_layout_mutation(dashboard)
+        visible_delta = [item for item in layout if item["id"] in visible_widget_ids]
         layout_delta = WidgetLayoutHandler(widgets).apply_delta(
-            layout,
+            visible_delta,
             enforce_vertical_bound=enforce_vertical_bound,
+            allowed_widget_ids=visible_widget_ids,
         )
         return self._layout_update_result(
             None if layouts_initialized else user,
@@ -312,28 +338,9 @@ class WidgetService:
         """Updates only widgets visible to ``user`` and preserves hidden geometry."""
 
         dashboard = self.dashboard_handler.get_dashboard(dashboard_id)
-        core_handler = CoreHandler()
-        core_handler.check_permissions(
-            user,
-            UpdateWidgetLayoutOperationType.type,
-            workspace=dashboard.workspace,
-            context=dashboard,
+        widgets, visible_widget_ids, layouts_initialized = (
+            self._get_widgets_for_visible_layout_mutation(user, dashboard)
         )
-        core_handler.check_permissions(
-            user,
-            ListWidgetsOperationType.type,
-            workspace=dashboard.workspace,
-            context=dashboard,
-        )
-
-        widgets, layouts_initialized = self._get_widgets_for_layout_mutation(dashboard)
-        visible_queryset = core_handler.filter_queryset(
-            user,
-            ListWidgetsOperationType.type,
-            Widget.objects.filter(id__in=[widget.id for widget in widgets]),
-            workspace=dashboard.workspace,
-        )
-        visible_widget_ids = set(visible_queryset.values_list("id", flat=True))
         visible_widgets = [
             widget for widget in widgets if widget.id in visible_widget_ids
         ]
