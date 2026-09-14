@@ -51,6 +51,26 @@ describe('dataSource store', () => {
     expect(result).toEqual([{ id: 10 }, { id: 11 }])
   })
 
+  test.each(['UPDATE_ITEM', 'FULL_UPDATE_ITEM'])(
+    '%s ignores a source that is no longer in the page',
+    (mutation) => {
+      const page = {
+        dataSources: [
+          { id: 1, name: 'First' },
+          { id: 2, name: 'Second' },
+          { id: 3, name: 'Third' },
+        ],
+      }
+      const originalSources = structuredClone(page.dataSources)
+      store.commit(`dataSource/${mutation}`, {
+        page,
+        dataSource: { id: 99 },
+        values: { id: 99, name: 'Late response' },
+      })
+      expect(page.dataSources).toEqual(originalSources)
+    }
+  )
+
   test('fetch', async () => {
     const page = {
       id: 42,
