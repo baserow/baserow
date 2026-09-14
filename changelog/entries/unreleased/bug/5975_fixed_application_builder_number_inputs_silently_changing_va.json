@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed Application Builder number inputs silently changing values with malformed grouping separators.",
+    "issue_origin": "github",
+    "issue_number": 5975,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-09-14"
+}

@@ -7,6 +7,7 @@ import {
   isValidEmail,
   isSecureURL,
   isNumeric,
+  parseLocalizedNumber,
   isInteger,
   isSubstringOfStrings,
   collatedStringCompare,
@@ -260,5 +261,45 @@ describe('test string utils', () => {
       'Éditeur',
       'Admin',
     ])
+  })
+})
+
+describe('parseLocalizedNumber', () => {
+  test.each([
+    ['en', ''],
+    ['en', '3,2'],
+    ['en', '3,2,.2,'],
+    ['en', ',32'],
+    ['en', '32,'],
+    ['en', '1,,234'],
+    ['en', '1234,567'],
+    ['en', '1.2,345'],
+    ['en', '1,234.5,6'],
+    ['en', '1,234\n'],
+    ['de', '3.2'],
+    ['de', '3.2,.2.'],
+    ['fr', '3 2'],
+    ['fr', '1\t234'],
+    ['hi-IN', '123,456'],
+  ])('rejects invalid input in %s: %s', (locale, input) => {
+    expect(() => parseLocalizedNumber(input, locale)).toThrow()
+  })
+
+  test.each([
+    ['en', '3.2', '3.2'],
+    ['en', '1,234.5', '1234.5'],
+    ['en', '-1,234,567.89', '-1234567.89'],
+    ['en', '+1,234.5', '+1234.5'],
+    ['en', '0', '0'],
+    ['de', '3,2', '3.2'],
+    ['de', '1.234,5', '1234.5'],
+    ['fr', '1 234,5', '1234.5'],
+    ['fr', '1\u00a0234,5', '1234.5'],
+    ['fr', '1\u202f234,5', '1234.5'],
+    ['hi-IN', '1,23,456.7', '123456.7'],
+    ['hi-IN', '12,345.6', '12345.6'],
+    ['es', '1.234,5', '1234.5'],
+  ])('normalizes valid input in %s: %s', (locale, input, expected) => {
+    expect(parseLocalizedNumber(input, locale)).toBe(expected)
   })
 })
