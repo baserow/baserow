@@ -85,10 +85,9 @@ class AutomationDispatchContext(DispatchContext):
         if self.history.triggered_by_id is None:
             return None
 
-        subject_type = subject_type_registry.get(self.history.triggered_by_type)
-        return subject_type.model_class.objects.filter(
-            id=self.history.triggered_by_id
-        ).first()
+        return subject_type_registry.get_subject(
+            self.history.triggered_by_type, self.history.triggered_by_id
+        )
 
     def get_iteration_path(self, node):
         """

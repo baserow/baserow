@@ -414,7 +414,10 @@ the click is registered as a `dispatch_button_field` action, so the audit log ho
 clicked which button on which row. None of that changes who the nodes act as: the
 context's `actor` slot, which a Local Baserow node without an integration would act as,
 stays empty for a run. A workflow that another workflow starts records nobody, since the
-person is not a member of wherever that second workflow lives.
+person is not a member of wherever that second workflow lives. A test run or simulation
+started from the editor records whoever pressed the button, including when it waits for
+its trigger's event: the workflow keeps that subject beside its other temporary test
+state until the run starts or is cancelled.
 
 Not charging the button rate limit has one consequence worth stating plainly. When the
 automation module's own limits are what refuse a run, the clicker is not told:

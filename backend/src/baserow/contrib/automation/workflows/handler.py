@@ -58,10 +58,11 @@ from baserow.contrib.automation.workflows.tasks import (
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.registries import ImportExportConfig
+from baserow.core.registries import ImportExportConfig, subject_type_registry
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import Subject
 from baserow.core.utils import (
     ChildProgressBuilder,
     MirrorDict,
@@ -756,7 +757,12 @@ class AutomationWorkflowHandler:
 
         automation_workflow_updated.send(self, user=None, workflow=original_workflow)
 
-    def set_workflow_temporary_states(self, workflow, simulate_until_node=None):
+    def set_workflow_temporary_states(
+        self,
+        workflow,
+        simulate_until_node=None,
+        triggered_by: Optional[Subject] = None,
+    ):
         """
         Sets the temporary states necessary to allow an unpublished workflow to be
         ran by the next event. By default a full test run is scheduled unless the
@@ -764,9 +770,18 @@ class AutomationWorkflowHandler:
 
         :param workflow: The workflow to consider.
         :param simulate_until_node: If set, schedules a simulation run instead.
+        :param triggered_by: Who asked for the run, recorded on its history
+            even when the run waits for an event.
         """
 
         fields_to_save = []
+        if triggered_by is not None:
+            workflow.test_run_triggered_by_id = triggered_by.id
+            workflow.test_run_triggered_by_type = subject_type_registry.get_by_model(
+                triggered_by
+            ).type
+            fields_to_save += ["test_run_triggered_by_id", "test_run_triggered_by_type"]
+
         if simulate_until_node is not None:
             # Switch to simulate until the given node
             workflow.simulate_until_node = simulate_until_node
@@ -786,6 +801,22 @@ class AutomationWorkflowHandler:
             workflow.save(update_fields=fields_to_save)
             automation_workflow_updated.send(self, user=None, workflow=workflow)
 
+    def get_test_run_triggered_by(self, workflow) -> Optional[Subject]:
+        """
+        Returns who asked for the workflow's pending test run or simulation.
+
+        :param workflow: The workflow waiting for its test run.
+        :return: The subject, or None when nobody is recorded or it no longer
+            exists.
+        """
+
+        if workflow.test_run_triggered_by_id is None:
+            return None
+
+        return subject_type_registry.get_subject(
+            workflow.test_run_triggered_by_type, workflow.test_run_triggered_by_id
+        )
+
     def reset_workflow_temporary_states(self, workflow):
         """
         Reset the temporary states set when we want to test or simulate a workflow.
@@ -800,6 +831,10 @@ class AutomationWorkflowHandler:
         if workflow.simulate_until_node:
             workflow.simulate_until_node = None
             fields_to_save.append("simulate_until_node")
+
+        if workflow.test_run_triggered_by_id is not None:
+            workflow.test_run_triggered_by_id = None
+            fields_to_save.append("test_run_triggered_by_id")
 
         if fields_to_save:
             workflow.save(update_fields=fields_to_save)
@@ -831,14 +866,18 @@ class AutomationWorkflowHandler:
             return
 
         if simulate_until_node is None:  # Full test
-            AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
+            AutomationWorkflowHandler().set_workflow_temporary_states(
+                workflow, triggered_by=triggered_by
+            )
             if workflow.can_be_immediately_dispatched():
                 # If the service related to the trigger can immediately dispatch,
                 # we immediately trigger the workflow run.
                 self.async_start_workflow(workflow, triggered_by=triggered_by)
         else:
             AutomationWorkflowHandler().set_workflow_temporary_states(
-                workflow, simulate_until_node=simulate_until_node
+                workflow,
+                simulate_until_node=simulate_until_node,
+                triggered_by=triggered_by,
             )
             trigger = workflow.get_trigger()
 

@@ -702,6 +702,10 @@ class AutomationNodeTriggerType(AutomationNodeType):
             AutomationWorkflowHandler().async_start_workflow(
                 workflow,
                 service_payload,
+                # Read before the reset below clears it.
+                triggered_by=AutomationWorkflowHandler().get_test_run_triggered_by(
+                    workflow
+                ),
             )
 
             # We don't want subsequent events to trigger a new test run

@@ -322,6 +322,7 @@ def test_call_multiple_periodic_services_that_are_due(
                     "triggered_at": "2025-02-15T10:30:00+00:00",
                     "next_run_at": "2025-02-15T10:31:00+00:00",
                 },
+                triggered_by=None,
             ),
             call(
                 workflow_2,
@@ -329,6 +330,7 @@ def test_call_multiple_periodic_services_that_are_due(
                     "triggered_at": "2025-02-15T10:30:00+00:00",
                     "next_run_at": "2025-02-15T10:31:00+00:00",
                 },
+                triggered_by=None,
             ),
         ]
     )

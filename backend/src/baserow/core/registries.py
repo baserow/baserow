@@ -1292,6 +1292,18 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
         instance_type = self.get_by_model(model_instance)
         return instance_type.get_serializer(model_instance, **kwargs)
 
+    def get_subject(self, type_name: str, subject_id: int) -> Optional[Subject]:
+        """
+        Returns the subject stored as a type and id pair.
+
+        :param type_name: The subject type, for example `auth.User`.
+        :param subject_id: The id of the subject.
+        :return: The subject, or None when it no longer exists.
+        """
+
+        model_class = self.get(type_name).model_class
+        return model_class.objects.filter(id=subject_id).first()
+
 
 class OperationType(abc.ABC, Instance):
     """
