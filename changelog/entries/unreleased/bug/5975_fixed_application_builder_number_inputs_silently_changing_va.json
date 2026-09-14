@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixed Application Builder number inputs silently changing values with malformed grouping separators.",
+    "message": "Fixed Application Builder number inputs silently changing malformed values, and allowed decimal points when they do not conflict with locale-specific thousands separators.",
     "issue_origin": "github",
     "issue_number": 5975,
     "domain": "builder",

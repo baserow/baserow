@@ -58,6 +58,9 @@ describe('InputTextElement', () => {
     ['en', '3,2,.2,', '3.2'],
     ['de', '3.2', '3,2'],
     ['es', '3.2', '3,2'],
+    ['fr', '3,2,.2,', '3.2'],
+    ['fr', '3,2.5', '3,2'],
+    ['fr', '3.2,5', '1 234.5'],
   ])(
     'shows an inline error for invalid %s input %s',
     async (locale, value, correction) => {
