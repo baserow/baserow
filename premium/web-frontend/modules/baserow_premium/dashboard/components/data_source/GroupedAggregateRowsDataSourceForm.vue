@@ -119,6 +119,7 @@
           :aggregation-group-bys="values.aggregation_group_bys"
           :table-fields="tableFields"
           @value-changed="onGroupByUpdated($event)"
+          @mode-changed="onGroupByModeUpdated($event)"
         >
         </AggregationGroupByForm>
       </template>
@@ -437,6 +438,13 @@ export default {
       updatedAggregationSeries[index] = aggregationSeriesValues
       this.$emit('values-changed', {
         aggregation_series: updatedAggregationSeries,
+      })
+    },
+    onGroupByModeUpdated(mode) {
+      this.$emit('values-changed', {
+        aggregation_group_bys: this.values.aggregation_group_bys.map(
+          (groupBy) => ({ ...groupBy, mode })
+        ),
       })
     },
     onGroupByUpdated(groupBy) {
