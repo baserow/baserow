@@ -2291,13 +2291,8 @@ class Baserow2dArrayAgg(OneArgumentBaserowFunction, CollapseManyBaserowFunction)
         return func_call.with_valid_type(arg.expression_type)
 
     def to_django_expression(self, arg: Expression) -> Expression:
-        # Coalesce NULL→[] before JSONBAgg: jsonb_agg(NULL) produces [null],
-        # whose inner jsonb_array_elements yields a JSON scalar that the outer
-        # jsonb_array_elements cannot unnest. Backstops multi-hop references
-        # the import-ordering graph cannot express.
-        coalesced_arg = Coalesce(arg, Value([], output_field=JSONField()))
         return Func(
-            Func(JSONBAgg(coalesced_arg), function="jsonb_array_elements"),
+            Func(JSONBAgg(arg), function="jsonb_array_elements"),
             function="jsonb_array_elements",
             output_field=JSONField(),
         )

@@ -1585,7 +1585,6 @@ class FieldType(
         serialized_field: Dict[str, Any],
         serialized_fields_map: Dict[int, Dict[str, Any]],
         primary_table_fields_map: Dict[int, int],
-        same_table_fields: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Set[Tuple[Union[int, str], Union[int, str]]]]:
         """
         Returns a list of field dependencies that must be imported before this field. If
@@ -1594,8 +1593,42 @@ class FieldType(
         and the field name is returned.
 
         :param serialized_field: The serialized field that is being imported.
+        :param serialized_fields_map: A map of all the serialized fields in the import,
+            keyed by their original field id.
+        :param primary_table_fields_map: A map of table id to the id of that table's
+            primary field, for all the tables in the import.
         :return: A list of field name dependencies that must be imported before this
             field.
+        """
+
+        return None
+
+    def get_import_dependency_when_referenced(
+        self,
+        serialized_field: Dict[str, Any],
+        reference_name: str,
+        serialized_fields_map: Dict[int, Dict[str, Any]],
+        primary_table_fields_map: Dict[int, int],
+    ) -> Optional[Tuple[Union[int, str], Union[int, str]]]:
+        """
+        Returns the dependency implied by referencing this field by name from another
+        field in the same table, or `None` if referencing it does not imply a
+        dependency on anything other than the field itself.
+
+        Field types whose value is borrowed from another table, like `link_row` which
+        renders the linked table's primary field, must return that other field here.
+        Otherwise the import would order the referencing field before the field it
+        actually reads from.
+
+        :param serialized_field: The serialized field that is being referenced.
+        :param reference_name: The name the referencing field used, which is the name
+            of this field and therefore the `via` of any returned dependency.
+        :param serialized_fields_map: A map of all the serialized fields in the import,
+            keyed by their original field id.
+        :param primary_table_fields_map: A map of table id to the id of that table's
+            primary field, for all the tables in the import.
+        :return: A `(field_name, via_field_name)` dependency, or `None` when
+            referencing this field implies no further dependency.
         """
 
         return None

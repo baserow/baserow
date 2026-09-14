@@ -1262,9 +1262,17 @@ class BaserowFormulaArrayType(
 
     def placeholder_empty_value(self):
         """
-        Array fields default to ``[]`` rather than NULL so that
-        ``array_agg_unnesting`` (double ``jsonb_array_elements``) does not
-        produce a JSON scalar ``null`` via ``jsonb_agg(NULL) → [null]``.
+        The use of `array_agg_unnesting` in `self.collapse_many` above means that we can
+        never have null values inserted into array fields but instead they should be
+        empty lists.
+
+        This is because during template imports we can run update statements using
+        `array_agg_unnesting` over array fields which have just been filled with empty
+        data and not had their actual values calculated yet. If they instead defaulted
+        to Value(None) (null) these update statements would fail as the use of
+        `jsonb_array_elements` by `array_agg_unnesting` crashes if you give in null
+        instead of [] with
+        `django.db.utils.DataError: cannot extract elements from a scalar`
         """
 
         return Value([], output_field=JSONField())

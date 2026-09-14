@@ -486,18 +486,45 @@ class DatabaseApplicationType(ApplicationType):
             )
             return field_instance
 
+        def _expand_implied_import_dependencies(field_deps, fields_by_name):
+            """
+            A dependency of `(name, None)` is a reference by name to a field in the
+            same table. Some field types, like `link_row`, render a value borrowed
+            from another table, so referencing them implies a dependency on that
+            other field instead. Let each referenced field type say so.
+            """
+
+            if not field_deps:
+                return field_deps
+
+            expanded = set()
+            for name, via in field_deps:
+                referenced = fields_by_name.get(name) if via is None else None
+                implied = referenced and field_type_registry.get(
+                    referenced["type"]
+                ).get_import_dependency_when_referenced(
+                    referenced, name, database_fields_map, primary_table_fields_map
+                )
+                expanded.add(implied or (name, via))
+            return expanded
+
         fields_without_dependencies: List[Field] = []
         for serialized_table in serialized_tables:
             table_instance = serialized_table["_object"]
+            serialized_fields_by_name = {
+                f["name"]: f for f in serialized_table["fields"]
+            }
             for serialized_field in serialized_table["fields"]:
                 field_type = field_type_registry.get(serialized_field["type"])
                 field_deps = (
                     field_type.get_field_depdendencies_before_import_serialized(
                         serialized_field,
-                        id_mapping["database_fields_map"],
-                        id_mapping["primary_table_fields_map"],
-                        same_table_fields=serialized_table["fields"],
+                        database_fields_map,
+                        primary_table_fields_map,
                     )
+                )
+                field_deps = _expand_implied_import_dependencies(
+                    field_deps, serialized_fields_by_name
                 )
 
                 # If the field has dependencies, we want to defer the import of the

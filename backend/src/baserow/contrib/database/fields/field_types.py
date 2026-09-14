@@ -3693,6 +3693,29 @@ class LinkRowFieldType(
         else:
             return []
 
+    def get_import_dependency_when_referenced(
+        self,
+        serialized_field: Dict[str, Any],
+        reference_name: str,
+        serialized_fields_map: Dict[int, Dict[str, Any]],
+        primary_table_fields_map: Dict[int, int],
+    ) -> Optional[Tuple[Union[int, str], Union[int, str]]]:
+        # A link row field renders the linked table's primary field, so referencing it
+        # by name really depends on that primary field, reached via this link row
+        # field. This is the import-time counterpart of `get_field_dependencies`.
+        related_table_id = serialized_field.get("link_row_table_id", None)
+
+        # A missing table means we're referencing a table that already exists before
+        # the import (i.e. duplicating a table/field), so there is nothing to order.
+        if related_table_id is None or related_table_id not in primary_table_fields_map:
+            return None
+
+        primary_field_id = primary_table_fields_map[related_table_id]
+        if primary_field_id not in serialized_fields_map:
+            return None
+
+        return (serialized_fields_map[primary_field_id]["name"], reference_name)
+
     def should_backup_field_data_for_same_type_update(
         self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
     ) -> bool:
@@ -6222,42 +6245,13 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         serialized_field: Dict[str, Any],
         serialized_fields_map: Dict[int, Dict[str, Any]],
         primary_table_fields_map: Dict[int, int],
-        same_table_fields: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Set[Tuple[Union[int, str], Union[int, str]]]]:
         if "formula" not in serialized_field:
             raise NotImplementedError(
                 "Each formula subtype needs to implement this method."
             )
 
-        raw_deps = FormulaHandler.get_dependencies_field_names(
-            serialized_field["formula"]
-        )
-        if not raw_deps or not same_table_fields:
-            return raw_deps
-
-        # field('LinkField') produces (link_name, None) — a same-table dep that
-        # misses the linked table's primary. Resolve it the same way
-        # CountFieldType does: look up link_row_table_id → primary field.
-        name_to_field = {f["name"]: f for f in same_table_fields}
-        resolved = set()
-        for field_name, via in raw_deps:
-            if via is not None:
-                resolved.add((field_name, via))
-                continue
-            sibling = name_to_field.get(field_name)
-            if sibling and sibling.get("type") == "link_row":
-                related_table_id = sibling.get("link_row_table_id")
-                if (
-                    related_table_id is not None
-                    and related_table_id in primary_table_fields_map
-                ):
-                    primary_id = primary_table_fields_map[related_table_id]
-                    if primary_id in serialized_fields_map:
-                        primary_field = serialized_fields_map[primary_id]
-                        resolved.add((primary_field["name"], field_name))
-                        continue
-            resolved.add((field_name, via))
-        return resolved
+        return FormulaHandler.get_dependencies_field_names(serialized_field["formula"])
 
     def parse_filter_value(self, field, model_field, value):
         (
@@ -6414,7 +6408,6 @@ class CountFieldType(FormulaFieldType):
         serialized_field: Dict[str, Any],
         serialized_fields_map: Dict[int, Dict[str, Any]],
         primary_table_fields_map: Dict[int, int],
-        same_table_fields: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Set[Tuple[Union[int, str], Union[int, str]]]]:
         through_field_id = serialized_field.get("through_field_id", None)
         if through_field_id is None or through_field_id not in serialized_fields_map:
@@ -6625,7 +6618,6 @@ class RollupFieldType(FormulaFieldType):
         serialized_field: Dict[str, Any],
         serialized_fields_map: Dict[int, Dict[str, Any]],
         primary_table_fields_map: Dict[int, int],
-        same_table_fields: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Set[Tuple[Union[int, str], Union[int, str]]]]:
         through_field_id = serialized_field.get("through_field_id", None)
         if through_field_id is None or through_field_id not in serialized_fields_map:
@@ -6945,7 +6937,6 @@ class LookupFieldType(FormulaFieldType):
         serialized_field: Dict[str, Any],
         serialized_fields_map: Dict[int, Dict[str, Any]],
         primary_table_fields_map: Dict[int, int],
-        same_table_fields: Optional[List[Dict[str, Any]]] = None,
     ) -> Optional[Set[Tuple[Union[int, str], Union[int, str]]]]:
         through_field_id = serialized_field.get("through_field_id", None)
         if through_field_id is None or through_field_id not in serialized_fields_map:
