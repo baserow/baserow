@@ -396,9 +396,11 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("filter_mode", [None, "raw", "simple", "advanced"])
 def test_grouped_aggregate_rows_dispatch_dashboard_data_source_without_group_by_returns_list(
-    api_client, premium_data_fixture
+    api_client, premium_data_fixture, filter_mode
 ):
+    """Chart data sources can save and execute filters in every formula mode."""
     user, token = premium_data_fixture.create_user_and_token()
     workspace = premium_data_fixture.create_workspace(user=user)
     database = premium_data_fixture.create_database_application(workspace=workspace)
@@ -429,6 +431,27 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source_without_group_by_
             {f"field_{field.id}": 20},
         ],
     )
+    if filter_mode is not None:
+        response = api_client.patch(
+            reverse(
+                "api:dashboard:data_sources:item",
+                kwargs={"data_source_id": data_source.id},
+            ),
+            {
+                "filters": [
+                    {
+                        "field": field.id,
+                        "type": "equal",
+                        "value": {"formula": "20", "mode": filter_mode},
+                    }
+                ]
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK, response.json()
+        assert response.json()["filters"][0]["value"]["mode"] == filter_mode
+
     url = reverse(
         "api:dashboard:data_sources:dispatch",
         kwargs={"data_source_id": data_source.id},
@@ -447,7 +470,7 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source_without_group_by_
         "results": [
             {
                 "id": "Result",
-                f"{field.name} sum": 30.0,
+                f"{field.name} sum": 20.0 if filter_mode else 30.0,
             },
         ],
     }
