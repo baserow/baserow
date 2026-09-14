@@ -404,11 +404,10 @@ export default {
       return label
     },
     getResultPropertyName(propertyName) {
-      const property = this.dataSource.schema?.items?.properties?.[propertyName]
-      if (property?.metadata?.aggregation) {
-        return property.metadata.display_name || property?.title || propertyName
-      }
-      return property?.title || propertyName
+      return this.serviceType.getResultPropertyName(
+        this.dataSource,
+        propertyName
+      )
     },
     hasResultValue(item, resultFieldName, fallbackFieldName = null) {
       return (
