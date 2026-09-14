@@ -147,7 +147,7 @@ class AutomationHistoryHandler:
         # requester can be None if the user's account was deleted.
         requester = workflow_history.cancellation_requested_by
         if requester is not None:
-            message = f"Cancelled by {requester.first_name}."
+            message = f"Cancelled by {requester.first_name} ({requester.id})."
         else:
             message = "Cancelled."
 

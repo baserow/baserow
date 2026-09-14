@@ -1620,7 +1620,7 @@ def test_dispatch_node_finalizes_requested_cancellation(data_fixture):
 
     workflow_history.refresh_from_db()
     assert workflow_history.status == HistoryStatusChoices.CANCELLED
-    assert workflow_history.message == "Cancelled by Ada."
+    assert workflow_history.message == f"Cancelled by Ada ({user.id})."
     assert workflow_history.completed_on is not None
 
 
@@ -1689,7 +1689,7 @@ def test_dispatch_node_cancellation_requested_mid_run(data_fixture):
 
     workflow_history.refresh_from_db()
     assert workflow_history.status == HistoryStatusChoices.CANCELLED
-    assert workflow_history.message == "Cancelled by Ada."
+    assert workflow_history.message == f"Cancelled by Ada ({user.id})."
 
     # Only the trigger ran, and its own entry resolved normally.
     node_histories = list(
