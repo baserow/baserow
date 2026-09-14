@@ -193,7 +193,8 @@ export const isNumeric = (value) => {
 }
 
 /**
- * Normalize a localized number to a numeric string.
+ * Normalize a localized number to a numeric string. A decimal point is also
+ * accepted when it cannot be confused with the locale's grouping separator.
  * @throws {Error} If the input does not match the locale's numeric syntax.
  */
 export const parseLocalizedNumber = (str, locale) => {
@@ -216,8 +217,12 @@ export const parseLocalizedNumber = (str, locale) => {
     integerPattern = `(?:${integerPattern}|${groupedPattern})`
   }
 
+  const decimalPattern =
+    decimal !== '.' && group !== '.'
+      ? `(?:${escapeRegExp(decimal)}|\\.)`
+      : escapeRegExp(decimal)
   const pattern = new RegExp(
-    `^[-+]?${integerPattern}(?:${escapeRegExp(decimal)}\\d+)?$`
+    `^[-+]?${integerPattern}(?:${decimalPattern}\\d+)?$`
   )
   const match = str.match(pattern)
   if (!match || match[0] !== str) {
