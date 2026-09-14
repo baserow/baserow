@@ -94,9 +94,7 @@ describe('SMTP integration form', () => {
         has_password: true,
       },
     })
-    const inputs = wrapper.findAll('.form-input__input')
-
-    await inputs.at(3).setValue('newsecret')
+    await wrapper.find('input[type="password"]').setValue('newsecret')
     await flushPromises()
 
     expect(wrapper.vm.getFormValues().password).toBe('newsecret')
@@ -112,10 +110,10 @@ describe('SMTP integration form', () => {
         has_password: true,
       },
     })
-    const inputs = wrapper.findAll('.form-input__input')
+    const password = wrapper.find('input[type="password"]')
 
-    await inputs.at(3).setValue('typed')
-    await inputs.at(3).setValue('')
+    await password.setValue('typed')
+    await password.setValue('')
     await flushPromises()
 
     expect(wrapper.vm.getFormValues().password).toBe('')
