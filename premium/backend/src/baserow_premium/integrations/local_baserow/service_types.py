@@ -4,6 +4,7 @@ from typing import Any
 from django.conf import settings
 from django.db.models import F
 
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
@@ -123,6 +124,16 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 return field_object
 
         return None
+
+    def _can_group_by_row_id(self, model) -> bool:
+        """Row grouping currently requires a scalar primary-field value."""
+        primary_field = model.get_primary_field()
+        serializer = primary_field.get_type().get_response_serializer_field(
+            primary_field
+        )
+        return not isinstance(
+            serializer, (serializers.ListField, serializers.ListSerializer)
+        )
 
     def _get_human_readable_result_value(
         self,
@@ -517,6 +528,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     )
 
                 if group_by["field_id"] is None:
+                    if not self._can_group_by_row_id(service.table.get_model()):
+                        raise DRFValidationError(
+                            detail="Row ID grouping is not supported for a multi-valued primary field.",
+                            code="invalid_field",
+                        )
                     return True
 
                 field = next(
@@ -840,6 +856,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         group_by_values = []
         for group_by in service.service_aggregation_group_bys.all():
             if group_by.field is None:
+                if not self._can_group_by_row_id(model):
+                    raise ServiceImproperlyConfiguredDispatchException(
+                        "Row ID grouping is not supported for a multi-valued primary field."
+                    )
                 group_by_values.append("id")
                 group_by_values.append(model.get_primary_field().db_column)
                 break
