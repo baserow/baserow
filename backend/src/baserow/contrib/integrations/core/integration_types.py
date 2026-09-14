@@ -26,6 +26,13 @@ class SMTPIntegrationType(IntegrationType):
 
     request_serializer_field_names = ["host", "port", "use_tls", "username", "password"]
     request_serializer_field_overrides = {}
+    serializer_field_extra_kwargs = {
+        "password": {
+            "help_text": "The SMTP password. Write-only: it is never returned, "
+            "see `has_password`. Omit it to keep the stored password; send an "
+            "empty string or null to clear it."
+        }
+    }
 
     def deserialize_property(
         self,

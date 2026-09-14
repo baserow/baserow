@@ -374,7 +374,8 @@ def get_serializer_class(
         base_class = ModelSerializer
 
     extends_meta = object
-    meta_extra_kwargs = meta_extra_kwargs or {}
+    # Copy it: the base class kwargs are merged in below, and the dict is shared.
+    meta_extra_kwargs = {**(meta_extra_kwargs or {})}
 
     if hasattr(base_class, "Meta"):
         extends_meta = base_class.Meta

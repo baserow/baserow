@@ -11,7 +11,10 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.api.integrations.serializers import CreateIntegrationSerializer
+from baserow.api.integrations.serializers import (
+    CreateIntegrationSerializer,
+    UpdateIntegrationSerializer,
+)
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import application_type_registry
@@ -663,3 +666,21 @@ def test_update_smtp_integration_with_empty_password_clears_it(
     assert response.json()["has_password"] is False
     integration.refresh_from_db()
     assert integration.password == ""
+
+
+@pytest.mark.django_db
+def test_secret_request_fields_document_the_write_only_contract():
+    for type_name, secret in [("smtp", "password"), ("slack_bot", "token")]:
+        serializer_class = integration_type_registry.get(
+            type_name
+        ).get_serializer_class(
+            request_serializer=True, base_class=UpdateIntegrationSerializer
+        )
+        assert "keep the stored" in serializer_class().fields[secret].help_text
+
+    # The update base class makes `name` optional. That must not leak into the
+    # create serializer through the type's shared extra kwargs.
+    serializer_class = integration_type_registry.get("smtp").get_serializer_class(
+        request_serializer=True, base_class=CreateIntegrationSerializer
+    )
+    assert serializer_class().fields["name"].required is True
