@@ -192,19 +192,42 @@ export const isNumeric = (value) => {
   return /^-?\d+([.]\d+)?$/.test(value)
 }
 
+/**
+ * Normalize a localized number to a numeric string.
+ * @throws {Error} If the input does not match the locale's numeric syntax.
+ */
 export const parseLocalizedNumber = (str, locale) => {
-  const parts = new Intl.NumberFormat(locale).formatToParts(12345.6)
-  let group = parts.find((p) => p.type === 'group')?.value || ''
-  let decimal = parts.find((p) => p.type === 'decimal')?.value || '.'
+  const parts = new Intl.NumberFormat(locale).formatToParts(123456789.6)
+  const group = parts.find((p) => p.type === 'group')?.value
+  const decimal = parts.find((p) => p.type === 'decimal')?.value || '.'
+  let integerPattern = '\\d+'
+  let groupPattern
 
-  // Escape special characters for regex
-  group = group.replace(/[\u202F\u00A0\s]/g, '\\s') // match all common spaces
-  decimal = decimal === '.' ? '\\.' : decimal
-  group = group === '.' ? '\\.' : group
+  if (group) {
+    // Space-grouping locales also accept ordinary and non-breaking spaces,
+    // but tabs and newlines must not be silently removed.
+    groupPattern = /^[ \u202f\u00a0]$/.test(group)
+      ? '[ \u202f\u00a0]'
+      : escapeRegExp(group)
+    const integers = parts.filter((p) => p.type === 'integer')
+    const primarySize = integers.at(-1).value.length
+    const secondarySize = integers.at(-2).value.length
+    const groupedPattern = `\\d{1,${secondarySize}}(?:${groupPattern}\\d{${secondarySize}})*${groupPattern}\\d{${primarySize}}`
+    integerPattern = `(?:${integerPattern}|${groupedPattern})`
+  }
 
-  const groupRegex = new RegExp(group, 'g')
-  // Remove group separator and replace decimal with "."
-  return str.replace(groupRegex, '').replace(decimal, '.')
+  const pattern = new RegExp(
+    `^[-+]?${integerPattern}(?:${escapeRegExp(decimal)}\\d+)?$`
+  )
+  const match = str.match(pattern)
+  if (!match || match[0] !== str) {
+    throw new Error('Invalid localized number.')
+  }
+
+  const ungrouped = groupPattern
+    ? str.replace(new RegExp(groupPattern, 'g'), '')
+    : str
+  return ungrouped.replace(decimal, '.')
 }
 
 /**

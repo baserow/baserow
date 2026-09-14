@@ -589,6 +589,18 @@ describe('elementTypes tests', () => {
         elementType.isValid({ required: false, validation_type: 'integer' }, '')
       ).toBe(true)
     })
+    test.each(['3.2', '32', NaN, Infinity])(
+      'InputTextElementType rejects unparsed or non-finite numeric value %s',
+      (value) => {
+        const elementType = new InputTextElementType()
+        expect(
+          elementType.isValid(
+            { required: false, validation_type: 'integer' },
+            value
+          )
+        ).toBe(false)
+      }
+    )
     test('InputTextElementType | required | email | valid value.', () => {
       const elementType = new InputTextElementType()
       expect(
