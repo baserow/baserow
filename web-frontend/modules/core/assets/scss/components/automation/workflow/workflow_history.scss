@@ -40,11 +40,12 @@
 }
 
 .workflow-history__cancel-link {
-  color: $palette-neutral-900;
+  color: $palette-yellow-700;
   text-decoration: underline;
   cursor: pointer;
 
   &:hover {
+    color: $palette-yellow-700;
     text-decoration: none;
   }
 
