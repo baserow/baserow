@@ -200,7 +200,9 @@ class AutomationWorkflowService:
             workflow.automation.workspace, kwargs
         )
 
-        updated_workflow = self.handler.update_workflow(workflow, **kwargs)
+        updated_workflow = self.handler.update_workflow(
+            workflow, triggered_by=user, **kwargs
+        )
         automation_workflow_updated.send(
             self, user=user, workflow=updated_workflow.workflow
         )

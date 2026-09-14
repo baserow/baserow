@@ -20,6 +20,9 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
+from baserow.contrib.automation.workflows.actions import (
+    UpdateAutomationWorkflowActionType,
+)
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
     WORKFLOW_DIRTY_CACHE_KEY,
@@ -2079,3 +2082,55 @@ def test_a_waiting_test_run_whose_starter_was_deleted_records_nobody(data_fixtur
     workflow.refresh_from_db()
 
     assert AutomationWorkflowHandler().get_test_run_triggered_by(workflow) is None
+
+
+@pytest.mark.django_db
+def test_opening_the_test_run_window_through_an_update_records_who_opened_it(
+    data_fixture,
+):
+    first = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=first)
+    second = data_fixture.create_user(workspace=workspace)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    table = data_fixture.create_database_table(user=first)
+    workflow = data_fixture.create_automation_workflow(
+        first,
+        automation=automation,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_service_kwargs={"table": table},
+    )
+
+    AutomationWorkflowHandler().toggle_test_run(
+        workflow, simulate_until_node=None, triggered_by=first
+    )
+    UpdateAutomationWorkflowActionType.do(first, workflow.id, {"allow_test_run": False})
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+
+    UpdateAutomationWorkflowActionType.do(second, workflow.id, {"allow_test_run": True})
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id == second.id
+
+    with patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task"):
+        _fire_rows_created_event(workflow, table)
+
+    history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
+    assert history.triggered_by_id == second.id
+
+
+@pytest.mark.django_db
+def test_scheduling_a_test_run_without_a_starter_forgets_an_earlier_one(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+    )
+    handler = AutomationWorkflowHandler()
+    workflow.test_run_triggered_by_id = user.id
+    workflow.save()
+
+    handler.set_workflow_temporary_states(workflow)
+
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None

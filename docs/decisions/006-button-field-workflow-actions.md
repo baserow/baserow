@@ -409,15 +409,15 @@ user's reach.
 The click itself is not anonymous, though. The run's history records the clicker as a
 subject (`triggered_by_id`, `triggered_by_type` and `triggered_by_name`, so an agent can
 start a run later and the name survives the user being deleted), the run's dispatch
-context exposes the same subject as `triggered_by`, and
-the click is registered as a `dispatch_button_field` action, so the audit log holds who
-clicked which button on which row. None of that changes who the nodes act as: the
-context's `actor` slot, which a Local Baserow node without an integration would act as,
-stays empty for a run. A workflow that another workflow starts records nobody, since the
-person is not a member of wherever that second workflow lives. A test run or simulation
-started from the editor records whoever pressed the button, including when it waits for
-its trigger's event: the workflow keeps that subject beside its other temporary test
-state until the run starts or is cancelled.
+context exposes the same subject as `triggered_by`, and the click is registered as a
+`dispatch_button_field` action, so the audit log holds who clicked which button on which
+row. None of that changes who the nodes act as: the context's `actor` slot, which a Local
+Baserow node without an integration would act as, stays empty for a run. A workflow that
+another workflow starts records nobody, since the person is not a member of wherever
+that second workflow lives. A test run or simulation started from the editor records
+whoever pressed the button, including when it waits for its trigger's event: the
+workflow keeps that subject beside its other temporary test state until the run starts
+or is cancelled.
 
 Not charging the button rate limit has one consequence worth stating plainly. When the
 automation module's own limits are what refuse a run, the clicker is not told:

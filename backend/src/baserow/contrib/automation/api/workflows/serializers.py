@@ -125,7 +125,7 @@ class AutomationHistorySerializer(serializers.ModelSerializer):
 
 
 class AutomationWorkflowHistoryTriggeredBySerializer(serializers.Serializer):
-    """Who started the run, in the `{id, type, name}` shape the collaborator UI reads."""
+    """Who started the run, as `{id, type, name}` for the collaborator UI."""
 
     id = serializers.IntegerField(source="triggered_by_id", read_only=True)
     type = serializers.CharField(source="triggered_by_type", read_only=True)

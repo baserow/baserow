@@ -229,12 +229,17 @@ class AutomationWorkflowHandler:
         return prepared_values
 
     def update_workflow(
-        self, workflow: AutomationWorkflow, **kwargs
+        self,
+        workflow: AutomationWorkflow,
+        triggered_by: Optional[Subject] = None,
+        **kwargs,
     ) -> UpdatedAutomationWorkflow:
         """
         Updates fields of the provided AutomationWorkflow.
 
         :param workflow: The AutomationWorkflow that should be updated.
+        :param triggered_by: Who makes the update, recorded as the starter of
+            the test run when the update opens the test run window.
         :param kwargs: The fields that should be updated with their
             corresponding values.
         :return: The updated AutomationWorkflow.
@@ -257,6 +262,13 @@ class AutomationWorkflowHandler:
 
         for key, value in extract_allowed(allowed_values, attr_fields).items():
             setattr(workflow, key, value)
+
+        if "allow_test_run_until" in allowed_values:
+            # Opening the window records who opened it; closing it forgets them,
+            # so a later run never names someone from an earlier window.
+            self._set_test_run_triggered_by(
+                workflow, triggered_by if workflow.allow_test_run_until else None
+            )
 
         workflow.save()
         set_allowed_m2m_fields(allowed_values, m2m_fields, workflow)
@@ -774,13 +786,8 @@ class AutomationWorkflowHandler:
             even when the run waits for an event.
         """
 
-        fields_to_save = []
-        if triggered_by is not None:
-            workflow.test_run_triggered_by_id = triggered_by.id
-            workflow.test_run_triggered_by_type = subject_type_registry.get_by_model(
-                triggered_by
-            ).type
-            fields_to_save += ["test_run_triggered_by_id", "test_run_triggered_by_type"]
+        # Always written, so a run never names the starter of an earlier one.
+        fields_to_save = self._set_test_run_triggered_by(workflow, triggered_by)
 
         if simulate_until_node is not None:
             # Switch to simulate until the given node
@@ -800,6 +807,27 @@ class AutomationWorkflowHandler:
         if fields_to_save:
             workflow.save(update_fields=fields_to_save)
             automation_workflow_updated.send(self, user=None, workflow=workflow)
+
+    def _set_test_run_triggered_by(
+        self, workflow: AutomationWorkflow, triggered_by: Optional[Subject]
+    ) -> List[str]:
+        """
+        Sets who asked for the workflow's pending test run, without saving.
+
+        :param workflow: The workflow waiting for its test run.
+        :param triggered_by: The subject, or None to record nobody.
+        :return: The fields to save.
+        """
+
+        if triggered_by is None:
+            workflow.test_run_triggered_by_id = None
+            return ["test_run_triggered_by_id"]
+
+        workflow.test_run_triggered_by_id = triggered_by.id
+        workflow.test_run_triggered_by_type = subject_type_registry.get_by_model(
+            triggered_by
+        ).type
+        return ["test_run_triggered_by_id", "test_run_triggered_by_type"]
 
     def get_test_run_triggered_by(self, workflow) -> Optional[Subject]:
         """
