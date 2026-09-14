@@ -315,6 +315,29 @@ const actions = {
       throw error
     }
   },
+  /**
+   * Reloads one node from the server and applies it as a realtime update.
+   * Used when a websocket event was too large to carry the node's sample data
+   * and arrived with `requires_refresh` instead; the list endpoint is the only
+   * read endpoint for nodes, so the workflow's nodes are fetched and the one we
+   * need is picked out, leaving the selection and the other nodes untouched.
+   */
+  async refetch({ dispatch, getters }, { workflow, nodeId }) {
+    const { data: nodes } = await AutomationWorkflowNodeService(
+      this.$client
+    ).get(workflow.id)
+    const values = nodes.find((node) => node.id === nodeId)
+    const existing = getters.findById(workflow, nodeId)
+    if (!values || !existing) return null
+    await dispatch('forceUpdate', {
+      workflow,
+      node: existing,
+      values,
+      override: true,
+      viaRealtime: true,
+    })
+    return getters.findById(workflow, nodeId)
+  },
   forceUpdate({ commit }, { workflow, node, values, override, viaRealtime }) {
     commit('UPDATE_ITEM', {
       workflow,
