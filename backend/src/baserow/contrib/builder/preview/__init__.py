@@ -43,6 +43,7 @@ class BuilderPreviewActor:
 
     is_authenticated = True
     is_anonymous = False
+    is_staff = False
     user_source_authentication_header = "Authorization"
 
     @property
