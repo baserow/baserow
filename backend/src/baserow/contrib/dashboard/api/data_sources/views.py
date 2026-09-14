@@ -18,6 +18,7 @@ from baserow.api.utils import (
     DiscriminatorCustomFieldsMappingSerializer,
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
+from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.actions import (
     UpdateDashboardDataSourceActionType,
 )
@@ -183,6 +184,7 @@ class DashboardDataSourceView(APIView):
             service_type_registry,
             request.data,
             base_serializer_class=UpdateDashboardDataSourceSerializer,
+            serializer_class_context={"application_type": DashboardApplicationType},
             return_validated=True,
         )
 
