@@ -16,7 +16,7 @@
   },
   "automationHistoryGuidedTourStep": {
     "title": "View workflow history",
-    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results."
+    "content": "Use the history panel to review past test runs and published executions. It's a great way to debug or confirm results, and you can cancel a run that's still in progress from here too."
   },
   "automationPublishGuidedTourStep": {
     "title": "Publish your workflow",
