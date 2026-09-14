@@ -369,7 +369,9 @@ def test_dispatch_context_actor_survives_clone(data_fixture):
 
 
 @pytest.mark.django_db
-def test_dispatch_context_actor_survives_clone_without_own_properties(data_fixture):
+def test_dispatch_context_without_actor_in_own_properties_clones_without_one(
+    data_fixture,
+):
     from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
     class StrictDispatchContext(FakeDispatchContext):
@@ -380,10 +382,7 @@ def test_dispatch_context_actor_survives_clone_without_own_properties(data_fixtu
         def __init__(self, context=None):
             super().__init__(context=context or {})
 
-    user = data_fixture.create_user()
-    other_user = data_fixture.create_user()
     dispatch_context = StrictDispatchContext()
-    dispatch_context.actor = user
+    dispatch_context.actor = data_fixture.create_user()
 
-    assert dispatch_context.clone().actor == user
-    assert dispatch_context.clone(actor=other_user).actor == other_user
+    assert dispatch_context.clone().actor is None

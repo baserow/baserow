@@ -20,6 +20,8 @@ def test_dispatch_context_clone(data_fixture):
     assert new_dispatch_context.request is request
     assert new_dispatch_context.widget == widget
     assert new_dispatch_context.cache == {"key": "value"}
+    # Only contexts that take an actor carry it; the rest keep the base None.
+    assert new_dispatch_context.actor is None
 
 
 @pytest.mark.django_db

@@ -27,7 +27,7 @@ class DatabaseDispatchContext(DispatchContext):
     context, and nothing dispatched by a click is a paginated list service.
     """
 
-    own_properties = ["field", "row"]
+    own_properties = ["field", "row", "actor"]
 
     def __init__(
         self,
@@ -43,17 +43,15 @@ class DatabaseDispatchContext(DispatchContext):
         :param row: The clicked row, as a generated table model instance.
         """
 
-        # Everything defaults to None only so `clone()` can rebuild this class
-        # without passing `actor`. Neither `field` nor `row` is optional for a
-        # real dispatch, so fail here rather than inside a data provider later.
+        # `field` and `row` default to None only because they follow `actor`.
+        # Neither is optional for a real dispatch, so fail here rather than
+        # inside a data provider later.
         if field is None or row is None:
             raise TypeError("DatabaseDispatchContext requires field and row")
 
         self.field = field
         self.row = row
 
-        # `clone()` carries `actor` over itself, hence its absence from
-        # `own_properties`.
         super().__init__(actor=actor, **kwargs)
 
         # Holds the row read for the action that is running. It has to be made
