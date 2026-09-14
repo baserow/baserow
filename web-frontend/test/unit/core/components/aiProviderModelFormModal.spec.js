@@ -134,7 +134,7 @@ describe('AIProviderModelFormModal', () => {
     })
   })
 
-  test('saves when the usage lookup fails', async () => {
+  test('confirms the save when the usage lookup fails', async () => {
     const dispatch = vi
       .spyOn(testApp.store, 'dispatch')
       .mockImplementation(async (action) => {
@@ -158,14 +158,11 @@ describe('AIProviderModelFormModal', () => {
     await wrapper.find('.actions button').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
-    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
-      modelId: 2,
-      values: {
-        model_identifier: 'gpt-5.6',
-        feature_types: ['ai_agent', 'kuma'],
-      },
-    })
+    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(true)
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/updateModel',
+      expect.anything()
+    )
   })
 
   test('confirms a rename while consumers still point at the old identifier', async () => {

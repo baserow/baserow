@@ -61,35 +61,53 @@ def test_agent_selection_does_not_block_model_deletion(data_fixture, settings):
     assert not AIProviderModel.objects.filter(id=model.id).exists()
 
 
+def _attach_builder_owner(data_fixture, service, page, trashed=False):
+    action = data_fixture.create_workflow_action(
+        AIAgentWorkflowAction,
+        page=page,
+        element=data_fixture.create_builder_button_element(page=page),
+        service=service,
+    )
+    if trashed:
+        action.trashed = True
+        action.save()
+    return action
+
+
 @pytest.mark.django_db
 def test_ai_agent_count_model_references(data_fixture):
-    service = data_fixture.create_ai_agent_service(
-        ai_generative_ai_type="openai",
-        ai_generative_ai_model="agent-model",
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    workspace = page.builder.workspace
+    integration = data_fixture.create_integration(
+        AIIntegration, application=page.builder, user=user
     )
-    integration = service.integration
-    workspace = integration.application.workspace
-    data_fixture.create_ai_agent_service(
-        integration=integration,
-        ai_generative_ai_type="openai",
-        ai_generative_ai_model="another-model",
-    )
-    data_fixture.create_ai_agent_service(
-        integration=integration,
-        ai_generative_ai_type="anthropic",
-        ai_generative_ai_model="agent-model",
-    )
-    data_fixture.create_ai_agent_service(
-        integration=integration,
+
+    def add_service(**kwargs):
+        service = data_fixture.create_ai_agent_service(
+            integration=integration, **kwargs
+        )
+        _attach_builder_owner(data_fixture, service, page)
+        return service
+
+    add_service(ai_generative_ai_type="openai", ai_generative_ai_model="agent-model")
+    add_service(ai_generative_ai_type="openai", ai_generative_ai_model="another-model")
+    add_service(ai_generative_ai_type="anthropic", ai_generative_ai_model="agent-model")
+    add_service(
         ai_generative_ai_type="openai",
         ai_generative_ai_model="agent-model",
         trashed=True,
     )
+    other_page = data_fixture.create_builder_page(user=user)
+    other_workspace = other_page.builder.workspace
     other_service = data_fixture.create_ai_agent_service(
+        integration=data_fixture.create_integration(
+            AIIntegration, application=other_page.builder, user=user
+        ),
         ai_generative_ai_type="openai",
         ai_generative_ai_model="agent-model",
     )
-    other_workspace = other_service.integration.application.workspace
+    _attach_builder_owner(data_fixture, other_service, other_page)
     feature_type = ai_provider_model_feature_type_registry.get(
         AI_PROVIDER_FEATURE_AI_AGENT
     )
@@ -106,10 +124,16 @@ def test_ai_agent_count_model_references(data_fixture):
 
 @pytest.mark.django_db
 def test_ai_agent_count_model_references_ignores_trashed_ancestors(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
     service = data_fixture.create_ai_agent_service(
+        integration=data_fixture.create_integration(
+            AIIntegration, application=page.builder, user=user
+        ),
         ai_generative_ai_type="openai",
         ai_generative_ai_model="agent-model",
     )
+    _attach_builder_owner(data_fixture, service, page)
     application = service.integration.application
     workspace = application.workspace
     feature_type = ai_provider_model_feature_type_registry.get(
@@ -229,3 +253,26 @@ def test_ai_agent_count_model_references_ignores_trashed_builder_owners(data_fix
     TrashHandler.trash(user, workspace, page.builder, page)
 
     assert feature_type.count_model_references("openai", "agent-model", workspace) == 0
+
+
+@pytest.mark.django_db
+def test_ai_agent_count_model_references_keeps_services_with_one_live_owner(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    service = data_fixture.create_ai_agent_service(
+        integration=data_fixture.create_integration(
+            AIIntegration, application=page.builder, user=user
+        ),
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="agent-model",
+    )
+    _attach_builder_owner(data_fixture, service, page)
+    _attach_builder_owner(data_fixture, service, page, trashed=True)
+    workspace = page.builder.workspace
+    feature_type = ai_provider_model_feature_type_registry.get(
+        AI_PROVIDER_FEATURE_AI_AGENT
+    )
+
+    assert feature_type.count_model_references("openai", "agent-model", workspace) == 1

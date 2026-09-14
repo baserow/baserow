@@ -26,8 +26,8 @@ export function aiProviderFeatureName(registry, featureType) {
 /**
  * Prefix a confirmation description with what still depends on a model.
  *
- * @param {{usage: Array<{featureType: string, count: number}>}} result The
- *   model usage lookup.
+ * @param {{usage: Array<{featureType: string, count: number}>,
+ *   failed: boolean}} result The model usage lookup.
  * @param {string} description The action description shown after the counts.
  * @param {Function} $t The translation function of the calling component.
  * @param {Object} registry The application registry.
@@ -36,6 +36,9 @@ export function aiProviderFeatureName(registry, featureType) {
 export function aiProviderModelUsageMessage(result, description, $t, registry) {
   const used = result.usage.filter((entry) => entry.count > 0)
   const sentences = []
+  if (result.failed) {
+    sentences.push($t('aiProviderAdmin.modelUsageUnknown'))
+  }
   if (used.length > 0) {
     sentences.push(
       $t('aiProviderAdmin.modelInUse', {

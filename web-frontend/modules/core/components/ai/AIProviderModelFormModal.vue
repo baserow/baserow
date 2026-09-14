@@ -194,7 +194,7 @@ export default {
       if (!renamed && removed.length === 0) {
         return null
       }
-      const { usage } = await this.lookupModelUsage(
+      const { usage, failed } = await this.lookupModelUsage(
         this.model.id,
         this.workspaceId
       )
@@ -203,6 +203,7 @@ export default {
           (entry) =>
             entry.count > 0 && (renamed || removed.includes(entry.featureType))
         ),
+        failed,
       }
       if (!this.modelHasDependents(atRisk)) {
         return null

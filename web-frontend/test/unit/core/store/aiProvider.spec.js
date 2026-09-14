@@ -32,6 +32,14 @@ describe('AI provider store', () => {
       create: vi.fn().mockResolvedValue({ data: { id: 1 } }),
       update: vi.fn().mockResolvedValue({ data: { id: 1, is_active: false } }),
       updateModel: vi.fn().mockResolvedValue({ data: { id: 2 } }),
+      fetchModelUsage: vi.fn().mockResolvedValue({
+        data: {
+          usage: [
+            { feature_type: 'ai_fields', count: 3 },
+            { feature_type: 'ai_agent', count: 0 },
+          ],
+        },
+      }),
       testModels: vi.fn().mockResolvedValue({
         data: {
           results: [
@@ -481,6 +489,43 @@ describe('AI provider store', () => {
       null,
       { root: true }
     )
+  })
+
+  test('fetchModelUsage maps the response to camel case', async () => {
+    const result = await actions.fetchModelUsage.call(
+      { $client: {} },
+      { commit: vi.fn(), state: makeState() },
+      { modelId: 2 }
+    )
+
+    expect(service.fetchModelUsage).toHaveBeenCalledWith(2)
+    expect(result).toEqual({
+      usage: [
+        { featureType: 'ai_fields', count: 3 },
+        { featureType: 'ai_agent', count: 0 },
+      ],
+    })
+  })
+
+  test('fetchModelUsage accepts a bare model id and defaults to instance scope', async () => {
+    await actions.fetchModelUsage.call(
+      { $client: {} },
+      { commit: vi.fn(), state: makeState() },
+      2
+    )
+
+    expect(aiProviderService).toHaveBeenLastCalledWith({}, null)
+    expect(service.fetchModelUsage).toHaveBeenCalledWith(2)
+  })
+
+  test('fetchModelUsage scopes the request to the given workspace', async () => {
+    await actions.fetchModelUsage.call(
+      { $client: {} },
+      { commit: vi.fn(), state: makeState() },
+      { modelId: 2, workspaceId: 42 }
+    )
+
+    expect(aiProviderService).toHaveBeenLastCalledWith({}, 42)
   })
 
   test('model mutations preserve the provider and update only the model', () => {

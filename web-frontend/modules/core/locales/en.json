@@ -1137,6 +1137,7 @@
     "modelFeaturesRemovedTitle": "Change what {name} is available for?",
     "modelFeaturesRemovedDescription": "The features you unchecked can no longer use this model.",
     "modelInUse": "{features} uses this model. | {features} use this model.",
+    "modelUsageUnknown": "Baserow could not check what still uses this model.",
     "modelUsageFeature": "{feature} ({count})",
     "modelIdentifierRenamedTitle": "Rename {name}?",
     "modelIdentifierRenamedDescription": "They keep pointing at the old identifier and stop working until they are repointed.",

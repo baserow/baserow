@@ -122,7 +122,7 @@ describe('AIProviderWorkspaceSettings', () => {
     })
   })
 
-  test('disables a model when the usage lookup fails', async () => {
+  test('confirms the disable when the usage lookup fails', async () => {
     const model = enabledModel()
     const { wrapper, dispatch } = await mountWithModel(model, () => {
       throw new Error('Usage unavailable')
@@ -130,12 +130,13 @@ describe('AIProviderWorkspaceSettings', () => {
 
     await selectModelAction(wrapper, 'toggle')
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
-    expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
-      modelId: 21,
-      workspaceId: 42,
-      values: { is_enabled: false },
-    })
+    expect(wrapper.findComponent(AIProviderConfirmModal).props('message')).toBe(
+      'aiProviderAdmin.modelUsageUnknown aiProviderAdmin.disableModelDescription'
+    )
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'aiProvider/updateModel',
+      expect.anything()
+    )
   })
 
   test('does not look up usage when enabling a model', async () => {
