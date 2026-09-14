@@ -259,7 +259,7 @@ def test_finalize_workflow_history_cancellation(data_fixture):
 
     history.refresh_from_db()
     assert history.status == HistoryStatusChoices.CANCELLED
-    assert history.message == "Cancelled by Ada."
+    assert history.message == f"Cancelled by Ada ({user.id})."
     assert history.completed_on.isoformat() == "2026-08-18T12:00:00+00:00"
 
 
