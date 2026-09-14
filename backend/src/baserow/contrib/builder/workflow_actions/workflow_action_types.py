@@ -42,6 +42,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.local_baserow.mixins import (
+    UpdateRowRequiresRowIdMixin,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
@@ -497,7 +500,9 @@ class LocalBaserowCreateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
         return {"service": service}
 
 
-class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
+class UpdateRowWorkflowActionType(
+    UpdateRowRequiresRowIdMixin, UpsertRowWorkflowActionType
+):
     type = "update_row"
     model_class = LocalBaserowUpdateRowWorkflowAction
 

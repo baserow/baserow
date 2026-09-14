@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Update row actions no longer create a row when the row ID is empty",
+  "issue_origin": "github",
+  "issue_number": 5934,
+  "domain": "integration",
+  "bullet_points": [],
+  "created_at": "2026-09-14"
+}

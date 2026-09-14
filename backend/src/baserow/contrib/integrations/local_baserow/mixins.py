@@ -1053,3 +1053,18 @@ class LocalBaserowTableServiceSpecificRowMixin:
         return super_formulas + [
             FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
         ]
+
+
+class UpdateRowRequiresRowIdMixin:
+    """
+    For an action or node type that updates a row through the upsert row
+    service. That service creates a row when its row ID formula is empty, so an
+    update type refuses to dispatch without one.
+    """
+
+    def dispatch(self, instance, dispatch_context: DispatchContext):
+        if not instance.service.specific.row_id["formula"]:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "A row ID is required to update a row."
+            )
+        return super().dispatch(instance, dispatch_context)

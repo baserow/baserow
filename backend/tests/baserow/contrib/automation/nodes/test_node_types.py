@@ -26,6 +26,7 @@ from baserow.contrib.integrations.core.constants import (
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.core.handler import CoreHandler
+from baserow.core.services.exceptions import DispatchException
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
@@ -210,7 +211,9 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(
-        user=user, type="local_baserow_update_row"
+        user=user,
+        type="local_baserow_update_row",
+        service_kwargs={"row_id": "'1'"},
     )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
@@ -218,6 +221,34 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 
     assert result == mock_dispatch_result
     mock_dispatch.assert_called_once_with(node.service.specific, dispatch_context)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("row_id", ["", "''", "'0'"])
+def test_automation_node_type_update_row_dispatch_without_a_row_to_update(
+    data_fixture, row_id
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=workflow.automation, user=user
+    )
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[["Horse"]]
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        table=table, integration=integration, row_id=row_id
+    )
+    service.field_mappings.create(field=fields[0], value="'Cow'", enabled=True)
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_update_row", service=service
+    )
+
+    dispatch_context = AutomationDispatchContext(node.workflow, None)
+    with pytest.raises(DispatchException):
+        node.get_type().dispatch(node, dispatch_context)
+
+    assert [r.id for r in table.get_model().objects.all()] == [rows[0].id]
 
 
 @pytest.mark.django_db

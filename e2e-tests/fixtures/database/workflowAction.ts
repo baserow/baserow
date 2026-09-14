@@ -65,8 +65,8 @@ export async function listWorkflowActions(
 }
 
 /**
- * A create or update row action on `table`. Leave `rowId` out to create a row;
- * pass `"get('row.id')"` to target the clicked row.
+ * A create or update row action on `table`. An update needs `rowId`, e.g.
+ * `"get('row.id')"` to target the clicked row; a create leaves it out.
  */
 export async function createRowAction(
   user: User,

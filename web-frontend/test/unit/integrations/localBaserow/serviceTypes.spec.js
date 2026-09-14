@@ -336,4 +336,34 @@ describe('Local baserow service types', () => {
       })
     ).toBe(null)
   })
+
+  test('the update row service is in error without a row ID, the create row service is not', () => {
+    const registry = testApp.getRegistry()
+    const updateRow = registry.get('service', 'local_baserow_update_row')
+    const createRow = registry.get('service', 'local_baserow_create_row')
+    const emptyRowId = { formula: '', mode: 'simple', version: '0.1' }
+    const rowId = { formula: "get('row.id')", mode: 'simple', version: '0.1' }
+
+    expect(
+      updateRow.getErrorMessage({
+        service: { table_id: 1, row_id: emptyRowId },
+      })
+    ).toBe(testApp.getApp().$i18n.t('serviceType.errorNoRowIdSelected'))
+    expect(
+      updateRow.getErrorMessage({ service: { table_id: 1, row_id: rowId } })
+    ).toBe(null)
+    // A public page's service carries no formulas, so nothing to check.
+    expect(updateRow.getErrorMessage({ service: { table_id: 1 } })).toBe(null)
+    // The table comes first: the row ID input is disabled until one is chosen.
+    expect(
+      updateRow.getErrorMessage({
+        service: { table_id: null, row_id: emptyRowId },
+      })
+    ).toBe(testApp.getApp().$i18n.t('serviceType.errorNoTableSelected'))
+    expect(
+      createRow.getErrorMessage({
+        service: { table_id: 1, row_id: emptyRowId },
+      })
+    ).toBe(null)
+  })
 })
