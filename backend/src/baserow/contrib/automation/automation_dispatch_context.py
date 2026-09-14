@@ -1,6 +1,5 @@
+from functools import cached_property
 from typing import Any, Dict, List, Optional, Union
-
-from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
@@ -10,7 +9,9 @@ from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.nodes.models import AutomationActionNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.cache import local_cache
+from baserow.core.registries import subject_type_registry
 from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.types import Subject
 
 
 class AutomationDispatchContext(DispatchContext):
@@ -73,14 +74,21 @@ class AutomationDispatchContext(DispatchContext):
         new_context.current_iterations = {**self.current_iterations}
         return new_context
 
-    @property
-    def triggered_by(self) -> Optional[AbstractUser]:
+    @cached_property
+    def triggered_by(self) -> Optional[Subject]:
         """
         Who started this run, from the history. Not `actor`: a run acts as its
-        integrations' users whoever started it (ADR 006 section 5).
+        integrations' users whoever started it (ADR 006 section 5). None when
+        nobody did or the subject has since been deleted.
         """
 
-        return self.history.triggered_by
+        if self.history.triggered_by_id is None:
+            return None
+
+        subject_type = subject_type_registry.get(self.history.triggered_by_type)
+        return subject_type.model_class.objects.filter(
+            id=self.history.triggered_by_id
+        ).first()
 
     def get_iteration_path(self, node):
         """

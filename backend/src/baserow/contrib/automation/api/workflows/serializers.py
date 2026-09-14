@@ -125,17 +125,16 @@ class AutomationHistorySerializer(serializers.ModelSerializer):
 
 
 class AutomationWorkflowHistoryTriggeredBySerializer(serializers.Serializer):
-    """Who started the run, in the `{id, name}` shape the collaborator UI reads."""
+    """Who started the run, in the `{id, type, name}` shape the collaborator UI reads."""
 
-    id = serializers.IntegerField(read_only=True)
-    name = serializers.CharField(source="first_name", read_only=True)
+    id = serializers.IntegerField(source="triggered_by_id", read_only=True)
+    type = serializers.CharField(source="triggered_by_type", read_only=True)
+    name = serializers.CharField(source="triggered_by_name", read_only=True)
 
 
 class AutomationWorkflowHistorySerializer(AutomationHistorySerializer):
     plugin_data = serializers.SerializerMethodField()
-    triggered_by = AutomationWorkflowHistoryTriggeredBySerializer(
-        read_only=True, allow_null=True
-    )
+    triggered_by = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationWorkflowHistory
@@ -149,6 +148,14 @@ class AutomationWorkflowHistorySerializer(AutomationHistorySerializer):
     @extend_schema_field(serializers.DictField())
     def get_plugin_data(self, obj):
         return self.context.get("workflow_history_plugin_data", {}).get(obj.id, {})
+
+    @extend_schema_field(
+        AutomationWorkflowHistoryTriggeredBySerializer(allow_null=True)
+    )
+    def get_triggered_by(self, obj):
+        if obj.triggered_by_id is None:
+            return None
+        return AutomationWorkflowHistoryTriggeredBySerializer(obj).data
 
 
 class AutomationWorkflowHistoryPagination(PageNumberPagination):

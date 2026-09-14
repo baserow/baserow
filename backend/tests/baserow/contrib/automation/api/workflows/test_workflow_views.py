@@ -724,6 +724,7 @@ def test_get_workflow_histories_names_who_triggered_the_run(api_client, data_fix
     assert response.status_code == HTTP_200_OK
     assert response.json()["results"][0]["triggered_by"] == {
         "id": user.id,
+        "type": "auth.User",
         "name": "Ada",
     }
 
@@ -802,7 +803,7 @@ def test_get_workflow_histories_query_count(data_fixture, django_assert_num_quer
                 started_on=timezone.now(),
                 is_test_run=False,
                 # Every other run names its user, so the serializer's
-                # nested user is exercised without a query per row.
+                # nested starter is exercised without a query per row.
                 triggered_by=user if index % 2 else None,
             )
             node_history = handler.create_node_history(

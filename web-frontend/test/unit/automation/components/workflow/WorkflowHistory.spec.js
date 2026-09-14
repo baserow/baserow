@@ -21,7 +21,10 @@ const mountHistory = (item, usersById = {}) => {
   }
   return mountSuspended(WorkflowHistory, {
     props: { item },
-    global: { stubs: { NodeHistory: true } },
+    global: {
+      stubs: { NodeHistory: true },
+      mocks: { $t: (key, params) => `${key}:${params?.name}` },
+    },
   })
 }
 
@@ -40,23 +43,35 @@ describe('WorkflowHistory', () => {
     storeHolder.store = null
   })
 
-  // The test app has no locale messages loaded, so `$t` returns the key.
+  // `$t` is mocked to echo the name, so the assertions see which one is used.
   test('names who started the run from the workspace store', async () => {
     const wrapper = await mountHistory(
-      { ...baseItem, triggered_by: { id: 7, name: 'Ada' } },
+      { ...baseItem, triggered_by: { id: 7, type: 'auth.User', name: 'Ada' } },
       { 7: { id: 7, name: 'Ada Lovelace' } }
     )
     expect(wrapper.find('.workflow-history__actor').text()).toBe(
-      'historySidePanel.startedBy'
+      'historySidePanel.startedBy:Ada Lovelace'
     )
   })
 
   test('still names a user who left the workspace', async () => {
     const wrapper = await mountHistory({
       ...baseItem,
-      triggered_by: { id: 7, name: 'Ada' },
+      triggered_by: { id: 7, type: 'auth.User', name: 'Ada' },
     })
-    expect(wrapper.find('.workflow-history__actor').exists()).toBe(true)
+    expect(wrapper.find('.workflow-history__actor').text()).toBe(
+      'historySidePanel.startedBy:Ada'
+    )
+  })
+
+  test('names a subject that is not a user from the run', async () => {
+    const wrapper = await mountHistory(
+      { ...baseItem, triggered_by: { id: 7, type: 'agent', name: 'Helper' } },
+      { 7: { id: 7, name: 'Ada Lovelace' } }
+    )
+    expect(wrapper.find('.workflow-history__actor').text()).toBe(
+      'historySidePanel.startedBy:Helper'
+    )
   })
 
   test('shows nothing when nobody is recorded', async () => {

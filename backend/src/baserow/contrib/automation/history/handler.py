@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Union
 
-from django.contrib.auth.models import AbstractUser
 from django.db.models import Prefetch, QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -18,8 +17,10 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.db import specific_iterator
+from baserow.core.registries import subject_type_registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
+from baserow.core.types import Subject
 
 
 class AutomationHistoryHandler:
@@ -35,7 +36,7 @@ class AutomationHistoryHandler:
         if base_queryset is None:
             base_queryset = AutomationWorkflowHistory.objects.all()
 
-        return base_queryset.select_related("triggered_by").filter(
+        return base_queryset.filter(
             original_workflow=workflow,
             simulate_until_node__isnull=True,
         )
@@ -74,14 +75,25 @@ class AutomationHistoryHandler:
         status: HistoryStatusChoices = HistoryStatusChoices.STARTED,
         completed_on: Optional[datetime] = None,
         message: str = "",
-        triggered_by: Optional[AbstractUser] = None,
+        triggered_by: Optional[Subject] = None,
     ) -> AutomationWorkflowHistory:
         """
         Creates a history entry for a Workflow run.
 
-        :param triggered_by: The person who deliberately started the run, when
+        :param triggered_by: The subject who deliberately started the run, when
             one did. An event-started run has none.
         """
+
+        triggered_by_values = {}
+        if triggered_by is not None:
+            subject_type = subject_type_registry.get_by_model(triggered_by)
+            triggered_by_values = {
+                "triggered_by_id": triggered_by.id,
+                "triggered_by_type": subject_type.type,
+                # TODO: use `subject_type.get_display_name` once agents are
+                #  subjects (#6064). Users are the only subject starting a run.
+                "triggered_by_name": triggered_by.first_name,
+            }
 
         return AutomationWorkflowHistory.objects.create(
             workflow=workflow,
@@ -93,7 +105,7 @@ class AutomationHistoryHandler:
             status=status,
             completed_on=completed_on,
             message=message,
-            triggered_by=triggered_by,
+            **triggered_by_values,
         )
 
     def create_node_history(

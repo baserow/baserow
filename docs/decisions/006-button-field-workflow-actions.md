@@ -406,8 +406,10 @@ for every other action type: the row actions, the HTTP request, the email and th
 message all act as the clicker or as this installation, and none of them borrows another
 user's reach.
 
-The click itself is not anonymous, though. The run's history names the clicker in
-`triggered_by`, the run's dispatch context exposes the same person under that name, and
+The click itself is not anonymous, though. The run's history records the clicker as a
+subject (`triggered_by_id`, `triggered_by_type` and `triggered_by_name`, so an agent can
+start a run later and the name survives the user being deleted), the run's dispatch
+context exposes the same subject as `triggered_by`, and
 the click is registered as a `dispatch_button_field` action, so the audit log holds who
 clicked which button on which row. None of that changes who the nodes act as: the
 context's `actor` slot, which a Local Baserow node without an integration would act as,

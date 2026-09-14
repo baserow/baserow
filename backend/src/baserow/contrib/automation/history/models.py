@@ -1,7 +1,7 @@
-from django.conf import settings
 from django.db import models
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.core.subjects import UserSubjectType
 
 
 class AutomationHistory(models.Model):
@@ -51,14 +51,25 @@ class AutomationWorkflowHistory(AutomationHistory):
         help_text="Event payload received by the workflow.",
     )
 
-    triggered_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+    # Who started the run, as a subject rather than a user foreign key so an
+    # agent can be recorded too. The id is only meaningful together with the
+    # type, since user and agent ids can overlap. The name is kept so the entry
+    # still reads after the subject is deleted.
+    triggered_by_id = models.PositiveIntegerField(
         null=True,
+        help_text="The id of the subject who started this run. Null when an "
+        "event started it.",
+    )
+    triggered_by_type = models.CharField(
+        max_length=255,
+        db_default=UserSubjectType.type,
+        help_text="The subject type of who started this run.",
+    )
+    triggered_by_name = models.CharField(
+        max_length=160,
         blank=True,
-        related_name="+",
-        help_text="The person who started this run, when one did. Null when "
-        "an event started it.",
+        db_default="",
+        help_text="The name of who started this run, when it started.",
     )
 
     class Meta(AutomationHistory.Meta):

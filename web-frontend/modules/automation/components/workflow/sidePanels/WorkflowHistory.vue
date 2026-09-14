@@ -132,9 +132,14 @@ const nodeHistoriesEntry = computed(() =>
   store.getters['automationHistory/getNodeHistories'](props.item.id)
 )
 
-const triggeredByName = computed(() =>
-  collaboratorName.methods.getCollaboratorName(props.item.triggered_by, store)
-)
+// A user's name comes from the workspace store so a rename shows; any other
+// subject, or a user who left, falls back to the name stored on the run.
+const triggeredByName = computed(() => {
+  const triggeredBy = props.item.triggered_by
+  if (!triggeredBy) return ''
+  if (triggeredBy.type !== 'auth.User') return triggeredBy.name
+  return collaboratorName.methods.getCollaboratorName(triggeredBy, store)
+})
 
 const statusTitle = computed(() => {
   switch (props.item.status) {
