@@ -135,9 +135,26 @@ Use `EasyImportExportMixin` for model-backed types with direct property serializ
 - `parent_property_name`: the parent relation to set during import.
 - `id_mapping_name`: optional mapping key to populate.
 - `model_class`: the model class to create.
-- `sensitive_fields`: fields omitted when `exclude_sensitive_data` is enabled.
+- `sensitive_fields`: fields omitted when `exclude_sensitive_data` is enabled. Integration and user source updates also keep these fields out of the undo action log. Neither hides a field from API responses.
 
 Override `serialize_property`, `deserialize_property`, or `create_instance_from_serialized` for file handling, ID remapping, compatibility, or custom creation.
+
+## Integration Secrets
+
+Credentials on an `IntegrationType` (passwords, tokens, API keys) must be write-only. Declare them on the type:
+
+- `secret_fields`: fields that can be set and overwritten but are never returned by the API, the creator included. The response serializer replaces each one with a `has_<name>` boolean. Omitting the field on update keeps the stored value. Document that contract in the field's `help_text` through `serializer_field_extra_kwargs`.
+- `secret_field_dependencies`: maps a secret to the fields that decide where it is sent. Changing any of those fields requires the secret to be supplied again in the same request, otherwise the stored credential could be sent to a destination its owner never chose.
+- Also list every secret in `sensitive_fields` so it stays out of exports.
+
+```python
+class SMTPIntegrationType(IntegrationType):
+    sensitive_fields = ["host", "port", "use_tls", "username", "password"]
+    secret_fields = ["password"]
+    secret_field_dependencies = {"password": ["host", "port", "use_tls"]}
+```
+
+`DataSyncType.secret_field_dependencies` is the equivalent for data syncs.
 
 ## API URLs And Exceptions
 
