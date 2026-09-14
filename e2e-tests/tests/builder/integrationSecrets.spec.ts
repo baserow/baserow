@@ -147,7 +147,7 @@ test.describe("Write-only integration secrets", () => {
     await expect(modal.getByText("Credential required")).toBeVisible();
     await expect(
       modal.getByText(
-        "Enter the password again to change where this integration connects."
+        "Enter the credential again to change where this integration connects."
       )
     ).toBeVisible();
 
