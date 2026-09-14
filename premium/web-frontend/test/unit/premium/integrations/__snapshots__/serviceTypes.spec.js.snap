@@ -1,0 +1,30 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Premium integrations service types > selecting a grouped source in a Table generates result columns 1`] = `
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000002",
+    "name": "Status",
+    "type": "text",
+    "value": {
+      "formula": "get('current_record.field_1.value')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000003",
+    "name": "Done",
+    "type": "boolean",
+    "value": {
+      "formula": "get('current_record.field_2')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000004",
+    "name": "Done count",
+    "type": "text",
+    "value": {
+      "formula": "get('current_record.field_2_count')",
+    },
+  },
+]
+`;

@@ -63,6 +63,35 @@ describe('Local baserow service types', () => {
     ).toEqual(['Field 42', 'value'])
   })
 
+  test('List service preserves specialized default Table columns', () => {
+    const serviceType = new LocalBaserowListRowsServiceType({})
+    const types = {
+      boolean: 'boolean',
+      rating: 'number',
+      url: 'string',
+      file: 'array',
+      created_by: 'object',
+      last_modified_by: 'object',
+      single_select: 'object',
+      multiple_select: 'array',
+      multiple_collaborators: 'array',
+      formula: 'string',
+    }
+    const properties = Object.fromEntries(
+      Object.entries(types).map(([originalType, type], index) => [
+        `field_${index}`,
+        { type, original_type: originalType, title: originalType },
+      ])
+    )
+    properties.id = { type: 'number', title: 'Id' }
+    expect(
+      serviceType.getDefaultCollectionFields({
+        schema: { items: { properties } },
+      })
+    ).toMatchSnapshot()
+    expect(serviceType.getDefaultCollectionFields({ schema: null })).toEqual([])
+  })
+
   test('List service should resolve correctly in builder data provider', () => {
     const dataProvider = testApp
       .getRegistry()
