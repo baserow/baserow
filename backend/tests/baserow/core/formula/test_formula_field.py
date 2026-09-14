@@ -59,9 +59,10 @@ def test_json_formula_field_get_prep_value_does_not_mutate_input():
 
 def test_json_formula_field_transform_db_property_coerces_null_formula():
     """
-    Legacy rows written before the formula-object migration can hold `null`
-    (or dicts with missing/null keys) at a formula path. These must be read
-    back as `formula: ""`, never `formula: None`, because clients expect a string.
+    Legacy rows written before the formula-object migration can hold `null` at
+    a formula path, and older write paths could persist a null `f`. These must
+    be read back as `formula: ""`, never `formula: None`, because clients expect
+    a string. A missing mode or version is deliberately not defaulted.
     """
 
     field = JSONFormulaField(properties=["value"])
@@ -70,10 +71,14 @@ def test_json_formula_field_transform_db_property_coerces_null_formula():
         "mode": BASEROW_FORMULA_MODE_SIMPLE,
         "version": BASEROW_FORMULA_VERSION_INITIAL,
     }
+    minified_with_null_formula = {
+        "f": None,
+        "m": BASEROW_FORMULA_MODE_SIMPLE,
+        "v": BASEROW_FORMULA_VERSION_INITIAL,
+    }
 
     assert field._transform_db_property(None) == expected
-    assert field._transform_db_property({}) == expected
-    assert field._transform_db_property({"f": None, "m": None, "v": None}) == expected
+    assert field._transform_db_property(minified_with_null_formula) == expected
 
 
 def test_json_formula_field_transform_db_properties_coerces_legacy_null_value():
@@ -100,10 +105,7 @@ def test_json_formula_field_get_prep_value_coerces_null_formula():
     """
 
     field = JSONFormulaField(properties=["value"])
-
-    prepped = field.get_prep_value([{"name": "id", "value": None}])
-
-    assert prepped == [
+    expected = [
         {
             "name": "id",
             "value": {
@@ -113,6 +115,17 @@ def test_json_formula_field_get_prep_value_coerces_null_formula():
             },
         }
     ]
+    object_with_null_formula = {
+        "formula": None,
+        "mode": BASEROW_FORMULA_MODE_SIMPLE,
+        "version": BASEROW_FORMULA_VERSION_INITIAL,
+    }
+
+    assert field.get_prep_value([{"name": "id", "value": None}]) == expected
+    assert (
+        field.get_prep_value([{"name": "id", "value": object_with_null_formula}])
+        == expected
+    )
 
 
 def test_formula_field_transform_db_value_coerces_null_formula():

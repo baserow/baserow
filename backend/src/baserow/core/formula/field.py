@@ -297,8 +297,10 @@ class JSONFormulaField(models.JSONField):
         """
 
         # Legacy rows written before the formula-object migration can hold
-        # `null` (or dicts with missing/null keys) at a formula path; clients
-        # expect `formula` to always be a string, so coerce while reading.
+        # `null` at a formula path, and older write paths could persist a null
+        # `f`; clients expect `formula` to always be a string, so coerce it
+        # while reading. Only the formula is coerced on purpose: a missing mode
+        # or version is not guessed here.
         if not isinstance(value, dict):
             return BaserowFormulaObject(
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
@@ -306,9 +308,8 @@ class JSONFormulaField(models.JSONField):
                 formula=value or "",
             )
         return BaserowFormulaObject(
-            mode=value.get("m", value.get("mode")) or BASEROW_FORMULA_MODE_SIMPLE,
-            version=value.get("v", value.get("version"))
-            or BASEROW_FORMULA_VERSION_INITIAL,
+            mode=value.get("m", value.get("mode")),
+            version=value.get("v", value.get("version")),
             formula=value.get("f", value.get("formula")) or "",
         )
 
@@ -430,8 +431,8 @@ class JSONFormulaField(models.JSONField):
                 f=value or "",
             )
         return BaserowFormulaMinified(
-            m=value.get("mode") or BASEROW_FORMULA_MODE_SIMPLE,
-            v=value.get("version") or BASEROW_FORMULA_VERSION_INITIAL,
+            m=value.get("mode", BASEROW_FORMULA_MODE_SIMPLE),
+            v=value.get("version", BASEROW_FORMULA_VERSION_INITIAL),
             f=value.get("formula") or "",
         )
 
