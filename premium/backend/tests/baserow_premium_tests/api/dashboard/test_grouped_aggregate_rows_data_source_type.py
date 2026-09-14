@@ -82,7 +82,9 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
     assert response.status_code == HTTP_200_OK
     assert len(response_json) == 2
     assert response_json[0] == {
-        "aggregation_group_bys": [{"field_id": field_3.id, "order": 1}],
+        "aggregation_group_bys": [
+            {"field_id": field_3.id, "order": 1, "mode": "complete"}
+        ],
         "aggregation_series": [
             {
                 "aggregation_type": "sum",
@@ -227,7 +229,7 @@ def test_grouped_aggregate_rows_update_data_source(api_client, premium_data_fixt
         },
     ]
     assert response_json["aggregation_group_bys"] == [
-        {"field_id": field_3.id, "order": 0}
+        {"field_id": field_3.id, "order": 0, "mode": "complete"}
     ]
     assert response_json["aggregation_sorts"] == [
         {

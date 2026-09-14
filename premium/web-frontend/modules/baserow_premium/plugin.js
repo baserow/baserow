@@ -38,6 +38,7 @@ import {
   RatingFieldType,
   BooleanFieldType,
   SingleSelectFieldType,
+  MultipleSelectFieldType,
   PhoneNumberFieldType,
   AutonumberFieldType,
 } from '@baserow/modules/database/fieldTypes'
@@ -64,7 +65,10 @@ import {
   ChartWidgetType,
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
-import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
+import {
+  SingleSelectFormattingType,
+  MultipleSelectFormattingType,
+} from '@baserow_premium/dashboard/chartFieldFormatting'
 import { LocalBaserowGroupedAggregateRowsServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
@@ -340,11 +344,20 @@ export default defineNuxtPlugin({
       new AutonumberFieldType(context)
     )
 
+    $registry.register(
+      'groupedAggregationGroupedBy',
+      new MultipleSelectFieldType(context)
+    )
+
     $registry.register('dashboardWidget', new ChartWidgetType(context))
     $registry.register('dashboardWidget', new PieChartWidgetType(context))
     $registry.register(
       'chartFieldFormatting',
       new SingleSelectFormattingType(context)
+    )
+    $registry.register(
+      'chartFieldFormatting',
+      new MultipleSelectFormattingType(context)
     )
     $registry.register(
       'service',

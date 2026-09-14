@@ -46,6 +46,11 @@ class LocalBaserowTableServiceAggregationSeries(models.Model):
         ordering = ("order", "id")
 
 
+class AggregationGroupByMode(models.TextChoices):
+    COMPLETE = "complete", "Complete selection"
+    INDIVIDUAL = "individual", "Each selected option"
+
+
 class LocalBaserowTableServiceAggregationGroupBy(models.Model):
     """
     A group by for aggregations applicable to a `LocalBaserowTableService`
@@ -63,6 +68,13 @@ class LocalBaserowTableServiceAggregationGroupBy(models.Model):
         help_text="The field to use in group by.",
         null=True,
         on_delete=models.CASCADE,
+    )
+    mode = models.CharField(
+        max_length=16,
+        choices=AggregationGroupByMode.choices,
+        default=AggregationGroupByMode.COMPLETE,
+        db_default=AggregationGroupByMode.COMPLETE,
+        help_text="Whether to group multiple selections together or by each option.",
     )
     order = models.PositiveIntegerField()
 

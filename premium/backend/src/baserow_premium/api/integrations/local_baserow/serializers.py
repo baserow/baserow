@@ -22,7 +22,7 @@ class LocalBaserowTableServiceAggregationGroupBySerializer(serializers.ModelSeri
 
     class Meta:
         model = LocalBaserowTableServiceAggregationGroupBy
-        fields = ("order", "field_id")
+        fields = ("order", "field_id", "mode")
 
 
 class LocalBaserowTableServiceAggregationSortBySerializer(serializers.ModelSerializer):

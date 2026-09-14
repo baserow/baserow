@@ -24,6 +24,9 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_premium.api.integrations.local_baserow.serializers import (
+    LocalBaserowTableServiceAggregationGroupBySerializer,
+)
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
@@ -2374,6 +2377,272 @@ def test_grouped_aggregate_rows_service_dispatch_group_by(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_type",
+    ["multiple_select", "link_row", "multiple_collaborators"],
+)
+@pytest.mark.parametrize("bucket_limit", [100, 2])
+def test_grouped_aggregate_rows_service_dispatch_group_by_multiple_relations(
+    data_fixture,
+    settings,
+    django_assert_num_queries,
+    field_type,
+    bucket_limit,
+):
+    """Collection buckets retain labels, empty values, and overflow aggregation."""
+    settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = bucket_limit
+    user = data_fixture.create_user(first_name="Alice")
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    if field_type == "multiple_select":
+        group_field = data_fixture.create_multiple_select_field(
+            table=table, name="Category", primary=True
+        )
+        options = [
+            data_fixture.create_select_option(field=group_field, value=name)
+            for name in ["Alpha", "Beta"]
+        ]
+        values = [option.id for option in options]
+        labels = ["Alpha", "Beta"]
+    elif field_type == "link_row":
+        linked_table = data_fixture.create_database_table(user=user)
+        primary = data_fixture.create_text_field(table=linked_table, primary=True)
+        linked_model = linked_table.get_model()
+        values = [
+            linked_model.objects.create(**{primary.db_column: name}).id
+            for name in ["Alpha", "Beta"]
+        ]
+        group_field = data_fixture.create_link_row_field(
+            table=table, link_row_table=linked_table, name="Category", primary=True
+        )
+        labels = ["Alpha", "Beta"]
+    else:
+        other_user = data_fixture.create_user(
+            first_name="Bob", workspace=table.database.workspace
+        )
+        group_field = data_fixture.create_multiple_collaborators_field(
+            table=table, name="Category", primary=True
+        )
+        values = [{"id": person.id} for person in [user, other_user]]
+        labels = [
+            f"{person.first_name} <{person.email}>" for person in [user, other_user]
+        ]
+
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows, integration=integration, table=table
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=amount, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None, order=1
+    )
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"{amount.db_column}_sum",
+        order=1,
+        direction="ASC",
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {amount.db_column: 1, group_field.db_column: []},
+            {amount.db_column: 2, group_field.db_column: values[:1]},
+            {amount.db_column: 4, group_field.db_column: values},
+        ],
+    )
+
+    # Both labels and response values reuse the same single lookup for all buckets.
+    model = table.get_model()
+    field_object = model.get_field_object(group_field.db_column)
+    service_type = service.get_type()
+    serializer = field_object["type"].get_response_serializer_field(
+        field_object["field"]
+    )
+    expected_ids = [
+        value["id"] if isinstance(value, dict) else value for value in values
+    ]
+    raw_values = [None, *expected_ids, expected_ids, "OTHER_VALUES"]
+    with django_assert_num_queries(1):
+        resolve = service_type._get_related_result_values(
+            field_object,
+            model,
+            [{group_field.db_column: value} for value in raw_values] * 10,
+        )
+    with django_assert_num_queries(0):
+        assert [
+            service_type._get_human_readable_result_value(value, field_object, resolve)
+            for value in raw_values
+        ] == ["", *labels, ", ".join(labels), "OTHER_VALUES"]
+        assert [
+            item["id"] for item in serializer.to_representation(resolve(expected_ids))
+        ] == expected_ids
+
+    result = ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
+    assert result["has_next_page"] is False
+    rows = result["results"]
+    assert rows[0] == {"id": "0", "Amount sum": Decimal(1), "Category": []}
+    if bucket_limit == 2:
+        assert rows[1] == {
+            "id": "OTHER_VALUES",
+            "Amount sum": Decimal(6),
+            "Category": "OTHER_VALUES",
+        }
+        assert len(rows) == 2
+    else:
+        assert [row["id"] for row in rows] == ["0", labels[0], ", ".join(labels)]
+        assert [row["Amount sum"] for row in rows] == [1, 2, 4]
+        assert [[item["id"] for item in row["Category"] or []] for row in rows] == [
+            [],
+            expected_ids[:1],
+            expected_ids,
+        ]
+        service.service_aggregation_sorts.update(
+            sort_on="GROUP_BY", reference=group_field.db_column, direction="ASC"
+        )
+        sorted_result = (
+            ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
+        )
+        assert sorted_result == result
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("mode", ["complete", "individual"])
+@pytest.mark.parametrize("bucket_limit", [100, 2, 3])
+@pytest.mark.parametrize("primary", [False, True])
+def test_grouped_aggregate_rows_multiple_select_modes(
+    data_fixture, settings, mode, bucket_limit, primary
+):
+    """Merge equal selections or shared options, including overlapping overflow buckets."""
+    settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = bucket_limit
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    category = data_fixture.create_multiple_select_field(
+        table=table, name="Category", primary=primary
+    )
+    alpha = data_fixture.create_select_option(field=category, value="Alpha")
+    beta = data_fixture.create_select_option(field=category, value="Beta")
+    gamma = data_fixture.create_select_option(field=category, value="Gamma")
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows, integration=integration, table=table
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=amount, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=amount, aggregation_type="average", order=2
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=category, aggregation_type="count", order=3
+    )
+    serializer = LocalBaserowTableServiceAggregationGroupBySerializer(
+        data={"field_id": category.id, "mode": mode}
+    )
+    assert serializer.is_valid(), serializer.errors
+    service.get_type()._update_service_aggregation_group_bys(
+        service, [serializer.validated_data]
+    )
+    group_by = service.service_aggregation_group_bys.get()
+    assert (
+        LocalBaserowTableServiceAggregationGroupBySerializer(group_by).data["mode"]
+        == mode
+    )
+
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="SERIES",
+        reference=f"{amount.db_column}_sum",
+        direction="ASC",
+        order=1,
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {amount.db_column: value, category.db_column: options}
+            for value, options in [
+                (1, []),
+                (2, [alpha.id]),
+                (4, [alpha.id, beta.id]),
+                (8, [beta.id, alpha.id]),
+                (16, [alpha.id]),
+                (32, [beta.id]),
+                (64, [gamma.id]),
+            ]
+        ],
+    )
+    result = ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
+    assert result["results"][0]["Category count"] == 1
+    if mode == "complete":
+        expected = [
+            ("0", [], 1, 1),
+            ("Alpha, Beta", [alpha.id, beta.id], 12, 6),
+            ("Alpha", [alpha.id], 18, 9),
+            ("Beta", [beta.id], 32, 32),
+            ("Gamma", [gamma.id], 64, 64),
+        ]
+        overflow = {2: (126, Decimal(126) / 6), 3: (114, Decimal(114) / 4)}
+    else:
+        expected = [
+            ("0", None, 1, 1),
+            ("Alpha", [alpha.id], 30, Decimal("7.5")),
+            ("Beta", [beta.id], 44, Decimal(44) / 3),
+            ("Gamma", [gamma.id], 64, 64),
+        ]
+        overflow = {2: (138, Decimal(138) / 8), 3: (108, Decimal(108) / 4)}
+    if len(expected) > bucket_limit:
+        total, average = overflow[bucket_limit]
+        expected = expected[: bucket_limit - 1] + [
+            ("OTHER_VALUES", "OTHER_VALUES", total, average)
+        ]
+    actual = [
+        (
+            row["id"],
+            [item["id"] for item in row["Category"]]
+            if isinstance(row["Category"], list)
+            else row["Category"],
+            row["Amount sum"],
+            row["Amount average"],
+        )
+        for row in result["results"]
+    ]
+    assert [(label, options, total) for label, options, total, _ in actual] == [
+        (label, options, total) for label, options, total, _ in expected
+    ]
+    assert [average for _, _, _, average in actual] == pytest.approx(
+        [average for _, _, _, average in expected]
+    )
+    if bucket_limit == 100:
+        for direction in ["ASC", "DESC"]:
+            service.service_aggregation_sorts.update(
+                sort_on="GROUP_BY", reference=category.db_column, direction=direction
+            )
+            result = (
+                ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
+            )
+            expected_labels = (
+                ["0", "Alpha", "Alpha, Beta", "Beta", "Gamma"]
+                if mode == "complete"
+                else ["0", "Alpha", "Beta", "Gamma"]
+            )
+            if direction == "DESC":
+                expected_labels.reverse()
+                expected_labels[-1] = str(len(expected_labels) - 1)
+            assert [row["id"] for row in result["results"]] == expected_labels
+
+
+@pytest.mark.django_db
 def test_grouped_aggregate_rows_service_dispatch_group_by_single_select(
     data_fixture,
 ):
@@ -4308,7 +4577,7 @@ def test_grouped_aggregate_rows_service_export_serialized(
         "integration_id": service.integration.id,
         "sample_data": None,
         "service_aggregation_group_bys": [
-            {"field_id": field_3.id},
+            {"field_id": field_3.id, "mode": "complete"},
         ],
         "service_aggregation_series": [
             {"aggregation_type": "sum", "field_id": field.id, "id": series_1.id},
@@ -4334,7 +4603,8 @@ def test_grouped_aggregate_rows_service_export_serialized(
 
 
 @pytest.mark.django_db
-def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
+@pytest.mark.parametrize("mode", [None, "complete", "individual"])
+def test_grouped_aggregate_rows_service_import_serialized(data_fixture, mode):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
     table = data_fixture.create_database_table(user=user)
@@ -4376,6 +4646,8 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
         "type": "local_baserow_grouped_aggregate_rows",
         "view_id": view.id,
     }
+    if mode is not None:
+        serialized_service["service_aggregation_group_bys"][0]["mode"] = mode
     id_mapping = {}
 
     instance = LocalBaserowGroupedAggregateRowsUserServiceType().import_serialized(
@@ -4385,6 +4657,7 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
         import_formula=Mock(),
     )
 
+    assert instance.service_aggregation_group_bys.get().mode == (mode or "complete")
     assert instance.content_type == ContentType.objects.get_for_model(
         LocalBaserowGroupedAggregateRows
     )
@@ -4418,34 +4691,9 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
     assert sorts[1].reference == f"field_{field_2.id}_min"
 
 
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "field_type", ["multiple_select", "multiple_collaborators", "link_row", "file"]
-)
-def test_grouped_aggregate_rows_rejects_multivalued_primary_row_grouping(
-    data_fixture, field_type
-):
-    """Reject new and saved row grouping when the primary field contains a collection."""
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    getattr(data_fixture, f"create_{field_type}_field")(table=table, primary=True)
-    dashboard = data_fixture.create_dashboard_application(user=user)
-    integration = data_fixture.create_local_baserow_integration(
-        application=dashboard, user=user
+def test_grouped_aggregate_rows_rejects_unknown_grouping_mode():
+    serializer = LocalBaserowTableServiceAggregationGroupBySerializer(
+        data={"field_id": 1, "mode": "unknown"}
     )
-    service = data_fixture.create_service(
-        LocalBaserowGroupedAggregateRows, table=table, integration=integration
-    )
-    service_type = service.get_type()
-    with pytest.raises(ValidationError, match="multi-valued primary field"):
-        service_type._update_service_aggregation_group_bys(
-            service, [{"field_id": None}]
-        )
-    assert not service.service_aggregation_group_bys.exists()
-    LocalBaserowTableServiceAggregationGroupBy.objects.create(
-        service=service, field=None, order=1
-    )
-    with pytest.raises(
-        ServiceImproperlyConfiguredDispatchException, match="multi-valued primary field"
-    ):
-        ServiceHandler().dispatch_service(service, FakeDispatchContext())
+    assert not serializer.is_valid()
+    assert serializer.errors["mode"][0].code == "invalid_choice"

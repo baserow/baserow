@@ -101,7 +101,7 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
                     "sample_data": None,
                     "integration_id": service.integration.id,
                     "service_aggregation_group_bys": [
-                        {"field_id": None},
+                        {"field_id": None, "mode": "complete"},
                     ],
                     "service_aggregation_series": [
                         {

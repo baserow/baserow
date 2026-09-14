@@ -375,7 +375,8 @@
   "chart": {
     "true": "true",
     "false": "false",
-    "other": "Other"
+    "other": "Other",
+    "empty": "Empty"
   },
   "groupedAggregateRowsDataSourceForm": {
     "series": "Series",
@@ -410,7 +411,9 @@
     "groupByFieldLabel": "Group by",
     "groupByNone": "None",
     "groupByRowId": "Row Id",
-    "rowIdDisabledTooltip": "Grouping by row ID is currently unavailable because the primary field can contain multiple values."
+    "modeLabel": "Group multiple selections",
+    "completeSelection": "Complete selection",
+    "eachOption": "Each selected option"
   },
   "aggregationSortByForm": {
     "sortByFieldLabel": "Sort by",

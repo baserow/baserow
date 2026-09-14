@@ -431,4 +431,47 @@ describe('Premium dashboard Chart component', () => {
     expect(chartData.labels).toEqual(['Hardware'])
     expect(chartData.datasets[0].data).toEqual([20])
   })
+
+  test.each(['BAR', 'PIE'])(
+    'renders empty multiple selections in %s charts',
+    async (chartType) => {
+      const options = [
+        { id: 1, value: 'Alpha', color: 'red' },
+        { id: 2, value: 'Beta', color: 'blue' },
+      ]
+      const wrapper = await mountComponent({
+        seriesConfig: [{ series_id: 1, series_chart_type: chartType }],
+        dataSource: {
+          aggregation_group_bys: [{ field_id: 11 }],
+          context_data: {
+            fields: {
+              field_11: { type: 'multiple_select', select_options: options },
+            },
+          },
+        },
+        dataSourceData: {
+          results: [
+            { field_11: [], 'Amount sum': 12 },
+            { field_11: null, 'Amount sum': 8 },
+            { field_11: [options[0]], 'Amount sum': 3 },
+            { field_11: options, 'Amount sum': 5 },
+            { field_11: [1, 2], 'Amount sum': 6 },
+            { field_11: 'OTHER_VALUES', 'Amount sum': 7 },
+          ],
+        },
+      })
+      const chartData = wrapper
+        .findComponent({ name: chartType === 'BAR' ? 'Bar' : 'Pie' })
+        .props('data')
+      expect(chartData.labels).toEqual([
+        'chart.empty',
+        'chart.empty',
+        'Alpha',
+        'Alpha, Beta',
+        'Alpha, Beta',
+        'chart.other',
+      ])
+      expect(chartData.datasets[0].data).toEqual([12, 8, 3, 5, 6, 7])
+    }
+  )
 })

@@ -13,18 +13,32 @@
       <DropdownItem
         v-for="groupByOption in groupByOptions"
         :key="groupByOption.id"
-        v-tooltip="
-          groupByOption.disabled
-            ? $t('aggregationGroupByForm.rowIdDisabledTooltip')
-            : null
-        "
         :name="groupByOption.name"
         :value="groupByOption.value"
-        :disabled="groupByOption.disabled || false"
       >
         {{ groupByOption.name }}
       </DropdownItem>
     </Dropdown>
+    <FormGroup
+      v-if="isMultipleSelect"
+      :label="$t('aggregationGroupByForm.modeLabel')"
+      class="margin-top-2"
+    >
+      <Dropdown
+        :value="aggregationMode"
+        fixed-items
+        @change="modeChangedByUser($event)"
+      >
+        <DropdownItem
+          value="complete"
+          :name="$t('aggregationGroupByForm.completeSelection')"
+        />
+        <DropdownItem
+          value="individual"
+          :name="$t('aggregationGroupByForm.eachOption')"
+        />
+      </Dropdown>
+    </FormGroup>
   </FormSection>
 </template>
 
@@ -33,7 +47,7 @@ import { useVuelidate } from '@vuelidate/core'
 
 export default {
   name: 'AggregationGroupByForm',
-  emits: ['value-changed'],
+  emits: ['value-changed', 'mode-changed'],
   props: {
     tableFields: {
       type: Array,
@@ -50,16 +64,14 @@ export default {
   data() {
     return {
       aggregationGroupBy: 'none',
+      aggregationMode: 'complete',
     }
   },
   computed: {
-    canGroupByRowId() {
-      const primaryField = this.tableFields.find((field) => field.primary)
+    isMultipleSelect() {
       return (
-        primaryField &&
-        this.$registry
-          .get('field', primaryField.type)
-          .getDocsDataType(primaryField) !== 'array'
+        this.tableFields.find((field) => field.id === this.aggregationGroupBy)
+          ?.type === 'multiple_select'
       )
     },
     compatibleFields() {
@@ -78,7 +90,6 @@ export default {
         {
           name: this.$t('aggregationGroupByForm.groupByRowId'),
           value: null,
-          disabled: !this.canGroupByRowId,
         },
         { name: this.$t('aggregationGroupByForm.groupByNone'), value: 'none' },
       ])
@@ -87,6 +98,7 @@ export default {
   watch: {
     aggregationGroupBys: {
       handler(aggregationGroupBys) {
+        this.aggregationMode = aggregationGroupBys[0]?.mode ?? 'complete'
         if (aggregationGroupBys.length === 0) {
           this.aggregationGroupBy = 'none'
         } else {
@@ -103,15 +115,19 @@ export default {
     return {
       aggregationGroupBy: {
         isValidGroupBy: (value) => {
-          const validGroupByValues = this.groupByOptions
-            .filter((item) => !item.disabled)
-            .map((item) => item.value)
+          const validGroupByValues = this.groupByOptions.map(
+            (item) => item.value
+          )
           return validGroupByValues.includes(value)
         },
       },
     }
   },
   methods: {
+    modeChangedByUser(value) {
+      this.aggregationMode = value
+      this.$emit('mode-changed', value)
+    },
     groupByChangedByUser(value) {
       this.aggregationGroupBy = value
       this.$emit('value-changed', value)

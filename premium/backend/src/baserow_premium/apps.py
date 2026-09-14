@@ -239,6 +239,7 @@ class BaserowPremiumConfig(AppConfig):
             BooleanFieldType,
             EmailFieldType,
             LongTextFieldType,
+            MultipleSelectFieldType,
             NumberFieldType,
             PhoneNumberFieldType,
             RatingFieldType,
@@ -260,6 +261,7 @@ class BaserowPremiumConfig(AppConfig):
         grouped_aggregation_group_by_registry.register(PhoneNumberFieldType())
         grouped_aggregation_group_by_registry.register(AutonumberFieldType())
         grouped_aggregation_group_by_registry.register(SingleSelectFieldType())
+        grouped_aggregation_group_by_registry.register(MultipleSelectFieldType())
 
         from baserow.contrib.dashboard.widgets.registries import widget_type_registry
         from baserow.core.services.registries import service_type_registry

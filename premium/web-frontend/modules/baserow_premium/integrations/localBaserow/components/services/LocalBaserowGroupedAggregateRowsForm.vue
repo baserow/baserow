@@ -53,6 +53,7 @@
           :aggregation-group-bys="values.aggregation_group_bys"
           :table-fields="tableFields"
           @value-changed="onGroupByUpdated($event)"
+          @mode-changed="onGroupByModeUpdated($event)"
         />
       </template>
       <template #sort-form>
@@ -224,6 +225,11 @@ export default {
         delete cleaned.id
       }
       this.values.aggregation_series.splice(index, 1, cleaned)
+    },
+    onGroupByModeUpdated(mode) {
+      this.values.aggregation_group_bys = this.values.aggregation_group_bys.map(
+        (groupBy) => ({ ...groupBy, mode })
+      )
     },
     onGroupByUpdated(groupBy) {
       const aggregationGroupBys = []
