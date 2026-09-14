@@ -93,6 +93,7 @@ export default {
         'view_id',
         'integration_id',
         'filters',
+        'filter_groups',
         'filter_type',
         'aggregation_series',
         'aggregation_group_bys',
@@ -103,6 +104,7 @@ export default {
         view_id: null,
         integration_id: null,
         filters: [],
+        filter_groups: [],
         filter_type: 'AND',
         aggregation_series: [],
         aggregation_group_bys: [],
@@ -163,11 +165,13 @@ export default {
     },
   },
   methods: {
-    getFormValues(deep = false) {
-      const values = Object.assign(
-        {},
-        this.values,
-        this.getChildFormsValues(deep)
+    /**
+     * Child forms update values through their events. Keep series values nested
+     * and only serialize service fields, so a series ID cannot replace a source ID.
+     */
+    getFormValues() {
+      const values = Object.fromEntries(
+        this.allowedValues.map((key) => [key, this.values[key]])
       )
       if (Array.isArray(values.aggregation_series)) {
         values.aggregation_series = values.aggregation_series.map((series) => {
