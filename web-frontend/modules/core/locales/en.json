@@ -860,7 +860,7 @@
     "editTitle": "Edit integration",
     "warningTitle": "Warning",
     "credentialRequiredTitle": "Credential required",
-    "credentialRequiredMessage": "Enter the password again to change where this integration connects."
+    "credentialRequiredMessage": "Enter the credential again to change where this integration connects."
   },
   "integrationEditForm": {
     "name": "Name",
