@@ -242,6 +242,7 @@ class AgentChat(
         help_text="The user who started the chat. Null for triggered chats.",
     )
     title = models.CharField(max_length=TITLE_MAX_LENGTH, blank=True, db_default="")
+    pinned = models.BooleanField(default=False, db_default=False)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -291,9 +292,19 @@ class AgentChat(
 
     class Meta:
         indexes = [
-            models.Index(fields=["agent", "-updated_on"]),
+            # The conversation list: pinned first, newest first, per agent.
+            models.Index(
+                fields=["agent", "-pinned", "-updated_on"],
+                name="agent_chat_list_idx",
+            ),
             models.Index(fields=["agent", "status"]),
             models.Index(fields=["channel", "channel_session_key"]),
+            # "Last run" of an application: the newest finished trigger chat.
+            models.Index(
+                fields=["agent", "-completed_on"],
+                condition=models.Q(source="trigger"),
+                name="agent_chat_last_run_idx",
+            ),
         ]
 
     def get_parent(self):
@@ -413,7 +424,16 @@ class AgentChatToolApproval(
 
     class Meta:
         ordering = ("id",)
-        indexes = [models.Index(fields=["chat", "status"])]
+        indexes = [
+            models.Index(fields=["chat", "status"]),
+            # Pending approvals are rare and counted per application on every
+            # application listing; the partial index keeps that a tiny scan.
+            models.Index(
+                fields=["chat"],
+                condition=models.Q(status="pending"),
+                name="agent_approval_pending_idx",
+            ),
+        ]
 
     def get_parent(self):
         return self.chat

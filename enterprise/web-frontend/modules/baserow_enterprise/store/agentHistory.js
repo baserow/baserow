@@ -6,6 +6,7 @@ const PAGE_SIZE = 50
 function sortChats(chats) {
   chats.sort(
     (a, b) =>
+      Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) ||
       new Date(b.updated_on).getTime() - new Date(a.updated_on).getTime()
   )
 }
@@ -119,10 +120,42 @@ export const actions = {
   forceDeleteChat({ commit }, { chatId }) {
     commit('REMOVE_CHAT', chatId)
   },
+  async updateChat({ commit, state }, { chatUuid, values }) {
+    const chat = state.chats.find((c) => c.uuid === chatUuid)
+    const oldValues =
+      chat &&
+      Object.keys(values).reduce((result, key) => {
+        result[key] = chat[key]
+        return result
+      }, {})
+    if (chat) {
+      commit('UPSERT_CHAT', { id: chat.id, ...values })
+    }
+    try {
+      const { data } = await AgentApplicationService(this.$client).updateChat(
+        chatUuid,
+        values
+      )
+      commit('UPSERT_CHAT', data)
+      return data
+    } catch (error) {
+      if (chat) {
+        commit('UPSERT_CHAT', { id: chat.id, ...oldValues })
+      }
+      throw error
+    }
+  },
+  async deleteChat({ commit, dispatch }, { chat }) {
+    await AgentApplicationService(this.$client).deleteChat(chat.uuid)
+    commit('REMOVE_CHAT', chat.id)
+    dispatch('agentChat/handleChatDeleted', { chatId: chat.id }, { root: true })
+  },
 }
 
 export const getters = {
   getChats: (state) => state.chats,
+  getPinnedChats: (state) => state.chats.filter((chat) => chat.pinned),
+  getRecentChats: (state) => state.chats.filter((chat) => !chat.pinned),
   getRunningChats: (state) =>
     state.chats.filter((chat) => RUNNING_STATUSES.includes(chat.status)),
   getUsage: (state) => state.usage,

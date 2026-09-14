@@ -53,6 +53,6 @@ def dynamic_toolset(ctx: RunContext[AgentRunDeps]):
 
     # Tools can be appended to `deps.dynamic_tools` while a run is in
     # progress (e.g. per-table row tools loaded by the database tools).
-    # Those are workspace tools, so the same read-only/approval gating as
-    # the workspace toolset applies.
+    # Those are workspace tools, so the same tool rules as the workspace
+    # toolset apply.
     return wrap_workspace_toolset(FunctionToolset(ctx.deps.dynamic_tools), ctx.deps)

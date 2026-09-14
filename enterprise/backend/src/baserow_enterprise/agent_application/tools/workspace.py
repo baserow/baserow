@@ -8,16 +8,16 @@ from typing_extensions import Self
 
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
+from .catalog import (  # noqa: F401
+    EXCLUDED_GROUPS,
+    EXCLUDED_TOOLS,
+    list_workspace_tools,
+)
 from .registries import AgentToolType
 
 if TYPE_CHECKING:
     from ..deps import AgentRunDeps
     from ..models import AgentDefinition, AgentTool
-
-# Tool groups that only make sense in the interactive assistant.
-EXCLUDED_GROUPS = {"navigation"}
-# Mode switching only exists for the assistant's mode-filtered toolset.
-EXCLUDED_TOOLS = {"switch_mode"}
 
 
 class ErrorHandlingToolset(AbstractToolset):
@@ -94,34 +94,6 @@ class ErrorHandlingToolset(AbstractToolset):
             return {"error": f"The tool {name} failed: {exc}"}
 
 
-def list_workspace_tools() -> list[dict]:
-    """
-    The universe of workspace tools a user can individually enable for an
-    agent, with their group and read/write classification. The per-table row
-    tools are dynamic and governed by `load_row_tools`, so they are not
-    listed separately.
-    """
-
-    from .classification import is_write_tool
-
-    tools = []
-    for tool_type in assistant_tool_registry.get_all():
-        if tool_type.type in EXCLUDED_GROUPS:
-            continue
-        for func in tool_type.get_tool_functions():
-            name = func.__name__
-            if name in EXCLUDED_TOOLS:
-                continue
-            tools.append(
-                {
-                    "name": name,
-                    "group": tool_type.type,
-                    "is_write": is_write_tool(name),
-                }
-            )
-    return tools
-
-
 class BaserowWorkspaceAgentToolType(AgentToolType):
     """
     Gives the agent the assistant's Baserow tools, executed as the
@@ -138,21 +110,45 @@ class BaserowWorkspaceAgentToolType(AgentToolType):
             )
         return True, None
 
-    def build_toolsets(self, tool: "AgentTool", deps: "AgentRunDeps") -> list:
-        from .gating import WORKSPACE_MODE_READ_ONLY, wrap_workspace_toolset
+    def owns_tool_name(self, tool: "AgentTool", tool_name: str) -> bool:
+        from .catalog import SYNTHETIC_ROW_TOOLS, catalog_tool_names, to_catalog_name
 
-        deps.workspace_tools_read_only = (
-            tool.config.get("mode") == WORKSPACE_MODE_READ_ONLY
+        # The synthetic row entries only exist in the catalog; at run time the
+        # row tools carry the table id, so a bare `create_rows` is some other
+        # tool (e.g. an action tool named that way).
+        if tool_name in SYNTHETIC_ROW_TOOLS:
+            return False
+        return to_catalog_name(tool_name) in catalog_tool_names()
+
+    def apply_dont_ask_again(self, tool: "AgentTool", tool_name: str) -> dict:
+        from .catalog import to_catalog_name
+        from .rules import (
+            ACCESS_CUSTOM,
+            RULE_ALLOW,
+            materialize_tool_rules,
+            normalize_workspace_config,
         )
-        deps.workspace_write_approval = tool.config.get("require_write_approval", True)
 
-        enabled_groups = tool.config.get("groups") or None
+        config = normalize_workspace_config(tool.config)
+        if config["access"] != ACCESS_CUSTOM:
+            # Switching to custom keeps every other tool exactly as it is.
+            config["tool_rules"] = materialize_tool_rules(config)
+            config["access"] = ACCESS_CUSTOM
+        config["tool_rules"][to_catalog_name(tool_name)] = RULE_ALLOW
+        return config
+
+    def build_toolsets(self, tool: "AgentTool", deps: "AgentRunDeps") -> list:
+        from .gating import wrap_workspace_toolset
+        from .rules import describe_workspace_access, normalize_workspace_config
+
+        deps.workspace_tool_config = normalize_workspace_config(tool.config)
+        # The model must reason from the current permissions, not from what
+        # it concluded earlier in the conversation when they may have differed.
+        deps.system_notes.append(describe_workspace_access(deps.workspace_tool_config))
+
         toolsets = []
-
         for tool_type in assistant_tool_registry.get_all():
             if tool_type.type in EXCLUDED_GROUPS:
-                continue
-            if enabled_groups is not None and tool_type.type not in enabled_groups:
                 continue
             try:
                 if not tool_type.can_use(deps.user, deps.workspace):
@@ -168,16 +164,7 @@ class BaserowWorkspaceAgentToolType(AgentToolType):
         if not toolsets:
             return []
 
+        # The rules wrapper sits outside the error handler so that the
+        # deferred-approval control flow is never swallowed.
         toolset = ErrorHandlingToolset(CombinedToolset(toolsets))
-
-        # An explicit tool selection restricts the agent to exactly those
-        # tools; `None` means every tool (subject to the read-only mode).
-        enabled_tools = tool.config.get("enabled_tools")
-        if isinstance(enabled_tools, list):
-            from .gating import AllowlistToolset
-
-            toolset = AllowlistToolset(toolset, set(enabled_tools))
-
-        # The approval/read-only wrapper sits outside the error handler so
-        # that the deferred-approval control flow is never swallowed.
         return [wrap_workspace_toolset(toolset, deps)]

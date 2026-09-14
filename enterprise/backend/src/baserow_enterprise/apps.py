@@ -173,6 +173,7 @@ class BaserowEnterpriseConfig(AppConfig):
             ReadAgentUsageOperationType,
             RunAgentChatOperationType,
             UpdateAgentChatChannelOperationType,
+            UpdateAgentChatOperationType,
             UpdateAgentDefinitionOperationType,
             UpdateAgentToolOperationType,
             UpdateAgentTriggerOperationType,
@@ -273,6 +274,7 @@ class BaserowEnterpriseConfig(AppConfig):
         operation_type_registry.register(RunAgentChatOperationType())
         operation_type_registry.register(CancelAgentChatOperationType())
         operation_type_registry.register(DeleteAgentChatOperationType())
+        operation_type_registry.register(UpdateAgentChatOperationType())
         operation_type_registry.register(ReadAgentUsageOperationType())
         operation_type_registry.register(DecideAgentToolApprovalOperationType())
         operation_type_registry.register(ReadAgentChatChannelOperationType())
@@ -538,19 +540,17 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.core.ai_provider.registries import (
             ai_provider_model_feature_type_registry,
         )
-        from baserow_enterprise.assistant.ai_provider_feature_types import (
-            KumaAIProviderModelFeatureType,
-        )
-
         from baserow_enterprise.agent_application.ws.pages import (
             AgentApplicationPageType,
+        )
+        from baserow_enterprise.assistant.ai_provider_feature_types import (
+            KumaAIProviderModelFeatureType,
         )
 
         page_registry.register(AgentApplicationPageType())
 
         import baserow_enterprise.agent_application.tasks  # noqa: F401
         import baserow_enterprise.agent_application.ws.receivers  # noqa: F401
-
         from baserow_enterprise.assistant.tools.automation.tool_types import (
             AutomationToolType,
         )

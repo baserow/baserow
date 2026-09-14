@@ -45,6 +45,23 @@ export const registerRealtimeEvents = (realtime) => {
   realtime.registerEvent('agent_chat_updated', ({ store }, { chat }) => {
     store.dispatch('agentHistory/forceUpdateChat', { chat })
     store.dispatch('agentChat/handleChatUpdated', { chat })
+    // A finished triggered run moves the application's "last run".
+    if (chat.source === 'trigger' && chat.completed_on) {
+      const agent = store.getters['agentApplication/getAgent']
+      const application = store.getters['application/get'](
+        agent?.application_id
+      )
+      if (
+        application !== undefined &&
+        (!application.last_run_on ||
+          new Date(chat.completed_on) > new Date(application.last_run_on))
+      ) {
+        store.dispatch('application/forceUpdate', {
+          application,
+          data: { last_run_on: chat.completed_on },
+        })
+      }
+    }
   })
 
   realtime.registerEvent(

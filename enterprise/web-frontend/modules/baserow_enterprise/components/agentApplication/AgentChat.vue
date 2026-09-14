@@ -10,155 +10,94 @@
       <i class="iconoir-attachment agent-chat__dropzone-icon"></i>
       <span>{{ $t('agentChat.dropFiles') }}</span>
     </div>
-    <div ref="messagesEl" class="agent-chat__messages">
-      <div v-if="events.length === 0" class="agent-chat__empty">
-        <i class="agent-chat__empty-icon baserow-icon-agent"></i>
-        <div class="agent-chat__empty-title">
-          {{
-            agent?.name
-              ? $t('agentChat.emptyTitleNamed', { name: agent.name })
-              : $t('agentChat.emptyTitle')
-          }}
+    <div
+      ref="messagesEl"
+      class="agent-chat__messages"
+      :class="{ 'agent-chat__messages--welcome': showWelcome }"
+    >
+      <div class="agent-chat__column">
+        <div v-if="loadingConversation" class="agent-chat__loading">
+          <div class="loading"></div>
         </div>
-        <div class="agent-chat__empty-message">
-          {{
-            canRunChat
-              ? $t('agentChat.emptyMessage')
-              : $t('agentChat.emptyMessageReadOnly')
-          }}
-        </div>
-      </div>
-      <template v-for="(event, index) in events">
-        <div
-          v-if="event.type === 'human'"
-          :key="index"
-          class="agent-chat__message agent-chat__message--human"
-        >
-          <div class="agent-chat__message-content">{{ event.content }}</div>
-          <div
-            v-if="event.attachments && event.attachments.length > 0"
-            class="agent-chat__message-attachments"
-          >
-            <div
-              v-for="(attachment, attachmentIndex) in event.attachments"
-              :key="attachmentIndex"
-              class="agent-chat__attachment-chip"
-            >
-              <i
-                class="agent-chat__attachment-chip-icon"
-                :class="attachmentIcon(attachment)"
-              ></i>
-              <span class="agent-chat__attachment-chip-name">{{
-                attachment.visible_name ||
-                attachment.original_name ||
-                attachment.name
-              }}</span>
-              <span
-                v-if="attachment.size"
-                class="agent-chat__attachment-chip-size"
-                >{{ formatSize(attachment.size) }}</span
-              >
-            </div>
-          </div>
-        </div>
-        <div
-          v-else-if="event.type === 'system'"
-          :key="`system-${index}`"
-          class="agent-chat__message agent-chat__message--system"
-        >
-          {{ event.content }}
-        </div>
-        <!-- eslint-disable vue/no-v-html -->
-        <div
-          v-else-if="event.type === 'ai/message'"
-          :key="`ai-${index}`"
-          class="agent-chat__message agent-chat__message--ai"
-          v-html="formatMessage(event.content)"
-        ></div>
-        <!-- eslint-enable vue/no-v-html -->
-        <div
-          v-else-if="event.type === 'ai/error'"
-          :key="`error-${index}`"
-          class="agent-chat__message agent-chat__message--error"
-        >
-          {{ event.content }}
-        </div>
-        <div
-          v-else-if="event.type === 'ai/cancelled'"
-          :key="`cancelled-${index}`"
-          class="agent-chat__message agent-chat__message--system"
-        >
-          {{ $t('agentChat.cancelled') }}
-        </div>
-        <!-- eslint-disable vue/no-v-html -->
-        <div
-          v-else-if="event.type === 'ai/reasoning'"
-          :key="`reasoning-${index}`"
-          class="agent-chat__reasoning"
-          :class="{
-            'agent-chat__reasoning--live': isLiveReasoning(event, index),
-          }"
-        >
-          <span
-            v-if="isLiveReasoning(event, index)"
-            class="agent-chat__reasoning-indicator"
-          ></span>
-          <div
-            class="agent-chat__reasoning-text"
-            :class="{
-              'agent-chat__reasoning-text--collapsed':
-                !isLiveReasoning(event, index) && !expandedReasoning[index],
-            }"
-            v-html="formatMessage(event.content)"
-          ></div>
-          <button
-            v-if="!isLiveReasoning(event, index)"
-            class="agent-chat__reasoning-toggle"
-            @click="toggleReasoning(index)"
-          >
-            <i
-              class="iconoir-nav-arrow-down agent-chat__reasoning-chevron"
-              :class="{
-                'agent-chat__reasoning-chevron--expanded':
-                  expandedReasoning[index],
-              }"
-            ></i>
-          </button>
-        </div>
-        <!-- eslint-enable vue/no-v-html -->
-        <div
-          v-else-if="event.type === 'tool_call'"
-          :key="`tool-${index}`"
-          class="agent-chat__tool-call"
-        >
-          <i
-            class="agent-chat__tool-call-icon"
-            :class="toolCallIcon(event)"
-          ></i>
-          <span class="agent-chat__tool-call-name">{{ event.tool_name }}</span>
-        </div>
-        <AgentToolApprovals
-          v-else-if="event.type === 'approval_set'"
-          :key="`approvals-${index}`"
-          :approvals="approvalsForEvent(event)"
-          :can-decide="canRunChat"
-          :disabled="decidingApprovals"
-          @decide="decideApprovals"
+        <AgentChatEmptyState
+          v-else-if="showWelcome"
+          :name="agent?.name || application.name"
+          :trigger-label="firstTriggerLabel"
+          :identity-name="identityName"
+          :can-run-chat="canRunChat"
+          :can-run-once="canRunOnce"
+          :running-once="runningOnce"
+          @prompt="sendPrompt"
+          @run-once="$emit('run-once')"
         />
-      </template>
-      <div v-if="running && !hasLiveReasoning" class="agent-chat__running">
-        <div class="loading"></div>
-      </div>
-      <div v-if="hasError && canRunChat && !running" class="agent-chat__retry">
-        <Button
-          type="secondary"
-          size="small"
-          icon="iconoir-refresh"
-          :loading="retrying"
-          @click="retry"
+        <template v-for="block in visibleBlocks" :key="block.key">
+          <AgentChatTriggerRow
+            v-if="block.type === 'trigger'"
+            :label="triggerLabel"
+            :payload="triggerPayload(block.event)"
+          />
+          <AgentChatMessage
+            v-else-if="block.type === 'message' || block.type === 'system'"
+            :event="block.event"
+            :attachment-icon="attachmentIcon"
+            :format-size="formatSize"
+          />
+          <AgentChatReasoning
+            v-else-if="block.type === 'reasoning'"
+            :event="block.event"
+            :live="block.live"
+          />
+          <AgentChatToolGroup
+            v-else-if="block.type === 'tool_group'"
+            :block="block"
+            :tool-label="toolLabel"
+            :applications="applications"
+          />
+          <AgentToolApprovals
+            v-else-if="block.type === 'approval_set'"
+            :approvals="approvalsForIds(block.ids)"
+            :can-decide="canRunChat"
+            :disabled="decidingApprovals"
+            :agent-name="agent?.name || application.name"
+            :tool-label="toolLabel"
+            :can-change-tools="canUpdateTools"
+            @decide="decideApprovals"
+          />
+        </template>
+        <Alert
+          v-if="modelMissing && canRunChat"
+          type="warning"
+          class="agent-chat__model-notice"
         >
-          {{ $t('agentChat.retry') }}
-        </Button>
+          <template #title>{{ $t('agentChat.modelMissingTitle') }}</template>
+          {{ $t('agentChat.modelMissing') }}
+          <template #actions>
+            <Button
+              type="primary"
+              size="small"
+              @click="$emit('open-configuration', 'settings')"
+            >
+              {{ $t('agentChat.configureModel') }}
+            </Button>
+          </template>
+        </Alert>
+        <div v-if="running && !hasLiveBlock" class="agent-chat__running">
+          <div class="loading"></div>
+        </div>
+        <div
+          v-if="hasError && canRunChat && !running"
+          class="agent-chat__retry"
+        >
+          <Button
+            type="secondary"
+            size="small"
+            icon="iconoir-refresh"
+            :loading="retrying"
+            @click="retry"
+          >
+            {{ $t('agentChat.retry') }}
+          </Button>
+        </div>
       </div>
     </div>
     <div
@@ -174,109 +113,128 @@
         v-if="canCancelChat"
         type="secondary"
         icon="iconoir-square"
+        :loading="canceling"
         @click="cancel"
       >
         {{ $t('agentChat.cancel') }}
       </Button>
     </div>
-    <div v-else-if="canRunChat" class="agent-chat__input">
-      <div
-        class="agent-chat__input-status"
-        :class="{
-          'agent-chat__input-status--running': running,
-          'agent-chat__input-status--awaiting': awaitingApproval,
-        }"
-      >
-        <i
-          class="agent-chat__input-status-icon"
-          :class="
-            awaitingApproval ? 'iconoir-warning-triangle' : 'iconoir-sparks'
-          "
-        ></i>
-        <span class="agent-chat__input-status-message">
-          {{ inputStatusMessage }}
-        </span>
-      </div>
-      <div class="agent-chat__input-wrapper">
-        <div v-if="attachments.length > 0" class="agent-chat__attachments">
+    <div v-else-if="canRunChat" class="agent-chat__composer">
+      <div class="agent-chat__column">
+        <div
+          v-if="composerStatus"
+          class="agent-chat__composer-status"
+          :class="{
+            'agent-chat__composer-status--running': running,
+            'agent-chat__composer-status--awaiting': awaitingApproval,
+          }"
+        >
+          <i
+            class="agent-chat__composer-status-icon"
+            :class="
+              awaitingApproval ? 'iconoir-shield-check' : 'iconoir-sparks'
+            "
+          ></i>
+          <span class="agent-chat__composer-status-message">
+            {{ composerStatus }}
+          </span>
+        </div>
+        <div
+          class="agent-chat__composer-box"
+          :class="{ 'agent-chat__composer-box--after-status': composerStatus }"
+        >
           <div
-            v-for="attachment in attachments"
-            :key="attachment.key"
-            class="agent-chat__attachment-chip"
+            v-if="attachments.length > 0"
+            class="agent-chat__composer-attachments"
           >
             <div
-              v-if="attachment.uploading"
-              class="agent-chat__attachment-chip-loading"
-            ></div>
-            <i
-              v-else
-              class="agent-chat__attachment-chip-icon"
-              :class="attachmentIcon(attachment.data)"
-            ></i>
-            <span class="agent-chat__attachment-chip-name">{{
-              attachment.file.name
-            }}</span>
-            <span class="agent-chat__attachment-chip-size">{{
-              formatSize(attachment.file.size)
-            }}</span>
-            <a
-              class="agent-chat__attachment-chip-remove"
-              :title="$t('agentChat.removeAttachment')"
-              @click.prevent="removeAttachment(attachment)"
+              v-for="attachment in attachments"
+              :key="attachment.key"
+              class="agent-chat__attachment-chip"
             >
-              <i class="iconoir-cancel"></i>
-            </a>
+              <div
+                v-if="attachment.uploading"
+                class="agent-chat__attachment-chip-loading"
+              ></div>
+              <i
+                v-else
+                class="agent-chat__attachment-chip-icon"
+                :class="attachmentIcon(attachment.data)"
+              ></i>
+              <span class="agent-chat__attachment-chip-name">{{
+                attachment.file.name
+              }}</span>
+              <span class="agent-chat__attachment-chip-size">{{
+                formatSize(attachment.file.size)
+              }}</span>
+              <a
+                class="agent-chat__attachment-chip-remove"
+                :title="$t('agentChat.removeAttachment')"
+                @click.prevent="removeAttachment(attachment)"
+              >
+                <i class="iconoir-cancel"></i>
+              </a>
+            </div>
           </div>
-        </div>
-        <div class="agent-chat__input-row">
-          <button
-            class="agent-chat__attach-button"
-            :disabled="awaitingApproval"
-            :title="$t('agentChat.attachFiles')"
-            @click="openFilePicker"
-          >
-            <i class="iconoir-attachment"></i>
-          </button>
-          <input
-            ref="fileInputEl"
-            type="file"
-            multiple
-            class="agent-chat__file-input"
-            @change="onFileInputChange"
-          />
           <textarea
             ref="textareaEl"
             v-model="message"
-            class="agent-chat__input-textarea"
+            class="agent-chat__composer-textarea"
             :disabled="awaitingApproval"
             :placeholder="
               awaitingApproval
                 ? $t('agentChat.awaitingApprovalPlaceholder')
-                : $t('agentChat.inputPlaceholder')
+                : $t('agentChat.inputPlaceholderNamed', {
+                    name: agent?.name || application.name,
+                  })
             "
             :rows="1"
             @input="adjustHeight"
             @keydown.enter="onEnter"
           ></textarea>
+          <div class="agent-chat__composer-row">
+            <button
+              class="agent-chat__attach-button"
+              :disabled="awaitingApproval"
+              :title="$t('agentChat.attachFiles')"
+              @click="openFilePicker"
+            >
+              <i class="iconoir-attachment"></i>
+            </button>
+            <input
+              ref="fileInputEl"
+              type="file"
+              multiple
+              class="agent-chat__file-input"
+              @change="onFileInputChange"
+            />
+            <button
+              class="agent-chat__send-button"
+              :class="{
+                'agent-chat__send-button--disabled': sendButtonDisabled,
+              }"
+              :disabled="sendButtonDisabled"
+              :title="
+                awaitingApproval
+                  ? $t('agentChat.rejectAll')
+                  : running
+                    ? $t('agentChat.cancel')
+                    : $t('agentChat.send')
+              "
+              @click="onButtonClick"
+            >
+              <span
+                v-if="canceling"
+                class="agent-chat__send-button-spinner"
+              ></span>
+              <i
+                v-else-if="!running && !awaitingApproval"
+                class="iconoir-arrow-up"
+              ></i>
+              <i v-else class="iconoir-square"></i>
+            </button>
+          </div>
         </div>
-        <button
-          class="agent-chat__send-button"
-          :class="{
-            'agent-chat__send-button--disabled': sendButtonDisabled,
-          }"
-          :disabled="sendButtonDisabled"
-          :title="
-            awaitingApproval
-              ? $t('agentChat.rejectAll')
-              : running
-                ? $t('agentChat.cancel')
-                : $t('agentChat.send')
-          "
-          @click="onButtonClick"
-        >
-          <i v-if="!running && !awaitingApproval" class="iconoir-arrow-up"></i>
-          <i v-else class="iconoir-square"></i>
-        </button>
       </div>
     </div>
   </div>
@@ -286,21 +244,21 @@
 import { defineComponent, ref, reactive, computed, watch, nextTick } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, useI18n } from '#imports'
-import MarkdownIt from 'markdown-it'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import UserFileService from '@baserow/modules/core/services/userFile'
 import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 import { formatFileSize } from '@baserow/modules/core/utils/file'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
+import {
+  groupChatEvents,
+  formatToolPayload,
+} from '@baserow_enterprise/utils/agentChatEvents'
 import AgentToolApprovals from '@baserow_enterprise/components/agentApplication/AgentToolApprovals'
-
-// Initialize markdown parser with safe settings.
-const md = new MarkdownIt({
-  html: false, // Disable HTML tags for security
-  linkify: true, // Auto-convert URLs to links
-  typographer: true, // Enable smart quotes and other typography
-  breaks: false,
-})
+import AgentChatEmptyState from '@baserow_enterprise/components/agentApplication/AgentChatEmptyState'
+import AgentChatMessage from '@baserow_enterprise/components/agentApplication/AgentChatMessage'
+import AgentChatReasoning from '@baserow_enterprise/components/agentApplication/AgentChatReasoning'
+import AgentChatTriggerRow from '@baserow_enterprise/components/agentApplication/AgentChatTriggerRow'
+import AgentChatToolGroup from '@baserow_enterprise/components/agentApplication/AgentChatToolGroup'
 
 const MIN_ROWS = 1
 const MAX_ROWS = 6
@@ -308,29 +266,47 @@ const MAX_FILES = 10
 
 export default defineComponent({
   name: 'AgentChat',
-  components: { AgentToolApprovals },
+  components: {
+    AgentToolApprovals,
+    AgentChatEmptyState,
+    AgentChatMessage,
+    AgentChatReasoning,
+    AgentChatTriggerRow,
+    AgentChatToolGroup,
+  },
   props: {
+    runningOnce: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     application: {
       type: Object,
       required: true,
     },
   },
+  emits: ['run-once', 'open-configuration'],
   setup(props) {
     const store = useStore()
-    const { $hasPermission, $client } = useNuxtApp()
+    const { $hasPermission, $client, $registry } = useNuxtApp()
     const { t, locale } = useI18n()
 
     const message = ref('')
     const messagesEl = ref(null)
     const textareaEl = ref(null)
     const fileInputEl = ref(null)
-    const expandedReasoning = reactive({})
     const attachments = ref([])
     const dragCount = ref(0)
     const decidingApprovals = ref(false)
 
     const events = computed(() => store.getters['agentChat/getEvents'])
     const running = computed(() => store.getters['agentChat/isRunning'])
+    const canceling = computed(() => store.getters['agentChat/isCanceling'])
+    // Another conversation is being fetched: the old transcript is replaced
+    // by a loader instead of lingering with no sign that anything happens.
+    const loadingConversation = computed(
+      () => store.getters['agentChat/getLoadingChatUuid'] !== null
+    )
     const hasError = computed(() => store.getters['agentChat/hasError'])
     const retrying = ref(false)
     const retry = async () => {
@@ -352,6 +328,63 @@ export default defineComponent({
     )
     const source = computed(() => store.getters['agentChat/getSource'])
     const agent = computed(() => store.getters['agentApplication/getAgent'])
+    const triggers = computed(
+      () => store.getters['agentApplication/getTriggers']
+    )
+    const toolLabel = computed(
+      () => store.getters['agentApplication/getToolLabel']
+    )
+    const identityName = computed(
+      () =>
+        store.getters['agent/get'](props.application.agent_identity_id)?.name ||
+        ''
+    )
+
+    const triggerNodeLabel = (triggerType) => {
+      for (const candidate of [triggerType, `local_baserow_${triggerType}`]) {
+        try {
+          return $registry.get('node', candidate).name
+        } catch {
+          // Not a node type; try the next candidate.
+        }
+      }
+      return ''
+    }
+    const triggerLabel = computed(
+      () =>
+        triggerNodeLabel(store.getters['agentChat/getTriggerType']) ||
+        t('agentChat.startedByTrigger')
+    )
+    const triggerPayload = (event) => {
+      const payload = store.getters['agentChat/getEventPayload']
+      return payload !== null && payload !== undefined
+        ? formatToolPayload(payload)
+        : formatToolPayload(event.content)
+    }
+    const firstTriggerLabel = computed(() => {
+      const trigger = triggers.value.find((item) => item.enabled)
+      return trigger ? triggerNodeLabel(trigger.service?.type) : ''
+    })
+
+    const blocks = computed(() =>
+      groupChatEvents(events.value, {
+        running: running.value,
+        chatSource: source.value,
+      })
+    )
+    const visibleBlocks = computed(() =>
+      loadingConversation.value ? [] : blocks.value
+    )
+    const showWelcome = computed(
+      () => events.value.length === 0 && !running.value
+    )
+    // Without a model every run fails; point straight at the fix.
+    const modelMissing = computed(
+      () =>
+        agent.value !== null &&
+        (!agent.value.ai_generative_ai_type ||
+          !agent.value.ai_generative_ai_model)
+    )
     const awaitingApproval = computed(
       () => store.getters['agentChat/isAwaitingApproval']
     )
@@ -373,6 +406,13 @@ export default defineComponent({
         props.application.workspace.id
       )
     )
+    const canUpdateTools = computed(() =>
+      $hasPermission(
+        'agent_application.update_tool',
+        props.application,
+        props.application.workspace.id
+      )
+    )
 
     // A conversation started by a trigger or during setup that is still
     // running is watched live; the input only appears once it has finished so
@@ -387,70 +427,70 @@ export default defineComponent({
 
     const sendButtonDisabled = computed(() => {
       if (running.value || awaitingApproval.value) {
-        return !canCancelChat.value
+        return !canCancelChat.value || canceling.value
       }
       return sending.value || uploading.value || message.value.trim() === ''
     })
 
-    const inputStatusMessage = computed(() => {
+    const pendingToolApprovals = computed(
+      () => store.getters['agentChat/getPendingToolApprovals']
+    )
+    const composerStatus = computed(() => {
       if (awaitingApproval.value) {
-        return t('agentChat.statusAwaitingApproval')
+        return t('agentChat.waitingForApproval', {
+          count: pendingToolApprovals.value.length,
+        })
       }
       if (running.value) {
         return runningMessage.value || t('agentChat.statusThinking')
       }
-      return t('agentChat.statusWaiting')
+      return ''
     })
 
-    const formatMessage = (content) => {
-      if (!content) return ''
-      return md.render(content)
-    }
-
-    // While the run is in progress, the last reasoning event renders expanded
-    // as live streaming text; on finalize it becomes a collapsed reasoning
-    // row that can be opened again later.
-    const isLiveReasoning = (event, index) => {
-      return (
-        running.value &&
-        event.type === 'ai/reasoning' &&
-        index === events.value.length - 1
-      )
-    }
-
-    const hasLiveReasoning = computed(() => {
-      const lastIndex = events.value.length - 1
-      return (
-        lastIndex >= 0 && isLiveReasoning(events.value[lastIndex], lastIndex)
+    // While the run is in progress the last reasoning event streams live and
+    // a tool group shows its own "Working on it" state (the loader is hidden
+    // then); the running loader covers the rest.
+    const hasLiveBlock = computed(() => {
+      const last = blocks.value.at(-1)
+      return Boolean(
+        last &&
+        (last.type === 'reasoning' || last.type === 'tool_group') &&
+        last.live
       )
     })
+    const applications = computed(() => store.getters['application/getAll'])
 
-    const toggleReasoning = (index) => {
-      expandedReasoning[index] = !expandedReasoning[index]
+    // Follow new events and the growing live streaming text, but only while
+    // the user is (near) the bottom; someone reading older messages must not
+    // be yanked down. A `pre` watcher runs before the DOM updates, so the
+    // scroll metrics still describe the old content.
+    const AT_BOTTOM_THRESHOLD = 40
+    const isScrolledToBottom = () => {
+      const el = messagesEl.value
+      return (
+        !el ||
+        el.scrollHeight - el.scrollTop - el.clientHeight <= AT_BOTTOM_THRESHOLD
+      )
     }
-
-    // Follow both new events and the growing live streaming text.
+    const scrollToBottom = async () => {
+      await nextTick()
+      if (messagesEl.value) {
+        messagesEl.value.scrollTop = messagesEl.value.scrollHeight
+      }
+    }
     watch(
       () => [
         events.value.length,
         events.value[events.value.length - 1]?.content,
       ],
-      async () => {
-        await nextTick()
-        if (messagesEl.value) {
-          messagesEl.value.scrollTop = messagesEl.value.scrollHeight
+      () => {
+        if (isScrolledToBottom()) {
+          scrollToBottom()
         }
       }
     )
-
-    const toolCallIcon = (event) => {
-      if (event.result === null) {
-        return 'iconoir-refresh-double'
-      }
-      return event.result.status === 'ok'
-        ? 'iconoir-check-circle'
-        : 'iconoir-warning-circle'
-    }
+    // Opening another conversation always starts at its end.
+    watch(currentChatUuid, () => scrollToBottom())
 
     const adjustHeight = () => {
       const textarea = textareaEl.value
@@ -491,6 +531,7 @@ export default defineComponent({
       attachments.value = []
       await nextTick()
       adjustHeight()
+      scrollToBottom()
       try {
         await store.dispatch('agentChat/sendMessage', {
           application: props.application,
@@ -532,13 +573,28 @@ export default defineComponent({
       }
     }
 
-    const decideApprovals = async (decisions) => {
+    const sendPrompt = async (text) => {
+      message.value = text
+      await nextTick()
+      adjustHeight()
+      await send()
+    }
+
+    const canRunOnce = computed(
+      () =>
+        canRunChat.value && triggers.value.some((trigger) => trigger.enabled)
+    )
+
+    const decideApprovals = async ({ decisions, dontAskAgain }) => {
       if (decidingApprovals.value) {
         return
       }
       decidingApprovals.value = true
       try {
-        await store.dispatch('agentChat/decideApprovals', { decisions })
+        await store.dispatch('agentChat/decideApprovals', {
+          decisions,
+          dontAskAgain,
+        })
       } catch (error) {
         if (
           error.handler &&
@@ -568,8 +624,8 @@ export default defineComponent({
         new Map(toolApprovals.value.map((approval) => [approval.id, approval]))
     )
 
-    const approvalsForEvent = (event) =>
-      event.ids
+    const approvalsForIds = (ids) =>
+      ids
         .map((id) => approvalsById.value.get(id))
         .filter((approval) => approval !== undefined)
 
@@ -667,33 +723,43 @@ export default defineComponent({
       messagesEl,
       textareaEl,
       fileInputEl,
-      expandedReasoning,
       events,
+      blocks,
+      showWelcome,
+      modelMissing,
+      toolLabel,
+      identityName,
+      triggerLabel,
+      triggerPayload,
+      firstTriggerLabel,
+      canRunOnce,
+      sendPrompt,
       running,
+      canceling,
+      loadingConversation,
+      visibleBlocks,
       sending,
       runningMessage,
       agent,
       canRunChat,
       canCancelChat,
+      canUpdateTools,
       watchingExternalRun,
       sendButtonDisabled,
-      inputStatusMessage,
+      composerStatus,
       awaitingApproval,
       decidingApprovals,
       attachments,
       dragging,
-      formatMessage,
-      isLiveReasoning,
-      hasLiveReasoning,
-      toggleReasoning,
-      toolCallIcon,
+      hasLiveBlock,
+      applications,
       adjustHeight,
       send,
       cancel,
       onEnter,
       onButtonClick,
       decideApprovals,
-      approvalsForEvent,
+      approvalsForIds,
       attachmentIcon,
       formatSize,
       removeAttachment,

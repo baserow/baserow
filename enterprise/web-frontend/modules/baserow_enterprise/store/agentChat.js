@@ -44,6 +44,7 @@ export function messagesToEvents(messages, toolApprovals = []) {
         type: message.role,
         id: message.id,
         content: message.content,
+        created_on: message.created_on,
       }
       if (message.attachments?.length > 0) {
         event.attachments = message.attachments
@@ -53,6 +54,15 @@ export function messagesToEvents(messages, toolApprovals = []) {
       const artifactEvents = message.artifacts?.events || []
       for (const event of artifactEvents) {
         if (event.type === EVENT_TYPE.TOOL_CALL) {
+          // A call that paused for approval is re-emitted with its result
+          // by the resumed run; that result belongs to the original call.
+          const existing = events.find(
+            (e) => e.type === EVENT_TYPE.TOOL_CALL && e.id === event.id
+          )
+          if (existing) {
+            existing.result = event.result || existing.result
+            continue
+          }
           events.push({
             type: EVENT_TYPE.TOOL_CALL,
             id: event.id,
@@ -65,7 +75,11 @@ export function messagesToEvents(messages, toolApprovals = []) {
         }
       }
       if (message.content) {
-        events.push({ type: EVENT_TYPE.MESSAGE, content: message.content })
+        events.push({
+          type: EVENT_TYPE.MESSAGE,
+          content: message.content,
+          created_on: message.created_on,
+        })
       }
       const approvalIds = approvalIdsByMessageId.get(message.id)
       if (approvalIds) {
@@ -94,6 +108,8 @@ export const state = () => ({
   runningMessage: '',
   currentMessageId: null,
   source: 'manual',
+  triggerType: '',
+  eventPayload: null,
   applicationId: null,
   // Realtime events that arrived before the chat id was known (the POST
   // response of a brand-new conversation may still be in flight).
@@ -103,6 +119,10 @@ export const state = () => ({
   toolApprovals: [],
   awaitingApproval: false,
   hasError: false,
+  // The uuid of the conversation whose messages are being fetched, so the
+  // list and the chat pane can show that a different one is opening.
+  loadingChatUuid: null,
+  canceling: false,
 })
 
 export const mutations = {
@@ -130,6 +150,12 @@ export const mutations = {
   SET_RUNNING(state, value) {
     state.running = value
   },
+  SET_LOADING_CHAT_UUID(state, uuid) {
+    state.loadingChatUuid = uuid
+  },
+  SET_CANCELING(state, value) {
+    state.canceling = value
+  },
   SET_RUNNING_MESSAGE(state, message) {
     state.runningMessage = message
   },
@@ -138,6 +164,10 @@ export const mutations = {
   },
   SET_SOURCE(state, source) {
     state.source = source
+  },
+  SET_TRIGGER(state, { triggerType, eventPayload }) {
+    state.triggerType = triggerType
+    state.eventPayload = eventPayload
   },
   SET_APPLICATION_ID(state, applicationId) {
     state.applicationId = applicationId
@@ -182,10 +212,46 @@ export const mutations = {
 }
 
 export const actions = {
-  async openConversation({ commit }, { applicationId, chatUuid }) {
-    const { data } = await AgentApplicationService(
-      this.$client
-    ).getChatMessages(applicationId, chatUuid)
+  async openConversation(
+    { commit, dispatch, state },
+    { applicationId, chatUuid, chatId = null }
+  ) {
+    commit('SET_LOADING_CHAT_UUID', chatUuid)
+    // When the chat id is already known (a run that was just started) the
+    // events it broadcasts while the transcript loads are buffered instead
+    // of being dropped as belonging to another conversation.
+    const buffering = chatId !== null
+    if (buffering) {
+      commit('SET_CHAT_ID', chatId)
+      commit('CLEAR_PENDING_EVENTS')
+      commit('SET_SENDING', true)
+    }
+    let data
+    try {
+      ;({ data } = await AgentApplicationService(this.$client).getChatMessages(
+        applicationId,
+        chatUuid
+      ))
+    } catch (error) {
+      if (buffering) {
+        commit('SET_SENDING', false)
+        commit('CLEAR_PENDING_EVENTS')
+      }
+      throw error
+    } finally {
+      // A newer open wins; only the request still being awaited clears it.
+      if (state.loadingChatUuid === chatUuid) {
+        commit('SET_LOADING_CHAT_UUID', null)
+      }
+    }
+    if (state.loadingChatUuid !== null && state.loadingChatUuid !== chatUuid) {
+      // Superseded by another conversation opened in the meantime.
+      if (buffering) {
+        commit('SET_SENDING', false)
+        commit('CLEAR_PENDING_EVENTS')
+      }
+      return
+    }
     const toolApprovals = data.tool_approvals || []
     commit('SET_CURRENT_CHAT_UUID', chatUuid)
     commit('SET_CHAT_ID', data.chat.id)
@@ -200,8 +266,21 @@ export const actions = {
     commit('SET_RUNNING_MESSAGE', '')
     commit('SET_CURRENT_MESSAGE_ID', null)
     commit('SET_SOURCE', data.chat.source || 'manual')
+    commit('SET_TRIGGER', {
+      triggerType: data.chat.trigger_type || '',
+      eventPayload: data.chat.event_payload ?? null,
+    })
     commit('SET_APPLICATION_ID', applicationId)
-    commit('CLEAR_PENDING_EVENTS')
+    if (buffering) {
+      const buffered = [...state.pendingEvents]
+      commit('CLEAR_PENDING_EVENTS')
+      commit('SET_SENDING', false)
+      for (const pending of buffered) {
+        dispatch('handleRealtimeEvent', pending)
+      }
+    } else {
+      commit('CLEAR_PENDING_EVENTS')
+    }
   },
   newConversation({ commit }) {
     commit('SET_CURRENT_CHAT_UUID', uuidv4())
@@ -214,6 +293,7 @@ export const actions = {
     commit('SET_RUNNING_MESSAGE', '')
     commit('SET_CURRENT_MESSAGE_ID', null)
     commit('SET_SOURCE', 'manual')
+    commit('SET_TRIGGER', { triggerType: '', eventPayload: null })
     commit('CLEAR_PENDING_EVENTS')
   },
   async sendMessage(
@@ -224,7 +304,11 @@ export const actions = {
       await dispatch('newConversation')
     }
 
-    const optimisticEvent = { type: EVENT_TYPE.HUMAN, content }
+    const optimisticEvent = {
+      type: EVENT_TYPE.HUMAN,
+      content,
+      created_on: new Date().toISOString(),
+    }
     if (userFiles.length > 0) {
       optimisticEvent.attachments = userFiles
     }
@@ -275,10 +359,18 @@ export const actions = {
       }
     }
   },
-  async cancel({ state }, { chatUuid }) {
-    await AgentApplicationService(this.$client).cancelChat(
-      chatUuid || state.currentChatUuid
-    )
+  async cancel({ commit, state }, { chatUuid }) {
+    if (state.canceling) {
+      return
+    }
+    commit('SET_CANCELING', true)
+    try {
+      await AgentApplicationService(this.$client).cancelChat(
+        chatUuid || state.currentChatUuid
+      )
+    } finally {
+      commit('SET_CANCELING', false)
+    }
   },
   async retryChat({ commit, state }) {
     const { data } = await AgentApplicationService(this.$client).retryChat(
@@ -288,10 +380,18 @@ export const actions = {
     commit('SET_HAS_ERROR', false)
     return data
   },
-  async decideApprovals({ commit, state }, { decisions }) {
+  async decideApprovals(
+    { commit, state },
+    { decisions, dontAskAgain = false }
+  ) {
     const { data } = await AgentApplicationService(
       this.$client
-    ).decideApprovals(state.currentChatUuid, decisions)
+    ).decideApprovals(
+      state.currentChatUuid,
+      dontAskAgain
+        ? decisions.map((decision) => ({ ...decision, dont_ask_again: true }))
+        : decisions
+    )
     commit('UPSERT_TOOL_APPROVALS', data)
     return data
   },
@@ -358,6 +458,7 @@ export const actions = {
             type: event.type,
             id: event.id,
             content: event.content,
+            created_on: event.created_on || new Date().toISOString(),
           }
           if (event.attachments?.length > 0) {
             newEvent.attachments = event.attachments
@@ -424,6 +525,7 @@ export const actions = {
               content: event.content,
               sources: event.sources,
               partial: false,
+              created_on: new Date().toISOString(),
             },
           })
         } else if (
@@ -438,6 +540,7 @@ export const actions = {
             type: EVENT_TYPE.MESSAGE,
             content: event.content,
             sources: event.sources,
+            created_on: new Date().toISOString(),
           })
         }
         commit('SET_RUNNING', false)
@@ -474,15 +577,22 @@ export const actions = {
         }
         break
       }
-      case EVENT_TYPE.TOOL_CALL:
-        commit('ADD_EVENT', {
-          type: EVENT_TYPE.TOOL_CALL,
-          id: event.id,
-          tool_name: event.tool_name,
-          args: event.args,
-          result: null,
-        })
+      case EVENT_TYPE.TOOL_CALL: {
+        // The resumed run re-announces an approved call; keep the original.
+        const alreadyPresent = state.events.some(
+          (e) => e.type === EVENT_TYPE.TOOL_CALL && e.id === event.id
+        )
+        if (!alreadyPresent) {
+          commit('ADD_EVENT', {
+            type: EVENT_TYPE.TOOL_CALL,
+            id: event.id,
+            tool_name: event.tool_name,
+            args: event.args,
+            result: null,
+          })
+        }
         break
+      }
       case EVENT_TYPE.TOOL: {
         const index = state.events.findIndex(
           (e) => e.type === EVENT_TYPE.TOOL_CALL && e.id === event.id
@@ -536,8 +646,12 @@ export const getters = {
   getEvents: (state) => state.events,
   isSending: (state) => state.sending,
   isRunning: (state) => state.running,
+  isCanceling: (state) => state.canceling,
+  getLoadingChatUuid: (state) => state.loadingChatUuid,
   getRunningMessage: (state) => state.runningMessage,
   getSource: (state) => state.source,
+  getTriggerType: (state) => state.triggerType,
+  getEventPayload: (state) => state.eventPayload,
   getToolApprovals: (state) => state.toolApprovals,
   getPendingToolApprovals: (state) =>
     state.toolApprovals.filter((approval) => approval.status === 'pending'),

@@ -27,7 +27,9 @@ from baserow.core.utils import ChildProgressBuilder
 from .handler import AgentApplicationHandler
 from .models import (
     AgentApplication,
+    AgentChat,
     AgentChatChannel,
+    AgentChatToolApproval,
     AgentDefinition,
     AgentTool,
     AgentTrigger,
@@ -62,6 +64,41 @@ class PendingApprovalsCountField(serializers.Field):
         return count
 
 
+class LastRunOnField(serializers.DateTimeField):
+    """
+    When the application's last triggered run finished, read from the
+    queryset annotation when present and computed otherwise.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs["source"] = "*"
+        kwargs["read_only"] = True
+        super().__init__(**kwargs)
+
+    def to_representation(self, instance):
+        if not isinstance(instance, Application):
+            return None
+
+        if hasattr(instance, "last_run_on"):
+            value = instance.last_run_on
+        else:
+            from .handler import AgentChatHandler
+
+            value = AgentChatHandler().get_last_run_on(instance)
+        return super().to_representation(value) if value else None
+
+
+SETUP_FIELDS = [
+    "instructions",
+    "run_mode",
+    "permissions",
+    "web_search",
+    "create_identity",
+]
+RUN_MODES = ["chat", "daily", "weekly"]
+PERMISSION_PRESETS = ["read_only", "ask_first", "free"]
+
+
 class AgentApplicationType(ApplicationType):
     type = "agent"
     model_class = AgentApplication
@@ -71,8 +108,13 @@ class AgentApplicationType(ApplicationType):
         "active",
         "agent_identity_id",
         "pending_approvals_count",
+        "last_run_on",
     ]
-    allowed_fields = ["description", "active", "agent_identity_id"]
+    # The wizard's setup choices are accepted on create only (the view injects
+    # the serialized data, which drops write-only fields, so they live on the
+    # request serializer instead).
+    request_serializer_field_names = [*serializer_field_names, *SETUP_FIELDS]
+    allowed_fields = ["description", "active", "agent_identity_id", *SETUP_FIELDS]
     serializer_field_overrides = {
         "agent_identity_id": serializers.IntegerField(
             required=False,
@@ -83,6 +125,36 @@ class AgentApplicationType(ApplicationType):
             ),
         ),
         "pending_approvals_count": PendingApprovalsCountField(),
+        "last_run_on": LastRunOnField(),
+    }
+    request_serializer_field_overrides = {
+        **serializer_field_overrides,
+        "instructions": serializers.CharField(
+            required=False,
+            allow_blank=True,
+            help_text="Initial instructions of the agent (create only).",
+        ),
+        "run_mode": serializers.ChoiceField(
+            choices=RUN_MODES,
+            required=False,
+            help_text="Adds a periodic trigger when not `chat` (create only).",
+        ),
+        "permissions": serializers.ChoiceField(
+            choices=PERMISSION_PRESETS,
+            required=False,
+            help_text="Workspace tool access preset (create only).",
+        ),
+        "web_search": serializers.BooleanField(
+            required=False,
+            help_text="Whether to enable the web search tool (create only).",
+        ),
+        "create_identity": serializers.BooleanField(
+            required=False,
+            help_text=(
+                "Creates a workspace agent identity named after the application "
+                "and acts as it (create only, requires the create agent permission)."
+            ),
+        ),
     }
     supports_integrations = True
 
@@ -99,13 +171,17 @@ class AgentApplicationType(ApplicationType):
     def prepare_value_for_db(
         self, values: dict, instance: "Application | None" = None
     ) -> dict:
+        if instance is not None:
+            # The setup choices only make sense while creating.
+            for field in SETUP_FIELDS:
+                values.pop(field, None)
+
         if "agent_identity_id" in values:
             agent_identity_id = values["agent_identity_id"]
 
-            if agent_identity_id is not None and instance is None:
+            if instance is None:
                 # At creation time there is no workspace to validate the agent
-                # against yet; the identity can only be set on update.
-                values.pop("agent_identity_id")
+                # against yet; `apply_setup` validates it after creation.
                 return values
 
             if agent_identity_id is not None:
@@ -127,6 +203,17 @@ class AgentApplicationType(ApplicationType):
         # instance) because the update action serializes them for undo/redo.
         return values
 
+    def create_application(self, user, workspace, init_with_data=False, **kwargs):
+        setup = {key: kwargs.pop(key) for key in SETUP_FIELDS if key in kwargs}
+        agent_identity_id = kwargs.pop("agent_identity_id", None)
+        application = super().create_application(
+            user, workspace, init_with_data=init_with_data, **kwargs
+        )
+        AgentApplicationHandler().apply_setup(
+            user, application, setup, agent_identity_id=agent_identity_id
+        )
+        return application
+
     def after_update(self, instance: "Application", values: dict, **kwargs) -> None:
         if "agent_identity_id" in values:
             AgentApplicationHandler().sync_agent_identity(instance.specific)
@@ -144,59 +231,9 @@ class AgentApplicationType(ApplicationType):
             authorized_user=user,
             name=integration_name,
         )
-        agent = AgentApplicationHandler().create_main_agent(
+        AgentApplicationHandler().create_main_agent(
             application, name=application.name, description=application.description
         )
-
-        if application.description:
-            self._start_setup_chat(user, application, agent)
-
-    def _start_setup_chat(self, user, application, agent) -> None:
-        """
-        When the user described what the agent should do, the agent configures
-        itself in a visible setup conversation, using the workspace's first
-        available generative AI model.
-        """
-
-        from baserow.core.generative_ai.registries import (
-            generative_ai_model_type_registry,
-        )
-
-        from .handler import AgentChatHandler
-        from .models import AgentChat, AgentChatMessage
-        from .prompts import AGENT_SETUP_PROMPT
-
-        enabled_models = generative_ai_model_type_registry.get_enabled_models_per_type(
-            application.workspace
-        )
-        default_model = next(
-            (
-                (ai_type, models[0])
-                for ai_type, models in enabled_models.items()
-                if models
-            ),
-            None,
-        )
-        if default_model is None:
-            # No model available; the user has to configure one manually.
-            return
-
-        AgentApplicationHandler().update_agent(
-            agent,
-            ai_generative_ai_type=default_model[0],
-            ai_generative_ai_model=default_model[1],
-        )
-
-        chat_handler = AgentChatHandler()
-        chat = chat_handler.create_triggered_chat(
-            agent, "setup", source=AgentChat.Source.SETUP, user=user
-        )
-        message = chat_handler.create_message(
-            chat,
-            AgentChatMessage.Role.SYSTEM,
-            AGENT_SETUP_PROMPT.format(description=application.description),
-        )
-        chat_handler.start_chat_run(chat, message)
 
     def export_serialized(
         self,
@@ -405,6 +442,9 @@ class AgentApplicationType(ApplicationType):
                 storage=storage,
                 cache=self.cache,
                 import_formula=lambda formula, formula_id_mapping, **kwargs: formula,
+                # A duplicate must get its own webhook uid, otherwise the
+                # copy would receive the original's inbound HTTP calls.
+                import_export_config=import_export_config,
             )
 
         for serialized_trigger in serialized_triggers:
@@ -457,11 +497,44 @@ class AgentApplicationType(ApplicationType):
         return application
 
     def enhance_queryset(self, queryset):
-        from django.db.models import Count, Q
+        """
+        Annotates the header counters in one query. Correlated subqueries keep
+        the list query free of joins and GROUP BY, so the cost stays bound to
+        the (index-backed) newest trigger run and the pending approvals of
+        each agent instead of its whole conversation history.
+        """
 
-        return queryset.prefetch_related("agents").annotate(
-            pending_approvals_count=Count(
-                "agents__chats__tool_approvals",
-                filter=Q(agents__chats__tool_approvals__status="pending"),
+        from django.db.models import Count, IntegerField, OuterRef, Subquery
+        from django.db.models.functions import Coalesce
+
+        pending = (
+            AgentChatToolApproval.objects.filter(
+                chat__agent__application_id=OuterRef("pk"),
+                status=AgentChatToolApproval.Status.PENDING,
             )
+            .order_by()
+            .values("chat__agent__application_id")
+            .annotate(count=Count("id"))
+            .values("count")[:1]
         )
+        last_run = (
+            AgentChat.objects.filter(
+                agent__application_id=OuterRef("pk"),
+                source=AgentChat.Source.TRIGGER,
+                completed_on__isnull=False,
+            )
+            .order_by("-completed_on")
+            .values("completed_on")[:1]
+        )
+        return queryset.annotate(
+            pending_approvals_count=Coalesce(
+                Subquery(pending, output_field=IntegerField()), 0
+            ),
+            last_run_on=Subquery(last_run),
+        )
+
+    def enhance_and_filter_queryset(self, queryset, user, workspace):
+        # The workspace application listing goes through this hook, not
+        # `enhance_queryset`; without it every agent application costs two
+        # aggregate queries at serialization time.
+        return self.enhance_queryset(queryset)

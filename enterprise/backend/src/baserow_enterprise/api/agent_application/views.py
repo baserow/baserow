@@ -10,14 +10,19 @@ from rest_framework.views import APIView
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions, validate_body
-from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
+from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.api.pagination import LimitOffsetPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.api.user_files.errors import ERROR_INVALID_USER_FILE_NAME_ERROR
 from baserow.core.action.registries import action_type_registry
-from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    UserNotInWorkspace,
+    WorkspaceDoesNotExist,
+)
 from baserow.core.handler import CoreHandler
+from baserow.core.operations import CreateApplicationsWorkspaceOperationType
 from baserow.core.services.registries import service_type_registry
 from baserow.core.user_files.exceptions import InvalidUserFileNameError
 from baserow_enterprise.agent_application.actions import UpdateAgentDefinitionActionType
@@ -43,6 +48,10 @@ from baserow_enterprise.agent_application.handler import (
     AgentApplicationHandler,
     AgentChatHandler,
 )
+from baserow_enterprise.agent_application.instructions import (
+    draft_instructions,
+    improve_instructions,
+)
 from baserow_enterprise.agent_application.models import AgentChatMessage
 from baserow_enterprise.agent_application.operations import (
     CancelAgentChatOperationType,
@@ -59,6 +68,8 @@ from baserow_enterprise.agent_application.operations import (
     ReadAgentUsageOperationType,
     RunAgentChatOperationType,
     UpdateAgentChatChannelOperationType,
+    UpdateAgentChatOperationType,
+    UpdateAgentDefinitionOperationType,
     UpdateAgentToolOperationType,
     UpdateAgentTriggerOperationType,
 )
@@ -67,6 +78,16 @@ from baserow_enterprise.agent_application.realtime import (
 )
 from baserow_enterprise.agent_application.tools.handler import AgentToolHandler
 from baserow_enterprise.agent_application.triggers.handler import AgentTriggerHandler
+from baserow_enterprise.api.assistant.errors import (
+    ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE,
+    ERROR_ASSISTANT_MODEL_DISABLED,
+    ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+)
+from baserow_enterprise.assistant.exceptions import (
+    AssistantConfiguredModelNotAvailableError,
+    AssistantModelDisabledError,
+    AssistantModelNotSupportedError,
+)
 
 from .errors import (
     ERROR_AGENT_CHAT_ALREADY_RUNNING,
@@ -85,13 +106,18 @@ from .serializers import (
     AgentChatMessageSerializer,
     AgentChatSerializer,
     AgentChatToolApprovalSerializer,
+    AgentChatWithPayloadSerializer,
     AgentDefinitionSerializer,
+    AgentInstructionsSerializer,
     CreateAgentChatChannelSerializer,
     CreateAgentToolSerializer,
     CreateAgentTriggerSerializer,
     DecideAgentToolApprovalsSerializer,
+    DraftAgentInstructionsSerializer,
+    ImproveAgentInstructionsSerializer,
     SendAgentChatMessageSerializer,
     UpdateAgentChatChannelSerializer,
+    UpdateAgentChatSerializer,
     UpdateAgentDefinitionSerializer,
     UpdateAgentToolSerializer,
     UpdateAgentTriggerSerializer,
@@ -117,6 +143,18 @@ def _get_application_and_check(request, application_id, operation_type):
         context=application.application_ptr,
     )
     return application
+
+
+def _get_agent_and_check(request, agent_id, operation_type):
+    agent = AgentApplicationHandler().get_agent(agent_id)
+    application = agent.application
+    CoreHandler().check_permissions(
+        request.user,
+        operation_type.type,
+        workspace=application.workspace,
+        context=application.application_ptr,
+    )
+    return agent
 
 
 def _get_chat_and_check(request, chat_uuid, operation_type):
@@ -299,7 +337,7 @@ class AgentChatMessagesView(APIView):
         approvals = AgentChatHandler().list_tool_approvals(chat)
         return Response(
             {
-                "chat": AgentChatSerializer(chat).data,
+                "chat": AgentChatWithPayloadSerializer(chat).data,
                 "messages": AgentChatMessageSerializer(messages, many=True).data,
                 "tool_approvals": AgentChatToolApprovalSerializer(
                     approvals, many=True
@@ -514,6 +552,201 @@ class AgentChatView(APIView):
 
         AgentChatHandler().delete_chat(chat)
         return Response(status=HTTP_204_NO_CONTENT)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="chat_uuid",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.UUID,
+            ),
+        ],
+        tags=["Agent"],
+        operation_id="update_agent_application_chat",
+        description="Renames or pins an agent conversation.",
+        request=UpdateAgentChatSerializer,
+        responses={
+            200: AgentChatSerializer,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            404: get_error_schema(["ERROR_AGENT_CHAT_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            AgentChatDoesNotExist: ERROR_AGENT_CHAT_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    @validate_body(UpdateAgentChatSerializer, return_validated=True)
+    def patch(self, request, chat_uuid, data: dict):
+        chat = _get_chat_and_check(request, chat_uuid, UpdateAgentChatOperationType)
+        chat = AgentChatHandler().update_chat(chat, **data)
+        return Response(AgentChatSerializer(chat).data)
+
+
+_INSTRUCTIONS_MODEL_ERRORS = {
+    AssistantModelDisabledError: ERROR_ASSISTANT_MODEL_DISABLED,
+    AssistantConfiguredModelNotAvailableError: (
+        ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE
+    ),
+    AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
+}
+
+
+class AgentInstructionsDraftView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="workspace_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+            ),
+        ],
+        tags=["Agent"],
+        operation_id="draft_agent_application_instructions",
+        description=(
+            "Drafts the instructions of a new agent from the name and the "
+            "description the user typed, using the workspace's Kuma model."
+        ),
+        request=DraftAgentInstructionsSerializer,
+        responses={
+            200: AgentInstructionsSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
+                    "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
+                    "ERROR_ASSISTANT_MODEL_DISABLED",
+                ]
+            ),
+            404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            **_INSTRUCTIONS_MODEL_ERRORS,
+        }
+    )
+    @validate_body(DraftAgentInstructionsSerializer, return_validated=True)
+    def post(self, request, workspace_id: int, data: dict):
+        workspace = CoreHandler().get_workspace(workspace_id)
+        CoreHandler().check_permissions(
+            request.user,
+            CreateApplicationsWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+        instructions = draft_instructions(workspace, data["name"], data["description"])
+        return Response(
+            AgentInstructionsSerializer({"instructions": instructions}).data
+        )
+
+
+class AgentInstructionsImproveView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="agent_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+            ),
+        ],
+        tags=["Agent"],
+        operation_id="improve_agent_application_instructions",
+        description=(
+            "Returns an improved version of the given agent instructions, "
+            "written by the workspace's Kuma model. Nothing is saved."
+        ),
+        request=ImproveAgentInstructionsSerializer,
+        responses={
+            200: AgentInstructionsSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_ASSISTANT_MODEL_NOT_SUPPORTED",
+                    "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
+                    "ERROR_ASSISTANT_MODEL_DISABLED",
+                ]
+            ),
+            404: get_error_schema(["ERROR_AGENT_DEFINITION_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            AgentDefinitionDoesNotExist: ERROR_AGENT_DEFINITION_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            **_INSTRUCTIONS_MODEL_ERRORS,
+        }
+    )
+    @validate_body(ImproveAgentInstructionsSerializer, return_validated=True)
+    def post(self, request, agent_id: int, data: dict):
+        agent = _get_agent_and_check(
+            request, agent_id, UpdateAgentDefinitionOperationType
+        )
+        workspace = agent.application.workspace
+        instructions = improve_instructions(workspace, agent, data["instructions"])
+        return Response(
+            AgentInstructionsSerializer({"instructions": instructions}).data
+        )
+
+
+class AgentRunOnceView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="application_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+            ),
+        ],
+        tags=["Agent"],
+        operation_id="run_agent_application_once",
+        description=(
+            "Starts a conversation for the application's first enabled trigger "
+            "as if it had fired now, without event data."
+        ),
+        responses={
+            202: AgentChatSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_AGENT_MODEL_NOT_CONFIGURED"]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                    "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            AgentDefinitionDoesNotExist: ERROR_AGENT_DEFINITION_DOES_NOT_EXIST,
+            AgentTriggerDoesNotExist: ERROR_AGENT_TRIGGER_DOES_NOT_EXIST,
+            AgentModelNotConfigured: ERROR_AGENT_MODEL_NOT_CONFIGURED,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    @transaction.atomic
+    def post(self, request, application_id: int):
+        application = _get_application_and_check(
+            request, application_id, RunAgentChatOperationType
+        )
+        agent = AgentApplicationHandler().get_main_agent(application)
+        if not agent.ai_generative_ai_type or not agent.ai_generative_ai_model:
+            raise AgentModelNotConfigured(
+                "The agent has no generative AI model configured."
+            )
+        chat = AgentChatHandler().run_trigger_once(request.user, application)
+        return Response(AgentChatSerializer(chat).data, status=HTTP_202_ACCEPTED)
 
 
 class AgentUsageView(APIView):
@@ -975,7 +1208,7 @@ class AgentWorkspaceToolsView(APIView):
         }
     )
     def get(self, request, application_id: int):
-        from baserow_enterprise.agent_application.tools.workspace import (
+        from baserow_enterprise.agent_application.tools.catalog import (
             list_workspace_tools,
         )
 
@@ -1055,6 +1288,16 @@ class AgentChatApprovalsView(APIView):
         chat = _get_chat_and_check(
             request, chat_uuid, DecideAgentToolApprovalOperationType
         )
+        if any(decision.get("dont_ask_again") for decision in data["decisions"]):
+            # "Don't ask again" rewrites the tool configuration, which is a
+            # builder-level change and not part of deciding an approval.
+            application = chat.agent.application
+            CoreHandler().check_permissions(
+                request.user,
+                UpdateAgentToolOperationType.type,
+                workspace=application.workspace,
+                context=application.application_ptr,
+            )
 
         with transaction.atomic():
             decided = AgentChatHandler().decide_tool_approvals(

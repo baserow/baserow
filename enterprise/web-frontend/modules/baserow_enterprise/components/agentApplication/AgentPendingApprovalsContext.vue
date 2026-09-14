@@ -37,6 +37,7 @@
               size="small"
               type="secondary"
               :disabled="deciding"
+              :loading="isDeciding(approval, true)"
               @click.stop="decide(approval, true)"
             >
               {{ $t('agentPendingApprovals.approve') }}
@@ -45,6 +46,7 @@
               size="small"
               type="danger"
               :disabled="deciding"
+              :loading="isDeciding(approval, false)"
               @click.stop="decide(approval, false)"
             >
               {{ $t('agentPendingApprovals.reject') }}
@@ -110,7 +112,8 @@ export default defineComponent({
       }
     }
 
-    const humanToolName = (name) => (name || '').replace(/_/g, ' ')
+    const humanToolName = (name) =>
+      store.getters['agentApplication/getToolLabel'](name)
 
     const argsPreview = (approval) => {
       if (!approval.tool_args || Object.keys(approval.tool_args).length === 0) {
@@ -139,11 +142,15 @@ export default defineComponent({
       })
     }
 
+    const decidingKey = ref(null)
+    const isDeciding = (approval, approved) =>
+      deciding.value && decidingKey.value === `${approval.id}-${approved}`
     const decide = async (approval, approved) => {
       if (deciding.value) {
         return
       }
       deciding.value = true
+      decidingKey.value = `${approval.id}-${approved}`
       try {
         await AgentApplicationService($client).decideApprovals(
           approval.chat_uuid,
@@ -173,6 +180,7 @@ export default defineComponent({
     }
 
     return {
+      isDeciding,
       context,
       approvals,
       loading,

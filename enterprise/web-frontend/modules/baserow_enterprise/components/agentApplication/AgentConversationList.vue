@@ -1,113 +1,62 @@
 <template>
   <div class="agent-conversation-list">
-    <template v-if="runningChats.length > 0">
-      <div class="agent-conversation-list__section-title">
-        {{ $t('agentConversationList.running') }}
-      </div>
-      <ul class="agent-conversation-list__items">
-        <li
-          v-for="chat in runningChats"
-          :key="chat.id"
-          class="agent-conversation-list__item"
-          :class="{
-            'agent-conversation-list__item--active': isCurrent(chat),
-          }"
-          @click="selectChat(chat)"
-        >
-          <i
-            class="agent-conversation-list__item-icon"
-            :class="sourceIcon(chat)"
-          ></i>
-          <div class="agent-conversation-list__item-content">
-            <div class="agent-conversation-list__item-title">
-              {{ chat.title || $t('agentConversationList.untitled') }}
-            </div>
-            <div class="agent-conversation-list__item-meta">
-              <span>{{ relativeTime(chat) }}</span>
-              <span
-                v-if="chatTokens(chat) !== null"
-                class="agent-conversation-list__item-tokens"
-                >{{
-                  $t('agentConversationList.tokens', {
-                    amount: chatTokens(chat),
-                  })
-                }}</span
-              >
-            </div>
-          </div>
-          <span
-            class="agent-conversation-list__item-status"
-            :class="statusModifier(chat)"
-          ></span>
-          <a
-            v-if="canCancelChat"
-            class="agent-conversation-list__item-stop"
-            :title="$t('agentConversationList.stop')"
-            @click.stop="stopChat(chat)"
-          >
-            <i class="iconoir-square"></i>
-          </a>
-        </li>
-      </ul>
-    </template>
-    <div class="agent-conversation-list__section-title">
-      {{ $t('agentConversationList.recent') }}
-    </div>
-    <div v-if="recentChats.length === 0" class="agent-conversation-list__empty">
-      {{ $t('agentConversationList.empty') }}
-    </div>
-    <ul v-else class="agent-conversation-list__items">
-      <li
-        v-for="chat in recentChats"
-        :key="chat.id"
-        class="agent-conversation-list__item"
-        :class="{
-          'agent-conversation-list__item--active': isCurrent(chat),
-        }"
-        @click="selectChat(chat)"
-      >
-        <i
-          class="agent-conversation-list__item-icon"
-          :class="sourceIcon(chat)"
-        ></i>
-        <div class="agent-conversation-list__item-content">
-          <div class="agent-conversation-list__item-title">
-            {{ chat.title || $t('agentConversationList.untitled') }}
-          </div>
-          <div class="agent-conversation-list__item-meta">
-            <span>{{ relativeTime(chat) }}</span>
-            <span
-              v-if="chatTokens(chat) !== null"
-              class="agent-conversation-list__item-tokens"
-              >{{
-                $t('agentConversationList.tokens', {
-                  amount: chatTokens(chat),
-                })
-              }}</span
-            >
-          </div>
+    <div class="agent-conversation-list__scroll">
+      <template v-if="pinnedChats.length > 0">
+        <div class="agent-conversation-list__section-title">
+          {{ $t('agentConversationList.pinned') }}
         </div>
-        <span
-          v-if="chat.status === 'error' || chat.status === 'awaiting_approval'"
-          class="agent-conversation-list__item-status"
-          :class="statusModifier(chat)"
-          :title="
-            chat.status === 'awaiting_approval'
-              ? $t('agentConversationList.awaitingApproval')
-              : null
-          "
-        ></span>
-      </li>
-    </ul>
-    <ButtonText
-      v-if="hasMore"
-      class="agent-conversation-list__load-more"
-      icon="iconoir-nav-arrow-down"
-      :loading="loading"
-      @click="loadMore"
-    >
-      {{ $t('agentConversationList.loadMore') }}
-    </ButtonText>
+        <ul class="agent-conversation-list__items">
+          <AgentConversationListItem
+            v-for="chat in pinnedChats"
+            :key="chat.id"
+            :application="application"
+            :chat="chat"
+            :active="isCurrent(chat)"
+            :loading="isLoading(chat)"
+            @select="selectChat(chat)"
+          />
+        </ul>
+      </template>
+      <div class="agent-conversation-list__section-title">
+        {{ $t('agentConversationList.recent') }}
+      </div>
+      <div
+        v-if="recentChats.length === 0"
+        class="agent-conversation-list__empty"
+      >
+        {{ $t('agentConversationList.empty') }}
+      </div>
+      <ul v-else class="agent-conversation-list__items">
+        <AgentConversationListItem
+          v-for="chat in recentChats"
+          :key="chat.id"
+          :application="application"
+          :chat="chat"
+          :active="isCurrent(chat)"
+          :loading="isLoading(chat)"
+          @select="selectChat(chat)"
+        />
+      </ul>
+      <ButtonText
+        v-if="hasMore"
+        class="agent-conversation-list__load-more"
+        icon="iconoir-nav-arrow-down"
+        :loading="loading"
+        @click="loadMore"
+      >
+        {{ $t('agentConversationList.loadMore') }}
+      </ButtonText>
+    </div>
+    <div v-if="canRunChat" class="agent-conversation-list__footer">
+      <Button
+        type="secondary"
+        icon="iconoir-plus"
+        full-width
+        @click="newConversation"
+      >
+        {{ $t('agentConversationList.newConversation') }}
+      </Button>
+    </div>
   </div>
 </template>
 
@@ -115,27 +64,12 @@
 import { defineComponent, computed } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#imports'
-import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-
-const SOURCE_ICONS = {
-  manual: 'iconoir-chat-bubble-empty',
-  trigger: 'iconoir-flash',
-  setup: 'iconoir-sparks',
-}
-
-function formatTokens(total) {
-  if (total >= 1000000) {
-    return `${parseFloat((total / 1000000).toFixed(1))}M`
-  }
-  if (total >= 1000) {
-    return `${parseFloat((total / 1000).toFixed(1))}k`
-  }
-  return `${total}`
-}
+import AgentConversationListItem from '@baserow_enterprise/components/agentApplication/AgentConversationListItem'
 
 export default defineComponent({
   name: 'AgentConversationList',
+  components: { AgentConversationListItem },
   props: {
     application: {
       type: Object,
@@ -146,46 +80,26 @@ export default defineComponent({
     const store = useStore()
     const { $hasPermission } = useNuxtApp()
 
-    const canCancelChat = computed(() =>
+    const canRunChat = computed(() =>
       $hasPermission(
-        'agent_application.cancel_chat',
+        'agent_application.run_chat',
         props.application,
         props.application.workspace.id
       )
     )
-
-    const runningChats = computed(
-      () => store.getters['agentHistory/getRunningChats']
+    const pinnedChats = computed(
+      () => store.getters['agentHistory/getPinnedChats']
     )
-    const recentChats = computed(() =>
-      store.getters['agentHistory/getChats'].filter(
-        (chat) => !runningChats.value.includes(chat)
-      )
+    const recentChats = computed(
+      () => store.getters['agentHistory/getRecentChats']
     )
     const currentChatUuid = computed(
       () => store.getters['agentChat/getCurrentChatUuid']
     )
-
     const isCurrent = (chat) => chat.uuid === currentChatUuid.value
-
-    const sourceIcon = (chat) =>
-      SOURCE_ICONS[chat.source] || SOURCE_ICONS.manual
-
-    const statusModifier = (chat) =>
-      `agent-conversation-list__item-status--${chat.status.replace('_', '-')}`
-
-    const relativeTime = (chat) =>
-      moment(chat.updated_on || chat.created_on).fromNow()
-
-    const chatTokens = (chat) => {
-      const total =
-        (chat.total_input_tokens || 0) + (chat.total_output_tokens || 0)
-      return total > 0 ? formatTokens(total) : null
-    }
 
     const hasMore = computed(() => store.getters['agentHistory/hasMore'])
     const loading = computed(() => store.getters['agentHistory/isLoading'])
-
     const loadMore = async () => {
       try {
         await store.dispatch('agentHistory/fetchMore', {
@@ -196,7 +110,14 @@ export default defineComponent({
       }
     }
 
+    const loadingChatUuid = computed(
+      () => store.getters['agentChat/getLoadingChatUuid']
+    )
+    const isLoading = (chat) => chat.uuid === loadingChatUuid.value
     const selectChat = async (chat) => {
+      if (isLoading(chat) || isCurrent(chat)) {
+        return
+      }
       try {
         await store.dispatch('agentChat/openConversation', {
           applicationId: props.application.id,
@@ -206,28 +127,20 @@ export default defineComponent({
         notifyIf(error, 'application')
       }
     }
-
-    const stopChat = async (chat) => {
-      try {
-        await store.dispatch('agentChat/cancel', { chatUuid: chat.uuid })
-      } catch (error) {
-        notifyIf(error, 'application')
-      }
+    const newConversation = () => {
+      store.dispatch('agentChat/newConversation')
     }
 
     return {
-      runningChats,
+      canRunChat,
+      pinnedChats,
       recentChats,
-      canCancelChat,
       hasMore,
       loading,
+      isLoading,
       isCurrent,
-      sourceIcon,
-      statusModifier,
-      relativeTime,
-      chatTokens,
       selectChat,
-      stopChat,
+      newConversation,
       loadMore,
     }
   },

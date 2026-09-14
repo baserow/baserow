@@ -5,6 +5,7 @@ from django.db.models import QuerySet
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.integrations.core.models import CoreHTTPTriggerService
 from baserow.core.integrations.models import Integration
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 from baserow.core.services.handler import ServiceHandler
@@ -86,10 +87,24 @@ class AgentTriggerHandler:
         prepared_values = service_type.prepare_values(service_values, user)
 
         service = ServiceHandler().create_service(service_type, **prepared_values)
+        self._publish_service(service)
 
         return AgentTrigger.objects.create(
             application=application, service=service, enabled=enabled
         )
+
+    def _publish_service(self, service) -> None:
+        """
+        Agent triggers are live as soon as they exist (the agent's active
+        switch and the trigger's enabled flag gate the runs), unlike
+        automation triggers that only listen once their workflow is
+        published. The core webhook endpoint only resolves published HTTP
+        trigger services, so mark them published right away.
+        """
+
+        if isinstance(service, CoreHTTPTriggerService) and not service.is_public:
+            service.is_public = True
+            service.save(update_fields=["is_public"])
 
     def update_trigger(
         self,

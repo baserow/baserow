@@ -1,4 +1,13 @@
 import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
+import { humanizeToolName } from '@baserow_enterprise/utils/agentChatEvents'
+
+// The current values of the keys about to be overwritten, to restore them
+// when an optimistic update fails.
+function pickKeys(object, values) {
+  return Object.fromEntries(
+    Object.keys(values).map((key) => [key, object[key]])
+  )
+}
 
 export const state = () => ({
   agent: null,
@@ -9,6 +18,10 @@ export const state = () => ({
   toolsLoading: false,
   channels: [],
   channelsLoading: false,
+  // The universe of workspace tools with their labels; shared by the tool
+  // permissions UI and the humanized tool names in conversations.
+  workspaceToolCatalog: [],
+  workspaceToolCatalogLoaded: false,
 })
 
 export const mutations = {
@@ -74,6 +87,10 @@ export const mutations = {
   },
   SET_CHANNELS_LOADING(state, value) {
     state.channelsLoading = value
+  },
+  SET_WORKSPACE_TOOL_CATALOG(state, catalog) {
+    state.workspaceToolCatalog = catalog
+    state.workspaceToolCatalogLoaded = true
   },
   ADD_CHANNEL(state, channel) {
     state.channels.push(channel)
@@ -160,13 +177,26 @@ export const actions = {
     commit('ADD_TRIGGER', data)
     return data
   },
-  async updateTrigger({ commit }, { triggerId, values }) {
-    const { data } = await AgentApplicationService(this.$client).updateTrigger(
-      triggerId,
-      values
-    )
-    commit('UPDATE_TRIGGER', { triggerId, values: data })
-    return data
+  async updateTrigger({ commit, state }, { triggerId, values }) {
+    // Switches and segments render from the store, so the change shows
+    // immediately and is reverted when the request fails.
+    const trigger = state.triggers.find((item) => item.id === triggerId)
+    const oldValues = trigger && pickKeys(trigger, values)
+    if (trigger) {
+      commit('UPDATE_TRIGGER', { triggerId, values })
+    }
+    try {
+      const { data } = await AgentApplicationService(
+        this.$client
+      ).updateTrigger(triggerId, values)
+      commit('UPDATE_TRIGGER', { triggerId, values: data })
+      return data
+    } catch (error) {
+      if (trigger) {
+        commit('UPDATE_TRIGGER', { triggerId, values: oldValues })
+      }
+      throw error
+    }
   },
   async deleteTrigger({ commit }, { triggerId }) {
     await AgentApplicationService(this.$client).deleteTrigger(triggerId)
@@ -192,13 +222,25 @@ export const actions = {
     commit('ADD_TOOL', data)
     return data
   },
-  async updateTool({ commit }, { toolId, values }) {
-    const { data } = await AgentApplicationService(this.$client).updateTool(
-      toolId,
-      values
-    )
-    commit('UPDATE_TOOL', { toolId, values: data })
-    return data
+  async updateTool({ commit, state }, { toolId, values }) {
+    const tool = state.tools.find((item) => item.id === toolId)
+    const oldValues = tool && pickKeys(tool, values)
+    if (tool) {
+      commit('UPDATE_TOOL', { toolId, values })
+    }
+    try {
+      const { data } = await AgentApplicationService(this.$client).updateTool(
+        toolId,
+        values
+      )
+      commit('UPDATE_TOOL', { toolId, values: data })
+      return data
+    } catch (error) {
+      if (tool) {
+        commit('UPDATE_TOOL', { toolId, values: oldValues })
+      }
+      throw error
+    }
   },
   async deleteTool({ commit }, { toolId }) {
     await AgentApplicationService(this.$client).deleteTool(toolId)
@@ -257,6 +299,29 @@ export const actions = {
     await AgentApplicationService(this.$client).deleteChannel(channelId)
     commit('REMOVE_CHANNEL', channelId)
   },
+  async fetchWorkspaceToolCatalog({ commit, state }, { applicationId }) {
+    if (state.workspaceToolCatalogLoaded) {
+      return state.workspaceToolCatalog
+    }
+    const { data } = await AgentApplicationService(
+      this.$client
+    ).getWorkspaceTools(applicationId)
+    commit('SET_WORKSPACE_TOOL_CATALOG', data)
+    return data
+  },
+  async improveInstructions(context, { agentId, instructions }) {
+    const { data } = await AgentApplicationService(
+      this.$client
+    ).improveInstructions(agentId, { instructions })
+    return data.instructions
+  },
+  async runOnce({ dispatch }, { applicationId }) {
+    const { data } = await AgentApplicationService(this.$client).runOnce(
+      applicationId
+    )
+    dispatch('agentHistory/forceUpdateChat', { chat: data }, { root: true })
+    return data
+  },
 }
 
 export const getters = {
@@ -268,6 +333,43 @@ export const getters = {
   isToolsLoading: (state) => state.toolsLoading,
   getChannels: (state) => state.channels,
   isChannelsLoading: (state) => state.channelsLoading,
+  getWorkspaceToolCatalog: (state) => state.workspaceToolCatalog,
+  getWorkspaceTool: (state) =>
+    state.tools.find((tool) => tool.type === 'workspace') || null,
+  /**
+   * The human readable label of a runtime tool name: the catalog label for
+   * workspace tools (dynamic row tools map onto their catalog entry), the
+   * configured name for action/MCP tools, a humanized name otherwise.
+   */
+  getToolLabel: (state) => (name) => {
+    const catalogName = String(name || '').replace(
+      /^(create|update|delete)_rows_in_table_\d+$/,
+      '$1_rows'
+    )
+    const catalogTool = state.workspaceToolCatalog.find(
+      (tool) => tool.name === catalogName
+    )
+    if (catalogTool) {
+      return catalogTool.label
+    }
+    const namedTool = state.tools.find(
+      (tool) =>
+        ['service', 'mcp'].includes(tool.type) &&
+        tool.name &&
+        slugifyToolName(tool.name) === name
+    )
+    if (namedTool) {
+      return namedTool.name
+    }
+    return humanizeToolName(name)
+  },
+}
+
+function slugifyToolName(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/^_+|_+$/g, '')
 }
 
 export default {

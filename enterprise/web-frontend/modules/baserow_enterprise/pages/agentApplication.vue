@@ -37,16 +37,83 @@ const route = useRoute()
 const router = useRouter()
 const { $realtime } = useNuxtApp()
 
+// Everything the page renders is fetched here so server side rendering (and
+// a client navigation) paints the populated page in one go instead of the
+// empty state first. The conversation in the `chat` query param is opened as
+// part of it for the same reason.
 const { data, error: fetchError } = await useAsyncData(
-  `agent-application-${route.params.agentApplicationId}`,
+  `agent-application-${route.params.agentApplicationId}-${
+    route.query.chat || ''
+  }`,
   async () => {
     try {
       const application = store.getters['application/getSelected']
       const workspace = store.getters['workspace/getSelected']
 
+      // When switching between agents the previous page stays on screen
+      // until this resolves, so the store is not cleared up front (the
+      // fetches below replace it) and the conversation is reset at the end.
+      await Promise.all([
+        store.dispatch('agentApplication/fetch', {
+          applicationId: application.id,
+        }),
+        store.dispatch('agentHistory/fetch', { applicationId: application.id }),
+        store.dispatch('agentApplication/fetchTriggers', {
+          applicationId: application.id,
+        }),
+        store.dispatch('agentApplication/fetchTools', {
+          applicationId: application.id,
+        }),
+        store.dispatch('agentApplication/fetchChannels', {
+          applicationId: application.id,
+        }),
+        // Labels for tool names and the identity name are cosmetic; the page
+        // must still work when either of these fails.
+        store
+          .dispatch('agentApplication/fetchWorkspaceToolCatalog', {
+            applicationId: application.id,
+          })
+          .catch(() => {}),
+        store.dispatch('agent/fetchAll', workspace.id).catch(() => {}),
+      ])
+
+      const chatUuid = Array.isArray(route.query.chat)
+        ? route.query.chat[0]
+        : route.query.chat
+      let staleChatQuery = false
+      let opened = false
+      if (chatUuid) {
+        try {
+          await store.dispatch('agentChat/openConversation', {
+            applicationId: application.id,
+            chatUuid,
+          })
+          opened = true
+        } catch {
+          // The conversation no longer exists (or cannot be loaded); the
+          // page starts with a fresh conversation and drops the param.
+          staleChatQuery = true
+        }
+      }
+      if (!opened) {
+        store.dispatch('agentChat/newConversation')
+      }
+
+      // A freshly created agent has nothing configured yet; the configuration
+      // panel opens automatically so the user can set it up.
+      const agent = store.getters['agentApplication/getAgent']
+      const autoOpenConfiguration = Boolean(
+        agent &&
+        !agent.instructions &&
+        store.getters['agentApplication/getTriggers'].length === 0 &&
+        store.getters['agentApplication/getTools'].length === 0
+      )
+
       return {
         workspace,
         application,
+        autoOpenConfiguration,
+        staleChatQuery,
       }
     } catch (e) {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
@@ -74,7 +141,9 @@ if (fetchError.value) {
 
 const application = computed(() => data.value?.application)
 const workspace = computed(() => data.value?.workspace)
-const autoOpenConfiguration = ref(false)
+const autoOpenConfiguration = computed(
+  () => data.value?.autoOpenConfiguration || false
+)
 
 useHead(() => ({
   title: application.value?.name || '',
@@ -128,18 +197,24 @@ const openConversationFromQuery = async (chatUuid) => {
   }
 }
 
+// While the next agent's page is loading, this instance is still mounted
+// but the route already points at the other agent; its watchers must leave
+// the store and URL alone then.
+const agentApplicationId = route.params.agentApplicationId
+const routeIsMine = () => route.params.agentApplicationId === agentApplicationId
+
 // Store -> URL: opening a conversation (from the list, or by sending the
 // first message of a new one) adds its uuid to the URL, while starting a new
 // conversation (including the open one being deleted) removes it.
 watch(persistedChatUuid, (uuid) => {
-  if (querySyncReady.value) {
+  if (querySyncReady.value && routeIsMine()) {
     setChatQueryParam(uuid)
   }
 })
 
 // URL -> store: browser back/forward navigates between conversations.
 watch(chatQueryParam, async (uuid) => {
-  if (!querySyncReady.value) {
+  if (!querySyncReady.value || !routeIsMine()) {
     return
   }
   if (uuid === null) {
@@ -151,51 +226,15 @@ watch(chatQueryParam, async (uuid) => {
   }
 })
 
-onMounted(async () => {
+onMounted(() => {
   if (application.value) {
-    // Clear any conversation state left behind by a previously opened agent.
-    store.dispatch('agentChat/newConversation')
-    store.dispatch('agentHistory/clear')
     $realtime.subscribe('agent_application', {
       agent_application_id: application.value.id,
     })
-    await Promise.all([
-      store.dispatch('agentApplication/fetch', {
-        applicationId: application.value.id,
-      }),
-      store.dispatch('agentHistory/fetch', {
-        applicationId: application.value.id,
-      }),
-      store.dispatch('agentApplication/fetchTriggers', {
-        applicationId: application.value.id,
-      }),
-      store.dispatch('agentApplication/fetchTools', {
-        applicationId: application.value.id,
-      }),
-      store.dispatch('agentApplication/fetchChannels', {
-        applicationId: application.value.id,
-      }),
-    ])
-
-    // Reopen the conversation the URL points at, e.g. after a refresh.
-    if (chatQueryParam.value !== null) {
-      await openConversationFromQuery(chatQueryParam.value)
+    if (data.value?.staleChatQuery) {
+      setChatQueryParam(null)
     }
     querySyncReady.value = true
-
-    // A freshly created agent has nothing configured yet; open the
-    // configuration panel automatically so the user can set it up.
-    const agent = store.getters['agentApplication/getAgent']
-    const triggers = store.getters['agentApplication/getTriggers']
-    const tools = store.getters['agentApplication/getTools']
-    if (
-      agent &&
-      !agent.instructions &&
-      triggers.length === 0 &&
-      tools.length === 0
-    ) {
-      autoOpenConfiguration.value = true
-    }
   }
 })
 

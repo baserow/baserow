@@ -17,6 +17,7 @@ from baserow_enterprise.agent_application.handler import AgentApplicationHandler
 from baserow_enterprise.agent_application.models import (
     AgentChat,
     AgentChatMessage,
+    AgentChatToolApproval,
     AgentTrigger,
 )
 from baserow_enterprise.agent_application.triggers.handler import AgentTriggerHandler
@@ -386,3 +387,131 @@ def test_inactive_application_does_not_fire_triggers(data_fixture, agent_with_ta
 
     assert not AgentChat.objects.filter(agent=agent).exists()
     delay_mock.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_run_once_starts_triggered_chat(api_client, data_fixture, agent_with_table):
+    user, token, workspace, application, agent, table, field = agent_with_table
+    service = data_fixture.create_core_periodic_service(interval="DAY")
+    trigger = AgentTrigger.objects.create(application=application, service=service)
+
+    url = reverse("api:agent:run_once", kwargs={"application_id": application.id})
+    with (
+        patch(
+            "baserow_enterprise.agent_application.tasks.run_agent_chat.delay"
+        ) as delay_mock,
+        patch(
+            "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
+        ),
+    ):
+        response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == 202, response.json()
+    chat = AgentChat.objects.get(agent=agent)
+    assert response.json()["uuid"] == str(chat.uuid)
+    assert chat.source == AgentChat.Source.TRIGGER
+    assert chat.trigger_type == "periodic"
+    assert chat.user_id == user.id
+    assert chat.event_payload is None
+    system_message = chat.messages.get(role=AgentChatMessage.Role.SYSTEM)
+    assert "scheduled periodic run" in system_message.content
+    delay_mock.assert_called_once()
+
+    trigger.enabled = False
+    trigger.save()
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_AGENT_TRIGGER_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_last_run_on_exposed_on_application(api_client, data_fixture, agent_with_table):
+    user, token, workspace, application, agent, table, field = agent_with_table
+    finished = datetime(2026, 1, 1, 10, 0, tzinfo=dt_timezone.utc)
+    AgentChat.objects.create(
+        agent=agent, source=AgentChat.Source.TRIGGER, completed_on=finished
+    )
+    AgentChat.objects.create(agent=agent, user=user, completed_on=finished)
+
+    response = api_client.get(
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    listed = next(app for app in response.json() if app["id"] == application.id)
+    assert listed["last_run_on"] == "2026-01-01T10:00:00Z"
+
+    response = api_client.get(
+        reverse("api:applications:item", kwargs={"application_id": application.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.json()["last_run_on"] == "2026-01-01T10:00:00Z"
+
+
+@pytest.mark.django_db
+def test_workspace_listing_annotates_counters_instead_of_querying_per_app(
+    api_client, data_fixture, agent_with_table
+):
+    user, token, workspace, application, agent, table, field = agent_with_table
+    finished = datetime(2026, 1, 1, 10, 0, tzinfo=dt_timezone.utc)
+    chat = AgentChat.objects.create(
+        agent=agent, source=AgentChat.Source.TRIGGER, completed_on=finished
+    )
+    AgentChatToolApproval.objects.create(
+        chat=chat, tool_call_id="c1", tool_name="create_rows", tool_args={}
+    )
+
+    with (
+        patch(
+            "baserow_enterprise.agent_application.handler.AgentChatHandler"
+            ".get_last_run_on"
+        ) as last_run_on,
+        patch(
+            "baserow_enterprise.agent_application.handler.AgentChatHandler"
+            ".get_pending_approvals_count"
+        ) as pending_count,
+    ):
+        response = api_client.get(
+            reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    listed = next(app for app in response.json() if app["id"] == application.id)
+    assert listed["last_run_on"] == "2026-01-01T10:00:00Z"
+    assert listed["pending_approvals_count"] == 1
+    # The per-application fallbacks would be N+1 on the workspace listing.
+    last_run_on.assert_not_called()
+    pending_count.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_http_trigger_webhook_starts_agent_chat(api_client, agent_with_table):
+    user, token, workspace, application, agent, table, field = agent_with_table
+    trigger = AgentTriggerHandler().create_trigger(user, application, "http_trigger")
+    application.active = True
+    application.save()
+
+    # Agent triggers are never "published" like automation workflows, so the
+    # service must be public from the start for the webhook to resolve it.
+    service = trigger.service.specific
+    assert service.is_public is True
+
+    with (
+        patch(
+            "baserow_enterprise.agent_application.tasks.run_agent_chat.delay"
+        ) as delay_mock,
+        patch(
+            "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
+        ),
+    ):
+        response = api_client.post(
+            f"/api/webhooks/{service.uid}/", {"hello": "world"}, format="json"
+        )
+
+    assert response.status_code == 204, response.content
+    chat = AgentChat.objects.get(agent=agent)
+    assert chat.trigger_type == "http_trigger"
+    system_message = chat.messages.get(role=AgentChatMessage.Role.SYSTEM)
+    assert "webhook" in system_message.content
+    assert "hello" in system_message.content
+    delay_mock.assert_called_once()

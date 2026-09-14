@@ -79,6 +79,17 @@ class McpServerAgentToolType(AgentToolType):
     def can_enable(self, agent: "AgentDefinition") -> tuple[bool, Optional[str]]:
         return True, None
 
+    def owns_tool_name(self, tool: "AgentTool", tool_name: str) -> bool:
+        return tool_name.startswith(f"{get_mcp_tool_prefix(tool)}_")
+
+    def apply_dont_ask_again(self, tool: "AgentTool", tool_name: str) -> dict:
+        # The user approved one remote tool; the rest of the server keeps
+        # asking.
+        trusted = list(tool.config.get("trusted_tools") or [])
+        if tool_name not in trusted:
+            trusted.append(tool_name)
+        return {**tool.config, "trusted_tools": trusted}
+
     def build_toolsets(self, tool: "AgentTool", deps: "AgentRunDeps") -> list:
         from pydantic_ai.mcp import MCPToolset
 
@@ -106,5 +117,13 @@ class McpServerAgentToolType(AgentToolType):
         wrapped = FailsafeMCPToolset(toolset.prefixed(prefix), server_name, deps)
 
         if tool.config.get("require_approval", True):
+            trusted = set(tool.config.get("trusted_tools") or [])
+            if trusted:
+                return [
+                    wrap_approval_required(
+                        wrapped,
+                        lambda ctx, tool_def, args: tool_def.name not in trusted,
+                    )
+                ]
             return [wrap_approval_required(wrapped)]
         return [wrapped]

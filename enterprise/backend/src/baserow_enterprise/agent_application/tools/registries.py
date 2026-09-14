@@ -45,6 +45,22 @@ class AgentToolType(Instance):
 
         return []
 
+    def owns_tool_name(self, tool: "AgentTool", tool_name: str) -> bool:
+        """
+        Whether a runtime tool name (as recorded on a tool approval) was
+        contributed by this `AgentTool` row.
+        """
+
+        return False
+
+    def apply_dont_ask_again(self, tool: "AgentTool", tool_name: str) -> dict | None:
+        """
+        Returns the new config that lets the named tool run without
+        approval from now on, or None when this tool type can't do that.
+        """
+
+        return None
+
 
 class AgentToolTypeRegistry(Registry[AgentToolType]):
     name = "agent_tool_type"

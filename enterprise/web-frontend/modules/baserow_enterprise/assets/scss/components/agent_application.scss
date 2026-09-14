@@ -33,18 +33,47 @@
 }
 
 // Rendered as a standard `header__filter-item` link like the other
-// application type headers, right of the agent name; only the icon carries
-// the warning accent.
+// application type headers, right of the agent name; it turns into a yellow
+// pill while approvals are waiting.
 .agent-page__header-approvals {
   flex-shrink: 0;
 }
 
 .agent-page__header-approvals-link {
   white-space: nowrap;
+
+  &--pending {
+    background-color: $palette-yellow-100;
+    color: $palette-yellow-1000;
+
+    &:hover {
+      background-color: $palette-yellow-200;
+    }
+
+    .header__filter-icon,
+    .header__filter-name {
+      color: $palette-yellow-1000;
+    }
+  }
 }
 
 .header__filter-icon.agent-page__header-approvals-icon {
   color: $palette-yellow-800;
+}
+
+.agent-page__header-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 16px;
+}
+
+.agent-page__header-last-run {
+  align-self: center;
+  margin-right: 8px;
+  color: $palette-neutral-700;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .agent-page__conversation-list {
@@ -76,6 +105,13 @@
 .agent-conversation-list {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-conversation-list__scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   padding: 12px;
 }
@@ -95,13 +131,16 @@
 }
 
 .agent-conversation-list__item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px;
-  border-radius: 6px;
+  min-height: 32px;
+  padding: 0 8px;
   cursor: pointer;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+
+  @include rounded($rounded-md);
 
   &:last-child {
     margin-bottom: 0;
@@ -112,75 +151,79 @@
   }
 
   &--active {
-    background-color: $palette-blue-50;
-
-    &:hover {
-      background-color: $palette-blue-50;
-    }
+    background-color: $palette-neutral-100;
   }
-}
-
-.agent-conversation-list__item-icon {
-  flex-shrink: 0;
-  color: $palette-neutral-700;
-}
-
-.agent-conversation-list__item-content {
-  flex: 1;
-  min-width: 0;
 }
 
 .agent-conversation-list__item-title {
   @extend %ellipsis;
 
+  flex: 1;
+  min-width: 0;
   color: $palette-neutral-1200;
   font-size: 13px;
 }
 
-.agent-conversation-list__item-meta {
-  @extend %ellipsis;
-
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: $palette-neutral-700;
-  font-size: 11px;
-}
-
-.agent-conversation-list__item-tokens {
-  flex-shrink: 0;
-}
-
 .agent-conversation-list__item-status {
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
+  border: 1px solid $palette-neutral-400;
+  background-color: transparent;
 
-  &--in-progress {
-    background-color: $palette-green-500;
+  &--loading {
+    @include loading-spinner($palette-neutral-700, 8px);
+
+    background-color: transparent;
   }
 
+  &--running,
   &--canceling {
-    background-color: $palette-yellow-500;
+    border-color: $palette-green-500;
+    background-color: $palette-green-500;
+    animation: agent-status-pulse 1.2s ease-in-out infinite;
   }
 
   &--awaiting-approval {
+    border-color: $palette-yellow-500;
     background-color: $palette-yellow-500;
   }
 
   &--error {
+    border-color: $palette-red-500;
     background-color: $palette-red-500;
   }
 }
 
-.agent-conversation-list__item-stop {
+@keyframes agent-status-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+// Only visible on hover or for the active row, like the sidebar item menus.
+.agent-conversation-list__item-menu {
   flex-shrink: 0;
-  color: $palette-neutral-900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: $palette-neutral-700;
+  visibility: hidden;
+
+  @include rounded($rounded);
 
   &:hover {
-    color: $palette-red-600;
+    color: $palette-neutral-1200;
+    background-color: $palette-neutral-200;
   }
+}
+
+.agent-conversation-list__item--active .agent-conversation-list__item-menu,
+.agent-conversation-list__item:hover .agent-conversation-list__item-menu {
+  visibility: visible;
 }
 
 .agent-conversation-list__empty {
@@ -192,6 +235,12 @@
 .agent-conversation-list__load-more {
   align-self: center;
   margin-top: 4px;
+}
+
+.agent-conversation-list__footer {
+  flex-shrink: 0;
+  padding: 12px;
+  border-top: 1px solid $palette-neutral-200;
 }
 
 .agent-chat {
@@ -225,53 +274,178 @@
 .agent-chat__messages {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px 20px;
+
+  &--welcome {
+    background: radial-gradient(
+      circle at 50% 20%,
+      $palette-purple-50 0%,
+      $white 55%
+    );
+  }
+}
+
+// Both the transcript and the composer share one centered column.
+.agent-chat__column {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
-.agent-chat__empty {
+// Shared look of every monospace payload/result box in the conversation.
+%agent-mono-box {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-50;
+  color: $palette-neutral-1100;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow-x: auto;
+
+  @include rounded($rounded-lg);
+}
+
+%agent-mono-chip {
+  padding: 1px 6px;
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-900;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 16px;
+
+  @include rounded($rounded);
+}
+
+.agent-chat-welcome {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
   margin: auto;
+  padding: 48px 0;
   text-align: center;
 }
 
-.agent-chat__empty-icon {
-  font-size: 32px;
+.agent-chat-welcome__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 24px;
+  border-radius: 100%;
+  background-color: $palette-purple-600;
+  color: $white;
+  font-size: 28px;
+
+  @include elevation($elevation-medium);
+}
+
+.agent-chat-welcome__title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 400;
   color: $palette-neutral-700;
 }
 
-.agent-chat__empty-title {
-  font-size: 16px;
+.agent-chat-welcome__title-name {
   font-weight: 600;
   color: $palette-neutral-1200;
 }
 
-.agent-chat__empty-message {
-  color: $palette-neutral-700;
+.agent-chat-welcome__subtitle {
+  margin: 0 0 24px;
+  font-size: 13px;
+  color: $palette-neutral-900;
 }
 
-.agent-chat__message {
-  max-width: 70%;
-  padding: 10px 14px;
-  border-radius: 12px;
+.agent-chat-welcome__suggestion {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 440px;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+  border: solid 1px $palette-neutral-200;
+  background-color: $white;
+  text-align: left;
+
+  @include rounded($rounded-xl);
+  @include elevation($elevation-low);
+
+  &:hover {
+    text-decoration: none;
+    border-color: $palette-neutral-400;
+  }
+}
+
+.agent-chat-welcome__suggestion-icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  border-radius: 100%;
+  background-color: $palette-neutral-50;
+  color: $palette-neutral-700;
+  text-align: center;
+}
+
+.agent-chat-welcome__suggestion-spinner {
+  @include loading-spinner($palette-neutral-700, 14px);
+
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.agent-chat-welcome__suggestion-text {
+  min-width: 0;
+}
+
+.agent-chat-welcome__suggestion-title {
+  @extend %ellipsis;
+
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.agent-chat-welcome__suggestion-description {
+  @extend %ellipsis;
+
+  display: block;
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+}
+
+.agent-chat-message {
+  max-width: 85%;
+  padding: 12px 16px;
+  line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: break-word;
-  line-height: 1.6;
+
+  @include rounded($rounded-xl);
 
   &--human {
     align-self: flex-end;
-    background-color: $palette-blue-100;
+    background-color: $palette-neutral-100;
     color: $palette-neutral-1200;
   }
 
   &--ai {
     align-self: flex-start;
-    background-color: $palette-neutral-100;
+    border: 1px solid $palette-neutral-200;
+    background-color: $white;
     color: $palette-neutral-1200;
     white-space: normal;
 
@@ -291,9 +465,10 @@
 
     pre {
       overflow-x: auto;
-      background-color: $palette-neutral-200;
-      border-radius: 6px;
+      background-color: $palette-neutral-100;
       padding: 8px;
+
+      @include rounded($rounded-md);
     }
 
     code {
@@ -306,12 +481,59 @@
       text-decoration: underline;
     }
 
-    > :last-child {
+    // Narrow tables fill the card; wider ones keep readable columns and
+    // scroll inside the wrapper instead of pushing past the card.
+    table {
+      min-width: 100%;
+      margin: 0;
+      border-collapse: collapse;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    th,
+    td {
+      min-width: 120px;
+      padding: 6px 10px;
+      border-bottom: 1px solid $palette-neutral-200;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: $palette-neutral-25;
+      color: $palette-neutral-1200;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    // Alignment markers written by the model (`---:`) are kept.
+    th[align='right'],
+    td[align='right'] {
+      text-align: right;
+    }
+
+    th[align='center'],
+    td[align='center'] {
+      text-align: center;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .agent-chat-message__content > :last-child {
       margin-bottom: 0;
     }
   }
 
   &--system {
+    align-self: center;
+    color: $palette-neutral-700;
+    font-size: 12px;
+  }
+
+  &--cancelled {
     align-self: center;
     color: $palette-neutral-700;
     font-size: 12px;
@@ -324,15 +546,41 @@
   }
 }
 
-.agent-chat__message-content {
+.agent-chat-message__content {
   line-height: 1.6;
 }
 
-.agent-chat__message-attachments {
+.agent-chat-message__attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+}
+
+.agent-chat-message__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: $palette-neutral-700;
+}
+
+.agent-chat-message__action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: $palette-neutral-700;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}
+
+.agent-chat-message__time {
+  color: $palette-neutral-600;
 }
 
 .agent-chat__attachment-chip {
@@ -385,24 +633,32 @@
   align-self: flex-start;
 }
 
-.agent-chat__reasoning {
+.agent-chat-reasoning {
   align-self: flex-start;
-  max-width: 70%;
+  max-width: 85%;
   padding: 10px 14px;
-  border-radius: 12px;
   background-color: $palette-cyan-50;
   color: $palette-cyan-900;
   font-size: 12px;
+
+  @include rounded($rounded-xl);
+
+  // Inside a tool group it is one of the steps, not a bubble.
+  .agent-chat-tool-group__step & {
+    max-width: none;
+    padding: 6px 0;
+    background: none;
+  }
 }
 
-.agent-chat__reasoning-indicator {
+.agent-chat-reasoning__indicator {
   @include loading-spinner($palette-cyan-900, 14px);
 
   display: inline-block;
   margin-bottom: 6px;
 }
 
-.agent-chat__reasoning-text {
+.agent-chat-reasoning__text {
   white-space: normal;
   overflow-wrap: break-word;
   line-height: 18px;
@@ -429,7 +685,7 @@
   }
 }
 
-.agent-chat__reasoning-toggle {
+.agent-chat-reasoning__toggle {
   display: flex;
   justify-content: center;
   width: 100%;
@@ -446,7 +702,7 @@
   }
 }
 
-.agent-chat__reasoning-chevron {
+.agent-chat-reasoning__chevron {
   font-size: 12px;
   transition: transform 0.2s ease;
 
@@ -455,99 +711,337 @@
   }
 }
 
-.agent-chat__tool-call {
-  align-self: flex-start;
+.agent-chat-trigger__header,
+.agent-chat-tool-group__header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  padding: 4px 0;
   color: $palette-neutral-900;
-  font-size: 12px;
+  font-size: 13px;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
 }
 
-.agent-chat__tool-call-icon {
+.agent-chat-trigger__icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: $palette-neutral-700;
+}
+
+.agent-chat-trigger__title,
+.agent-chat-tool-group__title {
+  @extend %ellipsis;
+
+  min-width: 0;
+}
+
+.agent-chat-trigger__chevron,
+.agent-chat-tool-group__chevron {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 14px;
+  color: $palette-neutral-700;
+  transition: transform 0.2s ease;
+
+  &--expanded {
+    transform: rotate(90deg);
+  }
+}
+
+.agent-chat-trigger__payload {
+  @extend %agent-mono-box;
+
+  margin-top: 4px;
+}
+
+.agent-chat-tool-group__status,
+.agent-chat-tool-group__step-status {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+
+  &--ok {
+    color: $palette-green-800;
+  }
+
+  &--error {
+    color: $palette-red-800;
+  }
+
+  &--live {
+    color: $palette-neutral-700;
+  }
+}
+
+.agent-chat__loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.agent-chat__send-button-spinner {
+  @include loading-spinner($white, 14px);
+
+  display: inline-block;
+}
+
+.agent-chat-tool-group__spinner {
+  @include loading-spinner($palette-neutral-700, 14px);
+
+  display: inline-block;
+}
+
+.agent-chat-tool-group__count {
+  flex-shrink: 0;
+  color: $palette-neutral-700;
+}
+
+.agent-chat-tool-group__steps {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 0 7px;
+  padding-left: 16px;
+  border-left: 2px solid $palette-neutral-200;
+}
+
+.agent-chat-tool-group__step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  font-size: 13px;
+  color: $palette-neutral-1100;
+}
+
+.agent-chat-tool-group__step-status {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+}
+
+.agent-chat-tool-group__step-label {
+  @extend %ellipsis;
+
+  min-width: 0;
+}
+
+.agent-chat-tool-group__step-id {
+  @extend %agent-mono-chip;
+
   flex-shrink: 0;
 }
 
-.agent-chat__tool-call-name {
-  font-family: monospace;
+.agent-chat-tool-group__step-toggle {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-size: 12px;
+  color: $palette-neutral-700;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}
+
+.agent-chat-message__table {
+  max-width: 100%;
+  margin: 0 0 8px;
+  overflow-x: auto;
+}
+
+.agent-chat-tool-group__step-summary {
+  margin: -4px 0 4px 22px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+}
+
+.agent-chat-tool-group__step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 8px 22px;
+}
+
+.agent-chat-tool-group__step-result {
+  @extend %agent-mono-box;
+
+  margin: 2px 0 6px;
+  max-height: 320px;
 }
 
 .agent-tool-approvals {
   align-self: flex-start;
   width: 100%;
-  max-width: 70%;
-  border: 1px solid $palette-yellow-300;
-  border-radius: 12px;
-  background-color: $palette-yellow-50;
-  padding: 12px 14px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $white;
+
+  @include rounded($rounded-xl);
+
+  &--pending {
+    border-color: $palette-neutral-400;
+
+    @include elevation($elevation-low);
+  }
 }
 
 .agent-tool-approvals__header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: $palette-yellow-1000;
-  font-size: 12px;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-bottom: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+  color: $palette-neutral-1200;
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 8px;
+
+  @include rounded($rounded-xl $rounded-xl 0 0);
 }
 
 .agent-tool-approvals__header-icon {
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: 16px;
+  color: $palette-neutral-900;
 }
 
-.agent-tool-approvals__item {
-  border-top: 1px solid $palette-yellow-200;
-  padding: 8px 0;
-
-  &:last-of-type {
-    padding-bottom: 0;
-  }
-}
-
-.agent-tool-approvals__item-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  // The decided state must keep the height of the Approve/Reject button row,
-  // so the "Rejected · reason" line stays vertically centered where the
-  // buttons were.
-  min-height: 36px;
-}
-
-.agent-tool-approvals__tool-name {
+.agent-tool-approvals__header-title {
   @extend %ellipsis;
 
   flex: 1;
   min-width: 0;
+}
+
+.agent-tool-approvals__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  font-weight: 400;
+}
+
+.agent-tool-approvals__header-summary {
+  flex-shrink: 0;
+  color: $palette-neutral-700;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.agent-tool-approvals__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 16px;
+  border-top: 1px solid $palette-neutral-200;
+
+  &:first-of-type {
+    border-top: 0;
+  }
+}
+
+.agent-tool-approvals__item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-tool-approvals__item-side {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.agent-tool-approvals__tool-name {
   color: $palette-neutral-1200;
   font-size: 13px;
   font-weight: 600;
+  line-height: 20px;
+}
+
+.agent-tool-approvals__summary {
+  @extend %ellipsis;
+
+  margin-top: 2px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.agent-tool-approvals__details {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.agent-tool-approvals__details-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: $palette-neutral-700;
+  font-size: 12px;
+
+  &:hover {
+    color: $palette-neutral-1200;
+    text-decoration: none;
+  }
+}
+
+.agent-tool-approvals__details-chevron {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+
+  &--expanded {
+    transform: rotate(90deg);
+  }
+}
+
+.agent-tool-approvals__details-id {
+  @extend %agent-mono-chip;
+}
+
+.agent-tool-approvals__args {
+  @extend %agent-mono-box;
+
+  margin-top: 8px;
+  max-height: 320px;
+}
+
+.agent-tool-approvals__item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .agent-tool-approvals__pending-label {
-  flex-shrink: 0;
-  color: $palette-yellow-900;
+  color: $palette-neutral-700;
   font-size: 12px;
 }
 
 .agent-tool-approvals__decision {
-  // A long rejection reason must wrap inside the card instead of pushing the
-  // row (and the card) wider.
+  // A long rejection reason must wrap instead of pushing the card wider.
   min-width: 0;
+  max-width: 260px;
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
 
   &--approved {
-    color: $palette-green-700;
+    color: $palette-green-800;
   }
 
   &--rejected {
-    color: $palette-red-700;
+    color: $palette-red-800;
   }
 }
 
@@ -564,69 +1058,10 @@
   overflow-wrap: anywhere;
 }
 
-.agent-tool-approvals__args-wrapper {
-  margin-top: 6px;
-}
-
-.agent-tool-approvals__args {
-  margin: 0;
-  padding: 8px;
-  border-radius: 6px;
-  background-color: $white;
-  border: 1px solid $palette-neutral-200;
-  color: $palette-neutral-1100;
-  font-family: monospace;
-  font-size: 11px;
-  line-height: 16px;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  overflow-x: auto;
-
-  &--collapsed {
-    max-height: 64px;
-    overflow: hidden;
-    mask-image: linear-gradient(to bottom, black 32px, transparent);
-  }
-}
-
-.agent-tool-approvals__args-toggle {
-  display: inline-block;
-  margin-top: 2px;
+.agent-tool-approvals__reject-text {
+  margin: 0 0 16px;
   color: $palette-neutral-900;
-  font-size: 11px;
-
-  &:hover {
-    color: $palette-neutral-1200;
-    text-decoration: none;
-  }
-}
-
-.agent-tool-approvals__reason {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.agent-tool-approvals__reason-input {
-  flex: 1;
-  min-width: 0;
-}
-
-// The small input is 28px while the small buttons next to it are 32px; the
-// triple selector outweighs the core `.form-input--small` height.
-.form-input.form-input--small.agent-tool-approvals__reason-input {
-  height: 32px;
-}
-
-.agent-tool-approvals__footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  border-top: 1px solid $palette-yellow-200;
-  padding-top: 10px;
-  margin-top: 8px;
+  line-height: 20px;
 }
 
 .agent-chat__running {
@@ -653,21 +1088,26 @@
   color: $palette-neutral-900;
 }
 
-.agent-chat__input {
+.agent-chat__composer {
   flex-shrink: 0;
-  padding: 12px 20px 20px;
+  padding: 8px 20px 20px;
+
+  .agent-chat__column {
+    gap: 0;
+  }
 }
 
-.agent-chat__input-status {
+.agent-chat__composer-status {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
   font-size: 12px;
   line-height: 20px;
-  border-radius: 12px 12px 0 0;
   background-color: $palette-neutral-25;
   color: $palette-neutral-900;
+
+  @include rounded($rounded-xl $rounded-xl 0 0);
 
   &--running {
     color: $palette-cyan-900;
@@ -675,51 +1115,88 @@
   }
 
   &--awaiting {
-    color: $palette-yellow-900;
+    color: $palette-yellow-1000;
     background-color: $palette-yellow-100;
+    font-weight: 500;
   }
 }
 
-.agent-chat__input-status-icon {
-  color: $palette-blue-500;
-  font-size: 14px;
+.agent-chat__composer-status-icon {
   flex-shrink: 0;
+  font-size: 14px;
+  color: $palette-blue-500;
 
-  .agent-chat__input-status--awaiting & {
-    color: $palette-yellow-800;
+  .agent-chat__composer-status--awaiting & {
+    color: $palette-yellow-900;
   }
 }
 
-.agent-chat__input-status-message {
+.agent-chat__composer-status-message {
   @extend %ellipsis;
 
   display: inline-block;
 }
 
-.agent-chat__input-wrapper {
-  position: relative;
+.agent-chat__composer-box {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   background-color: $white;
-  border: 1px solid $palette-neutral-500;
-  padding: 12px 0;
+  border: 1px solid $palette-neutral-300;
+  padding: 12px 12px 8px;
   transition: all 0.2s;
 
-  @include rounded($rounded-md);
+  @include rounded($rounded-xl);
   @include elevation($elevation-low);
+
+  &:focus-within {
+    border-color: $palette-blue-500;
+  }
+
+  &--after-status {
+    @include rounded(0 0 $rounded-xl $rounded-xl);
+  }
 }
 
-.agent-chat__attachments {
+.agent-chat__composer-attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 0 16px 8px;
+  padding-bottom: 8px;
 }
 
-.agent-chat__input-row {
+.agent-chat__composer-textarea {
+  flex: 1;
+  width: 100%;
+  border: none;
+  resize: none;
+  background: transparent;
+  font-size: 13px;
+  line-height: 20px;
+  max-height: 120px;
+  outline: none;
+  box-shadow: none;
+  padding: 2px 4px;
+
+  &:focus {
+    outline: none;
+    box-shadow: none;
+  }
+
+  &::placeholder {
+    color: $palette-neutral-600;
+  }
+
+  &:disabled {
+    color: $palette-neutral-700;
+    cursor: not-allowed;
+  }
+}
+
+.agent-chat__composer-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
 }
 
 .agent-chat__attach-button {
@@ -729,7 +1206,6 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  margin-left: 6px;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -756,37 +1232,7 @@
   display: none;
 }
 
-.agent-chat__input-textarea {
-  flex: 1;
-  border: none;
-  resize: none;
-  background: transparent;
-  font-size: 13px;
-  line-height: 20px;
-  max-height: 120px;
-  outline: none;
-  box-shadow: none;
-  padding: 0 50px 0 8px;
-
-  &:focus {
-    outline: none;
-    box-shadow: none;
-  }
-
-  &::placeholder {
-    color: $palette-neutral-600;
-  }
-
-  &:disabled {
-    color: $palette-neutral-700;
-    cursor: not-allowed;
-  }
-}
-
 .agent-chat__send-button {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -825,30 +1271,68 @@
   overflow: hidden;
 }
 
+// Same look as the main layout's `.layout__resize` handle.
 .agent-configuration__resize-handle {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
+  left: -2px;
   width: 5px;
-  cursor: col-resize;
   z-index: 1;
 
   &:hover {
-    background-color: $palette-blue-500;
+    cursor: col-resize;
+
+    &::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      content: '';
+      background-color: $palette-neutral-400;
+      width: 3px;
+    }
   }
+}
+
+.agent-configuration__page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .agent-configuration__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 16px;
   border-bottom: 1px solid $palette-neutral-200;
   flex-shrink: 0;
 }
 
+.agent-configuration__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded);
+
+  &:hover {
+    color: $palette-neutral-1200;
+    background-color: $palette-neutral-100;
+  }
+}
+
 .agent-configuration__title {
+  @extend %ellipsis;
+
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
   color: $palette-neutral-1200;
 }
@@ -864,91 +1348,155 @@
 .agent-configuration__body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
-  background-color: $palette-neutral-25;
+  padding: 16px;
 }
 
-.agent-configuration__section {
-  background-color: $white;
-  border: 1px solid $palette-neutral-200;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+.agent-configuration__rows {
+  display: flex;
+  flex-direction: column;
 
-  &:last-child {
-    margin-bottom: 0;
+  &--nested {
+    margin-top: 8px;
+    border: 1px solid $palette-neutral-200;
+
+    @include rounded($rounded-lg);
   }
 }
 
-.agent-configuration__section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: $palette-neutral-1200;
-  margin-bottom: 12px;
-}
-
-// Collapsed-by-default quiet section (e.g. the agent's memory).
-.agent-configuration__section-toggle {
+.agent-configuration-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 12px;
+  padding: 12px 8px;
   color: $palette-neutral-1200;
 
+  @include rounded($rounded-lg);
+
   &:hover {
+    background-color: $palette-neutral-50;
     text-decoration: none;
   }
 }
 
-.agent-configuration__section-chevron {
+.agent-configuration-row__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  color: $palette-neutral-700;
+  font-size: 16px;
+}
+
+.agent-configuration-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-configuration-row__title {
+  @extend %ellipsis;
+
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.agent-configuration-row__summary {
+  @extend %ellipsis;
+
+  font-size: 12px;
+  line-height: 16px;
+  color: $palette-neutral-700;
+}
+
+.agent-configuration-row__right {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: $palette-neutral-700;
+}
+
+.agent-configuration-row__chevron {
   flex-shrink: 0;
   font-size: 14px;
   color: $palette-neutral-700;
-  transition: transform 0.2s ease;
+}
 
-  &--expanded {
-    transform: rotate(90deg);
+.agent-configuration__rows--nested .agent-configuration-row {
+  padding: 8px 12px;
+  border-radius: 0;
+  border-bottom: 1px solid $palette-neutral-200;
+
+  &:last-child {
+    border-bottom: 0;
   }
 }
 
-.agent-configuration__section-description {
-  color: $palette-neutral-700;
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.agent-configuration__section-body {
-  margin-top: 12px;
+.agent-configuration__subsection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .agent-configuration__subsection-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: $palette-neutral-900;
-  margin: 16px 0 8px;
+  color: $palette-neutral-1200;
 }
 
-// Collapsible sub-cards shared by the trigger and action tool lists.
+.agent-configuration__intro,
+.agent-configuration__hint {
+  color: $palette-neutral-700;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.agent-configuration__intro {
+  margin-bottom: 16px;
+}
+
+.agent-configuration__hint {
+  margin-top: 8px;
+}
+
+.agent-configuration__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agent-configuration__counter {
+  margin-left: auto;
+  color: $palette-neutral-700;
+  font-size: 12px;
+}
+
+// Sub-cards shared by the trigger, action tool and channel lists.
 .agent-configuration__card-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
 .agent-configuration__card {
   border: 1px solid $palette-neutral-200;
-  border-radius: 6px;
   background-color: $white;
+
+  @include rounded($rounded-lg);
 }
 
 .agent-configuration__card-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
 }
 
 .agent-configuration__card-summary {
@@ -957,12 +1505,28 @@
   gap: 8px;
   flex: 1;
   min-width: 0;
-  cursor: pointer;
+  color: $palette-neutral-1200;
+}
+
+.agent-configuration__card-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
   color: $palette-neutral-1200;
 
   &:hover {
     text-decoration: none;
   }
+}
+
+.agent-configuration__card-subtitle {
+  @extend %ellipsis;
+
+  min-width: 0;
+  font-size: 12px;
+  color: $palette-neutral-700;
 }
 
 .agent-configuration__card-chevron {
@@ -990,43 +1554,121 @@
 
 .agent-configuration__card-body {
   border-top: 1px solid $palette-neutral-200;
-  padding: 12px 10px;
+  padding: 12px;
 }
 
-.agent-configuration__tool-helper {
-  color: $palette-neutral-700;
-  font-size: 12px;
-  margin-top: 4px;
+.agent-configuration__card-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid $palette-neutral-200;
 }
 
-// Extra configuration under a built-in tool's toggle, e.g. the workspace
-// tool's read-only mode and write approval controls. Indented so it reads as
-// belonging to the toggle above it.
-.agent-configuration__tool-options {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 8px;
-  padding-left: 26px;
-}
-
-.agent-configuration__tool-summary {
-  color: $palette-neutral-700;
-  font-size: 12px;
-}
-
-.agent-configuration__tool-summary-link {
-  font-weight: 500;
-}
-
-.agent-configuration__tool-warning {
+.agent-configuration__expand-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: $palette-yellow-800;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.agent-configuration__expand-body {
+  margin-top: 12px;
+}
+
+// A toggle with a title and description, e.g. the workspace tools master
+// switch or web search.
+.agent-configuration__switch-card {
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-lg);
+}
+
+.agent-configuration__switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &--nested {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background-color: $palette-neutral-25;
+
+    @include rounded($rounded-lg);
+  }
+
+  &--plain {
+    padding: 12px 4px;
+    border-bottom: 1px solid $palette-neutral-200;
+
+    &:last-child {
+      border-bottom: 0;
+    }
+  }
+
+  &--disabled {
+    opacity: 0.5;
+  }
+}
+
+.agent-configuration__switch-icon {
+  flex-shrink: 0;
+  color: $palette-neutral-700;
+  font-size: 16px;
+}
+
+.agent-configuration__switch-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-configuration__switch-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.agent-configuration__switch-description {
   font-size: 12px;
-  margin-top: 4px;
+  line-height: 16px;
+  color: $palette-neutral-700;
+}
+
+.agent-configuration__segment {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.agent-configuration__link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: $palette-blue-800;
+  text-decoration: underline;
+
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.agent-configuration__identity-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agent-configuration__identity-name {
+  @extend %ellipsis;
+
+  min-width: 0;
 }
 
 .agent-configuration__tool-input-row {
@@ -1116,26 +1758,6 @@
     font-size: 14px;
     line-height: 16px;
   }
-}
-
-.agent-configuration__read-only-values {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.agent-configuration__read-only-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: $palette-neutral-1200;
-}
-
-.agent-configuration__read-only-label {
-  width: 120px;
-  flex-shrink: 0;
-  color: $palette-neutral-700;
 }
 
 .agent-sidebar {
@@ -1231,50 +1853,199 @@
 }
 
 // Modal to choose exactly which Baserow workspace tools the agent may use.
-.agent-workspace-tools-modal__presets {
-  display: flex;
+.agent-tool-permissions__description {
+  margin: 0 0 16px;
+  color: $palette-neutral-900;
+  line-height: 20px;
+}
+
+.agent-tool-permissions__preset {
+  margin: 16px 0;
+}
+
+.agent-tool-permissions__summary {
+  margin-top: 6px;
+  color: $palette-neutral-700;
+  font-size: 12px;
+}
+
+.agent-tool-permissions__table {
+  border: 1px solid $palette-neutral-200;
+  max-height: 420px;
+  overflow-y: auto;
+
+  @include rounded($rounded-lg);
+}
+
+.agent-tool-permissions__group-title,
+.agent-tool-permissions__row {
+  display: grid;
+  grid-template-columns: 1fr 72px 72px;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  padding: 8px 12px;
 }
 
-.agent-workspace-tools-modal__groups {
-  margin-bottom: 20px;
+.agent-tool-permissions__group-title {
+  background-color: $palette-neutral-25;
+  border-bottom: 1px solid $palette-neutral-200;
+  color: $palette-neutral-700;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-.agent-workspace-tools-modal__group {
-  margin-bottom: 16px;
+.agent-tool-permissions__cell-header {
+  text-align: center;
+}
+
+.agent-tool-permissions__row {
+  border-bottom: 1px solid $palette-neutral-200;
 
   &:last-child {
-    margin-bottom: 0;
+    border-bottom: 0;
   }
 }
 
-.agent-workspace-tools-modal__group-title {
-  color: $palette-neutral-1200;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
+.agent-tool-permissions__row-label {
+  min-width: 0;
 }
 
-.agent-workspace-tools-modal__tool {
+.agent-tool-permissions__row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-tool-permissions__row-description {
+  font-size: 12px;
+  color: $palette-neutral-700;
+}
+
+.agent-tool-permissions__cell {
+  display: flex;
+  justify-content: center;
+}
+
+.agent-create__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.agent-create__templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.agent-create__template {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid $palette-neutral-200;
+  color: $palette-neutral-1200;
+  font-size: 12px;
+  font-weight: 500;
+
+  @include rounded($rounded-3xl);
+
+  &:hover {
+    border-color: $palette-neutral-400;
+    text-decoration: none;
+  }
+
+  i {
+    color: $palette-neutral-700;
+  }
+}
+
+.agent-create__step-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
 }
 
-.agent-workspace-tools-modal__badge {
-  flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background-color: $palette-neutral-100;
+.agent-create__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   color: $palette-neutral-900;
-  font-size: 11px;
-  font-weight: 500;
 
-  &--write {
-    background-color: $palette-yellow-100;
-    color: $palette-yellow-800;
+  @include rounded($rounded);
+
+  &:hover {
+    color: $palette-neutral-1200;
+    background-color: $palette-neutral-100;
   }
+}
+
+.agent-create__intro {
+  margin: 0 0 20px;
+  color: $palette-neutral-700;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.agent-create__extra {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-lg);
+}
+
+.agent-create__extra-icon {
+  flex-shrink: 0;
+  color: $palette-neutral-700;
+  font-size: 16px;
+}
+
+.agent-create__extra-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-create__extra-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.agent-create__extra-description {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: $palette-neutral-700;
+}
+
+.agent-create__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.agent-create__note {
+  margin-right: auto;
+  color: $palette-neutral-700;
+  font-size: 12px;
+}
+
+.agent-chat__model-notice {
+  margin-bottom: 12px;
 }

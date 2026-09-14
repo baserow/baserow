@@ -4,166 +4,136 @@
       class="agent-configuration__resize-handle"
       @mousedown.prevent="startResize"
     ></div>
-    <div class="agent-configuration__header">
-      <div class="agent-configuration__title">
-        {{ $t('agentConfiguration.title') }}
-      </div>
-      <a
-        class="agent-configuration__close"
-        :title="$t('agentConfiguration.close')"
-        @click="$emit('close')"
-      >
-        <i class="iconoir-cancel"></i>
-      </a>
-    </div>
-    <div class="agent-configuration__body">
-      <div class="agent-configuration__section">
-        <div class="agent-configuration__section-title">
-          {{ $t('agentConfiguration.trigger') }}
-        </div>
-        <AgentTriggerSection
-          :application="application"
-          :read-only="!canUpdateTrigger"
+    <AgentConfigurationSubpage
+      v-if="activeSection === null"
+      :title="$t('agentConfiguration.title')"
+      @close="$emit('close')"
+    >
+      <div class="agent-configuration__rows">
+        <AgentConfigurationSectionRow
+          v-for="row in rows"
+          :key="row.key"
+          :icon="row.icon"
+          :title="row.title"
+          :summary="row.summary"
+          @click="$emit('update:section', row.key)"
         />
       </div>
-      <div class="agent-configuration__section">
-        <div class="agent-configuration__section-title">
-          {{ $t('agentConfiguration.instructions') }}
-        </div>
-        <template v-if="agent">
-          <FormGroup
-            small-label
-            :label="$t('agentConfiguration.nameLabel')"
-            class="margin-bottom-2"
-          >
-            <FormInput
-              v-model="name"
-              :disabled="!canUpdateAgent"
-              @input="onInput"
-            ></FormInput>
-          </FormGroup>
-          <FormGroup
-            small-label
-            :label="$t('agentConfiguration.instructionsLabel')"
-          >
-            <FormTextarea
-              v-model="instructions"
-              :rows="8"
-              :disabled="!canUpdateAgent"
-              :placeholder="$t('agentConfiguration.instructionsPlaceholder')"
-              @input="onInput"
-            ></FormTextarea>
-          </FormGroup>
-        </template>
-      </div>
-      <div class="agent-configuration__section">
-        <div class="agent-configuration__section-title">
-          {{ $t('agentConfiguration.model') }}
-        </div>
-        <AgentModelSection
-          v-if="agent"
-          :application="application"
-          :read-only="!canUpdateAgent"
-        />
-      </div>
-      <div class="agent-configuration__section">
-        <div class="agent-configuration__section-title">
-          {{ $t('agentConfiguration.workspaceAccess') }}
-        </div>
-        <AgentWorkspaceAccessSection
-          :application="application"
-          :read-only="!canUpdateAgent"
-        />
-      </div>
-      <div class="agent-configuration__section">
-        <div class="agent-configuration__section-title">
-          {{ $t('agentConfiguration.tools') }}
-        </div>
-        <AgentToolsSection :application="application" />
-      </div>
-      <div class="agent-configuration__section">
-        <div class="agent-configuration__section-title">
-          {{ $t('agentConfiguration.chatChannels') }}
-        </div>
-        <AgentChatChannelsSection :application="application" />
-      </div>
-      <div class="agent-configuration__section">
-        <a
-          class="agent-configuration__section-toggle"
-          @click="memoryExpanded = !memoryExpanded"
-        >
-          <i
-            class="agent-configuration__section-chevron iconoir-nav-arrow-right"
-            :class="{
-              'agent-configuration__section-chevron--expanded': memoryExpanded,
-            }"
-          ></i>
-          {{ $t('agentConfiguration.memory') }}
-        </a>
-        <div class="agent-configuration__section-description">
-          {{ $t('agentConfiguration.memoryDescription') }}
-        </div>
-        <div v-if="memoryExpanded" class="agent-configuration__section-body">
-          <div
-            v-if="memoryBlank"
-            class="agent-configuration__placeholder"
-            :class="{ 'margin-bottom-2': canUpdateAgent }"
-          >
-            {{ $t('agentConfiguration.memoryEmpty') }}
-          </div>
-          <FormTextarea
-            v-if="canUpdateAgent || !memoryBlank"
-            v-model="memory"
-            :rows="6"
-            :disabled="!canUpdateAgent"
-            @input="onMemoryInput"
-          ></FormTextarea>
-        </div>
-      </div>
-    </div>
+    </AgentConfigurationSubpage>
+    <AgentConfigurationSubpage
+      v-else
+      :title="activeRow.title"
+      show-back
+      @back="$emit('update:section', null)"
+      @close="$emit('close')"
+    >
+      <AgentInstructionsSection
+        v-if="activeSection === 'instructions'"
+        :application="application"
+        :can-update="canUpdateAgent"
+      />
+      <AgentTriggerSection
+        v-else-if="activeSection === 'triggers'"
+        :application="application"
+        :read-only="!canUpdateTrigger"
+      />
+      <AgentAccessSection
+        v-else-if="activeSection === 'access'"
+        :application="application"
+        :read-only="!canUpdateAgent"
+      />
+      <AgentActionToolsSection
+        v-else-if="activeSection === 'actions'"
+        :application="application"
+      />
+      <AgentChatChannelsSection
+        v-else-if="activeSection === 'channels'"
+        :application="application"
+      />
+      <AgentMemorySection
+        v-else-if="activeSection === 'memory'"
+        :application="application"
+        :can-update="canUpdateAgent"
+      />
+      <AgentAgentSettingsSection
+        v-else-if="activeSection === 'settings'"
+        :application="application"
+        :read-only="!canUpdateAgent"
+      />
+    </AgentConfigurationSubpage>
   </div>
 </template>
 
 <script>
-import { defineComponent, ref, computed, watch, onBeforeUnmount } from 'vue'
+import { defineComponent, ref, computed, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
-import { useNuxtApp } from '#imports'
-import debounce from 'lodash/debounce'
-import { notifyIf } from '@baserow/modules/core/utils/error'
+import { useNuxtApp, useI18n } from '#imports'
+import { summarizeAccess } from '@baserow_enterprise/utils/agentToolPermissions'
 
-import AgentModelSection from '@baserow_enterprise/components/agentApplication/AgentModelSection'
-import AgentWorkspaceAccessSection from '@baserow_enterprise/components/agentApplication/AgentWorkspaceAccessSection'
+import AgentConfigurationSubpage from '@baserow_enterprise/components/agentApplication/AgentConfigurationSubpage'
+import AgentConfigurationSectionRow from '@baserow_enterprise/components/agentApplication/AgentConfigurationSectionRow'
+import AgentInstructionsSection from '@baserow_enterprise/components/agentApplication/AgentInstructionsSection'
 import AgentTriggerSection from '@baserow_enterprise/components/agentApplication/AgentTriggerSection'
-import AgentToolsSection from '@baserow_enterprise/components/agentApplication/AgentToolsSection'
+import AgentAccessSection from '@baserow_enterprise/components/agentApplication/AgentAccessSection'
+import AgentActionToolsSection from '@baserow_enterprise/components/agentApplication/AgentActionToolsSection'
 import AgentChatChannelsSection from '@baserow_enterprise/components/agentApplication/AgentChatChannelsSection'
+import AgentMemorySection from '@baserow_enterprise/components/agentApplication/AgentMemorySection'
+import AgentAgentSettingsSection from '@baserow_enterprise/components/agentApplication/AgentAgentSettingsSection'
 
-const SEEDED_FIELDS = ['name', 'instructions', 'memory']
 const WIDTH_STORAGE_KEY = 'agentConfigurationPanelWidth'
-const DEFAULT_WIDTH = 480
+const DEFAULT_WIDTH = 400
 const MIN_WIDTH = 360
 const MAX_WIDTH = 720
+
+const firstLine = (text) =>
+  (text || '').split('\n').find((line) => line.trim()) || ''
 
 export default defineComponent({
   name: 'AgentConfigurationPanel',
   components: {
-    AgentModelSection,
-    AgentWorkspaceAccessSection,
+    AgentConfigurationSubpage,
+    AgentConfigurationSectionRow,
+    AgentInstructionsSection,
     AgentTriggerSection,
-    AgentToolsSection,
+    AgentAccessSection,
+    AgentActionToolsSection,
     AgentChatChannelsSection,
+    AgentMemorySection,
+    AgentAgentSettingsSection,
   },
   props: {
     application: {
       type: Object,
       required: true,
     },
+    // The open section lives in the parent so it survives closing and
+    // reopening the panel.
+    section: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
-  emits: ['close'],
+  emits: ['close', 'update:section'],
   setup(props) {
     const store = useStore()
-    const { $hasPermission } = useNuxtApp()
+    const { $hasPermission, $registry } = useNuxtApp()
+    const { t } = useI18n()
 
     const agent = computed(() => store.getters['agentApplication/getAgent'])
+    const triggers = computed(
+      () => store.getters['agentApplication/getTriggers']
+    )
+    const tools = computed(() => store.getters['agentApplication/getTools'])
+    const channels = computed(
+      () => store.getters['agentApplication/getChannels']
+    )
+    const catalog = computed(
+      () => store.getters['agentApplication/getWorkspaceToolCatalog']
+    )
+    const workspace = computed(() =>
+      store.getters['workspace/get'](props.application.workspace.id)
+    )
 
     const canUpdateAgent = computed(() =>
       $hasPermission(
@@ -178,6 +148,129 @@ export default defineComponent({
         props.application,
         props.application.workspace.id
       )
+    )
+
+    const nodeTypeName = (serviceType) => {
+      try {
+        return $registry.get('node', serviceType).name
+      } catch {
+        return serviceType
+      }
+    }
+
+    const triggersSummary = computed(() => {
+      const enabled = triggers.value.filter((trigger) => trigger.enabled)
+      if (enabled.length === 0) {
+        return t('agentConfiguration.whenItRunsEmptySummary')
+      }
+      return enabled
+        .map((trigger) => nodeTypeName(trigger.service_type))
+        .join(', ')
+    })
+
+    const accessSummary = computed(() => {
+      const identity = store.getters['agent/get'](
+        props.application.agent_identity_id
+      )
+      const parts = []
+      if (identity) {
+        const role = (workspace.value?._?.roles || []).find(
+          (item) => item.uid === identity.role_uid
+        )
+        parts.push(role ? `${identity.name} (${role.name})` : identity.name)
+      }
+      const workspaceTool = tools.value.find(
+        (tool) => tool.type === 'workspace'
+      )
+      if (workspaceTool && catalog.value.length > 0) {
+        const counts = summarizeAccess(workspaceTool.config, catalog.value)
+        parts.push(
+          counts.ask > 0
+            ? t('agentConfiguration.accessToolsSummaryAsk', counts)
+            : t('agentConfiguration.accessToolsSummary', counts)
+        )
+      }
+      if (tools.value.some((tool) => tool.type === 'web_search')) {
+        parts.push(t('agentConfiguration.accessWebSearch'))
+      }
+      return parts.length > 0
+        ? parts.join(' • ')
+        : t('agentConfiguration.accessNoTools')
+    })
+
+    const actionsSummary = computed(() => {
+      const names = tools.value
+        .filter((tool) => ['service', 'mcp'].includes(tool.type))
+        .map((tool) => tool.name)
+        .filter(Boolean)
+      return names.length > 0
+        ? names.join(', ')
+        : t('agentConfiguration.actionToolsEmptySummary')
+    })
+
+    const channelsSummary = computed(() => {
+      const names = channels.value.map(
+        (channel) => channel.name || t('agentChannels.slack')
+      )
+      return names.length > 0
+        ? names.join(', ')
+        : t('agentConfiguration.channelsEmptySummary')
+    })
+
+    const rows = computed(() => [
+      {
+        key: 'instructions',
+        icon: 'iconoir-page-edit',
+        title: t('agentConfiguration.instructions'),
+        summary:
+          firstLine(agent.value?.instructions) ||
+          t('agentConfiguration.instructionsEmptySummary'),
+      },
+      {
+        key: 'triggers',
+        icon: 'iconoir-play',
+        title: t('agentConfiguration.whenItRuns'),
+        summary: triggersSummary.value,
+      },
+      {
+        key: 'access',
+        icon: 'iconoir-shield-check',
+        title: t('agentConfiguration.accessAndTools'),
+        summary: accessSummary.value,
+      },
+      {
+        key: 'actions',
+        icon: 'iconoir-flash',
+        title: t('agentConfiguration.actionTools'),
+        summary: actionsSummary.value,
+      },
+      {
+        key: 'channels',
+        icon: 'iconoir-chat-bubble-empty',
+        title: t('agentConfiguration.chatChannels'),
+        summary: channelsSummary.value,
+      },
+      {
+        key: 'memory',
+        icon: 'iconoir-brain',
+        title: t('agentConfiguration.memory'),
+        summary:
+          firstLine(agent.value?.memory) ||
+          t('agentConfiguration.memoryEmptySummary'),
+      },
+      {
+        key: 'settings',
+        icon: 'iconoir-settings',
+        title: t('agentConfiguration.agentSettings'),
+        summary: t('agentConfiguration.agentSettingsSummary'),
+      },
+    ])
+
+    const activeSection = computed(() =>
+      rows.value.some((row) => row.key === props.section) ? props.section : null
+    )
+    const activeRow = computed(() =>
+      rows.value.find((row) => row.key === activeSection.value)
     )
 
     // Resizable width, persisted per browser.
@@ -216,111 +309,18 @@ export default defineComponent({
       document.body.classList.add('agent-configuration-resizing')
     }
 
-    const fields = {
-      name: ref(agent.value?.name || ''),
-      instructions: ref(agent.value?.instructions || ''),
-      memory: ref(agent.value?.memory || ''),
-    }
-    // The value each field was last seeded with, so a remote agent update
-    // (e.g. the agent configuring itself via chat, or its remember tool
-    // rewriting the memory) only re-seeds fields the user hasn't diverged
-    // from, instead of stomping an active edit.
-    const seeded = {
-      name: agent.value?.name || '',
-      instructions: agent.value?.instructions || '',
-      memory: agent.value?.memory || '',
-    }
-
-    // Deep watch, because agent updates mutate the same store object.
-    watch(
-      agent,
-      (newAgent) => {
-        for (const field of SEEDED_FIELDS) {
-          const newValue = newAgent?.[field] || ''
-          if (fields[field].value === seeded[field]) {
-            fields[field].value = newValue
-          }
-          seeded[field] = newValue
-        }
-      },
-      { deep: true }
-    )
-
-    const save = async () => {
-      if (!agent.value || !canUpdateAgent.value) {
-        return
-      }
-      // Never PATCH values that already match the agent, otherwise the
-      // realtime echo of our own save could re-trigger the cycle.
-      if (
-        fields.name.value === (agent.value.name || '') &&
-        fields.instructions.value === (agent.value.instructions || '')
-      ) {
-        return
-      }
-      try {
-        await store.dispatch('agentApplication/update', {
-          agentId: agent.value.id,
-          values: {
-            name: fields.name.value,
-            instructions: fields.instructions.value,
-          },
-        })
-      } catch (error) {
-        notifyIf(error, 'application')
-      }
-    }
-
-    const debouncedSave = debounce(save, 1000)
-
-    const onInput = () => {
-      debouncedSave()
-    }
-
-    const memoryExpanded = ref(false)
-    const memoryBlank = computed(() => fields.memory.value.trim() === '')
-    const saveMemory = async () => {
-      if (!agent.value || !canUpdateAgent.value) {
-        return
-      }
-      // Never PATCH a value that already matches the agent, otherwise the
-      // realtime echo of our own save could re-trigger the cycle.
-      if (fields.memory.value === (agent.value.memory || '')) {
-        return
-      }
-      try {
-        await store.dispatch('agentApplication/update', {
-          agentId: agent.value.id,
-          values: { memory: fields.memory.value },
-        })
-      } catch (error) {
-        notifyIf(error, 'application')
-      }
-    }
-    const debouncedSaveMemory = debounce(saveMemory, 1000)
-    const onMemoryInput = () => {
-      debouncedSaveMemory()
-    }
-
     onBeforeUnmount(() => {
-      debouncedSave.flush()
-      debouncedSaveMemory.flush()
       stopResize()
     })
 
     return {
-      agent,
+      rows,
+      activeSection,
+      activeRow,
       canUpdateAgent,
       canUpdateTrigger,
       width,
       startResize,
-      name: fields.name,
-      instructions: fields.instructions,
-      memory: fields.memory,
-      memoryExpanded,
-      memoryBlank,
-      onInput,
-      onMemoryInput,
     }
   },
 })

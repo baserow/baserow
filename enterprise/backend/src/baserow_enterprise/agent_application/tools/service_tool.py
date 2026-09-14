@@ -108,6 +108,12 @@ class ServiceAgentToolType(AgentToolType):
     type = "service"
     is_configurable = True
 
+    def owns_tool_name(self, tool: "AgentTool", tool_name: str) -> bool:
+        return get_service_tool_name(tool) == tool_name
+
+    def apply_dont_ask_again(self, tool: "AgentTool", tool_name: str) -> dict:
+        return {**tool.config, "require_approval": False}
+
     def build_toolsets(self, tool: "AgentTool", deps: "AgentRunDeps") -> list:
         from .gating import wrap_approval_required
 
