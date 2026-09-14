@@ -1,3 +1,4 @@
+import { getUserSourceCallbackToken } from '@baserow/modules/core/utils/userSourceCallback'
 import { AppAuthProviderType } from '@baserow/modules/core/appAuthProviderTypes'
 import {
   SamlAuthProviderTypeMixin,
@@ -129,17 +130,7 @@ export class SamlAppAuthProviderType extends SamlAuthProviderTypeMixin(
   }
 
   getAuthToken(userSource, authProvider, route) {
-    // token can be in the query string (SSO) or in the cookies (previous session)
-    // We use the user source id in order to prevent conflicts when using multiple
-    // auth forms on the same page.
-    const queryParamName = `user_source_saml_token__${userSource.id}`
-    const found = route.query[queryParamName]
-    if (found) {
-      const currentUrl = new URL(window.location.href)
-      currentUrl.searchParams.delete(queryParamName)
-      window.history.replaceState({}, document.title, currentUrl.toString())
-    }
-    return found
+    return getUserSourceCallbackToken(route.query, 'saml', userSource.id)
   }
 
   getLoginError(userSource, route) {
@@ -212,18 +203,8 @@ export class OpenIdConnectAppAuthProviderType extends OAuth2AuthProviderTypeMixi
     return CommonOIDCSettingForm
   }
 
-  getAuthToken(userSource, authProvider, route, router) {
-    // token can be in the query string (SSO) or in the cookies (previous session)
-    // We use the user source id in order to prevent conflicts when using multiple
-    // auth forms on the same page.
-    const queryParamName = `user_source_oidc_token__${userSource.id}`
-    const found = route.query[queryParamName]
-    if (found) {
-      const currentUrl = new URL(window.location.href)
-      currentUrl.searchParams.delete(queryParamName)
-      window.history.replaceState({}, document.title, currentUrl.toString())
-    }
-    return found
+  getAuthToken(userSource, authProvider, route) {
+    return getUserSourceCallbackToken(route.query, 'oidc', userSource.id)
   }
 
   handleError(userSource, authProvider, route) {

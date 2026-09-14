@@ -1,14 +1,17 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { getCookieName } from '@baserow/modules/core/utils/cookie'
+import {
+  getCookieName,
+  getTokenCookieOptions,
+  refreshTokenMaxAge,
+} from '@baserow/modules/core/utils/cookie'
 import jwtDecode from 'jwt-decode'
 import tldjs from 'tldjs'
 import { useCookie, useRuntimeConfig, nextTick } from '#imports'
 
 const cookieTokenName = 'jwt_token'
-export const userSourceCookieTokenName = 'user_source_token'
+export { userSourceCookieTokenName } from '@baserow/modules/core/utils/cookie'
 export const userSessionCookieName = 'user_session'
-const refreshTokenMaxAge = 60 * 60 * 24 * 7
 
 export const setToken = (
   appOrContext,
@@ -19,16 +22,10 @@ export const setToken = (
   const { runWithContext } = appOrContext
   return runWithContext(() => {
     const config = useRuntimeConfig()
-    const secure =
-      configuration.secure ??
-      isSecureURL(configuration.cookieUrl || config.public.publicWebFrontendUrl)
-    const cookie = useCookie(getCookieName(config, key), {
-      path: configuration.path || '/',
-      maxAge: refreshTokenMaxAge,
-      sameSite:
-        configuration.sameSite || config.public.baserowFrontendSameSiteCookie,
-      secure,
-    })
+    const cookie = useCookie(
+      getCookieName(config, key),
+      getTokenCookieOptions(config, configuration)
+    )
     cookie.value = token
   })
 }
