@@ -4416,3 +4416,36 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture):
     assert sorts[1].direction == "DESC"
     assert sorts[1].sort_on == "SERIES"
     assert sorts[1].reference == f"field_{field_2.id}_min"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_type", ["multiple_select", "multiple_collaborators", "link_row", "file"]
+)
+def test_grouped_aggregate_rows_rejects_multivalued_primary_row_grouping(
+    data_fixture, field_type
+):
+    """Reject new and saved row grouping when the primary field contains a collection."""
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    getattr(data_fixture, f"create_{field_type}_field")(table=table, primary=True)
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows, table=table, integration=integration
+    )
+    service_type = service.get_type()
+    with pytest.raises(ValidationError, match="multi-valued primary field"):
+        service_type._update_service_aggregation_group_bys(
+            service, [{"field_id": None}]
+        )
+    assert not service.service_aggregation_group_bys.exists()
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None, order=1
+    )
+    with pytest.raises(
+        ServiceImproperlyConfiguredDispatchException, match="multi-valued primary field"
+    ):
+        ServiceHandler().dispatch_service(service, FakeDispatchContext())
