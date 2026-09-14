@@ -409,7 +409,8 @@
   "aggregationGroupByForm": {
     "groupByFieldLabel": "Group by",
     "groupByNone": "None",
-    "groupByRowId": "Row Id"
+    "groupByRowId": "Row Id",
+    "rowIdDisabledTooltip": "Grouping by row ID is currently unavailable because the primary field can contain multiple values."
   },
   "aggregationSortByForm": {
     "sortByFieldLabel": "Sort by",

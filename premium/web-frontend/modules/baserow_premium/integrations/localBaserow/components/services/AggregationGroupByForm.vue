@@ -13,8 +13,14 @@
       <DropdownItem
         v-for="groupByOption in groupByOptions"
         :key="groupByOption.id"
+        v-tooltip="
+          groupByOption.disabled
+            ? $t('aggregationGroupByForm.rowIdDisabledTooltip')
+            : null
+        "
         :name="groupByOption.name"
         :value="groupByOption.value"
+        :disabled="groupByOption.disabled || false"
       >
         {{ groupByOption.name }}
       </DropdownItem>
@@ -24,13 +30,6 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-
-const includesIfSet = (array) => (value) => {
-  if (value === null || value === undefined) {
-    return true
-  }
-  return array.includes(value)
-}
 
 export default {
   name: 'AggregationGroupByForm',
@@ -54,6 +53,15 @@ export default {
     }
   },
   computed: {
+    canGroupByRowId() {
+      const primaryField = this.tableFields.find((field) => field.primary)
+      return (
+        primaryField &&
+        this.$registry
+          .get('field', primaryField.type)
+          .getDocsDataType(primaryField) !== 'array'
+      )
+    },
     compatibleFields() {
       return this.tableFields.filter((field) =>
         this.$registry.exists('groupedAggregationGroupedBy', field.type)
@@ -67,7 +75,11 @@ export default {
         }
       })
       return tableFieldOptions.concat([
-        { name: this.$t('aggregationGroupByForm.groupByRowId'), value: null },
+        {
+          name: this.$t('aggregationGroupByForm.groupByRowId'),
+          value: null,
+          disabled: !this.canGroupByRowId,
+        },
         { name: this.$t('aggregationGroupByForm.groupByNone'), value: 'none' },
       ])
     },
@@ -91,10 +103,10 @@ export default {
     return {
       aggregationGroupBy: {
         isValidGroupBy: (value) => {
-          const validGroupByValues = this.groupByOptions.map(
-            (item) => item.value
-          )
-          return includesIfSet(validGroupByValues)(value)
+          const validGroupByValues = this.groupByOptions
+            .filter((item) => !item.disabled)
+            .map((item) => item.value)
+          return validGroupByValues.includes(value)
         },
       },
     }
