@@ -290,7 +290,7 @@ export class GroupedAggregateRowsDataSourcePaidFeature extends PaidFeature {
   }
 
   getPlan() {
-    return 'Enterprise'
+    return 'Advanced'
   }
 
   getIconClass() {
