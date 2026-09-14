@@ -123,6 +123,9 @@ class DataSyncType(
     request.
 
     Example: {"postgresql_password": ["postgresql_host", "postgresql_port"]}
+
+    `IntegrationType.secret_field_dependencies` is the same concept for
+    integrations.
     """
 
     sensitive_fields: List[str] = []

@@ -51,6 +51,10 @@ class IntegrationType(
     never chose.
 
     Example: {"password": ["host", "port", "use_tls"]}
+
+    `DataSyncType.secret_field_dependencies` is the same concept for data syncs.
+    Unlike that check, this one skips a secret that is not stored, because an
+    integration may authenticate anonymously.
     """
 
     def enhance_queryset(self, queryset):
