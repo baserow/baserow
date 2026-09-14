@@ -1140,7 +1140,6 @@
     "modelUsageFeature": "{feature} ({count})",
     "modelIdentifierRenamedTitle": "Rename {name}?",
     "modelIdentifierRenamedDescription": "They keep pointing at the old identifier and stop working until they are repointed.",
-    "modelBlockedByFeature": "{features} must be pointed at another model first.",
     "loadError": "The AI provider settings could not be loaded.",
     "loadErrorDescription": "Check the connection and try again.",
     "retry": "Retry",

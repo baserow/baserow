@@ -107,7 +107,6 @@ class AIProviderModelUsageEntrySerializer(serializers.Serializer):
 
 class AIProviderModelUsageSerializer(serializers.Serializer):
     usage = AIProviderModelUsageEntrySerializer(many=True)
-    blocking_feature_types = serializers.ListField(child=serializers.CharField())
 
 
 class AIProviderFeatureModelSerializer(serializers.Serializer):

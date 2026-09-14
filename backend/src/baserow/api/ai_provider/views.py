@@ -385,14 +385,14 @@ class AIProviderModelUsageView(APIView):
 
     @extend_schema(
         tags=["AI providers"],
-        operation_id="list_ai_provider_model_usage",
+        operation_id="get_ai_provider_model_usage",
         parameters=[AIProviderScopeRequestSerializer],
         responses={200: AIProviderModelUsageSerializer},
     )
     @map_exceptions(EXCEPTION_MAP)
     def get(self, request, model_id):
         _ensure_feature_enabled()
-        usage, blocking_feature_types = AIProviderService.get_model_usage(
+        usage = AIProviderService.get_model_usage(
             request.user, model_id, workspace_id=_get_workspace_id(request)
         )
         return Response(
@@ -401,8 +401,7 @@ class AIProviderModelUsageView(APIView):
                     "usage": [
                         {"feature_type": feature_type, "count": count}
                         for feature_type, count in usage.items()
-                    ],
-                    "blocking_feature_types": blocking_feature_types,
+                    ]
                 }
             ).data
         )

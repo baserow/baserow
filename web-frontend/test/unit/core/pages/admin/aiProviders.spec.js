@@ -167,7 +167,6 @@ describe('AdminAIProviders', () => {
       },
       {
         usage: [{ featureType: 'ai_fields', count: 3 }],
-        blockingFeatureTypes: [],
       }
     )
 
@@ -203,7 +202,6 @@ describe('AdminAIProviders', () => {
       },
       {
         usage: [{ featureType: 'ai_fields', count: 0 }],
-        blockingFeatureTypes: [],
       }
     )
 

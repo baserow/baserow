@@ -337,7 +337,6 @@ export const actions = {
         featureType,
         count,
       })),
-      blockingFeatureTypes: data.blocking_feature_types,
     }
   },
   async testModels({ commit, state }, payload) {

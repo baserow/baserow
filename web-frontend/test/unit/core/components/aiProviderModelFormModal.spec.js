@@ -58,7 +58,6 @@ describe('AIProviderModelFormModal', () => {
         { featureType: 'ai_fields', count: 2 },
         { featureType: 'ai_agent', count: 0 },
       ],
-      blockingFeatureTypes: [],
     })
     await uncheckFeatures(wrapper, ['ai_agent', 'kuma'])
 
@@ -98,7 +97,6 @@ describe('AIProviderModelFormModal', () => {
         { featureType: 'ai_fields', count: 2 },
         { featureType: 'ai_agent', count: 0 },
       ],
-      blockingFeatureTypes: [],
     })
     await uncheckFeatures(wrapper, ['ai_fields', 'kuma'])
 
@@ -118,7 +116,6 @@ describe('AIProviderModelFormModal', () => {
   test('does not look up usage when no feature is unchecked', async () => {
     const { wrapper, dispatch } = await mountEditForm({
       usage: [{ featureType: 'ai_fields', count: 2 }],
-      blockingFeatureTypes: [],
     })
 
     await wrapper.find('.actions button').trigger('click')
@@ -177,7 +174,6 @@ describe('AIProviderModelFormModal', () => {
         { featureType: 'ai_fields', count: 2 },
         { featureType: 'ai_agent', count: 1 },
       ],
-      blockingFeatureTypes: [],
     })
     wrapper.vm.values.model_identifier = 'gpt-5.7'
     await flushPromises()
@@ -212,7 +208,6 @@ describe('AIProviderModelFormModal', () => {
   test('saves a rename nothing depends on without a confirmation', async () => {
     const { wrapper, dispatch } = await mountEditForm({
       usage: [{ featureType: 'ai_fields', count: 0 }],
-      blockingFeatureTypes: [],
     })
     wrapper.vm.values.model_identifier = 'gpt-5.7'
     await flushPromises()
@@ -233,7 +228,6 @@ describe('AIProviderModelFormModal', () => {
   test('keeps the confirmation open across a re-render and closes both on save', async () => {
     const { wrapper, dispatch } = await mountEditForm({
       usage: [{ featureType: 'ai_fields', count: 2 }],
-      blockingFeatureTypes: [],
     })
     await uncheckFeatures(wrapper, ['ai_agent', 'kuma'])
     await wrapper.find('.actions button').trigger('click')

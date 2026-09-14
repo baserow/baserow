@@ -30,7 +30,6 @@ class AIFieldsAIProviderModelFeatureType(AIProviderModelFeatureType):
         queryset = AIField.objects.filter(
             ai_generative_ai_type=provider_type,
             ai_generative_ai_model=model_identifier,
-            trashed=False,
             table__trashed=False,
             table__database__trashed=False,
             table__database__workspace__trashed=False,

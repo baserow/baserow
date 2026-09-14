@@ -902,13 +902,12 @@ def test_model_usage_reports_every_per_consumer_feature(
         "usage": [
             {"feature_type": AI_PROVIDER_FEATURE_AI_AGENT, "count": 0},
             {"feature_type": AI_PROVIDER_FEATURE_AI_FIELDS, "count": 0},
-        ],
-        "blocking_feature_types": [],
+        ]
     }
 
 
 @pytest.mark.django_db
-def test_model_usage_reports_a_default_model_feature_as_blocking(
+def test_model_usage_omits_default_model_features_which_the_error_reports(
     api_client, staff_headers, enabled_ai_providers
 ):
     provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
@@ -929,8 +928,9 @@ def test_model_usage_reports_a_default_model_feature_as_blocking(
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["blocking_feature_types"] == ["kuma"]
-    assert all(entry["count"] == 0 for entry in response.json()["usage"])
+    usage = response.json()["usage"]
+    assert "kuma" not in [entry["feature_type"] for entry in usage]
+    assert all(entry["count"] == 0 for entry in usage)
 
     response = api_client.delete(
         reverse("api:ai_provider:model_item", kwargs={"model_id": model.id}),
@@ -938,6 +938,7 @@ def test_model_usage_reports_a_default_model_feature_as_blocking(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_IN_USE"
+    assert "kuma" in response.json()["detail"]
 
 
 @pytest.mark.django_db

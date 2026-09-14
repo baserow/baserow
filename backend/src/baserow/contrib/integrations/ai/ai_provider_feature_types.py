@@ -35,7 +35,6 @@ class AIAgentAIProviderModelFeatureType(AIProviderModelFeatureType):
         queryset = AIAgentService.objects.filter(
             ai_generative_ai_type=provider_type,
             ai_generative_ai_model=model_identifier,
-            trashed=False,
             integration__trashed=False,
             integration__application__trashed=False,
             integration__application__workspace__trashed=False,

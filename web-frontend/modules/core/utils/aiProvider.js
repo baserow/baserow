@@ -26,8 +26,8 @@ export function aiProviderFeatureName(registry, featureType) {
 /**
  * Prefix a confirmation description with what still depends on a model.
  *
- * @param {{usage: Array<{featureType: string, count: number}>,
- *   blockingFeatureTypes: string[]}} result The model usage lookup.
+ * @param {{usage: Array<{featureType: string, count: number}>}} result The
+ *   model usage lookup.
  * @param {string} description The action description shown after the counts.
  * @param {Function} $t The translation function of the calling component.
  * @param {Object} registry The application registry.
@@ -48,15 +48,6 @@ export function aiProviderModelUsageMessage(result, description, $t, registry) {
           )
           .join(', '),
         count: used.reduce((total, entry) => total + entry.count, 0),
-      })
-    )
-  }
-  if (result.blockingFeatureTypes.length > 0) {
-    sentences.push(
-      $t('aiProviderAdmin.modelBlockedByFeature', {
-        features: result.blockingFeatureTypes
-          .map((featureType) => aiProviderFeatureName(registry, featureType))
-          .join(', '),
       })
     )
   }

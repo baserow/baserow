@@ -974,7 +974,7 @@ def test_get_model_usage_passes_the_provider_scope(monkeypatch, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_model_blocking_feature_types_reports_default_model_selections(monkeypatch):
+def test_get_model_usage_excludes_selected_default_model_feature_types(monkeypatch):
     class ConsumerFeatureType(AIProviderModelFeatureType):
         type = "consumer_feature"
 
@@ -997,13 +997,10 @@ def test_get_model_blocking_feature_types_reports_default_model_selections(monke
         feature_types=["consumer_feature", "default_model_feature"],
     )
 
-    assert AIProviderHandler.get_model_blocking_feature_types(model) == []
+    assert AIProviderHandler.get_model_usage(model) == {"consumer_feature": 0}
 
     AIProviderHandler.update_feature_setting(
         "default_model_feature", AI_PROVIDER_FEATURE_MODE_MODEL, model=model
     )
 
     assert AIProviderHandler.get_model_usage(model) == {"consumer_feature": 0}
-    assert AIProviderHandler.get_model_blocking_feature_types(model) == [
-        "default_model_feature"
-    ]

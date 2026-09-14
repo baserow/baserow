@@ -72,7 +72,6 @@ describe('AIProviderWorkspaceSettings', () => {
         { featureType: 'ai_fields', count: 3 },
         { featureType: 'ai_agent', count: 0 },
       ],
-      blockingFeatureTypes: [],
     })
 
     await selectModelAction(wrapper, 'toggle')
@@ -111,7 +110,6 @@ describe('AIProviderWorkspaceSettings', () => {
         { featureType: 'ai_fields', count: 0 },
         { featureType: 'ai_agent', count: 0 },
       ],
-      blockingFeatureTypes: [],
     })
 
     await selectModelAction(wrapper, 'toggle')
@@ -144,7 +142,6 @@ describe('AIProviderWorkspaceSettings', () => {
     const model = { ...enabledModel(), is_enabled: false }
     const { wrapper, dispatch } = await mountWithModel(model, {
       usage: [],
-      blockingFeatureTypes: [],
     })
 
     await selectModelAction(wrapper, 'toggle')
@@ -167,7 +164,6 @@ describe('AIProviderWorkspaceSettings', () => {
         { featureType: 'ai_fields', count: 1 },
         { featureType: 'ai_agent', count: 2 },
       ],
-      blockingFeatureTypes: [],
     })
 
     await selectModelAction(wrapper, 'delete')
@@ -195,27 +191,12 @@ describe('AIProviderWorkspaceSettings', () => {
     const model = enabledModel()
     const { wrapper } = await mountWithModel(model, {
       usage: [{ featureType: 'ai_fields', count: 0 }],
-      blockingFeatureTypes: [],
     })
 
     await selectModelAction(wrapper, 'delete')
 
     expect(wrapper.findComponent(AIProviderConfirmModal).props('message')).toBe(
       'aiProviderAdmin.deleteModelDescription'
-    )
-  })
-
-  test('warns that a default-model feature blocks the delete', async () => {
-    const model = enabledModel()
-    const { wrapper } = await mountWithModel(model, {
-      usage: [{ featureType: 'ai_fields', count: 0 }],
-      blockingFeatureTypes: ['kuma'],
-    })
-
-    await selectModelAction(wrapper, 'delete')
-
-    expect(wrapper.findComponent(AIProviderConfirmModal).props('message')).toBe(
-      'aiProviderAdmin.modelBlockedByFeature aiProviderAdmin.deleteModelDescription'
     )
   })
 

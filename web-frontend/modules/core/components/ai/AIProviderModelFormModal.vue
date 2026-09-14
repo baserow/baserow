@@ -194,7 +194,7 @@ export default {
       if (!renamed && removed.length === 0) {
         return null
       }
-      const { usage, blockingFeatureTypes } = await this.lookupModelUsage(
+      const { usage } = await this.lookupModelUsage(
         this.model.id,
         this.workspaceId
       )
@@ -203,7 +203,6 @@ export default {
           (entry) =>
             entry.count > 0 && (renamed || removed.includes(entry.featureType))
         ),
-        blockingFeatureTypes: renamed ? blockingFeatureTypes : [],
       }
       if (!this.modelHasDependents(atRisk)) {
         return null

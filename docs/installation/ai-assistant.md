@@ -36,9 +36,10 @@ confirmed: those consumers store the provider type and the model identifier rath
 than a reference to the model, so they keep the old selection and stop working until
 they are repointed. Counts are per provider type and identifier, so an instance model
 and a workspace model sharing an identifier report the same consumers. The Kuma
-selection is a real reference instead, so the same change is refused while a model is
-selected as the Kuma model: repoint that selection first, in the **AI features**
-section of the scope that holds it. A consumer left on a model that is disabled or
+selection is a real reference instead, so disabling or deleting the model, or
+unchecking Kuma, is refused while it is selected as the Kuma model: repoint that
+selection first, in the **AI features** section of the scope that holds it. Renaming
+is allowed and the Kuma selection follows the model to its new identifier. A consumer left on a model that is disabled or
 gone keeps showing its saved provider and model, marked unavailable, so it can be
 found and repointed.
 
