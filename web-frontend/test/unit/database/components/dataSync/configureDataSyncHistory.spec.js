@@ -169,15 +169,13 @@ describe('ConfigureDataSyncHistory', () => {
 
     const nextPageButton = () => wrapper.findAll('.paginator__button').at(1)
     await nextPageButton().trigger('click')
-    await vi.waitFor(() => {
-      expect(wrapper.find('.alert').exists()).toBe(true)
-    })
+    await flushPromises()
+    expect(wrapper.find('.alert').exists()).toBe(true)
 
     await nextPageButton().trigger('click')
-    await vi.waitFor(() => {
-      expect(wrapper.find('.alert').exists()).toBe(false)
-      expect(wrapper.findAll('.data-sync-runs__item')).toHaveLength(1)
-      expect(wrapper.find('.paginator__content-input').element.value).toBe('2')
-    })
+    await flushPromises()
+    expect(wrapper.find('.alert').exists()).toBe(false)
+    expect(wrapper.findAll('.data-sync-runs__item')).toHaveLength(1)
+    expect(wrapper.find('.paginator__content-input').element.value).toBe('2')
   })
 })
