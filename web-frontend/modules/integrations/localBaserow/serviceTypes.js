@@ -161,6 +161,73 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
   }
 
   /**
+   * Generate Table columns from the result schema shared by row-list services.
+   * Aggregations use their result types, while ordinary fields retain their
+   * specialized rendering and formula paths.
+   */
+  getDefaultCollectionFields(service) {
+    const properties = this.getSchemaProperties(service) || {}
+    return Object.keys(properties)
+      .filter(
+        (field) =>
+          field !== 'id' &&
+          (properties[field].metadata?.aggregation ||
+            properties[field].original_type !== 'formula') // every formula has different properties
+      )
+      .map((field) => {
+        const type = properties[field].type
+        const originalType = properties[field].metadata?.aggregation
+          ? type
+          : properties[field].original_type || type
+        let outputType = 'text'
+        let valueFormula = `get('current_record.${field}')`
+        if (originalType === 'boolean') {
+          outputType = 'boolean'
+        } else if (originalType === 'rating') {
+          outputType = 'rating'
+        } else if (originalType === 'url') {
+          return {
+            link_name: { formula: valueFormula },
+            name: properties[field].title,
+            id: uuid(), // Temporary id
+            navigate_to_page_id: null,
+            navigate_to_url: { formula: valueFormula },
+            navigation_type: 'custom',
+            page_parameters: [],
+            target: 'blank',
+            type: 'link',
+          }
+        } else if (originalType === 'file') {
+          return {
+            id: uuid(),
+            name: properties[field].title,
+            type: 'image',
+            src: { formula: `get('current_record.${field}.*.url')` },
+            alt: { formula: `get('current_record.${field}.*.visible_name')` },
+          }
+        } else if (
+          originalType === 'last_modified_by' ||
+          originalType === 'created_by'
+        ) {
+          valueFormula = `get('current_record.${field}.name')`
+        } else if (originalType === 'single_select') {
+          valueFormula = `get('current_record.${field}.value')`
+        }
+        if (originalType === 'multiple_collaborators') {
+          valueFormula = `get('current_record.${field}.*.name')`
+        } else if (type === 'array') {
+          valueFormula = `get('current_record.${field}.*.value')`
+        }
+        return {
+          name: properties[field].title,
+          type: outputType,
+          value: { formula: valueFormula },
+          id: uuid(), // Temporary id
+        }
+      })
+  }
+
+  /**
    * Responsible for determining if this service is in error. It will be if the
    * `table_id` is missing, or if one or more filters/sortings point to a field that
    * has been trashed.
@@ -279,65 +346,6 @@ export class LocalBaserowListRowsServiceType extends DataSourceLocalBaserowTable
       newValues.sortings = []
     }
     return newValues
-  }
-
-  getDefaultCollectionFields(service) {
-    return Object.keys(service.schema.items.properties)
-      .filter(
-        (field) =>
-          field !== 'id' &&
-          service.schema.items.properties[field].original_type !== 'formula' // every formula has different properties
-      )
-      .map((field) => {
-        const type = service.schema.items.properties[field].type
-        const originalType =
-          service.schema.items.properties[field].original_type
-        let outputType = 'text'
-        let valueFormula = `get('current_record.${field}')`
-        if (originalType === 'boolean') {
-          outputType = 'boolean'
-        } else if (originalType === 'rating') {
-          outputType = 'rating'
-        } else if (originalType === 'url') {
-          return {
-            link_name: { formula: valueFormula },
-            name: service.schema.items.properties[field].title,
-            id: uuid(), // Temporary id
-            navigate_to_page_id: null,
-            navigate_to_url: { formula: valueFormula },
-            navigation_type: 'custom',
-            page_parameters: [],
-            target: 'blank',
-            type: 'link',
-          }
-        } else if (originalType === 'file') {
-          return {
-            id: uuid(),
-            name: service.schema.items.properties[field].title,
-            type: 'image',
-            src: { formula: `get('current_record.${field}.*.url')` },
-            alt: { formula: `get('current_record.${field}.*.visible_name')` },
-          }
-        } else if (
-          originalType === 'last_modified_by' ||
-          originalType === 'created_by'
-        ) {
-          valueFormula = `get('current_record.${field}.name')`
-        } else if (originalType === 'single_select') {
-          valueFormula = `get('current_record.${field}.value')`
-        }
-        if (originalType === 'multiple_collaborators') {
-          valueFormula = `get('current_record.${field}.*.name')`
-        } else if (type === 'array') {
-          valueFormula = `get('current_record.${field}.*.value')`
-        }
-        return {
-          name: service.schema.items.properties[field].title,
-          type: outputType,
-          value: { formula: valueFormula },
-          id: uuid(), // Temporary id
-        }
-      })
   }
 
   getRecordName(service, record) {
