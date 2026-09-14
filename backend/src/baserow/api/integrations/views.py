@@ -195,6 +195,7 @@ class IntegrationView(APIView):
             integration_type_registry,
             UpdateIntegrationSerializer,
             request=True,
+            partial_request=True,
         ),
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(

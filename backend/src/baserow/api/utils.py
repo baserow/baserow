@@ -450,13 +450,20 @@ class CustomFieldRegistryMappingSerializer:
         base_class,
         many=False,
         request=False,
+        partial_request=False,
     ):
+        """
+        :param partial_request: Documents every type as a partial update, for a
+            view that validates the request with `partial=True`.
+        """
+
         self.read_only = False
         self.registry = registry
         self.base_class = base_class
         self.many = many
         self.partial = False
         self.request = request
+        self.partial_request = partial_request
 
 
 class DiscriminatorCustomFieldsMappingSerializer:

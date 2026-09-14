@@ -684,3 +684,29 @@ def test_secret_request_fields_document_the_write_only_contract():
         request_serializer=True, base_class=CreateIntegrationSerializer
     )
     assert serializer_class().fields["name"].required is True
+
+
+@pytest.mark.django_db
+def test_integration_request_schemas_match_the_validation(api_client):
+    schema = api_client.get(reverse("api:json_schema")).json()
+    components = schema["components"]["schemas"]
+
+    def request_components(path, method):
+        body = schema["paths"][path][method]["requestBody"]["content"]
+        ref = body["application/json"]["schema"]["$ref"].split("/")[-1]
+        return {
+            sub["$ref"].split("/")[-1]: components[sub["$ref"].split("/")[-1]]
+            for sub in components[ref].get("anyOf", components[ref].get("oneOf", []))
+        }
+
+    update = request_components("/api/integration/{integration_id}/", "patch")
+    assert update
+    # The update validates with `partial=True`, so nothing may be documented as
+    # required, the Slack token included.
+    assert all(not component.get("required") for component in update.values())
+
+    create = request_components(
+        "/api/application/{application_id}/integrations/", "post"
+    )
+    slack_create = next(c for name, c in create.items() if name.startswith("SlackBot"))
+    assert "token" in slack_create["required"]
