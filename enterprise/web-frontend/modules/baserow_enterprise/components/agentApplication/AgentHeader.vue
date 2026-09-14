@@ -10,13 +10,17 @@
           <a
             ref="approvalsButton"
             class="header__filter-link agent-page__header-approvals-link"
+            :class="{
+              'agent-page__header-approvals-link--pending':
+                pendingApprovalsCount > 0,
+            }"
             @click="toggleApprovalsContext"
           >
             <i
               class="header__filter-icon iconoir-check-circle agent-page__header-approvals-icon"
             ></i>
             <span class="header__filter-name">{{
-              $t('agentHeader.pendingApprovals', {
+              $t('agentHeader.approvalsWaiting', {
                 count: pendingApprovalsCount,
               })
             }}</span>
@@ -30,27 +34,40 @@
       />
     </div>
     <div class="header__right">
-      <span class="header__switch-container">
+      <span class="agent-page__header-status">
+        <Badge :color="activeValue ? 'green' : 'neutral'" indicator rounded>
+          {{
+            activeValue ? $t('agentHeader.active') : $t('agentHeader.paused')
+          }}
+        </Badge>
         <SwitchInput
           small
           :value="activeValue"
           :disabled="!canUpdateApplication"
           :title="$t('agentHeader.activeTitle')"
           @input="toggleActive"
-          >{{ $t('agentHeader.active') }}</SwitchInput
-        >
+        ></SwitchInput>
       </span>
       <div class="header__buttons header__buttons--with-separator">
+        <span class="agent-page__header-last-run">
+          {{
+            application.last_run_on
+              ? $t('agentHeader.lastRun', { time: lastRun })
+              : $t('agentHeader.neverRan')
+          }}
+        </span>
         <Button
-          v-if="canRunChat"
+          v-if="canRunOnce"
           type="secondary"
-          icon="iconoir-plus"
-          @click="$emit('new-conversation')"
+          icon="iconoir-play"
+          :loading="runningOnce"
+          @click="$emit('run-once')"
         >
-          {{ $t('agentHeader.newConversation') }}
+          {{ $t('agentHeader.runOnce') }}
         </Button>
         <ButtonIcon
           icon="iconoir-settings"
+          :active="configurationOpen"
           :title="$t('agentHeader.configure')"
           @click="$emit('toggle-configuration')"
         ></ButtonIcon>
@@ -63,6 +80,7 @@
 import { defineComponent, computed, ref } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#imports'
+import moment from '@baserow/modules/core/moment'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentPendingApprovalsContext from '@baserow_enterprise/components/agentApplication/AgentPendingApprovalsContext'
 
@@ -74,13 +92,26 @@ export default defineComponent({
       type: Object,
       required: true,
     },
+    configurationOpen: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    runningOnce: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
-  emits: ['new-conversation', 'toggle-configuration', 'open-conversation'],
+  emits: ['toggle-configuration', 'open-conversation', 'run-once'],
   setup(props) {
     const store = useStore()
     const { $hasPermission } = useNuxtApp()
 
     const agent = computed(() => store.getters['agentApplication/getAgent'])
+    const triggers = computed(
+      () => store.getters['agentApplication/getTriggers']
+    )
 
     // Driven by the application object in the core store, so the workspace
     // wide `agent_pending_approvals_updated` websocket event updates it live.
@@ -100,6 +131,13 @@ export default defineComponent({
         props.application,
         props.application.workspace.id
       )
+    )
+    const canRunOnce = computed(
+      () =>
+        canRunChat.value && triggers.value.some((trigger) => trigger.enabled)
+    )
+    const lastRun = computed(() =>
+      moment(props.application.last_run_on).calendar()
     )
 
     const canUpdateApplication = computed(() =>
@@ -143,7 +181,8 @@ export default defineComponent({
 
     return {
       agent,
-      canRunChat,
+      canRunOnce,
+      lastRun,
       canUpdateApplication,
       activeValue,
       toggleActive,

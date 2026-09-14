@@ -1,116 +1,51 @@
 <template>
   <div>
-    <div
-      v-for="builtIn in builtInTools"
-      :key="builtIn.type"
-      class="agent-configuration__tool margin-bottom-2"
-    >
-      <SwitchInput
-        small
-        :value="builtInToolValue(builtIn.type)"
-        :disabled="!canToggleTools"
-        @input="toggleBuiltInTool(builtIn.type, $event)"
-        >{{ builtIn.label }}</SwitchInput
-      >
-      <div class="agent-configuration__tool-helper">
-        {{ builtIn.helper }}
+    <div class="agent-configuration__subsection">
+      <div class="agent-configuration__subsection-title">
+        {{ $t('agentActionTools.actions') }}
       </div>
-      <div
-        v-if="builtIn.type === 'workspace' && !application.agent_identity_id"
-        class="agent-configuration__tool-warning"
+      <ButtonText
+        v-if="canCreateTool"
+        icon="iconoir-plus"
+        :loading="addLoading"
+        @click="
+          $refs.addToolContext.toggle(
+            $event.currentTarget,
+            'bottom',
+            'right',
+            4
+          )
+        "
       >
-        <i class="iconoir-warning-circle"></i>
-        {{ $t('agentTools.workspaceIdentityWarning') }}
-      </div>
-      <div
-        v-if="builtIn.type === 'workspace' && workspaceTool"
-        class="agent-configuration__tool-options"
-      >
-        <RadioGroup
-          :model-value="workspaceMode"
-          :options="workspaceModeOptions"
-          type="button"
-          @input="onWorkspaceModeChange"
-        ></RadioGroup>
-        <div class="agent-configuration__tool-summary">
-          {{ workspaceToolsSummary }}
-          <template v-if="canUpdateTool">
-            ·
-            <a
-              class="agent-configuration__tool-summary-link"
-              @click="$refs.workspaceToolsModal.show()"
-              >{{ $t('agentTools.chooseTools') }}</a
-            >
-          </template>
-        </div>
-        <div v-if="workspaceMode === 'read_write'">
-          <SwitchInput
-            small
-            :value="workspaceRequireWriteApproval"
-            :disabled="!canUpdateTool"
-            @input="onWorkspaceWriteApprovalChange"
-            >{{ $t('agentTools.requireWriteApproval') }}</SwitchInput
-          >
-          <div class="agent-configuration__tool-helper">
-            {{ $t('agentTools.requireWriteApprovalHelper') }}
-          </div>
-        </div>
-      </div>
+        {{ $t('agentActionTools.addAction') }}
+      </ButtonText>
     </div>
-    <div class="agent-configuration__subsection-title">
-      {{ $t('agentTools.actionTools') }}
+    <div class="agent-configuration__intro">
+      {{ $t('agentActionTools.intro') }}
     </div>
     <div
       v-if="actionTools.length === 0"
       class="agent-configuration__placeholder"
-      :class="{ 'margin-bottom-2': canCreateTool }"
     >
-      {{ $t('agentTools.noActionTools') }}
+      {{ $t('agentActionTools.empty') }}
     </div>
     <div v-else class="agent-configuration__card-list">
-      <div
+      <AgentConfigurationCard
         v-for="tool in actionTools"
         :key="tool.id"
-        class="agent-configuration__card"
+        :title="serviceTypeName(tool)"
+        :subtitle="cardSubtitle(tool)"
+        :icon="serviceTypeIcon(tool)"
       >
-        <div class="agent-configuration__card-header">
-          <a
-            class="agent-configuration__card-summary"
-            @click="toggleExpanded(tool)"
-          >
-            <i
-              class="agent-configuration__card-chevron iconoir-nav-arrow-right"
-              :class="{
-                'agent-configuration__card-chevron--expanded': isExpanded(
-                  tool.id
-                ),
-              }"
-            ></i>
-            <i
-              class="agent-configuration__card-icon"
-              :class="serviceTypeIcon(tool)"
-            ></i>
-            <div class="agent-configuration__card-name">
-              {{ toolTitle(tool) }}
-            </div>
-          </a>
-          <ButtonIcon
-            v-if="canDeleteTool"
-            icon="iconoir-bin"
-            :title="$t('agentTools.deleteTool')"
-            @click="deleteTool(tool)"
-          ></ButtonIcon>
-        </div>
-        <div
-          v-if="isExpanded(tool.id) && toolDrafts[tool.id]"
-          class="agent-configuration__card-body"
-        >
+        <template v-if="toolDrafts[tool.id]">
           <ReadOnlyForm :read-only="!canUpdateTool">
             <FormGroup
               small-label
-              :label="$t('agentTools.nameLabel')"
+              :label="$t('agentActionTools.nameLabel')"
               :helper-text="
-                tool.type === 'mcp' ? $t('agentTools.mcpNameHelper') : null
+                tool.type === 'mcp'
+                  ? $t('agentActionTools.mcpNameHelper')
+                  : null
               "
               class="margin-bottom-2"
             >
@@ -119,8 +54,8 @@
                 :disabled="!canUpdateTool"
                 :placeholder="
                   tool.type === 'mcp'
-                    ? $t('agentTools.mcpNamePlaceholder')
-                    : $t('agentTools.namePlaceholder')
+                    ? $t('agentActionTools.mcpNamePlaceholder')
+                    : $t('agentActionTools.namePlaceholder')
                 "
                 @input="onNameChanged(tool)"
               ></FormInput>
@@ -128,20 +63,20 @@
             <template v-if="tool.type === 'mcp'">
               <FormGroup
                 small-label
-                :label="$t('agentTools.mcpUrlLabel')"
+                :label="$t('agentActionTools.mcpUrlLabel')"
                 class="margin-bottom-2"
               >
                 <FormInput
                   v-model="toolDrafts[tool.id].url"
                   :disabled="!canUpdateTool"
-                  :placeholder="$t('agentTools.mcpUrlPlaceholder')"
+                  :placeholder="$t('agentActionTools.mcpUrlPlaceholder')"
                   @input="onConfigChanged(tool)"
                 ></FormInput>
               </FormGroup>
               <FormGroup
                 small-label
-                :label="$t('agentTools.mcpHeadersLabel')"
-                :helper-text="$t('agentTools.mcpHeadersHelper')"
+                :label="$t('agentActionTools.mcpHeadersLabel')"
+                :helper-text="$t('agentActionTools.mcpHeadersHelper')"
                 class="margin-bottom-2"
               >
                 <div
@@ -153,20 +88,24 @@
                     v-model="header.name"
                     class="agent-configuration__key-value-name"
                     :disabled="!canUpdateTool"
-                    :placeholder="$t('agentTools.mcpHeaderNamePlaceholder')"
+                    :placeholder="
+                      $t('agentActionTools.mcpHeaderNamePlaceholder')
+                    "
                     @input="onConfigChanged(tool)"
                   ></FormInput>
                   <FormInput
                     v-model="header.value"
                     class="agent-configuration__key-value-value"
                     :disabled="!canUpdateTool"
-                    :placeholder="$t('agentTools.mcpHeaderValuePlaceholder')"
+                    :placeholder="
+                      $t('agentActionTools.mcpHeaderValuePlaceholder')
+                    "
                     @input="onConfigChanged(tool)"
                   ></FormInput>
                   <ButtonIcon
                     v-if="canUpdateTool"
                     icon="iconoir-bin"
-                    :title="$t('agentTools.removeHeader')"
+                    :title="$t('agentActionTools.removeHeader')"
                     @click="removeHeader(tool, index)"
                   ></ButtonIcon>
                 </div>
@@ -175,29 +114,29 @@
                   icon="iconoir-plus"
                   @click="addHeader(tool)"
                 >
-                  {{ $t('agentTools.addHeader') }}
+                  {{ $t('agentActionTools.addHeader') }}
                 </ButtonText>
               </FormGroup>
             </template>
             <template v-else>
               <FormGroup
                 small-label
-                :label="$t('agentTools.descriptionLabel')"
-                :helper-text="$t('agentTools.descriptionHelper')"
+                :label="$t('agentActionTools.descriptionLabel')"
+                :helper-text="$t('agentActionTools.descriptionHelper')"
                 class="margin-bottom-2"
               >
                 <FormTextarea
                   v-model="toolDrafts[tool.id].description"
                   :rows="3"
                   :disabled="!canUpdateTool"
-                  :placeholder="$t('agentTools.descriptionPlaceholder')"
+                  :placeholder="$t('agentActionTools.descriptionPlaceholder')"
                   @input="onConfigChanged(tool)"
                 ></FormTextarea>
               </FormGroup>
               <FormGroup
                 small-label
-                :label="$t('agentTools.inputsLabel')"
-                :helper-text="$t('agentTools.inputsHelper')"
+                :label="$t('agentActionTools.inputsLabel')"
+                :helper-text="$t('agentActionTools.inputsHelper')"
                 class="margin-bottom-2"
               >
                 <div
@@ -209,7 +148,7 @@
                     v-model="input.name"
                     class="agent-configuration__tool-input-name"
                     :disabled="!canUpdateTool"
-                    :placeholder="$t('agentTools.inputNamePlaceholder')"
+                    :placeholder="$t('agentActionTools.inputNamePlaceholder')"
                     @input="onConfigChanged(tool)"
                   ></FormInput>
                   <Dropdown
@@ -222,7 +161,7 @@
                     <DropdownItem
                       v-for="inputType in inputTypes"
                       :key="inputType"
-                      :name="$t(`agentTools.inputType_${inputType}`)"
+                      :name="$t(`agentActionTools.inputType_${inputType}`)"
                       :value="inputType"
                     />
                   </Dropdown>
@@ -230,19 +169,21 @@
                     v-model="input.description"
                     class="agent-configuration__tool-input-description"
                     :disabled="!canUpdateTool"
-                    :placeholder="$t('agentTools.inputDescriptionPlaceholder')"
+                    :placeholder="
+                      $t('agentActionTools.inputDescriptionPlaceholder')
+                    "
                     @input="onConfigChanged(tool)"
                   ></FormInput>
                   <Checkbox
                     v-model="input.required"
                     :disabled="!canUpdateTool"
                     @input="onConfigChanged(tool)"
-                    >{{ $t('agentTools.inputRequired') }}</Checkbox
+                    >{{ $t('agentActionTools.inputRequired') }}</Checkbox
                   >
                   <ButtonIcon
                     v-if="canUpdateTool"
                     icon="iconoir-bin"
-                    :title="$t('agentTools.removeInput')"
+                    :title="$t('agentActionTools.removeInput')"
                     @click="removeInput(tool, index)"
                   ></ButtonIcon>
                 </div>
@@ -251,46 +192,67 @@
                   icon="iconoir-plus"
                   @click="addInput(tool)"
                 >
-                  {{ $t('agentTools.addInput') }}
+                  {{ $t('agentActionTools.addInput') }}
                 </ButtonText>
               </FormGroup>
             </template>
-            <div class="margin-bottom-2">
-              <SwitchInput
-                small
-                :value="toolDrafts[tool.id].requireApproval"
-                :disabled="!canUpdateTool"
-                @input="onRequireApprovalChanged(tool, $event)"
-                >{{ $t('agentTools.requireApproval') }}</SwitchInput
-              >
-              <div class="agent-configuration__tool-helper">
-                {{ $t('agentTools.requireApprovalHelper') }}
+            <FormGroup
+              small-label
+              :label="$t('agentActionTools.beforeRunning')"
+              class="margin-bottom-2"
+            >
+              <SegmentControl
+                :segments="beforeRunningSegments"
+                :active-index="toolDrafts[tool.id].requireApproval ? 0 : 1"
+                @update:active-index="
+                  onRequireApprovalChanged(tool, $event === 0)
+                "
+              ></SegmentControl>
+            </FormGroup>
+            <Expandable v-if="serviceType(tool)" class="margin-bottom-2">
+              <template #header="{ toggle, expanded }">
+                <a
+                  class="agent-configuration__expand-link"
+                  @click.prevent="toggle"
+                >
+                  <i
+                    class="agent-configuration__card-chevron iconoir-nav-arrow-right"
+                    :class="{
+                      'agent-configuration__card-chevron--expanded': expanded,
+                    }"
+                  ></i>
+                  {{ $t('agentActionTools.configure') }}
+                </a>
+              </template>
+              <div class="agent-configuration__expand-body">
+                <AgentServiceForm
+                  :key="`${tool.id}-${tool.service_type}`"
+                  :application="application"
+                  :service-type="serviceType(tool)"
+                  :service="tool.service || {}"
+                  :tool="tool"
+                  @values-changed="onServiceValuesChanged(tool, $event)"
+                />
               </div>
-            </div>
-            <AgentServiceForm
-              v-if="serviceType(tool)"
-              :key="`${tool.id}-${tool.service_type}`"
-              :application="application"
-              :service-type="serviceType(tool)"
-              :service="tool.service || {}"
-              :tool="tool"
-              @values-changed="onServiceValuesChanged(tool, $event)"
-            />
+            </Expandable>
           </ReadOnlyForm>
-        </div>
-      </div>
+        </template>
+        <template v-if="canDeleteTool" #footer>
+          <ButtonText
+            icon="iconoir-bin"
+            :loading="deletingIds.includes(tool.id)"
+            @click="deleteTool(tool)"
+          >
+            {{
+              tool.type === 'mcp'
+                ? $t('agentActionTools.deleteServer')
+                : $t('agentActionTools.delete')
+            }}
+          </ButtonText>
+        </template>
+      </AgentConfigurationCard>
     </div>
     <template v-if="canCreateTool">
-      <Button
-        type="secondary"
-        icon="iconoir-plus"
-        :loading="addLoading"
-        @click="
-          $refs.addToolContext.toggle($event.currentTarget, 'bottom', 'left', 4)
-        "
-      >
-        {{ $t('agentTools.addActionTool') }}
-      </Button>
       <Context
         ref="addToolContext"
         max-height-if-outside-viewport
@@ -299,25 +261,13 @@
         <AgentGroupedAddMenu
           ref="addToolMenu"
           :items="toolMenuItems"
-          :search-placeholder="$t('agentTools.searchPlaceholder')"
-          :empty-text="$t('agentTools.noResults')"
+          :search-placeholder="$t('agentActionTools.searchPlaceholder')"
+          :empty-text="$t('agentActionTools.noResults')"
           @select="onAddToolSelect($event)"
           @close="$refs.addToolContext.hide()"
         />
       </Context>
     </template>
-    <!--
-      Outside the built-in tools v-for on purpose: a string ref inside a
-      v-for collects into an array, which breaks `$refs...show()`.
-    -->
-    <AgentWorkspaceToolsModal
-      v-if="workspaceTool"
-      ref="workspaceToolsModal"
-      :application="application"
-      :tool="workspaceTool"
-      :can-update="canUpdateTool"
-      @saved="workspaceToolsTotal = $event"
-    />
   </div>
 </template>
 
@@ -327,11 +277,8 @@ import isEqual from 'lodash/isEqual'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentServiceForm from '@baserow_enterprise/components/agentApplication/AgentServiceForm'
 import AgentGroupedAddMenu from '@baserow_enterprise/components/agentApplication/AgentGroupedAddMenu'
-import AgentWorkspaceToolsModal from '@baserow_enterprise/components/agentApplication/AgentWorkspaceToolsModal'
-import AgentApplicationService from '@baserow_enterprise/services/agentApplication'
+import AgentConfigurationCard from '@baserow_enterprise/components/agentApplication/AgentConfigurationCard'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-
-const BUILT_IN_TOOL_TYPES = ['workspace', 'workspace_search', 'web_search']
 
 /**
  * Only the workflow action services whose configuration forms work outside the
@@ -350,11 +297,11 @@ const SUPPORTED_SERVICE_TYPES = [
 const INPUT_TYPES = ['string', 'number', 'boolean']
 
 export default {
-  name: 'AgentToolsSection',
+  name: 'AgentActionToolsSection',
   components: {
+    AgentConfigurationCard,
     AgentGroupedAddMenu,
     AgentServiceForm,
-    AgentWorkspaceToolsModal,
     ReadOnlyForm,
   },
   props: {
@@ -365,24 +312,14 @@ export default {
   },
   data() {
     return {
-      // Desired state per built-in tool type while its create/delete request
-      // is being synced; the switch shows this intent instead of the store
-      // state so toggling is optimistic and never blocks.
-      pendingBuiltIn: {},
       addLoading: false,
-      // Newly added tools start expanded; existing ones start collapsed so
-      // that multiple tools stay scannable.
-      expandedToolIds: [],
+      deletingIds: [],
       // Local editable copies of the name/config fields per tool id, so a
       // save response can never clobber what the user is still typing.
       toolDrafts: {},
       // Unsaved values per tool id, flushed by a per-tool debounced save.
       pendingToolValues: {},
       inputTypes: INPUT_TYPES,
-      // Total number of available workspace tools, fetched lazily because the
-      // summary only needs it when a custom selection is active.
-      workspaceToolsTotal: null,
-      workspaceToolsTotalLoading: false,
     }
   },
   computed: {
@@ -407,67 +344,17 @@ export default {
         this.application.workspace.id
       )
     },
-    canToggleTools() {
-      // Toggling a built-in tool either creates or deletes its row.
-      return this.canCreateTool && this.canDeleteTool
-    },
     tools() {
       return this.$store.getters['agentApplication/getTools']
     },
     actionTools() {
       return this.tools.filter((tool) => ['service', 'mcp'].includes(tool.type))
     },
-    workspaceTool() {
-      return this.tools.find((tool) => tool.type === 'workspace') || null
-    },
-    workspaceMode() {
-      return this.workspaceTool?.config?.mode === 'read_only'
-        ? 'read_only'
-        : 'read_write'
-    },
-    workspaceModeOptions() {
+    beforeRunningSegments() {
       return [
-        {
-          value: 'read_write',
-          label: this.$t('agentTools.workspaceModeReadWrite'),
-          disabled: !this.canUpdateTool,
-        },
-        {
-          value: 'read_only',
-          label: this.$t('agentTools.workspaceModeReadOnly'),
-          disabled: !this.canUpdateTool,
-        },
+        { label: this.$t('agentActionTools.askMe') },
+        { label: this.$t('agentActionTools.justRun') },
       ]
-    },
-    workspaceRequireWriteApproval() {
-      return this.workspaceTool?.config?.require_write_approval !== false
-    },
-    workspaceEnabledTools() {
-      return this.workspaceTool?.config?.enabled_tools ?? null
-    },
-    workspaceToolsSummary() {
-      const enabledTools = this.workspaceEnabledTools
-      if (Array.isArray(enabledTools)) {
-        if (this.workspaceToolsTotal !== null) {
-          return this.$t('agentTools.countOfTotalToolsEnabled', {
-            count: enabledTools.length,
-            total: this.workspaceToolsTotal,
-          })
-        }
-        return this.$t('agentTools.countToolsEnabled', {
-          count: enabledTools.length,
-        })
-      }
-      return this.workspaceMode === 'read_only'
-        ? this.$t('agentTools.allReadToolsEnabled')
-        : this.$t('agentTools.allToolsEnabled')
-    },
-    builtInTools() {
-      return BUILT_IN_TOOL_TYPES.map((type) => ({
-        type,
-        label: this.$t(`agentTools.${type}Label`),
-        helper: this.$t(`agentTools.${type}Helper`),
-      }))
     },
     availableServiceTypes() {
       return SUPPORTED_SERVICE_TYPES.map((type) => {
@@ -500,44 +387,42 @@ export default {
       const items = Array.from(groups.values())
       items.push({
         id: 'external-tools',
-        label: this.$t('agentTools.externalToolsGroup'),
+        label: this.$t('agentActionTools.externalToolsGroup'),
         icon: 'iconoir-globe',
         iconColor: 'muted-blue',
         children: [
           {
             id: 'tool-mcp',
-            label: this.$t('agentTools.mcpServer'),
+            label: this.$t('agentActionTools.mcpServer'),
             value: 'mcp',
             icon: 'iconoir-globe',
             iconColor: 'muted-blue',
-            description: this.$t('agentTools.mcpServerDescription'),
+            description: this.$t('agentActionTools.mcpServerDescription'),
           },
         ],
       })
       return items
     },
   },
-  watch: {
-    workspaceEnabledTools: {
-      immediate: true,
-      handler(enabledTools) {
-        if (Array.isArray(enabledTools)) {
-          this.fetchWorkspaceToolsTotal()
-        }
-      },
-    },
-  },
   created() {
     this.debouncedToolSaves = {}
+  },
+  mounted() {
+    this.actionTools.forEach((tool) => this.ensureDraft(tool))
+  },
+  watch: {
+    actionTools(tools) {
+      tools.forEach((tool) => this.ensureDraft(tool))
+    },
   },
   beforeUnmount() {
     Object.values(this.debouncedToolSaves).forEach((save) => save.flush())
   },
-  // The tools are fetched by the page, so the unconfigured-agent heuristic
-  // can be evaluated before the panel is opened.
   methods: {
-    hasBuiltInTool(type) {
-      return this.tools.some((tool) => tool.type === type)
+    cardSubtitle(tool) {
+      // The tool name only adds information when it differs from the type.
+      const name = this.toolDrafts[tool.id]?.name
+      return name && name !== this.serviceTypeName(tool) ? name : ''
     },
     serviceType(tool) {
       try {
@@ -554,16 +439,9 @@ export default {
     },
     serviceTypeName(tool) {
       if (tool.type === 'mcp') {
-        return this.$t('agentTools.mcpServer')
+        return this.$t('agentActionTools.mcpServer')
       }
       return this.serviceType(tool)?.name || tool.service_type
-    },
-    toolTitle(tool) {
-      const draftName = this.toolDrafts[tool.id]?.name
-      return (draftName ?? tool.name) || this.serviceTypeName(tool)
-    },
-    isExpanded(toolId) {
-      return this.expandedToolIds.includes(toolId)
     },
     ensureDraft(tool) {
       if (this.toolDrafts[tool.id]) {
@@ -587,102 +465,6 @@ export default {
         }
       }
     },
-    toggleExpanded(tool) {
-      if (this.isExpanded(tool.id)) {
-        this.expandedToolIds = this.expandedToolIds.filter(
-          (id) => id !== tool.id
-        )
-      } else {
-        this.ensureDraft(tool)
-        this.expandedToolIds.push(tool.id)
-      }
-    },
-    builtInToolValue(type) {
-      return type in this.pendingBuiltIn
-        ? this.pendingBuiltIn[type]
-        : this.hasBuiltInTool(type)
-    },
-    async toggleBuiltInTool(type, enabled) {
-      const syncing = type in this.pendingBuiltIn
-      this.pendingBuiltIn[type] = enabled
-      if (syncing) {
-        // The running sync loop below picks up the latest intent.
-        return
-      }
-      try {
-        // Sync until the store matches the latest intent, so rapid toggling
-        // serializes into follow-up requests instead of racing a create
-        // against a delete.
-        while (this.pendingBuiltIn[type] !== this.hasBuiltInTool(type)) {
-          if (this.pendingBuiltIn[type]) {
-            await this.$store.dispatch('agentApplication/createTool', {
-              applicationId: this.application.id,
-              values: { type },
-            })
-          } else {
-            const tool = this.tools.find((t) => t.type === type)
-            if (!tool) {
-              break
-            }
-            await this.$store.dispatch('agentApplication/deleteTool', {
-              toolId: tool.id,
-            })
-          }
-        }
-      } catch (error) {
-        // Dropping the pending intent reverts the switch to the store state.
-        notifyIf(error, 'application')
-      } finally {
-        delete this.pendingBuiltIn[type]
-      }
-    },
-    async saveWorkspaceConfig(values) {
-      const tool = this.workspaceTool
-      if (!tool || !this.canUpdateTool) {
-        return
-      }
-      try {
-        await this.$store.dispatch('agentApplication/updateTool', {
-          toolId: tool.id,
-          values: { config: { ...(tool.config || {}), ...values } },
-        })
-      } catch (error) {
-        notifyIf(error, 'application')
-      }
-    },
-    async fetchWorkspaceToolsTotal() {
-      if (
-        this.workspaceToolsTotal !== null ||
-        this.workspaceToolsTotalLoading
-      ) {
-        return
-      }
-      this.workspaceToolsTotalLoading = true
-      try {
-        const { data } = await AgentApplicationService(
-          this.$client
-        ).getWorkspaceTools(this.application.id)
-        this.workspaceToolsTotal = data.length
-      } catch {
-        // The summary falls back to a count without a total.
-      } finally {
-        this.workspaceToolsTotalLoading = false
-      }
-    },
-    onWorkspaceModeChange(mode) {
-      const values = { mode }
-      if (Array.isArray(this.workspaceEnabledTools)) {
-        // The mode presets always mean "all (read) tools", so they reset any
-        // custom selection made in the choose tools modal.
-        values.enabled_tools = null
-      } else if (mode === this.workspaceMode) {
-        return
-      }
-      this.saveWorkspaceConfig(values)
-    },
-    onWorkspaceWriteApprovalChange(enabled) {
-      this.saveWorkspaceConfig({ require_write_approval: enabled })
-    },
     onAddToolSelect(item) {
       if (item.value === 'mcp') {
         this.addMcpTool()
@@ -703,7 +485,6 @@ export default {
           },
         })
         this.ensureDraft(tool)
-        this.expandedToolIds.push(tool.id)
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
@@ -725,7 +506,6 @@ export default {
           },
         })
         this.ensureDraft(tool)
-        this.expandedToolIds.push(tool.id)
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
@@ -733,15 +513,21 @@ export default {
       }
     },
     async deleteTool(tool) {
+      if (this.deletingIds.includes(tool.id)) {
+        return
+      }
       delete this.pendingToolValues[tool.id]
       delete this.debouncedToolSaves[tool.id]
-      delete this.toolDrafts[tool.id]
+      this.deletingIds = [...this.deletingIds, tool.id]
       try {
         await this.$store.dispatch('agentApplication/deleteTool', {
           toolId: tool.id,
         })
+        delete this.toolDrafts[tool.id]
       } catch (error) {
         notifyIf(error, 'application')
+      } finally {
+        this.deletingIds = this.deletingIds.filter((id) => id !== tool.id)
       }
     },
     addInput(tool) {

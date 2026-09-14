@@ -18,6 +18,49 @@ class AgentToolHandler:
     def list_tools(self, agent: AgentDefinition):
         return agent.tools.select_related("service").all()
 
+    def find_tool_for_tool_name(
+        self,
+        agent: AgentDefinition,
+        tool_name: str,
+        tools: Optional[list[AgentTool]] = None,
+    ) -> Optional[AgentTool]:
+        """
+        :param tools: The agent's tools when the caller already fetched them,
+            so deciding many approvals doesn't query them per decision.
+        """
+
+        for tool in tools if tools is not None else self.list_tools(agent):
+            try:
+                tool_type = agent_tool_type_registry.get(tool.type)
+            except agent_tool_type_registry.does_not_exist_exception_class:
+                continue
+            if tool_type.owns_tool_name(tool, tool_name):
+                return tool
+        return None
+
+    def dont_ask_again(
+        self,
+        agent: AgentDefinition,
+        tool_name: str,
+        tools: Optional[list[AgentTool]] = None,
+    ) -> Optional[AgentTool]:
+        """
+        Lets the named tool run without approval from now on. Returns the
+        updated `AgentTool` or None when no tool contributes that name.
+        """
+
+        tool = self.find_tool_for_tool_name(agent, tool_name, tools=tools)
+        if tool is None:
+            return None
+        config = agent_tool_type_registry.get(tool.type).apply_dont_ask_again(
+            tool, tool_name
+        )
+        if config is None:
+            return None
+        tool.config = config
+        tool.save(update_fields=["config", "updated_on"])
+        return tool
+
     def get_tool(self, tool_id: int) -> AgentTool:
         try:
             return AgentTool.objects.select_related(

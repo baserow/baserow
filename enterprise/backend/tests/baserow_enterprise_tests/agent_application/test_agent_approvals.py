@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.urls import reverse
+
 import pytest
 from pydantic_ai.messages import (
     ModelResponse,
@@ -362,3 +364,170 @@ def test_pending_approvals_broadcast_to_workspace(approval_setup):
     payload = decide_broadcast_mock.delay.call_args[0][4]
     assert payload["type"] == "agent_pending_approvals_updated"
     assert payload["count"] == 0
+
+
+class ApprovalTestToolTypeWithDontAskAgain(ApprovalTestToolType):
+    def owns_tool_name(self, tool, tool_name):
+        return tool_name == "approval_test_write"
+
+    def apply_dont_ask_again(self, tool, tool_name):
+        return {**tool.config, "require_approval": False}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_approve_with_dont_ask_again_disables_future_approvals(approval_setup):
+    user, workspace, application, agent = approval_setup
+    agent_tool_type_registry.unregister("approval_test")
+    agent_tool_type_registry.register(ApprovalTestToolTypeWithDontAskAgain())
+    try:
+        chat = _start_run(agent, user)
+        approval = chat.tool_approvals.get()
+
+        with patch(
+            "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
+        ) as broadcast:
+            AgentChatHandler().decide_tool_approvals(
+                chat,
+                user,
+                [{"id": approval.id, "approved": True, "dont_ask_again": True}],
+            )
+
+        tool = agent.tools.get(type="approval_test")
+        assert tool.config["require_approval"] is False
+        assert any(
+            call.args[1].get("type") == "agent_configuration_updated"
+            for call in broadcast.delay.call_args_list
+        )
+
+        # The next run executes the tool without pausing.
+        second_chat = _start_run(agent, user)
+        assert second_chat.status == AgentChat.Status.IDLE
+        assert second_chat.tool_approvals.count() == 0
+        assert EXECUTED == [1, 1]
+    finally:
+        agent_tool_type_registry.unregister("approval_test")
+        agent_tool_type_registry.register(ApprovalTestToolType())
+
+
+@pytest.mark.django_db
+def test_dont_ask_again_workspace_tool_flips_rule_and_access(approval_setup):
+    from baserow_enterprise.agent_application.tools.handler import AgentToolHandler
+
+    user, workspace, application, agent = approval_setup
+    tool = AgentTool.objects.create(agent=agent, type="workspace", config={})
+
+    updated = AgentToolHandler().dont_ask_again(agent, "update_rows_in_table_7")
+
+    assert updated.id == tool.id
+    tool.refresh_from_db()
+    assert tool.config["access"] == "custom"
+    assert tool.config["tool_rules"]["update_rows"] == "allow"
+    assert tool.config["tool_rules"]["create_rows"] == "ask"
+    assert tool.config["tool_rules"]["list_rows"] == "allow"
+
+    assert AgentToolHandler().dont_ask_again(agent, "no_such_tool") is None
+
+
+@pytest.mark.django_db
+def test_dont_ask_again_mcp_matches_prefixed_tool_names(approval_setup):
+    from baserow_enterprise.agent_application.tools.handler import AgentToolHandler
+
+    user, workspace, application, agent = approval_setup
+    tool = AgentTool.objects.create(
+        agent=agent, type="mcp", name="Docs server", config={"url": "http://x"}
+    )
+
+    assert AgentToolHandler().dont_ask_again(agent, "other_search") is None
+    assert AgentToolHandler().dont_ask_again(agent, "docs_server_search").id == tool.id
+    tool.refresh_from_db()
+    # Only the approved remote tool is trusted; the server keeps asking for
+    # the others.
+    assert tool.config["trusted_tools"] == ["docs_server_search"]
+    assert tool.config.get("require_approval", True) is True
+
+
+@pytest.mark.django_db
+def test_dont_ask_again_ignores_synthetic_row_names(approval_setup):
+    from baserow_enterprise.agent_application.tools.handler import AgentToolHandler
+
+    user, workspace, application, agent = approval_setup
+    AgentTool.objects.create(agent=agent, type="workspace", config={})
+    # A bare `create_rows` is never a workspace runtime tool name (those carry
+    # the table id), so it must not rewrite the workspace tool rules.
+    assert AgentToolHandler().dont_ask_again(agent, "create_rows") is None
+    assert (
+        AgentToolHandler().dont_ask_again(agent, "create_rows_in_table_7") is not None
+    )
+
+
+@pytest.mark.django_db
+def test_decide_approvals_dont_ask_again_requires_tool_update_permission(
+    approval_setup, api_client, data_fixture
+):
+    from unittest.mock import patch
+
+    from baserow_enterprise.agent_application.operations import (
+        UpdateAgentToolOperationType,
+    )
+
+    user, workspace, application, agent = approval_setup
+    chat = AgentChat.objects.create(
+        agent=agent, user=user, status=AgentChat.Status.AWAITING_APPROVAL
+    )
+    approval = AgentChatToolApproval.objects.create(
+        chat=chat, tool_call_id="c1", tool_name="send_email", tool_args={}
+    )
+    token = data_fixture.generate_token(user)
+
+    with patch(
+        "baserow_enterprise.api.agent_application.views.CoreHandler.check_permissions"
+    ) as check_permissions:
+        api_client.post(
+            reverse("api:agent:chat_approvals", kwargs={"chat_uuid": chat.uuid}),
+            {
+                "decisions": [
+                    {"id": approval.id, "approved": True, "dont_ask_again": True}
+                ]
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    # Rewriting the tool configuration is a builder-level change on top of
+    # deciding the approval.
+    checked = [call.args[1] for call in check_permissions.call_args_list]
+    assert UpdateAgentToolOperationType.type in checked
+
+
+@pytest.mark.django_db(transaction=True)
+def test_decide_approvals_api_accepts_dont_ask_again(
+    approval_setup, api_client, data_fixture
+):
+    from django.shortcuts import reverse
+
+    from rest_framework.status import HTTP_200_OK
+
+    user, workspace, application, agent = approval_setup
+    chat = _start_run(agent, user)
+    approval = chat.tool_approvals.get()
+    token = data_fixture.generate_token(user)
+
+    with patch(
+        "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
+    ):
+        response = api_client.post(
+            reverse(
+                "api:agent:chat_approvals",
+                kwargs={"chat_uuid": chat.uuid},
+            ),
+            {
+                "decisions": [
+                    {"id": approval.id, "approved": True, "dont_ask_again": True}
+                ]
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()[0]["status"] == "approved"

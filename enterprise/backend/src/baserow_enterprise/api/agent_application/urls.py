@@ -12,6 +12,9 @@ from .views import (
     AgentChatsView,
     AgentChatView,
     AgentDefinitionView,
+    AgentInstructionsDraftView,
+    AgentInstructionsImproveView,
+    AgentRunOnceView,
     AgentToolsView,
     AgentToolView,
     AgentTriggersView,
@@ -24,6 +27,21 @@ from .views import (
 app_name = "baserow_enterprise.api.agent_application"
 
 urlpatterns = [
+    path(
+        "workspace/<int:workspace_id>/instructions/draft/",
+        AgentInstructionsDraftView.as_view(),
+        name="instructions_draft",
+    ),
+    path(
+        "agents/<int:agent_id>/instructions/improve/",
+        AgentInstructionsImproveView.as_view(),
+        name="instructions_improve",
+    ),
+    path(
+        "<int:application_id>/run_once/",
+        AgentRunOnceView.as_view(),
+        name="run_once",
+    ),
     path(
         "<int:application_id>/agent/",
         AgentDefinitionView.as_view(),

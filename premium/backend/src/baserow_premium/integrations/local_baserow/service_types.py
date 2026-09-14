@@ -21,7 +21,8 @@ from baserow.contrib.integrations.local_baserow.mixins import (
     LocalBaserowTableServiceFilterableMixin,
 )
 from baserow.contrib.integrations.local_baserow.models import Service
-from baserow.contrib.integrations.local_baserow.service_types import (
+from baserow.contrib.integrations.local_baserow.service_types import (  # noqa: E501
+    LocalBaserowRowsSignalServiceType,
     LocalBaserowViewServiceType,
 )
 from baserow.core.services.dispatch_context import DispatchContext
@@ -40,13 +41,9 @@ from baserow_premium.api.integrations.local_baserow.serializers import (
     LocalBaserowTableServiceAggregationSeriesSerializer,
     LocalBaserowTableServiceAggregationSortBySerializer,
 )
-from baserow.contrib.integrations.local_baserow.service_types import (  # noqa: E501
-    LocalBaserowRowsSignalServiceType,
-)
-from baserow_premium.row_comments.signals import row_comment_created
 from baserow_premium.integrations.local_baserow.models import (
-    LocalBaserowRowCommentCreated,
     LocalBaserowGroupedAggregateRows,
+    LocalBaserowRowCommentCreated,
     LocalBaserowTableServiceAggregationGroupBy,
     LocalBaserowTableServiceAggregationSeries,
     LocalBaserowTableServiceAggregationSortBy,
@@ -56,6 +53,7 @@ from baserow_premium.integrations.registries import (
     grouped_aggregation_registry,
 )
 from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.row_comments.signals import row_comment_created
 from baserow_premium.services.types import (
     ServiceAggregationGroupByDict,
     ServiceAggregationSeriesDict,

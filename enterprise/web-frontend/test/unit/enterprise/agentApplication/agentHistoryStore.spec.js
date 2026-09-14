@@ -1,4 +1,5 @@
 import { expect } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import MockAdapter from 'axios-mock-adapter'
 
 function chat(id, values = {}) {
@@ -124,5 +125,69 @@ describe('agentHistory store', () => {
     expect(store.getters['agentHistory/getChats'].some((c) => c.id === 9)).toBe(
       false
     )
+  })
+})
+
+describe('agentHistory store pinning and deleting', () => {
+  let store = null
+  let mock = null
+
+  beforeEach(() => {
+    const { $store, $client } = useNuxtApp()
+    store = $store
+    mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+  })
+
+  afterEach(() => {
+    mock.restore()
+  })
+
+  test('updateChat pins optimistically and orders pinned chats first', async () => {
+    store.commit('agentHistory/SET_CHATS', [
+      chat(1, { updated_on: '2026-08-27T10:00:00Z' }),
+      chat(2, { updated_on: '2026-08-25T10:00:00Z' }),
+    ])
+    let resolve = null
+    mock.onPatch('agent_application/chats/uuid-2/').replyOnce(
+      () =>
+        new Promise((r) => {
+          resolve = r
+        })
+    )
+    const promise = store.dispatch('agentHistory/updateChat', {
+      chatUuid: 'uuid-2',
+      values: { pinned: true },
+    })
+    expect(store.getters['agentHistory/getChats'].map((c) => c.id)).toEqual([
+      2, 1,
+    ])
+    expect(
+      store.getters['agentHistory/getPinnedChats'].map((c) => c.id)
+    ).toEqual([2])
+    await flushPromises()
+    resolve([200, chat(2, { pinned: true, title: 'Server' })])
+    await promise
+    expect(store.getters['agentHistory/getChats'][0].title).toBe('Server')
+  })
+
+  test('updateChat reverts when the request fails', async () => {
+    store.commit('agentHistory/SET_CHATS', [chat(1, { title: 'Old' })])
+    mock.onPatch('agent_application/chats/uuid-1/').replyOnce(400, {})
+    await expect(
+      store.dispatch('agentHistory/updateChat', {
+        chatUuid: 'uuid-1',
+        values: { title: 'New' },
+      })
+    ).rejects.toBeTruthy()
+    expect(store.getters['agentHistory/getChats'][0].title).toBe('Old')
+  })
+
+  test('deleteChat removes the chat and resets the open conversation', async () => {
+    store.commit('agentHistory/SET_CHATS', [chat(1), chat(2)])
+    store.commit('agentChat/SET_CHAT_ID', 1)
+    mock.onDelete('agent_application/chats/uuid-1/').replyOnce(204)
+    await store.dispatch('agentHistory/deleteChat', { chat: chat(1) })
+    expect(store.getters['agentHistory/getChats'].map((c) => c.id)).toEqual([2])
+    expect(store.getters['agentChat/getChatId']).toBe(null)
   })
 })

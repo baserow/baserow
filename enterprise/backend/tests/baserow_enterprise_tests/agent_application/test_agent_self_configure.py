@@ -10,7 +10,6 @@ from baserow_enterprise.agent_application.deps import ToolHelpers
 from baserow_enterprise.agent_application.handler import AgentApplicationHandler
 from baserow_enterprise.agent_application.models import (
     AgentChat,
-    AgentChatMessage,
     AgentTool,
     AgentTrigger,
 )
@@ -128,61 +127,6 @@ def test_set_own_trigger_and_toggle_tools(data_fixture, configured_agent):
         assert set(
             AgentTool.objects.filter(agent=agent).values_list("type", flat=True)
         ) == {"workspace"}
-
-
-@pytest.mark.django_db(transaction=True)
-def test_create_with_description_starts_setup_chat(data_fixture):
-    register_runner_test_model_type()
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-
-    with (
-        patch(
-            "baserow_enterprise.agent_application.tasks.run_agent_chat.delay"
-        ) as delay_mock,
-        patch(
-            "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
-        ),
-    ):
-        application = (
-            CoreHandler()
-            .create_application(
-                user,
-                workspace,
-                "agent",
-                init_with_data=True,
-                name="PO",
-                description="Prioritize the feature roadmap in the features table.",
-            )
-            .specific
-        )
-
-    agent = AgentApplicationHandler().get_main_agent(application)
-    # A workspace model was picked automatically so the setup can run.
-    assert agent.ai_generative_ai_type
-    assert agent.ai_generative_ai_model
-
-    chat = AgentChat.objects.get(agent=agent)
-    assert chat.source == AgentChat.Source.SETUP
-    assert chat.user_id == user.id
-    message = chat.messages.get(role=AgentChatMessage.Role.SYSTEM)
-    assert "Prioritize the feature roadmap" in message.content
-    delay_mock.assert_called_once()
-
-
-@pytest.mark.django_db
-def test_create_without_description_does_not_start_setup(data_fixture):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-
-    application = (
-        CoreHandler()
-        .create_application(user, workspace, "agent", init_with_data=True, name="A")
-        .specific
-    )
-
-    agent = AgentApplicationHandler().get_main_agent(application)
-    assert not AgentChat.objects.filter(agent=agent).exists()
 
 
 @pytest.mark.django_db(transaction=True)

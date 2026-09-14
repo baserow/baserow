@@ -37,6 +37,24 @@ export default (client) => {
         decisions,
       })
     },
+    updateChat(chatUuid, values) {
+      return client.patch(`agent_application/chats/${chatUuid}/`, values)
+    },
+    runOnce(applicationId) {
+      return client.post(`agent_application/${applicationId}/run_once/`)
+    },
+    draftInstructions(workspaceId, values) {
+      return client.post(
+        `agent_application/workspace/${workspaceId}/instructions/draft/`,
+        values
+      )
+    },
+    improveInstructions(agentId, values) {
+      return client.post(
+        `agent_application/agents/${agentId}/instructions/improve/`,
+        values
+      )
+    },
     getPendingApprovals(applicationId) {
       return client.get(`agent_application/${applicationId}/approvals/`)
     },

@@ -30,11 +30,6 @@ READ_ASSISTANT_TOOLS = {
 
 READ_TOOL_PREFIXES = ("list_", "get_", "search_")
 
-# Write-classified tools that don't change anything by themselves and
-# therefore skip the approval queue: `load_row_tools` only unlocks the
-# per-table row tools, and those row writes are approval-gated themselves.
-APPROVAL_EXEMPT_TOOLS = {"load_row_tools"}
-
 
 def is_write_tool(tool_name: str) -> bool:
     """

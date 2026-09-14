@@ -5,34 +5,61 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('automation', '0035_coregotoactionnode'),
-        ('baserow_premium', '0031_ai_field_scheduled_update'),
-        ('core', '0120_agent'),
-        ('database', '0220_rowhistory_actor'),
+        ("automation", "0035_coregotoactionnode"),
+        ("baserow_premium", "0031_ai_field_scheduled_update"),
+        ("core", "0120_agent"),
+        ("database", "0220_rowhistory_actor"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LocalBaserowRowCommentCreatedTriggerNode',
+            name="LocalBaserowRowCommentCreatedTriggerNode",
             fields=[
-                ('automationnode_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='automation.automationnode')),
+                (
+                    "automationnode_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="automation.automationnode",
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
-            bases=('automation.automationnode',),
+            bases=("automation.automationnode",),
         ),
         migrations.CreateModel(
-            name='LocalBaserowRowCommentCreated',
+            name="LocalBaserowRowCommentCreated",
             fields=[
-                ('service_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='core.service')),
-                ('table', models.ForeignKey(default=None, null=True, on_delete=django.db.models.deletion.SET_NULL, to='database.table')),
+                (
+                    "service_ptr",
+                    models.OneToOneField(
+                        auto_created=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        parent_link=True,
+                        primary_key=True,
+                        serialize=False,
+                        to="core.service",
+                    ),
+                ),
+                (
+                    "table",
+                    models.ForeignKey(
+                        default=None,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="database.table",
+                    ),
+                ),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
-            bases=('core.service',),
+            bases=("core.service",),
         ),
     ]

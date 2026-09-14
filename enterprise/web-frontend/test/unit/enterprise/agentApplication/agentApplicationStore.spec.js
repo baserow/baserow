@@ -1,4 +1,5 @@
 import { expect } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import MockAdapter from 'axios-mock-adapter'
 
 describe('agentApplication store', () => {
@@ -75,6 +76,44 @@ describe('agentApplication store', () => {
         service_type: 'periodic',
         service: { interval: 'HOUR', minute: 0 },
       })
+    })
+
+    test('updateTrigger applies the change optimistically and reverts on failure', async () => {
+      mock
+        .onGet('agent_application/42/triggers/')
+        .replyOnce(200, [{ id: 1, enabled: true, service_type: 'periodic' }])
+      await store.dispatch('agentApplication/fetchTriggers', {
+        applicationId: 42,
+      })
+
+      let resolveRequest = null
+      mock.onPatch('agent_application/triggers/1/').replyOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve
+          })
+      )
+      const update = store.dispatch('agentApplication/updateTrigger', {
+        triggerId: 1,
+        values: { enabled: false },
+      })
+      await flushPromises()
+      expect(store.getters['agentApplication/getTriggers'][0].enabled).toBe(
+        false
+      )
+      resolveRequest([200, { id: 1, enabled: false, service_type: 'periodic' }])
+      await update
+
+      mock.onPatch('agent_application/triggers/1/').replyOnce(500, {})
+      await expect(
+        store.dispatch('agentApplication/updateTrigger', {
+          triggerId: 1,
+          values: { enabled: true },
+        })
+      ).rejects.toBeDefined()
+      expect(store.getters['agentApplication/getTriggers'][0].enabled).toBe(
+        false
+      )
     })
 
     test('createTrigger appends the created trigger', async () => {
@@ -379,5 +418,72 @@ describe('agentApplication store', () => {
 
       expect(store.getters['agentApplication/getChannels'].length).toBe(0)
     })
+  })
+})
+
+describe('agentApplication store catalog and helpers', () => {
+  let store = null
+  let mock = null
+
+  beforeEach(() => {
+    const { $store, $client } = useNuxtApp()
+    store = $store
+    mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+  })
+
+  afterEach(() => {
+    mock.restore()
+  })
+
+  test('getToolLabel prefers the catalog, then named tools, then humanizes', async () => {
+    mock
+      .onGet('agent_application/42/workspace_tools/')
+      .replyOnce(200, [
+        { name: 'create_rows', group: 'database', label: 'Create rows' },
+      ])
+    await store.dispatch('agentApplication/fetchWorkspaceToolCatalog', {
+      applicationId: 42,
+    })
+    store.commit('agentApplication/SET_TOOLS', [
+      { id: 1, type: 'service', name: 'Send intro email' },
+    ])
+    const label = store.getters['agentApplication/getToolLabel']
+    expect(label('create_rows_in_table_12')).toBe('Create rows')
+    expect(label('send_intro_email')).toBe('Send intro email')
+    expect(label('some_other_tool')).toBe('Some other tool')
+
+    // The catalog is only fetched once.
+    await store.dispatch('agentApplication/fetchWorkspaceToolCatalog', {
+      applicationId: 42,
+    })
+    expect(mock.history.get).toHaveLength(1)
+  })
+
+  test('improveInstructions returns the improved text', async () => {
+    mock
+      .onPost('agent_application/agents/6/instructions/improve/')
+      .replyOnce(200, { instructions: 'Better' })
+    expect(
+      await store.dispatch('agentApplication/improveInstructions', {
+        agentId: 6,
+        instructions: 'Old',
+      })
+    ).toBe('Better')
+    expect(JSON.parse(mock.history.post[0].data)).toEqual({
+      instructions: 'Old',
+    })
+  })
+
+  test('runOnce starts the trigger chat and adds it to the history', async () => {
+    mock
+      .onPost('agent_application/42/run_once/')
+      .replyOnce(202, { id: 9, uuid: 'uuid-9', status: 'in_progress' })
+    const chat = await store.dispatch('agentApplication/runOnce', {
+      applicationId: 42,
+    })
+    expect(chat.id).toBe(9)
+    expect(store.getters['agentHistory/getChats'].some((c) => c.id === 9)).toBe(
+      true
+    )
   })
 })

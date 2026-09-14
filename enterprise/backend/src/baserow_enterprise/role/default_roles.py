@@ -305,6 +305,7 @@ from baserow_enterprise.agent_application.operations import (
     ReadAgentUsageOperationType,
     RunAgentChatOperationType,
     UpdateAgentChatChannelOperationType,
+    UpdateAgentChatOperationType,
     UpdateAgentDefinitionOperationType,
     UpdateAgentToolOperationType,
     UpdateAgentTriggerOperationType,
@@ -502,6 +503,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         RunAgentChatOperationType,
         CancelAgentChatOperationType,
         DecideAgentToolApprovalOperationType,
+        UpdateAgentChatOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(

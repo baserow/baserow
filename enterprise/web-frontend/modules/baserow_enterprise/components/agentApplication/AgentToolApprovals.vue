@@ -1,9 +1,52 @@
 <template>
-  <div class="agent-tool-approvals">
+  <div
+    class="agent-tool-approvals"
+    :class="{ 'agent-tool-approvals--pending': hasPending }"
+  >
     <div class="agent-tool-approvals__header">
-      <i class="iconoir-shield-question agent-tool-approvals__header-icon"></i>
+      <i class="iconoir-shield-check agent-tool-approvals__header-icon"></i>
       <span class="agent-tool-approvals__header-title">
-        {{ $t('agentToolApprovals.title') }}
+        {{
+          hasPending
+            ? $t('agentToolApprovals.asksForApproval', { name: agentName })
+            : $t('agentToolApprovals.reviewedByYou')
+        }}
+      </span>
+      <div
+        v-if="hasPending && canDecide"
+        class="agent-tool-approvals__header-actions"
+      >
+        <Checkbox
+          v-if="canChangeTools"
+          v-model="dontAskAgain"
+          :disabled="disabled"
+        >
+          {{ $t('agentToolApprovals.dontAskAgain') }}
+        </Checkbox>
+        <Button
+          size="small"
+          type="secondary"
+          :disabled="disabled"
+          :loading="isDeciding('reject-all')"
+          @click="rejectAll"
+        >
+          {{ $t('agentToolApprovals.rejectAll') }}
+        </Button>
+        <Button
+          size="small"
+          type="primary"
+          :disabled="disabled"
+          :loading="isDeciding('approve-all')"
+          @click="approveAll"
+        >
+          {{ $t('agentToolApprovals.approveAll') }}
+        </Button>
+      </div>
+      <span
+        v-else-if="!hasPending"
+        class="agent-tool-approvals__header-summary"
+      >
+        {{ decidedSummary }}
       </span>
     </div>
     <div
@@ -11,29 +54,63 @@
       :key="approval.id"
       class="agent-tool-approvals__item"
     >
-      <div class="agent-tool-approvals__item-header">
-        <span class="agent-tool-approvals__tool-name">
-          {{ humanToolName(approval.tool_name) }}
-        </span>
+      <div class="agent-tool-approvals__item-body">
+        <div class="agent-tool-approvals__tool-name">
+          {{ toolLabel(approval.tool_name) }}
+        </div>
+        <div v-if="summary(approval)" class="agent-tool-approvals__summary">
+          {{ summary(approval) }}
+        </div>
+        <div class="agent-tool-approvals__details">
+          <a
+            class="agent-tool-approvals__details-toggle"
+            @click.prevent="toggleDetails(approval)"
+          >
+            <i
+              class="iconoir-nav-arrow-right agent-tool-approvals__details-chevron"
+              :class="{
+                'agent-tool-approvals__details-chevron--expanded':
+                  expandedArgs[approval.id],
+              }"
+            ></i>
+            {{
+              expandedArgs[approval.id]
+                ? $t('agentToolApprovals.hideDetails')
+                : $t('agentToolApprovals.showDetails')
+            }}
+          </a>
+          <code class="agent-tool-approvals__details-id">{{
+            approval.tool_name
+          }}</code>
+        </div>
+        <pre
+          v-if="expandedArgs[approval.id]"
+          class="agent-tool-approvals__args"
+          >{{ formatArgs(approval) }}</pre
+        >
+      </div>
+      <div class="agent-tool-approvals__item-side">
         <template v-if="approval.status === 'pending'">
-          <template v-if="canDecide">
+          <div v-if="canDecide" class="agent-tool-approvals__item-actions">
             <Button
               size="small"
               type="secondary"
               :disabled="disabled"
-              @click="approve(approval)"
-            >
-              {{ $t('agentToolApprovals.approve') }}
-            </Button>
-            <Button
-              size="small"
-              type="danger"
-              :disabled="disabled"
+              :loading="isDeciding(`reject-${approval.id}`)"
               @click="startReject(approval)"
             >
               {{ $t('agentToolApprovals.reject') }}
             </Button>
-          </template>
+            <Button
+              size="small"
+              type="primary"
+              :disabled="disabled"
+              :loading="isDeciding(`approve-${approval.id}`)"
+              @click="approve(approval)"
+            >
+              {{ $t('agentToolApprovals.approve') }}
+            </Button>
+          </div>
           <span v-else class="agent-tool-approvals__pending-label">
             {{ $t('agentToolApprovals.pending') }}
           </span>
@@ -62,83 +139,20 @@
           </span>
         </span>
       </div>
-      <div v-if="hasArgs(approval)" class="agent-tool-approvals__args-wrapper">
-        <pre
-          class="agent-tool-approvals__args"
-          :class="{
-            'agent-tool-approvals__args--collapsed': isCollapsed(approval),
-          }"
-          >{{ formatArgs(approval) }}</pre
-        >
-        <a
-          v-if="isLargeArgs(approval)"
-          class="agent-tool-approvals__args-toggle"
-          @click.prevent="toggleArgs(approval)"
-        >
-          {{
-            expandedArgs[approval.id]
-              ? $t('agentToolApprovals.showLess')
-              : $t('agentToolApprovals.showMore')
-          }}
-        </a>
-      </div>
-      <div
-        v-if="rejectingId === approval.id"
-        class="agent-tool-approvals__reason"
-      >
-        <FormInput
-          v-model="rejectReason"
-          size="small"
-          class="agent-tool-approvals__reason-input"
-          :placeholder="$t('agentToolApprovals.reasonPlaceholder')"
-          @keydown.enter="confirmReject(approval)"
-        ></FormInput>
-        <Button
-          size="small"
-          type="danger"
-          :disabled="disabled"
-          @click="confirmReject(approval)"
-        >
-          {{ $t('agentToolApprovals.reject') }}
-        </Button>
-        <ButtonText @click="cancelReject">
-          {{ $t('agentToolApprovals.cancel') }}
-        </ButtonText>
-      </div>
     </div>
-    <div
-      v-if="canDecide && pendingApprovals.length > 1"
-      class="agent-tool-approvals__footer"
-    >
-      <Button
-        size="small"
-        type="secondary"
-        :disabled="disabled"
-        @click="approveAll"
-      >
-        {{ $t('agentToolApprovals.approveAll') }}
-      </Button>
-      <Button
-        size="small"
-        type="danger"
-        :disabled="disabled"
-        @click="rejectAll"
-      >
-        {{ $t('agentToolApprovals.rejectAll') }}
-      </Button>
-    </div>
+    <AgentRejectApprovalModal ref="rejectModal" @reject="confirmReject" />
   </div>
 </template>
 
 <script>
-import { defineComponent, ref, reactive, computed } from 'vue'
-
-// Above this rendered size the args preview starts collapsed.
-const ARGS_COLLAPSE_LENGTH = 280
-const ARGS_COLLAPSE_LINES = 6
+import { defineComponent, ref, reactive, computed, watch } from 'vue'
+import { useI18n } from '#imports'
+import { summarizeToolArgs } from '@baserow_enterprise/utils/agentChatEvents'
+import AgentRejectApprovalModal from '@baserow_enterprise/components/agentApplication/AgentRejectApprovalModal'
 
 export default defineComponent({
   name: 'AgentToolApprovals',
+  components: { AgentRejectApprovalModal },
   props: {
     approvals: {
       type: Array,
@@ -153,104 +167,117 @@ export default defineComponent({
       required: false,
       default: false,
     },
+    agentName: {
+      type: String,
+      required: false,
+      default: '',
+    },
+    canChangeTools: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    toolLabel: {
+      type: Function,
+      required: false,
+      default: (name) => name,
+    },
   },
   emits: ['decide'],
   setup(props, { emit }) {
-    const rejectingId = ref(null)
-    const rejectReason = ref('')
+    const { t } = useI18n()
+    const rejectModal = ref(null)
+    const dontAskAgain = ref(false)
     const expandedArgs = reactive({})
 
     const pendingApprovals = computed(() =>
       props.approvals.filter((approval) => approval.status === 'pending')
     )
+    const hasPending = computed(() => pendingApprovals.value.length > 0)
 
-    const humanToolName = (name) => (name || '').replace(/_/g, ' ')
+    const decidedSummary = computed(() => {
+      const approved = props.approvals.filter(
+        (approval) => approval.status === 'approved'
+      ).length
+      const rejected = props.approvals.filter(
+        (approval) => approval.status === 'rejected'
+      ).length
+      const parts = []
+      if (approved > 0) {
+        parts.push(t('agentToolApprovals.approvedCount', { count: approved }))
+      }
+      if (rejected > 0) {
+        parts.push(t('agentToolApprovals.rejectedCount', { count: rejected }))
+      }
+      return parts.join(' · ')
+    })
 
+    const summary = (approval) => summarizeToolArgs(approval.tool_args)
     const formatArgs = (approval) =>
       JSON.stringify(approval.tool_args ?? {}, null, 2)
-
-    const hasArgs = (approval) =>
-      approval.tool_args && Object.keys(approval.tool_args).length > 0
-
-    const isLargeArgs = (approval) => {
-      const formatted = formatArgs(approval)
-      return (
-        formatted.length > ARGS_COLLAPSE_LENGTH ||
-        formatted.split('\n').length > ARGS_COLLAPSE_LINES
-      )
-    }
-
-    const isCollapsed = (approval) =>
-      isLargeArgs(approval) && !expandedArgs[approval.id]
-
-    const toggleArgs = (approval) => {
+    const toggleDetails = (approval) => {
       expandedArgs[approval.id] = !expandedArgs[approval.id]
     }
 
-    const cancelReject = () => {
-      rejectingId.value = null
-      rejectReason.value = ''
-    }
-
-    const approve = (approval) => {
-      if (rejectingId.value === approval.id) {
-        cancelReject()
+    // Which button was clicked, so that one spins while the parent's
+    // `disabled` (the request being in flight) is true.
+    const decidingAction = ref(null)
+    watch(
+      () => props.disabled,
+      (disabled) => {
+        if (!disabled) {
+          decidingAction.value = null
+        }
       }
-      emit('decide', [{ id: approval.id, approved: true }])
+    )
+    const isDeciding = (action) =>
+      props.disabled && decidingAction.value === action
+    const decide = (action, decisions) => {
+      decidingAction.value = action
+      emit('decide', { decisions, dontAskAgain: dontAskAgain.value })
     }
-
+    const approve = (approval) =>
+      decide(`approve-${approval.id}`, [{ id: approval.id, approved: true }])
     const startReject = (approval) => {
-      rejectingId.value = approval.id
-      rejectReason.value = ''
+      rejectModal.value.show(approval, props.toolLabel(approval.tool_name))
     }
-
-    const confirmReject = (approval) => {
-      const reason = rejectReason.value.trim()
+    const confirmReject = ({ approval, reason }) => {
       const decision = { id: approval.id, approved: false }
       if (reason !== '') {
         decision.reason = reason
       }
-      cancelReject()
-      emit('decide', [decision])
+      decide(`reject-${approval.id}`, [decision])
     }
-
-    const approveAll = () => {
-      cancelReject()
-      emit(
-        'decide',
+    const approveAll = () =>
+      decide(
+        'approve-all',
         pendingApprovals.value.map((approval) => ({
           id: approval.id,
           approved: true,
         }))
       )
-    }
-
-    const rejectAll = () => {
-      cancelReject()
-      emit(
-        'decide',
+    const rejectAll = () =>
+      decide(
+        'reject-all',
         pendingApprovals.value.map((approval) => ({
           id: approval.id,
           approved: false,
         }))
       )
-    }
 
     return {
-      rejectingId,
-      rejectReason,
+      isDeciding,
+      rejectModal,
+      dontAskAgain,
       expandedArgs,
-      pendingApprovals,
-      humanToolName,
+      hasPending,
+      decidedSummary,
+      summary,
       formatArgs,
-      hasArgs,
-      isLargeArgs,
-      isCollapsed,
-      toggleArgs,
+      toggleDetails,
       approve,
       startReject,
       confirmReject,
-      cancelReject,
       approveAll,
       rejectAll,
     }

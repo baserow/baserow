@@ -1,9 +1,30 @@
 <template>
   <div>
+    <div class="agent-configuration__subsection">
+      <div class="agent-configuration__subsection-title">
+        {{ $t('agentChannels.channels') }}
+      </div>
+      <ButtonText
+        v-if="canUpdateChannel"
+        icon="iconoir-plus"
+        @click="
+          $refs.addChannelContext.toggle(
+            $event.currentTarget,
+            'bottom',
+            'right',
+            4
+          )
+        "
+      >
+        {{ $t('agentChannels.addChannel') }}
+      </ButtonText>
+    </div>
+    <div class="agent-configuration__intro">
+      {{ $t('agentChannels.intro', { name: agentName }) }}
+    </div>
     <div
       v-if="channels.length === 0 && draft === null"
       class="agent-configuration__placeholder"
-      :class="{ 'margin-bottom-2': canUpdateChannel }"
     >
       {{ $t('agentChannels.empty') }}
     </div>
@@ -11,32 +32,13 @@
       v-if="channels.length > 0 || draft !== null"
       class="agent-configuration__card-list"
     >
-      <div
+      <AgentConfigurationCard
         v-for="channel in channels"
         :key="channel.id"
-        class="agent-configuration__card"
+        :title="channelTitle(channel)"
+        :image="channelTypeImage(channel)"
       >
-        <div class="agent-configuration__card-header">
-          <a
-            class="agent-configuration__card-summary"
-            @click="toggleExpanded(channel)"
-          >
-            <i
-              class="agent-configuration__card-chevron iconoir-nav-arrow-right"
-              :class="{
-                'agent-configuration__card-chevron--expanded': isExpanded(
-                  channel.id
-                ),
-              }"
-            ></i>
-            <img
-              class="agent-configuration__card-image"
-              :src="channelTypeImage(channel)"
-            />
-            <div class="agent-configuration__card-name">
-              {{ channelTitle(channel) }}
-            </div>
-          </a>
+        <template #header-right>
           <SwitchInput
             small
             :value="channel.enabled"
@@ -44,17 +46,8 @@
             :title="$t('agentChannels.enabledLabel')"
             @input="onEnabledChange(channel, $event)"
           ></SwitchInput>
-          <ButtonIcon
-            v-if="canUpdateChannel"
-            icon="iconoir-bin"
-            :title="$t('agentChannels.delete')"
-            @click="deleteChannel(channel)"
-          ></ButtonIcon>
-        </div>
-        <div
-          v-if="isExpanded(channel.id) && channelDrafts[channel.id]"
-          class="agent-configuration__card-body"
-        >
+        </template>
+        <template v-if="channelDrafts[channel.id]">
           <ReadOnlyForm :read-only="!canUpdateChannel">
             <FormGroup
               small-label
@@ -77,6 +70,7 @@
                 v-model="channelDrafts[channel.id].botToken"
                 type="password"
                 :disabled="!canUpdateChannel"
+                :loading="savingSecrets.includes(`${channel.id}-bot_token`)"
                 :placeholder="
                   secretPlaceholder(channel, 'bot_token_set', 'botToken')
                 "
@@ -92,6 +86,9 @@
                 v-model="channelDrafts[channel.id].signingSecret"
                 type="password"
                 :disabled="!canUpdateChannel"
+                :loading="
+                  savingSecrets.includes(`${channel.id}-signing_secret`)
+                "
                 :placeholder="
                   secretPlaceholder(
                     channel,
@@ -122,91 +119,76 @@
                 </a>
               </div>
             </FormGroup>
-            <div class="agent-configuration__tool-helper">
+            <div class="agent-configuration__hint">
               {{ $t('agentChannels.activeHint') }}
             </div>
           </ReadOnlyForm>
-        </div>
-      </div>
-      <div v-if="draft !== null" class="agent-configuration__card">
-        <div class="agent-configuration__card-header">
-          <div class="agent-configuration__card-summary">
-            <img
-              class="agent-configuration__card-image"
-              :src="channelTypeImage(draft)"
-            />
-            <div class="agent-configuration__card-name">
-              {{ draft.name || $t('agentChannels.slack') }}
-            </div>
-          </div>
-        </div>
-        <div class="agent-configuration__card-body">
-          <FormGroup
-            small-label
-            :label="$t('agentChannels.nameLabel')"
-            class="margin-bottom-2"
+        </template>
+        <template v-if="canUpdateChannel" #footer>
+          <ButtonText
+            icon="iconoir-bin"
+            :loading="deletingIds.includes(channel.id)"
+            @click="deleteChannel(channel)"
           >
-            <FormInput
-              v-model="draft.name"
-              :placeholder="$t('agentChannels.namePlaceholder')"
-            ></FormInput>
-          </FormGroup>
-          <FormGroup
-            small-label
-            :label="$t('agentChannels.botTokenLabel')"
-            class="margin-bottom-2"
+            {{ $t('agentChannels.delete') }}
+          </ButtonText>
+        </template>
+      </AgentConfigurationCard>
+      <AgentConfigurationCard
+        v-if="draft !== null"
+        :title="draft.name || $t('agentChannels.slack')"
+        :image="channelTypeImage(draft)"
+      >
+        <FormGroup
+          small-label
+          :label="$t('agentChannels.nameLabel')"
+          class="margin-bottom-2"
+        >
+          <FormInput
+            v-model="draft.name"
+            :placeholder="$t('agentChannels.namePlaceholder')"
+          ></FormInput>
+        </FormGroup>
+        <FormGroup
+          small-label
+          :label="$t('agentChannels.botTokenLabel')"
+          class="margin-bottom-2"
+        >
+          <FormInput
+            v-model="draft.botToken"
+            type="password"
+            :placeholder="$t('agentChannels.botTokenPlaceholder')"
+          ></FormInput>
+        </FormGroup>
+        <FormGroup
+          small-label
+          :label="$t('agentChannels.signingSecretLabel')"
+          class="margin-bottom-2"
+        >
+          <FormInput
+            v-model="draft.signingSecret"
+            type="password"
+            :placeholder="$t('agentChannels.signingSecretPlaceholder')"
+          ></FormInput>
+        </FormGroup>
+        <div class="agent-configuration__channel-draft-actions">
+          <Button
+            type="primary"
+            :loading="createLoading"
+            :disabled="
+              draft.botToken.trim() === '' || draft.signingSecret.trim() === ''
+            "
+            @click="createChannel"
           >
-            <FormInput
-              v-model="draft.botToken"
-              type="password"
-              :placeholder="$t('agentChannels.botTokenPlaceholder')"
-            ></FormInput>
-          </FormGroup>
-          <FormGroup
-            small-label
-            :label="$t('agentChannels.signingSecretLabel')"
-            class="margin-bottom-2"
-          >
-            <FormInput
-              v-model="draft.signingSecret"
-              type="password"
-              :placeholder="$t('agentChannels.signingSecretPlaceholder')"
-            ></FormInput>
-          </FormGroup>
-          <div class="agent-configuration__channel-draft-actions">
-            <Button
-              type="primary"
-              :loading="createLoading"
-              :disabled="
-                draft.botToken.trim() === '' ||
-                draft.signingSecret.trim() === ''
-              "
-              @click="createChannel"
-            >
-              {{ $t('agentChannels.create') }}
-            </Button>
-            <Button type="secondary" @click="draft = null">
-              {{ $t('agentChannels.cancel') }}
-            </Button>
-          </div>
+            {{ $t('agentChannels.create') }}
+          </Button>
+          <Button type="secondary" @click="draft = null">
+            {{ $t('agentChannels.cancel') }}
+          </Button>
         </div>
-      </div>
+      </AgentConfigurationCard>
     </div>
     <template v-if="canUpdateChannel">
-      <Button
-        type="secondary"
-        icon="iconoir-plus"
-        @click="
-          $refs.addChannelContext.toggle(
-            $event.currentTarget,
-            'bottom',
-            'left',
-            4
-          )
-        "
-      >
-        {{ $t('agentChannels.addChannel') }}
-      </Button>
       <Context
         ref="addChannelContext"
         max-height-if-outside-viewport
@@ -229,13 +211,14 @@
 import debounce from 'lodash/debounce'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentGroupedAddMenu from '@baserow_enterprise/components/agentApplication/AgentGroupedAddMenu'
+import AgentConfigurationCard from '@baserow_enterprise/components/agentApplication/AgentConfigurationCard'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import slackImage from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 
 export default {
   name: 'AgentChatChannelsSection',
-  components: { AgentGroupedAddMenu, ReadOnlyForm },
+  components: { AgentConfigurationCard, AgentGroupedAddMenu, ReadOnlyForm },
   props: {
     application: {
       type: Object,
@@ -249,9 +232,9 @@ export default {
       // they are filled in.
       draft: null,
       createLoading: false,
-      // Newly added channels start expanded; existing ones start collapsed so
-      // that multiple channels stay scannable.
-      expandedChannelIds: [],
+      deletingIds: [],
+      // `${channelId}-${configKey}` of the secrets being saved.
+      savingSecrets: [],
       // Local editable copies per channel id, so a save response can never
       // clobber what the user is still typing. The secret fields are always
       // seeded empty because the server only returns whether they are set.
@@ -268,6 +251,12 @@ export default {
     },
     channels() {
       return this.$store.getters['agentApplication/getChannels']
+    },
+    agentName() {
+      return (
+        this.$store.getters['agentApplication/getAgent']?.name ||
+        this.application.name
+      )
     },
     channelMenuItems() {
       return [
@@ -292,6 +281,14 @@ export default {
   created() {
     this.debouncedNameSaves = {}
   },
+  mounted() {
+    this.channels.forEach((channel) => this.ensureDraft(channel))
+  },
+  watch: {
+    channels(channels) {
+      channels.forEach((channel) => this.ensureDraft(channel))
+    },
+  },
   beforeUnmount() {
     Object.values(this.debouncedNameSaves).forEach((save) => save.flush())
   },
@@ -306,9 +303,6 @@ export default {
       const draftName = this.channelDrafts[channel.id]?.name
       return (draftName ?? channel.name) || this.$t('agentChannels.slack')
     },
-    isExpanded(channelId) {
-      return this.expandedChannelIds.includes(channelId)
-    },
     ensureDraft(channel) {
       if (!this.channelDrafts[channel.id]) {
         this.channelDrafts[channel.id] = {
@@ -316,16 +310,6 @@ export default {
           botToken: '',
           signingSecret: '',
         }
-      }
-    },
-    toggleExpanded(channel) {
-      if (this.isExpanded(channel.id)) {
-        this.expandedChannelIds = this.expandedChannelIds.filter(
-          (id) => id !== channel.id
-        )
-      } else {
-        this.ensureDraft(channel)
-        this.expandedChannelIds.push(channel.id)
       }
     },
     secretPlaceholder(channel, setKey, draftKey) {
@@ -367,7 +351,6 @@ export default {
         )
         this.draft = null
         this.ensureDraft(channel)
-        this.expandedChannelIds.push(channel.id)
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
@@ -385,14 +368,20 @@ export default {
       }
     },
     async deleteChannel(channel) {
+      if (this.deletingIds.includes(channel.id)) {
+        return
+      }
       delete this.debouncedNameSaves[channel.id]
-      delete this.channelDrafts[channel.id]
+      this.deletingIds = [...this.deletingIds, channel.id]
       try {
         await this.$store.dispatch('agentApplication/deleteChannel', {
           channelId: channel.id,
         })
+        delete this.channelDrafts[channel.id]
       } catch (error) {
         notifyIf(error, 'application')
+      } finally {
+        this.deletingIds = this.deletingIds.filter((id) => id !== channel.id)
       }
     },
     onNameChanged(channel) {
@@ -429,6 +418,11 @@ export default {
         // An empty input means "keep the stored secret".
         return
       }
+      const key = `${channel.id}-${configKey}`
+      if (this.savingSecrets.includes(key)) {
+        return
+      }
+      this.savingSecrets = [...this.savingSecrets, key]
       try {
         await this.$store.dispatch('agentApplication/updateChannel', {
           channelId: channel.id,
@@ -439,6 +433,8 @@ export default {
         draft[draftKey] = ''
       } catch (error) {
         notifyIf(error, 'application')
+      } finally {
+        this.savingSecrets = this.savingSecrets.filter((item) => item !== key)
       }
     },
     copyEventsUrl(channel) {

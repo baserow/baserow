@@ -38,10 +38,9 @@ class AgentRunDeps:
     # Extra notes tool types can add to the system prompt (e.g. "web search
     # unavailable for this provider").
     system_notes: list[str] = field(default_factory=list)
-    # Set from the workspace AgentTool config; these also apply to the
-    # dynamically loaded per-table row tools.
-    workspace_tools_read_only: bool = False
-    workspace_write_approval: bool = True
+    # The workspace AgentTool config (see `tools/rules.py`); it also governs
+    # the dynamically loaded per-table row tools.
+    workspace_tool_config: dict = field(default_factory=dict)
 
     def extend_sources(self, new_sources: list[str]):
         self.sources.extend(s for s in new_sources if s not in self.sources)

@@ -269,3 +269,99 @@ def test_message_and_delete_broadcasts_for_collaborators(agent_setup):
         "attachments": [],
     } in message_events
     assert {"type": "agent_chat_deleted", "chat_id": chat_id} in payloads
+
+
+@pytest.mark.django_db
+def test_update_chat_title_and_pinned(
+    api_client, agent_setup, django_capture_on_commit_callbacks
+):
+    user, token, application, agent = agent_setup
+    chat = AgentChat.objects.create(agent=agent, user=user, title="Old")
+    updated_on = chat.updated_on
+
+    url = reverse("api:agent:chat_item", kwargs={"chat_uuid": chat.uuid})
+    with (
+        patch(
+            "baserow_enterprise.agent_application.realtime.broadcast_to_channel_group"
+        ) as broadcast,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        response = api_client.patch(
+            url,
+            {"title": "Renamed", "pinned": True},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["title"] == "Renamed"
+    assert response.json()["pinned"] is True
+    chat.refresh_from_db()
+    assert chat.title == "Renamed"
+    assert chat.pinned is True
+    # Renaming or pinning must not move the conversation to the top of the
+    # recency-ordered list.
+    assert chat.updated_on == updated_on
+    assert broadcast.delay.call_args.args[1]["type"] == "agent_chat_updated"
+    assert broadcast.delay.call_args.args[1]["chat"]["pinned"] is True
+
+
+@pytest.mark.django_db
+def test_update_chat_requires_permission(api_client, agent_setup, data_fixture):
+    user, token, application, agent = agent_setup
+    chat = AgentChat.objects.create(agent=agent, user=user)
+    _, other_token = data_fixture.create_user_and_token()
+
+    response = api_client.patch(
+        reverse("api:agent:chat_item", kwargs={"chat_uuid": chat.uuid}),
+        {"pinned": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {other_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_trigger_payload_only_in_transcript(api_client, agent_setup):
+    user, token, application, agent = agent_setup
+    chat = AgentChat.objects.create(
+        agent=agent,
+        user=user,
+        source=AgentChat.Source.TRIGGER,
+        event_payload={"results": [{"Name": "x"}]},
+    )
+
+    listed = api_client.get(
+        reverse("api:agent:chats", kwargs={"application_id": application.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    ).json()["results"]
+    # The payload can be large; the list and realtime updates leave it out.
+    assert "event_payload" not in listed[0]
+
+    transcript = api_client.get(
+        reverse(
+            "api:agent:chat_messages",
+            kwargs={"application_id": application.id, "chat_uuid": chat.uuid},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    ).json()
+    assert transcript["chat"]["event_payload"] == {"results": [{"Name": "x"}]}
+
+
+@pytest.mark.django_db
+def test_list_chats_orders_pinned_first(api_client, agent_setup):
+    user, token, application, agent = agent_setup
+    older = AgentChat.objects.create(agent=agent, user=user, title="older")
+    AgentChat.objects.create(agent=agent, user=user, title="newer")
+    AgentChatHandler().update_chat(older, pinned=True)
+
+    response = api_client.get(
+        reverse("api:agent:chats", kwargs={"application_id": application.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    titles = [chat["title"] for chat in response.json()["results"]]
+    assert titles == ["older", "newer"]

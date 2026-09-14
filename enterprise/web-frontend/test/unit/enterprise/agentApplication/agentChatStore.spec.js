@@ -1,4 +1,5 @@
 import { expect } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import MockAdapter from 'axios-mock-adapter'
 
 describe('agentChat store', () => {
@@ -65,6 +66,46 @@ describe('agentChat store', () => {
     expect(store.getters['agentChat/isRunning']).toBe(false)
   })
 
+  test('openConversation exposes the loading uuid while the transcript is fetched', async () => {
+    let resolveRequest = null
+    mock.onGet('agent_application/42/chats/uuid-9/messages/').replyOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve
+        })
+    )
+    const open = store.dispatch('agentChat/openConversation', {
+      applicationId: 42,
+      chatUuid: 'uuid-9',
+    })
+    await flushPromises()
+    expect(store.getters['agentChat/getLoadingChatUuid']).toBe('uuid-9')
+    resolveRequest([
+      200,
+      { chat: { id: 9, uuid: 'uuid-9', status: 'idle' }, messages: [] },
+    ])
+    await open
+    expect(store.getters['agentChat/getLoadingChatUuid']).toBe(null)
+    expect(store.getters['agentChat/getCurrentChatUuid']).toBe('uuid-9')
+  })
+
+  test('cancel flags the request as in flight', async () => {
+    let resolveRequest = null
+    mock.onPost('agent_application/chats/uuid-9/cancel/').replyOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve
+        })
+    )
+    store.commit('agentChat/SET_CURRENT_CHAT_UUID', 'uuid-9')
+    const cancel = store.dispatch('agentChat/cancel', { chatUuid: 'uuid-9' })
+    await flushPromises()
+    expect(store.getters['agentChat/isCanceling']).toBe(true)
+    resolveRequest([200, {}])
+    await cancel
+    expect(store.getters['agentChat/isCanceling']).toBe(false)
+  })
+
   test('sendMessage adds an optimistic human event and sets running', async () => {
     const chatUuid = store.getters['agentChat/getCurrentChatUuid']
 
@@ -87,7 +128,14 @@ describe('agentChat store', () => {
 
     expect(
       JSON.parse(JSON.stringify(store.getters['agentChat/getEvents']))
-    ).toStrictEqual([{ type: 'human', content: 'Hello agent', id: 100 }])
+    ).toStrictEqual([
+      {
+        type: 'human',
+        content: 'Hello agent',
+        id: 100,
+        created_on: expect.any(String),
+      },
+    ])
     expect(store.getters['agentChat/getChatId']).toBe(7)
     expect(store.getters['agentChat/isRunning']).toBe(true)
 
@@ -105,8 +153,18 @@ describe('agentChat store', () => {
     expect(
       JSON.parse(JSON.stringify(store.getters['agentChat/getEvents']))
     ).toStrictEqual([
-      { type: 'human', content: 'Hello agent', id: 100 },
-      { type: 'human', id: 101, content: 'From another user' },
+      {
+        type: 'human',
+        content: 'Hello agent',
+        id: 100,
+        created_on: expect.any(String),
+      },
+      {
+        type: 'human',
+        id: 101,
+        content: 'From another user',
+        created_on: expect.any(String),
+      },
     ])
   })
 
@@ -206,7 +264,12 @@ describe('agentChat store', () => {
     expect(
       JSON.parse(JSON.stringify(store.getters['agentChat/getEvents']))
     ).toStrictEqual([
-      { type: 'ai/message', content: 'The final answer', sources: [] },
+      {
+        type: 'ai/message',
+        content: 'The final answer',
+        sources: [],
+        created_on: expect.any(String),
+      },
     ])
     expect(store.getters['agentChat/isRunning']).toBe(false)
   })
@@ -244,7 +307,7 @@ describe('agentChat store', () => {
     expect(
       JSON.parse(JSON.stringify(store.getters['agentChat/getEvents']))
     ).toStrictEqual([
-      { type: 'human', content: 'Hello agent' },
+      { type: 'human', content: 'Hello agent', created_on: expect.any(String) },
       { type: 'ai/reasoning', content: 'Early chunk' },
     ])
   })
@@ -280,6 +343,7 @@ describe('agentChat store', () => {
         content: 'The answer.',
         sources: [],
         partial: false,
+        created_on: expect.any(String),
       },
     ])
     expect(store.getters['agentChat/isRunning']).toBe(false)
@@ -317,7 +381,14 @@ describe('agentChat store', () => {
 
     expect(
       JSON.parse(JSON.stringify(store.getters['agentChat/getEvents']))
-    ).toStrictEqual([{ type: 'human', content: 'Second message', id: 100 }])
+    ).toStrictEqual([
+      {
+        type: 'human',
+        content: 'Second message',
+        id: 100,
+        created_on: expect.any(String),
+      },
+    ])
   })
 
   test('handleChatUpdated refetches the transcript on a missed terminal status', async () => {
@@ -622,6 +693,7 @@ describe('agentChat store', () => {
         id: 100,
         content: 'See the attached file',
         attachments: [userFile],
+        created_on: expect.any(String),
       },
     ])
   })
@@ -641,5 +713,25 @@ describe('agentChat store', () => {
 
     expect(store.getters['agentChat/getEvents']).toStrictEqual([])
     expect(store.getters['agentChat/isRunning']).toBe(true)
+  })
+})
+
+describe('agentChat store dont ask again', () => {
+  test('decideApprovals flags every decision when asked to', async () => {
+    const { $store: store, $client } = useNuxtApp()
+    const mock = new MockAdapter($client, { onNoMatch: 'throwException' })
+    await store.dispatch('agentChat/newConversation')
+    const chatUuid = store.getters['agentChat/getCurrentChatUuid']
+    mock
+      .onPost(`agent_application/chats/${chatUuid}/approvals/`)
+      .replyOnce(200, [])
+    await store.dispatch('agentChat/decideApprovals', {
+      decisions: [{ id: 1, approved: true }],
+      dontAskAgain: true,
+    })
+    expect(JSON.parse(mock.history.post[0].data)).toStrictEqual({
+      decisions: [{ id: 1, approved: true, dont_ask_again: true }],
+    })
+    mock.restore()
   })
 })

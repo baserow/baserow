@@ -59,6 +59,10 @@ class DeleteAgentChatOperationType(AgentApplicationOperationType):
     type = "agent_application.delete_chat"
 
 
+class UpdateAgentChatOperationType(AgentApplicationOperationType):
+    type = "agent_application.update_chat"
+
+
 class ReadAgentUsageOperationType(AgentApplicationOperationType):
     type = "agent_application.read_usage"
 

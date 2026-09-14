@@ -1,9 +1,30 @@
 <template>
   <div>
+    <div class="agent-configuration__subsection">
+      <div class="agent-configuration__subsection-title">
+        {{ $t('agentTrigger.triggers') }}
+      </div>
+      <ButtonText
+        v-if="!readOnly"
+        icon="iconoir-plus"
+        :loading="addLoading"
+        :disabled="loading"
+        @click="
+          $refs.addTriggerContext.toggle(
+            $event.currentTarget,
+            'bottom',
+            'right',
+            4
+          )
+        "
+      >
+        {{ $t('agentTrigger.addTrigger') }}
+      </ButtonText>
+    </div>
+    <div v-if="loading" class="loading"></div>
     <div
-      v-if="triggers.length === 0"
+      v-else-if="triggers.length === 0"
       class="agent-configuration__placeholder"
-      :class="{ 'margin-bottom-2': !readOnly }"
     >
       {{ $t('agentTrigger.empty') }}
     </div>
@@ -14,33 +35,17 @@
       <i class="iconoir-pause"></i>
       {{ $t('agentTrigger.pausedHint') }}
     </div>
-    <div v-if="triggers.length > 0" class="agent-configuration__card-list">
-      <div
+    <div
+      v-if="!loading && triggers.length > 0"
+      class="agent-configuration__card-list"
+    >
+      <AgentConfigurationCard
         v-for="trigger in triggers"
         :key="trigger.id"
-        class="agent-configuration__card"
+        :title="triggerNodeTypeName(trigger)"
+        :icon="triggerNodeTypeIcon(trigger)"
       >
-        <div class="agent-configuration__card-header">
-          <a
-            class="agent-configuration__card-summary"
-            @click="toggleExpanded(trigger.id)"
-          >
-            <i
-              class="agent-configuration__card-chevron iconoir-nav-arrow-right"
-              :class="{
-                'agent-configuration__card-chevron--expanded': isExpanded(
-                  trigger.id
-                ),
-              }"
-            ></i>
-            <i
-              class="agent-configuration__card-icon"
-              :class="triggerNodeTypeIcon(trigger)"
-            ></i>
-            <div class="agent-configuration__card-name">
-              {{ triggerNodeTypeName(trigger) }}
-            </div>
-          </a>
+        <template #header-right>
           <SwitchInput
             small
             :value="trigger.enabled"
@@ -48,62 +53,46 @@
             :title="$t('agentTrigger.enabledLabel')"
             @input="onEnabledChange(trigger, $event)"
           ></SwitchInput>
-          <ButtonIcon
-            v-if="!readOnly"
+        </template>
+        <ReadOnlyForm :read-only="readOnly">
+          <AgentServiceForm
+            v-if="triggerNodeType(trigger)"
+            :key="`${trigger.id}-${trigger.service_type}`"
+            :application="application"
+            :service-type="triggerNodeType(trigger).serviceType"
+            :service="trigger.service || {}"
+            @values-changed="onServiceValuesChanged(trigger, $event)"
+          />
+        </ReadOnlyForm>
+        <div class="agent-configuration__hint">
+          {{ $t('agentTrigger.hint') }}
+        </div>
+        <template v-if="!readOnly" #footer>
+          <ButtonText
             icon="iconoir-bin"
-            :title="$t('agentTrigger.remove')"
+            :loading="deletingIds.includes(trigger.id)"
             @click="deleteTrigger(trigger)"
-          ></ButtonIcon>
-        </div>
-        <div
-          v-if="isExpanded(trigger.id)"
-          class="agent-configuration__card-body"
-        >
-          <ReadOnlyForm :read-only="readOnly">
-            <AgentServiceForm
-              v-if="triggerNodeType(trigger)"
-              :key="`${trigger.id}-${trigger.service_type}`"
-              :application="application"
-              :service-type="triggerNodeType(trigger).serviceType"
-              :service="trigger.service || {}"
-              @values-changed="onServiceValuesChanged(trigger, $event)"
-            />
-          </ReadOnlyForm>
-        </div>
-      </div>
+          >
+            {{ $t('agentTrigger.remove') }}
+          </ButtonText>
+        </template>
+      </AgentConfigurationCard>
     </div>
-    <template v-if="!readOnly">
-      <Button
-        type="secondary"
-        icon="iconoir-plus"
-        :loading="addLoading"
-        :disabled="loading"
-        @click="
-          $refs.addTriggerContext.toggle(
-            $event.currentTarget,
-            'bottom',
-            'left',
-            4
-          )
-        "
-      >
-        {{ $t('agentTrigger.addTrigger') }}
-      </Button>
-      <Context
-        ref="addTriggerContext"
-        max-height-if-outside-viewport
-        @shown="$refs.addTriggerMenu.focus()"
-      >
-        <AgentGroupedAddMenu
-          ref="addTriggerMenu"
-          :items="triggerMenuItems"
-          :search-placeholder="$t('agentTrigger.searchPlaceholder')"
-          :empty-text="$t('agentTrigger.noResults')"
-          @select="addTrigger($event.meta)"
-          @close="$refs.addTriggerContext.hide()"
-        />
-      </Context>
-    </template>
+    <Context
+      v-if="!readOnly"
+      ref="addTriggerContext"
+      max-height-if-outside-viewport
+      @shown="$refs.addTriggerMenu.focus()"
+    >
+      <AgentGroupedAddMenu
+        ref="addTriggerMenu"
+        :items="triggerMenuItems"
+        :search-placeholder="$t('agentTrigger.searchPlaceholder')"
+        :empty-text="$t('agentTrigger.noResults')"
+        @select="addTrigger($event.meta)"
+        @close="$refs.addTriggerContext.hide()"
+      />
+    </Context>
   </div>
 </template>
 
@@ -113,11 +102,17 @@ import isEqual from 'lodash/isEqual'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentServiceForm from '@baserow_enterprise/components/agentApplication/AgentServiceForm'
 import AgentGroupedAddMenu from '@baserow_enterprise/components/agentApplication/AgentGroupedAddMenu'
+import AgentConfigurationCard from '@baserow_enterprise/components/agentApplication/AgentConfigurationCard'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'AgentTriggerSection',
-  components: { AgentGroupedAddMenu, AgentServiceForm, ReadOnlyForm },
+  components: {
+    AgentConfigurationCard,
+    AgentGroupedAddMenu,
+    AgentServiceForm,
+    ReadOnlyForm,
+  },
   props: {
     application: {
       type: Object,
@@ -133,9 +128,7 @@ export default {
     return {
       loading: false,
       addLoading: false,
-      // Newly added triggers start expanded; existing ones start collapsed so
-      // that multiple triggers stay scannable.
-      expandedTriggerIds: [],
+      deletingIds: [],
       // Unsaved service values per trigger id, flushed by a per-trigger
       // debounced save.
       pendingServiceValues: {},
@@ -208,30 +201,14 @@ export default {
     triggerNodeTypeName(trigger) {
       return this.triggerNodeType(trigger)?.name || trigger.service_type
     },
-    isExpanded(triggerId) {
-      return this.expandedTriggerIds.includes(triggerId)
-    },
-    toggleExpanded(triggerId) {
-      if (this.isExpanded(triggerId)) {
-        this.expandedTriggerIds = this.expandedTriggerIds.filter(
-          (id) => id !== triggerId
-        )
-      } else {
-        this.expandedTriggerIds.push(triggerId)
-      }
-    },
     async addTrigger(nodeType) {
       this.$refs.addTriggerContext.hide()
       this.addLoading = true
       try {
-        const trigger = await this.$store.dispatch(
-          'agentApplication/createTrigger',
-          {
-            applicationId: this.application.id,
-            values: { service_type: nodeType.getType() },
-          }
-        )
-        this.expandedTriggerIds.push(trigger.id)
+        await this.$store.dispatch('agentApplication/createTrigger', {
+          applicationId: this.application.id,
+          values: { service_type: nodeType.getType() },
+        })
       } catch (error) {
         notifyIf(error, 'application')
       } finally {
@@ -249,14 +226,20 @@ export default {
       }
     },
     async deleteTrigger(trigger) {
+      if (this.deletingIds.includes(trigger.id)) {
+        return
+      }
       delete this.pendingServiceValues[trigger.id]
       delete this.debouncedServiceSaves[trigger.id]
+      this.deletingIds = [...this.deletingIds, trigger.id]
       try {
         await this.$store.dispatch('agentApplication/deleteTrigger', {
           triggerId: trigger.id,
         })
       } catch (error) {
         notifyIf(error, 'application')
+      } finally {
+        this.deletingIds = this.deletingIds.filter((id) => id !== trigger.id)
       }
     },
     onServiceValuesChanged(trigger, newValues) {

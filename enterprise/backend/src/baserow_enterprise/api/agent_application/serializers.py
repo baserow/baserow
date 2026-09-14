@@ -43,6 +43,26 @@ class UpdateAgentDefinitionSerializer(serializers.ModelSerializer):
         extra_kwargs = {field: {"required": False} for field in fields}
 
 
+class DraftAgentInstructionsSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=160)
+    description = serializers.CharField(max_length=4000)
+
+
+class ImproveAgentInstructionsSerializer(serializers.Serializer):
+    instructions = serializers.CharField(max_length=20000)
+
+
+class AgentInstructionsSerializer(serializers.Serializer):
+    instructions = serializers.CharField()
+
+
+class UpdateAgentChatSerializer(serializers.Serializer):
+    title = serializers.CharField(
+        required=False, allow_blank=True, max_length=AgentChat.TITLE_MAX_LENGTH
+    )
+    pinned = serializers.BooleanField(required=False)
+
+
 class SendAgentChatMessageSerializer(serializers.Serializer):
     content = serializers.CharField(max_length=65536)
     user_files = serializers.ListField(
@@ -90,6 +110,7 @@ class AgentChatSerializer(serializers.ModelSerializer):
             "agent_id",
             "user_id",
             "title",
+            "pinned",
             "status",
             "source",
             "trigger_type",
@@ -101,6 +122,18 @@ class AgentChatSerializer(serializers.ModelSerializer):
             "created_on",
             "updated_on",
         )
+        read_only_fields = fields
+
+
+class AgentChatWithPayloadSerializer(AgentChatSerializer):
+    """
+    The transcript endpoint additionally returns the trigger payload the
+    conversation started with; it can be large, so the list and the realtime
+    updates leave it out.
+    """
+
+    class Meta(AgentChatSerializer.Meta):
+        fields = (*AgentChatSerializer.Meta.fields, "event_payload")
         read_only_fields = fields
 
 
@@ -162,6 +195,12 @@ class AgentToolApprovalDecisionSerializer(serializers.Serializer):
     approved = serializers.BooleanField()
     reason = serializers.CharField(
         required=False, allow_blank=True, default="", max_length=2000
+    )
+    dont_ask_again = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="When approving, also let this tool run without approval "
+        "from now on.",
     )
 
 
