@@ -92,11 +92,8 @@ export default {
         port: 587,
         use_tls: true,
         username: '',
-        // `null` means "the user has not touched this field". The API never
-        // returns the password, so it is never overwritten from defaultValues,
-        // and `getFormValues` drops it while it is still null so that saving an
-        // unrelated field cannot wipe the stored credential. An empty string is
-        // a deliberate clear.
+        // Untouched (`null`) is dropped on submit to keep the stored password;
+        // an empty string clears it.
         password: null,
       },
       allowedValues: ['host', 'port', 'use_tls', 'username', 'password'],

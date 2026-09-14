@@ -82,6 +82,14 @@ class CreateIntegrationActionType(UndoableActionType):
 
 
 class UpdateIntegrationActionType(UndoableActionType):
+    """
+    Undo and redo replay the logged values without any credential. The
+    sensitive fields, which include every target a credential protects, are
+    never logged, so a replay cannot re-point a stored password. If a replay
+    does trip `IntegrationCredentialRequired`, the action handler rolls it back
+    and records the error on the action.
+    """
+
     type = "update_integration"
     description = ActionTypeDescription(
         _("Update integration"),
@@ -130,14 +138,6 @@ class UpdateIntegrationActionType(UndoableActionType):
         integration = IntegrationHandler().get_integration_for_update(
             params.integration_id
         )
-        # A replay carries no credential, so a recorded target change would
-        # re-point a stored password the acting user never supplied. What stops
-        # that is the exclusion in `update_integration`: the targets are
-        # sensitive fields, so they never reach the log and cannot be replayed.
-        # The dependency check below is a second line of defence for a type
-        # that one day declares a dependency on a non-sensitive target. If it
-        # fires, the action handler rolls the undo back and records the error
-        # on the action.
         IntegrationService().update_integration(
             user, integration, **params.integration_original_params
         )
@@ -147,7 +147,6 @@ class UpdateIntegrationActionType(UndoableActionType):
         integration = IntegrationHandler().get_integration_for_update(
             params.integration_id
         )
-        # See the note in `undo`: the same reasoning covers a redo.
         IntegrationService().update_integration(
             user, integration, **params.integration_new_params
         )

@@ -120,9 +120,7 @@ export default {
   },
   data() {
     return {
-      // The API never returns the token, so an empty field is dropped from the
-      // request and the saved token is kept. A Slack bot cannot run without
-      // one, so there is no clearing it.
+      // An empty field is dropped on submit to keep the stored token.
       values: { token: null },
       allowedValues: ['token'],
     }

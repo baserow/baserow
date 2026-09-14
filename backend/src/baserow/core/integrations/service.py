@@ -145,14 +145,12 @@ class IntegrationService:
     ):
         """
         Raises if a request-target field is being changed without the credential
-        it protects being supplied in the same request.
+        it protects being supplied in the same request. A secret that is not
+        stored is skipped, so an integration that authenticates anonymously can
+        still change its host.
         """
 
         for secret, targets in integration_type.secret_field_dependencies.items():
-            # Nothing stored means nothing to redirect. Without this an
-            # integration that authenticates anonymously could never have its
-            # host changed: the form sends no password, so the check would
-            # demand one that does not exist.
             if not getattr(integration, secret, None):
                 continue
 
@@ -180,6 +178,10 @@ class IntegrationService:
         :param integration: The integration that should be updated.
         :param kwargs: Additional attributes of the integration.
         :return: The updated integration together with the values that changed.
+        Every sensitive field is kept out of the action log, not only the
+        secrets: a replayed host change would send a later password to a host
+        someone else chose, and the audit log copies the action log verbatim.
+
         :raises IntegrationCredentialRequired: When a request-target field changes
             without its credential.
         """
@@ -198,11 +200,6 @@ class IntegrationService:
         # Capture the original and new values (in the service-level vocabulary, so
         # FK fields are stored as their ids) before `prepare_values` mutates them, so
         # the update can be undone/redone.
-        # Keep every sensitive field out of the action log, not only the
-        # secrets. A replay carries no credential, so a logged host change
-        # could be redone after the owner stores a new password, sending it to
-        # a host someone else chose. The AI integration's API keys also live in
-        # a sensitive field, and the audit log copies the action log verbatim.
         original_values, new_values = extract_undo_redo_values(
             integration, kwargs, integration_type.sensitive_fields
         )

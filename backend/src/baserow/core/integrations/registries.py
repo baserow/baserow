@@ -88,7 +88,8 @@ class IntegrationType(
         """
         Removes the secret fields from the response serializer and replaces each
         with a `has_<name>` boolean. The request serializer keeps them, because
-        setting a credential is the only thing a user may do with it.
+        setting a credential is the only thing a user may do with it. A secret
+        the serializer does not list gets no flag.
         """
 
         field_names = super().get_field_names(
@@ -98,9 +99,6 @@ class IntegrationType(
         if request_serializer or not self.secret_fields:
             return field_names
 
-        # Only the secrets this type actually serialises get a flag, so an
-        # inconsistent declaration cannot surface a `has_` for a field the
-        # response never carried.
         serialised_secrets = [n for n in field_names if n in self.secret_fields]
 
         return [name for name in field_names if name not in self.secret_fields] + [
@@ -121,8 +119,7 @@ class IntegrationType(
         if request_serializer or not self.secret_fields:
             return overrides
 
-        # Only declare fields the name list carries: DRF asserts on every read
-        # and write if a declared field is missing from it.
+        # DRF asserts if a declared field is missing from the name list.
         field_names = self.get_field_names(request_serializer, extra_params, **kwargs)
         return {
             **overrides,

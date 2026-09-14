@@ -138,10 +138,7 @@ const actions = {
         integration.id,
         values
       )
-      // The response carries the derived `has_*` flags for write-only
-      // credentials. Nothing else refreshes them: the acting user is excluded
-      // from the `integration_updated` broadcast, and the optimistic update
-      // above cannot know them.
+      // Only the response carries the updated `has_*` credential flags.
       await dispatch('forceUpdate', {
         application,
         integration,
