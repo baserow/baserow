@@ -31,6 +31,7 @@
 </template>
 
 <script>
+import { getLoginReturnUrl } from '@baserow/modules/core/utils/userSourceCallback'
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
@@ -106,8 +107,6 @@ export default {
       }
     },
     async login() {
-      await this.beforeLogin()
-
       if (this.hasMultipleSamlProvider) {
         this.v$.$touch()
 
@@ -116,6 +115,8 @@ export default {
           return
         }
       }
+
+      const attemptId = await this.beforeLogin({ redirect: true })
 
       this.loading = true
       this.hideError()
@@ -133,7 +134,10 @@ export default {
       }
 
       // Add the current url as get parameter to be redirected here after the login.
-      urlWithParams.searchParams.append('original', window.location)
+      urlWithParams.searchParams.append(
+        'original',
+        getLoginReturnUrl(window.location, attemptId)
+      )
 
       window.location = urlWithParams.toString()
     },

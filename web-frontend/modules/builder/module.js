@@ -31,6 +31,7 @@ export default defineNuxtModule({
     addPlugin(resolve('./plugins/previewClientHandler.js'))
     addPlugin(resolve('./plugins/router.js'))
     addPlugin(resolve('./plugins/realtime.js'))
+    addPlugin(resolve('./plugins/pendingLogin.client.js'))
 
     addRouteMiddleware({
       name: 'selectWorkspaceBuilderPage',

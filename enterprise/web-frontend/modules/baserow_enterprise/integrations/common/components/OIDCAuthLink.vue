@@ -9,6 +9,7 @@
 </template>
 
 <script>
+import { getLoginReturnUrl } from '@baserow/modules/core/utils/userSourceCallback'
 import form from '@baserow/modules/core/mixins/form'
 
 export default {
@@ -66,7 +67,7 @@ export default {
       })
     },
     async login(authProvider) {
-      await this.beforeLogin()
+      const attemptId = await this.beforeLogin({ redirect: true })
 
       this.loading = true
 
@@ -79,7 +80,10 @@ export default {
       const urlWithParams = new URL(dest)
 
       // Add the current url as get parameter to be redirected here after the login.
-      urlWithParams.searchParams.append('original', window.location)
+      urlWithParams.searchParams.append(
+        'original',
+        getLoginReturnUrl(window.location, attemptId)
+      )
       urlWithParams.searchParams.append('iss', authProvider.base_url)
 
       window.location = urlWithParams.toString()

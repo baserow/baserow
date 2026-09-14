@@ -133,6 +133,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
     workflowAction,
     applicationContext: { builder, mode },
     resolveFormula,
+    onNavigate,
   }) {
     const url = resolveElementUrl(
       workflowAction,
@@ -146,6 +147,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       return
     }
 
+    onNavigate?.()
     if (url === this.app.$router.currentRoute.value?.fullPath) {
       // Return early because the user is already on the page.
       return
@@ -155,7 +157,7 @@ export class OpenPageWorkflowActionType extends WorkflowActionType {
       if (!url.startsWith('/')) {
         window.location.href = url
       } else {
-        this.app.$router.push(url)
+        return this.app.$router.push(url)
       }
     } else {
       window.open(

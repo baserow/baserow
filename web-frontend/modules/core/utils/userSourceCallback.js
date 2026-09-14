@@ -1,3 +1,20 @@
+export const loginAttemptParameter = 'user_source_login_attempt'
+
+export const getLoginCompletionCookieName = (attemptId) =>
+  typeof attemptId === 'string' &&
+  /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(attemptId)
+    ? `user_source_login_completed_${attemptId}`
+    : null
+
+export const getLoginReturnUrl = (url, attemptId) => {
+  const original = new URL(url)
+  original.searchParams.delete(loginAttemptParameter)
+  if (getLoginCompletionCookieName(attemptId)) {
+    original.searchParams.set(loginAttemptParameter, attemptId)
+  }
+  return original.toString()
+}
+
 /** Extract callback credentials without accessing or changing browser state. */
 export const getUserSourceCallbackToken = (query, provider, userSourceId) => {
   const value = query[`user_source_${provider}_token__${userSourceId}`]
@@ -14,6 +31,12 @@ export const consumeUserSourceCallback = (url) => {
     return null
   }
 
+  const attempts = cleanUrl.searchParams.getAll(loginAttemptParameter)
+  const attemptId =
+    attempts.length === 1 && getLoginCompletionCookieName(attempts[0])
+      ? attempts[0]
+      : null
+  cleanUrl.searchParams.delete(loginAttemptParameter)
   const tokens = callbacks.flatMap((key) => cleanUrl.searchParams.getAll(key))
   for (const key of callbacks) {
     cleanUrl.searchParams.delete(key)
@@ -44,7 +67,27 @@ export const consumeUserSourceCallback = (url) => {
   }
 
   return {
+    attemptId,
     token: tokens.length === 1 && tokens[0] ? tokens[0] : null,
     url: cleanUrl,
+  }
+}
+
+/** Preserve the existing safe, relative `next` fallback for all login methods. */
+export const getUserSourceNextPath = (route) => {
+  const callback = consumeUserSourceCallback(
+    new URL(route.fullPath, 'http://localhost')
+  )
+  const next = callback
+    ? callback.url.searchParams.get('next')
+    : route.query.next
+  if (typeof next !== 'string') return null
+  try {
+    const decoded = decodeURIComponent(next)
+    return decoded.startsWith('/') && !/^[/\\]{2}|[\\\r\n]/.test(decoded)
+      ? decoded
+      : null
+  } catch {
+    return null
   }
 }
