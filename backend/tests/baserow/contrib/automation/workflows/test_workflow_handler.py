@@ -36,6 +36,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.core.action.handler import ActionHandler
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
@@ -2134,3 +2135,30 @@ def test_scheduling_a_test_run_without_a_starter_forgets_an_earlier_one(
 
     workflow.refresh_from_db()
     assert workflow.test_run_triggered_by_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_an_unrelated_update_keeps_the_test_run_starter(data_fixture):
+    first = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=first)
+    session_id = "undo-keeps-starter"
+    second = data_fixture.create_user(workspace=workspace, session_id=session_id)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        first,
+        automation=automation,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+    )
+    AutomationWorkflowHandler().toggle_test_run(
+        workflow, simulate_until_node=None, triggered_by=first
+    )
+
+    UpdateAutomationWorkflowActionType.do(second, workflow.id, {"name": "Renamed"})
+    ActionHandler.undo(
+        second, [UpdateAutomationWorkflowActionType.scope(automation.id)], session_id
+    )
+
+    workflow.refresh_from_db()
+    assert workflow.name != "Renamed"
+    assert workflow.test_run_triggered_by_id == first.id

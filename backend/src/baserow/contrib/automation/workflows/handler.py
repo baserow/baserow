@@ -260,12 +260,17 @@ class AutomationWorkflowHandler:
                 published_workflow.state = WorkflowState(state)
                 published_workflow.save(update_fields=["state"])
 
+        previous_allow_test_run_until = workflow.allow_test_run_until
         for key, value in extract_allowed(allowed_values, attr_fields).items():
             setattr(workflow, key, value)
 
-        if "allow_test_run_until" in allowed_values:
-            # Opening the window records who opened it; closing it forgets them,
-            # so a later run never names someone from an earlier window.
+        # Opening the window records who opened it; closing it forgets them, so a
+        # later run never names someone from an earlier window. Undo and redo
+        # send every field back, as JSON, so an unchanged window keeps its starter.
+        allow_test_run_until = AutomationWorkflow._meta.get_field(
+            "allow_test_run_until"
+        ).to_python(workflow.allow_test_run_until)
+        if allow_test_run_until != previous_allow_test_run_until:
             self._set_test_run_triggered_by(
                 workflow, triggered_by if workflow.allow_test_run_until else None
             )
