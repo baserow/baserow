@@ -12,6 +12,7 @@ from baserow.contrib.integrations.core.inbound_email import (
     HANDLE_STATUS_DISCARDED,
     HANDLE_STATUS_DUPLICATE,
     INBOUND_EMAIL_TEST_PREFIX,
+    MOX_WEBHOOK_PART_LIMIT_BYTES,
     InboundEmail,
     InboundEmailAddress,
     InboundEmailHandler,
@@ -496,3 +497,31 @@ def test_handle_webhook_payload_logs_test_prefix(inbound_email_logs):
 
     record = _inbound_email_log(inbound_email_logs)
     assert f"token=test-{TOKEN[:8]}…" in record
+
+
+@pytest.mark.parametrize(
+    "size,expected",
+    [
+        (MOX_WEBHOOK_PART_LIMIT_BYTES - 1, False),
+        (MOX_WEBHOOK_PART_LIMIT_BYTES, True),
+    ],
+)
+def test_normalize_mox_payload_flags_bodies_cut_at_the_forwarding_limit(size, expected):
+    # Mox forwards at most 1 MiB of each body and cuts silently, so a body at
+    # the limit is reported as truncated for the workflow to act on.
+    payload = make_mox_payload(ADDRESS, Text="t" * size, HTML="<p>" + "h" * (size - 3))
+
+    email = normalize_mox_payload(payload)
+
+    assert email.body_text_truncated is expected
+    assert email.body_html_truncated is expected
+    assert email.to_payload()["body_text_truncated"] is expected
+    assert email.to_payload()["body_html_truncated"] is expected
+
+
+def test_normalize_mox_payload_counts_bytes_not_characters():
+    # 4-byte characters reach the limit with fewer characters.
+    quarter = MOX_WEBHOOK_PART_LIMIT_BYTES // 4
+    payload = make_mox_payload(ADDRESS, Text="\U0001f600" * quarter)
+
+    assert normalize_mox_payload(payload).body_text_truncated is True

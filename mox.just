@@ -286,37 +286,84 @@ address:
 # Send a test email through mox to the given trigger address. Uses a fresh
 # Message-ID each time so it never trips the duplicate-delivery guard. The
 # subject is variadic, so trailing words are used as-is without quoting.
-# Usage: just mox send <address> [subject words...]
-[doc("Send a test email: just mox send <address> [subject words...]")]
-send ADDRESS *SUBJECT:
+# `--body FILE` / `--html FILE` replace the default plain-text / HTML part with
+# the contents of a file (relative to where you ran just; no spaces in paths),
+# e.g. to send a message close to the receiver's size limit
+# (BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB). Whatever the message size, mox
+# forwards at most 1 MiB of each part to the backend.
+# Usage: just mox send <address> [--body FILE] [--html FILE] [subject words...]
+[doc("Send a test email: just mox send <address> [--body FILE] [--html FILE] [subject words...]")]
+send ADDRESS *ARGS:
     #!/usr/bin/env bash
     set -euo pipefail
-    SUBJECT="{{ SUBJECT }}"
-    [ -z "$SUBJECT" ] && SUBJECT="Test email from 'just mox send'"
     if ! (exec 3<>"/dev/tcp/127.0.0.1/{{ MOX_SMTP_PORT }}") 2>/dev/null; then
         echo "error: nothing is listening on localhost:{{ MOX_SMTP_PORT }}. Is mox running? Start it with: just mox up" >&2
         exit 1
     fi
     MOX_SMTP_PORT="{{ MOX_SMTP_PORT }}" \
     TO_ADDRESS="{{ ADDRESS }}" \
-    SUBJECT="$SUBJECT" \
+    ARGS="{{ ARGS }}" \
+    INVOCATION_DIR="{{ invocation_directory() }}" \
     python3 <<'PY'
-    import os, smtplib, time
+    import os, smtplib, sys, time
     from email.message import EmailMessage
+
+    # Pull `--body FILE` / `--html FILE` out of the trailing words; the rest is
+    # the subject.
+    body_file = html_file = None
+    subject_words = []
+    args = os.environ["ARGS"].split()
+    while args:
+        arg = args.pop(0)
+        if arg in ("--body", "--html"):
+            if not args:
+                sys.exit(f"error: {arg} needs a file path")
+            path = os.path.join(os.environ["INVOCATION_DIR"], args.pop(0))
+            if arg == "--body":
+                body_file = path
+            else:
+                html_file = path
+        else:
+            subject_words.append(arg)
+
+    def read_part(path, default):
+        if path is None:
+            return default
+        try:
+            with open(path, encoding="utf-8") as f:
+                return f.read()
+        except OSError as e:
+            sys.exit(f"error: cannot read {path}: {e.strerror}")
+
+    text = read_part(body_file, "This is the plain text body sent through local mox.")
+    html = read_part(
+        html_file,
+        "<p>This is the <strong>HTML body</strong> sent through local mox.</p>",
+    )
+    to_address = os.environ["TO_ADDRESS"]
 
     msg = EmailMessage()
     msg["From"] = "Ada Lovelace <mox@localhost>"  # must be @localhost for mox
-    msg["To"] = os.environ["TO_ADDRESS"]
-    msg["Subject"] = os.environ["SUBJECT"]
+    msg["To"] = to_address
+    msg["Subject"] = " ".join(subject_words) or "Test email from 'just mox send'"
     msg["Message-ID"] = f"<{time.time_ns()}.{os.getpid()}@localhost>"
-    msg.set_content("This is the plain text body sent through local mox.")
-    msg.add_alternative(
-        "<p>This is the <strong>HTML body</strong> sent through local mox.</p>",
-        subtype="html",
-    )
+    msg.set_content(text)
+    msg.add_alternative(html, subtype="html")
 
+    # Flatten once with SMTP line endings, so the size printed is the size sent
+    # (and the one mox checks against SMTPMaxMessageSize).
+    raw = msg.as_bytes(policy=msg.policy.clone(linesep="\r\n"))
     port = int(os.environ["MOX_SMTP_PORT"])
-    with smtplib.SMTP("localhost", port) as smtp:
-        smtp.send_message(msg)
-    print(f"Sent to {msg['To']} via localhost:{port}")
+    try:
+        with smtplib.SMTP("localhost", port) as smtp:
+            smtp.sendmail("mox@localhost", [to_address], raw)
+    except smtplib.SMTPResponseException as e:
+        detail = e.smtp_error
+        detail = detail.decode(errors="replace") if isinstance(detail, bytes) else detail
+        sys.exit(f"error: mox refused the message: {e.smtp_code} {detail}")
+    except smtplib.SMTPRecipientsRefused as e:
+        sys.exit(f"error: mox refused the recipient: {e.recipients}")
+    print(f"Sent to {to_address} via localhost:{port} ({len(raw) / 1024 / 1024:.2f} MiB)")
+    if max(len(text), len(html)) > 1024 * 1024:
+        print("Note: mox forwards at most 1 MiB of each of the text and HTML parts to the backend.")
     PY

@@ -20,6 +20,12 @@ INBOUND_EMAIL_DEDUPE_TIMEOUT_SECONDS = 60 * 60 * 48
 
 INBOUND_EMAIL_TOKEN_REGEX = re.compile(r"^[0-9a-f]{32}$")
 
+# Mox forwards at most this many bytes of the text and of the HTML body in its
+# incoming-delivery webhook, cutting silently at the limit; attachment contents
+# are never forwarded at all. A body that is exactly at the limit is treated as
+# truncated so the workflow can tell.
+MOX_WEBHOOK_PART_LIMIT_BYTES = 1024 * 1024
+
 # Prefixing the token with this in the localpart targets the draft version of
 # the workflow instead of the published one, mirroring the HTTP trigger's
 # `?test=true` query string: `test-{token}@domain` starts a test run.
@@ -123,6 +129,9 @@ class InboundEmail:
     subject: str = ""
     body_text: str = ""
     body_html: str = ""
+    # True when the receiving mail server cut the body at its forwarding limit.
+    body_text_truncated: bool = False
+    body_html_truncated: bool = False
     message_id: str = ""
     in_reply_to: str = ""
     received_at: str = ""
@@ -147,6 +156,8 @@ class InboundEmail:
             "subject": self.subject,
             "body_text": self.body_text,
             "body_html": self.body_html,
+            "body_text_truncated": self.body_text_truncated,
+            "body_html_truncated": self.body_html_truncated,
             "message_id": self.message_id,
             "in_reply_to": self.in_reply_to,
             "received_at": self.received_at,
@@ -198,6 +209,10 @@ def _collect_attachments(structure: Any) -> List[InboundEmailAttachment]:
     return attachments
 
 
+def _is_truncated_part(value: str) -> bool:
+    return len(value.encode("utf-8")) >= MOX_WEBHOOK_PART_LIMIT_BYTES
+
+
 def normalize_mox_payload(data: Dict[str, Any]) -> InboundEmail:
     """
     Converts a mox `webhook.Incoming` JSON payload into the internal
@@ -221,14 +236,19 @@ def normalize_mox_payload(data: Dict[str, Any]) -> InboundEmail:
 
     from_ = _normalize_addresses(from_addresses)
 
+    body_text = data.get("Text") or ""
+    body_html = data.get("HTML") or ""
+
     return InboundEmail(
         from_=from_[0] if from_ else InboundEmailAddress(),
         to=_normalize_addresses(data.get("To")),
         cc=_normalize_addresses(data.get("CC")),
         reply_to=_normalize_addresses(data.get("ReplyTo")),
         subject=data.get("Subject") or "",
-        body_text=data.get("Text") or "",
-        body_html=data.get("HTML") or "",
+        body_text=body_text,
+        body_html=body_html,
+        body_text_truncated=_is_truncated_part(body_text),
+        body_html_truncated=_is_truncated_part(body_html),
         message_id=data.get("MessageID") or "",
         in_reply_to=data.get("InReplyTo") or "",
         received_at=meta.get("Received") or "",
