@@ -256,6 +256,8 @@ def test_generate_schema(data_fixture):
         "subject",
         "body_text",
         "body_html",
+        "body_html_truncated",
+        "body_text_truncated",
         "message_id",
         "in_reply_to",
         "received_at",

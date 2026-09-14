@@ -86,6 +86,16 @@ export const registerRealtimeEvents = (realtime) => {
     )
     if (!existing) return
 
+    // The event was too large for a websocket frame, so the server left the
+    // sample data out and asks us to reload the node over HTTP instead.
+    if (data.requires_refresh === true) {
+      store.dispatch('automationWorkflowNode/refetch', {
+        workflow,
+        nodeId: node.id,
+      })
+      return
+    }
+
     store.dispatch('automationWorkflowNode/forceUpdate', {
       workflow,
       node: existing,

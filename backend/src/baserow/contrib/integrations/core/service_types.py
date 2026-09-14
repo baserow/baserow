@@ -2376,6 +2376,14 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             "subject": {"type": "string", "title": _("Subject")},
             "body_text": {"type": "string", "title": _("Body (text)")},
             "body_html": {"type": "string", "title": _("Body (HTML)")},
+            "body_text_truncated": {
+                "type": "boolean",
+                "title": _("Body (text) truncated"),
+            },
+            "body_html_truncated": {
+                "type": "boolean",
+                "title": _("Body (HTML) truncated"),
+            },
             "message_id": {"type": "string", "title": _("Message ID")},
             "in_reply_to": {"type": "string", "title": _("In reply to")},
             "received_at": {"type": "string", "title": _("Received at")},
