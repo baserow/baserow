@@ -18,7 +18,6 @@ from baserow.api.decorators import (
     validate_body,
     validate_body_custom_fields,
 )
-from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.integrations.errors import (
     ERROR_INTEGRATION_CREDENTIAL_REQUIRED,
     ERROR_INTEGRATION_DOES_NOT_EXIST,
@@ -168,23 +167,6 @@ class IntegrationsView(APIView):
         before = IntegrationHandler().get_integration(before_id) if before_id else None
 
         integration_type = integration_type_registry.get(type_name)
-
-        # The request serializer makes every secret optional so that an update
-        # which does not retype one still validates. That must not weaken the
-        # create, where there is nothing stored to keep.
-        missing = integration_type.get_missing_required_secrets(data)
-        if missing:
-            raise RequestBodyValidationException(
-                {
-                    name: [
-                        {"error": "This field may not be blank.", "code": "blank"}
-                        if name in data
-                        else {"error": "This field is required.", "code": "required"}
-                    ]
-                    for name in missing
-                }
-            )
-
         integration = CreateIntegrationActionType.do(
             request.user, integration_type, application, before=before, **data
         )
@@ -253,6 +235,8 @@ class IntegrationView(APIView):
             integration_type_registry,
             request.data,
             base_serializer_class=UpdateIntegrationSerializer,
+            partial=True,
+            return_validated=True,
         )
 
         integration_updated = UpdateIntegrationActionType.do(

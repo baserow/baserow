@@ -120,9 +120,9 @@ export default {
   },
   data() {
     return {
-      // `null` means the user has not touched the field. See the same pattern
-      // in SMTPForm: the API never returns the token, so an untouched field is
-      // dropped from the request and an empty string is a deliberate clear.
+      // The API never returns the token, so an empty field is dropped from the
+      // request and the saved token is kept. A Slack bot cannot run without
+      // one, so there is no clearing it.
       values: { token: null },
       allowedValues: ['token'],
     }
@@ -139,7 +139,7 @@ export default {
         this.values,
         this.getChildFormsValues(deep)
       )
-      if (values.token === null) {
+      if (!values.token) {
         delete values.token
       }
       return values

@@ -11,7 +11,9 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.api.integrations.serializers import CreateIntegrationSerializer
 from baserow.core.integrations.models import Integration
+from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import application_type_registry
 
 
@@ -464,8 +466,6 @@ def test_create_slack_integration_without_a_token_is_rejected(api_client, data_f
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_builder_application(user=user)
 
-    # Making the token optional so that an update need not retype it must not
-    # make it optional on a create, where there is nothing stored to keep.
     url = reverse("api:integrations:list", kwargs={"application_id": application.id})
     response = api_client.post(
         url,
@@ -477,6 +477,12 @@ def test_create_slack_integration_without_a_token_is_rejected(api_client, data_f
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
     assert response.json()["detail"]["token"][0]["code"] == "required"
+
+    # The published create schema must agree with the server.
+    serializer_class = integration_type_registry.get("slack_bot").get_serializer_class(
+        request_serializer=True, base_class=CreateIntegrationSerializer
+    )
+    assert serializer_class().fields["token"].required is True
 
 
 @pytest.mark.django_db
@@ -526,10 +532,9 @@ def test_update_smtp_integration_response_omits_password(api_client, data_fixtur
     integration = data_fixture.create_smtp_integration(application=application)
 
     url = reverse("api:integrations:item", kwargs={"integration_id": integration.id})
-    # `host` is required on every SMTP patch; the form always sends it.
     response = api_client.patch(
         url,
-        {"host": integration.host, "password": "newsecret"},
+        {"password": "newsecret"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -564,7 +569,9 @@ def test_update_slack_integration_without_token_succeeds(api_client, data_fixtur
 
 
 @pytest.mark.django_db
-def test_update_slack_integration_with_empty_token_clears_it(api_client, data_fixture):
+def test_update_slack_integration_with_empty_token_is_rejected(
+    api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_builder_application(user=user)
     integration = data_fixture.create_slack_bot_integration(
@@ -579,9 +586,10 @@ def test_update_slack_integration_with_empty_token_clears_it(api_client, data_fi
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_200_OK
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["token"][0]["code"] == "blank"
     integration.refresh_from_db()
-    assert integration.token == ""
+    assert integration.token == "xoxb-secret"
 
 
 @pytest.mark.django_db

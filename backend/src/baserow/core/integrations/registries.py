@@ -3,8 +3,6 @@ from typing import Any, Dict, List, Optional, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 
-from rest_framework import serializers
-
 from baserow.api.integrations.fields import HasSecretField
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -80,25 +78,6 @@ class IntegrationType(
 
         return values
 
-    def get_missing_required_secrets(self, values: Dict[str, Any]) -> List[str]:
-        """
-        Returns the secrets that a create must supply but did not.
-
-        The request serializer makes every secret optional, so that an update
-        which does not retype one still validates. A create has nothing stored
-        to keep, so a secret whose model field is neither blank nor nullable
-        has to be present.
-        """
-
-        missing = []
-        for name in self.secret_fields:
-            model_field = self.model_class._meta.get_field(name)
-            if model_field.blank or model_field.null:
-                continue
-            if not values.get(name):
-                missing.append(name)
-        return missing
-
     def get_field_names(
         self, request_serializer: bool, extra_params=None, **kwargs
     ) -> List[str]:
@@ -128,50 +107,27 @@ class IntegrationType(
         self, request_serializer: bool, extra_params=None, **kwargs
     ) -> Dict:
         """
-        Declares the `has_<name>` booleans on the response serializer, and makes
-        every secret optional and blankable on the request serializer.
-
-        The request side is not cosmetic. `IntegrationView.patch` validates
-        without `partial=True`, so a model field that is neither `blank` nor
-        `null` is generated as required. `SlackBotIntegration.token` is such a
-        field, and once the token stops being returned the frontend no longer
-        echoes it back, so without this override an unrelated rename would fail
-        validation and clearing a token would be impossible.
+        Declares the `has_<name>` booleans on the response serializer.
         """
 
         overrides = super().get_field_overrides(
             request_serializer, extra_params, **kwargs
         )
 
-        if not self.secret_fields:
+        if request_serializer or not self.secret_fields:
             return overrides
 
-        overrides = {**overrides}
         # Only declare fields the name list carries: DRF asserts on every read
         # and write if a declared field is missing from it.
         field_names = self.get_field_names(request_serializer, extra_params, **kwargs)
-
-        if request_serializer:
-            # This replaces any type-specific override for the same name. No
-            # type sets one today; a type that needs to should build on the
-            # field below rather than expect its own to survive.
-            for name in self.secret_fields:
-                if name not in field_names:
-                    continue
-                model_field = self.model_class._meta.get_field(name)
-                overrides[name] = serializers.CharField(
-                    required=False,
-                    allow_blank=True,
-                    allow_null=model_field.null,
-                    max_length=model_field.max_length,
-                    help_text=model_field.help_text,
-                )
-        else:
-            for name in self.secret_fields:
-                if f"has_{name}" in field_names:
-                    overrides[f"has_{name}"] = HasSecretField(name)
-
-        return overrides
+        return {
+            **overrides,
+            **{
+                f"has_{name}": HasSecretField(name)
+                for name in self.secret_fields
+                if f"has_{name}" in field_names
+            },
+        }
 
     def serialize_property(
         self,

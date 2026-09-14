@@ -193,14 +193,6 @@ class IntegrationService:
 
         integration_type = integration.get_type()
 
-        # A secret that the caller did not supply still arrives here as None,
-        # because the request serializer materialises every nullable field it
-        # knows about. None therefore means "not supplied, keep what is stored";
-        # an empty string is a deliberate clear.
-        for secret in integration_type.secret_fields:
-            if kwargs.get(secret, "") is None:
-                del kwargs[secret]
-
         self._check_secret_dependencies(integration, integration_type, kwargs)
 
         # Capture the original and new values (in the service-level vocabulary, so

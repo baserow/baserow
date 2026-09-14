@@ -42,7 +42,7 @@ describe('Slack bot integration form', () => {
     expect(wrapper.vm.getFormValues().token).toBe('xoxb-new')
   })
 
-  test('sends an empty string when the user clears a typed token', async () => {
+  test('omits a token the user typed and then cleared', async () => {
     const wrapper = await mountComponent({
       defaultValues: { has_token: true },
     })
@@ -52,7 +52,7 @@ describe('Slack bot integration form', () => {
     await input.setValue('')
     await flushPromises()
 
-    expect(wrapper.vm.getFormValues().token).toBe('')
+    expect('token' in wrapper.vm.getFormValues()).toBe(false)
   })
 
   test('does not require a token when one is already saved', async () => {
