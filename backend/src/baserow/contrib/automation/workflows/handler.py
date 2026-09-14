@@ -844,9 +844,10 @@ class AutomationWorkflowHandler:
 
             dispatch_context = AutomationDispatchContext(
                 workflow,
-                # This is a placeholder value, no actual history exists yet
-                # (it's created later in start_workflow). This is fine
-                # for now, because get_sample_data() doesn't use history.
+                # No history exists yet, start_workflow creates it. This context
+                # only serves the get_sample_data() call below, which never reads
+                # history, and is never used for a run. Every other context
+                # needs a real history.
                 history=None,
                 simulate_until_node=simulate_until_node,
             )

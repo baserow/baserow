@@ -19,7 +19,7 @@ class AutomationDispatchContext(DispatchContext):
     def __init__(
         self,
         workflow: AutomationWorkflow,
-        history: Optional[AutomationWorkflowHistory],
+        history: AutomationWorkflowHistory,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         simulate_until_node: Optional[AutomationActionNode] = None,
         current_iterations: Optional[Dict[int, int]] = None,
@@ -80,7 +80,7 @@ class AutomationDispatchContext(DispatchContext):
         integrations' users whoever started it (ADR 006 section 5).
         """
 
-        return self.history.triggered_by if self.history else None
+        return self.history.triggered_by
 
     def get_iteration_path(self, node):
         """
