@@ -83,11 +83,11 @@ class CreateIntegrationActionType(UndoableActionType):
 
 class UpdateIntegrationActionType(UndoableActionType):
     """
-    Undo and redo replay the logged values without any credential. The
-    sensitive fields, which include every target a credential protects, are
-    never logged, so a replay cannot re-point a stored password. If a replay
-    does trip `IntegrationCredentialRequired`, the action handler rolls it back
-    and records the error on the action.
+    Undo and redo replay the logged values without any credential. The fields
+    in `IntegrationType.get_action_log_excluded_fields`, which include every
+    target a credential protects, are never logged, so a replay cannot re-point
+    a stored password. If a replay does trip `IntegrationCredentialRequired`,
+    the action handler rolls it back and records the error on the action.
     """
 
     type = "update_integration"

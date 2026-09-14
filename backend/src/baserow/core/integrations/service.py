@@ -178,10 +178,6 @@ class IntegrationService:
         :param integration: The integration that should be updated.
         :param kwargs: Additional attributes of the integration.
         :return: The updated integration together with the values that changed.
-        Every sensitive field is kept out of the action log, not only the
-        secrets: a replayed host change would send a later password to a host
-        someone else chose, and the audit log copies the action log verbatim.
-
         :raises IntegrationCredentialRequired: When a request-target field changes
             without its credential.
         """
@@ -201,7 +197,7 @@ class IntegrationService:
         # FK fields are stored as their ids) before `prepare_values` mutates them, so
         # the update can be undone/redone.
         original_values, new_values = extract_undo_redo_values(
-            integration, kwargs, integration_type.sensitive_fields
+            integration, kwargs, integration_type.get_action_log_excluded_fields()
         )
 
         prepared_values = integration_type.prepare_values(kwargs, user)

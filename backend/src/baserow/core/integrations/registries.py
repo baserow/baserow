@@ -82,6 +82,26 @@ class IntegrationType(
 
         return values
 
+    def get_action_log_excluded_fields(self) -> List[str]:
+        """
+        Returns the fields kept out of the update action log. Undo and redo replay
+        the log without any credential, so a secret and every target it protects
+        stay out: replaying a host change would send a password stored later to a
+        host someone else chose. A type that declares no secrets keeps all its
+        sensitive fields out, because they may hold credentials of their own,
+        such as the AI integration's `ai_settings`.
+        """
+
+        if not self.secret_fields:
+            return self.sensitive_fields
+
+        targets = [
+            target
+            for targets in self.secret_field_dependencies.values()
+            for target in targets
+        ]
+        return [*self.secret_fields, *targets]
+
     def get_field_names(
         self, request_serializer: bool, extra_params=None, **kwargs
     ) -> List[str]:
