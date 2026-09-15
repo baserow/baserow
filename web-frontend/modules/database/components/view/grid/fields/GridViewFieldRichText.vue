@@ -32,6 +32,7 @@
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
+      :upload-file="editing ? uploadUserFile : null"
     />
     <i
       v-if="editing && !isModalOpen()"
@@ -50,6 +51,7 @@
       :field="field"
       :error="getModalError()"
       :mentionable-users="workspace ? workspace.users : null"
+      :upload-file="uploadUserFile"
       @hidden="onExpandedModalHidden"
     />
   </div>
@@ -57,6 +59,7 @@
 
 <script>
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
+import UserFileService from '@baserow/modules/core/services/userFile'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
@@ -68,7 +71,6 @@ export default {
   mixins: [gridField, gridFieldInput],
   data() {
     return {
-      // local copy of the value storing the JSON representation of the rich text editor
       richCopy: '',
       hasEdits: false,
     }
@@ -77,6 +79,7 @@ export default {
     formattedValue() {
       return parseMarkdown(this.value, {
         openLinkOnClick: true,
+        enableImages: true,
         workspaceUsers: this.workspace ? this.workspace.users : null,
         loggedUserId: this.$store.getters['auth/getUserId'],
       })
@@ -104,8 +107,30 @@ export default {
       }
     },
   },
+  mounted() {
+    this.cellDragoverHandler = (e) => {
+      if (!this.editing) {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'none'
+      }
+    }
+    this.cellDropHandler = (e) => {
+      if (!this.editing) {
+        e.preventDefault()
+      }
+    }
+    this.$refs.cell.addEventListener('dragover', this.cellDragoverHandler)
+    this.$refs.cell.addEventListener('drop', this.cellDropHandler)
+  },
+  beforeUnmount() {
+    this.$refs.cell?.removeEventListener('dragover', this.cellDragoverHandler)
+    this.$refs.cell?.removeEventListener('drop', this.cellDropHandler)
+  },
   methods: {
     resolveClipboardMarkdown: getRichTextClipboardContent,
+    async uploadUserFile(file) {
+      return await UserFileService(this.$client).uploadFile(file)
+    },
     getMenuContainer() {
       return document.body
     },
@@ -144,12 +169,13 @@ export default {
       return this.isModalOpen() ? this.getError() : null
     },
     beforeSave() {
-      // Reserializing an untouched legacy value could rewrite it on mere blur.
       if (!this.hasEdits) {
         return this.value
       }
-      const ref = this.isModalOpen() ? 'expandedModal' : 'input'
-      return this.$refs[ref].serializeToMarkdown()
+      if (this.$modalMarkdown != null) {
+        return this.$modalMarkdown
+      }
+      return this.$refs.input?.serializeToMarkdown() ?? this.value
     },
     afterEdit() {
       this.$nextTick(() => {
@@ -163,7 +189,10 @@ export default {
         this.editing = false
         return
       }
+      this.$modalMarkdown =
+        this.$refs.expandedModal?.serializeToMarkdown() ?? null
       this.save()
+      this.$modalMarkdown = null
     },
     onPaste() {
       // Prevent the grid paste handler from intercepting TipTap editor pastes.
@@ -191,6 +220,12 @@ export default {
         !this.editing ||
         (!this.$refs.input?.isEventTargetInside(event) && !this.isModalOpen())
       )
+    },
+    canSelectNext(event) {
+      if (this.isModalOpen()) {
+        return false
+      }
+      return !this.editing || event.key === 'Tab'
     },
   },
 }

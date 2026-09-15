@@ -264,6 +264,107 @@ def test_table_workspace_storage_usage_item_type_unique_files(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_table_workspace_storage_usage_includes_rich_text_images(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    rich_text_field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+
+    user_file = data_fixture.create_user_file(
+        original_name="photo.png", is_image=True, size=3 * USAGE_UNIT_MB
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{rich_text_field.id}": f"![photo][{user_file.name}]",
+            "order": 1,
+        }
+    )
+
+    from django.db import connection
+
+    with connection.cursor() as c:
+        c.execute(
+            "SELECT proname FROM pg_proc WHERE proname LIKE %s ORDER BY proname",
+            ["%baserow_table%"],
+        )
+        funcs = [r[0] for r in c.fetchall()]
+
+        c.execute(
+            "SELECT prosrc FROM pg_proc WHERE proname = %s",
+            ["get_distinct_baserow_table_file_uniques"],
+        )
+        wrapper_src = c.fetchone()[0]
+
+    print(f"SQL functions: {funcs}")
+    print(f"has rich_text in wrapper: {'rich_text' in wrapper_src}")
+
+    from django.db import connection
+
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM _get_baserow_table_rich_text_file_uniques(%s)",
+            [table.id],
+        )
+        rt_results = cur.fetchall()
+
+    assert len(rt_results) == 1
+    assert rt_results[0][0] == user_file.unique
+
+
+@pytest.mark.django_db(transaction=True)
+def test_table_workspace_storage_usage_deduplicates_rich_text_and_file_field(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    file_field = data_fixture.create_file_field(table=table)
+    rich_text_field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+
+    user_file = data_fixture.create_user_file(
+        original_name="photo.png", is_image=True, size=5 * USAGE_UNIT_MB
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{file_field.id}": [{"name": user_file.name}],
+            f"field_{rich_text_field.id}": f"![photo][{user_file.name}]",
+            "order": 1,
+        }
+    )
+
+    from django.db import connection
+
+    with connection.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM _get_baserow_table_file_uniques(%s)",
+            [table.id],
+        )
+        ff_results = cur.fetchall()
+        cur.execute(
+            "SELECT * FROM _get_baserow_table_rich_text_file_uniques(%s)",
+            [table.id],
+        )
+        rt_results = cur.fetchall()
+
+    ff_uniques = {r[0] for r in ff_results}
+    rt_uniques = {r[0] for r in rt_results}
+
+    assert user_file.unique in ff_uniques
+    assert user_file.unique in rt_uniques
+    assert ff_uniques == rt_uniques
+
+
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.disabled_in_ci
 # You must add --run-disabled-in-ci -s to pytest to run this test, you can do this in
 # intellij by editing the run config for this test and adding --run-disabled-in-ci -s

@@ -48,14 +48,23 @@ describe('RichTextEditor Markdown persistence', () => {
     expect(wrapper.vm.serializeToMarkdown()).toBe('')
   })
 
-  test('parses Markdown when the model value changes', async () => {
-    const wrapper = await mountEditor('plain')
+  test('parses Markdown when the model value changes in read-only mode', async () => {
+    const wrapper = await mountEditor('plain', { editable: false })
 
     await wrapper.setProps({ modelValue: '**bold**\nnext' })
 
     expect(wrapper.find('.tiptap strong').text()).toBe('bold')
     expect(wrapper.find('.tiptap br').exists()).toBe(true)
     expect(wrapper.vm.serializeToMarkdown()).toBe('**bold**  \nnext')
+  })
+
+  test('ignores external model value changes when editable', async () => {
+    const wrapper = await mountEditor('original')
+
+    await wrapper.setProps({ modelValue: '**changed**' })
+
+    expect(wrapper.find('.tiptap strong').exists()).toBe(false)
+    expect(wrapper.vm.serializeToMarkdown()).toBe('original')
   })
 
   test('inserts a new paragraph when Enter is pressed', async () => {

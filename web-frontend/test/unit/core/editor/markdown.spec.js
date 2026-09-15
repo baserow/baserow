@@ -7,14 +7,15 @@ import {
 } from '@baserow/modules/core/editor/richTextExtensions'
 import { createMention } from '@baserow/modules/core/editor/mention'
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
+import { preprocessRichTextImages } from '@baserow/modules/core/editor/richTextImageUtils'
 
 const paragraph = (text) => ({
   type: 'paragraph',
   ...(text === undefined ? {} : { content: [{ type: 'text', text }] }),
 })
 
-function createEditor(content, { users = null } = {}) {
-  const extensions = createRichTextEditorExtensions()
+function createEditor(content, { users = null, enableImages = false } = {}) {
+  const extensions = createRichTextEditorExtensions({ enableImages })
   if (users !== null) {
     extensions.push(createMention({ users }))
   }
@@ -268,6 +269,202 @@ describe('official TipTap Markdown integration', () => {
     expect(editor.getHTML()).not.toContain('<script>')
   })
 
+  test('preserves an image inside an ordered list item', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        {
+          type: 'orderedList',
+          attrs: { start: 1 },
+          content: [
+            {
+              type: 'listItem',
+              attrs: {},
+              content: [
+                paragraph(),
+                {
+                  type: 'image',
+                  attrs: {
+                    src: 'https://example.com/img.png',
+                    alt: 'photo',
+                    title: null,
+                    userFileName: null,
+                    maxWidth: '100%',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
+
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+
+    const json = editor.getJSON()
+    const listItem = json.content[0].content[0]
+    const imageNode = listItem.content.find((n) => n.type === 'image')
+    expect(imageNode).toBeTruthy()
+    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
+    expect(imageNode.attrs.alt).toBe('photo')
+
+    const firstPara = listItem.content[0]
+    expect(firstPara.type).toBe('paragraph')
+    expect(firstPara.content).toBeUndefined()
+  })
+
+  test('does not show &nbsp; text in list items after round-trip', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        {
+          type: 'orderedList',
+          attrs: { start: 1 },
+          content: [
+            {
+              type: 'listItem',
+              attrs: {},
+              content: [
+                paragraph(),
+                {
+                  type: 'image',
+                  attrs: {
+                    src: 'https://example.com/img.png',
+                    alt: 'photo',
+                    title: null,
+                    userFileName: null,
+                    maxWidth: '100%',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
+    const markdown = editor.getMarkdown()
+    expect(markdown).toContain('&nbsp;')
+
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+    const json = editor.getJSON()
+    const allText = JSON.stringify(json)
+    expect(allText).not.toContain('&nbsp;')
+    expect(allText).not.toContain('\\u00a0')
+  })
+
+  test('preserves an image inside a bullet list item', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              attrs: {},
+              content: [
+                paragraph('some text'),
+                {
+                  type: 'image',
+                  attrs: {
+                    src: 'https://example.com/img.png',
+                    alt: 'photo',
+                    title: null,
+                    userFileName: null,
+                    maxWidth: '100%',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
+
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+
+    const json = editor.getJSON()
+    const listItem = json.content[0].content[0]
+    const imageNode = listItem.content.find((n) => n.type === 'image')
+    expect(imageNode).toBeTruthy()
+    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
+  })
+
+  test('preserves image with userFileName through full app flow', () => {
+    const imageAttrs = {
+      src: 'https://example.com/img.png',
+      alt: 'photo',
+      title: null,
+      userFileName: 'abc123_def456.jpg',
+      maxWidth: '100%',
+    }
+    editor = createEditor(
+      {
+        type: 'doc',
+        content: [
+          {
+            type: 'orderedList',
+            attrs: { start: 1 },
+            content: [
+              {
+                type: 'listItem',
+                attrs: {},
+                content: [paragraph(), { type: 'image', attrs: imageAttrs }],
+              },
+            ],
+          },
+        ],
+      },
+      { enableImages: true }
+    )
+
+    const markdown = editor.getMarkdown()
+    expect(markdown).toContain('[abc123_def456.jpg]')
+    expect(markdown).toContain('https://example.com/img.png')
+    editor.destroy()
+
+    // preprocessRichTextImages → parse → applyNameMap
+    const { content: processed, nameMap } = preprocessRichTextImages(markdown)
+    expect(nameMap['https://example.com/img.png']).toBe('abc123_def456.jpg')
+
+    editor = new Editor({
+      extensions: createRichTextEditorExtensions({ enableImages: true }),
+      content: processed,
+      contentType: 'markdown',
+    })
+
+    // Apply nameMap to stamp userFileName on image nodes
+    const { tr } = editor.state
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'image' && node.attrs.src) {
+        const name = nameMap[node.attrs.src]
+        if (name && node.attrs.userFileName !== name) {
+          tr.setNodeMarkup(pos, undefined, {
+            ...node.attrs,
+            userFileName: name,
+          })
+        }
+      }
+    })
+    editor.view.dispatch(tr)
+
+    const json = editor.getJSON()
+    const listItem = json.content[0].content[0]
+    const imageNode = listItem.content.find((n) => n.type === 'image')
+    expect(imageNode).toBeTruthy()
+    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
+    expect(imageNode.attrs.userFileName).toBe('abc123_def456.jpg')
+  })
+
   test('round-trips the existing supported Markdown syntax', () => {
     const markdown = [
       '# Heading',
@@ -410,5 +607,59 @@ describe('rich-text Markdown previews', () => {
     expect(clickable.querySelector('a').getAttribute('rel')).toBe(
       'noopener noreferrer nofollow'
     )
+  })
+})
+
+describe('parseMarkdown image handling', () => {
+  test('replaces images with placeholder when enableImages is false', () => {
+    const html = parseMarkdown(
+      'Hello ![img][abc123_def456.png](https://example.com/file.png)'
+    )
+
+    expect(html).not.toContain('<img')
+    expect(html).toContain('Hello')
+    expect(html).toContain('🖼 img')
+  })
+
+  test('renders images with inline URLs when enableImages is true', () => {
+    const html = parseMarkdown(
+      '![alt text][abc123_def456.png](https://example.com/user_files/abc123_def456.png)',
+      { enableImages: true }
+    )
+
+    expect(html).toContain('<img')
+    expect(html).toContain(
+      'src="https://example.com/user_files/abc123_def456.png"'
+    )
+  })
+
+  test('renders content without image refs unchanged', () => {
+    const html = parseMarkdown('Plain text without images', {
+      enableImages: true,
+    })
+
+    expect(html).not.toContain('<img')
+    expect(html).toContain('Plain text without images')
+  })
+
+  test('handles multiple images', () => {
+    const content = [
+      '![a][file1_hash1.png](https://cdn.example.com/file1.png)',
+      '',
+      '![b][file2_hash2.jpg](https://cdn.example.com/file2.jpg)',
+    ].join('\n')
+    const html = parseMarkdown(content, { enableImages: true })
+
+    expect(html).toContain('src="https://cdn.example.com/file1.png"')
+    expect(html).toContain('src="https://cdn.example.com/file2.jpg"')
+  })
+
+  test('applies max-width style to images', () => {
+    const html = parseMarkdown(
+      '![img][test_file.png](https://example.com/test.png)',
+      { enableImages: true }
+    )
+
+    expect(html).toContain('max-width: 100%')
   })
 })

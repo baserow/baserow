@@ -125,26 +125,43 @@ const CodeBlock = BaseCodeBlock.extend({
 
 const ListItem = BaseListItem.extend({
   renderMarkdown(node, helpers, context) {
-    // Marked only recognizes an empty list item when it contains a visible Markdown
-    // placeholder. Replace the first sentinel only; later user text may contain it.
     const emptyParagraphMarker = '\uE002'
-    const firstChild = node.content?.[0]
-    const normalizedNode =
-      firstChild?.type === 'paragraph' && !firstChild.content?.length
+    const children = node.content ?? []
+    if (children.length === 0) return ''
+
+    const [first, ...rest] = children
+    const normalizedFirst =
+      first?.type === 'paragraph' && !first.content?.length
         ? {
-            ...node,
-            content: [
-              {
-                ...firstChild,
-                content: [{ type: 'text', text: emptyParagraphMarker }],
-              },
-              ...node.content.slice(1),
-            ],
+            ...first,
+            content: [{ type: 'text', text: emptyParagraphMarker }],
           }
-        : node
-    return BaseListItem.config
-      .renderMarkdown(normalizedNode, helpers, context)
-      .replace(emptyParagraphMarker, '&nbsp;')
+        : first
+
+    let marker = '- '
+    if (context.parentType === 'orderedList') {
+      const start = context.meta?.parentAttrs?.start || 1
+      const num = start + (context.index || 0)
+      marker = `${num}. `
+    }
+
+    const mainContent = helpers.renderChildren([normalizedFirst])
+    let output = `${marker}${mainContent}`
+
+    for (let i = 0; i < rest.length; i++) {
+      const child = rest[i]
+      const rendered =
+        helpers.renderChild(child, i + 1) ?? helpers.renderChildren([child])
+      if (rendered == null) continue
+      const indented = rendered
+        .split('\n')
+        .map((line) => helpers.indent(line))
+        .join('\n')
+      const separator = child.type === 'paragraph' ? '\n\n' : '\n'
+      output += `${separator}${indented}`
+    }
+
+    return output.replace(emptyParagraphMarker, '&nbsp;')
   },
 })
 
@@ -267,9 +284,7 @@ export const createRichTextEditorExtensions = (options = {}) => {
     History,
   ]
 
-  if (options.enableImages) {
-    extensions.push(Dropcursor, Gapcursor)
-  }
+  extensions.push(Dropcursor, Gapcursor)
 
   return extensions
 }

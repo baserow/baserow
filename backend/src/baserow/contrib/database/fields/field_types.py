@@ -171,6 +171,7 @@ from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
@@ -275,6 +276,14 @@ from .registries import (
     ReadOnlyFieldType,
     StartingRowType,
     field_type_registry,
+)
+from .rich_text_utils import (
+    MARKDOWN_IMAGE_REGEX,
+    MARKDOWN_IMAGE_WITH_URL_REGEX,
+    append_user_file_urls,
+    extract_user_file_names,
+    resolve_user_file_urls,
+    strip_user_file_urls,
 )
 from .utils import DeferredForeignKeyUpdater
 from .utils.duration import (
@@ -538,17 +547,41 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             )
         return enable_rich_text is False
 
-    def get_serializer_field(self, instance, **kwargs):
+    def _get_serializer_field_base_kwargs(self, **kwargs):
         required = kwargs.get("required", False)
-        return serializers.CharField(
-            **{
-                "required": required,
-                "allow_null": not required,
-                "allow_blank": not required,
-                "max_length": settings.MAX_FIELD_TEXT_LENGTH,
-                **kwargs,
-            }
-        )
+        return {
+            "required": required,
+            "allow_null": not required,
+            "allow_blank": not required,
+            "max_length": settings.MAX_FIELD_TEXT_LENGTH,
+            **kwargs,
+        }
+
+    def get_serializer_field(self, instance, **kwargs):
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
+
+        if not instance.long_text_enable_rich_text:
+            return serializers.CharField(**base_kwargs)
+
+        class RichTextInputField(serializers.CharField):
+            def to_internal_value(self, data):
+                value = super().to_internal_value(data)
+                return strip_user_file_urls(value)
+
+        return RichTextInputField(**base_kwargs)
+
+    def get_response_serializer_field(self, instance, **kwargs):
+        if not instance.long_text_enable_rich_text:
+            return self.get_serializer_field(instance, **kwargs)
+
+        base_kwargs = self._get_serializer_field_base_kwargs(**kwargs)
+
+        class RichTextResponseField(serializers.CharField):
+            def to_representation(self, value):
+                value = super().to_representation(value)
+                return append_user_file_urls(value)
+
+        return RichTextResponseField(**base_kwargs)
 
     def serialize_metadata_for_row_history(
         self,
@@ -590,6 +623,191 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     def get_value_for_filter(self, row: "GeneratedTableModel", field: Field) -> any:
         value = getattr(row, field.db_column)
         return collate_expression(Value(value))
+
+    def prepare_value_for_db(self, instance, value):
+        if not instance.long_text_enable_rich_text or not value:
+            return value
+
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        found = {uf.name for uf in UserFile.objects.all().name(*names)}
+        missing = names - found
+        if missing:
+            raise UserFileDoesNotExist(missing.pop())
+
+        return value
+
+    def get_export_serialized_value(
+        self,
+        row: "GeneratedTableModel",
+        field_name: str,
+        cache: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+    ):
+        content = self.get_internal_value_from_db(row, field_name)
+        if not content:
+            return content
+
+        field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
+        if not field.long_text_enable_rich_text:
+            return content
+
+        names = extract_user_file_names(content)
+        if not names or files_zip is None:
+            return content
+
+        user_file_handler = UserFileHandler()
+        if "_zip_names" not in cache:
+            cache["_zip_names"] = {item["name"] for item in files_zip.info_list()}
+        existing_names = cache["_zip_names"]
+
+        if "_user_file_originals" not in cache:
+            cache["_user_file_originals"] = {}
+        originals_cache = cache["_user_file_originals"]
+
+        uncached = {n for n in names if n not in originals_cache}
+        if uncached:
+            for uf in UserFile.objects.all().name(*uncached):
+                originals_cache[uf.name] = uf.original_name
+
+        image_metadata = []
+        for name in names:
+            if name not in originals_cache:
+                continue
+
+            cache_entry = f"user_file_{name}"
+            if cache_entry not in cache:
+                if name not in existing_names:
+                    file_path = user_file_handler.user_file_path(name)
+                    chunk_generator = file_chunk_generator(storage, file_path)
+                    try:
+                        files_zip.add(chunk_generator, name)
+                    except (FileNotFoundError, OSError):
+                        continue
+                    existing_names.add(name)
+                cache[cache_entry] = True
+
+            image_metadata.append(
+                {"name": name, "original_name": originals_cache[name]}
+            )
+
+        return (
+            {"content": content, "images": image_metadata}
+            if image_metadata
+            else content
+        )
+
+    def set_import_serialized_value(
+        self,
+        row: "GeneratedTableModel",
+        field_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        cache: Dict[str, Any],
+        files_zip: Optional[ZipFile] = None,
+        storage=None,
+    ):
+        if isinstance(value, dict):
+            content = value.get("content", "")
+            image_metadata = value.get("images", [])
+        else:
+            content = value
+            image_metadata = []
+
+        if content and files_zip is not None:
+            field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
+            if field.long_text_enable_rich_text:
+                originals = {
+                    img["name"]: img["original_name"]
+                    for img in image_metadata
+                    if "original_name" in img
+                }
+                content = self._rewrite_image_names(
+                    content, cache, files_zip, storage, originals
+                )
+
+        setattr(row, field_name, content)
+
+    def _rewrite_image_names(self, value, cache, files_zip, storage, originals=None):
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        if originals is None:
+            originals = {}
+
+        user_file_handler = UserFileHandler()
+        name_mapping = {}
+        for name in names:
+            cache_entry = f"rich_text_file_{name}"
+            if cache_entry in cache:
+                name_mapping[name] = cache[cache_entry]
+                continue
+            try:
+                stream = files_zip.open(name)
+            except KeyError:
+                continue
+            with stream:
+                original_name = originals.get(name)
+                if not original_name:
+                    deconstructed = UserFile.deconstruct_name(name)
+                    original_name = f"{deconstructed['unique']}.{deconstructed['original_extension']}"
+                user_file = user_file_handler.upload_user_file(
+                    None, original_name, stream, storage=storage
+                )
+                name_mapping[name] = user_file.name
+                cache[cache_entry] = user_file.name
+
+        if not name_mapping:
+            return value
+
+        def _replace_import_name(match):
+            old_name = match.group(1)
+            new_name = name_mapping.get(old_name)
+            if new_name:
+                without_ref = match.group(0).removesuffix(f"[{old_name}]")
+                return f"{without_ref}[{new_name}]"
+            return match.group(0)
+
+        return MARKDOWN_IMAGE_REGEX.sub(_replace_import_name, value)
+
+    def get_export_value(self, value, field_object, rich_value=False):
+        if not value:
+            return value
+
+        field = field_object["field"]
+        if not field.long_text_enable_rich_text:
+            return value
+
+        names = extract_user_file_names(value)
+        if not names:
+            return value
+
+        url_map = resolve_user_file_urls(names)
+
+        def _replace_for_export(match):
+            name = match.group(1)
+            url = url_map.get(name)
+            if not url:
+                return match.group(0)
+            without_ref = match.group(0).removesuffix(f"[{name}]")
+            return f"{without_ref}({url})"
+
+        return MARKDOWN_IMAGE_REGEX.sub(_replace_for_export, value)
+
+    def get_human_readable_value(self, value, field_object):
+        if not value:
+            return value or ""
+
+        field = field_object["field"]
+        if not field.long_text_enable_rich_text:
+            return value
+
+        value = MARKDOWN_IMAGE_WITH_URL_REGEX.sub(lambda m: m.group(2), value)
+        return MARKDOWN_IMAGE_REGEX.sub(lambda m: m.group(1), value)
 
 
 class URLFieldType(CollationSortMixin, TextFieldMatchingRegexFieldType):
