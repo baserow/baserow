@@ -260,6 +260,32 @@ export class BuilderFileInputElementPaidFeature extends PaidFeature {
   }
 }
 
+export class BuilderGraphElementPaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_graph_element'
+  }
+
+  getPlan() {
+    return 'Enterprise'
+  }
+
+  getIconClass() {
+    return 'iconoir-graph-up'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.builderGraphElement')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.builderGraphElementContent')
+  }
+}
+
 export class BuilderCustomCodePaidFeature extends PaidFeature {
   static getType() {
     return 'builder_custom_code'

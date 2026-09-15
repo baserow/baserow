@@ -50,9 +50,7 @@
           <Chart
             v-if="chartReady"
             :key="chartKey"
-            :data-source="dataSource"
-            :data-source-data="dataForDataSource"
-            :series-config="widget.series_config"
+            :data="chartData"
             @rendered="chartRendered = true"
           >
           </Chart>
@@ -66,6 +64,7 @@
 <script>
 import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/WidgetContextMenu'
 import Chart from '@baserow_premium/dashboard/components/widget/Chart'
+import { getDashboardChartData } from '@baserow_premium/dashboard/chartData'
 
 export default {
   name: 'ChartWidget',
@@ -125,6 +124,15 @@ export default {
       return `${this.dataSource?.id}-${JSON.stringify(
         this.dataForDataSource?.results || []
       )}`
+    },
+    chartData() {
+      return getDashboardChartData({
+        dataSource: this.dataSource || {},
+        dataSourceData: this.dataForDataSource,
+        seriesConfig: this.widget.series_config || [],
+        $registry: this.$registry,
+        $t: (...args) => this.$t(...args),
+      })
     },
     isEditMode() {
       return this.$store.getters[
