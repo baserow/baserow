@@ -17,6 +17,10 @@
         :placeholder="$t('generalForm.labelPlaceholder')"
       />
     </FormGroup>
+    <FormulaFormatSelector
+      v-model="values.label"
+      :label="$t('textFormatSelector.labelFormat')"
+    />
     <FormGroup
       small-label
       :label="$t('generalForm.valueTitle')"
@@ -87,10 +91,15 @@ import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import { DATE_FORMATS, TIME_FORMATS } from '@baserow/modules/builder/enums'
+import FormulaFormatSelector from '@baserow/modules/builder/components/elements/components/forms/FormulaFormatSelector'
 
 export default {
   name: 'DateTimePickerElementForm',
-  components: { InjectedFormulaInput, CustomStyleButton },
+  components: {
+    InjectedFormulaInput,
+    CustomStyleButton,
+    FormulaFormatSelector,
+  },
   mixins: [formElementForm],
   data() {
     return {

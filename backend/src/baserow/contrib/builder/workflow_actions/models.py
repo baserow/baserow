@@ -5,7 +5,7 @@ from django_cte import CTEManager
 
 from baserow.contrib.builder.elements.models import Element, NavigationElementMixin
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.formula.field import FormulaField
+from baserow.core.formula.field import FormattedFormulaField
 from baserow.core.managers import NoTrashManager, TrashOnlyManager
 from baserow.core.mixins import OrderableMixin
 from baserow.core.registry import ModelRegistryMixin
@@ -104,8 +104,8 @@ class BuilderWorkflowAction(
 
 
 class NotificationWorkflowAction(BuilderWorkflowAction):
-    title = FormulaField(default="")
-    description = FormulaField(default="")
+    title = FormattedFormulaField(default="")
+    description = FormattedFormulaField(default="")
 
 
 class OpenPageWorkflowAction(BuilderWorkflowAction, NavigationElementMixin):

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, TypedDict, Union
+from typing import Any, Dict, List, Literal, Optional, TypedDict, Union
 
 from baserow.core.formula.exceptions import RuntimeFormulaRecursion
 
@@ -76,6 +76,15 @@ BASEROW_FORMULA_MODE_ADVANCED: Literal["advanced"] = "advanced"
 BASEROW_FORMULA_MODE_RAW: Literal["raw"] = "raw"
 BaserowFormulaMode = Literal["simple", "advanced", "raw"]
 
+# The rendering formats of a `FormattedFormulaObject`, see below.
+BASEROW_FORMULA_FORMAT_PLAIN: Literal["plain"] = "plain"
+BASEROW_FORMULA_FORMAT_MARKDOWN: Literal["markdown"] = "markdown"
+BaserowFormulaFormat = Literal["plain", "markdown"]
+BASEROW_FORMULA_FORMATS = [
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+]
+
 
 class BaserowFormulaObject(TypedDict):
     formula: BaserowFormula
@@ -103,10 +112,77 @@ class BaserowFormulaObject(TypedDict):
             return cls.create(formula=value)
 
 
+class FormattedFormulaObject(BaserowFormulaObject):
+    """
+    The value of a `FormattedFormulaField`: a formula object which also says how
+    the surface showing its resolved value renders it, as plain text or as
+    Markdown. Unlike the three keys of a `BaserowFormulaObject`, the `format` is
+    not a property of the formula but of the surface, so only the fields declared
+    with that type carry it, and they always do.
+
+    A `TypedDict` subclass doesn't inherit the methods of its parent at runtime
+    (the class is rebuilt on `dict`), hence the copies below.
+    """
+
+    format: BaserowFormulaFormat
+
+    @classmethod
+    def create(
+        cls,
+        formula: str = "",
+        mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
+        version: str = "0.1",
+        format: BaserowFormulaFormat = BASEROW_FORMULA_FORMAT_PLAIN,
+    ) -> "FormattedFormulaObject":
+        return FormattedFormulaObject(
+            formula=formula, mode=mode, version=version, format=format
+        )
+
+    @classmethod
+    def from_formula(
+        cls, formula: BaserowFormulaObject, format: Optional[str] = None
+    ) -> "FormattedFormulaObject":
+        """
+        Returns the given formula object carrying the given format, or the one it
+        already has, or the plain default: a formula object that never had a
+        format, e.g. one stored before its field became a `FormattedFormulaField`
+        or one exported before that, is a plain one.
+        """
+
+        return FormattedFormulaObject(
+            **{**formula, "format": format or get_formula_format(formula)}
+        )
+
+
+def get_formula_format(value: Any) -> BaserowFormulaFormat:
+    """
+    Reads the format of a formula object, or of its minified form, where a
+    missing key means plain. Anything that isn't a formula object, e.g. a raw
+    formula string, is plain too.
+
+    :param value: A `FormattedFormulaObject`, a `FormattedFormulaMinified`, or
+        the plain variants of either.
+    :return: The format.
+    """
+
+    if isinstance(value, dict):
+        return value.get("format") or value.get("fmt") or BASEROW_FORMULA_FORMAT_PLAIN
+    return BASEROW_FORMULA_FORMAT_PLAIN
+
+
 class BaserowFormulaMinified(TypedDict):
     v: str
     m: BaserowFormulaMode
     f: BaserowFormula
+
+
+class FormattedFormulaMinified(BaserowFormulaMinified):
+    """
+    The stored form of a `FormattedFormulaObject`, e.g.
+    `{"f": "'**bold**'", "m": "simple", "v": "0.1", "fmt": "markdown"}`.
+    """
+
+    fmt: BaserowFormulaFormat
 
 
 FormulaFieldDatabaseValue = Union[str, BaserowFormulaMinified]

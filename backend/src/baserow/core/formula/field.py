@@ -8,10 +8,14 @@ from django.db import connection, models
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaFormat,
     BaserowFormulaMinified,
+    FormattedFormulaMinified,
+    FormattedFormulaObject,
     FormulaFieldDatabaseValue,
     JSONFormulaFieldDatabaseValue,
     JSONFormulaFieldResult,
+    get_formula_format,
 )
 
 logger = logging.getLogger(__name__)
@@ -232,6 +236,61 @@ class FormulaField(models.TextField):
                 v=BASEROW_FORMULA_VERSION_INITIAL,
             )
         )
+
+
+class FormattedFormulaField(FormulaField):
+    """
+    A `FormulaField` whose value also says how the surface showing the resolved
+    formula renders it: as plain text or as Markdown. It is declared only on the
+    surfaces that can render Markdown (the form element labels, the notification
+    title and description, ...), so the field type itself is what gates the
+    format: a plain `FormulaField` never reads, stores or returns one.
+
+    The Python value is a `FormattedFormulaObject`, which always carries its
+    `format`. The stored JSON carries it as `fmt`, e.g.
+    `{"f":"'**bold**'","m":"simple","v":"0.1","fmt":"markdown"}`. A stored value
+    without `fmt`, written before the column was declared with this type, reads
+    as plain, so switching a column between the two types needs no migration.
+    """
+
+    def deconstruct(self):
+        """
+        Deconstruct as a `FormulaField`, the way `JSONFormulaField` deconstructs
+        as a `JSONField`: the column is the same text column, so declaring it
+        with either type must not generate a migration.
+        """
+
+        name, path, args, kwargs = super().deconstruct()
+        return name, "baserow.core.formula.field.FormulaField", args, kwargs
+
+    def _get_format(self, value: FormulaFieldDatabaseValue) -> BaserowFormulaFormat:
+        """
+        Reads the format of a Python value (`format`) or of a stored value
+        (`fmt`), which is still a JSON string here. Anything else, e.g. a raw
+        formula string or a stored value without a `fmt`, is plain.
+        """
+
+        if isinstance(value, str):
+            value = self._deserialize_baserow_object(value)
+        return get_formula_format(value)
+
+    def _transform_db_value_to_dict(
+        self, value: FormulaFieldDatabaseValue
+    ) -> FormattedFormulaObject:
+        formula = super()._transform_db_value_to_dict(value)
+        return FormattedFormulaObject.from_formula(formula, self._get_format(value))
+
+    def get_prep_value(
+        self, value: Union[str, FormattedFormulaObject]
+    ) -> Union[str, FormattedFormulaMinified]:
+        prepared = super().get_prep_value(value)
+        format = self._get_format(value)
+        # The base field owns the minification and its defaults; add the format to
+        # what it produced rather than repeating its rules here.
+        if isinstance(prepared, str):
+            minified = FormattedFormulaMinified(**json.loads(prepared), fmt=format)
+            return json.dumps(minified)
+        return FormattedFormulaMinified(**prepared, fmt=format)
 
 
 class JSONFormulaField(models.JSONField):

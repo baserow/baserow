@@ -3,7 +3,7 @@ from django.db import models
 from django.db.models import SET_NULL
 
 from baserow.contrib.builder.elements.models import Element, FormElement
-from baserow.core.formula.field import FormulaField
+from baserow.core.formula.field import FormattedFormulaField, FormulaField
 
 
 class AuthFormElement(Element):
@@ -30,13 +30,13 @@ class FileInputElement(FormElement):
 
     MAX_FILE_SIZE = 100
 
-    label = FormulaField(
+    label = FormattedFormulaField(
         default="",
         help_text="The text label for this input",
     )
     default_name = FormulaField(default="", help_text="This input's default file name.")
     default_url = FormulaField(default="", help_text="This input's default file url.")
-    help_text = FormulaField(
+    help_text = FormattedFormulaField(
         default="",
         help_text="The help text which should be visible on the element.",
     )

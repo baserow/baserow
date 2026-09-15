@@ -14,6 +14,13 @@
       :style="getStyleOverride('table')"
       :orientation="orientation"
     >
+      <template #field-name="{ field }">
+        <FormattedText
+          :content="field.name"
+          :format="field.name_format"
+          preset="inline"
+        />
+      </template>
       <template #cell-content="{ rowIndex, field, value, row }">
         <!--
         -- We force-self-alignment to `auto` here to prevent some self-positioning
@@ -70,11 +77,12 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import BaserowTable from '@baserow/modules/builder/components/elements/components/BaserowTable'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
+import FormattedText from '@baserow/modules/builder/components/FormattedText'
 import { useCollectionElement } from '@baserow/modules/builder/composables/useCollectionElement'
 
 export default {
   name: 'TableElement',
-  components: { CollectionElementHeader, BaserowTable },
+  components: { CollectionElementHeader, BaserowTable, FormattedText },
   props: {
     /**
      * @type {Object}

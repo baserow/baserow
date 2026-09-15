@@ -14,6 +14,16 @@
   cursor: pointer;
   position: relative;
 
+  // The Markdown help text renders elements that set their own `text-align`
+  // from the theme variables, which would ignore the centering above that the
+  // plain text rendering simply inherits.
+  .markdown .ab-text,
+  .markdown .ab-heading,
+  .markdown .ab-list,
+  .markdown .ab-code {
+    text-align: inherit;
+  }
+
   &:focus {
     border-color: color-mix(
       in srgb,

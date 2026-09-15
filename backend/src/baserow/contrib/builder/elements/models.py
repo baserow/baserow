@@ -11,6 +11,7 @@ from baserow.contrib.builder.constants import (
     BACKGROUND_IMAGE_MODES,
     COLOR_FIELD_MAX_LENGTH,
     HorizontalAlignments,
+    TextFormats,
     VerticalAlignments,
 )
 from baserow.core.constants import (
@@ -18,7 +19,11 @@ from baserow.core.constants import (
     DATE_TIME_FORMAT_CHOICES,
     RatingStyleChoices,
 )
-from baserow.core.formula.field import FormulaField, JSONFormulaField
+from baserow.core.formula.field import (
+    FormattedFormulaField,
+    FormulaField,
+    JSONFormulaField,
+)
 from baserow.core.formula.serializers import collect_json_formula_field_properties
 from baserow.core.graph.models import GraphPointMixin
 from baserow.core.mixins import (
@@ -460,16 +465,12 @@ class TextElement(Element):
     A simple blob of text.
     """
 
-    class TEXT_FORMATS(models.TextChoices):
-        PLAIN = "plain"
-        MARKDOWN = "markdown"
-
     value = FormulaField()
     format = models.CharField(
-        choices=TEXT_FORMATS.choices,
+        choices=TextFormats.choices,
         help_text="The format of the text",
         max_length=10,
-        default=TEXT_FORMATS.PLAIN,
+        default=TextFormats.PLAIN,
     )
 
 
@@ -646,7 +647,7 @@ class RatingElement(BaseRatingElement):
 
 
 class RatingInputElement(BaseRatingElement, FormElement):
-    label = FormulaField(
+    label = FormattedFormulaField(
         help_text="The text label for this field",
     )
 
@@ -661,7 +662,7 @@ class InputTextElement(FormElement):
         EMAIL = "email"
         INTEGER = "integer"
 
-    label = FormulaField(
+    label = FormattedFormulaField(
         help_text="The text label for this input",
     )
     default_value = FormulaField(help_text="This text input's default value.")
@@ -695,7 +696,7 @@ class ChoiceElement(FormElement):
         MANUAL = "manual"
         FORMULAS = "formulas"
 
-    label = FormulaField(
+    label = FormattedFormulaField(
         help_text="The text label for this choice",
     )
     default_value = FormulaField(
@@ -722,6 +723,14 @@ class ChoiceElement(FormElement):
     )
     formula_name = FormulaField(
         help_text="The display name of the option if it is a formula",
+    )
+    option_format = models.CharField(
+        choices=TextFormats.choices,
+        max_length=10,
+        default=TextFormats.PLAIN,
+        db_default=TextFormats.PLAIN,
+        help_text="The format of the option names, for both manual and formula "
+        "options.",
     )
 
 
@@ -752,7 +761,7 @@ class CheckboxElement(FormElement):
     A checkbox element.
     """
 
-    label = FormulaField(
+    label = FormattedFormulaField(
         help_text="The text label for this input",
     )
     default_value = FormulaField(help_text="The input's default value.")
@@ -775,6 +784,13 @@ class CollectionField(models.Model):
     order = models.PositiveIntegerField()
     name = models.CharField(
         max_length=225, help_text="The name of the field.", blank=True
+    )
+    name_format = models.CharField(
+        choices=TextFormats.choices,
+        max_length=10,
+        default=TextFormats.PLAIN,
+        db_default=TextFormats.PLAIN,
+        help_text="The format of the field name.",
     )
 
     type = models.CharField(
@@ -956,7 +972,7 @@ class RepeatElement(CollectionElement, ContainerElement):
 class RecordSelectorElement(CollectionElement, FormElement):
     """A collection element that displays a list of records for the user to select."""
 
-    label = FormulaField(
+    label = FormattedFormulaField(
         help_text="The text label for this record selector",
     )
     default_value = FormulaField(
@@ -979,7 +995,7 @@ class DateTimePickerElement(FormElement):
     An input element of datetime type.
     """
 
-    label = FormulaField(
+    label = FormattedFormulaField(
         help_text="The text label for this date time picker",
     )
     default_value = FormulaField(
