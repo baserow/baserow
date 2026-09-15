@@ -98,6 +98,43 @@ def test_core_http_request_basic(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "header_name",
+    [
+        "X-Workflow-Result",
+        "x-workflow-result",
+        "X-WORKFLOW-RESULT",
+        "x-WoRkFlOw-ReSuLt",
+    ],
+)
+def test_core_http_request_normalizes_response_headers(data_fixture, header_name):
+    """Formula data and its schema use stable keys regardless of server casing."""
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'"
+    )
+    service_type = service.get_type()
+    with mock_advocate_request(
+        {"message": "Created"},
+        headers={header_name: "First", "Content-Type": "application/json"},
+    ):
+        result = service_type.dispatch(service, FakeDispatchContext())
+
+    # Normalization must survive serialization to browser formula contexts.
+    data = json.loads(json.dumps(result.data))
+    assert data["headers"] == {
+        "x-workflow-result": "First",
+        "content-type": "application/json",
+    }
+    service.sample_data = {"data": data}
+    header_schema = service_type.generate_schema(service)["properties"]["headers"]
+    assert header_schema["properties"] == {
+        "x-workflow-result": {"type": "string"},
+        "content-type": {"type": "string"},
+    }
+
+
+@pytest.mark.django_db
 def test_core_http_request_request_error(
     data_fixture,
 ):
@@ -652,15 +689,15 @@ def test_core_http_request_generate_schema():
             "raw_body": {"type": "string", "title": "Raw body"},
             "headers": {
                 "properties": {
-                    "Content-Length": {
+                    "content-length": {
                         "description": "The length of the response body in octets (8-bit bytes)",
                         "type": "number",
                     },
-                    "Content-Type": {
+                    "content-type": {
                         "description": "The MIME type of the response body",
                         "type": "string",
                     },
-                    "ETag": {
+                    "etag": {
                         "description": "An identifier for a specific version of a resource",
                         "type": "string",
                     },
@@ -789,7 +826,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": {"fighters": {"Ryu": {"power": "Hadogen"}}},
         "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
-        "headers": headers,
+        "headers": {"content-type": content_type},
         "status_code": 204,
     }
 
@@ -844,7 +881,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": "Hello world!",
         "raw_body": "Hello world!",
-        "headers": headers,
+        "headers": {"content-type": content_type},
         "status_code": 204,
     }
 
