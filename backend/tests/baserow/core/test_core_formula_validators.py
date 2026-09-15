@@ -175,7 +175,7 @@ def test_ensure_string_or_integer_returns_empty_string_if_allow_empty_is_true(va
 
 
 @pytest.mark.parametrize(
-    "value,",
+    "value",
     [
         "",
         None,
@@ -198,7 +198,7 @@ def test_ensure_string_raises_error_if_allow_empty_is_false(value):
 
 
 @pytest.mark.parametrize(
-    "value,",
+    "value",
     [
         "",
         None,
