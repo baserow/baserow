@@ -60,6 +60,7 @@ from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registries import ImportExportConfig, subject_type_registry
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.subjects import UserSubjectType
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
@@ -826,7 +827,8 @@ class AutomationWorkflowHandler:
 
         if triggered_by is None:
             workflow.test_run_triggered_by_id = None
-            return ["test_run_triggered_by_id"]
+            workflow.test_run_triggered_by_type = UserSubjectType.type
+            return ["test_run_triggered_by_id", "test_run_triggered_by_type"]
 
         workflow.test_run_triggered_by_id = triggered_by.id
         workflow.test_run_triggered_by_type = subject_type_registry.get_by_model(
@@ -866,8 +868,7 @@ class AutomationWorkflowHandler:
             fields_to_save.append("simulate_until_node")
 
         if workflow.test_run_triggered_by_id is not None:
-            workflow.test_run_triggered_by_id = None
-            fields_to_save.append("test_run_triggered_by_id")
+            fields_to_save += self._set_test_run_triggered_by(workflow, None)
 
         if fields_to_save:
             workflow.save(update_fields=fields_to_save)

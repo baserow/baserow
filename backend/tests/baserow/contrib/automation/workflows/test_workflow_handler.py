@@ -40,6 +40,7 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from tests.baserow.contrib.automation.history.utils import assert_history
 
@@ -2117,6 +2118,23 @@ def test_opening_the_test_run_window_through_an_update_records_who_opened_it(
 
     history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
     assert history.triggered_by_id == second.id
+
+
+@pytest.mark.django_db
+def test_resetting_temporary_states_forgets_the_starter_type(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+    )
+    workflow.test_run_triggered_by_id = 1
+    workflow.test_run_triggered_by_type = "core.Token"
+    workflow.save()
+
+    AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+    assert workflow.test_run_triggered_by_type == UserSubjectType.type
 
 
 @pytest.mark.django_db
