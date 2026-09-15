@@ -123,6 +123,67 @@ test.describe('Dashboard widget grid', () => {
     await expect(loadingIndicator).toHaveCount(0, { timeout: 10_000 })
   })
 
+  for (const interaction of ['dragging', 'resizing']) {
+    test(`shows a new widget after ${interaction} another back to its original geometry`, async ({
+      page,
+      workspacePage,
+    }) => {
+      const dashboard = await createDashboard(
+        `Dashboard unchanged ${interaction}`,
+        workspacePage.workspace
+      )
+      const widget = await createSummaryWidget(dashboard, 'Existing widget')
+      await goToDashboard(page, dashboard)
+      await enterEditMode(page)
+
+      const handle = page
+        .getByTestId(`dashboard-widget-grid-item-${widget.id}`)
+        .locator(
+          interaction === 'dragging'
+            ? '.widget__header-title'
+            : '.vgl-item__resizer'
+        )
+      await handle.hover()
+      const box = await handle.boundingBox()
+      if (!box) {
+        throw new Error('Could not measure the widget drag handle')
+      }
+      const x = box.x + box.width / 2
+      const y = box.y + box.height / 2
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      try {
+        await page.mouse.move(x + 250, y, { steps: 12 })
+        await page.mouse.move(x, y, { steps: 12 })
+      } finally {
+        await page.mouse.up()
+      }
+      await expectWidgetLayout(dashboard, widget.id, {
+        grid_x: 0,
+        grid_y: 0,
+        grid_width: 2,
+        grid_height: 4,
+      })
+
+      await page
+        .getByRole('button', { name: 'Add widget', exact: true })
+        .click()
+      const creationResponse = page.waitForResponse(
+        (response) =>
+          response.request().method() === 'POST' &&
+          response.url().endsWith(`/dashboard/${dashboard.id}/widgets/`)
+      )
+      await page
+        .locator('.create-widget-card')
+        .filter({ hasText: 'Summary' })
+        .click()
+      const createdWidget = await (await creationResponse).json()
+      await expect(
+        page.getByTestId(`dashboard-widget-${createdWidget.id}`)
+      ).toBeVisible()
+    })
+  }
+
   test('resizes in discrete grid tracks without placeholder feedback', async ({
     page,
     workspacePage,
