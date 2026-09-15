@@ -148,9 +148,9 @@ def _date_orm_value(f, field, **kwargs):
 
 
 _GET_ORM_VALUE = {
-    "text": lambda f, field, **kw: f.value
-    if isinstance(f.value, str)
-    else str(f.value or ""),
+    "text": lambda f, field, **kw: (
+        f.value if isinstance(f.value, str) else str(f.value or "")
+    ),
     "number": lambda f, field, **kw: str(f.value),
     "date": _date_orm_value,
     "single_select": _select_orm_value,
