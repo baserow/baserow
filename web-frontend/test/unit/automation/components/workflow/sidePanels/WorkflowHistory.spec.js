@@ -3,9 +3,14 @@ import { createStore } from 'vuex'
 import { mount, flushPromises } from '@vue/test-utils'
 import WorkflowHistory from '@baserow/modules/automation/components/workflow/sidePanels/WorkflowHistory'
 
-// No module mocks: the component reads useNuxtApp() from the mounting Vue
-// app's `$nuxt` first, so a tiny plugin hands it a fake Nuxt app, and a real
-// vuex store with a stub history module serves useStore().
+// Mounted on a fresh Vue app rather than through TestApp/mountSuspended on
+// purpose: the component reads `useNuxtApp().$hasPermission`, which Nuxt defines
+// on the real test app as a non-configurable getter, so it can't be spied or
+// overridden per test. `useNuxtApp()` resolves the mounting Vue app's `$nuxt`
+// first, so a tiny plugin hands it a fake Nuxt app instead, and a real vuex
+// store with a stub history module serves `useStore()`.
+const mounted = []
+
 const mountHistory = ({ item, cancel, hasPermission = true }) => {
   const store = createStore({
     modules: {
@@ -41,6 +46,7 @@ const mountHistory = ({ item, cancel, hasPermission = true }) => {
       },
     },
   })
+  mounted.push(wrapper)
   return { wrapper, fakeNuxtApp }
 }
 
@@ -52,6 +58,12 @@ const runningItem = (extra = {}) => ({
 })
 
 describe('WorkflowHistory cancellation', () => {
+  afterEach(() => {
+    // Unmount even when an assertion failed so the running-status timer is
+    // always cleared.
+    mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+  })
+
   test('dispatches the cancellation and disables the link while pending', async () => {
     let resolve
     const cancel = vi.fn(() => new Promise((r) => (resolve = r)))
@@ -82,7 +94,6 @@ describe('WorkflowHistory cancellation', () => {
     expect(link.classes()).not.toContain(
       'workflow-history__cancel-link--disabled'
     )
-    wrapper.unmount()
   })
 
   test('shows the cancelling message instead of the link once requested', () => {
@@ -94,7 +105,6 @@ describe('WorkflowHistory cancellation', () => {
     expect(wrapper.find('.workflow-history__cancel').text()).toBe(
       'historySidePanel.cancelling'
     )
-    wrapper.unmount()
   })
 
   test('hides the cancel link without the update permission', () => {
@@ -104,7 +114,6 @@ describe('WorkflowHistory cancellation', () => {
       hasPermission: false,
     })
     expect(wrapper.find('.workflow-history__cancel').exists()).toBe(false)
-    wrapper.unmount()
   })
 
   test('hides the cancel link for finished runs and titles cancelled ones', () => {
@@ -116,7 +125,6 @@ describe('WorkflowHistory cancellation', () => {
     expect(wrapper.find('.workflow-history__header-title').text()).toBe(
       'historySidePanel.statusCancelled'
     )
-    wrapper.unmount()
   })
 
   test('swallows the not-running error but notifies other errors', async () => {
@@ -140,6 +148,5 @@ describe('WorkflowHistory cancellation', () => {
     await wrapper.find('.workflow-history__cancel-link').trigger('click')
     await flushPromises()
     expect(other.handler.notifyIf).toHaveBeenCalledWith('automationWorkflow')
-    wrapper.unmount()
   })
 })
