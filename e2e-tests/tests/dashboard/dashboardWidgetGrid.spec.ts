@@ -336,6 +336,8 @@ test.describe('Dashboard widget grid', () => {
     const observerPage = await page.context().newPage()
     await goToDashboard(observerPage, dashboard)
 
+    // Keep the editor active while the second tab observes layout updates.
+    await page.bringToFront()
     await enterEditMode(page)
 
     const grid = page.getByTestId('dashboard-widget-grid')
