@@ -345,8 +345,15 @@ class RoleAssignmentHandler:
             the object hierarchy, the earlier the tuple is in the list.
         """
 
+        priority_subject_types = [
+            subject_type_registry.get(subject_name)
+            for subject_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY
+        ]
         content_types = ContentType.objects.get_for_models(
-            actor_subject_type.model_class, Team, Workspace
+            actor_subject_type.model_class,
+            Team,
+            Workspace,
+            *[subject_type.model_class for subject_type in priority_subject_types],
         )
 
         actor_by_id = {a.id: a for a in actors}
@@ -405,12 +412,7 @@ class RoleAssignmentHandler:
                 subject_type=content_types[subject_type.model_class],
                 then=Value(order),
             )
-            for order, subject_type in enumerate(
-                [
-                    subject_type_registry.get(subject_name)
-                    for subject_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY
-                ]
-            )
+            for order, subject_type in enumerate(priority_subject_types)
         ]
 
         # Final query
@@ -500,43 +502,27 @@ class RoleAssignmentHandler:
                     ):
                         roles_by_scope[actor_id][scope_param].append(role)
 
-        # For user actor, we need to get the workspace level role by reading the
-        # WorkspaceUser permissions property
-        if actor_subject_type.type == UserSubjectType.type:
-            # Get all workspace users at once
-            actor_ids_set = {a.id for a in actors}
-
-            def _get_user_permissions_by_id():
-                if include_trash:
-                    wp_users = WorkspaceUser.objects_and_trash.filter(
-                        workspace_id=workspace.id, user_id__in=actor_ids_set
-                    )
-                else:
-                    wp_users = workspace.workspaceuser_set.all()
-                return {
-                    wu.user_id: wu.permissions
-                    for wu in wp_users
-                    if wu.user_id in actor_ids_set
-                }
-
-            user_permissions_by_id = local_cache.get(
-                f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{workspace.id}_{actors_cache_key}_{include_trash}",
-                _get_user_permissions_by_id,
-            )
-
+        workspace_roles_by_actor_id = local_cache.get(
+            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{workspace.id}_{actors_cache_key}_{include_trash}",
+            lambda: actor_subject_type.get_workspace_role_uids(
+                actors, workspace, include_trash=include_trash
+            ),
+        )
+        if workspace_roles_by_actor_id is not None:
             for actor in actors:
                 workspace_level_role = self.get_role_by_uid(
-                    user_permissions_by_id.get(actor.id, NO_ACCESS_ROLE_UID),
+                    workspace_roles_by_actor_id.get(actor.id, NO_ACCESS_ROLE_UID),
                     use_fallback=True,
                 )
-                if workspace_level_role.uid == NO_ROLE_LOW_PRIORITY_ROLE_UID:
-                    # Low priority role -> Use team role or NO_ACCESS if no team role
-                    if not roles_by_scope[actor.id].get(workspace_scope_param):
-                        roles_by_scope[actor.id][workspace_scope_param] = [
-                            self.get_role_by_uid(NO_ACCESS_ROLE_UID)
-                        ]
-                else:
-                    # Otherwise user role wins
+                inherited_workspace_roles = roles_by_scope[actor.id].get(
+                    workspace_scope_param
+                )
+                if (
+                    not actor_subject_type.is_workspace_role_fallback(
+                        workspace_level_role.uid
+                    )
+                    or not inherited_workspace_roles
+                ):
                     roles_by_scope[actor.id][workspace_scope_param] = [
                         workspace_level_role
                     ]
