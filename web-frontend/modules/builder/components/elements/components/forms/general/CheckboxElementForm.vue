@@ -52,16 +52,15 @@ import FormulaFormatSelector from '@baserow/modules/builder/components/elements/
 
 export default {
   name: 'CheckboxElementForm',
-  components: { InjectedFormulaInput, CustomStyleButton, FormulaFormatSelector },
+  components: {
+    InjectedFormulaInput,
+    CustomStyleButton,
+    FormulaFormatSelector,
+  },
   mixins: [formElementForm],
   data() {
     return {
-      allowedValues: [
-        'label',
-        'default_value',
-        'required',
-        'styles',
-      ],
+      allowedValues: ['label', 'default_value', 'required', 'styles'],
       values: {
         label: {},
         default_value: {},
