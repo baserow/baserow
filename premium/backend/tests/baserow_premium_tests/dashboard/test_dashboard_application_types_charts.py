@@ -131,6 +131,10 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
                 "order": "1.00000000000000000000",
                 "title": "Widget 1",
                 "type": "chart",
+                "grid_x": 0,
+                "grid_y": 0,
+                "grid_width": 3,
+                "grid_height": 9,
                 "series_config": [],
                 "default_series_chart_type": "BAR",
             },
@@ -275,6 +279,10 @@ def test_dashboard_import_serialized_with_widgets(premium_data_fixture):
     assert widget1.description == "Description 1"
     assert widget1.order == Decimal("1.0")
     assert widget1.data_source.id == ds1.id
+    assert widget1.grid_x == 0
+    assert widget1.grid_y == 0
+    assert widget1.grid_width == 3
+    assert widget1.grid_height == 9
 
     assert progress.progress == 100
 
@@ -380,6 +388,10 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
                 "order": "1.00000000000000000000",
                 "title": "Widget 1",
                 "type": "chart",
+                "grid_x": 0,
+                "grid_y": 0,
+                "grid_width": 3,
+                "grid_height": 9,
                 "series_config": [
                     {"series_chart_type": "BAR", "series_id": series_1.id},
                     {"series_chart_type": "LINE", "series_id": series_2.id},
@@ -515,6 +527,10 @@ def test_dashboard_import_serialized_with_widget_config(premium_data_fixture):
     assert widget1.description == "Description 1"
     assert widget1.order == Decimal("1.0")
     assert widget1.data_source.id == ds1.id
+    assert widget1.grid_x == 0
+    assert widget1.grid_y == 0
+    assert widget1.grid_width == 3
+    assert widget1.grid_height == 9
 
     series_configs = ChartSeriesConfig.objects.filter(widget=widget1)
     assert series_configs.count() == 2
@@ -603,6 +619,10 @@ def test_dashboard_export_serialized_with_default_chart_type(premium_data_fixtur
                 "order": "1.00000000000000000000",
                 "title": "Widget 1",
                 "type": "chart",
+                "grid_x": 0,
+                "grid_y": 0,
+                "grid_width": 3,
+                "grid_height": 9,
                 "series_config": [],
                 "default_series_chart_type": "LINE",
             },

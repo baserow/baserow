@@ -1,8 +1,5 @@
 <template>
-  <div class="dashboard-app">
-    <DashboardHeader :dashboard="dashboard" :loading="loading" />
-    <DashboardContent :dashboard="dashboard" :loading="loading" />
-  </div>
+  <Dashboard v-if="dashboard" :dashboard="dashboard" :loading="loading" />
 </template>
 
 <script setup>
@@ -14,8 +11,7 @@ import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsync
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
-import DashboardHeader from '@baserow/modules/dashboard/components/DashboardHeader'
-import DashboardContent from '@baserow/modules/dashboard/components/DashboardContent'
+import Dashboard from '@baserow/modules/dashboard/components/Dashboard'
 
 definePageMeta({
   layout: 'app',

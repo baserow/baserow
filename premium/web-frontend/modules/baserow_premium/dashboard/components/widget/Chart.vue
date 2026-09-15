@@ -1,12 +1,15 @@
 <template>
-  <component
-    :is="chartComponent"
-    v-if="chartData.datasets.length > 0"
-    id="chart-id"
-    :options="chartOptions"
-    :data="chartData"
-    class="chart"
-  />
+  <div v-if="hasChart" ref="chartContainer" class="chart__container">
+    <component
+      :is="chartComponent"
+      id="chart-id"
+      :key="chartComponent"
+      ref="chart"
+      :options="chartOptions"
+      :data="chartData"
+      class="chart"
+    />
+  </div>
 
   <div v-else class="chart__no-data">
     <span class="chart__no-data-dashed-line"></span>
@@ -94,6 +97,9 @@ export default {
     },
   },
   computed: {
+    hasChart() {
+      return this.chartData.datasets.length > 0
+    },
     chartComponent() {
       if (this.chartSeries.length > 0) {
         const firstSeriesConfig = this.getIndividualSeriesConfig(
@@ -113,7 +119,9 @@ export default {
     },
     chartOptions() {
       return {
-        responsive: true,
+        // The grid owns the chart container geometry. A single observer below
+        // resizes Chart.js explicitly, avoiding its second internal observer.
+        responsive: false,
         maintainAspectRatio: false,
         plugins: {
           legend: {
@@ -285,7 +293,61 @@ export default {
       })
     },
   },
+  watch: {
+    hasChart() {
+      this.$nextTick(() => {
+        this.observeChartContainer()
+      })
+    },
+    chartComponent() {
+      this.$nextTick(() => {
+        this.resizeChart()
+      })
+    },
+  },
+  mounted() {
+    this.observeChartContainer()
+  },
+  beforeUnmount() {
+    this.chartResizeObserver?.disconnect()
+  },
+  data() {
+    return {
+      chartResizeObserver: null,
+      observedChartContainer: null,
+      chartSize: null,
+    }
+  },
   methods: {
+    observeChartContainer() {
+      const chartContainer = this.$refs.chartContainer
+
+      if (chartContainer === this.observedChartContainer) {
+        return
+      }
+
+      this.chartResizeObserver?.disconnect()
+      this.observedChartContainer = chartContainer || null
+
+      if (!chartContainer || typeof ResizeObserver === 'undefined') {
+        return
+      }
+
+      this.chartResizeObserver = new ResizeObserver(([entry]) => {
+        const { width, height } = entry.contentRect
+        this.chartSize = { width, height }
+        this.resizeChart()
+      })
+      this.chartResizeObserver.observe(chartContainer)
+    },
+    resizeChart() {
+      if (!this.chartSize) {
+        return
+      }
+
+      const { width, height } = this.chartSize
+      this.$refs.chart?.chart?.resize(width, height)
+    },
     chartColorsSeriesOrValues(seriesIndex) {
       if (this.colorSeries) {
         return this.seriesColors[seriesIndex]
