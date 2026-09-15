@@ -111,7 +111,10 @@ def test_permanently_deleting_an_action_deletes_its_service(
 def test_a_trashed_action_follows_its_field_through_an_undone_type_change(
     data_fixture,
 ):
-    """It comes back into the trash entry it left, so it can still be restored."""
+    """
+    Its entry goes with the type change, and the undo trashes it again, so it
+    can still be restored.
+    """
 
     import uuid
 
@@ -136,22 +139,19 @@ def test_a_trashed_action_follows_its_field_through_an_undone_type_change(
 
 
 @pytest.mark.django_db
-@pytest.mark.undo_redo
-def test_a_trashed_action_without_its_entry_is_not_brought_back(data_fixture):
-    import uuid
+def test_a_field_leaving_the_button_type_takes_its_trashed_actions_entries(
+    data_fixture,
+):
+    """
+    The type change deletes the actions outright, so an entry left behind would
+    be listed in the trash and fail to restore.
+    """
 
-    from baserow.contrib.database.action.scopes import TableActionScopeType
-    from baserow.contrib.database.fields.actions import UpdateFieldActionType
-    from baserow.core.action.handler import ActionHandler
+    user, button_field, action = _trashed_action(data_fixture)
 
-    session_id = str(uuid.uuid4())
-    user = data_fixture.create_user(session_id=session_id)
-    user, button_field, action = _trashed_action(data_fixture, user=user)
+    FieldHandler().update_field(user, button_field, new_type_name="text")
 
-    UpdateFieldActionType.do(user, button_field, new_type_name="text")
-    TrashEntry.objects.filter(trash_item_id=action.id).delete()
-    ActionHandler.undo(
-        user, [TableActionScopeType.value(button_field.table_id)], session_id
-    )
-
-    assert not DatabaseWorkflowAction.objects_and_trash.filter(id=action.id).exists()
+    assert not TrashEntry.objects.filter(
+        trash_item_type=DatabaseWorkflowActionTrashableItemType.type,
+        trash_item_id=action.id,
+    ).exists()

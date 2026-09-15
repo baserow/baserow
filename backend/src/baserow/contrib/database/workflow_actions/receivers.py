@@ -5,14 +5,26 @@ from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     DatabaseWorkflowServiceAction,
 )
+from baserow.core.models import TrashEntry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 
 
 def before_permanently_deleted(sender, instance, **kwargs):
     """
-    Delete the service related to the action.
+    Delete the service related to the action, and its trash entry. A deleted
+    action cannot be restored, and a field changing away from a button deletes
+    its trashed actions too, which would otherwise stay listed in the trash.
     """
+
+    from baserow.contrib.database.workflow_actions.trash_types import (
+        DatabaseWorkflowActionTrashableItemType,
+    )
+
+    TrashEntry.objects.filter(
+        trash_item_type=DatabaseWorkflowActionTrashableItemType.type,
+        trash_item_id=instance.id,
+    ).delete()
 
     if isinstance(instance.specific, DatabaseWorkflowServiceAction):
         service = instance.specific.service

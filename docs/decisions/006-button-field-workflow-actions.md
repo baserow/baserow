@@ -551,7 +551,8 @@ the natural place to narrow this further when it is wanted.
   integration that person cannot read (section 5).
 - **Trash and restore.** Actions and services follow the field, as builder actions
   follow their element. Deleting a single action trashes it with its service, so it
-  can be restored; the service is deleted when the trash is emptied.
+  can be restored; the service is deleted when the trash is emptied. A field changing
+  away from a button takes its trashed actions' trash entries with it.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
   and the button enters the reconfigure state rather than failing only at click time;
   restoring from trash heals it without reconfiguration.
@@ -565,8 +566,9 @@ the natural place to narrow this further when it is wanted.
   action group, so one undo takes back the whole save. An update logs the action's
   values without the fields its service calls sensitive, since the log is copied into
   the audit log and an HTTP action keeps its keys in its headers. Undo leaves those
-  fields as they are, and undoing a type change brings the old type back with them
-  blank.
+  fields as they are. A type change keeps the service it replaces instead of deleting
+  it, so undo and redo attach the service each side had, sensitive fields included;
+  the kept service is deleted when the undo step is cleaned up.
 - **Deleting a user.** Nothing breaks: actions run as whoever clicks, and v1 services
   have no integration, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed
