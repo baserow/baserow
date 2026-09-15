@@ -1203,6 +1203,67 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "row_id,error,detail",
+    [
+        (
+            "",
+            "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "A row ID is required to update a row.",
+        ),
+        (
+            "  ",
+            "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "A row ID is required to update a row.",
+        ),
+        (
+            "'0'",
+            "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+            "The row with id 0 does not exist.",
+        ),
+        (
+            "''",
+            "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT",
+            'Value error for "row_id": The value is required',
+        ),
+    ],
+)
+def test_dispatch_local_baserow_update_row_workflow_action_without_a_row_to_update(
+    api_client, data_fixture, row_id, error, detail
+):
+    user, token = data_fixture.create_user_and_token()
+    table, fields, rows = data_fixture.build_table(
+        user=user, columns=[("Animal", "text")], rows=[["Horse"]]
+    )
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK, user=user
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.row_id = row_id
+    service.field_mappings.create(field=fields[0], value="'Cow'")
+    service.save()
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.post(
+        url, {}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": error,
+        "detail": detail,
+    }
+    assert [r.id for r in table.get_model().objects.all()] == [rows[0].id]
+
+
+@pytest.mark.django_db
 def test_dispatch_local_baserow_update_row_workflow_action_field_constraint(
     api_client, data_fixture
 ):
@@ -1594,7 +1655,7 @@ def test_dispatch_workflow_action_with_invalid_form_data(api_client, data_fixtur
     input_text_element = data_fixture.create_builder_input_text_element(
         page=page, required=True
     )
-    workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
         page=page, element=button_element, event=EventTypes.CLICK, user=user
     )
     service = workflow_action.service.specific

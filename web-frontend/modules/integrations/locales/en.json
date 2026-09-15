@@ -85,6 +85,7 @@
     "errorSortingInError": "At least one sort is misconfigured",
     "errorNoFieldSelected": "No fields selected",
     "errorNoRowsSelected": "No rows selected",
+    "errorNoRowIdSelected": "No row ID selected",
     "errorNoAggregationTypeSelected": "No aggregation type selected",
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",

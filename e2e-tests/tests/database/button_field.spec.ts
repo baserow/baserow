@@ -68,8 +68,9 @@ const DEEP_FIELD_INDEX = 26;
 const CHAINABLE_FIELD_INDEX = 27;
 const REORDERABLE_FIELD_INDEX = 28;
 const STOPPED_FIELD_INDEX = 29;
+const ROWLESS_FIELD_INDEX = 30;
 // The field one test creates in the UI, which lands after all of the above.
-const CREATED_FIELD_INDEX = 30;
+const CREATED_FIELD_INDEX = 31;
 
 /** Every button field this suite creates, none of which may reach the public. */
 const BUTTON_FIELD_NAMES = [
@@ -100,6 +101,7 @@ const BUTTON_FIELD_NAMES = [
   "Deep",
   "Chainable",
   "Reorderable",
+  "Rowless",
 ];
 
 let g: GridSetupResult;
@@ -168,7 +170,7 @@ test.describe("Button field", () => {
   // The grid only renders the columns that fit, and this suite needs one
   // button field per behaviour, so every column has to be on screen at once.
   // Widen this whenever a field is added, or the new column never renders.
-  test.use({ viewport: { width: 7400, height: 900 } });
+  test.use({ viewport: { width: 7600, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -229,6 +231,7 @@ test.describe("Button field", () => {
           settings: { label: "Reorderable" },
         },
         { name: "Stopped", type: "button", settings: { label: "Stopped" } },
+        { name: "Rowless", type: "button", settings: { label: "Rowless" } },
       ],
     });
 
@@ -291,6 +294,14 @@ test.describe("Button field", () => {
     });
     await createOpenUrlAction(g.user, g.fieldByName["Stopped"], {
       url: "'/stopped-should-not-open'",
+    });
+
+    // "Rowless" updates a row but names none. The upsert service would create
+    // a row for an empty row ID, so the update has to be refused instead.
+    await createRowAction(g.user, g.fieldByName["Rowless"], {
+      type: "local_baserow_update_row",
+      table: g.table,
+      fieldMappings: [{ field: g.fieldByName["Status"], value: "'done'" }],
     });
 
     // "RunTwo" writes a different column to "Run", so two buttons on one row
@@ -874,6 +885,34 @@ test.describe("Button field", () => {
     await grid.fieldCellAt(0, BAD_LINK_FIELD_INDEX).locator("button").click();
     await expect(page.locator(".toast")).toBeVisible();
     expect(new URL(page.url()).pathname).toBe(pathBefore);
+  });
+
+  test("an update row action without a row ID is flagged and never writes a row", async ({
+    page,
+  }) => {
+    await resetRows(g, [
+      { Name: "Ada", Status: "todo" },
+      { Name: "Grace", Status: "todo" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+
+    await openFieldEditor(page, "Rowless");
+    await expect(
+      page.locator(".button-field-action-list [data-action-error]"),
+    ).toHaveText("No row ID selected");
+
+    await grid.goTo(g.database, g.table);
+    await grid.fieldCellAt(0, ROWLESS_FIELD_INDEX).locator("button").click();
+    await expect(page.locator(".toast__message")).toContainText(
+      "A row ID is required to update a row.",
+    );
+
+    const rows = await listRows(g.user, g.table);
+    expect(rows.map((row) => [row.Name, row.Status])).toEqual([
+      ["Ada", "todo"],
+      ["Grace", "todo"],
+    ]);
   });
 
   test("a client action that fails stops the ones after it", async ({

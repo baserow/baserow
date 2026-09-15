@@ -421,6 +421,15 @@ class AutomationNodeType(
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]: ...
 
+    def raise_if_misconfigured(self, automation_node: AutomationNode) -> None:
+        """
+        Refuses a node whose saved configuration cannot run. Nothing to refuse by
+        default.
+
+        :param automation_node: The node to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When it cannot run.
+        """
+
     def dispatch(
         self,
         automation_node: AutomationNode,

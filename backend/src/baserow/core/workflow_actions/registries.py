@@ -89,6 +89,16 @@ class WorkflowActionType(
 
         return pytest_params
 
+    def raise_if_misconfigured(self, workflow_action: WorkflowAction) -> None:
+        """
+        Refuses an action whose saved configuration cannot run. A database
+        button checks every action with it before the click runs any of them.
+        Nothing to refuse by default.
+
+        :param workflow_action: The action to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When it cannot run.
+        """
+
     @abstractmethod
     def dispatch(
         self, workflow_action: "WorkflowAction", dispatch_context: DispatchContext

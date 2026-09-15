@@ -133,6 +133,61 @@ def test_an_action_can_target_the_clicked_row(data_fixture):
     assert getattr(other_row, f"field_{name_field.id}") == "untouched"
 
 
+def _update_row_action(data_fixture, button_field, table, name_field, row_id):
+    from baserow.contrib.database.workflow_actions.models import (
+        LocalBaserowUpdateRowWorkflowAction,
+    )
+
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowUpdateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.row_id = row_id
+    service.save()
+    service.field_mappings.create(field=name_field, value="'approved'", enabled=True)
+    return action
+
+
+@pytest.mark.django_db
+def test_an_update_row_action_without_a_row_id_refuses_the_click_up_front(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Approve")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    _update_row_action(data_fixture, button_field, table, name_field, "")
+
+    with pytest.raises(WorkflowActionDispatchError) as exc:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert exc.value.position == 2
+    assert exc.value.message == "A row ID is required to update a row."
+    # The create row action ahead of it never ran.
+    assert list(table.get_model().objects.values_list("id", flat=True)) == [row.id]
+
+
+@pytest.mark.django_db
+def test_an_update_row_action_for_row_zero_creates_nothing(data_fixture):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Approve")
+    row = table.get_model().objects.create()
+    _update_row_action(data_fixture, button_field, table, name_field, "'0'")
+
+    with pytest.raises(WorkflowActionDispatchError) as exc:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert exc.value.message == "The row with id 0 does not exist."
+    assert list(table.get_model().objects.values_list("id", flat=True)) == [row.id]
+
+
 @pytest.mark.django_db
 def test_a_concurrent_click_is_rejected(data_fixture):
     user = data_fixture.create_user()
