@@ -37,7 +37,6 @@ from baserow.core.exceptions import (
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
 )
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 
 from .errors import (
     ERROR_AI_PROVIDER_DOES_NOT_EXIST,
@@ -139,10 +138,6 @@ def _provider_response(many: bool = False) -> PolymorphicProxySerializer:
     )
 
 
-def _ensure_feature_enabled():
-    feature_flag_is_enabled(FF_AI_PROVIDERS, raise_if_disabled=True)
-
-
 def _get_workspace_id(request) -> int | None:
     serializer = AIProviderScopeRequestSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
@@ -177,7 +172,6 @@ class AIProviderFeaturesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     )
     @map_exceptions(EXCEPTION_MAP)
     def get(self, request):
-        _ensure_feature_enabled()
         workspace_id = _get_workspace_id(request)
         settings = AIProviderService.list_feature_settings(
             request.user, workspace_id=workspace_id
@@ -199,7 +193,6 @@ class AIProviderFeatureView(APIView):
     @validate_body(AIProviderFeatureSettingUpdateSerializer, return_validated=True)
     @transaction.atomic
     def put(self, request, feature_type, data):
-        _ensure_feature_enabled()
         workspace_id = _get_workspace_id(request)
         setting = AIProviderService.update_feature_setting(
             request.user,
@@ -221,7 +214,6 @@ class AIProvidersView(RealtimeRecoveryPrimaryReadMixin, APIView):
     )
     @map_exceptions(EXCEPTION_MAP)
     def get(self, request):
-        _ensure_feature_enabled()
         workspace_id = _get_workspace_id(request)
         providers = AIProviderService.list_providers(
             request.user, workspace_id=workspace_id
@@ -239,7 +231,6 @@ class AIProvidersView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @validate_body(AIProviderCreateSerializer, return_validated=True)
     @transaction.atomic
     def post(self, request, data):
-        _ensure_feature_enabled()
         models_data = data.pop("models", [])
         workspace_id = _get_workspace_id(request)
         provider = AIProviderService.create_provider(
@@ -267,7 +258,6 @@ class AIProviderView(APIView):
     @validate_body(AIProviderUpdateSerializer, partial=True, return_validated=True)
     @transaction.atomic
     def patch(self, request, provider_id, data):
-        _ensure_feature_enabled()
         workspace_id = _get_workspace_id(request)
         provider = AIProviderService.update_provider(
             request.user,
@@ -286,7 +276,6 @@ class AIProviderView(APIView):
     @map_exceptions(EXCEPTION_MAP)
     @transaction.atomic
     def delete(self, request, provider_id):
-        _ensure_feature_enabled()
         AIProviderService.delete_provider(
             request.user, provider_id, workspace_id=_get_workspace_id(request)
         )
@@ -307,7 +296,6 @@ class AIProviderModelsView(APIView):
     @validate_body(AIProviderModelWriteSerializer, return_validated=True)
     @transaction.atomic
     def post(self, request, provider_id, data):
-        _ensure_feature_enabled()
         model = AIProviderService.create_model(
             request.user,
             provider_id,
@@ -331,7 +319,6 @@ class AIProviderModelDiscoveryView(APIView):
         AIProviderModelDiscoveryRequestSerializer, return_validated=True
     )
     def get(self, request, query_params):
-        _ensure_feature_enabled()
         models = AIProviderService.discover_models(request.user, **query_params)
         return Response(
             AIProviderModelDiscoverySerializer(
@@ -354,7 +341,6 @@ class AIProviderModelView(APIView):
     @validate_body(AIProviderModelUpdateSerializer, partial=True, return_validated=True)
     @transaction.atomic
     def patch(self, request, model_id, data):
-        _ensure_feature_enabled()
         model = AIProviderService.update_model(
             request.user,
             model_id,
@@ -372,7 +358,6 @@ class AIProviderModelView(APIView):
     @map_exceptions(EXCEPTION_MAP)
     @transaction.atomic
     def delete(self, request, model_id):
-        _ensure_feature_enabled()
         AIProviderService.delete_model(
             request.user, model_id, workspace_id=_get_workspace_id(request)
         )
@@ -393,7 +378,6 @@ class AIProviderModelsTestView(APIView):
     @validate_body(AIProviderModelsTestRequestSerializer, return_validated=True)
     def post(self, request, data):
         set_db_alias(DEFAULT_DB_ALIAS)
-        _ensure_feature_enabled()
         results = AIProviderService.test_models(
             request.user, workspace_id=_get_workspace_id(request), **data
         )
@@ -413,7 +397,6 @@ class AIProviderTypesView(APIView):
     )
     @map_exceptions(EXCEPTION_MAP)
     def get(self, request):
-        _ensure_feature_enabled()
         return Response(
             AIProviderTypeSerializer(
                 AIProviderService.list_provider_types(

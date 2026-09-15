@@ -23,19 +23,8 @@ export class GenerativeAIModelType extends Registerable {
   }
 
   /**
-   * Returns whether this provider can be configured through legacy workspace
-   * settings. Database-backed provider forms do not use this value.
-   *
-   * @returns {boolean} Whether legacy workspace settings support this provider.
-   */
-  supportsLegacyWorkspaceSettings() {
-    return true
-  }
-
-  /**
-   * Returns an array of objects that define the settings for workspace
-   * Generative AI and integration overrides. The array can be empty if
-   * the model type is not configurable.
+   * Returns setting metadata used by provider forms and integration overrides.
+   * The array can be empty if the model type is not configurable.
    *
    * Each setting object in the array describes a form field. See
    * `modelSettings` for a full example. A setting may only define
@@ -370,10 +359,6 @@ export class GoogleModelType extends BuiltInGenerativeAIModelType {
     return i18n.t('generativeAIModelType.google')
   }
 
-  supportsLegacyWorkspaceSettings() {
-    return false
-  }
-
   getSettings() {
     const { $i18n: i18n } = this.app
     return [
@@ -412,10 +397,6 @@ export class GroqModelType extends BuiltInGenerativeAIModelType {
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('generativeAIModelType.groq')
-  }
-
-  supportsLegacyWorkspaceSettings() {
-    return false
   }
 
   getSettings() {

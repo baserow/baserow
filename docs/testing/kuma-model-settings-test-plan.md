@@ -12,13 +12,13 @@ choice per workspace.
 
 ### Environment
 
-- The `ai-providers` feature flag is enabled (`FEATURE_FLAGS=*` or an explicit list
-  containing `ai-providers`) on backend, celery and web-frontend.
+- Use matching release versions on backend, Celery, and web-frontend.
 - An **Enterprise** license is active — Kuma is enterprise-only. AI fields need
   **Premium**.
-- `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` **is set** together with the credentials
-  its provider needs. This matters: the legacy fallback must exist, otherwise
-  "unconfigured" and "disabled" look identical in the UI.
+- For compatibility coverage, the deprecated `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`
+  **is set** together with the credentials its provider needs. The fallback must
+  exist to distinguish "unconfigured" from "disabled" in these tests. Fresh setups
+  use configured and tested models selected under **AI providers → AI features**.
 - At least one real API key so model tests and Kuma messages actually reach a
   provider. Two working model identifiers on the same provider make the
   "changed the model" tests decisive.
@@ -112,7 +112,7 @@ model is, and `AssistantModelDisabledError` means Kuma is off with no fallback.
 
 | Instance selection | Workspace selection | Kuma in that workspace |
 |---|---|---|
-| Use legacy environment model: `<env model>` | Use instance setting | legacy env model |
+| Use environment model (deprecated): `<env model>` | Use instance setting | legacy env model |
 | Model A | Use instance setting | model A |
 | Model A | Model B | model B |
 | Model A | Disabled in this workspace | off, no fallback |
@@ -221,7 +221,7 @@ Verify:
 
 Verify, before touching anything:
 - The **AI features** section shows one row, **Kuma**, set to
-  **Use legacy environment model: `<env model>`**, quoting the value of
+  **Use environment model (deprecated): `<env model>`**, quoting the value of
   `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL`.
 - The helper prints `mode=legacy state=unconfigured` and `source=legacy`.
 - Kuma is visible in the sidebar of every workspace that inherits, and answers a
@@ -298,7 +298,7 @@ Verify:
 
 ### 2.6 Back to the fallback
 
-1. Set **Kuma** back to **Use legacy environment model: `<env model>`**.
+1. Set **Kuma** back to **Use environment model (deprecated): `<env model>`**.
 
 Verify: the sidebar item returns without a reload, `kuma.is_enabled` is `true`
 again, and the helper prints `source=legacy`.
@@ -322,8 +322,8 @@ Verify:
   | instance situation | `inherited_state` | inherit option reads | selectable |
   |---|---|---|---|
   | model A, reachable here | `configured` | **— `<Provider> · A`** | yes |
-  | no instance row | `unconfigured` | **— legacy environment model: `<env model>`** | yes |
-  | no instance row, env var unset | `unconfigured` | **— legacy environment model: empty** | no |
+  | no instance row | `unconfigured` | **— environment model (deprecated): `<env model>`** | yes |
+  | no instance row, env var unset | `unconfigured` | **— environment model (deprecated): empty** | no |
   | instance row **Disabled** | `disabled` | **— Disabled** | yes |
   | model A, unreachable here | `invalid` | **— selected model unavailable in this workspace** | no |
 
@@ -422,7 +422,7 @@ of the same inherited provider does not unblock it.
 Verify:
 - The inherit option now reads **Use instance setting — selected model unavailable in
   this workspace** and is **disabled**, so the rejection cannot be reached by clicking.
-  It must not read *"legacy environment model: …"* — the instance is still pointing at
+  It must not read *"environment model (deprecated): …"* — the instance is still pointing at
   model A, this workspace just cannot reach it.
 - The helper prints `inherited_state=invalid` for this workspace while the instance
   scope still prints `state=configured`.
@@ -481,11 +481,12 @@ EOF
 
 Reload the admin page and verify:
 - The **AI features** dropdown shows the disabled entry **"Selected model
-  unavailable — using legacy environment model: `<env model>`"**.
+  unavailable — using deprecated environment model: `<env model>`"**.
 - The helper prints `state=invalid` and `source=legacy` — Kuma keeps working on the
   env-var model, it does not go off.
 - Kuma is still visible in the sidebar (because the fallback exists). With
-  `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` unset it would disappear instead.
+  `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` unset it would disappear instead, and the
+  dropdown would read **"Selected model unavailable — no environment model configured"**.
 
 Re-enable the provider (`update(is_active=True)`) and confirm the selection becomes
 `configured` again.
@@ -493,7 +494,7 @@ Re-enable the provider (`update(is_active=True)`) and confirm the selection beco
 The workspace scope has its own `invalid` branch, reached without the shell: have a
 workspace select an instance model, then disable that provider instance-wide. Verify
 its **AI features** dropdown shows the same disabled
-**"Selected model unavailable — using legacy environment model: `<env model>`"** entry,
+**"Selected model unavailable — using deprecated environment model: `<env model>`"** entry,
 and that Kuma there also falls back rather than switching off.
 
 ---
@@ -525,8 +526,8 @@ curl -s http://localhost:8000/api/workspaces/ -H "Authorization: JWT <token>" \
 `ai_features.ai_agent.models` must exclude every model without AI Agent eligibility,
 and a model with no feature ticked must be absent from all feature lists. The legacy
 `generative_ai_models_enabled` field still lists **all** of them, including the
-no-feature model — which is exactly why the frontend must read `ai_features` while the
-flag is on, and why section 10's legacy path still offers those models.
+no-feature model — which is why the frontend must always read `ai_features` for
+feature eligibility.
 
 `ai_features.kuma` carries `is_enabled` plus a `state`. That `state` is not the
 helper's: `unconfigured` and `invalid` are both reported here as `legacy`, because
@@ -571,13 +572,14 @@ Verify:
 
 ### 6.5 Explicit integration overrides
 
-Use API-created AI integrations to test these built-in provider overrides in both
-feature-flag states, in Automation and Application Builder:
+Use API-created AI integrations to test these built-in provider overrides in
+Automation and Application Builder. Repeat with database providers and with only
+legacy environment/workspace configuration:
 
 | Override | Expected connection and model list |
 |---|---|
 | Complete connection with `models: ["custom-model"]` | Own connection and explicit list, independent of database eligibility |
-| Complete connection without `models` | Own connection and inherited allowed list, filtered for AI Agent while the flag is on |
+| Complete connection without `models` | Own connection and inherited allowed list, filtered for AI Agent when database models govern availability |
 | Complete connection with `models: []` | No available models |
 | Incomplete connection with a model list | Inherited connection; only models also present in the inherited allowed list |
 | Incomplete connection without `models` | Inherited connection and allowed list |
@@ -637,8 +639,7 @@ this plan assumes, or the codes will not match.
 ### 8.1 Instance settings need staff
 
 Verify: **builder** has no **AI providers** admin entry, `/admin/ai-providers` is not
-reachable (the route carries an `aiProvidersFeatureFlag` middleware and a `staff`
-middleware), and `GET /api/ai-providers/features/` returns
+reachable (the route requires staff), and `GET /api/ai-providers/features/` returns
 `401 PERMISSION_DENIED`. Note that a workspace admin who is not instance staff is
 refused here too.
 
@@ -711,56 +712,63 @@ Verify: with Kuma disabled at the instance,
 
 ---
 
-## 10. Feature flag off (legacy behaviour)
+## 10. Legacy configuration fallbacks
 
-Restart the stack with `ai-providers` removed from `FEATURE_FLAGS` (all services)
-and verify nothing from this feature leaks into the old path:
+These cases verify compatibility for deprecated environment configuration; new
+connections and model selections belong in **AI providers** settings.
 
-- The admin **AI providers** page and `/api/ai-providers/...` are unavailable.
-- The workspace settings tab is the old **Generative AI** form again, and it lists
-  only providers that support legacy workspace settings — **Google Gemini** and
-  **Groq** must not appear there.
-- Kuma is visible exactly when `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is set, and
-  uses it; stored feature settings are ignored (the helper prints `source=legacy`).
-- AI fields offer the env-var and legacy workspace models, unfiltered by
-  `feature_types`.
-- Automation AI Agent nodes and Application Builder AI Agent actions likewise use
-  the legacy integration/workspace/environment model lists without feature filtering.
-  A complete provider connection with no `models` key inherits that model list;
-  explicit `models: []` remains empty. Partial overrides cannot introduce models
-  outside the inherited list or supply connection settings from another scope.
+On a disposable copy with no database provider rows, retain working legacy
+environment settings and complete workspace settings. Verify:
+
+- AI Fields, formula suggestions, and inherited AI Agent services use the expected
+  legacy account and model without running imports. Workspace settings are an atomic
+  connection; partial fields do not borrow credentials from another scope.
+- The provider administration page lists database rows only; a legacy connection can
+  work before it appears there. Importing a complete connection makes it manageable.
+- Kuma's unconfigured/invalid database selection uses its legacy model and credentials
+  (`source=legacy`), while an explicit instance/workspace disable remains authoritative.
+- Complete integration connections with omitted `models` inherit the allowed list;
+  explicit `models: []` remains empty. Partial overrides only narrow inherited models
+  and cannot supply connection settings. Verify the full matrix in 6.5.
+
+Do not delete provider rows in a live installation to test fallback behavior.
 
 ---
 
 ## 11. Transition from legacy settings to database providers
 
 Rehearse on a disposable installation using the
-[upgrade and import sequence](../development/feature-flags.md#preparing-the-ai-providers-feature).
-Start with the flag off, working instance environment settings, a different workspace
+[upgrade and import sequence](../installation/ai-providers.md#upgrading-an-existing-installation)
+and the [release rollout plan](ai-provider-rollout-test-plan.md). Start on the exact
+previous image with working instance environment settings, a different workspace
 connection, and inherited **AI prompt** consumers in both Automation and Application
-Builder. Include a publication created while the flag is off.
+Builder. Include an existing live publication. Repeat the upgrade with database
+providers and scoped feature settings already configured.
 
 Verify:
 
-- Upgrading while the flag stays off preserves execution without imports or
-  republishing, subject to the explicit-override compatibility rules in 6.5.
+- The candidate works without imports or republishing for supported legacy settings,
+  subject to the explicit-override compatibility rules in 6.5. Reconcile conflicting
+  database and legacy configuration and incomplete workspace settings before
+  accepting a change in resolution.
 - Migration `core.0120` adds `ai_agent` once to existing provider models, including
   models with an empty feature list, preserving other features and enabled states.
 - Instance and workspace import previews do not write. Applying each scope creates
   missing providers with `ai_fields` and `ai_agent` eligibility; repeating the import
   leaves existing configurations unchanged.
-- After enabling the flag and reloading editors, saved selections resolve with their
-  expected instance or workspace credentials. An enabled workspace model overrides
-  a matching instance model; other instance models remain inherited. A disabled
-  workspace model suppresses that identifier; disabling its provider reveals the
-  inherited instance layer.
+- After deploying the candidate, importing, and reloading editors, saved selections
+  resolve with their expected instance or workspace credentials. An enabled workspace
+  model overrides a matching instance model; other instance models remain inherited.
+  A disabled workspace model suppresses that identifier; disabling its provider
+  reveals the inherited instance layer.
 - A publication containing a complete legacy snapshot keeps using that snapshot
   until republished. Review its draft first, then republish and verify that it follows
   live workspace credential and eligibility changes. An explicit complete integration
   override remains independent.
-- Before turning the flag off again, verify equivalent legacy settings exist. With
-  the schema retained, flag-off execution returns to those settings in drafts and
-  publications; database eligibility changes no longer filter the legacy model list.
+- Verify rollback using the actual previous image and its rehearsed configuration,
+  retaining the schema. Include key rotations, workspace provider deletion,
+  database-only selections, explicit disables, drafts, and publications when proving
+  equivalent previous-image behavior.
 
 ---
 

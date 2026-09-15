@@ -1684,6 +1684,9 @@ if SENTRY_DSN:
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
+# Deprecated provider connection/model environment variables. Manage providers and
+# models under AI providers instead. Keep these settings for compatibility and the
+# migrate_ai_provider_settings import command; runtime fallback remains supported.
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
 BASEROW_OPENAI_BASE_URL = os.getenv("BASEROW_OPENAI_BASE_URL", None) or None

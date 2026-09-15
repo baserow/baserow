@@ -545,6 +545,12 @@ class CoreConfig(AppConfig):
 
         setup_logging()
 
+        # Must run after setup_logging so the notice reaches the configured
+        # sink and the OpenTelemetry log exporter.
+        from baserow.config.helpers import log_ai_provider_env_deprecations
+
+        log_ai_provider_env_deprecations()
+
     def _setup_health_checks(self):
         from health_check.plugins import plugin_dir
 
