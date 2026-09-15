@@ -1813,15 +1813,18 @@ class RowHandler:
         self, row: GeneratedTableModel, field_name: str, value_ids: List[Any]
     ):
         """
-        Replaces the relations of a many to many field, keeping the order the values
-        were given in. Django's ``set`` bulk creates the through rows from a Python
+        Replaces the relations of a many to many field, adding new ones in the order
+        they were given. Django's ``set`` bulk creates the through rows from a Python
         set, so their order follows id hashing instead of the provided list, which
-        makes the cell value and any sort on it non-deterministic. Mirrors what
-        ``update_rows`` does for the same reason.
+        makes the cell value and any sort on it non-deterministic.
+
+        Like ``update_rows``, relations that are already present keep their through
+        row, so reordering values that are all already set does not move them.
 
         :param row: The row whose relations must be replaced.
         :param field_name: The name of the many to many field.
-        :param value_ids: The ids to relate the row to, in the order to store them.
+        :param value_ids: The ids to relate the row to, newly added ones in the order
+            they should be stored in.
         """
 
         manager = getattr(row, field_name)
