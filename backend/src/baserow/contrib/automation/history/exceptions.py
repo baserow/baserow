@@ -17,6 +17,18 @@ class AutomationWorkflowHistoryDoesNotExist(AutomationWorkflowHistoryError):
         )
 
 
+class AutomationWorkflowHistoryNotRunning(AutomationWorkflowHistoryError):
+    """When an operation requires the workflow run to still be in progress."""
+
+    def __init__(self, history_id=None, *args, **kwargs):
+        self.history_id = history_id
+        super().__init__(
+            f"The automation workflow history {history_id} is not running.",
+            *args,
+            **kwargs,
+        )
+
+
 class AutomationWorkflowHistoryNodeResultDoesNotExist(AutomationWorkflowHistoryError):
     """When the result entry doesn't exist for the given node/history."""
 

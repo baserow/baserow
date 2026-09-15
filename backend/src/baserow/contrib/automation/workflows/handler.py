@@ -942,19 +942,42 @@ class AutomationWorkflowHandler:
         )
 
         error = "This workflow took too long and was timed out."
-
-        workflow_history_ids = list(
-            AutomationWorkflowHistory.objects.filter(
-                status=HistoryStatusChoices.STARTED,
-                started_on__lt=max_history_date,
-            ).values_list("id", flat=True)
+        cancelled_error = (
+            "Cancellation was requested and the run was force-stopped after timing out."
         )
 
+        timed_out_histories = AutomationWorkflowHistory.objects.filter(
+            status=HistoryStatusChoices.STARTED,
+            started_on__lt=max_history_date,
+        )
+
+        # The ids are snapshotted so the node histories below are resolved for
+        # exactly the runs handled by this sweep. Every write stays guarded on
+        # the run still being `STARTED`, so a run resolved between this read and
+        # the write (dispatch-done handler, runner-side cancellation) is left
+        # alone rather than rewritten as timed out.
+        workflow_history_ids = list(timed_out_histories.values_list("id", flat=True))
         if not workflow_history_ids:
             return
 
-        AutomationWorkflowHistory.objects.filter(
+        # A run whose cancellation was requested but never noticed by the runner
+        # (hung node, dead worker) resolves as cancelled rather than as a generic
+        # timeout error, which is what the requester was waiting for. The flag is
+        # re-read at update time instead of taken from the snapshot, so a request
+        # that lands after the read is honoured. One that lands between the two
+        # updates matches neither and is picked up as cancelled by the next sweep.
+        timed_out_histories.filter(
             id__in=workflow_history_ids,
+            cancellation_requested_on__isnull=False,
+        ).update(
+            status=HistoryStatusChoices.CANCELLED,
+            message=cancelled_error,
+            completed_on=now,
+        )
+
+        timed_out_histories.filter(
+            id__in=workflow_history_ids,
+            cancellation_requested_on__isnull=True,
         ).update(
             status=HistoryStatusChoices.ERROR,
             message=error,

@@ -108,27 +108,23 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  realtime.registerEvent(
-    'automation_workflow_dispatch_started',
-    ({ store }, data) => {
-      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
-      if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
-        store.dispatch('automationHistory/fetchWorkflowHistory', {
-          workflowId: data.workflow_id,
-        })
-      }
+  // Run lifecycle events. The history panel only shows the selected
+  // workflow, so its entries are refetched when one of its runs starts,
+  // gets a cancellation request or resolves.
+  const refetchSelectedWorkflowHistory = ({ store }, data) => {
+    const selectedWorkflow = store.getters['automationWorkflow/getSelected']
+    if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
+      store.dispatch('automationHistory/fetchWorkflowHistory', {
+        workflowId: data.workflow_id,
+      })
     }
-  )
+  }
 
-  realtime.registerEvent(
+  for (const event of [
+    'automation_workflow_dispatch_started',
+    'automation_workflow_dispatch_cancellation_requested',
     'automation_workflow_dispatch_done',
-    ({ store }, data) => {
-      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
-      if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
-        store.dispatch('automationHistory/fetchWorkflowHistory', {
-          workflowId: data.workflow_id,
-        })
-      }
-    }
-  )
+  ]) {
+    realtime.registerEvent(event, refetchSelectedWorkflowHistory)
+  }
 }
