@@ -30,6 +30,7 @@
       :is-resizable="canManipulateLayout"
       :use-style-cursor="false"
       @layout-ready="markLayoutReady"
+      @layout-updated="persistLayout"
     >
       <GridItem
         v-for="layoutItem in layout"
@@ -61,8 +62,6 @@
         @pointercancel.capture="clearResizeState"
         @move="startInteraction"
         @resize="updateResizeState"
-        @moved="persistLayout"
-        @resized="finishResize"
       >
         <DashboardWidget
           v-if="getWidget(layoutItem)"
@@ -311,28 +310,20 @@ export default {
       this.resizeState = null
       document.body.classList.remove('dashboard-widget-grid--resizing')
     },
-    async finishResize() {
-      try {
-        await this.persistLayout()
-      } finally {
-        this.clearResizeState()
-      }
-    },
-    async persistLayout() {
+    async persistLayout(layout) {
       if (!this.isInteracting || !this.canManipulateLayout) {
         return
       }
 
-      // GridItem emits its end event just before GridLayout applies the final
-      // position and compacts every affected item.
-      await this.$nextTick()
+      // GridLayout emits after compaction, even when a gesture returns to its
+      // starting geometry and GridItem does not emit moved or resized.
       this.isPersisting = true
       try {
         await this.$store.dispatch(
           `${this.storePrefix}dashboardApplication/updateWidgetLayout`,
           {
             dashboardId: this.dashboard.id,
-            layout: toWidgetLayoutPayload(this.layout),
+            layout: toWidgetLayoutPayload(layout),
           }
         )
       } catch (error) {
@@ -340,6 +331,7 @@ export default {
       } finally {
         this.isPersisting = false
         this.isInteracting = false
+        this.clearResizeState()
         this.syncLayoutFromWidgets()
       }
     },

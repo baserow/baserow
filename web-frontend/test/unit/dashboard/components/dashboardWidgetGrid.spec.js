@@ -1,5 +1,6 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { reactive } from 'vue'
 
 import DashboardWidgetGrid from '@baserow/modules/dashboard/components/DashboardWidgetGrid.client'
 
@@ -18,7 +19,7 @@ const widgets = [
 const GridLayoutStub = {
   name: 'GridLayout',
   props: ['colNum', 'isDraggable', 'isResizable'],
-  emits: ['layout-ready'],
+  emits: ['layout-ready', 'layout-updated'],
   template: `
     <div
       class="vgl-layout"
@@ -32,6 +33,7 @@ const GridLayoutStub = {
 const GridItemStub = {
   name: 'GridItem',
   props: ['isDraggable', 'isResizable'],
+  emits: ['move', 'resize'],
   template: `
     <div
       class="vgl-item"
@@ -91,7 +93,10 @@ describe('DashboardWidgetGrid', () => {
     vi.unstubAllGlobals()
   })
 
-  function mountGrid({ hasPermission = () => true } = {}) {
+  function mountGrid({
+    hasPermission = () => true,
+    widgetList = widgets,
+  } = {}) {
     wrapper = mount(DashboardWidgetGrid, {
       props: {
         dashboard: { id: 1, workspace: { id: 1 } },
@@ -103,7 +108,7 @@ describe('DashboardWidgetGrid', () => {
           $store: {
             dispatch,
             getters: {
-              'dashboardApplication/getWidgets': widgets,
+              'dashboardApplication/getWidgets': widgetList,
               'dashboardApplication/isEditMode': true,
             },
           },
@@ -200,6 +205,59 @@ describe('DashboardWidgetGrid', () => {
       1
     )
   })
+
+  test.each([
+    ['move', [1, 1, 0], [1, 0, 0]],
+    ['resize', [1, 4, 3], [1, 4, 2]],
+  ])(
+    'resumes widget updates after an unchanged %s',
+    async (event, away, back) => {
+      const widgetList = reactive(widgets.map((widget) => ({ ...widget })))
+      mountGrid({ widgetList })
+      await measureGrid(1200)
+      const grid = wrapper.findComponent(GridLayoutStub)
+      const item = wrapper.findComponent(GridItemStub)
+      const layout = [{ i: 1, x: 0, y: 0, w: 2, h: 4 }]
+
+      await grid.vm.$emit('layout-updated', layout)
+      expect(dispatch).not.toHaveBeenCalled()
+
+      await item.vm.$emit(event, ...away)
+      await item.vm.$emit(event, ...back)
+      expect(wrapper.classes()).toContain('dashboard-widget-grid--interacting')
+
+      let finishSaving
+      dispatch.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSaving = resolve
+          })
+      )
+      await grid.vm.$emit('layout-updated', layout)
+      await grid.vm.$emit('layout-updated', layout)
+      expect(dispatch).toHaveBeenCalledTimes(1)
+      expect(dispatch).toHaveBeenCalledWith(
+        'dashboardApplication/updateWidgetLayout',
+        {
+          dashboardId: 1,
+          layout: [
+            { id: 1, grid_x: 0, grid_y: 0, grid_width: 2, grid_height: 4 },
+          ],
+        }
+      )
+
+      widgetList.push({ ...widgets[0], id: 2, grid_x: 2, title: 'New widget' })
+      finishSaving()
+      await flushPromises()
+      expect(wrapper.classes()).not.toContain(
+        'dashboard-widget-grid--interacting'
+      )
+      expect(wrapper.classes()).not.toContain('dashboard-widget-grid--resizing')
+      expect(wrapper.get('[data-testid="dashboard-widget-2"]').text()).toBe(
+        'New widget'
+      )
+    }
+  )
 
   test.each([
     ['tablet', 700, '4'],
