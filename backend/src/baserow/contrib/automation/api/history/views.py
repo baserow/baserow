@@ -100,12 +100,7 @@ class CancelAutomationWorkflowHistoryView(APIView):
         request=None,
         responses={
             200: AutomationWorkflowHistorySerializer,
-            400: get_error_schema(
-                [
-                    "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING",
-                ]
-            ),
+            400: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING"]),
             404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_HISTORY_DOES_NOT_EXIST"]),
         },
     )
