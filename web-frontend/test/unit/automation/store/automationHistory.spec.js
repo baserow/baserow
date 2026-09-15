@@ -48,7 +48,7 @@ describe('automation history store', () => {
   })
 
   test('cancelWorkflowRun refetches the history even when the run is not running anymore', async () => {
-    testApp.failTestOnErrorResponse = false
+    testApp.dontFailOnErrorResponses()
     const finished = history({ status: 'success' })
     testApp.mock.onPost(CANCEL_URL).reply(400, {
       error: 'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING',
