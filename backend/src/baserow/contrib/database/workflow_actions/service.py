@@ -576,6 +576,17 @@ class DatabaseWorkflowActionService:
             for index, workflow_action in enumerate(workflow_actions, start=1)
         }
 
+        # Refused as a whole too, and for the same reason: an action whose saved
+        # configuration cannot run is known before the click starts, and the
+        # actions ahead of it would not be rolled back.
+        for workflow_action in server_actions:
+            try:
+                workflow_action.get_type().raise_if_misconfigured(workflow_action)
+            except ServiceImproperlyConfiguredDispatchException as exc:
+                raise WorkflowActionDispatchError(
+                    workflow_action.id, str(exc), positions[workflow_action.id]
+                ) from exc
+
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.
         if not server_actions:

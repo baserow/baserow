@@ -66,7 +66,8 @@ export async function listWorkflowActions(
 
 /**
  * A create or update row action on `table`. An update needs `rowId`, e.g.
- * `"get('row.id')"` to target the clicked row; a create leaves it out.
+ * `"get('row.id')"` to target the clicked row; a create leaves it out. Without
+ * a `type`, passing `rowId` makes an update and leaving it out a create.
  */
 export async function createRowAction(
   user: User,
@@ -81,7 +82,8 @@ export async function createRowAction(
   const action = await createWorkflowAction(
     user,
     buttonField,
-    options.type ?? "local_baserow_update_row",
+    options.type ??
+      (options.rowId ? "local_baserow_update_row" : "local_baserow_create_row"),
   );
   return await updateWorkflowAction(user, action, {
     service: {

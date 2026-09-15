@@ -91,6 +91,15 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
                 or "This workflow action type is deactivated."
             )
 
+    def raise_if_misconfigured(self, workflow_action: WorkflowAction) -> None:
+        """
+        Refuses an action whose saved configuration cannot run, so a click is
+        refused before any of its actions run. Nothing to refuse by default.
+
+        :param workflow_action: The action to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When it cannot run.
+        """
+
     def prepare_values(
         self,
         values: Dict[str, Any],

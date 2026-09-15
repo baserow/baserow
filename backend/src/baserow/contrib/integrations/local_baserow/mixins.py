@@ -1062,9 +1062,20 @@ class UpdateRowRequiresRowIdMixin:
     update type refuses to dispatch without one.
     """
 
-    def dispatch(self, instance, dispatch_context: DispatchContext):
+    def raise_if_misconfigured(self, instance) -> None:
+        """
+        Refuses an update that names no row.
+
+        :param instance: The action or node whose service is checked.
+        :raises ServiceImproperlyConfiguredDispatchException: When the row ID
+            formula is empty.
+        """
+
         if not instance.service.specific.row_id["formula"]:
             raise ServiceImproperlyConfiguredDispatchException(
                 "A row ID is required to update a row."
             )
+
+    def dispatch(self, instance, dispatch_context: DispatchContext):
+        self.raise_if_misconfigured(instance)
         return super().dispatch(instance, dispatch_context)

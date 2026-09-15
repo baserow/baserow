@@ -1203,9 +1203,15 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("row_id", ["", "''", "'0'"])
+@pytest.mark.parametrize(
+    "row_id,detail",
+    [
+        ("", "A row ID is required to update a row."),
+        ("'0'", "The row with id 0 does not exist."),
+    ],
+)
 def test_dispatch_local_baserow_update_row_workflow_action_without_a_row_to_update(
-    api_client, data_fixture, row_id
+    api_client, data_fixture, row_id, detail
 ):
     user, token = data_fixture.create_user_and_token()
     table, fields, rows = data_fixture.build_table(
@@ -1232,6 +1238,10 @@ def test_dispatch_local_baserow_update_row_workflow_action_without_a_row_to_upda
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_SERVICE_IMPROPERLY_CONFIGURED",
+        "detail": detail,
+    }
     assert [r.id for r in table.get_model().objects.all()] == [rows[0].id]
 
 
