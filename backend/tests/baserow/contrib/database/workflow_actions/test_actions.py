@@ -268,3 +268,57 @@ def test_undoing_a_save_restores_the_field_and_its_actions_together(data_fixture
     assert button_field.label == "After"
     assert kept.url["formula"] == "'https://after'"
     assert _ids(button_field) == [kept.id, created.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_redoing_a_save_that_made_a_button_brings_its_actions_back(data_fixture):
+    """
+    Undo trashes the new action before it turns the field back into text, and
+    that type change deletes the button's actions. The field's backup has to
+    carry the trashed one, or redo has nothing to restore.
+    """
+
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Go")
+    set_client_undo_redo_action_group_id(user, str(uuid.uuid4()))
+
+    button_field, _ = UpdateFieldActionType.do(
+        user, field, new_type_name="button", label="Go"
+    )
+    action = CreateDatabaseWorkflowActionActionType.do(
+        user,
+        database_workflow_action_type_registry.get("open_url"),
+        button_field,
+        url=_url("'https://kept'"),
+    )
+    OrderDatabaseWorkflowActionsActionType.do(user, button_field, [action.id])
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    assert not DatabaseWorkflowAction.objects_and_trash.filter(id=action.id).exists()
+
+    ActionHandler.redo(user, _scope(table), session_id)
+
+    assert not Action.objects.filter(error__isnull=False).exists()
+    restored = DatabaseWorkflowActionHandler().get_workflow_action(action.id)
+    assert restored.url["formula"] == "'https://kept'"
+    assert _ids(restored.field) == [action.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_type_change_keeps_the_ids_older_undo_steps_name(data_fixture):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = CreateDatabaseWorkflowActionActionType.do(
+        user, database_workflow_action_type_registry.get("open_url"), button_field
+    )
+    UpdateFieldActionType.do(user, button_field, new_type_name="text")
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    assert DatabaseWorkflowAction.objects.filter(id=action.id).exists()
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    assert not DatabaseWorkflowAction.objects.filter(id=action.id).exists()
+    assert DatabaseWorkflowAction.trash.filter(id=action.id).exists()

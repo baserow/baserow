@@ -101,3 +101,53 @@ export function reconcileWorkflowActions(serverActions, localActions) {
 
   return { toCreate, toUpdate, toDelete, order }
 }
+
+/**
+ * Carries the editor's unsaved edits over onto a list that changed on the
+ * server since the editor read it, by an undo or a collaborator. Keeping the
+ * old buffer instead would make the next save put back whatever changed.
+ *
+ * An action the user did not touch follows the server: it takes the server's
+ * version, or goes when the server no longer has it. An action the user
+ * changed or added keeps the user's version. An action the server gained is
+ * added at its server position, and one the user removed stays removed.
+ *
+ * @param base The list the editor's buffer was taken from.
+ * @param fresh The list as the server has it now.
+ * @param local The editor's buffer.
+ * @returns The buffer to edit from here on.
+ */
+export function rebaseWorkflowActions(base, fresh, local) {
+  const baseById = new Map(base.map((a) => [a.id, a]))
+  const freshById = new Map(fresh.map((a) => [a.id, a]))
+
+  const result = []
+  local.forEach((action) => {
+    const baseAction = action.id == null ? undefined : baseById.get(action.id)
+    const touched =
+      baseAction === undefined ||
+      action.type !== baseAction.type ||
+      !_.isEqual(workflowActionConfig(action), workflowActionConfig(baseAction))
+    if (touched) {
+      result.push(action)
+    } else if (freshById.has(action.id)) {
+      result.push(_.cloneDeep(freshById.get(action.id)))
+    }
+  })
+
+  const localIds = new Set(local.map((a) => a.id).filter((id) => id != null))
+  fresh.forEach((action, index) => {
+    if (baseById.has(action.id) || localIds.has(action.id)) {
+      return
+    }
+    // After the nearest action before it on the server that is still listed.
+    const previous = fresh
+      .slice(0, index)
+      .reverse()
+      .find((candidate) => result.some((a) => a.id === candidate.id))
+    const at = previous ? result.findIndex((a) => a.id === previous.id) + 1 : 0
+    result.splice(at, 0, _.cloneDeep(action))
+  })
+
+  return result
+}

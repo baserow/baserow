@@ -104,3 +104,54 @@ def test_permanently_deleting_an_action_deletes_its_service(
 
     assert not DatabaseWorkflowAction.objects_and_trash.filter(id=action.id).exists()
     assert not Service.objects.filter(id=service_id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_trashed_action_follows_its_field_through_an_undone_type_change(
+    data_fixture,
+):
+    """It comes back into the trash entry it left, so it can still be restored."""
+
+    import uuid
+
+    from baserow.contrib.database.action.scopes import TableActionScopeType
+    from baserow.contrib.database.fields.actions import UpdateFieldActionType
+    from baserow.core.action.handler import ActionHandler
+
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    user, button_field, action = _trashed_action(data_fixture, user=user)
+
+    UpdateFieldActionType.do(user, button_field, new_type_name="text")
+    ActionHandler.undo(
+        user, [TableActionScopeType.value(button_field.table_id)], session_id
+    )
+
+    assert DatabaseWorkflowAction.trash.filter(id=action.id).exists()
+    TrashHandler.restore_item(
+        user, DatabaseWorkflowActionTrashableItemType.type, action.id
+    )
+    assert DatabaseWorkflowAction.objects.filter(id=action.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_trashed_action_without_its_entry_is_not_brought_back(data_fixture):
+    import uuid
+
+    from baserow.contrib.database.action.scopes import TableActionScopeType
+    from baserow.contrib.database.fields.actions import UpdateFieldActionType
+    from baserow.core.action.handler import ActionHandler
+
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    user, button_field, action = _trashed_action(data_fixture, user=user)
+
+    UpdateFieldActionType.do(user, button_field, new_type_name="text")
+    TrashEntry.objects.filter(trash_item_id=action.id).delete()
+    ActionHandler.undo(
+        user, [TableActionScopeType.value(button_field.table_id)], session_id
+    )
+
+    assert not DatabaseWorkflowAction.objects_and_trash.filter(id=action.id).exists()

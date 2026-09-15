@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import Storage
 
 from baserow.contrib.database.formula_importer import import_formula
@@ -161,6 +162,45 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     ) -> DispatchResult:
         raise InvalidServiceTypeDispatchSource(
             "This workflow action type cannot be dispatched."
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping,
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, Any]] = None,
+        restored_workflow_action_id: Optional[int] = None,
+        **kwargs,
+    ) -> WorkflowAction:
+        """
+        Recreates the action under the id it had when given one that is free. A
+        type change undone brings a button's actions back, and the undo steps
+        recorded before it name those actions by id.
+
+        :param restored_workflow_action_id: The id the action had before the
+            field stopped being a button.
+        """
+
+        from baserow.contrib.database.workflow_actions.models import (
+            DatabaseWorkflowAction,
+        )
+
+        if (
+            restored_workflow_action_id is not None
+            and not DatabaseWorkflowAction.objects_and_trash.filter(
+                id=restored_workflow_action_id
+            ).exists()
+        ):
+            serialized_values["id"] = restored_workflow_action_id
+            # Set by `save` only for a row without an id.
+            serialized_values["content_type"] = ContentType.objects.get_for_model(
+                self.model_class
+            )
+
+        return super().create_instance_from_serialized(
+            serialized_values, id_mapping, files_zip, storage, cache, **kwargs
         )
 
     def import_serialized(

@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
 import pytest
@@ -412,6 +414,57 @@ def test_delete_a_missing_workflow_action(api_client, data_fixture):
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_deleting_an_action_twice_answers_that_it_is_gone(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    url = reverse(
+        "api:database:workflow_actions:item",
+        kwargs={"workflow_action_id": action.id},
+    )
+
+    first = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    second = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert first.status_code == HTTP_204_NO_CONTENT
+    assert second.status_code == HTTP_404_NOT_FOUND
+    assert second.json()["error"] == "ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_a_delete_that_loses_the_race_is_not_a_server_error(api_client, data_fixture):
+    """Two deletes read the action before either trashed it. The second insert of
+    its trash entry fails on the unique constraint."""
+
+    from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+
+    with patch(
+        "baserow.contrib.database.workflow_actions.service.TrashHandler.trash",
+        side_effect=CannotDeleteAlreadyDeletedItem(),
+    ):
+        response = api_client.delete(
+            reverse(
+                "api:database:workflow_actions:item",
+                kwargs={"workflow_action_id": action.id},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM"
 
 
 @pytest.mark.django_db

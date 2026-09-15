@@ -16,8 +16,14 @@
     </FormGroup>
     <!-- An edit made before the saved actions arrive would be lost to them. -->
     <div v-if="loadingActions" class="loading-spinner margin-top-2"></div>
+    <!--
+      Keyed, because each action's form copies its values once when it is
+      made. A list replaced from the server rebuilds them, or a card would keep
+      showing, and saving, what was there before.
+    -->
     <ButtonFieldActionList
       v-else
+      :key="actionListRevision"
       ref="actionList"
       :value="localActions"
       :database="database"
@@ -38,6 +44,7 @@ import DatabaseFormulaInput from '@baserow/modules/database/components/field/Dat
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import {
   CLIENT_ID_KEY,
+  rebaseWorkflowActions,
   reconcileWorkflowActions,
   workflowActionConfig,
   workflowActionKey,
@@ -49,6 +56,12 @@ import {
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+
+/** An action without the answer a click left on its service. */
+const withoutCapturedAnswers = (action) =>
+  action.service
+    ? { ...action, service: _.omit(action.service, ['sample_data', 'schema']) }
+    : action
 
 export default {
   name: 'FieldButtonSubForm',
@@ -81,6 +94,9 @@ export default {
       // cancelling discards the edits without ever calling the API.
       serverActions: [],
       localActions: [],
+      // Bumped when the buffer is replaced from the server, to rebuild the
+      // action forms.
+      actionListRevision: 0,
       loadingActions: false,
       // Target table fields, by table id, reported by the action forms that
       // fetched them. An action that has never been saved carries no service
@@ -218,13 +234,12 @@ export default {
      * remounted when the field is opened again, so without this the editor
      * shows the old list, and saving it would put back what was undone.
      *
-     * The buffered list is only replaced when it holds no edits. An edit made
-     * and then clicked away from survives: nothing listens for the context
-     * being hidden, so the buffered list is still here on the next open, and
-     * replacing it would drop that edit without a word. It then only picks up
-     * what a click captured. Skipped while the first read is still in flight,
-     * since `mounted` and the context's own `shown` both land on the first
-     * open.
+     * An edit made and then clicked away from survives: nothing listens for
+     * the context being hidden, so the buffered list is still here on the next
+     * open, and replacing it would drop that edit without a word. So a buffer
+     * without edits takes the server's list, and one with edits keeps them on
+     * top of it. Skipped while the first read is still in flight, since
+     * `mounted` and the context's own `shown` both land on the first open.
      */
     async onShow() {
       // The list is not remounted between opens, so reopening the editor is
@@ -242,13 +257,22 @@ export default {
         const { data } = await WorkflowActionService(this.$client).fetchAll(
           this.defaultValues.id
         )
-        const hasEdits = this.hasUnsavedEdits()
+        const localActions = this.hasUnsavedEdits()
+          ? rebaseWorkflowActions(this.serverActions, data, this.localActions)
+          : clone(data)
         this.serverActions = data
-        if (hasEdits) {
-          this.adoptCapturedAnswers(data)
-        } else {
-          this.localActions = clone(data)
+        // Compared without what a click captured, which the forms read live,
+        // so a click alone does not collapse the card being looked at.
+        if (
+          !_.isEqual(
+            localActions.map(withoutCapturedAnswers),
+            this.localActions.map(withoutCapturedAnswers)
+          )
+        ) {
+          this.localActions = localActions
+          this.actionListRevision += 1
         }
+        this.adoptCapturedAnswers(data)
       } catch (error) {
         notifyIf(error, 'field')
       }

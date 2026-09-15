@@ -187,6 +187,66 @@ describe('FieldButtonSubForm', () => {
       ])
     })
 
+    test('a card opened again shows the value an undo put back', async () => {
+      // Each action form copies its values once, when it is made, so swapping
+      // the list alone leaves the card showing, and saving, the undone value.
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('after'), target: 'self' }],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+      const card = () =>
+        wrapper.findComponent({ name: 'OpenUrlWorkflowActionForm' })
+      expect(card().vm.values.url.formula).toBe('after')
+
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('before'), target: 'self' }],
+      })
+      await wrapper.vm.onShow()
+      await flushPromises()
+
+      expect(card().vm.values.url.formula).toBe('before')
+    })
+
+    test('an undo under unsaved edits is not reverted by the next save', async () => {
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [
+          { id: 7, type: 'open_url', url: url('a'), target: 'self' },
+          { id: 9, type: 'open_url', url: url('added'), target: 'self' },
+        ],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+      wrapper.vm.localActions = [
+        { id: 7, type: 'open_url', url: url('edited'), target: 'self' },
+        { id: 9, type: 'open_url', url: url('added'), target: 'self' },
+      ]
+
+      // The undo trashed action 9.
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('a'), target: 'self' }],
+      })
+      await wrapper.vm.onShow()
+      await flushPromises()
+      client.get.mockResolvedValue({ data: [] })
+      await wrapper.vm.afterFieldSaved(5)
+
+      // The edit is saved, and action 9 is neither recreated nor deleted.
+      expect(client.patch).toHaveBeenCalledWith(
+        'database/workflow_action/7/',
+        { url: url('edited'), target: 'self' },
+        noGroup
+      )
+      expect(
+        client.post.mock.calls.filter(
+          ([path]) => path === 'database/field/5/workflow_actions/'
+        )
+      ).toEqual([])
+      expect(client.delete).not.toHaveBeenCalled()
+    })
+
     test('a field that was never saved has nothing to re-read', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go' })
       const client = testApp.getApp().$client

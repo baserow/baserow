@@ -171,7 +171,7 @@ from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.models import UserFile, WorkspaceUser
+from baserow.core.models import TrashEntry, UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
@@ -8308,10 +8308,17 @@ class ButtonFieldType(ReadOnlyFieldType):
     def export_prepared_values(self, field: ButtonField) -> Dict[str, Any]:
         values = super().export_prepared_values(field)
         # A type change deletes the row the actions cascade off, so only this
-        # backup can bring them back.
+        # backup can bring them back. Trashed actions are kept too: undoing a
+        # save trashes the actions it created before it undoes the type change,
+        # and redo restores them from the trash.
         values["workflow_actions"] = [
-            action.get_type().export_serialized(action)
-            for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
+            {
+                **action.get_type().export_serialized(action),
+                "trashed": action.trashed,
+            }
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(
+                field, base_queryset=DatabaseWorkflowAction.objects_and_trash
+            )
         ]
         return values
 
@@ -8334,7 +8341,10 @@ class ButtonFieldType(ReadOnlyFieldType):
         # `user` is checked against the restored actions (ADR 006 section 5),
         # so a credential or workflow they may not read is dropped.
         self._recreate_workflow_actions(
-            to_field, to_field_kwargs.get("workflow_actions") or [], user=user
+            to_field,
+            to_field_kwargs.get("workflow_actions") or [],
+            user=user,
+            restore=True,
         )
 
     def _recreate_workflow_actions(
@@ -8342,8 +8352,16 @@ class ButtonFieldType(ReadOnlyFieldType):
         field: ButtonField,
         serialized_actions: List[Dict[str, Any]],
         user: Optional[AbstractUser] = None,
+        restore: bool = False,
     ) -> None:
-        """Recreates the serialized actions on the field, in order."""
+        """
+        Recreates the serialized actions on the field, in order.
+
+        :param restore: Whether these are the field's own actions coming back
+            after a type change, rather than copies. Each keeps its id, so the
+            undo steps naming it still work, and a trashed one goes back into
+            the trash entry it left, or is dropped when that entry is gone.
+        """
 
         if not serialized_actions:
             return
@@ -8369,13 +8387,37 @@ class ButtonFieldType(ReadOnlyFieldType):
         # which raises when no context is active.
         with deferred_callback_context():
             for serialized_action in serialized_actions:
+                trashed = restore and serialized_action.get("trashed", False)
+                if trashed and not self._has_trash_entry(serialized_action["id"]):
+                    continue
                 action_type = database_workflow_action_type_registry.get(
                     serialized_action["type"]
                 )
-                action_type.import_serialized(
+                action = action_type.import_serialized(
                     field,
                     serialized_action,
                     id_mapping,
                     import_export_config=import_export_config,
                     copied_by=user,
+                    restored_workflow_action_id=(
+                        serialized_action.get("id") if restore else None
+                    ),
                 )
+                if trashed:
+                    action.trashed = True
+                    action.save(update_fields=["trashed"])
+
+    def _has_trash_entry(self, workflow_action_id: int) -> bool:
+        """
+        Whether a trashed action can still be restored. Without its entry a
+        recreated trashed action could never be seen again.
+        """
+
+        from baserow.contrib.database.workflow_actions.trash_types import (
+            DatabaseWorkflowActionTrashableItemType,
+        )
+
+        return TrashEntry.objects.filter(
+            trash_item_type=DatabaseWorkflowActionTrashableItemType.type,
+            trash_item_id=workflow_action_id,
+        ).exists()

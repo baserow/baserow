@@ -18,6 +18,7 @@ from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.exceptions import ThrottledAPIException
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.services.errors import ERROR_SERVICE_INVALID_TYPE
+from baserow.api.trash.errors import ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
@@ -78,6 +79,7 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
+from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
 
@@ -233,6 +235,7 @@ class DatabaseWorkflowActionView(APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM",
                 ]
             ),
             403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
@@ -244,13 +247,18 @@ class DatabaseWorkflowActionView(APIView):
         {
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
         }
     )
     def delete(self, request, workflow_action_id: int):
         feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
 
-        workflow_action = DatabaseWorkflowActionHandler().get_workflow_action(
-            workflow_action_id
+        # Locked, so a second delete of the same action waits for the first and
+        # then finds it trashed, rather than trashing it twice.
+        workflow_action = (
+            DatabaseWorkflowActionHandler().get_workflow_action_for_update(
+                workflow_action_id
+            )
         )
 
         DeleteDatabaseWorkflowActionActionType.do(request.user, workflow_action)
