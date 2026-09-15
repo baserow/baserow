@@ -1,12 +1,19 @@
 ---
 name: review-pr
-description: Review a Baserow pull request, branch, or diff against `develop` the way the maintainers do. Use when asked to review, deeply review, re-review, or triage review comments on a PR, including follow-up rounds on the same PR.
+description: Review a Baserow pull request, branch, or diff against its actual base the way the maintainers do. Use when asked to review, deeply review, re-review, or triage review comments on a PR, including follow-up rounds on the same PR.
 ---
 
 # Review a Baserow Pull Request
 
 Produce an evidence-backed report whose findings can be pasted as line comments.
-Never post to GitHub unless explicitly asked.
+Explain issues and resolution criteria without applying implementation fixes unless
+the user separately requests implementation. Never post to GitHub unless explicitly
+asked.
+
+Preserve the author's checkout and existing changes. Keep diagnostic scripts, test
+additions, and instrumentation in a temporary directory or isolated review worktree;
+do not commit them or leave them in the author's submission. Keep useful evidence
+available to the author and report its location and reproduction command.
 
 ## Review principles
 
@@ -41,9 +48,15 @@ Use these invariants instead of accumulating a universal list of edge cases:
 
 ### 1. Establish the contract
 
-- Work in the current worktree; never switch branches in the main clone.
+- Use the current worktree when it already matches the revision being reviewed.
+  Otherwise create an isolated review worktree at that revision; never switch
+  branches in the main clone or overwrite local changes.
 - Read the PR description and every linked issue. Inspect the diff against its real
-  base; for a stack, review only the layer and check the parent state.
+  base; for a stack, review only the layer against its parent, not `develop`.
+  Record the base ref, comparison base (merge-base), and head commit. Ensure source,
+  diff, and test results refer to those revisions; disclose any local changes.
+- For a re-review or comment-triage request, read
+  [references/re-review.md](references/re-review.md) before inspecting findings.
 - State in three sentences: the problem, intended behaviour, and approach.
 - Identify the feature flag, affected products/layers, persisted contracts, trust
   boundaries, expected cardinalities, and every measurable claim.
@@ -58,8 +71,8 @@ gh pr diff <N>
 gh issue view <id>
 ```
 
-Use `gh pr checkout <N>`, or fetch the pull ref into a dedicated worktree branch
-when that name is already checked out elsewhere.
+Fetch missing refs before creating the isolated worktree. Do not run `gh pr checkout`
+in the author's checkout; fetching a ref does not require switching that checkout.
 
 ### 2. Route to relevant topics
 
@@ -111,8 +124,12 @@ If either answer is non-trivial, load the corresponding reference.
   hypotheses selected by the topic references.
 - Reproduce suspected bugs with a failing test, request, query plan, browser steps,
   or a traced call chain. A plausible concern without evidence is a question.
-- Check whether each bug exists on `origin/develop`. Pre-existing bugs are recorded
-  separately unless the PR worsens or newly exposes them.
+  Reduce the case to the smallest trigger that preserves the failure; record its
+  prerequisites, expected result, and observed result.
+- Compare the same reproduction or traced path against the recorded comparison
+  base. Pre-existing bugs are recorded separately unless this layer worsens or newly
+  exposes them; describe that incremental impact. `develop` is only supplementary
+  context when it is not the reviewed layer's base.
 - Verify PR claims using the actual effect. Performance claims need representative
   data; security claims need an adversarial path; UI claims need browser behaviour.
 
@@ -122,33 +139,62 @@ than a quoted `-k` expression. Use the worktree's stack and ports for browser ch
 ### 4. Report
 
 Read [report-template.md](report-template.md) only when writing the report. Order
-findings by impact and include file/line, consequence, evidence, a concrete
-alternative when one exists, and ready-to-post wording.
+findings by impact. Give each finding a stable ID across review rounds, a precise
+location, reproducible evidence, consequence, and how the author can verify
+resolution. Include concise ready-to-post wording.
 
-Severity:
+Omit suggested alternative directions by default. Include one only when the current
+approach has substantial, demonstrated problems and a different approach would
+materially reduce those problems or the complexity needed to solve them. Explain
+the concrete benefit and relevant tradeoffs, including the cost of changing course.
+Another valid implementation or a stylistic preference is not grounds for proposing
+a redesign. Preserve a workable approach and focus feedback on the required outcome.
 
-- **Blocking / High:** security exposure, cross-tenant or privilege violation, data
+Assess severity and merge impact separately:
+
+- **High:** security exposure, cross-tenant or privilege violation, data
   loss/corruption, broken main path, non-zero-downtime migration, or incompatible
   deployed contract.
-- **Blocking / Medium:** reproduced edge failure, missing regression for changed
-  behaviour, silent fallback, invariant enforced in only some entry points, or an
-  important claim that cannot be verified.
-- **Minor / Low:** maintainability or repository-convention issue with a concrete
+- **Medium:** a demonstrated edge failure, unintended fallback, invariant missing
+  from a reachable entry point, or an acceptance-critical regression/evidence gap
+  with an identified risk.
+- **Low:** maintainability or repository-convention issue with a concrete
   future cost.
-- **Nit / Non-blocking:** optional wording, style, question, or alternative.
+- **Nit:** optional wording or style feedback.
 
-Behind a feature flag, a non-security/non-data-loss finding may be tracked before
-flag removal when retesting now is disproportionate. Without a flag, broken code
-must not land alone; propose a stacked fix and state that the base must not merge by
-itself.
+Explain why a finding blocks merging or can wait. Missing access to a service,
+representative data, or credentials is a review limitation, not proof of a defect.
+For an acceptance-critical evidence gap, state the guarantee at risk and the exact
+verification needed. Use **Incomplete** when unavailable evidence prevents a
+defensible verdict; record other confirmed findings normally.
+
+A non-security/non-data-loss finding may be deferred behind a feature flag only
+after verifying that the deployed flag state isolates its effects. Check shared
+code, unconditional migrations, queued work, alternate entry points, and objects
+persisted while enabled. Record the verified flag state, remaining impact, and a
+tracked condition requiring resolution before exposure or flag removal. A flag's
+existence alone does not justify deferral. Otherwise broken code must not land
+alone; a suggested stacked fix must state that the base cannot merge by itself.
 
 ## Comment quality
 
 - One ask per comment, usually one to four sentences.
 - State the consequence and evidence, not merely the rule.
-- Bugs include a repro or traced path; small fixes can include a suggestion block.
+- Bugs include a repro or traced path. A small local correction within the existing
+  approach can use a suggestion block when it clarifies the issue; it does not need
+  a suggested-direction section.
+- Give an observable resolution criterion when useful; leave implementation choices
+  with the author. Link long logs or repro artifacts instead of expanding the comment.
 - Prefix optional feedback with `[minor]`, `[nit]`, or `[non-blocking]`.
-- Do not let nits outnumber functional, security, or scale verification.
+- Keep optional feedback proportionate to the verified risk; do not manufacture
+  findings or pad a clean review with nits.
 
 Stop and correct the review if a finding lacks evidence, a pre-existing bug is
-blocking the PR, or the report says something passed without the command having run.
+attributed to this layer without incremental impact, or the report says something
+passed without the command having run.
+
+## Extend this skill
+
+When adding or changing review rules, read
+[references/maintaining.md](references/maintaining.md) for ownership, evidence,
+exceptions, and behavioral validation. Ordinary PR reviews do not need that guide.

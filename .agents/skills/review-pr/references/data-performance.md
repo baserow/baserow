@@ -60,9 +60,9 @@ Check that:
 
 A sequential scan on a small or low-selectivity table is not itself a finding. An
 unused index adds write and storage cost. Ground either conclusion in the plan and
-expected frequency. Normal metadata indexes follow the concurrent zero-downtime
-migration pattern; generated user-table indexes use the existing lazy runtime path
-rather than iterating all user tables in a migration.
+expected frequency. For index rollout, apply the
+[migration checks](state-compatibility.md#django-zero-downtime-migrations), including
+the distinction between metadata tables and generated user tables.
 
 ## Caches, locks, and payloads
 
@@ -85,5 +85,8 @@ rather than iterating all user tables in a migration.
 Leave the smallest decisive artifact: a small-versus-large query-growth test, the
 relevant SQL and plan, a representative benchmark, or explicit fan-out/payload
 arithmetic. When captured request data exists, Silk can connect repeated SQL to its
-Baserow stack frame; never enable an option that re-executes possibly mutating
-queries merely to obtain a plan.
+Baserow stack frame: consult [silk-profiler](../../silk-profiler/SKILL.md) for its
+read-only query, stored-plan, and trace workflow. Use its evidence to report a
+measured bottleneck and the required improvement; do not apply performance fixes during
+review. Never enable an option that re-executes possibly mutating queries merely to
+obtain a plan.

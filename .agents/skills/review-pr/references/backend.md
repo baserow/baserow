@@ -6,9 +6,14 @@ or state-compatibility references as well when their triggers apply.
 
 ## Domain boundaries
 
+- When a change crosses model, handler, service, action, or API boundaries, consult
+  [manage-backend-layers](../../manage-backend-layers/SKILL.md) for the owning layer
+  and nearby patterns. Use it to evaluate the change against its contract; do not
+  run its implementation workflow as part of the review.
 - Views authenticate, parse, call the domain layer, and serialize. Querying and
-  business rules belong in handlers; user-owned mutations go through an `ActionType`
-  so audit and undo see them.
+  persistence belong in handlers; services coordinate permission-aware domain work.
+  Mutations that participate in action history and undo go through an `ActionType`;
+  follow the owning module's contract for internal or non-undoable operations.
 - Enforce an invariant at the lowest shared boundary every entry point crosses.
   Avoid repeating validation or permissions in individual views, serializers, bulk
   paths, imports, or tasks.
@@ -26,8 +31,12 @@ or state-compatibility references as well when their triggers apply.
 ## Contracts and Django behavior
 
 - Resolve the authoritative resource first, then derive workspace/parent ids and
-  permissions from it. Resource ids belong in URL paths; inaccessible resources
-  normally use the repository's indistinguishable 404 behavior.
+  permissions from it. Resource ids belong in URL paths. Preserve the endpoint's
+  established missing-resource and permission-denied contract: the shared
+  [`map_exceptions`](../../../../backend/src/baserow/api/decorators.py) mapping uses
+  [`ERROR_PERMISSION_DENIED`](../../../../backend/src/baserow/api/errors.py) (401)
+  for `PermissionException`, while specific endpoints may deliberately use 404.
+  Trace the actual exception mapping and tests before proposing a status change.
 - Return a typed domain result when the read shape differs from the model. Do not
   monkey-patch transient attributes onto ORM instances or encode alternate outcomes
   in a plain dict, bool, or `None`.
@@ -37,6 +46,8 @@ or state-compatibility references as well when their triggers apply.
 - Keep transactions around the invariant and durable writes, not read-only requests,
   serialization, or external I/O. Re-read mutable state under the appropriate lock
   when the decision depends on freshness.
+- When a mutation schedules tasks, broadcasts, or other external effects, apply the
+  [commit and rollback checks](state-compatibility.md#commit-and-rollback-effects).
 - Resolve Django settings inside the function when tests may override them. Avoid
   reading a setting in a default argument.
 - Reuse a setting only when it governs the same resource, unit, valid range,
