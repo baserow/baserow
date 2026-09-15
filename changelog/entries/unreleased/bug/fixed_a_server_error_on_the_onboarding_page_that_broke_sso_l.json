@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a server error on the onboarding page that broke SSO logins for new users.",
+    "issue_origin": "github",
+    "issue_number": 6043,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-14"
+}
