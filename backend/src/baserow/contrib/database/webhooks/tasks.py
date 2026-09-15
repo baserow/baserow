@@ -130,8 +130,10 @@ def call_webhook(
             except WebhookPayloadTooLarge:
                 success = True  # We don't want to retry this call, because it will fail again.
                 transaction.on_commit(
-                    lambda: WebhookPayloadTooLargeNotificationType.notify_admins_in_workspace(
-                        webhook, event_id
+                    lambda: (
+                        WebhookPayloadTooLargeNotificationType.notify_admins_in_workspace(
+                            webhook, event_id
+                        )
                     )
                 )
             else:

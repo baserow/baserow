@@ -212,14 +212,14 @@ def test_all_users_can_see_and_clear_broadcast_notifications(
     user_notifications = NotificationHandler.list_notifications(
         user, workspace=workspace
     )
-    user_unread_notifications_count = (
-        lambda: NotificationHandler.get_unread_notifications_count(user)
+    user_unread_notifications_count = lambda: (
+        NotificationHandler.get_unread_notifications_count(user)
     )
     other_user_notifications = NotificationHandler.list_notifications(
         other_user, workspace=workspace
     )
-    other_user_unread_notifications_count = (
-        lambda: NotificationHandler.get_unread_notifications_count(other_user)
+    other_user_unread_notifications_count = lambda: (
+        NotificationHandler.get_unread_notifications_count(other_user)
     )
 
     assert Notification.objects.count() == 1

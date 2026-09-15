@@ -1383,9 +1383,11 @@ def _check_creates_rows_with_all_field_types(
         CheckResult(
             "status is a known option",
             _any_row(
-                lambda r: bool(_get_field_value(r, "status"))
-                and _get_field_value(r, "status").value
-                in ["To Do", "In Progress", "Done"]
+                lambda r: (
+                    bool(_get_field_value(r, "status"))
+                    and _get_field_value(r, "status").value
+                    in ["To Do", "In Progress", "Done"]
+                )
             ),
         ),
         CheckResult(

@@ -122,11 +122,13 @@ class AutomationWorkflow(
 
         return local_cache.get(
             f"automation_workflow_original_{self.id}",
-            lambda: AutomationWorkflowHandler().get_workflow(
-                self.automation.published_from_id
-            )
-            if self.automation.published_from_id
-            else self,
+            lambda: (
+                AutomationWorkflowHandler().get_workflow(
+                    self.automation.published_from_id
+                )
+                if self.automation.published_from_id
+                else self
+            ),
         )
 
     def get_graph_handler(self):

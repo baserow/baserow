@@ -451,10 +451,11 @@ class BuilderWorkflowServiceActionType(
                     queryset=specific_queryset(
                         Service.objects.all(),
                         per_content_type_queryset_hook=(
-                            lambda service,
-                            queryset: service_type_registry.get_by_model(
-                                service
-                            ).enhance_queryset(queryset)
+                            lambda service, queryset: (
+                                service_type_registry.get_by_model(
+                                    service
+                                ).enhance_queryset(queryset)
+                            )
                         ),
                     ),
                 )
