@@ -20,6 +20,7 @@ const commonAdvancedFeatures = [
   EnterpriseFeaturesObject.BUILDER_CUSTOM_CODE,
   EnterpriseFeaturesObject.CODE_RUNNER,
   EnterpriseFeaturesObject.XLS_FILE_READER,
+  EnterpriseFeaturesObject.BUILDER_GROUPED_AGGREGATE_ROWS,
   // Only self-hosted
   EnterpriseFeaturesObject.SSO,
 ]

@@ -103,20 +103,34 @@
       >
       </AggregationSeriesForm>
     </FormSection>
-    <AggregationGroupByForm
+    <ServiceRefinementForms
       v-if="values.table_id && !fieldHasErrors('table_id')"
-      :aggregation-group-bys="values.aggregation_group_bys"
+      small
+      :values="values"
       :table-fields="tableFields"
-      @value-changed="onGroupByUpdated($event)"
+      :group-count-override="values.aggregation_group_bys.length"
+      :sort-count-override="values.aggregation_sorts.length"
+      show-filter
+      show-group
+      show-sort
     >
-    </AggregationGroupByForm>
-    <AggregationSortByForm
-      v-if="values.table_id && !fieldHasErrors('table_id')"
-      :aggregation-sorts="values.aggregation_sorts"
-      :allowed-sort-references="allowedSortReferences"
-      @value-changed="onSortByUpdated($event)"
-    >
-    </AggregationSortByForm>
+      <template #group-form>
+        <AggregationGroupByForm
+          :aggregation-group-bys="values.aggregation_group_bys"
+          :table-fields="tableFields"
+          @value-changed="onGroupByUpdated($event)"
+        >
+        </AggregationGroupByForm>
+      </template>
+      <template #sort-form>
+        <AggregationSortByForm
+          :aggregation-sorts="values.aggregation_sorts"
+          :allowed-sort-references="allowedSortReferences"
+          @value-changed="onSortByUpdated($event)"
+        >
+        </AggregationSortByForm>
+      </template>
+    </ServiceRefinementForms>
   </form>
 </template>
 
@@ -124,10 +138,11 @@
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
 import { required } from '@vuelidate/validators'
-import AggregationSeriesForm from '@baserow_premium/dashboard/components/data_source/AggregationSeriesForm'
-import AggregationGroupByForm from '@baserow_premium/dashboard/components/data_source/AggregationGroupByForm'
-import AggregationSortByForm from '@baserow_premium/dashboard/components/data_source/AggregationSortByForm'
+import AggregationSeriesForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationSeriesForm'
+import AggregationGroupByForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationGroupByForm'
+import AggregationSortByForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationSortByForm'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
+import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -143,6 +158,7 @@ export default {
     AggregationSeriesForm,
     AggregationGroupByForm,
     AggregationSortByForm,
+    ServiceRefinementForms,
   },
   mixins: [form, tableFields],
   props: {
@@ -177,6 +193,8 @@ export default {
       allowedValues: [
         'table_id',
         'view_id',
+        'filters',
+        'filter_type',
         'aggregation_series',
         'aggregation_group_bys',
         'aggregation_sorts',
@@ -184,6 +202,8 @@ export default {
       values: {
         table_id: null,
         view_id: null,
+        filters: [],
+        filter_type: 'AND',
         aggregation_series: [],
         aggregation_group_bys: [],
         aggregation_sorts: [],
@@ -206,6 +226,7 @@ export default {
           ]
           this.values.aggregation_group_bys = []
           this.values.aggregation_sorts = []
+          this.values.filters = []
 
           // reset widget conf
           this.$emit('widget-values-changed', {

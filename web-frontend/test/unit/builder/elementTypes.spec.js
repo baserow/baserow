@@ -732,6 +732,75 @@ describe('elementTypes tests', () => {
       const element = { required: false, multiple: false, data_source_id: 1 }
       expect(elementType.isValid(element, 1, {})).toBe(true)
     })
+    test('RecordSelectorElementType | string data source id default value.', () => {
+      const serviceType = {
+        parseRecordId(value) {
+          return value
+        },
+        getRecordIdDataType() {
+          return 'string'
+        },
+      }
+      const sharedPage = { id: 2 }
+      const page = { id: 1 }
+      const dataSource = { id: 1, type: 'grouped_rows' }
+      const app = {
+        $registry: {
+          get(namespace, type) {
+            if (namespace === 'service' && type === dataSource.type) {
+              return serviceType
+            }
+          },
+        },
+        $store: {
+          getters: {
+            'page/getSharedPage'() {
+              return sharedPage
+            },
+            'dataSource/getPagesDataSourceById'() {
+              return dataSource
+            },
+          },
+        },
+      }
+      const elementType = new RecordSelectorElementType({ app })
+      vi.spyOn(elementType, 'resolveFormula').mockReturnValue('Group A')
+
+      const element = {
+        default_value: {},
+        multiple: false,
+        data_source_id: dataSource.id,
+      }
+
+      expect(
+        elementType.getInitialFormDataValue(element, {
+          builder: { id: 1 },
+          page,
+        })
+      ).toBe('Group A')
+      expect(
+        elementType.formDataType(element, {
+          builder: { id: 1 },
+          page,
+        })
+      ).toBe('string')
+      expect(
+        elementType.getDataSchema(element, {
+          builder: { id: 1 },
+          page,
+        })
+      ).toEqual({ type: 'string' })
+
+      expect(
+        elementType.getDataSchema(
+          { ...element, multiple: true },
+          {
+            builder: { id: 1 },
+            page,
+          }
+        )
+      ).toEqual({ type: 'array', items: { type: 'string' } })
+    })
   })
 
   describe('elementType isDisallowedReason for base elements', () => {

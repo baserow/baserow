@@ -125,7 +125,12 @@ def test_file_input_element_is_valid(fake):
         "3c913094-c69a-4fd3-b19d-c35322f7d5c5": fake_file,
     }
 
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request,
+        MagicMock(
+            builder=MagicMock(get_workspace=MagicMock(return_value=MagicMock(id=-1)))
+        ),
+    )
 
     value = {
         "__file__": True,
@@ -175,7 +180,12 @@ def test_file_input_element_is_valid_invalid_filetype(fake, allowed, should_rais
         "3c913094-c69a-4fd3-b19d-c35322f7d5c5": fake_file,
     }
 
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request,
+        MagicMock(
+            builder=MagicMock(get_workspace=MagicMock(return_value=MagicMock(id=-1)))
+        ),
+    )
 
     value = {
         "__file__": True,
@@ -217,7 +227,12 @@ def test_file_input_element_is_valid_invalid_size(fake):
         "3c913094-c69a-4fd3-b19d-c35322f7d5c5": fake_file,
     }
 
-    dispatch_context = BuilderDispatchContext(fake_request, None)
+    dispatch_context = BuilderDispatchContext(
+        fake_request,
+        MagicMock(
+            builder=MagicMock(get_workspace=MagicMock(return_value=MagicMock(id=-1)))
+        ),
+    )
 
     value = {
         "__file__": True,
