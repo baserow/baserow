@@ -179,8 +179,14 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         type change undone brings a button's actions back, and the undo steps
         recorded before it name those actions by id.
 
+        :param serialized_values: The deserialized values of the action.
+        :param id_mapping: Maps exported ids to the ids they were imported under.
+        :param files_zip: The zip file containing any exported files.
+        :param storage: The storage the exported files are read from.
+        :param cache: A cache shared across the import.
         :param restored_workflow_action_id: The id the action had before the
             field stopped being a button.
+        :return: The created action.
         """
 
         from baserow.contrib.database.workflow_actions.models import (
