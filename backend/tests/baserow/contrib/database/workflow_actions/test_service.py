@@ -87,7 +87,9 @@ def test_delete_sends_the_deleted_action_id(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_deleting_an_action_deletes_its_service(data_fixture):
+def test_deleting_an_action_trashes_it_and_keeps_its_service(data_fixture):
+    """Kept until the trash is emptied, so an undo restores the action whole."""
+
     from baserow.core.services.models import Service
 
     user = data_fixture.create_user()
@@ -100,7 +102,9 @@ def test_deleting_an_action_deletes_its_service(data_fixture):
 
     DatabaseWorkflowActionService().delete_workflow_action(user, action)
 
-    assert not Service.objects.filter(id=service_id).exists()
+    assert not DatabaseWorkflowAction.objects.filter(id=action.id).exists()
+    assert DatabaseWorkflowAction.trash.filter(id=action.id).exists()
+    assert Service.objects.filter(id=service_id).exists()
 
 
 @pytest.mark.django_db
@@ -115,8 +119,10 @@ def test_changing_the_type_keeps_the_action(data_fixture):
     )
     action_id, order, old_service_id = action.id, action.order, action.service_id
 
-    updated = DatabaseWorkflowActionService().update_workflow_action(
-        user, action, type="local_baserow_delete_row"
+    updated = (
+        DatabaseWorkflowActionService()
+        .update_workflow_action(user, action, type="local_baserow_delete_row")
+        .workflow_action
     )
 
     assert isinstance(updated, LocalBaserowDeleteRowWorkflowAction)
@@ -159,8 +165,10 @@ def test_changing_the_type_drops_the_old_type_values(data_fixture):
         url={"mode": "simple", "version": "0.1", "formula": "'https://baserow.io'"},
     )
 
-    updated = DatabaseWorkflowActionService().update_workflow_action(
-        user, action, type="local_baserow_create_row"
+    updated = (
+        DatabaseWorkflowActionService()
+        .update_workflow_action(user, action, type="local_baserow_create_row")
+        .workflow_action
     )
 
     assert isinstance(updated, LocalBaserowCreateRowWorkflowAction)

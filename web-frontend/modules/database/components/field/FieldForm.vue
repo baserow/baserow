@@ -469,9 +469,9 @@ export default {
      * once the field is saved and its id is known. Called by the create and
      * update contexts.
      */
-    async afterFieldSaved(fieldId) {
+    async afterFieldSaved(fieldId, options = {}) {
       if (typeof this.$refs.childForm?.afterFieldSaved === 'function') {
-        await this.$refs.childForm.afterFieldSaved(fieldId)
+        await this.$refs.childForm.afterFieldSaved(fieldId, options)
       }
     },
     /**

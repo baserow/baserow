@@ -55,6 +55,7 @@
 import context from '@baserow/modules/core/mixins/context'
 import FieldForm from '@baserow/modules/database/components/field/FieldForm'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 
 export default {
   name: 'UpdateFieldContext',
@@ -127,6 +128,9 @@ export default {
 
       const type = values.type
       delete values.type
+      // One group for the field and its actions, so one undo takes back the
+      // whole save.
+      const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
 
       try {
         const forceUpdateCallback = await this.$store.dispatch('field/update', {
@@ -134,6 +138,7 @@ export default {
           type,
           values,
           forceUpdate: false,
+          undoRedoActionGroupId,
         })
 
         // The field is saved, so its actions can be saved too. A failure here
@@ -141,7 +146,9 @@ export default {
         const fieldId = this.field.id
         let actionsSaved = true
         try {
-          await this.$refs.form.afterFieldSaved(fieldId)
+          await this.$refs.form.afterFieldSaved(fieldId, {
+            undoRedoActionGroupId,
+          })
         } catch (error) {
           actionsSaved = false
           notifyIf(error, 'field')

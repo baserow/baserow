@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.types import WorkflowActionDict
@@ -10,6 +10,15 @@ if TYPE_CHECKING:
 
 class DatabaseWorkflowActionDict(WorkflowActionDict):
     field_id: int
+
+
+@dataclass
+class UpdatedDatabaseWorkflowAction:
+    """An updated action, with the values an undo and a redo replay."""
+
+    workflow_action: "DatabaseWorkflowAction"
+    original_values: Dict[str, Any]
+    new_values: Dict[str, Any]
 
 
 @dataclass

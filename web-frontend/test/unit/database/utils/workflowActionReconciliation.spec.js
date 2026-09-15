@@ -1,4 +1,5 @@
 import {
+  rebaseWorkflowActions,
   reconcileWorkflowActions,
   workflowActionConfig,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
@@ -192,5 +193,52 @@ describe('reconcileWorkflowActions', () => {
       service: { table_id: 4 },
     })
     expect(result.order).toEqual([null])
+  })
+})
+
+describe('rebaseWorkflowActions', () => {
+  const action = (id, url) => ({ id, type: 'open_url', url, target: 'self' })
+
+  test('an action nobody touched follows the server', () => {
+    const base = [action(1, 'a')]
+    const fresh = [action(1, 'undone')]
+
+    expect(rebaseWorkflowActions(base, fresh, [action(1, 'a')])).toEqual([
+      action(1, 'undone'),
+    ])
+  })
+
+  test('an untouched action the server lost goes, an edited one stays', () => {
+    const base = [action(1, 'a'), action(2, 'b')]
+    const fresh = []
+    const local = [action(1, 'a'), action(2, 'edited')]
+
+    expect(rebaseWorkflowActions(base, fresh, local)).toEqual([
+      action(2, 'edited'),
+    ])
+  })
+
+  test('an action the server gained is added where the server has it', () => {
+    const base = [action(1, 'a'), action(3, 'c')]
+    const fresh = [action(1, 'a'), action(2, 'restored'), action(3, 'c')]
+    const local = [action(1, 'a'), action(3, 'edited')]
+
+    expect(rebaseWorkflowActions(base, fresh, local)).toEqual([
+      action(1, 'a'),
+      action(2, 'restored'),
+      action(3, 'edited'),
+    ])
+  })
+
+  test('an action the user removed or added keeps that change', () => {
+    const base = [action(1, 'a'), action(2, 'b')]
+    const fresh = [action(1, 'a'), action(2, 'b')]
+    const added = { _clientId: 'new', type: 'open_url', url: 'c' }
+    const local = [action(1, 'a'), added]
+
+    expect(rebaseWorkflowActions(base, fresh, local)).toEqual([
+      action(1, 'a'),
+      added,
+    ])
   })
 })

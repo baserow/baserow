@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import Storage
 
 from baserow.contrib.database.formula_importer import import_formula
@@ -102,6 +103,27 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         values.pop("field", None)
         return super().prepare_values(values, user, instance)
 
+    def export_prepared_values(self, instance: WorkflowAction) -> Dict[str, Any]:
+        """
+        The action's configuration in a form an update can be replayed from, so
+        undo and redo can put it back.
+
+        `type` is included because a type change is an update, and undoing one
+        has to swap the type back. The field and the order are not: neither
+        changes on an update, and ordering has its own undoable action.
+
+        :param instance: The action to read.
+        :return: A JSON-serializable dict of update values.
+        """
+
+        values = {
+            key: getattr(instance, key)
+            for key in self.allowed_fields
+            if key not in ("order", "field", "field_id")
+        }
+        values["type"] = self.type
+        return values
+
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}
 
@@ -140,6 +162,51 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
     ) -> DispatchResult:
         raise InvalidServiceTypeDispatchSource(
             "This workflow action type cannot be dispatched."
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping,
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict[str, Any]] = None,
+        restored_workflow_action_id: Optional[int] = None,
+        **kwargs,
+    ) -> WorkflowAction:
+        """
+        Recreates the action under the id it had when given one that is free. A
+        type change undone brings a button's actions back, and the undo steps
+        recorded before it name those actions by id.
+
+        :param serialized_values: The deserialized values of the action.
+        :param id_mapping: Maps exported ids to the ids they were imported under.
+        :param files_zip: The zip file containing any exported files.
+        :param storage: The storage the exported files are read from.
+        :param cache: A cache shared across the import.
+        :param restored_workflow_action_id: The id the action had before the
+            field stopped being a button.
+        :return: The created action.
+        """
+
+        from baserow.contrib.database.workflow_actions.models import (
+            DatabaseWorkflowAction,
+        )
+
+        if (
+            restored_workflow_action_id is not None
+            and not DatabaseWorkflowAction.objects_and_trash.filter(
+                id=restored_workflow_action_id
+            ).exists()
+        ):
+            serialized_values["id"] = restored_workflow_action_id
+            # Set by `save` only for a row without an id.
+            serialized_values["content_type"] = ContentType.objects.get_for_model(
+                self.model_class
+            )
+
+        return super().create_instance_from_serialized(
+            serialized_values, id_mapping, files_zip, storage, cache, **kwargs
         )
 
     def import_serialized(

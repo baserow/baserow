@@ -550,7 +550,9 @@ the natural place to narrow this further when it is wanted.
   action reports the missing one (section 6). A copy a person asked for drops an
   integration that person cannot read (section 5).
 - **Trash and restore.** Actions and services follow the field, as builder actions
-  follow their element.
+  follow their element. Deleting a single action trashes it with its service, so it
+  can be restored; the service is deleted when the trash is emptied. A field changing
+  away from a button takes its trashed actions' trash entries with it.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
   and the button enters the reconfigure state rather than failing only at click time;
   restoring from trash heals it without reconfiguration.
@@ -558,11 +560,18 @@ the natural place to narrow this further when it is wanted.
   into a button starts empty. Both directions are destructive, like other fields that
   carry configuration.
 - **Undo/redo.** Clicks are never undoable, even when a sequence only touches rows: a
-  partially undoable button is more confusing than none. Nor are the actions themselves
-  yet: the field update around them is undoable, so undoing a save restores the label
-  and leaves the actions as they were saved. Builder workflow actions are the same, and
-  making either undoable needs a way to restore a deleted action with its service, which
-  neither has.
+  partially undoable button is more confusing than none. Configuring the actions is:
+  creating, updating, reordering and deleting each register an undoable action in the
+  table scope, and the editor sends a save's field update and action calls under one
+  action group, so one undo takes back the whole save. An update logs the action's
+  values without the fields its service calls sensitive, since the log is copied into
+  the audit log and an HTTP action keeps its keys in its headers. Undo leaves those
+  fields as they are, and an edit to only those fields adds no undo step. A type change
+  keeps the service it replaces instead of deleting it, so undo and redo attach the
+  service each side had, sensitive fields included, after checking the user may still
+  read its integration; the kept service is deleted when the undo step is cleaned up.
+  A field changing away from a button logs its actions without sensitive values, so
+  undoing that brings them back with those fields blank.
 - **Deleting a user.** Nothing breaks: actions run as whoever clicks, and v1 services
   have no integration, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed

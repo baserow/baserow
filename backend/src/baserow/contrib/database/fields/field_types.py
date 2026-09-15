@@ -8331,10 +8331,24 @@ class ButtonFieldType(ReadOnlyFieldType):
     def export_prepared_values(self, field: ButtonField) -> Dict[str, Any]:
         values = super().export_prepared_values(field)
         # A type change deletes the row the actions cascade off, so only this
-        # backup can bring them back.
+        # backup can bring them back. Trashed actions are kept too: undoing a
+        # save trashes the actions it created before it undoes the type change,
+        # and redo restores them from the trash. The backup is logged on the
+        # undo action and copied into the audit log, so whatever a service
+        # calls sensitive is left blank, as a workspace export leaves it.
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=True,
+        )
         values["workflow_actions"] = [
-            action.get_type().export_serialized(action)
-            for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
+            {
+                **action.get_type().export_serialized(action, import_export_config),
+                "trashed": action.trashed,
+            }
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(
+                field, base_queryset=DatabaseWorkflowAction.objects_and_trash
+            )
         ]
         return values
 
@@ -8357,7 +8371,10 @@ class ButtonFieldType(ReadOnlyFieldType):
         # `user` is checked against the restored actions (ADR 006 section 5),
         # so a credential or workflow they may not read is dropped.
         self._recreate_workflow_actions(
-            to_field, to_field_kwargs.get("workflow_actions") or [], user=user
+            to_field,
+            to_field_kwargs.get("workflow_actions") or [],
+            user=user,
+            restore=True,
         )
 
     def _recreate_workflow_actions(
@@ -8365,8 +8382,17 @@ class ButtonFieldType(ReadOnlyFieldType):
         field: ButtonField,
         serialized_actions: List[Dict[str, Any]],
         user: Optional[AbstractUser] = None,
+        restore: bool = False,
     ) -> None:
-        """Recreates the serialized actions on the field, in order."""
+        """
+        Recreates the serialized actions on the field, in order.
+
+        :param restore: Whether these are the field's own actions coming back
+            after a type change, rather than copies. Each keeps its id, so the
+            undo steps naming it still work, and a trashed one is trashed again.
+            Its entry went with it, and redoing the step that trashed it
+            restores it from a new one.
+        """
 
         if not serialized_actions:
             return
@@ -8392,13 +8418,22 @@ class ButtonFieldType(ReadOnlyFieldType):
         # which raises when no context is active.
         with deferred_callback_context():
             for serialized_action in serialized_actions:
+                trashed = restore and serialized_action.get("trashed", False)
                 action_type = database_workflow_action_type_registry.get(
                     serialized_action["type"]
                 )
-                action_type.import_serialized(
+                action = action_type.import_serialized(
                     field,
                     serialized_action,
                     id_mapping,
                     import_export_config=import_export_config,
                     copied_by=user,
+                    restored_workflow_action_id=(
+                        serialized_action.get("id") if restore else None
+                    ),
                 )
+                if trashed:
+                    from baserow.core.trash.handler import TrashHandler
+
+                    database = field.table.database
+                    TrashHandler.trash(user, database.workspace, database, action)
