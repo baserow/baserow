@@ -558,8 +558,11 @@ class DataSourceHandler:
         cloned_dispatch_context.add_call(data_source.id)
 
         if data_source.id not in cache.setdefault("data_source_contents", {}):
+            service = data_source.service.specific
+            service.get_type().raise_if_deactivated(dispatch_context.workspace)
+
             service_dispatch = self.service_handler.dispatch_service(
-                data_source.service.specific, cloned_dispatch_context
+                service, cloned_dispatch_context
             )
 
             # Cache the dispatch in the formula cache if we have formulas that need

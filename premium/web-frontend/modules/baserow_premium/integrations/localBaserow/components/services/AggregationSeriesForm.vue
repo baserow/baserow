@@ -49,6 +49,7 @@
         </Dropdown>
       </FormGroup>
       <FormGroup
+        v-if="showChartType"
         small-label
         :label="$t('aggregationSeriesForm.chartType')"
         required
@@ -120,7 +121,8 @@ export default {
     },
     widget: {
       type: Object,
-      required: true,
+      required: false,
+      default: null,
     },
     loading: {
       type: Boolean,
@@ -198,12 +200,18 @@ export default {
       return this.compatibleFields.map((field) => field.id)
     },
     currentSeriesConfig() {
+      if (!this.widget) {
+        return {}
+      }
       const series = this.aggregationSeries[this.seriesIndex]
       return (
         this.widget.series_config.find(
           (item) => item.series_id === series.id
         ) || {}
       )
+    },
+    showChartType() {
+      return this.widget !== null
     },
     widgetVariations() {
       const widgetType = this.$registry.get('dashboardWidget', this.widget.type)

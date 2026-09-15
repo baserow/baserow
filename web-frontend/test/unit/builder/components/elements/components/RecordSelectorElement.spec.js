@@ -22,6 +22,7 @@ describe('RecordSelectorElement', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     mock.restore()
   })
 
@@ -88,7 +89,7 @@ describe('RecordSelectorElement', () => {
         currentPage: page,
         elementPage: page,
         mode,
-        applicationContext: { builder, page, mode },
+        applicationContext: { builder, page, mode, element },
         element,
         workspace,
       },
@@ -251,5 +252,151 @@ describe('RecordSelectorElement', () => {
     expect(wrapper.element).toMatchSnapshot()
     expect(wrapper.find("span[title='First - One']").exists()).toBeTruthy()
     expect(wrapper.find("span[title='Second - Two']").exists()).toBeTruthy()
+  })
+
+  test('uses the service type id property for record ids', async () => {
+    const page = {
+      id: 1,
+      dataSources: [
+        {
+          id: 1,
+          type: 'local_baserow_list_rows',
+          table_id: 1,
+          schema: {
+            type: 'array',
+            items: {
+              properties: {
+                field_1: {
+                  metadata: { primary: true },
+                  title: 'Name',
+                },
+              },
+            },
+          },
+        },
+      ],
+      elements: [],
+    }
+    const sharedPage = {
+      id: 2,
+      dataSources: [],
+      elements: [],
+      shared: true,
+    }
+    const builder = {
+      id: 1,
+      theme: { primary_color: '#ccc' },
+      pages: [sharedPage, page],
+    }
+    const workspace = {}
+    const mode = 'public'
+    const element = {
+      id: 1,
+      type: 'record_selector',
+      data_source_id: page.dataSources[0].id,
+      items_per_page: 5,
+      page_id: page.id,
+    }
+    store.dispatch('element/forceCreate', { page, element })
+
+    const serviceType = testApp.$registry.get(
+      'service',
+      'local_baserow_list_rows'
+    )
+    vi.spyOn(serviceType, 'getIdProperty').mockReturnValue('__idx__')
+
+    const wrapper = await mountComponent({
+      props: {
+        element,
+      },
+      provide: {
+        builder,
+        currentPage: page,
+        elementPage: page,
+        mode,
+        applicationContext: { builder, page, mode, element },
+        element,
+        workspace,
+      },
+    })
+
+    expect(wrapper.vm.getId({ __idx__: 10, Name: 'First' })).toBe(10)
+  })
+
+  test('refreshes the selected value after local default record name resolution', async () => {
+    const page = {
+      id: 1,
+      dataSources: [
+        {
+          id: 1,
+          type: 'local_baserow_list_rows',
+          table_id: 1,
+          schema: {
+            type: 'array',
+            items: {
+              properties: {
+                field_1: {
+                  metadata: { primary: true },
+                  title: 'Name',
+                },
+              },
+            },
+          },
+        },
+      ],
+      elements: [],
+    }
+    const sharedPage = {
+      id: 2,
+      dataSources: [],
+      elements: [],
+      shared: true,
+    }
+    const builder = {
+      id: 1,
+      theme: { primary_color: '#ccc' },
+      pages: [sharedPage, page],
+    }
+    const workspace = {}
+    const mode = 'public'
+    const element = {
+      id: 1,
+      type: 'record_selector',
+      data_source_id: page.dataSources[0].id,
+      items_per_page: 5,
+      page_id: page.id,
+      multiple: false,
+    }
+    store.dispatch('element/forceCreate', { page, element })
+
+    const serviceType = testApp.$registry.get(
+      'service',
+      'local_baserow_list_rows'
+    )
+    vi.spyOn(serviceType, 'getRecordNameFromId').mockReturnValue('Group A')
+
+    const wrapper = await mountComponent({
+      props: {
+        element,
+      },
+      provide: {
+        builder,
+        currentPage: page,
+        elementPage: page,
+        mode,
+        applicationContext: { builder, page, mode, element },
+        element,
+        workspace,
+      },
+    })
+
+    wrapper.vm.inputValue = 'Group A'
+    await flushPromises()
+    await wrapper.vm.updateDefaultRecordNames('Group A')
+    await flushPromises()
+
+    expect(wrapper.vm.selectedValueDisplay).toBe('Group A')
+    expect(wrapper.vm.$refs.recordSelectorDropdown.hasValue()).toBe(true)
+    expect(mock.history.get).toHaveLength(0)
   })
 })

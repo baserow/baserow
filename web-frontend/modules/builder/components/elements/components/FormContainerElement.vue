@@ -175,7 +175,10 @@ export default {
               touched: false,
               value: initialValue,
               elementId: this.element.id,
-              type: descendantType.formDataType(descendant),
+              type: descendantType.formDataType(
+                descendant,
+                this.applicationContext
+              ),
               isValid: descendantType.isValid(
                 descendant,
                 initialValue,

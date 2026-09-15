@@ -12,6 +12,10 @@ from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
+from baserow.contrib.dashboard.data_sources.dispatch_context import (
+    DashboardDispatchContext,
+)
+from baserow.contrib.dashboard.data_sources.service import DashboardDataSourceService
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -82,6 +86,28 @@ def test_core_xls_file_reader_data_source_dispatch_requires_enterprise_license(
     )
     with pytest.raises(FeaturesNotAvailableError):
         DataSourceService().dispatch_data_source(user, data_source, dispatch_context)
+
+
+@pytest.mark.django_db
+def test_core_xls_file_reader_dashboard_data_source_dispatch_requires_enterprise_license(
+    enterprise_data_fixture,
+):
+    user = enterprise_data_fixture.create_user()
+    dashboard = enterprise_data_fixture.create_dashboard_application(user=user)
+    service = enterprise_data_fixture.create_enterprise_core_xls_file_reader_service(
+        integration_args={"application": dashboard}
+    )
+    data_source = enterprise_data_fixture.create_dashboard_data_source(
+        dashboard=dashboard, service=service
+    )
+
+    enterprise_data_fixture.delete_all_licenses()
+
+    dispatch_context = DashboardDispatchContext(HttpRequest(), dashboard.workspace)
+    with pytest.raises(FeaturesNotAvailableError):
+        DashboardDataSourceService().dispatch_data_source(
+            user, data_source.id, dispatch_context
+        )
 
 
 @pytest.mark.django_db

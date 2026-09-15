@@ -2,6 +2,7 @@ import base64
 from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 
 import pytest
 from openpyxl import Workbook
@@ -37,9 +38,12 @@ def service_file(name, content):
 
 
 @pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_core_xls_file_reader_service_type_dispatch_data_with_xlsx(
     enterprise_data_fixture,
 ):
+    enterprise_data_fixture.enable_enterprise()
+    workspace = enterprise_data_fixture.create_workspace()
     service = enterprise_data_fixture.create_enterprise_core_xls_file_reader_service(
         file="get('file')"
     )
@@ -47,6 +51,7 @@ def test_core_xls_file_reader_service_type_dispatch_data_with_xlsx(
     dispatch_result = service.get_type().dispatch(
         service,
         FakeDispatchContext(
+            workspace=workspace,
             context={
                 "file": service_file(
                     "people.xlsx",
@@ -126,9 +131,12 @@ def test_core_xls_file_reader_service_type_dispatch_data_without_header(
 
 
 @pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_core_xls_file_reader_service_type_dispatch_data_with_sheet_name(
     enterprise_data_fixture,
 ):
+    enterprise_data_fixture.enable_enterprise()
+    workspace = enterprise_data_fixture.create_workspace()
     service = enterprise_data_fixture.create_enterprise_core_xls_file_reader_service(
         file="get('file')", sheet_name="'People'"
     )
@@ -136,6 +144,7 @@ def test_core_xls_file_reader_service_type_dispatch_data_with_sheet_name(
     dispatch_result = service.get_type().dispatch(
         service,
         FakeDispatchContext(
+            workspace=workspace,
             context={
                 "file": service_file(
                     "people.xlsx",

@@ -1,0 +1,25 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Grouped aggregate data source form > adding and editing series preserves all three data sources during save 1`] = `
+{
+  "aggregation_group_bys": [],
+  "aggregation_series": [
+    {
+      "aggregation_type": "average",
+      "field_id": 1,
+      "id": 30,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+    },
+  ],
+  "aggregation_sorts": [],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
