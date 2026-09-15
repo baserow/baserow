@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Administrators are now warned which AI fields and AI Agent actions use an AI provider model before it is disabled or deleted.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-11"
+}

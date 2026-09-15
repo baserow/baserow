@@ -151,6 +151,7 @@ import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIPro
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
 import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
+import aiProviderModelUsage from '@baserow/modules/core/mixins/aiProviderModelUsage'
 import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 
 export default {
@@ -162,6 +163,7 @@ export default {
     AIProviderItem,
     AIProviderModelFormModal,
   },
+  mixins: [aiProviderModelUsage],
   props: {
     workspace: { type: Object, required: true },
   },
@@ -325,20 +327,39 @@ export default {
         danger: true,
       })
     },
-    toggleModel(model) {
-      return this.runAction(
-        model.is_enabled ? 'model-disable' : 'model-enable',
-        model
-      )
+    async toggleModel(model) {
+      if (!model.is_enabled) {
+        return await this.runAction('model-enable', model)
+      }
+      const usage = await this.lookupModelUsage(model.id, this.workspace.id)
+      if (!this.modelHasDependents(usage)) {
+        return await this.runAction('model-disable', model)
+      }
+      this.openConfirmation({
+        kind: 'model-disable',
+        resource: model,
+        title: this.$t('aiProviderAdmin.disableModelTitle', {
+          name: model.model_identifier,
+        }),
+        message: this.modelUsageMessage(
+          usage,
+          this.$t('aiProviderAdmin.disableModelDescription')
+        ),
+        confirmLabel: this.$t('aiProviderAdmin.disable'),
+      })
     },
-    deleteModel(model) {
+    async deleteModel(model) {
+      const usage = await this.lookupModelUsage(model.id, this.workspace.id)
       this.openConfirmation({
         kind: 'model-delete',
         resource: model,
         title: this.$t('aiProviderAdmin.deleteModelTitle', {
           name: model.model_identifier,
         }),
-        message: this.$t('aiProviderAdmin.deleteModelDescription'),
+        message: this.modelUsageMessage(
+          usage,
+          this.$t('aiProviderAdmin.deleteModelDescription')
+        ),
         confirmLabel: this.$t('action.delete'),
         danger: true,
       })
