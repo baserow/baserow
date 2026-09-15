@@ -43,6 +43,18 @@ def _setup(data_fixture):
     return user, session_id, table, button_field
 
 
+def _enable_email(settings):
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
+    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    settings.EMAIL_HOST = "localhost"
+
+
+def _email_service(workflow_action_id):
+    action = DatabaseWorkflowActionHandler().get_workflow_action(workflow_action_id)
+    assert isinstance(action, CoreSMTPEmailWorkflowAction)
+    return action.service.specific
+
+
 def _scope(table):
     return [TableActionScopeType.value(table.id)]
 
@@ -322,3 +334,151 @@ def test_undoing_a_type_change_keeps_the_ids_older_undo_steps_name(data_fixture)
     ActionHandler.undo(user, _scope(table), session_id)
     assert not DatabaseWorkflowAction.objects.filter(id=action.id).exists()
     assert DatabaseWorkflowAction.trash.filter(id=action.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_type_change_brings_back_the_sensitive_fields(data_fixture, settings):
+    """
+    The logged values leave the email's recipients and subject out, so the undo
+    attaches the service the type change replaced instead of building one.
+    """
+
+    _enable_email(settings)
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field
+    )
+    service = CoreSMTPEmailWorkflowAction.objects.get(pk=action.pk).service.specific
+    service.to_emails = _url("'ada@example.com'")
+    service.subject = _url("'Approved'")
+    service.save()
+
+    UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_create_row"
+    )
+    logged = json.dumps(
+        Action.objects.get(type="update_database_workflow_action").params
+    )
+    assert "ada@example.com" not in logged
+
+    ActionHandler.undo(user, _scope(table), session_id)
+
+    restored = _email_service(action.id)
+    assert restored.id == service.id
+    assert restored.to_emails["formula"] == "'ada@example.com'"
+    assert restored.subject["formula"] == "'Approved'"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_redoing_a_type_change_and_its_config_keeps_the_sensitive_fields(
+    data_fixture, settings
+):
+    """
+    The editor sends a type change and its config as two updates in one group.
+    Redo attaches the service the config was written to, so nothing is blank.
+    """
+
+    _enable_email(settings)
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    set_client_undo_redo_action_group_id(user, str(uuid.uuid4()))
+    changed = UpdateDatabaseWorkflowActionActionType.do(user, action, type="smtp_email")
+    UpdateDatabaseWorkflowActionActionType.do(
+        user,
+        changed,
+        service={"to_emails": _url("'ada@example.com'"), "body": _url("'Hi'")},
+    )
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    assert isinstance(
+        DatabaseWorkflowActionHandler().get_workflow_action(action.id),
+        LocalBaserowCreateRowWorkflowAction,
+    )
+
+    ActionHandler.redo(user, _scope(table), session_id)
+
+    assert not Action.objects.filter(error__isnull=False).exists()
+    redone = _email_service(action.id)
+    assert redone.to_emails["formula"] == "'ada@example.com'"
+    assert redone.body["formula"] == "'Hi'"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_cleaning_up_a_type_change_deletes_only_the_service_left_unattached(
+    data_fixture,
+):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    replaced_service_id = LocalBaserowCreateRowWorkflowAction.objects.get(
+        pk=action.pk
+    ).service_id
+
+    changed = UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_delete_row"
+    )
+    assert Service.objects.filter(id=replaced_service_id).exists()
+
+    logged = Action.objects.get(type="update_database_workflow_action")
+    UpdateDatabaseWorkflowActionActionType.clean_up_any_extra_action_data(logged)
+
+    assert not Service.objects.filter(id=replaced_service_id).exists()
+    assert Service.objects.filter(id=changed.service_id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_cleaning_up_keeps_a_service_a_later_type_change_still_names(data_fixture):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+
+    middle = UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_delete_row"
+    )
+    middle_service_id = middle.service_id
+    UpdateDatabaseWorkflowActionActionType.do(user, middle, type="open_url")
+
+    first = Action.objects.filter(type="update_database_workflow_action").order_by(
+        "id"
+    )[0]
+    UpdateDatabaseWorkflowActionActionType.clean_up_any_extra_action_data(first)
+
+    # The second type change undoes back onto it.
+    assert Service.objects.filter(id=middle_service_id).exists()
+    ActionHandler.undo(user, _scope(table), session_id)
+    restored = DatabaseWorkflowActionHandler().get_workflow_action(action.id)
+    assert restored.service_id == middle_service_id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_type_change_to_a_type_without_a_service_restores_its_config(
+    data_fixture,
+):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field, url=_url("'https://kept'")
+    )
+
+    changed = UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_create_row"
+    )
+    new_service_id = changed.service_id
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    restored = DatabaseWorkflowActionHandler().get_workflow_action(action.id)
+    assert isinstance(restored, OpenUrlWorkflowAction)
+    assert restored.url["formula"] == "'https://kept'"
+
+    ActionHandler.redo(user, _scope(table), session_id)
+    redone = DatabaseWorkflowActionHandler().get_workflow_action(action.id)
+    assert isinstance(redone, LocalBaserowCreateRowWorkflowAction)
+    assert redone.service_id == new_service_id

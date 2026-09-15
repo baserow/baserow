@@ -11,6 +11,9 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.database.workflow_actions.actions import (
+    UpdateDatabaseWorkflowActionActionType,
+)
 from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
@@ -22,6 +25,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.core.action.models import Action
 from baserow.core.services.models import Service
 
 
@@ -317,7 +321,12 @@ def test_update_workflow_action_type(api_client, data_fixture):
     assert updated.service.specific.get_type().type == "local_baserow_delete_row"
     assert updated.field_id == button_field.id
     assert updated.order == action.order
-    # The old service must be disposed of, not left orphaned.
+    # Kept for an undo to attach again, then disposed of with the undo step
+    # rather than left orphaned.
+    assert Service.objects.filter(id=old_service_id).exists()
+    UpdateDatabaseWorkflowActionActionType.clean_up_any_extra_action_data(
+        Action.objects.get(type=UpdateDatabaseWorkflowActionActionType.type)
+    )
     assert not Service.objects.filter(id=old_service_id).exists()
 
 

@@ -1,6 +1,6 @@
 import json
 from dataclasses import fields as dataclass_fields
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -209,8 +209,23 @@ class DatabaseWorkflowActionService:
         return workflow_action
 
     def update_workflow_action(
-        self, user: AbstractUser, workflow_action: DatabaseWorkflowAction, **kwargs
+        self,
+        user: AbstractUser,
+        workflow_action: DatabaseWorkflowAction,
+        keep_replaced_service: bool = False,
+        **kwargs,
     ) -> UpdatedDatabaseWorkflowAction:
+        """
+        Updates an action, swapping its type in place when `type` changes.
+
+        :param user: Who is updating the action.
+        :param workflow_action: The action to update.
+        :param keep_replaced_service: Whether a type change leaves the service
+            it replaces in place, for an undo to attach again, rather than
+            deleting it.
+        :return: The updated action with its values before and after.
+        """
+
         field = workflow_action.field
         CoreHandler().check_permissions(
             user,
@@ -239,7 +254,10 @@ class DatabaseWorkflowActionService:
                 {**kwargs, "field": field}, user
             )
             workflow_action = self.handler.change_workflow_action_type(
-                workflow_action, workflow_action_type, **prepared_values
+                workflow_action,
+                workflow_action_type,
+                keep_old_service=keep_replaced_service,
+                **prepared_values,
             )
         else:
             workflow_action_type = workflow_action.get_type()
@@ -257,6 +275,55 @@ class DatabaseWorkflowActionService:
             original_values,
             workflow_action.get_type().export_prepared_values(workflow_action),
         )
+
+    def restore_workflow_action_type(
+        self,
+        user: AbstractUser,
+        workflow_action: DatabaseWorkflowAction,
+        values: Dict[str, Any],
+        service: Optional[Service],
+    ) -> DatabaseWorkflowAction:
+        """
+        Swaps an action back to a type it had, for an undo or a redo, with the
+        service it had then. The logged values leave out whatever the service
+        calls sensitive, so building a new service from them would blank those
+        fields. The service the action has now is kept for the opposite step.
+
+        :param user: Who is undoing or redoing.
+        :param workflow_action: The action to swap.
+        :param values: The action's logged values, `type` among them. The
+            service's own values are ignored in favour of `service`.
+        :param service: The service to attach, or None for a type without one.
+        :return: The action, now an instance of the restored type's model.
+        """
+
+        field = workflow_action.field
+        CoreHandler().check_permissions(
+            user,
+            UpdateFieldOperationType.type,
+            workspace=field.table.database.workspace,
+            context=field,
+        )
+
+        workflow_action_type = database_workflow_action_type_registry.get(
+            values["type"]
+        )
+        workflow_action_type.raise_if_deactivated(field.table.database.workspace)
+        config = {
+            key: value
+            for key, value in values.items()
+            if key not in ("type", "service")
+        }
+        if service is not None:
+            config["service"] = service
+
+        workflow_action = self.handler.change_workflow_action_type(
+            workflow_action, workflow_action_type, keep_old_service=True, **config
+        )
+
+        workflow_action_updated.send(self, workflow_action=workflow_action, user=user)
+
+        return workflow_action
 
     def delete_workflow_action(
         self, user: AbstractUser, workflow_action: DatabaseWorkflowAction

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.database.action.scopes import (
@@ -16,6 +17,7 @@ from baserow.contrib.database.workflow_actions.handler import (
 from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
+    database_workflow_action_type_registry,
 )
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
@@ -27,8 +29,11 @@ from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
     ActionTypeDescription,
+    UndoableActionCustomCleanupMixin,
     UndoableActionType,
 )
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -114,11 +119,19 @@ class CreateDatabaseWorkflowActionActionType(UndoableActionType):
         )
 
 
-class UpdateDatabaseWorkflowActionActionType(UndoableActionType):
+class UpdateDatabaseWorkflowActionActionType(
+    UndoableActionCustomCleanupMixin, UndoableActionType
+):
     """
     Replays the values the service captured around the update. They leave out
     whatever the backing service calls sensitive, so undo and redo leave those
     fields as they are.
+
+    A type change replaces the action's service, and a service built from those
+    values would come back with the sensitive fields blank. So the replaced
+    service is kept, and undo and redo attach the one each side had. Only their
+    ids are logged, and whichever is left unattached is deleted when the action
+    is cleaned up.
     """
 
     type = "update_database_workflow_action"
@@ -142,6 +155,8 @@ class UpdateDatabaseWorkflowActionActionType(UndoableActionType):
         workflow_action_id: int
         original_values: Dict[str, Any]
         new_values: Dict[str, Any]
+        original_service_id: Optional[int] = None
+        new_service_id: Optional[int] = None
 
     @classmethod
     def do(
@@ -150,9 +165,11 @@ class UpdateDatabaseWorkflowActionActionType(UndoableActionType):
         workflow_action: DatabaseWorkflowAction,
         **kwargs,
     ) -> DatabaseWorkflowAction:
+        original_service_id = getattr(workflow_action.specific, "service_id", None)
         updated = DatabaseWorkflowActionService().update_workflow_action(
-            user, workflow_action, **kwargs
+            user, workflow_action, keep_replaced_service=True, **kwargs
         )
+        type_changed = updated.original_values["type"] != updated.new_values["type"]
 
         field = updated.workflow_action.field
         table = field.table
@@ -169,6 +186,12 @@ class UpdateDatabaseWorkflowActionActionType(UndoableActionType):
                 updated.workflow_action.id,
                 updated.original_values,
                 updated.new_values,
+                original_service_id if type_changed else None,
+                (
+                    getattr(updated.workflow_action, "service_id", None)
+                    if type_changed
+                    else None
+                ),
             ),
             scope=cls.scope(field),
             workspace=database.workspace,
@@ -180,24 +203,85 @@ class UpdateDatabaseWorkflowActionActionType(UndoableActionType):
         return workflow_action_action_scope(field)
 
     @classmethod
-    def _update(cls, user: AbstractUser, params: Params, values: Dict[str, Any]):
+    def _update(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        values: Dict[str, Any],
+        service_id: Optional[int],
+    ):
         # Locked, as the API does, since the values can carry a type change.
         workflow_action = (
             DatabaseWorkflowActionHandler().get_workflow_action_for_update(
                 params.workflow_action_id
             )
         )
-        DatabaseWorkflowActionService().update_workflow_action(
-            user, workflow_action, **values
-        )
+        if values["type"] != workflow_action.get_type().type:
+            DatabaseWorkflowActionService().restore_workflow_action_type(
+                user, workflow_action, values, cls._kept_service(service_id)
+            )
+        else:
+            DatabaseWorkflowActionService().update_workflow_action(
+                user, workflow_action, **values
+            )
+
+    @classmethod
+    def _kept_service(cls, service_id: Optional[int]) -> Optional[Service]:
+        if service_id is None:
+            return None
+        service = Service.objects.filter(id=service_id).first()
+        return service.specific if service is not None else None
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        cls._update(user, params, params.original_values)
+        cls._update(user, params, params.original_values, params.original_service_id)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
-        cls._update(user, params, params.new_values)
+        cls._update(user, params, params.new_values, params.new_service_id)
+
+    @classmethod
+    def clean_up_any_extra_action_data(cls, action_being_cleaned_up: Action):
+        """
+        Deletes the services a type change kept, unless an action has one again
+        or a later update still names it.
+        """
+
+        params = action_being_cleaned_up.params
+        for service_id in (
+            params.get("original_service_id"),
+            params.get("new_service_id"),
+        ):
+            if service_id is None or cls._service_is_needed(
+                service_id, action_being_cleaned_up
+            ):
+                continue
+            service = cls._kept_service(service_id)
+            if service is not None:
+                ServiceHandler().delete_service(service.get_type(), service)
+
+    @classmethod
+    def _service_is_needed(
+        cls, service_id: int, action_being_cleaned_up: Action
+    ) -> bool:
+        attached = any(
+            model_class.objects_and_trash.filter(service_id=service_id).exists()
+            for model_class in {
+                action_type.model_class
+                for action_type in database_workflow_action_type_registry.get_all()
+            }
+            if any(field.name == "service" for field in model_class._meta.fields)
+        )
+        named_elsewhere = (
+            Action.objects.filter(type=cls.type)
+            .exclude(id=action_being_cleaned_up.id)
+            .filter(
+                Q(params__original_service_id=service_id)
+                | Q(params__new_service_id=service_id)
+            )
+            .exists()
+        )
+        return attached or named_elsewhere
 
 
 class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
