@@ -493,11 +493,14 @@ export class LocalBaserowUpsertRowsWorkflowServiceType extends WorkflowActionSer
   }
 
   getErrorMessage({ service }) {
+    const inherited = super.getErrorMessage({ service })
+    if (inherited) {
+      return inherited
+    }
     if (service?.rows !== undefined && !service.rows?.formula) {
       return this.app.$i18n.t('serviceType.errorNoRowsSelected')
     }
-
-    return super.getErrorMessage({ service })
+    return null
   }
 
   get formComponent() {
@@ -551,7 +554,7 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
     if (inherited) {
       return inherited
     }
-    if (service?.row_id !== undefined && !service.row_id?.formula) {
+    if (service?.row_id !== undefined && !service.row_id?.formula?.trim()) {
       return this.app.$i18n.t('serviceType.errorNoRowIdSelected')
     }
     return null

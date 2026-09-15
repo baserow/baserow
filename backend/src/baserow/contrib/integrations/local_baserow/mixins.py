@@ -36,6 +36,7 @@ from baserow.core.services.exceptions import (
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.types import (
+    DispatchResult,
     FormulaToResolve,
     ServiceDict,
     ServiceFilterDictSubClass,
@@ -46,10 +47,12 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
+    from baserow.contrib.automation.nodes.models import AutomationNode
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
     from baserow.contrib.integrations.local_baserow.models import (
         LocalBaserowTableService,
     )
+    from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class LocalBaserowTableServiceFilterableMixin:
@@ -1059,10 +1062,13 @@ class UpdateRowRequiresRowIdMixin:
     """
     For an action or node type that updates a row through the upsert row
     service. That service creates a row when its row ID formula is empty, so an
-    update type refuses to dispatch without one.
+    update type refuses to dispatch without one. List it before the action or
+    node type base, so that its `dispatch` runs first.
     """
 
-    def raise_if_misconfigured(self, instance) -> None:
+    def raise_if_misconfigured(
+        self, instance: "WorkflowAction | AutomationNode"
+    ) -> None:
         """
         Refuses an update that names no row.
 
@@ -1071,11 +1077,17 @@ class UpdateRowRequiresRowIdMixin:
             formula is empty.
         """
 
-        if not instance.service.specific.row_id["formula"]:
+        super().raise_if_misconfigured(instance)
+
+        if not instance.service.specific.row_id["formula"].strip():
             raise ServiceImproperlyConfiguredDispatchException(
                 "A row ID is required to update a row."
             )
 
-    def dispatch(self, instance, dispatch_context: DispatchContext):
+    def dispatch(
+        self,
+        instance: "WorkflowAction | AutomationNode",
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
         self.raise_if_misconfigured(instance)
         return super().dispatch(instance, dispatch_context)

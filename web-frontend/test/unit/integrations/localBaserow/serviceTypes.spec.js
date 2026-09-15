@@ -7,6 +7,17 @@ import {
   LocalBaserowFieldsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Read rather than imported: the i18n loader turns an imported locale file
+// into compiled message ASTs, which the copy below can't be read off of.
+const en = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'modules/integrations/locales/en.json'),
+    'utf8'
+  )
+)
 
 describe('Local baserow service types', () => {
   let testApp = null
@@ -348,7 +359,12 @@ describe('Local baserow service types', () => {
       updateRow.getErrorMessage({
         service: { table_id: 1, row_id: emptyRowId },
       })
-    ).toBe(testApp.getApp().$i18n.t('serviceType.errorNoRowIdSelected'))
+    ).toBe('serviceType.errorNoRowIdSelected')
+    expect(
+      updateRow.getErrorMessage({
+        service: { table_id: 1, row_id: { ...emptyRowId, formula: '  ' } },
+      })
+    ).toBe('serviceType.errorNoRowIdSelected')
     expect(
       updateRow.getErrorMessage({ service: { table_id: 1, row_id: rowId } })
     ).toBe(null)
@@ -359,11 +375,28 @@ describe('Local baserow service types', () => {
       updateRow.getErrorMessage({
         service: { table_id: null, row_id: emptyRowId },
       })
-    ).toBe(testApp.getApp().$i18n.t('serviceType.errorNoTableSelected'))
+    ).toBe('serviceType.errorNoTableSelected')
     expect(
       createRow.getErrorMessage({
         service: { table_id: 1, row_id: emptyRowId },
       })
     ).toBe(null)
+    expect(en.serviceType.errorNoRowIdSelected).toBe('No row ID selected')
+  })
+
+  test('the create rows service reports a missing table before missing rows', () => {
+    const createRows = testApp
+      .getRegistry()
+      .get('service', 'local_baserow_create_rows')
+    const emptyRows = { formula: '', mode: 'simple', version: '0.1' }
+
+    expect(
+      createRows.getErrorMessage({
+        service: { table_id: null, rows: emptyRows },
+      })
+    ).toBe('serviceType.errorNoTableSelected')
+    expect(
+      createRows.getErrorMessage({ service: { table_id: 1, rows: emptyRows } })
+    ).toBe('serviceType.errorNoRowsSelected')
   })
 })

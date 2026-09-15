@@ -27,6 +27,7 @@ from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
+    InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.registries import service_type_registry
@@ -227,14 +228,32 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "row_id,message",
+    "row_id,exception,message",
     [
-        ("", "A row ID is required to update a row."),
-        ("'0'", "The row with id 0 does not exist."),
+        (
+            "",
+            ServiceImproperlyConfiguredDispatchException,
+            "A row ID is required to update a row.",
+        ),
+        (
+            "  ",
+            ServiceImproperlyConfiguredDispatchException,
+            "A row ID is required to update a row.",
+        ),
+        (
+            "'0'",
+            ServiceImproperlyConfiguredDispatchException,
+            "The row with id 0 does not exist.",
+        ),
+        (
+            "''",
+            InvalidContextContentDispatchException,
+            'Value error for "row_id": The value is required',
+        ),
     ],
 )
 def test_automation_node_type_update_row_dispatch_without_a_row_to_update(
-    data_fixture, row_id, message
+    data_fixture, row_id, exception, message
 ):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user)
@@ -253,7 +272,7 @@ def test_automation_node_type_update_row_dispatch_without_a_row_to_update(
     )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
-    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+    with pytest.raises(exception) as exc:
         node.get_type().dispatch(node, dispatch_context)
     assert str(exc.value) == message
 
