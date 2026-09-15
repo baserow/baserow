@@ -82,7 +82,7 @@ import historySuccessIcon from '@baserow/modules/core/assets/images/history-succ
 import historyFailedIcon from '@baserow/modules/core/assets/images/history-failed.svg?url'
 import historyDisabledIcon from '@baserow/modules/core/assets/images/history-disabled.svg?url'
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory.vue'
-import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
+import { getCollaboratorName } from '@baserow/modules/core/utils/collaborator'
 
 const app = useNuxtApp()
 const store = useStore()
@@ -138,7 +138,7 @@ const triggeredByName = computed(() => {
   const triggeredBy = props.item.triggered_by
   if (!triggeredBy) return ''
   if (triggeredBy.type !== 'auth.User') return triggeredBy.name
-  return collaboratorName.methods.getCollaboratorName(triggeredBy, store)
+  return getCollaboratorName(triggeredBy, store)
 })
 
 const statusTitle = computed(() => {
