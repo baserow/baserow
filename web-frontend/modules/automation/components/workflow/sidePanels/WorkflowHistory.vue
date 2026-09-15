@@ -21,7 +21,7 @@
           type="secondary"
         />
       </div>
-      <div v-if="triggeredByName" class="workflow-history__actor">
+      <div v-if="triggeredByName" class="workflow-history__started-by">
         {{ $t('historySidePanel.startedBy', { name: triggeredByName }) }}
       </div>
     </template>

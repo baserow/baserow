@@ -120,7 +120,7 @@ test.describe("Button field, start workflow action", () => {
 
     const entry = historyEntries(page).first();
     await expect(
-      entry.locator("..").locator(".workflow-history__actor")
+      entry.locator("..").locator(".workflow-history__started-by")
     ).toHaveText(`Started by ${editor.name}`);
     // Not a test run: no prefix on the title. The worker in the e2e stack
     // runs the workflow for real, so it also completes.
@@ -143,7 +143,7 @@ test.describe("Button field, start workflow action", () => {
       entry.locator(".workflow-history__header-title")
     ).toContainText("[Test]");
     await expect(
-      entry.locator("..").locator(".workflow-history__actor")
+      entry.locator("..").locator(".workflow-history__started-by")
     ).toHaveText(`Started by ${g.user.name}`);
   });
 

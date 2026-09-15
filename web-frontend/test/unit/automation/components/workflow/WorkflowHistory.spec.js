@@ -49,7 +49,7 @@ describe('WorkflowHistory', () => {
       { ...baseItem, triggered_by: { id: 7, type: 'auth.User', name: 'Ada' } },
       { 7: { id: 7, name: 'Ada Lovelace' } }
     )
-    expect(wrapper.find('.workflow-history__actor').text()).toBe(
+    expect(wrapper.find('.workflow-history__started-by').text()).toBe(
       'historySidePanel.startedBy:Ada Lovelace'
     )
   })
@@ -59,7 +59,7 @@ describe('WorkflowHistory', () => {
       ...baseItem,
       triggered_by: { id: 7, type: 'auth.User', name: 'Ada' },
     })
-    expect(wrapper.find('.workflow-history__actor').text()).toBe(
+    expect(wrapper.find('.workflow-history__started-by').text()).toBe(
       'historySidePanel.startedBy:Ada'
     )
   })
@@ -69,13 +69,13 @@ describe('WorkflowHistory', () => {
       { ...baseItem, triggered_by: { id: 7, type: 'agent', name: 'Helper' } },
       { 7: { id: 7, name: 'Ada Lovelace' } }
     )
-    expect(wrapper.find('.workflow-history__actor').text()).toBe(
+    expect(wrapper.find('.workflow-history__started-by').text()).toBe(
       'historySidePanel.startedBy:Helper'
     )
   })
 
   test('shows nothing when nobody is recorded', async () => {
     const wrapper = await mountHistory(baseItem)
-    expect(wrapper.find('.workflow-history__actor').exists()).toBe(false)
+    expect(wrapper.find('.workflow-history__started-by').exists()).toBe(false)
   })
 })
