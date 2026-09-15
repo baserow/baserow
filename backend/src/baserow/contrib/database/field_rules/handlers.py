@@ -596,9 +596,13 @@ class FieldRuleHandler:
 
         return rule_type.validate_rows(self.table, rule, queryset=queryset)
 
-    def export_rule(self, rule: FieldRule):
+    def export_rule(self, rule: FieldRule) -> dict | None:
         """
         Exports a rule.
+
+        :param rule: the rule to export.
+        :return: the serialized rule, or None if the rule is not exportable because
+            it is disabled or invalid. Callers must not add None to the export payload.
         """
 
         exportable = rule.is_active and rule.is_valid
