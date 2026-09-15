@@ -1298,11 +1298,14 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
 
         :param type_name: The subject type, for example `auth.User`.
         :param subject_id: The id of the subject.
-        :return: The subject, or None when it no longer exists.
+        :return: The subject, or None when it no longer exists or its type is not
+            stored in the database.
         """
 
-        model_class = self.get(type_name).model_class
-        return model_class.objects.filter(id=subject_id).first()
+        manager = getattr(self.get(type_name).model_class, "objects", None)
+        if manager is None:
+            return None
+        return manager.filter(id=subject_id).first()
 
 
 class OperationType(abc.ABC, Instance):
