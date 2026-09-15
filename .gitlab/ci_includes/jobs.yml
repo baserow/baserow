@@ -284,7 +284,7 @@
           # If no argument is provided then look for a variable called
           # BUILD_FROM_$1_IMAGE and use that.
           BUILD_FROM_VARIABLE_NAME="BUILD_FROM_$1_IMAGE"
-          BUILD_FROM_DOCKER_ARG="FROM_$1_IMAGE"
+          BUILD_FROM_DOCKER_ARG="$1_IMAGE"
           LOWER_CASE_ARG=$(echo "$1" | tr '[:upper:]' '[:lower:]')
           LABEL_PREFIX="built-from-$LOWER_CASE_ARG-"
         fi
