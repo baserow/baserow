@@ -211,6 +211,9 @@ export default {
       // The flag is keyed by a saved action's id, so it would outlive the
       // cancel and keep hiding that action's own error.
       this.$refs.actionList?.revealErrors()
+      // The action forms copy their values once, so a card would otherwise
+      // keep showing, and later send, the edit that was cancelled.
+      this.actionListRevision += 1
     },
     /**
      * Fetches the field's actions and resets both the server list and the

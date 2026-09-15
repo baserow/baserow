@@ -209,6 +209,23 @@ describe('FieldButtonSubForm', () => {
       expect(card().vm.values.url.formula).toBe('before')
     })
 
+    test('a card shows the saved value again after a cancel', async () => {
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('saved'), target: 'self' }],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+      const card = () =>
+        wrapper.findComponent({ name: 'OpenUrlWorkflowActionForm' })
+      card().vm.values.url = url('edited')
+
+      await wrapper.vm.reset()
+      await flushPromises()
+
+      expect(card().vm.values.url.formula).toBe('saved')
+    })
+
     test('an undo under unsaved edits is not reverted by the next save', async () => {
       const client = testApp.getApp().$client
       client.get.mockResolvedValueOnce({

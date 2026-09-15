@@ -140,8 +140,8 @@ test.describe("Button field, undo", () => {
 
     await pressUndo(page);
 
-    // The field update, the delete and the order were sent as one group, so
-    // one undo reverts all three.
+    // The field update and the delete were sent as one group, so one undo
+    // reverts both.
     await expect(button).toHaveText("Before");
     await expect(async () => {
       expect(await actionUrls("Undone")).toEqual(["'/keep'", "'/drop'"]);
