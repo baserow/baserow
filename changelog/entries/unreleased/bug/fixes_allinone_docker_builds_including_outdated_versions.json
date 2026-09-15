@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixes ARM64 all-in-one Docker releases including an outdated frontend",
+    "message": "Fixes all-in-one Docker builds including outdated backend or frontend versions",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "core",
