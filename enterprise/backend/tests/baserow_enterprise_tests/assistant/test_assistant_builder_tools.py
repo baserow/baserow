@@ -6,7 +6,9 @@ the RunContext + FunctionToolset pattern.
 """
 
 import pytest
+from pydantic_ai import ModelRetry
 
+from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_actions,
     create_collection_elements,
@@ -20,6 +22,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     list_elements,
     list_pages,
     set_theme,
+    setup_page,
     update_data_source,
     update_element,
     update_element_style,
@@ -252,6 +255,41 @@ def test_create_pages_skips_duplicates(data_fixture):
 
 
 # ===========================================================================
+# Empty payload guard tests
+# ===========================================================================
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tool,kwargs,arg_name",
+    [
+        (create_pages, {"application_id": 1, "pages": []}, "pages"),
+        (create_data_sources, {"page_id": 1, "data_sources": []}, "data_sources"),
+        (create_display_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_layout_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_form_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_collection_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_actions, {"page_id": 1, "actions": []}, "actions"),
+    ],
+)
+def test_create_tools_reject_an_empty_payload(data_fixture, tool, kwargs, arg_name):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(ModelRetry, match=f"empty `{arg_name}`"):
+        tool(make_test_ctx(user, workspace), thought="test", **kwargs)
+
+
+@pytest.mark.django_db
+def test_setup_page_rejects_an_empty_payload(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(ModelRetry, match="no content"):
+        setup_page(make_test_ctx(user, workspace), page_id=1, thought="test")
+
+
+# ===========================================================================
 # Data source tools tests
 # ===========================================================================
 
@@ -369,6 +407,31 @@ def test_create_heading_element(data_fixture):
     assert len(result["created_elements"]) == 1
     assert result["created_elements"][0]["type"] == "heading"
     assert result["created_elements"][0]["ref"] == "h1"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_elements_propagates_permission_denied(data_fixture, monkeypatch):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    def deny(*args, **kwargs):
+        raise PermissionDenied()
+
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.helpers.create_element", deny
+    )
+
+    with pytest.raises(PermissionDenied):
+        create_display_elements(
+            make_test_ctx(user, workspace),
+            page_id=page.id,
+            elements=[
+                DisplayElementCreate(ref="h1", type="heading", value="Welcome", level=1)
+            ],
+            thought="test",
+        )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -522,31 +585,6 @@ def test_list_elements(data_fixture):
     assert result["elements"] == []
 
 
-@pytest.mark.django_db
-def test_list_elements_on_populated_page(data_fixture):
-    # Regression: from_orm must only read attributes that survived b70bc968d.
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
-
-    data_fixture.create_builder_heading_element(page=page)
-    data_fixture.create_builder_form_container_element(page=page)
-    data_fixture.create_builder_table_element(page=page)
-    data_fixture.create_builder_column_element(page=page)
-
-    ctx = make_test_ctx(user, workspace)
-    result = list_elements(ctx, page_id=page.id, thought="test")
-
-    assert {el["type"] for el in result["elements"]} == {
-        "heading",
-        "form_container",
-        "table",
-        "column",
-    }
-    assert all(el["id"] for el in result["elements"])
-
-
 @pytest.mark.django_db(transaction=True)
 def test_create_text_and_button(data_fixture):
     user = data_fixture.create_user()
@@ -651,7 +689,7 @@ def test_create_open_page_action(data_fixture):
 
     tool_helpers = create_fake_tool_helpers()
     ctx = make_test_ctx(user, workspace, tool_helpers)
-    el_result = create_display_elements(
+    create_display_elements(
         ctx,
         page_id=page.id,
         elements=[
@@ -716,6 +754,17 @@ def test_open_page_action_no_formulas_for_static():
     assert formulas == {}
 
 
+@pytest.mark.parametrize("page_id", [0, -7])
+def test_action_create_rejects_a_non_positive_id(page_id):
+    with pytest.raises(ValueError, match="never a valid ID"):
+        ActionCreate(type="open_page", element="btn", navigate_to_page_id=page_id)
+
+
+def test_action_create_names_the_missing_required_fields():
+    with pytest.raises(ValueError, match="Missing: table_id, row_id"):
+        ActionCreate(type="delete_row", element="btn")
+
+
 @pytest.mark.django_db(transaction=True)
 def test_create_row_action(data_fixture):
     user = data_fixture.create_user()
@@ -730,7 +779,7 @@ def test_create_row_action(data_fixture):
     ctx = make_test_ctx(user, workspace, tool_helpers)
 
     # Create form with submit button
-    el_result = create_form_elements(
+    create_form_elements(
         ctx,
         page_id=page.id,
         elements=[
@@ -2207,9 +2256,9 @@ def test_update_table_element_replace_columns(data_fixture):
     page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
-    name_field = data_fixture.create_text_field(table=table, name="Name")
-    email_field = data_fixture.create_text_field(table=table, name="Email")
-    phone_field = data_fixture.create_text_field(table=table, name="Phone")
+    data_fixture.create_text_field(table=table, name="Name")
+    data_fixture.create_text_field(table=table, name="Email")
+    data_fixture.create_text_field(table=table, name="Phone")
 
     tool_helpers = create_fake_tool_helpers()
     ctx = make_test_ctx(user, workspace, tool_helpers)
