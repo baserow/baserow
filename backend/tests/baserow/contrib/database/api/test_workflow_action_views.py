@@ -764,3 +764,65 @@ def test_clicking_a_button_carrying_a_deactivated_type_is_refused(
 
     assert response.status_code == HTTP_403_FORBIDDEN, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_every_configuration_endpoint_can_be_undone(api_client, data_fixture):
+    """Create, update, order and delete each register an undoable action."""
+
+    from baserow.core.action.models import Action
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    headers = {
+        "HTTP_AUTHORIZATION": f"JWT {token}",
+        "HTTP_CLIENTSESSIONID": "session-1",
+    }
+
+    created = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"type": "open_url"},
+        format="json",
+        **headers,
+    ).json()
+    api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": created["id"]},
+        ),
+        {"target": "blank"},
+        format="json",
+        **headers,
+    )
+    api_client.post(
+        reverse(
+            "api:database:workflow_actions:order",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"workflow_action_ids": [created["id"]]},
+        format="json",
+        **headers,
+    )
+    api_client.delete(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": created["id"]},
+        ),
+        **headers,
+    )
+
+    assert list(
+        Action.objects.filter(session="session-1")
+        .order_by("id")
+        .values_list("type", flat=True)
+    ) == [
+        "create_database_workflow_action",
+        "update_database_workflow_action",
+        "order_database_workflow_actions",
+        "delete_database_workflow_action",
+    ]

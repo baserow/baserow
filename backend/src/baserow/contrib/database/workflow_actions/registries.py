@@ -102,6 +102,27 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         values.pop("field", None)
         return super().prepare_values(values, user, instance)
 
+    def export_prepared_values(self, instance: WorkflowAction) -> Dict[str, Any]:
+        """
+        The action's configuration in a form an update can be replayed from, so
+        undo and redo can put it back.
+
+        `type` is included because a type change is an update, and undoing one
+        has to swap the type back. The field and the order are not: neither
+        changes on an update, and ordering has its own undoable action.
+
+        :param instance: The action to read.
+        :return: A JSON-serializable dict of update values.
+        """
+
+        values = {
+            key: getattr(instance, key)
+            for key in self.allowed_fields
+            if key not in ("order", "field", "field_id")
+        }
+        values["type"] = self.type
+        return values
+
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}
 

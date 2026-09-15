@@ -35,12 +35,12 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_created,
-    workflow_action_deleted,
     workflow_action_updated,
     workflow_actions_reordered,
 )
 from baserow.contrib.database.workflow_actions.types import (
     DispatchedWorkflowAction,
+    UpdatedDatabaseWorkflowAction,
     WorkflowActionsDispatchResult,
 )
 from baserow.core.action.context import without_undo_redo_registration
@@ -62,6 +62,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 
 # What a failed external action tells the clicker. The service's own message
@@ -209,13 +210,18 @@ class DatabaseWorkflowActionService:
 
     def update_workflow_action(
         self, user: AbstractUser, workflow_action: DatabaseWorkflowAction, **kwargs
-    ) -> DatabaseWorkflowAction:
+    ) -> UpdatedDatabaseWorkflowAction:
         field = workflow_action.field
         CoreHandler().check_permissions(
             user,
             UpdateFieldOperationType.type,
             workspace=field.table.database.workspace,
             context=field,
+        )
+
+        # Read before `prepare_values` writes to the service.
+        original_values = workflow_action.get_type().export_prepared_values(
+            workflow_action
         )
 
         has_type_changed = (
@@ -246,7 +252,11 @@ class DatabaseWorkflowActionService:
 
         workflow_action_updated.send(self, workflow_action=workflow_action, user=user)
 
-        return workflow_action
+        return UpdatedDatabaseWorkflowAction(
+            workflow_action,
+            original_values,
+            workflow_action.get_type().export_prepared_values(workflow_action),
+        )
 
     def delete_workflow_action(
         self, user: AbstractUser, workflow_action: DatabaseWorkflowAction
@@ -259,12 +269,10 @@ class DatabaseWorkflowActionService:
             context=field,
         )
 
-        workflow_action_id = workflow_action.id
-        self.handler.delete_workflow_action(workflow_action)
-
-        workflow_action_deleted.send(
-            self, workflow_action_id=workflow_action_id, field=field, user=user
-        )
+        # Trashed rather than deleted, so an undo can bring it back with its
+        # service. The trash type sends `workflow_action_deleted`.
+        database = field.table.database
+        TrashHandler.trash(user, database.workspace, database, workflow_action)
 
     def order_workflow_actions(
         self, user: AbstractUser, field: ButtonField, order: List[int]

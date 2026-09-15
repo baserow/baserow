@@ -130,7 +130,9 @@ export default {
         // must not roll the field back, so it is only surfaced.
         let actionsSaved = true
         try {
-          await this.$refs.form.afterFieldSaved(newField.id)
+          await this.$refs.form.afterFieldSaved(newField.id, {
+            undoRedoActionGroupId,
+          })
         } catch (error) {
           actionsSaved = false
           notifyIf(error, 'field')
@@ -206,7 +208,9 @@ export default {
 
         let actionsSaved = true
         try {
-          await this.$refs.form.afterFieldSaved(field.id)
+          await this.$refs.form.afterFieldSaved(field.id, {
+            undoRedoActionGroupId,
+          })
         } catch (error) {
           actionsSaved = false
           notifyIf(error, 'field')

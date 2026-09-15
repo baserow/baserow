@@ -389,6 +389,18 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(DuplicateFieldActionType())
         action_type_registry.register(ChangePrimaryFieldActionType())
 
+        from .workflow_actions.actions import (
+            CreateDatabaseWorkflowActionActionType,
+            DeleteDatabaseWorkflowActionActionType,
+            OrderDatabaseWorkflowActionsActionType,
+            UpdateDatabaseWorkflowActionActionType,
+        )
+
+        action_type_registry.register(CreateDatabaseWorkflowActionActionType())
+        action_type_registry.register(UpdateDatabaseWorkflowActionActionType())
+        action_type_registry.register(DeleteDatabaseWorkflowActionActionType())
+        action_type_registry.register(OrderDatabaseWorkflowActionsActionType())
+
         from .views.view_types import FormViewType, GalleryViewType, GridViewType
 
         view_type_registry.register(GridViewType())
@@ -707,6 +719,12 @@ class DatabaseConfig(AppConfig):
         trash_item_type_registry.register(RowTrashableItemType())
         trash_item_type_registry.register(RowsTrashableItemType())
         trash_item_type_registry.register(ViewTrashableItemType())
+
+        from .workflow_actions.trash_types import (
+            DatabaseWorkflowActionTrashableItemType,
+        )
+
+        trash_item_type_registry.register(DatabaseWorkflowActionTrashableItemType())
 
         from .formula.ast.function_defs import register_formula_functions
 

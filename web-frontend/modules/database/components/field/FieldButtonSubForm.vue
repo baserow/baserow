@@ -212,17 +212,19 @@ export default {
       }
     },
     /**
-     * Re-reads the field's actions. A click changes them: an external action
-     * remembers the answer it got. This sub-form is not remounted when the
-     * field is opened again, so without this the captured body stays missing
-     * until the page is reloaded.
+     * Re-reads the field's actions. They change while the editor is closed: a
+     * click makes an external action remember the answer it got, and an undo
+     * or a collaborator changes the list itself. This sub-form is not
+     * remounted when the field is opened again, so without this the editor
+     * shows the old list, and saving it would put back what was undone.
      *
-     * Only what a click captured is taken from the answer, so an edit made
+     * The buffered list is only replaced when it holds no edits. An edit made
      * and then clicked away from survives: nothing listens for the context
      * being hidden, so the buffered list is still here on the next open, and
-     * replacing it would drop that edit without a word. Skipped while the
-     * first read is still in flight, since `mounted` and the context's own
-     * `shown` both land on the first open.
+     * replacing it would drop that edit without a word. It then only picks up
+     * what a click captured. Skipped while the first read is still in flight,
+     * since `mounted` and the context's own `shown` both land on the first
+     * open.
      */
     async onShow() {
       // The list is not remounted between opens, so reopening the editor is
@@ -240,11 +242,38 @@ export default {
         const { data } = await WorkflowActionService(this.$client).fetchAll(
           this.defaultValues.id
         )
+        const hasEdits = this.hasUnsavedEdits()
         this.serverActions = data
-        this.adoptCapturedAnswers(data)
+        if (hasEdits) {
+          this.adoptCapturedAnswers(data)
+        } else {
+          this.localActions = clone(data)
+        }
       } catch (error) {
         notifyIf(error, 'field')
       }
+    },
+    /**
+     * Whether the buffered list differs from the one the server last reported.
+     * An action added without a type yet counts, although no save would send it.
+     */
+    hasUnsavedEdits() {
+      if (this.localActions.length !== this.serverActions.length) {
+        return true
+      }
+      const { toCreate, toUpdate, toDelete, order } = reconcileWorkflowActions(
+        this.serverActions,
+        this.localActions
+      )
+      return (
+        toCreate.length > 0 ||
+        toUpdate.length > 0 ||
+        toDelete.length > 0 ||
+        !_.isEqual(
+          order,
+          this.serverActions.map((action) => action.id)
+        )
+      )
     },
     /**
      * Copies what a click remembered onto the buffered actions, matched by id.
@@ -337,8 +366,11 @@ export default {
      * Diffs the buffered list against the server and issues the calls to
      * match: creates, updates, deletes, then order. Called by the field form
      * once the field is saved, since a new field has no id until then.
+     *
+     * `undoRedoActionGroupId` is the group the field save was sent under, so
+     * one undo takes back the field and its actions together.
      */
-    async afterFieldSaved(fieldId) {
+    async afterFieldSaved(fieldId, { undoRedoActionGroupId = null } = {}) {
       const { toCreate, toUpdate, toDelete, order } = reconcileWorkflowActions(
         this.serverActions,
         this.localActions
@@ -359,7 +391,8 @@ export default {
         for (const action of toCreate) {
           const { data } = await service.create(
             fieldId,
-            this.resolveActionIds(this.createPayload(action), idMap)
+            this.resolveActionIds(this.createPayload(action), idMap),
+            undoRedoActionGroupId
           )
           createdIds.push(data.id)
           // Both ways of naming it are mapped: an unsaved action is referenced
@@ -390,20 +423,28 @@ export default {
           if (Object.keys(payload).length === 0) {
             continue
           }
-          const { data } = await service.update(id, payload)
+          const { data } = await service.update(
+            id,
+            payload,
+            undoRedoActionGroupId
+          )
           if (defersConfig) {
             const config = this.resolveActionIds(
               this.configPayload(values, data),
               idMap
             )
             if (Object.keys(config).length > 0) {
-              await service.update(data?.id ?? id, config)
+              await service.update(
+                data?.id ?? id,
+                config,
+                undoRedoActionGroupId
+              )
             }
           }
         }
 
         for (const id of toDelete) {
-          await service.delete(id)
+          await service.delete(id, undoRedoActionGroupId)
         }
 
         // `order` holds null for creates; fill them in as they were made.
@@ -413,7 +454,7 @@ export default {
         )
 
         if (finalOrder.length > 0) {
-          await service.order(fieldId, finalOrder)
+          await service.order(fieldId, finalOrder, undoRedoActionGroupId)
         }
       } catch (error) {
         failed = true
