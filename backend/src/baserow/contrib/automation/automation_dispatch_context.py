@@ -4,9 +4,7 @@ from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
-from baserow.contrib.automation.history.models import (
-    AutomationNodeHistory,
-)
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.nodes.models import AutomationActionNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.cache import local_cache
@@ -19,7 +17,7 @@ class AutomationDispatchContext(DispatchContext):
     def __init__(
         self,
         workflow: AutomationWorkflow,
-        history: AutomationNodeHistory,
+        history: AutomationWorkflowHistory,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         simulate_until_node: Optional[AutomationActionNode] = None,
         current_iterations: Optional[Dict[int, int]] = None,

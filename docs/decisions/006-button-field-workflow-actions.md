@@ -314,9 +314,10 @@ down to the services:
 - No integration attached, which is every database button in v1: the service authorizes
   and executes as the actor, and fails if there is none.
 - Integration present, which is the builder, automation, and any future opt-in:
-  `authorized_user` authorizes, unchanged. Also recording the actor for auditing in this
-  branch is future work owned by the builder and automation teams, since today's
-  pipeline carries a single user; nothing in v1 depends on it.
+  `authorized_user` authorizes, unchanged. Who started the run is recorded beside that,
+  not instead of it: the run's history carries the person as `triggered_by`, and the
+  dispatch context's `actor` stays empty, so a node that happens to have no integration
+  does not start acting as whoever clicked.
 
 Whether "no integration attached" is modeled as a nullable foreign key on the service or
 as a small purpose-built object with the same interface is an implementation choice, not
@@ -404,6 +405,18 @@ already do; across workspaces it is nothing at all. The invariant still holds un
 for every other action type: the row actions, the HTTP request, the email and the Slack
 message all act as the clicker or as this installation, and none of them borrows another
 user's reach.
+
+The click itself is not anonymous, though. The run's history records the clicker as a
+subject (`triggered_by_id`, `triggered_by_type` and `triggered_by_name`, so an agent can
+start a run later and the name survives the user being deleted), and the click is
+registered as a `dispatch_button_field` action, so the audit log holds who clicked which
+button on which row. None of that changes who the nodes act as: the context's `actor` slot, which a Local
+Baserow node without an integration would act as, stays empty for a run. A workflow that
+another workflow starts records nobody, since the person is not a member of wherever
+that second workflow lives. A test run or simulation started from the editor records
+whoever pressed the button, including when it waits for its trigger's event: the
+workflow keeps that subject beside its other temporary test state until the run starts
+or is cancelled.
 
 Not charging the button rate limit has one consequence worth stating plainly. When the
 automation module's own limits are what refuse a run, the clicker is not told:
@@ -563,6 +576,13 @@ the natural place to narrow this further when it is wanted.
   and leaves the actions as they were saved. Builder workflow actions are the same, and
   making either undoable needs a way to restore a deleted action with its service, which
   neither has.
+- **Audit log.** A click registers one `dispatch_button_field` action after every
+  permission check has passed and before the first action runs, inside the lock when
+  there is one, so a click refused for permission or as already running leaves no entry
+  and a click that fails half way still does. A button with no actions returns before
+  registering anything, so its clicks leave no entry. A button with only client actions
+  takes no lock, so a double click on it is two entries. Clicks stay out of the undo
+  stack.
 - **Deleting a user.** Nothing breaks: actions run as whoever clicks, and v1 services
   have no integration, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed

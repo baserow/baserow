@@ -58,10 +58,12 @@ from baserow.contrib.automation.workflows.tasks import (
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.registries import ImportExportConfig
+from baserow.core.registries import ImportExportConfig, subject_type_registry
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.subjects import UserSubjectType
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import Subject
 from baserow.core.utils import (
     ChildProgressBuilder,
     MirrorDict,
@@ -228,12 +230,17 @@ class AutomationWorkflowHandler:
         return prepared_values
 
     def update_workflow(
-        self, workflow: AutomationWorkflow, **kwargs
+        self,
+        workflow: AutomationWorkflow,
+        triggered_by: Optional[Subject] = None,
+        **kwargs,
     ) -> UpdatedAutomationWorkflow:
         """
         Updates fields of the provided AutomationWorkflow.
 
         :param workflow: The AutomationWorkflow that should be updated.
+        :param triggered_by: Who makes the update, recorded as the starter of
+            the test run when the update opens the test run window.
         :param kwargs: The fields that should be updated with their
             corresponding values.
         :return: The updated AutomationWorkflow.
@@ -254,8 +261,20 @@ class AutomationWorkflowHandler:
                 published_workflow.state = WorkflowState(state)
                 published_workflow.save(update_fields=["state"])
 
+        previous_allow_test_run_until = workflow.allow_test_run_until
         for key, value in extract_allowed(allowed_values, attr_fields).items():
             setattr(workflow, key, value)
+
+        # Opening the window records who opened it; closing it forgets them, so a
+        # later run never names someone from an earlier window. Undo and redo
+        # send every field back, as JSON, so an unchanged window keeps its starter.
+        allow_test_run_until = AutomationWorkflow._meta.get_field(
+            "allow_test_run_until"
+        ).to_python(workflow.allow_test_run_until)
+        if allow_test_run_until != previous_allow_test_run_until:
+            self._set_test_run_triggered_by(
+                workflow, triggered_by if workflow.allow_test_run_until else None
+            )
 
         workflow.save()
         set_allowed_m2m_fields(allowed_values, m2m_fields, workflow)
@@ -756,7 +775,12 @@ class AutomationWorkflowHandler:
 
         automation_workflow_updated.send(self, user=None, workflow=original_workflow)
 
-    def set_workflow_temporary_states(self, workflow, simulate_until_node=None):
+    def set_workflow_temporary_states(
+        self,
+        workflow,
+        simulate_until_node=None,
+        triggered_by: Optional[Subject] = None,
+    ):
         """
         Sets the temporary states necessary to allow an unpublished workflow to be
         ran by the next event. By default a full test run is scheduled unless the
@@ -764,9 +788,13 @@ class AutomationWorkflowHandler:
 
         :param workflow: The workflow to consider.
         :param simulate_until_node: If set, schedules a simulation run instead.
+        :param triggered_by: Who asked for the run, recorded on its history
+            even when the run waits for an event.
         """
 
-        fields_to_save = []
+        # Always written, so a run never names the starter of an earlier one.
+        fields_to_save = self._set_test_run_triggered_by(workflow, triggered_by)
+
         if simulate_until_node is not None:
             # Switch to simulate until the given node
             workflow.simulate_until_node = simulate_until_node
@@ -786,6 +814,44 @@ class AutomationWorkflowHandler:
             workflow.save(update_fields=fields_to_save)
             automation_workflow_updated.send(self, user=None, workflow=workflow)
 
+    def _set_test_run_triggered_by(
+        self, workflow: AutomationWorkflow, triggered_by: Optional[Subject]
+    ) -> List[str]:
+        """
+        Sets who asked for the workflow's pending test run, without saving.
+
+        :param workflow: The workflow waiting for its test run.
+        :param triggered_by: The subject, or None to record nobody.
+        :return: The fields to save.
+        """
+
+        if triggered_by is None:
+            workflow.test_run_triggered_by_id = None
+            workflow.test_run_triggered_by_type = UserSubjectType.type
+            return ["test_run_triggered_by_id", "test_run_triggered_by_type"]
+
+        workflow.test_run_triggered_by_id = triggered_by.id
+        workflow.test_run_triggered_by_type = subject_type_registry.get_by_model(
+            triggered_by
+        ).type
+        return ["test_run_triggered_by_id", "test_run_triggered_by_type"]
+
+    def get_test_run_triggered_by(self, workflow) -> Optional[Subject]:
+        """
+        Returns who asked for the workflow's pending test run or simulation.
+
+        :param workflow: The workflow waiting for its test run.
+        :return: The subject, or None when nobody is recorded or it no longer
+            exists.
+        """
+
+        if workflow.test_run_triggered_by_id is None:
+            return None
+
+        return subject_type_registry.get_subject(
+            workflow.test_run_triggered_by_type, workflow.test_run_triggered_by_id
+        )
+
     def reset_workflow_temporary_states(self, workflow):
         """
         Reset the temporary states set when we want to test or simulate a workflow.
@@ -801,6 +867,9 @@ class AutomationWorkflowHandler:
             workflow.simulate_until_node = None
             fields_to_save.append("simulate_until_node")
 
+        if workflow.test_run_triggered_by_id is not None:
+            fields_to_save += self._set_test_run_triggered_by(workflow, None)
+
         if fields_to_save:
             workflow.save(update_fields=fields_to_save)
             automation_workflow_updated.send(self, user=None, workflow=workflow)
@@ -810,6 +879,7 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         simulate_until_node: AutomationNode | None,
+        triggered_by: Optional[AbstractUser] = None,
     ):
         """
         Trigger a test run if none is in progress or cancel the planned run. If the
@@ -820,6 +890,8 @@ class AutomationWorkflowHandler:
 
         :param workflow: The workflow we want to trigger the test run for.
         :param simulate_until_node: If we want to simulate until a particular node.
+        :param triggered_by: The person starting the test run, recorded on its
+            history entry.
         """
 
         if workflow.simulate_until_node is not None or workflow.allow_test_run_until:
@@ -828,22 +900,27 @@ class AutomationWorkflowHandler:
             return
 
         if simulate_until_node is None:  # Full test
-            AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
+            AutomationWorkflowHandler().set_workflow_temporary_states(
+                workflow, triggered_by=triggered_by
+            )
             if workflow.can_be_immediately_dispatched():
                 # If the service related to the trigger can immediately dispatch,
                 # we immediately trigger the workflow run.
-                self.async_start_workflow(workflow)
+                self.async_start_workflow(workflow, triggered_by=triggered_by)
         else:
             AutomationWorkflowHandler().set_workflow_temporary_states(
-                workflow, simulate_until_node=simulate_until_node
+                workflow,
+                simulate_until_node=simulate_until_node,
+                triggered_by=triggered_by,
             )
             trigger = workflow.get_trigger()
 
             dispatch_context = AutomationDispatchContext(
                 workflow,
-                # This is a placeholder value, no actual history exists yet
-                # (it's created later in start_workflow). This is fine
-                # for now, because get_sample_data() doesn't use history.
+                # No history exists yet, start_workflow creates it. This context
+                # only serves the get_sample_data() call below, which never reads
+                # history, and is never used for a run. Every other context
+                # needs a real history.
                 history=None,
                 simulate_until_node=simulate_until_node,
             )
@@ -857,7 +934,7 @@ class AutomationWorkflowHandler:
                 # If the trigger is immediately dispatchable or if we already have
                 # the sample data for it we can immediately dispatch the workflow
                 # except if we are updating the trigger sample data by itself
-                self.async_start_workflow(workflow)
+                self.async_start_workflow(workflow, triggered_by=triggered_by)
 
     @baserow_trace(tracer)
     def clear_old_history(self) -> None:
@@ -1143,12 +1220,15 @@ class AutomationWorkflowHandler:
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
+        triggered_by: Optional[AbstractUser] = None,
     ) -> None:
         """
         Runs the provided workflow in a celery task.
 
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
+        :param triggered_by: The person who started the run, recorded on the
+            history entry.
         """
 
         error = None
@@ -1216,6 +1296,7 @@ class AutomationWorkflowHandler:
                     completed_on=now,
                     message=error,
                     status=history_status,
+                    triggered_by=triggered_by,
                 )
             return
 
@@ -1226,6 +1307,7 @@ class AutomationWorkflowHandler:
             is_test_run=is_test_run,
             event_payload=event_payload,
             simulate_until_node=simulate_until_node,
+            triggered_by=triggered_by,
         )
 
         automation_workflow_dispatch_started.send(

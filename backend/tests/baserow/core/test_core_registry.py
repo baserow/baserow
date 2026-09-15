@@ -9,6 +9,7 @@ from baserow.core.exceptions import (
     InstanceTypeAlreadyRegistered,
     InstanceTypeDoesNotExist,
 )
+from baserow.core.registries import subject_type_registry
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -18,6 +19,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.subjects import AnonymousUserSubjectType, UserSubjectType
 
 
 class FakeModel(object):
@@ -199,3 +201,23 @@ def test_get_serializer(data_fixture):
 
     serializer = registry.get_serializer(database, request=True)
     assert "order" in serializer.data
+
+
+@pytest.mark.django_db
+def test_get_subject_returns_the_stored_subject(data_fixture):
+    user = data_fixture.create_user()
+
+    assert subject_type_registry.get_subject(UserSubjectType.type, user.id) == user
+
+
+@pytest.mark.django_db
+def test_get_subject_returns_none_for_a_deleted_subject(data_fixture):
+    user = data_fixture.create_user()
+    user_id = user.id
+    user.delete()
+
+    assert subject_type_registry.get_subject(UserSubjectType.type, user_id) is None
+
+
+def test_get_subject_returns_none_for_a_type_not_stored_in_the_database():
+    assert subject_type_registry.get_subject(AnonymousUserSubjectType.type, 1) is None

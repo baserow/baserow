@@ -19,6 +19,7 @@ from baserow.core.mixins import (
     OrderableMixin,
     TrashableModelMixin,
 )
+from baserow.core.subjects import UserSubjectType
 
 if TYPE_CHECKING:
     from baserow.contrib.automation.models import Automation
@@ -79,6 +80,19 @@ class AutomationWorkflow(
     order = models.PositiveIntegerField()
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
+
+    # Who asked for the pending test run or simulation, so a run that waits for
+    # its trigger's event still records them. Cleared with the temporary states.
+    test_run_triggered_by_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="The id of the subject who asked for the pending test run.",
+    )
+    test_run_triggered_by_type = models.CharField(
+        max_length=255,
+        db_default=UserSubjectType.type,
+        help_text="The subject type of who asked for the pending test run.",
+    )
 
     notification_recipients = models.ManyToManyField(
         settings.AUTH_USER_MODEL,

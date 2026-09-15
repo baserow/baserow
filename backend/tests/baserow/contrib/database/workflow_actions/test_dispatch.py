@@ -8,6 +8,9 @@ import pytest
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.signals import rows_created
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.workflow_actions.actions import (
+    DispatchButtonFieldActionType,
+)
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
@@ -23,6 +26,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.core.action.signals import action_done
 from baserow.core.exceptions import PermissionException
 
 
@@ -916,3 +920,108 @@ def test_a_later_action_reads_an_earlier_action_result(data_fixture):
     created = list(table.get_model().objects.exclude(id=row.id).order_by("id"))
     assert getattr(created[0], f"field_{name_field.id}") == "Ada"
     assert getattr(created[1], f"field_{name_field.id}") == f"Ada {created[0].id}"
+
+
+@pytest.fixture
+def audited_clicks():
+    """The `action_params` and workspace of every button click registration."""
+
+    received = []
+
+    def receiver(sender, action_type, action_params, workspace, **kwargs):
+        if action_type is DispatchButtonFieldActionType:
+            received.append((action_params, workspace))
+
+    action_done.connect(receiver)
+    yield received
+    action_done.disconnect(receiver)
+
+
+@pytest.mark.django_db
+def test_a_click_sends_action_done_for_the_audit_log(data_fixture, audited_clicks):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
+
+    assert len(audited_clicks) == 1
+    params, workspace = audited_clicks[0]
+    assert workspace == table.database.workspace
+    assert params["field_id"] == button_field.id
+    assert params["row_id"] == row.id
+    assert params["action_count"] == 1
+
+
+@pytest.mark.django_db
+def test_a_refused_click_sends_nothing_to_the_audit_log(data_fixture, audited_clicks):
+    owner = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, owner)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+
+    with pytest.raises(PermissionException):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            outsider, button_field, row
+        )
+
+    assert audited_clicks == []
+
+
+@pytest.mark.django_db
+def test_a_click_refused_for_a_run_in_progress_is_not_audited(
+    data_fixture, audited_clicks
+):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    cache.add(f"button_dispatch_{button_field.id}_{row.id}", True, timeout=30)
+
+    with pytest.raises(WorkflowActionDispatchInProgress):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert audited_clicks == []
+
+
+@pytest.mark.django_db
+def test_a_click_with_only_client_actions_is_audited(data_fixture, audited_clicks):
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
+
+    assert len(audited_clicks) == 1
+
+
+@pytest.mark.django_db
+def test_a_click_that_fails_mid_sequence_is_still_audited(data_fixture, audited_clicks):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    # A delete-row action with no table configured fails at dispatch.
+    data_fixture.create_database_workflow_action(
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
+    )
+
+    with pytest.raises(WorkflowActionDispatchError):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert len(audited_clicks) == 1
+    assert audited_clicks[0][0]["action_count"] == 2

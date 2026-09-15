@@ -2517,7 +2517,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
     WORKFLOW_DOES_NOT_EXIST_ERROR = "The workflow with ID {workflow_id} does not exist."
     TRIGGER_NOT_ON_DEMAND_ERROR = (
         "Only workflows whose trigger can start on demand, such as a manual "
-        "trigger, can be started."
+        "or periodic trigger, can be started."
     )
 
     allowed_fields = ["workflow"]
@@ -2621,7 +2621,11 @@ class CoreStartWorkflowServiceType(CoreServiceType):
                 self.TRIGGER_NOT_ON_DEMAND_ERROR
             )
 
-        AutomationWorkflowHandler().async_start_workflow(published_workflow)
+        # Only a button click has an actor here; a nested start-workflow node
+        # and the builder action do not, so their runs record nobody.
+        AutomationWorkflowHandler().async_start_workflow(
+            published_workflow, triggered_by=dispatch_context.actor
+        )
         return None
 
     def dispatch_transform(

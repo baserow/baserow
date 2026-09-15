@@ -69,7 +69,7 @@ def test_start_workflow_service_dispatch_starts_configured_workflow(data_fixture
     ) as async_start_workflow:
         result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
 
-    async_start_workflow.assert_called_once_with(published_workflow)
+    async_start_workflow.assert_called_once_with(published_workflow, triggered_by=None)
     assert result.data is None
 
 
@@ -125,7 +125,7 @@ def test_start_workflow_service_dispatch_starts_immediate_dispatch_workflow(
     ) as async_start_workflow:
         result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
 
-    async_start_workflow.assert_called_once_with(published_workflow)
+    async_start_workflow.assert_called_once_with(published_workflow, triggered_by=None)
     assert result.data is None
 
 
@@ -220,3 +220,23 @@ def test_start_workflow_service_dispatch_without_workflow_raises(data_fixture):
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         ServiceHandler().dispatch_service(service, fake_dispatch_context())
+
+
+@pytest.mark.django_db
+def test_start_workflow_service_dispatch_names_the_context_actor(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user=user, trigger_type=CoreManualTriggerNodeType.type
+    )
+    published_workflow = AutomationWorkflowHandler().publish(workflow)
+    service = data_fixture.create_core_start_workflow_service(workflow=workflow)
+    dispatch_context = fake_dispatch_context()
+    dispatch_context.actor = user
+
+    with patch(
+        "baserow.contrib.automation.workflows.handler."
+        "AutomationWorkflowHandler.async_start_workflow"
+    ) as async_start_workflow:
+        ServiceHandler().dispatch_service(service, dispatch_context)
+
+    async_start_workflow.assert_called_once_with(published_workflow, triggered_by=user)

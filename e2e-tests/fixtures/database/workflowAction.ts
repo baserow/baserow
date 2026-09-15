@@ -120,6 +120,18 @@ export async function createDeleteRowAction(
   });
 }
 
+/** An action that starts a published automation workflow by id. */
+export async function createStartWorkflowAction(
+  user: User,
+  buttonField: Field,
+  workflowId: number,
+): Promise<WorkflowAction> {
+  const action = await createWorkflowAction(user, buttonField, "start_workflow");
+  return updateWorkflowAction(user, action, {
+    service: { workflow_id: workflowId },
+  });
+}
+
 /** An action the browser runs itself, rather than the dispatch running it. */
 export async function createOpenUrlAction(
   user: User,

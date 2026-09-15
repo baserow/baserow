@@ -73,10 +73,6 @@ async function setupRealtimeReplayScenario(
   const workspacePage = new WorkspacePage(pageConfig, user, workspace);
   await workspacePage.authenticate();
 
-  await page.evaluate(() => {
-    localStorage.setItem("baserow.rightSidebarOpen", "false");
-  });
-
   const tablePage = new TablePage(pageConfig);
   await tablePage.goToTable(table);
   await tablePage.waitForLoadingOverlayToDisappear();

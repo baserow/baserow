@@ -110,6 +110,7 @@
     "statusErrorBadge": "Failed",
     "statusSkippedBadge": "Skipped",
     "statusDisabled": "Disabled by Baserow",
+    "startedBy": "Started by {name}",
     "successfulRuns": "Successful runs",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInLessThanSecond": "Completed in less than 1 second.",

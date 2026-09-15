@@ -71,6 +71,10 @@
 // padding of its own, does not run into the card's edges.
 .button-field-action-list__form {
   padding: 12px;
+
+  // Same cap as the error and payload below: a service form's helper text is
+  // a full sentence, and the popup would otherwise grow to fit it on one line.
+  max-width: 390px;
 }
 
 // Without this the control's inactive fill disappears into the card behind it.
