@@ -1202,7 +1202,7 @@ class RowHandler:
             m2m_change_tracker.track_m2m_update_for_field_and_row(
                 field, name, row, value
             )
-            getattr(row, name).set(value)
+            self._set_m2m_values_in_order(row, name, value)
 
         field_objects_to_always_update = model.get_field_objects_to_always_update()
         always_updated_fields = ["updated_on"] + [
@@ -1808,6 +1808,48 @@ class RowHandler:
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
         return fields, dependant_fields, update_collector.get_dependant_rows_updates()
+
+    def _set_m2m_values_in_order(
+        self, row: GeneratedTableModel, field_name: str, value_ids: List[Any]
+    ):
+        """
+        Replaces the relations of a many to many field, adding new ones in the order
+        they were given. Django's ``set`` bulk creates the through rows from a Python
+        set, so their order follows id hashing instead of the provided list, which
+        makes the cell value and any sort on it non-deterministic.
+
+        Like ``update_rows``, relations that are already present keep their through
+        row, so reordering values that are all already set does not move them.
+
+        :param row: The row whose relations must be replaced.
+        :param field_name: The name of the many to many field.
+        :param value_ids: The ids to relate the row to, newly added ones in the order
+            they should be stored in.
+        """
+
+        manager = getattr(row, field_name)
+        # Django's `set` does this; without it later reads return the stale relations.
+        manager._remove_prefetched_objects()
+        existing_ids = set(manager.values_list("pk", flat=True))
+
+        ordered_ids = list(dict.fromkeys(value_ids))
+        wanted_ids = set(ordered_ids)
+
+        m2m_objects, (row_column, value_column) = (
+            self._prepare_m2m_field_related_objects(
+                row, field_name, [v for v in ordered_ids if v not in existing_ids]
+            )
+        )
+        through = manager.through
+
+        to_delete = existing_ids - wanted_ids
+        if to_delete:
+            through.objects.filter(
+                **{row_column: row.id, f"{value_column}__in": to_delete}
+            ).delete()
+
+        if m2m_objects:
+            through.objects.bulk_create(m2m_objects)
 
     def _prepare_m2m_field_related_objects(
         self, row: GeneratedTableModel, field_name: str, value: List[Any]

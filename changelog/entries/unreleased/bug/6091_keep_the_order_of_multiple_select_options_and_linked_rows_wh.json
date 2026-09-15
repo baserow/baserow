@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Keep the order of multiple select options and linked rows when updating a row.",
+    "issue_origin": "github",
+    "issue_number": 6091,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-15"
+}
