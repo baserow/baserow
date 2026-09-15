@@ -198,6 +198,38 @@ can set the `WEB_FRONTEND_PORT` variable to change the default of port 80 and
 $ WEB_FRONTEND_SSL_PORT=444 WEB_FRONTEND_PORT=3000 docker-compose up 
 ```
 
+### Enabling inbound email triggers
+
+The "Start workflow by email" automation trigger uses the `email-receiver`
+service (the bundled mox mail server), which receives email for a dedicated
+inbound domain (e.g. `inbound.yourdomain.com`) and forwards it to the backend.
+The service always starts, but stays idle until both of the following
+variables are set:
+
+```bash
+$ BASEROW_INBOUND_EMAIL_DOMAIN=inbound.yourdomain.com \
+  BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET=some-long-random-secret \
+  docker-compose up -d
+```
+
+You must also create an MX record for the inbound domain pointing at this
+host, and port 25 must be reachable from the internet (if another service on
+the host already uses port 25, override the published host port with
+`BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT`). Sending mail servers connect to the
+receiver directly, so a HTTP reverse proxy cannot sit in front of it. If you use
+`docker-compose.no-caddy.yml`, which publishes all ports on `127.0.0.1` by
+default, additionally set `BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP=0.0.0.0` to
+publish only the SMTP port on all interfaces. By default the
+receiver offers STARTTLS with a self-signed certificate; see
+`BASEROW_INBOUND_EMAIL_TLS_MODE` in [configuration](configuration.md) to
+provide a real certificate. The receiver's message store and webhook retry
+queue persist in the `mox_data` volume.
+
+Emails larger than 25 MB (`BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB`) are
+refused during delivery and bounce back to the sender. Attachments are never
+stored: the workflow only receives their name, type and size, and text or HTML
+bodies over 1 MB are truncated.
+
 ### Using a Domain with automatic https
 
 If you have a domain name and have correctly configured DNS then you can run the

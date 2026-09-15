@@ -22,6 +22,7 @@ import {
 import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
 import {
   CoreCSVFileReaderServiceType,
+  CoreInboundEmailTriggerServiceType,
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreGotoServiceType,
@@ -354,8 +355,40 @@ export class NodeType extends Registerable {
     return this.serviceType.getSampleData(service)
   }
 
+  /**
+   * The content type of this node's sample data. Nodes returning 'html' get
+   * an extra HTML preview tab in the sample data modal.
+   */
+  getSampleDataContentType({ service }) {
+    if (!service) {
+      return 'json'
+    }
+    return this.serviceType.getSampleDataContentType(service)
+  }
+
+  /**
+   * The HTML document rendered in the sample data modal's HTML tab.
+   */
+  getSampleDataHtml({ service }) {
+    if (!service) {
+      return null
+    }
+    return this.serviceType.getSampleDataHtml(service)
+  }
+
   getEdges({ node }) {
     return [{ uid: '', label: '' }]
+  }
+
+  /**
+   * Whether this node type is offered at all. Unlike `isDeactivated`, which
+   * keeps the entry in the add-node menu but disabled with a reason, a type
+   * that is not enabled is omitted from the menu entirely. Types that only make
+   * sense when the instance is configured for them override this.
+   * @returns {boolean}
+   */
+  isEnabled() {
+    return true
   }
 
   isDeactivatedReason({ workspace }) {
@@ -628,6 +661,49 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
 
   getDefaultLabel({ automation, node }) {
     return this.app.$i18n.t('serviceType.coreHTTPTrigger')
+  }
+}
+
+export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.inboundEmailTriggerDescription')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreInboundEmailTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 4.5
+  }
+
+  /**
+   * Only offered when the instance has an inbound email domain, exposed as
+   * public runtime config. The backend additionally requires the webhook
+   * secret, which is never exposed to the frontend, and refuses to create the
+   * node unless both are set, so the domain is the visible proxy here. Without
+   * it the trigger is left out of the menu rather than shown deactivated, so
+   * instances that never use inbound email do not carry a dead entry.
+   */
+  isEnabled() {
+    return Boolean(this.app.$config.public.baserowInboundEmailDomain)
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
   }
 }
 
