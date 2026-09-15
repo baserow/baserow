@@ -80,6 +80,78 @@ def test_layout_replay_preserves_newly_hidden_widgets(
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @pytest.mark.parametrize("command", ["undo", "redo"])
+@pytest.mark.parametrize("hidden_count", [1, 2])
+@pytest.mark.parametrize("hide_all", [False, True])
+def test_layout_replay_preserves_hidden_uninitialized_widgets(
+    data_fixture, stub_check_permissions, command, hidden_count, hide_all
+):
+    user = data_fixture.create_user(session_id="layout-session")
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = WidgetService().create_widget(
+        user, "summary", dashboard.id, title="Visible"
+    )
+    UpdateWidgetLayoutActionType.do(
+        user,
+        dashboard.id,
+        [{**WidgetLayoutHandler.from_widget(widget), "grid_height": 5}],
+    )
+    scopes = [ApplicationActionScopeType.value(dashboard.id)]
+    if command == "redo":
+        ActionHandler.undo(user, scopes, "layout-session")
+    widget.refresh_from_db()
+    before_widget = Widget.objects.filter(id=widget.id).values().get()
+
+    # A process still running the pre-grid version inserts the database defaults.
+    hidden_ids = [
+        data_fixture.create_summary_widget(
+            dashboard=dashboard,
+            grid_x=0,
+            grid_y=0,
+            grid_width=6,
+            grid_height=9,
+            grid_layout_initialized=False,
+        ).id
+        for _ in range(hidden_count)
+    ]
+    hidden_widgets = Widget.objects.filter(id__in=hidden_ids).order_by("id")
+    before_hidden = list(hidden_widgets.values())
+
+    def filter_visible(actor, operation_name, queryset, workspace=None, context=None):
+        return queryset.none() if hide_all else queryset.exclude(id__in=hidden_ids)
+
+    with (
+        stub_check_permissions() as stub,
+        patch(
+            "baserow.contrib.dashboard.widgets.service.widgets_layout_updated.send"
+        ) as layout_signal,
+    ):
+        stub.filter_queryset = filter_visible
+        actions = getattr(ActionHandler, command)(user, scopes, "layout-session")
+        assert_undo_redo_actions_are_valid(actions, [UpdateWidgetLayoutActionType])
+        assert list(hidden_widgets.values()) == before_hidden
+        widget.refresh_from_db()
+        if hide_all:
+            assert Widget.objects.filter(id=widget.id).values().get() == before_widget
+        else:
+            assert WidgetLayoutHandler.from_widget(widget) == {
+                "id": widget.id,
+                "grid_x": 0,
+                "grid_y": 9,
+                "grid_width": 2,
+                "grid_height": 4 if command == "undo" else 5,
+            }
+
+        # The HTTP reload triggered by the layout invalidation must also preserve it.
+        assert [
+            item.id for item in WidgetService().get_widgets(user, dashboard.id)
+        ] == ([] if hide_all else [widget.id])
+        assert list(hidden_widgets.values()) == before_hidden
+        assert layout_signal.call_count == (0 if hide_all else 1)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.parametrize("command", ["undo", "redo"])
 @pytest.mark.parametrize(
     "denied_operation",
     [ListWidgetsOperationType.type, UpdateWidgetLayoutOperationType.type],

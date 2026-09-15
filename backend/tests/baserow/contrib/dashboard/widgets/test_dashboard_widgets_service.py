@@ -155,6 +155,76 @@ def test_get_widgets_initializes_a_widget_created_by_a_pre_grid_process(data_fix
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("operation", ["get", "update"])
+@pytest.mark.parametrize("initialize_visible", [False, True])
+def test_visible_layout_operations_preserve_hidden_uninitialized_widgets(
+    data_fixture, stub_check_permissions, operation, initialize_visible
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    visible = data_fixture.create_summary_widget(
+        dashboard=dashboard,
+        grid_x=0,
+        grid_y=0,
+        grid_width=6 if initialize_visible else 2,
+        grid_height=9 if initialize_visible else 4,
+        grid_layout_initialized=not initialize_visible,
+    )
+    hidden_ids = [
+        data_fixture.create_summary_widget(
+            dashboard=dashboard,
+            grid_x=0,
+            grid_y=0,
+            grid_width=6,
+            grid_height=9,
+            grid_layout_initialized=False,
+        ).id
+        for _ in range(2)
+    ]
+    hidden_widgets = Widget.objects.filter(id__in=hidden_ids).order_by("id")
+    before_hidden = list(hidden_widgets.values())
+
+    def filter_visible(actor, operation_name, queryset, workspace=None, context=None):
+        return queryset.exclude(id__in=hidden_ids)
+
+    with (
+        stub_check_permissions() as stub,
+        patch(
+            "baserow.contrib.dashboard.widgets.service.widgets_layout_updated.send"
+        ) as layout_signal,
+    ):
+        stub.filter_queryset = filter_visible
+        if operation == "get":
+            assert [
+                widget.id for widget in WidgetService().get_widgets(user, dashboard.id)
+            ] == [visible.id]
+        else:
+            WidgetService().update_visible_widget_layout(
+                user,
+                dashboard.id,
+                [
+                    {
+                        "id": visible.id,
+                        "grid_x": 4,
+                        "grid_y": 0,
+                        "grid_width": 2,
+                        "grid_height": 4,
+                    }
+                ],
+            )
+
+    assert list(hidden_widgets.values()) == before_hidden
+    visible.refresh_from_db()
+    assert visible.grid_layout_initialized is True
+    assert (visible.grid_width, visible.grid_height) == (2, 4)
+    assert visible.grid_x == (0 if operation == "get" else 4)
+    assert visible.grid_y == (0 if operation == "get" and not initialize_visible else 9)
+    assert layout_signal.call_count == int(initialize_visible or operation == "update")
+    if initialize_visible:
+        assert layout_signal.call_args.kwargs["user"] is None
+
+
+@pytest.mark.django_db
 def test_get_widgets_dashboard_trashed(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user, trashed=True)
