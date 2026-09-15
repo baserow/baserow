@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a crash when creating a snapshot, duplicating or exporting a database containing an active but invalid field rule.",
+    "issue_origin": "github",
+    "issue_number": 6095,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-15"
+}
