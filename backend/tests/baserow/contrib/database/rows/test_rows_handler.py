@@ -2321,3 +2321,72 @@ def test_get_row_names_does_not_scale_queries_with_relational_primary(data_fixtu
         RowHandler().get_row_names(table, large_ids)
 
     assert len(small_captured.captured_queries) == len(large_captured.captured_queries)
+
+
+def _select_option_ids_on_a_hash_reversing_pair(data_fixture, field):
+    """
+    Creates two select options whose ids make ``{a, b}`` iterate as ``[b, a]``.
+
+    Django's m2m ``set`` bulk creates through rows while iterating a Python set, so
+    the stored order only diverges from the given list for ids that hash into
+    descending buckets. Roughly one in eight consecutive id pairs does.
+
+    :param data_fixture: The fixture used to create the select options.
+    :param field: The field the select options belong to.
+    :return: The two select options, in the order they must be written.
+    """
+
+    while True:
+        option = data_fixture.create_select_option(field=field, value="x", color="red")
+        if option.id % 8 == 6:
+            break
+
+    first = data_fixture.create_select_option(field=field, value="A", color="red")
+    second = data_fixture.create_select_option(field=field, value="B", color="blue")
+    assert list({first.id, second.id}) == [second.id, first.id]
+    return first, second
+
+
+@pytest.mark.django_db
+def test_update_row_by_id_keeps_multiple_select_option_order(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user=user, table=table, name="Tags", type_name="multiple_select"
+    )
+    first, second = _select_option_ids_on_a_hash_reversing_pair(data_fixture, field)
+
+    row = RowHandler().create_row(user=user, table=table)
+    RowHandler().update_row_by_id(
+        user, table, row.id, {field.db_column: [first.id, second.id]}
+    )
+
+    model = table.get_model()
+    stored = model.objects.prefetch_related(field.db_column).get(id=row.id)
+    assert [o.value for o in getattr(stored, field.db_column).all()] == ["A", "B"]
+
+
+@pytest.mark.django_db
+def test_update_row_by_id_removes_and_dedupes_multiple_select_options(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user=user, table=table, name="Tags", type_name="multiple_select"
+    )
+    first, second = _select_option_ids_on_a_hash_reversing_pair(data_fixture, field)
+    third = data_fixture.create_select_option(field=field, value="C", color="green")
+
+    row = RowHandler().create_row(
+        user=user, table=table, values={field.db_column: [first.id, second.id]}
+    )
+    model = table.get_model()
+
+    RowHandler().update_row_by_id(
+        user, table, row.id, {field.db_column: [second.id, third.id, second.id]}
+    )
+    stored = model.objects.prefetch_related(field.db_column).get(id=row.id)
+    assert [o.value for o in getattr(stored, field.db_column).all()] == ["B", "C"]
+
+    RowHandler().update_row_by_id(user, table, row.id, {field.db_column: []})
+    stored = model.objects.prefetch_related(field.db_column).get(id=row.id)
+    assert list(getattr(stored, field.db_column).all()) == []
