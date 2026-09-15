@@ -595,6 +595,7 @@ def test_replay_raises_when_over_threshold():
         web_socket_id=None,
     )
     assert result.force_refresh is True
+    assert result.refresh_reason == "event_limit"
     assert result.replay_events == []
 
 
@@ -1297,6 +1298,7 @@ def test_replay_events_result_future_last_seen_uses_one_query(
         )
 
     assert result.force_refresh is True
+    assert result.refresh_reason == "cursor_ahead"
     assert result.latest_event_id == NO_REPLAY_AVAILABLE
     assert result.replay_events == []
 

@@ -274,7 +274,9 @@ newest event and the newest event with a different ignored socket: any client
 excludes at most one socket, so these two entries preserve its latest relevant
 expired event. New browser sessions therefore do not create new summary rows for
 an otherwise identical audience. Distinct audiences can still accumulate; summary
-storage has no fixed size bound or expiry.
+storage has no fixed size bound or expiry. Row-scoped channel groups such as
+`table-<id>-row-<id>` give one summary per edited row rather than per table, so
+size this against row volume.
 
 Summary updates, deletion of all selected full events, and advancement of the
 compacted high-water mark commit together. Each batch commits separately, so

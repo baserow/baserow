@@ -96,6 +96,7 @@ def test_missing_baseline_preserves_no_change_replay_and_refresh(missed_old, rec
 
     result = replay(baseline)
     assert result.force_refresh is missed_old
+    assert result.refresh_reason == ("expired_payload" if missed_old else None)
     assert [event.id for event in result.replay_events] == (
         [fresh_id] if recent and not missed_old else []
     )
