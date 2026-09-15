@@ -40,9 +40,7 @@ class WidgetService:
         self.handler = WidgetHandler()
         self.dashboard_handler = DashboardHandler()
 
-    def _get_widgets_for_layout_mutation(
-        self, dashboard: Dashboard
-    ) -> tuple[list[Widget], bool]:
+    def _get_widgets_for_layout_mutation(self, dashboard: Dashboard) -> list[Widget]:
         """Locks a dashboard and its widgets before changing its layout.
 
         Locking the dashboard row serializes mutations even when it has no widgets
@@ -52,12 +50,7 @@ class WidgetService:
 
         Dashboard.objects.select_for_update(of=("self",)).get(id=dashboard.id)
 
-        widgets = self.handler.get_widgets_for_update(dashboard)
-        layouts_initialized = any(
-            not widget.grid_layout_initialized for widget in widgets
-        )
-        self.handler.initialize_uninitialized_widget_grid_layouts(widgets)
-        return widgets, layouts_initialized
+        return self.handler.get_widgets_for_update(dashboard)
 
     def _get_widgets_for_visible_layout_mutation(
         self, user: AbstractUser, dashboard: Dashboard
@@ -78,7 +71,7 @@ class WidgetService:
             context=dashboard,
         )
 
-        widgets, layouts_initialized = self._get_widgets_for_layout_mutation(dashboard)
+        widgets = self._get_widgets_for_layout_mutation(dashboard)
         visible_queryset = core_handler.filter_queryset(
             user,
             ListWidgetsOperationType.type,
@@ -86,6 +79,9 @@ class WidgetService:
             workspace=dashboard.workspace,
         )
         visible_widget_ids = set(visible_queryset.values_list("id", flat=True))
+        layouts_initialized = self.handler.initialize_uninitialized_widget_grid_layouts(
+            widgets, widget_ids=visible_widget_ids
+        )
         return widgets, visible_widget_ids, layouts_initialized
 
     def _send_widgets_layout_updated(
@@ -175,10 +171,16 @@ class WidgetService:
             workspace=dashboard.workspace,
         )
 
-        if Widget.objects.filter(
-            dashboard=dashboard, grid_layout_initialized=False
-        ).exists():
-            _, layouts_initialized = self._get_widgets_for_layout_mutation(dashboard)
+        if widgets.filter(dashboard=dashboard, grid_layout_initialized=False).exists():
+            locked_widgets = self._get_widgets_for_layout_mutation(dashboard)
+            visible_widget_ids = set(
+                widgets.filter(dashboard=dashboard).values_list("id", flat=True)
+            )
+            layouts_initialized = (
+                self.handler.initialize_uninitialized_widget_grid_layouts(
+                    locked_widgets, widget_ids=visible_widget_ids
+                )
+            )
             if layouts_initialized:
                 # This write repairs a layout created by an older application
                 # process. It has no HTTP mutation response on other open clients,
@@ -243,7 +245,10 @@ class WidgetService:
         widget_type_from_registry = widget_type_registry.get(widget_type)
 
         widget_type_from_registry.before_create(user, dashboard)
-        widgets, layouts_initialized = self._get_widgets_for_layout_mutation(dashboard)
+        widgets = self._get_widgets_for_layout_mutation(dashboard)
+        layouts_initialized = self.handler.initialize_uninitialized_widget_grid_layouts(
+            widgets, widget_ids={widget.id for widget in widgets}
+        )
         original_layout = WidgetLayoutHandler(widgets).current_layout
         new_widget = self.handler.create_widget(
             widget_type_from_registry,
@@ -346,10 +351,11 @@ class WidgetService:
             if widget.id not in visible_widget_ids
         ]
 
-        # Validate identities and type constraints against exactly the visible
-        # snapshot first. Hidden widgets stay fixed obstacles during canonical
-        # compaction; the merged layout below checks complete collisions and bounds.
-        visible_layout_by_widget_id = WidgetLayoutHandler(visible_widgets).validate(
+        # Validate and persist only the visible snapshot. Hidden widgets are fixed
+        # obstacles during compaction, even if their legacy geometry no longer
+        # satisfies the current widget type's constraints.
+        widget_layout_handler = WidgetLayoutHandler(visible_widgets)
+        visible_layout_by_widget_id = widget_layout_handler.validate(
             layout,
             compact=True,
             fixed_layouts=hidden_layout,
@@ -358,22 +364,8 @@ class WidgetService:
                 default=0,
             ),
         )
-        widget_layout_handler = WidgetLayoutHandler(widgets)
-        merged_layout = [
-            visible_layout_by_widget_id.get(
-                widget.id, WidgetLayoutHandler.from_widget(widget)
-            )
-            for widget in widgets
-        ]
-        # The client-controlled visible part is already compacted. Do not reject an
-        # otherwise valid edit because a preserved hidden/rollout-era widget has a
-        # large vertical gap outside the current defensive request bound.
-        merged_layout_by_widget_id = widget_layout_handler.validate(
-            merged_layout,
-            enforce_vertical_bound=False,
-        )
         layout_delta = widget_layout_handler.apply(
-            merged_layout_by_widget_id,
+            visible_layout_by_widget_id,
             allowed_widget_ids=visible_widget_ids,
         )
         return self._layout_update_result(
@@ -411,7 +403,10 @@ class WidgetService:
             context=deleted_widget,
         )
 
-        widgets, _ = self._get_widgets_for_layout_mutation(dashboard)
+        widgets = self._get_widgets_for_layout_mutation(dashboard)
+        self.handler.initialize_uninitialized_widget_grid_layouts(
+            widgets, widget_ids={widget.id for widget in widgets}
+        )
         widgets_by_id = {widget.id: widget for widget in widgets}
         widget = widgets_by_id.get(widget_id)
         if widget is None:
@@ -521,7 +516,10 @@ class WidgetService:
         """
 
         dashboard = self.dashboard_handler.get_dashboard(dashboard_id)
-        widgets, _ = self._get_widgets_for_layout_mutation(dashboard)
+        widgets = self._get_widgets_for_layout_mutation(dashboard)
+        self.handler.initialize_uninitialized_widget_grid_layouts(
+            widgets, widget_ids={widget.id for widget in widgets}
+        )
         original_layout = WidgetLayoutHandler(widgets).current_layout
 
         restored_widget = TrashHandler.restore_item(

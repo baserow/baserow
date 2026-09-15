@@ -155,28 +155,33 @@ class WidgetHandler:
         )
 
     def initialize_uninitialized_widget_grid_layouts(
-        self, widgets: list[Widget]
-    ) -> None:
+        self, widgets: list[Widget], *, widget_ids: set[int]
+    ) -> bool:
         """Initializes layouts written by an application version without the grid.
 
         During a zero-downtime deployment, an older application process omits the
         grid fields when it creates a widget. The database defaults cannot encode
         widget-type-specific dimensions, so those widgets are marked as uninitialized
         and placed below the canonical layout by the first current process that sees
-        them.
+        them. Only the supplied IDs may be initialized; all other widgets remain
+        fixed obstacles, including those still using database defaults. Returns
+        whether any layouts were initialized.
         """
 
         uninitialized_widgets = [
-            widget for widget in widgets if not widget.grid_layout_initialized
+            widget
+            for widget in widgets
+            if widget.id in widget_ids and not widget.grid_layout_initialized
         ]
         if not uninitialized_widgets:
-            return
+            return False
 
+        uninitialized_ids = {widget.id for widget in uninitialized_widgets}
         next_grid_y = max(
             (
                 widget.grid_y + widget.grid_height
                 for widget in widgets
-                if widget.grid_layout_initialized
+                if widget.id not in uninitialized_ids
             ),
             default=0,
         )
@@ -200,6 +205,7 @@ class WidgetHandler:
                 ]
             )
             next_grid_y += grid_layout.default_height
+        return True
 
     def place_restored_widget_at_bottom(self, widget: Widget) -> None:
         """Places a restored widget after the active dashboard layout.
