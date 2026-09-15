@@ -1226,7 +1226,29 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     can execute an operation.
     """
 
+    # Interactive users can persist undoable actions and emit product analytics.
+    is_interactive_user = False
     display_name_field: Optional[str] = None
+
+    def get_display_name(self, subject: Subject) -> str:
+        """Return the snapshot-friendly name used to identify a subject."""
+
+        return str(subject)
+
+    def get_type_display_name(self) -> str:
+        """Return the human-readable name of this subject type."""
+
+        return self.type
+
+    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
+        """Return subjects matching the workspace scope, if listable."""
+
+        return None
+
+    def get_label(self, subject: Subject) -> str:
+        """Return the label shown when this subject is presented as an option."""
+
+        return self.get_display_name(subject)
 
     def get_workspace_role_uids(
         self,

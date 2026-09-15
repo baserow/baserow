@@ -1,5 +1,6 @@
 import abc
 import dataclasses
+import json
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Dict, NewType, Optional
@@ -15,6 +16,7 @@ from baserow.api.sessions import (
     get_client_undo_redo_action_group_id,
     get_untrusted_client_session_id,
 )
+from baserow.core.encoders import JSONEncoderSupportingDataClasses
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 from baserow.core.telemetry.utils import (
@@ -349,6 +351,21 @@ class UndoableActionTypeMixin:
         :param workspace: The workspace this action is associated with.
         :return: The created action.
         """
+
+        from baserow.core.registries import subject_type_registry
+
+        subject_type = subject_type_registry.get_by_model(user)
+        # Non-interactive subjects must not create an Action, but still emit
+        # action_done so consumers such as the audit log record the action.
+        if not subject_type.is_interactive_user:
+            serialized_params = json.loads(
+                json.dumps(
+                    cls.params_to_serializable(params),
+                    cls=JSONEncoderSupportingDataClasses,
+                )
+            )
+            cls.send_action_done_signal(user, serialized_params, scope, workspace)
+            return None
 
         session = get_untrusted_client_session_id(user)
         action_group = get_client_undo_redo_action_group_id(user)

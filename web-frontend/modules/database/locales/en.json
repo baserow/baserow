@@ -1058,6 +1058,7 @@
     "name": "History",
     "empty": "No changes yet. You'll be able to track any changes to this row here.",
     "you": "You",
+    "anonymousUser": "Anonymous user",
     "created": "created this row",
     "updated": "updated this row",
     "submitted": "submitted this row",

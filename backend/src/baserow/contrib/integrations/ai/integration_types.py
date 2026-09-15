@@ -51,7 +51,10 @@ class AIIntegrationType(IntegrationType):
     }
 
     def prepare_values(
-        self, values: Dict[str, Any], user: AbstractUser
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        application: Application | None = None,
     ) -> Dict[str, Any]:
         """Validate explicit per-integration provider settings before saving.
 
@@ -146,6 +149,7 @@ class AIIntegrationType(IntegrationType):
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config=None,
     ) -> AIIntegration:
         if cache is None:
             cache = {}
@@ -157,6 +161,7 @@ class AIIntegrationType(IntegrationType):
             application,
             serialized_values,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
