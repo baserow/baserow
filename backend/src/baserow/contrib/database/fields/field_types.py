@@ -8310,10 +8310,17 @@ class ButtonFieldType(ReadOnlyFieldType):
         # A type change deletes the row the actions cascade off, so only this
         # backup can bring them back. Trashed actions are kept too: undoing a
         # save trashes the actions it created before it undoes the type change,
-        # and redo restores them from the trash.
+        # and redo restores them from the trash. The backup is logged on the
+        # undo action and copied into the audit log, so whatever a service
+        # calls sensitive is left blank, as a workspace export leaves it.
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=True,
+        )
         values["workflow_actions"] = [
             {
-                **action.get_type().export_serialized(action),
+                **action.get_type().export_serialized(action, import_export_config),
                 "trashed": action.trashed,
             }
             for action in DatabaseWorkflowActionHandler().get_workflow_actions(

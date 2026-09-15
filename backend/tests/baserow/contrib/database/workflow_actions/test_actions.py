@@ -28,6 +28,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
+from baserow.core.action.signals import action_done
 from baserow.core.services.models import Service
 
 
@@ -482,3 +483,109 @@ def test_undoing_a_type_change_to_a_type_without_a_service_restores_its_config(
     redone = DatabaseWorkflowActionHandler().get_workflow_action(action.id)
     assert isinstance(redone, LocalBaserowCreateRowWorkflowAction)
     assert redone.service_id == new_service_id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_button_field_type_change_logs_no_sensitive_action_values(data_fixture):
+    """
+    The field's backup carries its actions, and it is logged on the undo action
+    and copied into the audit log, so an HTTP action's key is left out.
+    """
+
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        CoreHTTPRequestWorkflowAction, field=button_field
+    )
+    action = CoreHTTPRequestWorkflowAction.objects.get(pk=action.pk)
+    action.service.specific.headers.create(
+        key="Authorization", value=_url("'Bearer the-secret'")
+    )
+
+    UpdateFieldActionType.do(user, button_field, new_type_name="text")
+
+    logged = json.dumps(Action.objects.get(type="update_field").params)
+    assert "the-secret" not in logged
+    assert "Authorization" in logged
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    restored = DatabaseWorkflowActionHandler().get_workflow_action(action.id)
+    assert [header.key for header in restored.service.specific.headers.all()] == [
+        "Authorization"
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_type_change_survives_the_field_changing_type_and_back(data_fixture):
+    """
+    Undoing the field type change recreates the action with a copy of its
+    service. The type change's undo keeps that copy for its redo, rather than
+    looking for the service the field change deleted.
+    """
+
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_delete_row"
+    )
+    UpdateFieldActionType.do(user, button_field, new_type_name="text")
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    copy_id = DatabaseWorkflowActionHandler().get_workflow_action(action.id).service_id
+    ActionHandler.undo(user, _scope(table), session_id)
+    ActionHandler.redo(user, _scope(table), session_id)
+
+    assert not Action.objects.filter(error__isnull=False).exists()
+    redone = DatabaseWorkflowActionHandler().get_workflow_action(action.id)
+    assert isinstance(redone, LocalBaserowDeleteRowWorkflowAction)
+    assert redone.service_id == copy_id
+
+    # The service the redo left is still named, so the clean up deletes it.
+    logged = Action.objects.get(type="update_database_workflow_action")
+    kept_id = logged.params["original_service_id"]
+    UpdateDatabaseWorkflowActionActionType.clean_up_any_extra_action_data(logged)
+    assert not Service.objects.filter(id=kept_id).exists()
+    assert Service.objects.filter(id=copy_id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_an_edit_to_only_sensitive_fields_adds_no_undo_step(data_fixture, settings):
+    """
+    Undo leaves sensitive fields as they are, so a step for this edit would
+    report an undo that changes nothing.
+    """
+
+    _enable_email(settings)
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field
+    )
+    # What saving through the API pins, so the update below changes only the
+    # subject.
+    service = CoreSMTPEmailWorkflowAction.objects.get(pk=action.pk).service.specific
+    service.use_instance_smtp_settings = True
+    service.save()
+
+    received = []
+
+    def receiver(sender, action_params, **kwargs):
+        received.append(action_params)
+
+    action_done.connect(receiver)
+    try:
+        UpdateDatabaseWorkflowActionActionType.do(
+            user,
+            CoreSMTPEmailWorkflowAction.objects.get(pk=action.pk),
+            service={"subject": _url("'Changed'")},
+        )
+    finally:
+        action_done.disconnect(receiver)
+
+    assert not Action.objects.filter(type="update_database_workflow_action").exists()
+    # The audit log still records the update, as JSON it can store.
+    assert json.loads(json.dumps(received))[0]["workflow_action_id"] == action.id
+    assert _email_service(action.id).subject["formula"] == "'Changed'"

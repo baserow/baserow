@@ -566,9 +566,12 @@ the natural place to narrow this further when it is wanted.
   action group, so one undo takes back the whole save. An update logs the action's
   values without the fields its service calls sensitive, since the log is copied into
   the audit log and an HTTP action keeps its keys in its headers. Undo leaves those
-  fields as they are. A type change keeps the service it replaces instead of deleting
-  it, so undo and redo attach the service each side had, sensitive fields included;
-  the kept service is deleted when the undo step is cleaned up.
+  fields as they are, and an edit to only those fields adds no undo step. A type change
+  keeps the service it replaces instead of deleting it, so undo and redo attach the
+  service each side had, sensitive fields included, after checking the user may still
+  read its integration; the kept service is deleted when the undo step is cleaned up.
+  A field changing away from a button logs its actions without sensitive values, so
+  undoing that brings them back with those fields blank.
 - **Deleting a user.** Nothing breaks: actions run as whoever clicks, and v1 services
   have no integration, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed

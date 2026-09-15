@@ -21,10 +21,11 @@ def before_permanently_deleted(sender, instance, **kwargs):
         DatabaseWorkflowActionTrashableItemType,
     )
 
-    TrashEntry.objects.filter(
-        trash_item_type=DatabaseWorkflowActionTrashableItemType.type,
-        trash_item_id=instance.id,
-    ).delete()
+    if instance.trashed:
+        TrashEntry.objects.filter(
+            trash_item_type=DatabaseWorkflowActionTrashableItemType.type,
+            trash_item_id=instance.id,
+        ).delete()
 
     if isinstance(instance.specific, DatabaseWorkflowServiceAction):
         service = instance.specific.service

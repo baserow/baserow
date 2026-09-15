@@ -1,3 +1,4 @@
+import dataclasses
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -174,28 +175,40 @@ class UpdateDatabaseWorkflowActionActionType(
         field = updated.workflow_action.field
         table = field.table
         database = table.database
-        cls.register_action(
-            user=user,
-            params=cls.Params(
-                database.id,
-                database.name,
-                table.id,
-                table.name,
-                field.id,
-                field.name,
-                updated.workflow_action.id,
-                updated.original_values,
-                updated.new_values,
-                original_service_id if type_changed else None,
-                (
-                    getattr(updated.workflow_action, "service_id", None)
-                    if type_changed
-                    else None
-                ),
+        params = cls.Params(
+            database.id,
+            database.name,
+            table.id,
+            table.name,
+            field.id,
+            field.name,
+            updated.workflow_action.id,
+            updated.original_values,
+            updated.new_values,
+            original_service_id if type_changed else None,
+            (
+                getattr(updated.workflow_action, "service_id", None)
+                if type_changed
+                else None
             ),
-            scope=cls.scope(field),
-            workspace=database.workspace,
         )
+        if updated.original_values == updated.new_values:
+            # Only sensitive fields changed, which an undo leaves as they are,
+            # so a step would report an undo that changes nothing. The audit
+            # log still hears about the update.
+            cls.send_action_done_signal(
+                user,
+                dataclasses.asdict(params),
+                cls.scope(field),
+                database.workspace,
+            )
+        else:
+            cls.register_action(
+                user=user,
+                params=params,
+                scope=cls.scope(field),
+                workspace=database.workspace,
+            )
         return updated.workflow_action
 
     @classmethod
@@ -206,9 +219,11 @@ class UpdateDatabaseWorkflowActionActionType(
     def _update(
         cls,
         user: AbstractUser,
+        action: Action,
         params: Params,
         values: Dict[str, Any],
         service_id: Optional[int],
+        leaving_service_key: str,
     ):
         # Locked, as the API does, since the values can carry a type change.
         workflow_action = (
@@ -217,6 +232,14 @@ class UpdateDatabaseWorkflowActionActionType(
             )
         )
         if values["type"] != workflow_action.get_type().type:
+            # The service the action has now is kept for the opposite step. It
+            # is not always the one logged: a field type change undone since
+            # recreates the action with a copy, which nothing would otherwise
+            # name, attach again or clean up. The handler saves the action
+            # after this.
+            action.params[leaving_service_key] = getattr(
+                workflow_action.specific, "service_id", None
+            )
             DatabaseWorkflowActionService().restore_workflow_action_type(
                 user, workflow_action, values, cls._kept_service(service_id)
             )
@@ -234,11 +257,25 @@ class UpdateDatabaseWorkflowActionActionType(
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        cls._update(user, params, params.original_values, params.original_service_id)
+        cls._update(
+            user,
+            action_to_undo,
+            params,
+            params.original_values,
+            params.original_service_id,
+            "new_service_id",
+        )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
-        cls._update(user, params, params.new_values, params.new_service_id)
+        cls._update(
+            user,
+            action_to_redo,
+            params,
+            params.new_values,
+            params.new_service_id,
+            "original_service_id",
+        )
 
     @classmethod
     def clean_up_any_extra_action_data(cls, action_being_cleaned_up: Action):

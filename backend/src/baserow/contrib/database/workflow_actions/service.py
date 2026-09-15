@@ -315,6 +315,13 @@ class DatabaseWorkflowActionService:
             if key not in ("type", "service")
         }
         if service is not None:
+            if service.integration_id is not None:
+                # Checked as an update setting the same integration would be,
+                # so an undo cannot give back a credential the user has since
+                # lost access to.
+                workflow_action_type._check_integration(
+                    service.integration_id, user, field
+                )
             config["service"] = service
 
         workflow_action = self.handler.change_workflow_action_type(
