@@ -2334,6 +2334,55 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("actor", ["anonymous", "user_source", "other_builder"])
+def test_get_record_names_published_builder(
+    api_client, data_fixture, data_source_fixture, actor
+):
+    primary_field = data_source_fixture["fields"][0]
+    primary_field.primary = True
+    primary_field.save()
+    page = data_source_fixture["page"]
+    page.builder.workspace = None
+    page.builder.save()
+    data_fixture.create_builder_custom_domain(published_to=page.builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=data_source_fixture["user"],
+        page=page,
+        integration=data_source_fixture["integration"],
+        table=data_source_fixture["table"],
+    )
+    url = reverse(
+        "api:builder:data_source:record-names",
+        kwargs={"data_source_id": data_source.id},
+    )
+    token = data_source_fixture["user_source_user_token"]
+    if actor == "other_builder":
+        other_builder = data_fixture.create_builder_application(workspace=None)
+        data_fixture.create_builder_custom_domain(published_to=other_builder)
+        source = data_fixture.create_local_baserow_table_user_source(
+            application=other_builder,
+            user=data_source_fixture["user"],
+            integration=data_fixture.create_local_baserow_integration(
+                application=other_builder, user=data_source_fixture["user"]
+            ),
+        )
+        external_user = data_fixture.create_user_source_user(
+            user_source=source, user_id=source.table.get_model().objects.first().id
+        )
+        token = external_user.get_refresh_token().access_token
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if actor != "anonymous" else {}
+    row = data_source_fixture["rows"][0]
+    response = api_client.get(f"{url}?record_ids={row.id}", **headers)
+
+    if actor == "other_builder":
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+        assert response.json()["error"] == "PERMISSION_DENIED"
+    else:
+        assert response.status_code == HTTP_200_OK
+        assert response.json() == {str(row.id): "Apple"}
+
+
+@pytest.mark.django_db
 def test_get_record_names(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)

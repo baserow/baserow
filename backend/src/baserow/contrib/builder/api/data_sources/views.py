@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from baserow.api.authentication import JSONWebTokenAuthentication
 from baserow.api.decorators import (
     map_exceptions,
     require_request_data_type,
@@ -23,6 +24,9 @@ from baserow.api.services.errors import (
     ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT,
     ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
     ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
+)
+from baserow.api.user_sources.authentication import (
+    UserSourceJSONWebTokenAuthentication,
 )
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
@@ -615,6 +619,10 @@ class DispatchDataSourcesView(APIView):
 
 class GetRecordNamesView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = (
+        UserSourceJSONWebTokenAuthentication,
+        JSONWebTokenAuthentication,
+    )
 
     @extend_schema(
         parameters=[
