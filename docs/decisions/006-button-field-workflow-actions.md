@@ -315,9 +315,9 @@ down to the services:
   and executes as the actor, and fails if there is none.
 - Integration present, which is the builder, automation, and any future opt-in:
   `authorized_user` authorizes, unchanged. Who started the run is recorded beside that,
-  not instead of it: the run's history and its dispatch context carry the person as
-  `triggered_by`, a separate slot from `actor`, so a node that happens to have no
-  integration does not start acting as whoever clicked.
+  not instead of it: the run's history carries the person as `triggered_by`, and the
+  dispatch context's `actor` stays empty, so a node that happens to have no integration
+  does not start acting as whoever clicked.
 
 Whether "no integration attached" is modeled as a nullable foreign key on the service or
 as a small purpose-built object with the same interface is an implementation choice, not
@@ -408,10 +408,9 @@ user's reach.
 
 The click itself is not anonymous, though. The run's history records the clicker as a
 subject (`triggered_by_id`, `triggered_by_type` and `triggered_by_name`, so an agent can
-start a run later and the name survives the user being deleted), the run's dispatch
-context exposes the same subject as `triggered_by`, and the click is registered as a
-`dispatch_button_field` action, so the audit log holds who clicked which button on which
-row. None of that changes who the nodes act as: the context's `actor` slot, which a Local
+start a run later and the name survives the user being deleted), and the click is
+registered as a `dispatch_button_field` action, so the audit log holds who clicked which
+button on which row. None of that changes who the nodes act as: the context's `actor` slot, which a Local
 Baserow node without an integration would act as, stays empty for a run. A workflow that
 another workflow starts records nobody, since the person is not a member of wherever
 that second workflow lives. A test run or simulation started from the editor records
