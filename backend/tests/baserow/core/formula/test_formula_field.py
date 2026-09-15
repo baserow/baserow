@@ -1,4 +1,9 @@
-from baserow.core.formula.field import FormulaField, JSONFormulaField
+from baserow.core.formula.field import (
+    BASEROW_FORMULA_VERSION_INITIAL,
+    FormulaField,
+    JSONFormulaField,
+)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 
 
 def test_json_formula_field_get_prep_value_does_not_mutate_input():
@@ -49,6 +54,89 @@ def test_json_formula_field_get_prep_value_does_not_mutate_input():
     prepped_again = field.get_prep_value(config)
     assert prepped_again == {
         "value": {"f": "get('current_record.field_5')", "m": "simple", "v": "0.1"}
+    }
+
+
+def test_json_formula_field_transform_db_property_coerces_null_formula():
+    """
+    Legacy rows written before the formula-object migration can hold `null` at
+    a formula path, and older write paths could persist a null `f`. These must
+    be read back as `formula: ""`, never `formula: None`, because clients expect
+    a string. A missing mode or version is deliberately not defaulted.
+    """
+
+    field = JSONFormulaField(properties=["value"])
+    expected = {
+        "formula": "",
+        "mode": BASEROW_FORMULA_MODE_SIMPLE,
+        "version": BASEROW_FORMULA_VERSION_INITIAL,
+    }
+    minified_with_null_formula = {
+        "f": None,
+        "m": BASEROW_FORMULA_MODE_SIMPLE,
+        "v": BASEROW_FORMULA_VERSION_INITIAL,
+    }
+
+    assert field._transform_db_property(None) == expected
+    assert field._transform_db_property(minified_with_null_formula) == expected
+
+
+def test_json_formula_field_transform_db_properties_coerces_legacy_null_value():
+    field = JSONFormulaField(properties=["value"])
+
+    result = field._transform_db_properties([{"name": "id", "value": None}])
+
+    assert result == [
+        {
+            "name": "id",
+            "value": {
+                "formula": "",
+                "mode": BASEROW_FORMULA_MODE_SIMPLE,
+                "version": BASEROW_FORMULA_VERSION_INITIAL,
+            },
+        }
+    ]
+
+
+def test_json_formula_field_get_prep_value_coerces_null_formula():
+    """
+    Non-serializer write paths (direct ORM saves, application import) must not
+    be able to persist a null formula.
+    """
+
+    field = JSONFormulaField(properties=["value"])
+    expected = [
+        {
+            "name": "id",
+            "value": {
+                "f": "",
+                "m": BASEROW_FORMULA_MODE_SIMPLE,
+                "v": BASEROW_FORMULA_VERSION_INITIAL,
+            },
+        }
+    ]
+    object_with_null_formula = {
+        "formula": None,
+        "mode": BASEROW_FORMULA_MODE_SIMPLE,
+        "version": BASEROW_FORMULA_VERSION_INITIAL,
+    }
+
+    assert field.get_prep_value([{"name": "id", "value": None}]) == expected
+    assert (
+        field.get_prep_value([{"name": "id", "value": object_with_null_formula}])
+        == expected
+    )
+
+
+def test_formula_field_transform_db_value_coerces_null_formula():
+    field = FormulaField()
+
+    result = field._transform_db_value_to_dict('{"m": "simple", "v": "0.1", "f": null}')
+
+    assert result == {
+        "formula": "",
+        "mode": BASEROW_FORMULA_MODE_SIMPLE,
+        "version": BASEROW_FORMULA_VERSION_INITIAL,
     }
 
 
