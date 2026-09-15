@@ -37,7 +37,7 @@ def test_roles_is_empty_by_default(user_source):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "roles,",
+    "roles",
     [
         ["foo_role"],
         ["bar_role", "foo_role"],
