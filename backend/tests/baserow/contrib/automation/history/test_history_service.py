@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.utils import timezone
 
 import pytest
@@ -10,6 +12,8 @@ from baserow.contrib.automation.history.exceptions import (
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.exceptions import UserNotInWorkspace
+
+SERVICES_PATH = "baserow.contrib.automation.history.service"
 
 
 @pytest.mark.django_db
@@ -62,6 +66,59 @@ def test_request_cancellation(data_fixture):
     assert result.status == HistoryStatusChoices.STARTED
     assert result.cancellation_requested_by == user
     assert result.cancellation_requested_on is not None
+
+
+@patch(f"{SERVICES_PATH}.automation_workflow_dispatch_cancellation_requested")
+@pytest.mark.django_db
+def test_request_cancellation_signal_sent(mock_signal, data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.STARTED
+    )
+
+    service = AutomationHistoryService()
+    result = service.request_cancellation(user, history.id)
+
+    mock_signal.send.assert_called_once_with(
+        service, workflow_history=result, user=user
+    )
+
+
+@patch(f"{SERVICES_PATH}.automation_workflow_dispatch_cancellation_requested")
+@pytest.mark.django_db
+def test_request_cancellation_signal_sent_for_repeated_request(
+    mock_signal, data_fixture
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+
+    AutomationHistoryService().request_cancellation(user, history.id)
+
+    mock_signal.send.assert_called_once()
+
+
+@patch(f"{SERVICES_PATH}.automation_workflow_dispatch_cancellation_requested")
+@pytest.mark.django_db
+def test_request_cancellation_signal_not_sent_when_not_running(
+    mock_signal, data_fixture
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.SUCCESS
+    )
+
+    with pytest.raises(AutomationWorkflowHistoryNotRunning):
+        AutomationHistoryService().request_cancellation(user, history.id)
+
+    mock_signal.send.assert_not_called()
 
 
 @pytest.mark.django_db

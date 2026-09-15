@@ -18,6 +18,9 @@ from baserow.contrib.automation.workflows.operations import (
     ReadAutomationWorkflowOperationType,
     UpdateAutomationWorkflowOperationType,
 )
+from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_dispatch_cancellation_requested,
+)
 from baserow.core.handler import CoreHandler
 
 
@@ -79,9 +82,15 @@ class AutomationHistoryService:
             context=workflow,
         )
 
-        return self.handler.request_workflow_history_cancellation(
+        workflow_history = self.handler.request_workflow_history_cancellation(
             workflow_history, user
         )
+
+        automation_workflow_dispatch_cancellation_requested.send(
+            self, workflow_history=workflow_history, user=user
+        )
+
+        return workflow_history
 
     def get_node_histories(
         self, user: AbstractUser, workflow_history_id: int
