@@ -104,6 +104,7 @@ class ForcedPublicPolymorphicApplicationResponseSerializer(
 
 class PublicBuilderByDomainNameView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = BUILDER_PUBLIC_RENDER_AUTHENTICATION_CLASSES
 
     @extend_schema(
         parameters=[

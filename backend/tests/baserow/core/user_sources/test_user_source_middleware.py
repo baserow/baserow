@@ -40,6 +40,7 @@ def test_user_source_middleware_adds_user_source_user(
         # As it's a lazy object we need to access at least one property to load it.
         assert fake_request.user_source_user.is_authenticated
 
+    assert fake_request.user is user
     assert isinstance(fake_request.user_source_user, UserSourceUser)
 
     # Should user the already authenticated user_source_user if any
