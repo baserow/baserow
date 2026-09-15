@@ -580,8 +580,10 @@ the natural place to narrow this further when it is wanted.
 - **Audit log.** A click registers one `dispatch_button_field` action after every
   permission check has passed and before the first action runs, inside the lock when
   there is one, so a click refused for permission or as already running leaves no entry
-  and a click that fails half way still does. A button with only client actions takes no
-  lock, so a double click on it is two entries. Clicks stay out of the undo stack.
+  and a click that fails half way still does. A button with no actions returns before
+  registering anything, so its clicks leave no entry. A button with only client actions
+  takes no lock, so a double click on it is two entries. Clicks stay out of the undo
+  stack.
 - **Deleting a user.** Nothing breaks: actions run as whoever clicks, and v1 services
   have no integration, so no button depends on any particular account.
 - **Failure mid-sequence.** Execution stops, later actions are skipped, completed
