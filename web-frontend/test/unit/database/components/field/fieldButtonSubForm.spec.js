@@ -624,8 +624,8 @@ describe('FieldButtonSubForm', () => {
       // the same action and the order call uses the id the editor holds.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
-        { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
         { id: 2, type: 'local_baserow_delete_row', service: {} },
+        { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
       ]
       wrapper.vm.localActions = [
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
@@ -715,11 +715,6 @@ describe('FieldButtonSubForm', () => {
           noGroup,
         ],
       ])
-      expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
-        'database/field/7/workflow_actions/order/',
-        { workflow_action_ids: [1] },
-        noGroup
-      )
     })
 
     test('a type round trip sends no untyped service back', async () => {
@@ -807,7 +802,7 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
     })
 
-    test('saving deletes a removed action and orders the rest', async () => {
+    test('saving deletes a removed action and leaves the order alone', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
         { id: 1, type: 'local_baserow_create_row', service: {} },
@@ -823,9 +818,43 @@ describe('FieldButtonSubForm', () => {
         'database/workflow_action/1/',
         noGroup
       )
-      expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
+      // The server already has [2], so an order call would only add an undo
+      // step to the save's group.
+      expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+    })
+
+    test('an action created last sends no order call', async () => {
+      const client = testApp.getApp().$client
+      client.post.mockResolvedValue({ data: { id: 3, type: 'open_url' } })
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [{ id: 1, type: 'open_url', url: 'a' }]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'open_url', url: 'a' },
+        { [CLIENT_ID_KEY]: 'new', type: 'open_url', url: 'b' },
+      ]
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(client.post.mock.calls.map((call) => call[0])).toEqual([
+        'database/field/7/workflow_actions/',
+      ])
+    })
+
+    test('an action created above a saved one is ordered into place', async () => {
+      const client = testApp.getApp().$client
+      client.post.mockResolvedValue({ data: { id: 3, type: 'open_url' } })
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [{ id: 1, type: 'open_url', url: 'a' }]
+      wrapper.vm.localActions = [
+        { [CLIENT_ID_KEY]: 'new', type: 'open_url', url: 'b' },
+        { id: 1, type: 'open_url', url: 'a' },
+      ]
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/order/',
-        { workflow_action_ids: [2] },
+        { workflow_action_ids: [3, 1] },
         noGroup
       )
     })
@@ -842,8 +871,8 @@ describe('FieldButtonSubForm', () => {
         { id: 2, type: 'open_url', url: 'b' },
       ]
       wrapper.vm.localActions = [
-        { id: 1, type: 'open_url', url: 'changed' },
         { [CLIENT_ID_KEY]: 'new', type: 'open_url', url: 'c' },
+        { id: 1, type: 'open_url', url: 'changed' },
       ]
 
       await wrapper.vm.afterFieldSaved(7, { undoRedoActionGroupId: 'group-1' })

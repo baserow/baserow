@@ -477,7 +477,18 @@ export default {
           id === null ? created.shift() : id
         )
 
-        if (finalOrder.length > 0) {
+        // Without an order call the server keeps what was there, less what
+        // was deleted, and appends each create. Sending that same order again
+        // would only add an undo step, and a group undoes a limited number.
+        const deleted = new Set(toDelete)
+        const orderWithoutCall = [
+          ...this.serverActions
+            .map((action) => action.id)
+            .filter((id) => !deleted.has(id)),
+          ...createdIds,
+        ]
+
+        if (finalOrder.length > 0 && !_.isEqual(finalOrder, orderWithoutCall)) {
           await service.order(fieldId, finalOrder, undoRedoActionGroupId)
         }
       } catch (error) {
