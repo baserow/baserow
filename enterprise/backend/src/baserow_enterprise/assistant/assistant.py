@@ -363,7 +363,10 @@ class Assistant:
         await AssistantChatPrediction.objects.acreate(
             human_message=human_msg,
             ai_response=ai_msg,
-            prediction={"answer": answer},
+            prediction={
+                "answer": answer,
+                "posthog_trace_id": self._telemetry.trace_id,
+            },
         )
         return AiMessage(
             id=ai_msg.id,
@@ -469,7 +472,11 @@ class Assistant:
         """
 
         try:
-            with self._telemetry.trace(self._chat, user_prompt) as tracer:
+            with self._telemetry.trace(
+                self._chat,
+                user_prompt,
+                cancelled_by_user=lambda: self._tool_helpers.is_cancelled,
+            ) as tracer:
                 answer, run_result = await self._run_agent_with_retries(
                     user_prompt, message_history, queue
                 )
@@ -635,10 +642,16 @@ class Assistant:
         """Return True if *text* looks like a tool call dumped as JSON.
 
         Checks for ``{"name": ..., "arguments": ...}`` pattern in the first
-        200 chars. Does not require valid JSON (the output may be truncated).
+        200 chars after an optional code fence. Does not require valid JSON
+        because the output may be truncated.
+
+        :param text: The final text returned by the agent.
+        :return: Whether the text appears to contain an unexecuted tool call.
         """
 
         stripped = text.strip()
+        if stripped.startswith("```"):
+            stripped = stripped.split("\n", 1)[-1].strip()
         return (
             bool(stripped)
             and stripped[0] == "{"
