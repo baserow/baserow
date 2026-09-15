@@ -312,12 +312,16 @@ class WidgetLayoutHandler:
         resolved_layout = resolve_widget_layout_collisions(
             replayed_layout, fixed_layout
         )
-        original_layout, layout_by_widget_id = self.merge_delta(
+        # Preserved widgets can still have pre-grid dimensions or overlap each
+        # other. They constrain placement but are outside this mutation's scope.
+        replayed_handler = WidgetLayoutHandler(
+            widget for widget in self.widgets if widget.id in replayed_ids
+        )
+        layout_by_widget_id = replayed_handler.validate(
             resolved_layout,
             enforce_vertical_bound=False,
         )
-        return self.apply(
+        return replayed_handler.apply(
             layout_by_widget_id,
-            original_layout=original_layout,
             allowed_widget_ids=allowed_widget_ids,
         )
