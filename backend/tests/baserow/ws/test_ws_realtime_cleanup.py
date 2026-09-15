@@ -1,31 +1,42 @@
 from contextlib import closing
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.db import OperationalError, connection, transaction
 from django.utils import timezone
 
 import pytest
 
-from baserow.ws import realtime_events, tasks
+from baserow.ws import history, realtime_events, tasks
 from baserow.ws.models import RealtimeEvent
 from baserow.ws.realtime_events import RealtimeEventHandler
 from baserow.ws.tasks import cleanup_old_realtime_events
 
 
 @pytest.mark.parametrize("max_events", [0, 5])
+@pytest.mark.parametrize("retention_hours", [1, 24, 48, 240])
 def test_cleanup_task_uses_independent_retention_even_when_recording_disabled(
-    settings, max_events
+    settings, max_events, retention_hours
 ):
     settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS = max_events
+    settings.REALTIME_REPLAY_RETENTION_HOURS = retention_hours
     settings.SIMPLE_JWT = {"REFRESH_TOKEN_LIFETIME": timedelta(days=7)}
     with (
         patch.object(RealtimeEventHandler, "cleanup_old_realtime_events") as cleanup,
-        patch("django.core.cache.cache.lock"),
+        patch("django.core.cache.cache.lock") as make_lock,
         patch.object(tasks, "monotonic", return_value=100),
     ):
         cleanup_old_realtime_events()
-    cleanup.assert_called_once_with(timedelta(hours=24), deadline=130)
+    cleanup.assert_called_once_with(timedelta(hours=retention_hours), deadline=340)
+    assert make_lock.call_args.kwargs["timeout"] == 330
+
+
+def test_cleanup_runs_every_ten_minutes():
+    sender = Mock()
+    tasks.setup_periodic_ws_realtime_events_cleanup(sender)
+    sender.add_periodic_task.assert_called_once_with(
+        timedelta(minutes=10), cleanup_old_realtime_events.s()
+    )
 
 
 def test_cleanup_task_skips_an_overlapping_run():
@@ -141,7 +152,9 @@ def test_cleanup_keeps_earlier_commits_when_a_later_batch_fails(monkeypatch):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_retention_boundary_preserves_fresh_replay_and_expires_old_cursor(settings):
+def test_retention_boundary_preserves_replay_after_an_acknowledged_expired_event(
+    settings,
+):
     settings.SIMPLE_JWT = {"REFRESH_TOKEN_LIFETIME": timedelta(days=7)}
     now = timezone.now()
     with patch.object(realtime_events.timezone, "now", return_value=now):
@@ -155,12 +168,11 @@ def test_retention_boundary_preserves_fresh_replay_and_expires_old_cursor(settin
         assert list(
             RealtimeEvent.objects.order_by("id").values_list("id", flat=True)
         ) == [boundary, fresh, latest]
-        expired_result = RealtimeEventHandler.get_replay_events_result(
-            1, ["table-1"], expired, None
-        )
-        assert expired_result.force_refresh is True
-        assert expired_result.replay_events == []
-        for cursor, expected in ((boundary, [fresh, latest]), (fresh, [latest])):
+        for cursor, expected in (
+            (expired, [boundary, fresh, latest]),
+            (boundary, [fresh, latest]),
+            (fresh, [latest]),
+        ):
             result = RealtimeEventHandler.get_replay_events_result(
                 1, ["table-1"], cursor, None
             )
@@ -175,6 +187,7 @@ def test_cleanup_stops_at_its_work_budget(monkeypatch):
     create_events(timedelta(days=2), 5)
     now = 0
     monkeypatch.setattr(realtime_events, "monotonic", lambda: now)
+    monkeypatch.setattr(history, "monotonic", lambda: now)
     original = RealtimeEventHandler._delete_realtime_events_batch
 
     def consume_budget(*args):
@@ -211,7 +224,7 @@ def test_cleanup_timeouts_are_local_and_preserve_stricter_settings(
     observed = []
 
     def check_timeouts(execute, sql, params, many, context):
-        if sql.startswith("WITH expired"):
+        if sql.startswith("WITH candidates"):
             with connection.cursor() as cursor:
                 cursor.execute("SHOW statement_timeout")
                 statement = cursor.fetchone()[0]
@@ -243,6 +256,81 @@ def test_cleanup_timeouts_are_local_and_preserve_stricter_settings(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "statement_timeout,lock_timeout,expected_statements,expected_lock",
+    [
+        ("0", "0", ["3s", "3s", "2s", "1s", "1s"], "250ms"),
+        (
+            "1500ms",
+            "50ms",
+            ["1500ms", "1500ms", "1500ms", "1s", "1s"],
+            "50ms",
+        ),
+    ],
+)
+def test_cleanup_tightens_timeouts_as_the_batch_uses_its_remaining_budget(
+    monkeypatch, statement_timeout, lock_timeout, expected_statements, expected_lock
+):
+    expired = create_events(timedelta(days=2), 2)
+    now = 0
+    monkeypatch.setattr(history, "monotonic", lambda: now)
+    observed = []
+    timeout_updates = 0
+    statement_times = {
+        "SELECT ws_initialize_realtime_history()": 5,
+        "WITH candidates": 8,
+        "INSERT INTO ws_realtime_event_history_summary": 9,
+        "DELETE FROM ws_realtime_events": 9,
+        "UPDATE ws_realtime_event_history_state": 9,
+    }
+
+    def observe_settings_and_advance_clock(execute, sql, params, many, context):
+        nonlocal now, timeout_updates
+        if "set_config('statement_timeout'" in sql:
+            timeout_updates += 1
+        for prefix, finished_at in statement_times.items():
+            if sql.startswith(prefix):
+                with connection.cursor() as cursor:
+                    cursor.execute("SHOW statement_timeout")
+                    statement = cursor.fetchone()[0]
+                    cursor.execute("SHOW lock_timeout")
+                    lock = cursor.fetchone()[0]
+                observed.append((prefix, statement, lock))
+                result = execute(sql, params, many, context)
+                now = finished_at
+                return result
+        return execute(sql, params, many, context)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT set_config('statement_timeout', %s, false)", [statement_timeout]
+        )
+        cursor.execute("SELECT set_config('lock_timeout', %s, false)", [lock_timeout])
+    try:
+        with connection.execute_wrapper(observe_settings_and_advance_clock):
+            assert (
+                RealtimeEventHandler._delete_realtime_events_batch(
+                    timezone.now() - timedelta(days=1), deadline=10
+                )
+                == 2
+            )
+        assert observed == [
+            (prefix, statement, expected_lock)
+            for prefix, statement in zip(statement_times, expected_statements)
+        ]
+        # Reuse the cap until the remaining budget falls below three seconds.
+        assert timeout_updates == 3
+        assert not RealtimeEvent.objects.filter(id__in=expired).exists()
+        with connection.cursor() as cursor:
+            cursor.execute("SHOW statement_timeout")
+            assert cursor.fetchone()[0] == statement_timeout
+            cursor.execute("SHOW lock_timeout")
+            assert cursor.fetchone()[0] == lock_timeout
+    finally:
+        connection.close()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_cleanup_statement_timeout_stops_slow_database_work(monkeypatch):
     monkeypatch.setattr(
         realtime_events, "REALTIME_EVENTS_CLEANUP_STATEMENT_TIMEOUT_MS", 25
@@ -250,7 +338,7 @@ def test_cleanup_statement_timeout_stops_slow_database_work(monkeypatch):
     expired = create_events(timedelta(days=2), 1)
 
     def slow_delete(execute, sql, params, many, context):
-        if sql.startswith("WITH expired"):
+        if sql.startswith("WITH candidates"):
             return execute("SELECT pg_sleep(1)", [], many, context)
         return execute(sql, params, many, context)
 

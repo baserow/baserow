@@ -234,7 +234,9 @@ def _get_executor():
 
 
 def _force_refresh():
-    return ReplayEventsResult(True, NO_REPLAY_AVAILABLE, [])
+    return ReplayEventsResult(
+        True, NO_REPLAY_AVAILABLE, [], refresh_reason="missing_cursor"
+    )
 
 
 def _retry_later():
@@ -315,6 +317,7 @@ async def get_replay_events_result(
 
     started_at = monotonic()
     outcome = "error"
+    reason = "none"
     try:
         if last_seen_id == NO_REPLAY_AVAILABLE:
             result = _force_refresh()
@@ -341,6 +344,7 @@ async def get_replay_events_result(
                 result = await asyncio.shield(task)
         if result.force_refresh:
             outcome = "refresh"
+            reason = result.refresh_reason or "unknown"
         elif last_seen_id == FIRST_CONNECT_CURSOR:
             outcome = "baseline"
         else:
@@ -362,6 +366,6 @@ async def get_replay_events_result(
         outcome = "cancelled"
         raise
     finally:
-        attributes = {"process.pid": os.getpid(), "outcome": outcome}
+        attributes = {"process.pid": os.getpid(), "outcome": outcome, "reason": reason}
         websocket_replay_requests.add(1, attributes)
         websocket_replay_duration.record((monotonic() - started_at) * 1000, attributes)

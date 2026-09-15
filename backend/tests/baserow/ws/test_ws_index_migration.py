@@ -6,7 +6,7 @@ from django.db import IntegrityError, connection
 
 import pytest
 
-from baserow.ws.models import RealtimeEvent
+from baserow.ws.models import RealtimeEvent, RealtimeEventHistoryState
 from baserow.ws.realtime_events import RealtimeEventHandler
 
 
@@ -85,20 +85,28 @@ def test_replay_reset_upgrade_and_rollback_keep_ids_and_old_writer_compatibility
     _apply("backwards")
     try:
         old_cursor = _legacy_insert()
+        lost_id = _legacy_insert()
         old_filenode = _table_storage()[0]
         _apply("forwards")
         assert RealtimeEvent.objects.count() == 0
         assert _table_storage()[0] != old_filenode
         assert {"target_user_ids", "all_users"} <= _columns()
 
+        # Activate history after the reset, as ws.0003 does in deployment. The
+        # sequence records the missed event even though its payload is now gone.
+        RealtimeEventHistoryState.objects.all().delete()
+        RealtimeEventHandler._initialize_realtime_history()
+        assert RealtimeEventHistoryState.objects.get(pk=1).floor == lost_id
         new_id = _legacy_insert()
-        assert new_id > old_cursor
+        assert new_id > lost_id > old_cursor
         event = RealtimeEvent.objects.get(id=new_id)
         assert event.target_user_ids == [42]
         assert event.all_users is False
-        assert RealtimeEventHandler.get_replay_events_result(
+        result = RealtimeEventHandler.get_replay_events_result(
             42, [], old_cursor, "socket"
-        ).force_refresh
+        )
+        assert result.force_refresh is True
+        assert result.refresh_reason == "unknown_history"
         indexes = _indexes()
         assert migration.OLD_INDEX not in indexes
         assert migration.USERS_INDEX not in indexes

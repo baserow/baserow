@@ -8,7 +8,7 @@ from django.utils import timezone
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from baserow.ws import realtime_events, telemetry
+from baserow.ws import history, realtime_events, telemetry
 from baserow.ws.models import RealtimeEvent
 from baserow.ws.realtime_events import RealtimeEventHandler
 from baserow.ws.tasks import cleanup_old_realtime_events
@@ -248,6 +248,7 @@ def test_cleanup_budget_reports_progress_without_claiming_completion(
     monkeypatch.setattr(realtime_events, "REALTIME_EVENTS_CLEANUP_BATCH_SIZE", 2)
     now = [0.0]
     monkeypatch.setattr(realtime_events, "monotonic", lambda: now[0])
+    monkeypatch.setattr(history, "monotonic", lambda: now[0])
     delete_batch = RealtimeEventHandler._delete_realtime_events_batch
 
     def slow_batch(cutoff, deadline):

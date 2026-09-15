@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import timedelta
 from time import monotonic
 from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
-from django.db import connection, transaction
-from django.db.models import Max, Q
-from django.db.models.functions import Coalesce
+from django.db import connection
+from django.db.models import Case, F, Q, When
 from django.db.models.query import QuerySet
 from django.utils import timezone
 
@@ -25,13 +25,13 @@ if TYPE_CHECKING:
     from baserow.ws.consumers import SubscribedPages
     from baserow.ws.models import RealtimeEvent
 
-REALTIME_EVENTS_RETENTION = timedelta(hours=24)
-REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES = 1
+REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES = 10
 REALTIME_EVENTS_CLEANUP_BATCH_SIZE = 5000
-REALTIME_EVENTS_CLEANUP_BUDGET_SECONDS = 30
+# Leave headroom below Celery's default five-minute soft task limit.
+REALTIME_EVENTS_CLEANUP_BUDGET_SECONDS = 4 * 60
 REALTIME_EVENTS_CLEANUP_STATEMENT_TIMEOUT_MS = 3000
 REALTIME_EVENTS_CLEANUP_LOCK_TIMEOUT_MS = 250
-REALTIME_EVENTS_CLEANUP_LOCK_SECONDS = 120
+REALTIME_EVENTS_CLEANUP_LOCK_SECONDS = REALTIME_EVENTS_CLEANUP_BUDGET_SECONDS + 90
 
 # ``replay_events`` cursor sentinels. Must match the constants in
 # web-frontend/modules/core/plugins/realtimeProtocol.js.
@@ -54,6 +54,7 @@ class ReplayEventsResult:
     # Transient infrastructure failure, rather than an unrecoverable replay gap.
     # Older clients still receive the force-refresh fallback.
     retry_after_ms: int | None = None
+    refresh_reason: str | None = None
 
 
 class RealtimeEventHandler:
@@ -64,6 +65,12 @@ class RealtimeEventHandler:
         """
 
         return settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS > 0
+
+    @staticmethod
+    def get_replay_retention() -> timedelta:
+        """Maximum age of full events accepted by replay and retained by cleanup."""
+
+        return timedelta(hours=settings.REALTIME_REPLAY_RETENTION_HOURS)
 
     @staticmethod
     def record_events(
@@ -188,46 +195,17 @@ class RealtimeEventHandler:
 
     @staticmethod
     def _delete_realtime_events_batch(cutoff, deadline) -> int:
-        """Delete one bounded oldest-first batch and commit before returning."""
+        """Save expired delivery evidence and delete one independently committed batch."""
 
-        # A caller must not accidentally turn many batches into one transaction.
-        # RealtimeEvent is UNLOGGED, so its storage is always on the primary DB.
-        with transaction.atomic(durable=True), connection.cursor() as cursor:
-            remaining_ms = int((deadline - monotonic()) * 1000)
-            if remaining_ms <= 0:
-                return 0
-            statement_timeout = (
-                f"{min(REALTIME_EVENTS_CLEANUP_STATEMENT_TIMEOUT_MS, remaining_ms)}ms"
-            )
-            lock_timeout = f"{REALTIME_EVENTS_CLEANUP_LOCK_TIMEOUT_MS}ms"
-            # Both limits are transaction-local and must preserve stricter
-            # database/operator settings. These expressions only read settings.
-            cursor.execute(
-                "SELECT "
-                "set_config('statement_timeout', CASE WHEN "
-                "current_setting('statement_timeout')::interval = interval '0' OR "
-                "current_setting('statement_timeout')::interval > %s::interval "
-                "THEN %s ELSE current_setting('statement_timeout') END, true), "
-                "set_config('lock_timeout', CASE WHEN "
-                "current_setting('lock_timeout')::interval = interval '0' OR "
-                "current_setting('lock_timeout')::interval > %s::interval "
-                "THEN %s ELSE current_setting('lock_timeout') END, true)",
-                [statement_timeout, statement_timeout, lock_timeout, lock_timeout],
-            )
-            if monotonic() >= deadline:
-                return 0
-            # The (created_at, id) index finds the oldest bounded candidate set.
-            # This ephemeral log has no model deletion hooks or relationships;
-            # delete directly without loading payloads or collecting model rows.
-            cursor.execute(
-                "WITH expired AS MATERIALIZED ("
-                "SELECT id FROM ws_realtime_events WHERE created_at < %s "
-                "ORDER BY created_at, id LIMIT %s FOR UPDATE SKIP LOCKED"
-                ") DELETE FROM ws_realtime_events AS event "
-                "USING expired WHERE event.id = expired.id",
-                [cutoff, REALTIME_EVENTS_CLEANUP_BATCH_SIZE],
-            )
-            return cursor.rowcount
+        from baserow.ws.history import compact_events_batch
+
+        return compact_events_batch(
+            cutoff,
+            deadline,
+            batch_size=REALTIME_EVENTS_CLEANUP_BATCH_SIZE,
+            statement_timeout_ms=REALTIME_EVENTS_CLEANUP_STATEMENT_TIMEOUT_MS,
+            lock_timeout_ms=REALTIME_EVENTS_CLEANUP_LOCK_TIMEOUT_MS,
+        )
 
     @staticmethod
     def get_page_group_names(pages: "SubscribedPages") -> list[str]:
@@ -258,91 +236,154 @@ class RealtimeEventHandler:
         last_seen_id: int,
         web_socket_id: Optional[str],
     ) -> ReplayEventsResult:
-        """
-        Decide how a realtime client should catch up after connecting. Only
-        called when replay recording is enabled — well-behaved clients skip
-        ``replay_events`` when the authentication handshake says it is off,
-        and ``_handle_replay_events`` drops the message otherwise.
-
-        :param user_id: The id of the reconnecting user.
-        :param page_group_names: Page channel group names the user is
-            subscribed to. Must not include ``"users"`` — that channel is
-            added unconditionally by
-            ``get_users_channel_live_delivery_filter``.
-        :param last_seen_id: ``FIRST_CONNECT_CURSOR`` for a fresh connection,
-            ``NO_REPLAY_AVAILABLE`` for a reconnect with no usable high-water
-            mark, or a positive event id the client last saw.
-        :param web_socket_id: The client's persistent web socket id, used to
-            exclude events the client itself originated.
-        :returns: A result containing replay events or a force-refresh instruction.
-        """
-
-        if last_seen_id == FIRST_CONNECT_CURSOR:
-            # Connecting for the first time - clients only need the latest event id to
-            # know where to start for future reconnects.
-            return ReplayEventsResult(
-                force_refresh=False,
-                latest_event_id=RealtimeEventHandler.get_latest_event_id(),
-                replay_events=[],
-            )
-
-        if last_seen_id == NO_REPLAY_AVAILABLE:
-            # Reconnect without a high-water mark — we can't prove what was
-            # missed, so the client has to refresh.
-            return ReplayEventsResult(
-                force_refresh=True,
-                latest_event_id=NO_REPLAY_AVAILABLE,
-                replay_events=[],
-            )
-
-        replay_window_events = list(
-            RealtimeEventHandler.get_replay_window(
-                user_id, page_group_names, last_seen_id, web_socket_id
-            )
-        )
-
-        if replay_window_events:
-            # The first event must be the last seen event, and we must not exceed the
-            # replay limit with the remaining events, for a successful replay.
-            baseline = replay_window_events[0]
-            latest_event_id = replay_window_events[-1].id
-            replay_events = replay_window_events[1:]
-            max_events = settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS
-            can_replay = (
-                baseline.id == last_seen_id
-                # Cleanup can skip a locked expired baseline while deleting
-                # later expired events. That surviving row cannot prove that
-                # the replay window is complete.
-                and baseline.created_at >= timezone.now() - REALTIME_EVENTS_RETENTION
-                and len(replay_events) <= max_events
-            )
-            if can_replay:
-                return ReplayEventsResult(
-                    force_refresh=False,
-                    latest_event_id=latest_event_id,
-                    replay_events=replay_events,
-                )
-
-        # Empty window or unable to anchor against ``last_seen_id`` — the
-        # cursor has expired, the client missed too many events, or the
-        # filter excluded the baseline. Force a refresh.
-        return ReplayEventsResult(
-            force_refresh=True,
-            latest_event_id=NO_REPLAY_AVAILABLE,
-            replay_events=[],
-        )
-
-    @staticmethod
-    def get_latest_event_id() -> int:
-        """
-        Return the latest persisted realtime event id.
-
-        :return: The highest event id, or ``0`` when no events exist.
-        """
+        """Distinguish unchanged, replayable and expired history in one snapshot."""
 
         from baserow.ws.models import RealtimeEvent
 
-        return RealtimeEvent.objects.aggregate(latest=Coalesce(Max("id"), 0))["latest"]
+        def refresh(reason):
+            return ReplayEventsResult(
+                True, NO_REPLAY_AVAILABLE, [], refresh_reason=reason
+            )
+
+        if last_seen_id == NO_REPLAY_AVAILABLE:
+            return refresh("missing_cursor")
+        if last_seen_id == FIRST_CONNECT_CURSOR:
+            return ReplayEventsResult(
+                False, RealtimeEventHandler.get_latest_event_id(), []
+            )
+
+        rows = RealtimeEventHandler._get_replay_snapshot(
+            user_id,
+            page_group_names,
+            last_seen_id,
+            web_socket_id,
+        )
+        if not rows or last_seen_id < rows[0][0]:
+            return refresh("unknown_history")
+        latest_event_id = rows[0][1]
+        if last_seen_id > latest_event_id:
+            return refresh("cursor_ahead")
+
+        if rows[0][2]:
+            return refresh("expired_payload")
+
+        cutoff = timezone.now() - RealtimeEventHandler.get_replay_retention()
+        events = []
+        for _, _, _, event_id, channel_group, payload, created_at in rows:
+            if event_id is None:
+                continue
+            if created_at < cutoff:
+                return refresh("expired_payload")
+            events.append(
+                RealtimeEvent(
+                    id=event_id,
+                    channel_group=channel_group,
+                    payload=json.loads(payload)
+                    if isinstance(payload, str)
+                    else payload,
+                    created_at=created_at,
+                )
+            )
+        if len(events) > settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS:
+            return refresh("event_limit")
+        # Do not acknowledge unrelated higher IDs: a lower relevant INSERT may
+        # still be uncommitted. Retain the original cursor when nothing replays.
+        return ReplayEventsResult(
+            False, events[-1].id if events else last_seen_id, events
+        )
+
+    @staticmethod
+    def _initialize_realtime_history():
+        # Usually a cheap existence check. After an UNLOGGED reset the function
+        # waits for in-flight inserts before recording a conservative loss floor.
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT ws_initialize_realtime_history()")
+
+    @staticmethod
+    def get_latest_event_id() -> int:
+        """Return the high-water mark, including evicted history."""
+
+        with connection.cursor() as cursor:
+            sql = (
+                "SELECT GREATEST(floor, compacted_event_id, "
+                "COALESCE((SELECT id FROM ws_realtime_events "
+                "ORDER BY id DESC LIMIT 1), 0)) "
+                "FROM ws_realtime_event_history_state WHERE id = 1"
+            )
+            cursor.execute(sql)
+            row = cursor.fetchone()
+            if row is None:
+                RealtimeEventHandler._initialize_realtime_history()
+                cursor.execute(sql)
+                row = cursor.fetchone()
+            return row[0]
+
+    @staticmethod
+    def _get_replay_snapshot(user_id, page_group_names, last_seen_id, web_socket_id):
+        """Read expired evidence, payloads and loss state together across cleanup."""
+
+        events = RealtimeEventHandler.get_replay_window(
+            user_id, page_group_names, last_seen_id, web_socket_id
+        )
+        history = RealtimeEventHandler.get_expired_history(
+            user_id, page_group_names, last_seen_id, web_socket_id
+        )
+        events_sql, events_params = events.values_list(
+            "id", "channel_group", "payload", "created_at"
+        ).query.sql_with_params()
+        history_sql, history_params = history.values(
+            "route_key"
+        ).query.sql_with_params()
+        sql = (
+            "WITH history AS MATERIALIZED ("  # noqa: S608
+            "SELECT state.floor, GREATEST(state.floor, state.compacted_event_id, "
+            "COALESCE((SELECT id FROM ws_realtime_events "
+            "ORDER BY id DESC LIMIT 1), 0)) AS latest_event_id, "
+            f"CASE WHEN state.floor <= %s THEN EXISTS({history_sql}) "
+            "ELSE false END AS expired "
+            "FROM ws_realtime_event_history_state AS state WHERE state.id = 1) "
+            "SELECT history.*, replay.* FROM history "
+            "LEFT JOIN LATERAL ("
+            "SELECT events.id, events.channel_group, "
+            "CASE WHEN events.created_at < %s THEN NULL ELSE events.payload END, "
+            f"events.created_at FROM ({events_sql}) AS events "
+            "WHERE history.floor <= %s AND NOT history.expired"
+            ") AS replay ON true ORDER BY replay.id"
+        )
+        params = [
+            last_seen_id,
+            *history_params,
+            timezone.now() - RealtimeEventHandler.get_replay_retention(),
+            *events_params,
+            last_seen_id,
+        ]
+        with connection.cursor() as cursor:
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            if not rows:
+                RealtimeEventHandler._initialize_realtime_history()
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+            return rows
+
+    @staticmethod
+    def get_expired_history(user_id, page_group_names, last_seen_id, web_socket_id):
+        """Match compacted audiences, accounting for the client's socket exclusion."""
+
+        from baserow.ws.models import RealtimeEventHistorySummary
+
+        latest = F("latest_event_id")
+        if web_socket_id is not None:
+            latest = Case(
+                When(latest_socket_id=web_socket_id, then=F("previous_event_id")),
+                default=latest,
+            )
+        return RealtimeEventHistorySummary.objects.alias(
+            relevant_event_id=latest
+        ).filter(
+            RealtimeEventHandler.get_relevant_events_filter(user_id, page_group_names),
+            relevant_event_id__gt=last_seen_id,
+        )
 
     @staticmethod
     def get_replay_window(
@@ -351,37 +392,21 @@ class RealtimeEventHandler:
         last_seen_id: int,
         web_socket_id: Optional[str],
     ) -> QuerySet[RealtimeEvent]:
-        """
-        Return the baseline event followed by replayable events.
+        """Return relevant payloads after the cursor, capped at limit plus one.
 
-        :param user_id: The id of the reconnecting user.
-        :param page_group_names: Page channel group names the user is
-            subscribed to. Must not include ``"users"``.
-        :param last_seen_id: Highest event id the client has already processed.
-        :param web_socket_id: The client's persistent web socket id, used to
-            exclude events the client itself originated.
-        :return: An ordered queryset containing ``last_seen_id`` when it still
-            exists, plus relevant events after it. The queryset is capped at
-            baseline plus one more than the configured replay limit so the caller
-            can detect that the client must refresh.
+        Keep the ID bound outside audience OR predicates so PostgreSQL's ordered
+        index scan can start at the cursor instead of visiting retained prehistory.
         """
 
         from baserow.ws.models import RealtimeEvent
 
-        replay_filter = (
-            Q(id__gt=last_seen_id)
-            & RealtimeEventHandler.get_not_own_event_filter(web_socket_id)
-            & RealtimeEventHandler.get_relevant_events_filter(user_id, page_group_names)
-        )
-
-        replay_filter |= Q(id=last_seen_id)
-
-        # Keep the cursor bound outside the OR so PostgreSQL can start an ordered
-        # primary-key scan at the cursor. Otherwise LIMIT can select a plan that
-        # scans the entire retained history before reaching the baseline.
         return RealtimeEvent.objects.filter(
-            replay_filter, id__gte=last_seen_id
-        ).order_by("id")[: settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS + 2]
+            RealtimeEventHandler.get_not_own_event_filter(web_socket_id)
+            & RealtimeEventHandler.get_relevant_events_filter(
+                user_id, page_group_names
+            ),
+            id__gt=last_seen_id,
+        ).order_by("id")[: settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS + 1]
 
     @staticmethod
     def get_relevant_events_filter(
@@ -425,7 +450,10 @@ class RealtimeEventHandler:
         """
 
         return (
-            ~Q(payload__ignore_web_socket_id=web_socket_id)
+            (
+                ~Q(payload__ignore_web_socket_id=web_socket_id)
+                | ~Q(payload__has_key="ignore_web_socket_id")
+            )
             if web_socket_id is not None
             else Q()
         )
