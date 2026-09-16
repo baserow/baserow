@@ -7,7 +7,10 @@
       >
         <div
           class="dashboard-app__content"
-          :class="{ 'dashboard-app__content--small': isInTemplate }"
+          :class="{
+            'dashboard-app__content--small': isInTemplate,
+            'dashboard-app__content--editing': isEditMode,
+          }"
         >
           <DashboardContentHeader
             :dashboard="dashboard"

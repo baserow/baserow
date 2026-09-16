@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 
 import DashboardWidgetGrid from '@baserow/modules/dashboard/components/DashboardWidgetGrid.client'
 
@@ -96,6 +96,7 @@ describe('DashboardWidgetGrid', () => {
   function mountGrid({
     hasPermission = () => true,
     widgetList = widgets,
+    editMode = ref(true),
   } = {}) {
     wrapper = mount(DashboardWidgetGrid, {
       props: {
@@ -109,7 +110,9 @@ describe('DashboardWidgetGrid', () => {
             dispatch,
             getters: {
               'dashboardApplication/getWidgets': widgetList,
-              'dashboardApplication/isEditMode': true,
+              get 'dashboardApplication/isEditMode'() {
+                return editMode.value
+              },
             },
           },
         },
@@ -137,7 +140,7 @@ describe('DashboardWidgetGrid', () => {
   }
 
   test('keeps a loader visible until the initial grid layout is ready', async () => {
-    mountGrid()
+    mountGrid({ editMode: ref(false) })
 
     expect(
       wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
@@ -260,12 +263,13 @@ describe('DashboardWidgetGrid', () => {
   )
 
   test.each([
+    ['desktop', 1200, '6'],
     ['tablet', 700, '4'],
     ['mobile', 599, '1'],
   ])(
-    'disables drag and resize controls on %s layouts',
+    'keeps %s layouts responsive and read-only in view mode',
     async (_viewport, width, columns) => {
-      mountGrid()
+      mountGrid({ editMode: ref(false) })
       await measureGrid(width)
 
       const gridLayout = wrapper.get('.vgl-layout')
@@ -278,4 +282,74 @@ describe('DashboardWidgetGrid', () => {
       expect(gridItem.attributes('data-resizable')).toBe('false')
     }
   )
+
+  test.each([700, 599])(
+    'edits canonical coordinates when the available width is %s',
+    async (width) => {
+      mountGrid({ widgetList: [{ ...widgets[0], grid_x: 2, grid_width: 4 }] })
+      await measureGrid(width)
+
+      const grid = wrapper.get('.vgl-layout')
+      const item = wrapper.get('.vgl-item')
+      expect(grid.attributes('data-columns')).toBe('6')
+      expect(grid.attributes('data-draggable')).toBe('true')
+      expect(grid.attributes('data-resizable')).toBe('true')
+      expect(item.attributes()).toMatchObject({
+        x: '2',
+        w: '4',
+        'data-draggable': 'true',
+        'data-resizable': 'true',
+      })
+    }
+  )
+
+  test('switches between viewing and editing without saving projected coordinates', async () => {
+    const editMode = ref(false)
+    mountGrid({
+      editMode,
+      widgetList: [{ ...widgets[0], grid_x: 2, grid_width: 4 }],
+    })
+    await measureGrid(700)
+    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('4')
+    expect(wrapper.get('.vgl-item').attributes('w')).toBe('3')
+
+    editMode.value = true
+    await flushPromises()
+    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('6')
+    expect(wrapper.get('.vgl-item').attributes()).toMatchObject({
+      x: '2',
+      w: '4',
+    })
+    await measureGrid(500)
+    expect(wrapper.get('.vgl-item').attributes()).toMatchObject({
+      x: '2',
+      w: '4',
+    })
+
+    editMode.value = false
+    await flushPromises()
+    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('1')
+    expect(wrapper.get('.vgl-item').attributes()).toMatchObject({
+      x: '0',
+      w: '1',
+    })
+    await wrapper
+      .findComponent(GridLayoutStub)
+      .vm.$emit('layout-updated', [{ i: 1, x: 0, y: 0, w: 1, h: 4 }])
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  test('requires layout-update permission on small screens', async () => {
+    mountGrid({ hasPermission: () => false })
+    await measureGrid(500)
+    expect(wrapper.get('.vgl-layout').attributes('data-draggable')).toBe(
+      'false'
+    )
+    expect(wrapper.get('.vgl-item').attributes('data-resizable')).toBe('false')
+    await wrapper.findComponent(GridItemStub).vm.$emit('move', 1, 1, 0)
+    await wrapper
+      .findComponent(GridLayoutStub)
+      .vm.$emit('layout-updated', [{ i: 1, x: 1, y: 0, w: 2, h: 4 }])
+    expect(dispatch).not.toHaveBeenCalled()
+  })
 })

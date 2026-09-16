@@ -29,6 +29,11 @@
   min-height: calc(100vh - 212px);
 }
 
+.dashboard-app__content--editing {
+  // Keep the six-column canvas usable inside the horizontally scrolling pane.
+  min-width: 1100px;
+}
+
 .dashboard-app__content-header {
   display: flex;
   align-items: flex-start;
