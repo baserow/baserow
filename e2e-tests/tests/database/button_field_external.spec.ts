@@ -168,7 +168,7 @@ test.describe("Button field, external actions", () => {
     const echoRequest = await createHttpRequestAction(
       g.user,
       g.fieldByName["Echo"],
-      { url: `concat('${STUB}/anything/', get('row.field_${name.id}'))` }
+      { url: `concat('${STUB}/anything/', get('row.field_${name.id}'))` },
     );
     await createRowAction(g.user, g.fieldByName["Echo"], {
       type: "local_baserow_update_row",
@@ -199,7 +199,7 @@ test.describe("Button field, external actions", () => {
     const chainedRequest = await createHttpRequestAction(
       g.user,
       g.fieldByName["Chained"],
-      { url: `'${STUB}/json'` }
+      { url: `'${STUB}/json'` },
     );
     await createRowAction(g.user, g.fieldByName["Chained"], {
       type: "local_baserow_update_row",
@@ -243,7 +243,7 @@ test.describe("Button field, external actions", () => {
     capturedAction = await createHttpRequestAction(
       g.user,
       g.fieldByName["Captured"],
-      { url: `'${STUB}/json'` }
+      { url: `'${STUB}/json'` },
     );
 
     // "Limited" is clicked until the rate limit refuses it.
@@ -255,7 +255,7 @@ test.describe("Button field, external actions", () => {
     duplicateAction = await createHttpRequestAction(
       g.user,
       g.fieldByName["Duplicate"],
-      { url: `'${STUB}/json'` }
+      { url: `'${STUB}/json'` },
     );
   });
 
@@ -342,10 +342,10 @@ test.describe("Button field, external actions", () => {
     // leaving the missing body unexplained.
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer")
+      actionItem(page, 0).locator(".sample-data-viewer"),
     ).toHaveCount(0);
     await expect(actionItem(page, 0).locator(".alert")).toContainText(
-      "capture what the endpoint answers"
+      "capture what the endpoint answers",
     );
 
     // What a request always has is offered from the start; what the endpoint
@@ -389,7 +389,7 @@ test.describe("Button field, external actions", () => {
     // note about capturing is gone.
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer")
+      actionItem(page, 0).locator(".sample-data-viewer"),
     ).toHaveCount(1);
     await expect(actionItem(page, 0).locator(".alert")).toHaveCount(0);
 
@@ -436,7 +436,7 @@ test.describe("Button field, external actions", () => {
     await expect(
       explorer(page).locator(".node-explorer-content__name", {
         hasText: HTTP_ACTION,
-      })
+      }),
     ).toHaveCount(1);
   });
 
@@ -503,7 +503,7 @@ test.describe("Button field, external actions", () => {
     await openFieldEditor(page, "Session");
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer")
+      actionItem(page, 0).locator(".sample-data-viewer"),
     ).toHaveCount(1);
 
     await expandAction(page, 1);
@@ -541,7 +541,7 @@ test.describe("Button field, external actions", () => {
 
     // httpbin's own fixture, so the value can only have come from the request.
     await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
-      "Sample Slide Show"
+      "Sample Slide Show",
     );
 
     const rows = await listRows(g.user, g.table);
@@ -556,7 +556,7 @@ test.describe("Button field, external actions", () => {
     await actionItem(page, 0).locator(".button-icon").first().click();
 
     await expect(page.locator("[data-action-error]")).toContainText(
-      "no longer runs before it"
+      "no longer runs before it",
     );
   });
 
@@ -565,7 +565,7 @@ test.describe("Button field, external actions", () => {
   test("a user who keeps clicking is refused", async ({ page }) => {
     test.skip(
       !DECLARED_RATE_LIMIT,
-      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with"
+      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with",
     );
     test.setTimeout(120_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
@@ -593,7 +593,7 @@ test.describe("Button field, external actions", () => {
   }) => {
     test.skip(
       !DECLARED_RATE_LIMIT,
-      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with"
+      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with",
     );
     test.setTimeout(120_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
@@ -614,9 +614,13 @@ test.describe("Button field, external actions", () => {
   // F. Two clicks at once, with the first request held until the test lets it go
 
   test.describe("while a request is held", () => {
+    // F1 and F2 share the barrier stub's "slow" / "slow-two" keys and its
+    // reset, so a parallel worker running one can wipe the other's holds.
+    test.describe.configure({ mode: "serial" });
+
     test.skip(
       !BARRIER_STUB_URL,
-      "Needs the barrier stub: set E2E_BARRIER_STUB_URL."
+      "Needs the barrier stub: set E2E_BARRIER_STUB_URL.",
     );
 
     // A test that fails before releasing would leave the backend waiting on
