@@ -15,6 +15,7 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_RAW,
     BaserowFormulaObject,
 )
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext, fake_import_formula
 
@@ -54,6 +55,73 @@ def _build_ingredient_cost_table(data_fixture, user):
         .created_rows
     )
     return integration, table, ingredient, cost, rows
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "with_filters,with_groups,nested",
+    [
+        pytest.param(True, True, False, id="grouped-filters"),
+        pytest.param(False, True, False, id="groups-only"),
+        pytest.param(True, True, True, id="nested-child-first"),
+        pytest.param(True, False, False, id="ungrouped-filters"),
+    ],
+)
+def test_create_service_with_filter_groups(
+    data_fixture, with_filters, with_groups, nested
+):
+    """Creation preserves groups, parent links, and filter membership."""
+
+    user = data_fixture.create_user()
+    integration, table, ingredient, _cost, _rows = _build_ingredient_cost_table(
+        data_fixture, user
+    )
+    values = {}
+    if with_groups:
+        values["service_filter_groups"] = [
+            {"id": "outer", "filter_type": "OR", "parent_group_id": None}
+        ]
+        if nested:
+            values["service_filter_groups"].insert(
+                0,
+                {"id": "inner", "filter_type": "AND", "parent_group_id": "outer"},
+            )
+    if with_filters:
+        values["service_filters"] = [
+            {
+                "field": ingredient,
+                "type": "equal",
+                "value": raw_formula("Duck"),
+                "value_is_formula": False,
+                "group_id": ("inner" if nested else "outer") if with_groups else None,
+            }
+        ]
+
+    service = ServiceHandler().create_service(
+        service_type_registry.get("local_baserow_list_rows"),
+        integration=integration,
+        table=table,
+        **values,
+    )
+    service.refresh_from_db()
+
+    assert service.service_filter_groups.count() == (2 if nested else int(with_groups))
+    expected_group_id = None
+    if with_groups:
+        outer = service.service_filter_groups.get(parent_group__isnull=True)
+        assert outer.filter_type == "OR"
+        expected_group_id = outer.id
+        if nested:
+            inner = service.service_filter_groups.get(parent_group=outer)
+            assert inner.filter_type == "AND"
+            expected_group_id = inner.id
+
+    assert service.service_filters.count() == int(with_filters)
+    if with_filters:
+        service_filter = service.service_filters.get()
+        assert service_filter.field_id == ingredient.id
+        assert service_filter.value == raw_formula("Duck")
+        assert service_filter.group_id == expected_group_id
 
 
 @pytest.mark.django_db

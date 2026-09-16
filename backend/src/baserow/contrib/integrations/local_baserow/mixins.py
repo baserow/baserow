@@ -586,8 +586,12 @@ class LocalBaserowTableServiceFilterableMixin:
     def after_create(self, instance: ServiceSubClass, values: Dict) -> None:
         super().after_create(instance, values)
 
-        if "service_filters" in values:
-            self.update_service_filters(instance, values["service_filters"])
+        if "service_filters" in values or "service_filter_groups" in values:
+            self.update_service_filters(
+                instance,
+                values.get("service_filters"),
+                values.get("service_filter_groups"),
+            )
 
     def after_update(
         self,
