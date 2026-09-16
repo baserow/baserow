@@ -566,7 +566,13 @@ the natural place to narrow this further when it is wanted.
   follow their element.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
   and the button enters the reconfigure state rather than failing only at click time;
-  restoring from trash heals it without reconfiguration.
+  restoring from trash heals it without reconfiguration. The state is
+  `requires_reconfiguration` on the field: a row action with an enabled mapping on a
+  trashed field (without an integration, which drops the mapping instead), no table, or
+  a table that is trashed or in a trashed database. The cell renders a disabled button
+  with a warning, and the editor names the action. Editing an action keeps its mappings
+  on trashed fields. Deleting the field permanently removes its mapping, which ends the
+  state and lets the click write the row without that value.
 - **Field type conversion.** Converting away deletes actions and services; converting
   into a button starts empty. Both directions are destructive, like other fields that
   carry configuration.
