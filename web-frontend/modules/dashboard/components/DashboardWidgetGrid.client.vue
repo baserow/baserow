@@ -35,13 +35,7 @@
       <GridItem
         v-for="layoutItem in layout"
         :key="layoutItem.i"
-        v-bind="
-          getWidgetGridItemConstraints(
-            getWidget(layoutItem),
-            columns,
-            layoutItem
-          )
-        "
+        v-bind="getWidgetGridItemConstraints(getWidget(layoutItem), layoutItem)"
         :i="layoutItem.i"
         :x="layoutItem.x"
         :y="layoutItem.y"
@@ -84,9 +78,8 @@ import DashboardWidget from '@baserow/modules/dashboard/components/widget/Dashbo
 import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import {
-  DASHBOARD_DESKTOP_GRID_COLUMNS,
+  DASHBOARD_GRID_COLUMNS,
   createWidgetGridLayout,
-  getDashboardGridColumns,
   getWidgetGridItemConstraints,
   resizeWidgetGridLayout,
   toWidgetLayoutPayload,
@@ -125,6 +118,7 @@ export default {
       layoutReadyFrame: null,
       layout: [],
       resizeState: null,
+      columns: DASHBOARD_GRID_COLUMNS,
       gridGap: GRID_GAP,
       gridRowHeight: GRID_ROW_HEIGHT,
     }
@@ -139,13 +133,6 @@ export default {
       return Object.fromEntries(
         this.widgets.map((widget) => [String(widget.id), widget])
       )
-    },
-    columns() {
-      // Editing always uses persisted coordinates; responsive layouts are
-      // projections for viewing only.
-      return this.isEditMode
-        ? DASHBOARD_DESKTOP_GRID_COLUMNS
-        : getDashboardGridColumns(this.dimensions.width)
     },
     isEditMode() {
       return this.$store.getters[
@@ -164,8 +151,8 @@ export default {
     },
   },
   watch: {
-    columns() {
-      // Switching coordinate systems cancels any active pointer operation.
+    isEditMode() {
+      // Leaving edit mode cancels any unfinished pointer operation.
       this.isInteracting = false
       this.clearResizeState()
       this.syncLayoutFromWidgets()
@@ -244,7 +231,7 @@ export default {
       )
     },
     syncLayoutFromWidgets() {
-      this.layout = createWidgetGridLayout(this.widgets, this.columns)
+      this.layout = createWidgetGridLayout(this.widgets)
     },
     markLayoutReady() {
       if (this.layoutReadyFrame !== null) {
@@ -284,7 +271,7 @@ export default {
       }
 
       const resizedLayout = resizeWidgetGridLayout(
-        createWidgetGridLayout(this.widgets, this.columns),
+        createWidgetGridLayout(this.widgets),
         widgetId,
         width,
         height
