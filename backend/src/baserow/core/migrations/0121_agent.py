@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0119_aiproviderfeaturesetting_and_more'),
+        ('core', '0120_add_ai_agent_provider_model_feature'),
     ]
 
     operations = [
