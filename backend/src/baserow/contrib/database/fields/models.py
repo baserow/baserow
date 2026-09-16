@@ -1012,6 +1012,26 @@ class ButtonField(Field):
 
         return self.workflow_actions.exists()
 
+    # Set alongside `HAS_WORKFLOW_ACTIONS_ANNOTATION`, for the same reason.
+    REQUIRES_RECONFIGURATION_ANNOTATION = "requires_reconfiguration_annotated"
+
+    @property
+    def requires_reconfiguration(self) -> bool:
+        annotated = getattr(self, self.REQUIRES_RECONFIGURATION_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
+        # Imported here: the workflow action models import this module.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            workflow_actions_requiring_reconfiguration,
+        )
+
+        return (
+            workflow_actions_requiring_reconfiguration()
+            .filter(field_id=self.id)
+            .exists()
+        )
+
 
 class DuplicateFieldJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job

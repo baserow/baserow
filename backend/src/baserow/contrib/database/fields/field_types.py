@@ -8133,6 +8133,7 @@ class ButtonFieldType(ReadOnlyFieldType):
     serializer_field_names = [
         "label",
         "has_workflow_actions",
+        "requires_reconfiguration",
     ]
     serializer_field_overrides = {
         "label": serializers.CharField(
@@ -8148,6 +8149,13 @@ class ButtonFieldType(ReadOnlyFieldType):
             help_text="Whether the field has any configured actions. The client "
             "uses this to decide whether a cell renders a button that dispatches "
             "actions or an inert one.",
+        ),
+        "requires_reconfiguration": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether an action writes to a field or table that is in "
+            "the trash or gone, so a click is sure to fail. The client renders "
+            "a disabled button with a warning instead.",
         ),
     }
     api_exceptions_map = {
@@ -8206,13 +8214,22 @@ class ButtonFieldType(ReadOnlyFieldType):
     def enhance_field_queryset(
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
-        # `has_workflow_actions` is serialized for every button field, so
-        # without this a table's field list costs one query per button.
+        # Both flags are serialized for every button field, so without this a
+        # table's field list costs queries per button.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            workflow_actions_requiring_reconfiguration,
+        )
+
         return queryset.annotate(
             **{
                 ButtonField.HAS_WORKFLOW_ACTIONS_ANNOTATION: Exists(
                     DatabaseWorkflowAction.objects.filter(field_id=OuterRef("pk"))
-                )
+                ),
+                ButtonField.REQUIRES_RECONFIGURATION_ANNOTATION: Exists(
+                    workflow_actions_requiring_reconfiguration().filter(
+                        field_id=OuterRef("pk")
+                    )
+                ),
             }
         )
 

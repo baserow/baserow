@@ -581,4 +581,7 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
     buttons = [field for field in payload if field["type"] == "button"]
     assert len(buttons) == 4
     assert all(field["has_workflow_actions"] is True for field in buttons)
+    assert all(field["requires_reconfiguration"] is True for field in buttons), (
+        "The fixture's row actions have no table, so every button needs one."
+    )
     assert four_button_queries == one_button_queries
