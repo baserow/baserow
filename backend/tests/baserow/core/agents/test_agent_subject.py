@@ -7,6 +7,7 @@ from baserow.core.agents.operations import (
 from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
+from baserow.core.operations import UpdateWorkspaceOperationType
 from baserow.core.permission_manager import WorkspaceMemberOnlyPermissionManagerType
 from baserow.core.registries import subject_type_registry
 from baserow.core.types import PermissionCheck
@@ -66,6 +67,42 @@ def test_agent_subject_can_include_trash(data_fixture):
     assert not permission_manager.is_actor_in_workspace(agent, workspace)
     assert permission_manager.is_actor_in_workspace(
         agent, workspace, include_trash=True
+    )
+
+
+@pytest.mark.django_db
+def test_agent_subject_can_include_trashed_parent_workspace(data_fixture):
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(workspace=workspace, name="Admin", role_uid="ADMIN")
+    workspace.trashed = True
+    workspace.save(update_fields=("trashed",))
+    agent = Agent.objects_and_trash.get(id=agent.id)
+    subject_type = AgentSubjectType()
+
+    assert not subject_type.is_in_workspace(agent, workspace)
+    assert subject_type.is_in_workspace(agent, workspace, include_trash=True)
+    assert subject_type.get_workspace_role_uids([agent], workspace) == {}
+    assert subject_type.get_workspace_role_uids(
+        [agent], workspace, include_trash=True
+    ) == {agent.id: "ADMIN"}
+    assert list(subject_type.get_workspace_subjects(workspace)) == []
+    assert list(subject_type.get_workspace_subjects(workspace, include_trash=True)) == [
+        agent
+    ]
+
+    assert not CoreHandler().check_permissions(
+        agent,
+        UpdateWorkspaceOperationType.type,
+        workspace=workspace,
+        context=workspace,
+        raise_permission_exceptions=False,
+    )
+    assert CoreHandler().check_permissions(
+        agent,
+        UpdateWorkspaceOperationType.type,
+        workspace=workspace,
+        context=workspace,
+        include_trash=True,
     )
 
 
