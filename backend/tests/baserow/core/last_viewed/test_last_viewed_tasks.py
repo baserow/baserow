@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import override_settings
 
 import pytest
 from freezegun import freeze_time
 
+from baserow.celery_singleton_backend import RedisBackendForSingleton
 from baserow.core.last_viewed.models import UserLastViewedItem
 from baserow.core.last_viewed.tasks import mark_item_viewed
 
@@ -65,11 +67,22 @@ def test_mark_item_viewed_keeps_the_lock_after_a_real_run(data_fixture):
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
     args = (user.id, "dashboard", dashboard.id)
 
-    # Outside of eager mode the lock must survive a run that wrote, so no task is
-    # enqueued again for the same key until the update interval has passed.
-    with patch.object(mark_item_viewed, "release_lock") as release_lock:
+    # Outside of eager mode the lock must survive a run that wrote, re-armed for
+    # the update interval counted from the write, so no task is enqueued again
+    # for the same key until the database floor has passed.
+    with (
+        patch.object(mark_item_viewed, "release_lock") as release_lock,
+        patch.object(
+            RedisBackendForSingleton, "extend_lock_if", return_value=True
+        ) as extend_lock_if,
+    ):
         mark_item_viewed.on_success(True, "task-id", args, {})
     release_lock.assert_not_called()
+    extend_lock_if.assert_called_once_with(
+        mark_item_viewed.generate_lock(mark_item_viewed.name, args, {}),
+        "task-id",
+        settings.BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS,
+    )
 
     # A run that wrote nothing must not silence the next view for an interval.
     with patch.object(mark_item_viewed, "release_lock") as release_lock:
