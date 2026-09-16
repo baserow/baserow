@@ -6,6 +6,7 @@ exports[`ManageAgentModal > hides commercial information in its role selector 1`
   <main>
     <h2 class="box__title">agents.createTitle</h2>
     <error-stub error="[object Object]"></error-stub>
+    <!--v-if-->
     <form>
       <div label="agents.name" required="" class="margin-bottom-2">
         <form-input-stub model-value="" required="" maxlength="160"></form-input-stub>
@@ -34,9 +35,10 @@ exports[`ManageAgentModal > shows registered settings in a sidebar when editing 
   <main>
     <h2 class="box__title">Teams</h2>
     <error-stub error="[object Object]"></error-stub>
+    <!--v-if-->
     <form>
       <div class="teams-settings" modelvalue="[object Object]" workspace="[object Object]" agent="[object Object]" roles=""></div>
-      <div class="actions"><button type="secondary">action.cancel</button><button type="primary" loading="false" disabled="">agents.save</button></div>
+      <div class="actions"><button type="secondary">action.close</button><button type="primary" loading="false" disabled="">agents.save</button></div>
     </form>
   </main>
 </div>"

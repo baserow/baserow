@@ -1,5 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, test, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 
 import Button from '@baserow/modules/core/components/Button'
 import ManageAgentModal from '@baserow/modules/core/components/settings/agents/ManageAgentModal'
@@ -104,6 +105,118 @@ describe('ManageAgentModal', () => {
       wrapper.unmount()
     }
   )
+
+  test('saves pages independently, retains drafts on failure, and stays open', async () => {
+    const dispatch = vi.fn().mockResolvedValue({ id: 42 })
+    const hide = vi.fn()
+    const handleError = vi.fn()
+    const teamsSetting = {
+      ...generalSetting,
+      name: 'Teams',
+      getType: () => 'teams',
+      getInitialValues: () => ({ team_ids: [3] }),
+      getSubmitValues: ({ team_ids: teamIds }) => ({ team_ids: teamIds }),
+      component: {
+        props: ['modelValue'],
+        emits: ['update:modelValue'],
+        template: `<input class="teams-input" :value="modelValue.team_ids.join(',')"
+          @input="$emit('update:modelValue', { ...modelValue, team_ids: [$event.target.valueAsNumber] })" type="number" />`,
+      },
+    }
+    const wrapper = await mountSuspended(
+      {
+        components: {
+          ManageAgentModal: {
+            ...ManageAgentModal,
+            methods: { ...ManageAgentModal.methods, hide, handleError },
+          },
+        },
+        data: () => ({
+          agent: { id: 42, name: 'Researcher', role_uid: 'MEMBER' },
+        }),
+        template:
+          '<ManageAgentModal ref="modal" :workspace="{ id: 12 }" :agent="agent" />',
+        mounted() {
+          this.$refs.modal.show()
+        },
+      },
+      {
+        global: {
+          mocks: {
+            $registry: {
+              getOrderedList: () => [
+                generalSetting,
+                teamsSetting,
+                new McpServerAgentSettingsType({
+                  app: { $i18n: { t: (key) => key } },
+                }),
+              ],
+            },
+            $store: { dispatch },
+            $t: (key) => key,
+          },
+          stubs: {
+            Modal: modalStub,
+            Error: true,
+            Alert: {
+              template: '<div class="success"><slot name="title" /></div>',
+            },
+            FormGroup: { template: '<div><slot /></div>' },
+            FormInput: {
+              props: ['modelValue'],
+              emits: ['update:modelValue'],
+              template:
+                '<input class="name-input" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+              methods: { focus() {} },
+            },
+            Button: { template: '<button><slot /></button>' },
+            WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
+          },
+        },
+      }
+    )
+    try {
+      const pages = wrapper.findAll('.modal-sidebar__nav-link')
+      await wrapper.find('.name-input').setValue('Renamed')
+      await pages[1].trigger('click')
+      await wrapper.find('.teams-input').setValue('7')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(dispatch).toHaveBeenLastCalledWith('agent/update', {
+        agentId: 42,
+        values: { team_ids: [7] },
+      })
+      expect(wrapper.find('.success').text()).toBe('agents.saved')
+      expect(hide).not.toHaveBeenCalled()
+
+      await pages[0].trigger('click')
+      expect(wrapper.find('.name-input').element.value).toBe('Renamed')
+      expect(wrapper.find('.success').exists()).toBe(false)
+      dispatch.mockRejectedValueOnce(new Error('Failed'))
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(handleError).toHaveBeenCalledOnce()
+      expect(wrapper.find('.name-input').element.value).toBe('Renamed')
+      expect(wrapper.find('.success').exists()).toBe(false)
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+      expect(dispatch).toHaveBeenLastCalledWith('agent/update', {
+        agentId: 42,
+        values: { name: 'Renamed' },
+      })
+      expect(hide).not.toHaveBeenCalled()
+      await pages[1].trigger('click')
+      expect(wrapper.find('.teams-input').element.value).toBe('7')
+      await wrapper.find('form').trigger('submit')
+      expect(dispatch).toHaveBeenCalledTimes(3)
+      await pages[2].trigger('click')
+      expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
+        'action.close',
+      ])
+    } finally {
+      wrapper.unmount()
+    }
+  })
 
   test('hides commercial information in its role selector', async () => {
     const wrapper = await mountSuspended(ManageAgentModal, {
