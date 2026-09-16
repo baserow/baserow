@@ -11,6 +11,8 @@ import pytest
 from asgiref.sync import async_to_sync
 from pydantic_ai.messages import PartStartEvent
 from pydantic_ai.messages import TextPart as PaiTextPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_KUMA,
@@ -37,7 +39,11 @@ from baserow_enterprise.assistant.model_profiles import (
     get_model_string,
     resolve_assistant_model,
 )
-from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
+from baserow_enterprise.assistant.models import (
+    AssistantChat,
+    AssistantChatMessage,
+    AssistantChatPrediction,
+)
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.types import (
     AiMessage,
@@ -53,6 +59,8 @@ from baserow_enterprise.assistant.types import (
     ViewUIContext,
     WorkspaceUIContext,
 )
+
+from .utils import make_test_ctx
 
 
 @pytest.fixture(autouse=True)
@@ -278,6 +286,28 @@ class TestAssistantChatHistory:
         history = async_to_sync(assistant._load_message_history)()
         assert history is None
 
+    def test_save_ai_response_persists_posthog_trace_id(self, enterprise_data_fixture):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test Chat"
+        )
+        human_message = AssistantChatMessage.objects.create(
+            chat=chat,
+            role=AssistantChatMessage.Role.HUMAN,
+            content="Create a table",
+        )
+        assistant = Assistant(chat)
+        assistant._telemetry.trace_id = "trace-123"
+
+        async_to_sync(assistant._save_ai_response)(human_message, "Done")
+
+        prediction = AssistantChatPrediction.objects.get(human_message=human_message)
+        assert prediction.prediction == {
+            "answer": "Done",
+            "posthog_trace_id": "trace-123",
+        }
+
     def test_load_message_history_deserializes_and_compacts(
         self, enterprise_data_fixture
     ):
@@ -475,6 +505,22 @@ class TestAssistantLicenseTier:
     def test_agent_system_prompt_includes_grounding_guardrail(self):
         assert "Use `search_user_docs` first" in AGENT_SYSTEM_PROMPT
         assert "Never invent plan names" in AGENT_SYSTEM_PROMPT
+
+    def test_agent_system_prompt_covers_production_regressions(self):
+        assert AGENT_SYSTEM_PROMPT.index("<contracts>") < AGENT_SYSTEM_PROMPT.index(
+            "<rules>"
+        )
+        assert "call create_builders first and build on the ID it returns" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "Never invent, guess, or carry over an ID from a different resource" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "Baserow IDs start at 1, so 0 is never an ID" in AGENT_SYSTEM_PROMPT
+        assert "For database formula creation or repair, call generate_formula" in (
+            AGENT_SYSTEM_PROMPT
+        )
+        assert "Never return or save a handwritten formula" in AGENT_SYSTEM_PROMPT
 
 
 @pytest.mark.django_db
@@ -1331,3 +1377,72 @@ class TestResolveAssistantModel:
 
         assert create_model.call_count == 2
         assert test_model.call_count == 2
+
+
+@pytest.mark.asyncio
+class TestAssistantTextToolCallRecovery:
+    @pytest.fixture
+    def assistant_for_responses(self):
+        def build(*responses):
+            calls = []
+
+            async def stream(messages, info):
+                calls.append(messages)
+                yield responses[min(len(calls) - 1, len(responses) - 1)]
+
+            assistant = Assistant.__new__(Assistant)
+            assistant._model = FunctionModel(stream_function=stream)
+            assistant._model_profile = MagicMock()
+            assistant._model_profile.get_settings.return_value = {}
+            assistant._toolset = FunctionToolset()
+            assistant._deps = make_test_ctx(None, None).deps
+            return assistant, calls
+
+        return build
+
+    @pytest.mark.parametrize("fenced", [False, True])
+    async def test_repeated_text_tool_calls_return_the_graceful_fallback(
+        self, assistant_for_responses, fenced
+    ):
+        payload = '{"name": "create_tables", "arguments": {"tables": []}}'
+        if fenced:
+            payload = f"```json\n{payload}\n```"
+        assistant, calls = assistant_for_responses(payload)
+
+        answer, _result = await assistant._run_agent_with_retries(
+            "Create a table", None, asyncio.Queue()
+        )
+
+        assert answer == (
+            "I ran into a temporary issue processing "
+            "your request. Could you please try again?"
+        )
+        assert len(calls) == 3
+
+    async def test_a_corrected_answer_is_accepted_on_the_next_pass(
+        self, assistant_for_responses
+    ):
+        assistant, calls = assistant_for_responses(
+            '```json\n{"name": "list_tables", "arguments": {}}\n```',
+            "Which database should I use?",
+        )
+
+        answer, _result = await assistant._run_agent_with_retries(
+            "List the tables", None, asyncio.Queue()
+        )
+
+        assert answer == "Which database should I use?"
+        assert len(calls) == 2
+
+    async def test_ordinary_answers_are_accepted_without_retrying(
+        self, assistant_for_responses
+    ):
+        expected = 'The field {"name": "Arguments"} maps to your schema.'
+        assistant, calls = assistant_for_responses(expected)
+
+        answer, _result = await assistant._run_agent_with_retries(
+            "Explain this field", None, asyncio.Queue()
+        )
+
+        assert answer == expected
+        assert len(calls) == 1

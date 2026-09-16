@@ -190,7 +190,6 @@ class BuilderUpdate(BaseModel):
     Fields are type-specific — only set the ones relevant to the application type.
     """
 
-    builder_id: int = Field(..., description="ID of the application to update.")
     name: str | None = Field(default=None, description="New name.")
 
     # Application (builder) specific
