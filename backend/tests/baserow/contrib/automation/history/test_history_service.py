@@ -6,6 +6,7 @@ import pytest
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
+    AutomationWorkflowHistoryCancellationAlreadyRequested,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNotRunning,
 )
@@ -87,7 +88,7 @@ def test_request_cancellation_signal_sent(mock_signal, data_fixture):
 
 @patch(f"{SERVICES_PATH}.automation_workflow_dispatch_cancellation_requested")
 @pytest.mark.django_db
-def test_request_cancellation_signal_sent_for_repeated_request(
+def test_request_cancellation_signal_not_sent_when_already_requested(
     mock_signal, data_fixture
 ):
     user = data_fixture.create_user()
@@ -99,9 +100,10 @@ def test_request_cancellation_signal_sent_for_repeated_request(
         cancellation_requested_on=timezone.now(),
     )
 
-    AutomationHistoryService().request_cancellation(user, history.id)
+    with pytest.raises(AutomationWorkflowHistoryCancellationAlreadyRequested):
+        AutomationHistoryService().request_cancellation(user, history.id)
 
-    mock_signal.send.assert_called_once()
+    mock_signal.send.assert_not_called()
 
 
 @patch(f"{SERVICES_PATH}.automation_workflow_dispatch_cancellation_requested")

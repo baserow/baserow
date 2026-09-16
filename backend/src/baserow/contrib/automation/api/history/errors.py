@@ -23,3 +23,9 @@ ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING = (
     HTTP_400_BAD_REQUEST,
     "The automation workflow history is not running anymore.",
 )
+
+ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED = (
+    "ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED",
+    HTTP_400_BAD_REQUEST,
+    "The cancellation of the automation workflow history was already requested.",
+)

@@ -164,17 +164,25 @@ describe('automation history store', () => {
       expect(getHistory()).toEqual(page([cancelling]))
     })
 
-    test('refetches even when the run is not running anymore', async () => {
+    // The backend refuses when the run resolved first, or when somebody else
+    // already requested the cancellation. Either way the refetch shows what
+    // the run's entry looks like now.
+    test.each([
+      [
+        'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING',
+        history({ status: 'success' }),
+      ],
+      [
+        'ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED',
+        history({ cancellation_requested_on: REQUESTED_ON }),
+      ],
+    ])('refetches even when the backend answers %s', async (code, current) => {
       testApp.dontFailOnErrorResponses()
       testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([history()]))
       await fetchHistory()
 
-      const finished = history({ status: 'success' })
-      testApp.mock.onPost(CANCEL_URL).reply(400, {
-        error: 'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING',
-        detail: 'The automation workflow history is not running anymore.',
-      })
-      testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([finished]))
+      testApp.mock.onPost(CANCEL_URL).reply(400, { error: code, detail: '' })
+      testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([current]))
 
       let caught = null
       try {
@@ -183,11 +191,9 @@ describe('automation history store', () => {
         caught = error
       }
 
-      expect(caught?.handler?.code).toBe(
-        'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING'
-      )
+      expect(caught?.handler?.code).toBe(code)
       expect(testApp.mock.history.get).toHaveLength(2)
-      expect(getHistory()).toEqual(page([finished]))
+      expect(getHistory()).toEqual(page([current]))
     })
   })
 })

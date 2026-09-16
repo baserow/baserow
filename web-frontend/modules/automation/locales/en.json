@@ -118,6 +118,8 @@
     "running": "Running for {at}s",
     "cancelRun": "Cancel this workflow run",
     "cancelling": "Cancelling this run. It will stop once the current node finishes.",
+    "cancellationAlreadyRequestedTitle": "Cancellation already requested",
+    "cancellationAlreadyRequested": "Somebody else already requested the cancellation of this run. It will stop once the current node finishes.",
     "failedRuns": "Failed runs",
     "errorHideDetails": "Hide details",
     "errorShowDetails": "Show details",

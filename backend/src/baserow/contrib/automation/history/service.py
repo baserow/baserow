@@ -61,6 +61,8 @@ class AutomationHistoryService:
         :raises AutomationWorkflowHistoryDoesNotExist: If the run doesn't exist or
             is a simulation run.
         :raises AutomationWorkflowHistoryNotRunning: If the run already resolved.
+        :raises AutomationWorkflowHistoryCancellationAlreadyRequested: If the
+            cancellation of the run was already requested.
         :return: The refreshed workflow history.
         """
 

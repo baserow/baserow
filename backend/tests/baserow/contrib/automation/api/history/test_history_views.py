@@ -253,6 +253,44 @@ def test_cancel_workflow_history_not_running(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_cancel_workflow_history_already_requested(api_client, data_fixture):
+    """
+    A second client asking to cancel a run that somebody else already flagged is
+    told so, and the attribution of the first requester is kept.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    requester = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    requested_on = timezone.now()
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=requester,
+        cancellation_requested_on=requested_on,
+    )
+
+    url = reverse(
+        API_URL_CANCEL_WORKFLOW_HISTORY,
+        kwargs={"workflow_history_id": workflow_history.id},
+    )
+    response = api_client.post(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED",
+        "detail": (
+            "The cancellation of the automation workflow history was already requested."
+        ),
+    }
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+    assert workflow_history.cancellation_requested_by == requester
+    assert workflow_history.cancellation_requested_on == requested_on
+
+
+@pytest.mark.django_db
 def test_get_node_result(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user=user)

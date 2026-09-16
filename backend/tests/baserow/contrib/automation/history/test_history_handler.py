@@ -8,6 +8,7 @@ from freezegun import freeze_time
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
+    AutomationWorkflowHistoryCancellationAlreadyRequested,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
     AutomationWorkflowHistoryNotRunning,
@@ -185,9 +186,10 @@ def test_request_workflow_history_cancellation(data_fixture):
 
 
 @pytest.mark.django_db
-def test_request_workflow_history_cancellation_is_idempotent(data_fixture):
+def test_request_workflow_history_cancellation_already_requested(data_fixture):
     """
-    A second request must not clobber the attribution of the first one.
+    A second request is refused so the requester knows somebody else asked
+    first, and it must not clobber the attribution of the first one.
     """
 
     user = data_fixture.create_user()
@@ -202,11 +204,18 @@ def test_request_workflow_history_cancellation_is_idempotent(data_fixture):
         first = handler.request_workflow_history_cancellation(history, user)
 
     with freeze_time("2026-08-18 12:05:00"):
-        second = handler.request_workflow_history_cancellation(history, user_2)
+        with pytest.raises(AutomationWorkflowHistoryCancellationAlreadyRequested) as e:
+            handler.request_workflow_history_cancellation(history, user_2)
 
-    assert second.status == HistoryStatusChoices.STARTED
-    assert second.cancellation_requested_by == user
-    assert second.cancellation_requested_on == first.cancellation_requested_on
+    assert str(e.value) == (
+        f"The cancellation of the automation workflow history {history.id} "
+        "was already requested."
+    )
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.STARTED
+    assert history.cancellation_requested_by == user
+    assert history.cancellation_requested_on == first.cancellation_requested_on
 
 
 @pytest.mark.django_db

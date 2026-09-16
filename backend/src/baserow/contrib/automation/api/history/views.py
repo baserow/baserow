@@ -11,6 +11,7 @@ from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_sc
 from baserow.contrib.automation.api.history.errors import (
     ERROR_AUTOMATION_NODE_HISTORY_DOES_NOT_EXIST,
     ERROR_AUTOMATION_NODE_RESULT_DOES_NOT_EXIST,
+    ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED,
     ERROR_AUTOMATION_WORKFLOW_HISTORY_DOES_NOT_EXIST,
     ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING,
 )
@@ -23,6 +24,7 @@ from baserow.contrib.automation.api.workflows.serializers import (
 )
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
+    AutomationWorkflowHistoryCancellationAlreadyRequested,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
     AutomationWorkflowHistoryNotRunning,
@@ -95,12 +97,19 @@ class CancelAutomationWorkflowHistoryView(APIView):
             "Requests the cancellation of a running workflow. The run stops before "
             "the next node is dispatched; the node currently running is not "
             "interrupted. If the run completes before the cancellation takes "
-            "effect, it resolves as completed."
+            "effect, it resolves as completed. Only the first request is "
+            "recorded: a later one is refused so that the requester is known "
+            "precisely."
         ),
         request=None,
         responses={
             200: AutomationWorkflowHistorySerializer,
-            400: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING"]),
+            400: get_error_schema(
+                [
+                    "ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING",
+                    "ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED",
+                ]
+            ),
             404: get_error_schema(["ERROR_AUTOMATION_WORKFLOW_HISTORY_DOES_NOT_EXIST"]),
         },
     )
@@ -112,6 +121,9 @@ class CancelAutomationWorkflowHistoryView(APIView):
             ),
             AutomationWorkflowHistoryNotRunning: (
                 ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING
+            ),
+            AutomationWorkflowHistoryCancellationAlreadyRequested: (
+                ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED
             ),
         }
     )

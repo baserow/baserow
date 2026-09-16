@@ -94,6 +94,7 @@ import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 import historySuccessIcon from '@baserow/modules/core/assets/images/history-success.svg?url'
 import historyFailedIcon from '@baserow/modules/core/assets/images/history-failed.svg?url'
@@ -135,7 +136,10 @@ const canCancel = computed(() =>
  * stops before its next node is dispatched. Until then the entry shows
  * "Cancelling..." and keeps its running timer. If the run finishes before the
  * cancellation takes effect, the backend answers that it is not running
- * anymore; the refetch then simply shows the terminal state.
+ * anymore; the refetch then simply shows the terminal state. If somebody else
+ * requested the cancellation first, the backend refuses this request: the
+ * refetch shows the entry as cancelling and a toast makes clear that the
+ * request isn't this user's, so the attribution can't be misread.
  */
 const cancelRun = async () => {
   if (cancelling.value) return
@@ -146,9 +150,21 @@ const cancelRun = async () => {
       workflowHistoryId: props.item.id,
     })
   } catch (error) {
-    if (
-      error.handler?.code !== 'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING'
+    const code = error.handler?.code
+    if (code === 'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING') {
+      // Photo-finish: the run resolved first, the refetch shows its outcome.
+    } else if (
+      code ===
+      'ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED'
     ) {
+      error.handler.notifyIf(
+        'automationWorkflow',
+        new ResponseErrorMessage(
+          app.$i18n.t('historySidePanel.cancellationAlreadyRequestedTitle'),
+          app.$i18n.t('historySidePanel.cancellationAlreadyRequested')
+        )
+      )
+    } else {
       notifyIf(error, 'automationWorkflow')
     }
   } finally {

@@ -8,6 +8,7 @@ from django.utils import timezone
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
+    AutomationWorkflowHistoryCancellationAlreadyRequested,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
     AutomationWorkflowHistoryNotRunning,
@@ -122,16 +123,19 @@ class AutomationHistoryHandler:
         finalizes the run itself, see `finalize_workflow_history_cancellation`.
 
         The update is conditional so that it never clobbers a run that has just
-        reached a terminal status, and so that a second request is an idempotent
-        no-op which keeps the attribution of the first requester.
+        reached a terminal status, and so that only the first request is recorded:
+        a later one is refused and keeps the attribution of the first requester,
+        which tells that later requester somebody else asked before them.
 
         :param workflow_history: The run to cancel.
         :param user: The user requesting the cancellation.
         :raises AutomationWorkflowHistoryNotRunning: If the run already resolved.
+        :raises AutomationWorkflowHistoryCancellationAlreadyRequested: If the
+            cancellation of the run was already requested.
         :return: The refreshed workflow history.
         """
 
-        AutomationWorkflowHistory.objects.filter(
+        updated = AutomationWorkflowHistory.objects.filter(
             id=workflow_history.id,
             status=HistoryStatusChoices.STARTED,
             cancellation_requested_on__isnull=True,
@@ -141,10 +145,15 @@ class AutomationHistoryHandler:
         )
 
         # Whether we won the update or not, the row decides the outcome: a run that
-        # was already flagged is a no-op, a run that already resolved is an error.
+        # already resolved is an error even if our request landed first. A run that
+        # is still running but wasn't updated was already flagged by someone else.
         workflow_history = self.get_workflow_history(workflow_history.id)
         if workflow_history.status != HistoryStatusChoices.STARTED:
             raise AutomationWorkflowHistoryNotRunning(workflow_history.id)
+        if not updated:
+            raise AutomationWorkflowHistoryCancellationAlreadyRequested(
+                workflow_history.id
+            )
 
         return workflow_history
 

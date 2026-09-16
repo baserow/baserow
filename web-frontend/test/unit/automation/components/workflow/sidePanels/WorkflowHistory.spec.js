@@ -149,4 +149,30 @@ describe('WorkflowHistory cancellation', () => {
     await flushPromises()
     expect(other.handler.notifyIf).toHaveBeenCalledWith('automationWorkflow')
   })
+
+  test('tells the user when somebody else already requested it', async () => {
+    const alreadyRequested = new Error('already requested')
+    alreadyRequested.handler = {
+      code: 'ERROR_AUTOMATION_WORKFLOW_HISTORY_CANCELLATION_ALREADY_REQUESTED',
+      notifyIf: vi.fn(),
+    }
+    const cancel = vi.fn().mockRejectedValue(alreadyRequested)
+    const { wrapper } = mountHistory({ item: runningItem(), cancel })
+
+    await wrapper.find('.workflow-history__cancel-link').trigger('click')
+    await flushPromises()
+
+    // The generic handler would show the backend's detail; this one gets a
+    // message of its own so the user knows the request isn't theirs.
+    expect(alreadyRequested.handler.notifyIf).toHaveBeenCalledWith(
+      'automationWorkflow',
+      expect.objectContaining({
+        title: 'historySidePanel.cancellationAlreadyRequestedTitle',
+        message: 'historySidePanel.cancellationAlreadyRequested',
+      })
+    )
+    expect(
+      wrapper.find('.workflow-history__cancel-link').classes()
+    ).not.toContain('workflow-history__cancel-link--disabled')
+  })
 })
