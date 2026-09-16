@@ -372,6 +372,11 @@ def test_file_input_element_is_valid(fake):
         ([".png"], None),
         ([".jpg"], TypeError),
         ([".jpg", "png"], None),
+        (["image/png"], None),
+        (["IMAGE/PNG"], None),
+        (["image/jpeg"], TypeError),
+        (["video/avi"], TypeError),
+        (["application/pdf", "image/png"], None),
     ],
 )
 def test_file_input_element_is_valid_invalid_filetype(fake, allowed, should_raise):
@@ -457,8 +462,9 @@ def test_file_input_element_is_valid_invalid_size(fake):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("allowed_filetypes", [[], ["image/png"]])
 def test_dispatch_local_baserow_update_row_workflow_action_with_file(
-    api_client, data_fixture, enable_enterprise, fake
+    api_client, data_fixture, enable_enterprise, fake, allowed_filetypes
 ):
     user, token = data_fixture.create_user_and_token()
     table, fields, rows = data_fixture.build_table(
@@ -475,7 +481,11 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
     page = data_fixture.create_builder_page(user=user, builder=builder)
     button_element = data_fixture.create_builder_button_element(page=page)
     file_input_element = data_fixture.create_builder_element(
-        FileInputElementType, user, page=page, multiple=True
+        FileInputElementType,
+        user,
+        page=page,
+        multiple=True,
+        allowed_filetypes=allowed_filetypes,
     )
 
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(

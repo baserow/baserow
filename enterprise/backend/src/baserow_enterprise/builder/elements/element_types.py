@@ -323,6 +323,8 @@ class FileInputElementType(InputElementType):
         extensions = mimetypes.guess_all_extensions(content_type)
 
         for allowed_type in allowed_filetypes:
+            if "/" in allowed_type and allowed_type.lower() == content_type.lower():
+                return True
             # special cases for media
             if allowed_type == "image/*" and content_type.startswith("image/"):
                 return True
