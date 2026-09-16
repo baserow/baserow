@@ -17,6 +17,91 @@ describe('Grouped aggregate data source form', () => {
     mock.restore()
   })
 
+  test.each([
+    ['delete', ['field_2_sum', 'field_3']],
+    ['field', ['field_2_sum', 'field_3']],
+    ['aggregation', ['field_2_sum', 'field_3']],
+    ['group', ['field_1_sum', 'field_2_sum']],
+    ['ungroup', ['field_1_sum', 'field_2_sum']],
+    ['row-id', ['field_1_sum', 'field_2_sum', 'field_3']],
+    ['unchanged', ['field_1_sum', 'field_2_sum', 'field_3']],
+  ])('%s changes emit only valid sorts', async (action, expectedReferences) => {
+    const app = useNuxtApp()
+    const { default: GroupedForm } =
+      await import('@baserow_premium/integrations/localBaserow/components/services/LocalBaserowGroupedAggregateRowsForm.vue')
+    mock.onGet('database/fields/table/1/').reply(200, [
+      { id: 1, name: 'Amount', type: 'number' },
+      { id: 2, name: 'Other amount', type: 'number' },
+      { id: 3, name: 'Category', type: 'number', primary: true },
+    ])
+    wrapper = await mountSuspended(GroupedForm, {
+      props: {
+        application: { id: 1 },
+        serviceType: app.$registry.get(
+          'service',
+          'local_baserow_grouped_aggregate_rows'
+        ),
+        defaultValues: {
+          table_id: 1,
+          aggregation_series: [
+            { id: 10, field_id: 1, aggregation_type: 'sum' },
+            { id: 11, field_id: 2, aggregation_type: 'sum' },
+          ],
+          aggregation_group_bys: [{ field_id: 3 }],
+          aggregation_sorts: [
+            { sort_on: 'SERIES', reference: 'field_1_sum', direction: 'ASC' },
+            { sort_on: 'SERIES', reference: 'field_2_sum', direction: 'DESC' },
+            { sort_on: 'GROUP_BY', reference: 'field_3', direction: 'ASC' },
+          ],
+        },
+      },
+      global: {
+        stubs: {
+          LocalBaserowServiceForm: true,
+          ServiceRefinementForms: {
+            template:
+              '<div><slot name="group-form" /><slot name="sort-form" /></div>',
+          },
+          AggregationSortByForm: true,
+          AggregationSeriesForm: {
+            props: ['seriesIndex', 'defaultValues'],
+            emits: ['delete-series', 'values-changed'],
+            methods: { reset() {} },
+            template: `<div>
+              <button type="button" :data-test="'delete-' + seriesIndex" @click="$emit('delete-series', seriesIndex)">Delete</button>
+              <button type="button" :data-test="'field-' + seriesIndex" @click="$emit('values-changed', {...defaultValues, field_id: 3})">Change field</button>
+              <button type="button" :data-test="'aggregation-' + seriesIndex" @click="$emit('values-changed', {...defaultValues, aggregation_type: 'average'})">Change aggregation</button>
+              <button type="button" :data-test="'unchanged-' + seriesIndex" @click="$emit('values-changed', {...defaultValues})">Keep series</button>
+            </div>`,
+          },
+          AggregationGroupByForm: {
+            emits: ['value-changed'],
+            template: `<div>
+              <button type="button" data-test="group" @click="$emit('value-changed', 2)">Change grouping</button>
+              <button type="button" data-test="ungroup" @click="$emit('value-changed', 'none')">Remove grouping</button>
+              <button type="button" data-test="row-id" @click="$emit('value-changed', null)">Group by row ID</button>
+            </div>`,
+          },
+        },
+      },
+    })
+    await flushPromises()
+    const before = wrapper.emitted('values-changed')?.length || 0
+    const control = ['group', 'ungroup', 'row-id'].includes(action)
+      ? action
+      : `${action}-0`
+    await wrapper.get(`[data-test="${control}"]`).trigger('click')
+    await flushPromises()
+    const updates = wrapper.emitted('values-changed').slice(before)
+    expect(updates.length).toBeGreaterThan(0)
+    for (const [values] of updates) {
+      expect(
+        values.aggregation_sorts.map(({ reference }) => reference)
+      ).toEqual(expectedReferences)
+    }
+    expect(updates.at(-1)[0]).toMatchSnapshot()
+  })
+
   test('adding and editing series preserves all three data sources during save', async () => {
     const app = useNuxtApp()
     const { default: GroupedForm } =

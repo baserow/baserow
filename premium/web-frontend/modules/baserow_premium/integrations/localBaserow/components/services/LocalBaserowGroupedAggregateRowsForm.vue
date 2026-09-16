@@ -213,6 +213,7 @@ export default {
     },
     async deleteSeries(index) {
       this.values.aggregation_series.splice(index, 1)
+      this.removeInvalidSorts()
       await this.$nextTick()
       if (this.$refs.aggregationSeriesForms) {
         this.$refs.aggregationSeriesForms.forEach((form) => form.reset())
@@ -224,6 +225,7 @@ export default {
         delete cleaned.id
       }
       this.values.aggregation_series.splice(index, 1, cleaned)
+      this.removeInvalidSorts()
     },
     onGroupByUpdated(groupBy) {
       const aggregationGroupBys = []
@@ -231,6 +233,15 @@ export default {
         aggregationGroupBys.push({ field_id: groupBy })
       }
       this.values.aggregation_group_bys = aggregationGroupBys
+      this.removeInvalidSorts()
+    },
+    removeInvalidSorts() {
+      const references = new Set(
+        this.allowedSortReferences.map(({ reference }) => reference)
+      )
+      this.values.aggregation_sorts = this.values.aggregation_sorts.filter(
+        ({ reference }) => references.has(reference)
+      )
     },
     onSortByUpdated(sort) {
       this.values.aggregation_sorts = sort !== null ? [sort] : []
