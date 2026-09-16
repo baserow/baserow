@@ -1360,6 +1360,7 @@
     "agents": "Agents"
   },
   "agents": {
+    "saved": "Changes saved",
     "tabTitle": "Agents",
     "title": "{count} agents in {workspace}",
     "emptyTitle": "You have not created any agents yet",

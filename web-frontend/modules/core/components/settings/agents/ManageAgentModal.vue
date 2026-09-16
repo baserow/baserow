@@ -33,6 +33,9 @@
         {{ isUpdate ? selectedSetting?.name : $t('agents.createTitle') }}
       </h2>
       <Error :error="error" />
+      <Alert v-if="success" type="success">
+        <template #title>{{ $t('agents.saved') }}</template>
+      </Alert>
       <form @submit.prevent="submit">
         <component
           :is="setting.component"
@@ -46,9 +49,14 @@
         />
         <div class="actions">
           <Button type="secondary" @click.prevent="hide">{{
-            $t('action.cancel')
+            isUpdate ? $t('action.close') : $t('action.cancel')
           }}</Button>
-          <Button type="primary" :loading="loading" :disabled="!values.name">
+          <Button
+            v-if="!isUpdate || hasSubmitFields"
+            type="primary"
+            :loading="loading"
+            :disabled="loading || (isUpdate ? !hasChanges : !values.name)"
+          >
             {{ isUpdate ? $t('agents.save') : $t('agents.create') }}
           </Button>
         </div>
@@ -58,6 +66,8 @@
 </template>
 
 <script>
+import _ from 'lodash'
+
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 
@@ -72,6 +82,8 @@ export default {
   data() {
     return {
       loading: false,
+      success: false,
+      initialValues: {},
       values: { name: '', role_uid: 'MEMBER' },
       selectedSetting: null,
     }
@@ -100,8 +112,33 @@ export default {
         ? [this.selectedSetting].filter(Boolean)
         : this.createSettings
     },
+    hasSubmitFields() {
+      return (
+        Object.keys(this.selectedSetting?.getSubmitValues(this.values) || {})
+          .length > 0
+      )
+    },
+    changedValues() {
+      const values = this.selectedSetting?.getSubmitValues(this.values) || {}
+      return Object.fromEntries(
+        Object.entries(values).filter(
+          ([key, value]) => !_.isEqual(value, this.initialValues[key])
+        )
+      )
+    },
+    hasChanges() {
+      return Object.keys(this.changedValues).length > 0
+    },
     createSettings() {
       return this.registeredSettings.filter((setting) => setting.showInCreate)
+    },
+  },
+  watch: {
+    values: {
+      deep: true,
+      handler() {
+        this.success = false
+      },
     },
   },
   methods: {
@@ -122,11 +159,16 @@ export default {
           })
         )
       }
+      this.initialValues = _.cloneDeep(this.values)
+      this.success = false
+      this.hideError()
       this.selectedSetting = this.registeredSettings[0] || null
       modal.methods.show.call(this, ...args)
       this.focusSelectedSetting()
     },
     selectSetting(setting) {
+      if (this.loading) return
+      this.success = false
       this.selectedSetting = setting
       this.hideError()
       this.focusSelectedSetting()
@@ -139,11 +181,13 @@ export default {
     },
     /** Submit only the active page while editing, or every page when creating. */
     async submit() {
+      if (this.loading || (this.isUpdate && !this.hasChanges)) return
       this.loading = true
+      this.success = false
       this.hideError()
       try {
         const values = this.isUpdate
-          ? this.selectedSetting.getSubmitValues(this.values)
+          ? _.cloneDeep(this.changedValues)
           : Object.assign(
               {},
               ...this.createSettings.map((setting) =>
@@ -160,7 +204,13 @@ export default {
               values,
             })
         this.$emit('saved', data)
-        this.hide()
+        if (this.isUpdate) {
+          // Only advance the saved page baseline; other pages keep their drafts.
+          Object.assign(this.initialValues, _.cloneDeep(values))
+          this.success = true
+        } else {
+          this.hide()
+        }
       } catch (error) {
         this.handleError(error, 'agent')
       } finally {
