@@ -101,9 +101,3 @@ class EnterpriseAgentExtension(AgentExtension):
 
     def update(self, agent, values, user):
         self._sync_teams(agent, values.get("team_ids"), user)
-
-    def before_delete(self, agent, user):
-        TeamSubject.objects.filter(
-            subject_type=ContentType.objects.get_for_model(Agent),
-            subject_id=agent.id,
-        ).delete()

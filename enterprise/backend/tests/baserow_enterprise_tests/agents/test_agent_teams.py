@@ -9,6 +9,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.teams.exceptions import TeamSubjectDoesNotExist
 from baserow_enterprise.teams.handler import TeamHandler
 from baserow_enterprise.teams.models import TeamSubject
 
@@ -22,6 +23,7 @@ def enable_enterprise_and_roles(enable_enterprise, synced_roles):
 def test_create_update_and_delete_agent_team_memberships(
     data_fixture, enterprise_data_fixture
 ):
+    """Team edits persist, and trashing an agent preserves its last memberships."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     first = enterprise_data_fixture.create_team(workspace=workspace, name="First")
@@ -40,7 +42,12 @@ def test_create_update_and_delete_agent_team_memberships(
     assert AgentSerializer(agent).data["teams"] == [{"id": second.id, "name": "Second"}]
 
     AgentService().delete_agent(user, agent)
-    assert not TeamSubject.objects.filter(subject_id=agent.id).exists()
+    assert TeamSubject.objects.filter(
+        subject_type=AgentSubjectType().get_content_type(),
+        subject_id=agent.id,
+        team=second,
+    ).exists()
+    assert not TeamHandler().list_subjects_in_team(second.id).exists()
     assert Agent.objects_and_trash.get(id=agent.id).trashed
 
 
@@ -316,3 +323,104 @@ def test_agent_list_loads_workspace_and_team_summaries_in_one_query(
     assert len(result) == 5
     assert all(item["workspace_id"] == workspace.id for item in result)
     assert all(item["teams"] == [{"id": team.id, "name": team.name}] for item in result)
+
+
+@pytest.mark.django_db
+def test_agent_team_memberships_survive_trash_restore_and_team_edits(
+    data_fixture, enterprise_data_fixture
+):
+    """Hidden memberships survive edits and restore with their original permissions."""
+    user = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user, members=[member])
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+    # Overlapping IDs must not hide the human when the agent is trashed.
+    agent = Agent.objects.create(
+        id=member.id,
+        workspace=workspace,
+        name="Writer",
+        role_uid="NO_ROLE_LOW_PRIORITY",
+    )
+    team_handler = TeamHandler()
+    human_membership = team_handler.create_subject(
+        user, {"id": member.id}, "auth.User", team
+    )
+    agent_membership = team_handler.create_subject(
+        user, {"id": agent.id}, AgentSubjectType.type, team
+    )
+    role_handler = RoleAssignmentHandler()
+    builder = role_handler.get_role_by_uid("BUILDER")
+    role_handler.assign_role(team, workspace, builder)
+    database = data_fixture.create_database_application(workspace=workspace)
+    role_handler.assign_role(agent, workspace, builder, scope=database.application_ptr)
+
+    AgentService().delete_agent(user, agent)
+    assert TeamSubject.objects.filter(id=agent_membership.id).exists()
+    visible_team = team_handler.list_teams_in_workspace(
+        user, workspace, subject_sample_size=1
+    ).get()
+    assert visible_team.subject_count == 1
+    assert [s["team_subject_id"] for s in visible_team.subject_sample] == [
+        human_membership.id
+    ]
+    assert list(team_handler.list_subjects_in_team(team.id)) == [human_membership]
+    with pytest.raises(TeamSubjectDoesNotExist):
+        team_handler.get_subject(agent_membership.id, team)
+    with pytest.raises(TeamSubjectDoesNotExist):
+        team_handler.get_subject_for_update(agent_membership.id, team)
+
+    team_handler.update_team(
+        user,
+        team,
+        "Renamed",
+        default_role=builder,
+        subjects=[{"subject_id": member.id, "subject_type": "auth.User"}],
+    )
+    assert TeamSubject.objects.filter(id=agent_membership.id).exists()
+    restored = TrashHandler.restore_item(user, "agent", agent.id)
+    assert AgentSerializer(restored).data["teams"] == [
+        {"id": team.id, "name": "Renamed"}
+    ]
+    visible_team = team_handler.list_teams_in_workspace(user, workspace).get()
+    assert visible_team.subject_count == 2
+    assert {s["team_subject_id"] for s in visible_team.subject_sample} == {
+        human_membership.id,
+        agent_membership.id,
+    }
+    assert set(team_handler.list_subjects_in_team(team.id)) == {
+        human_membership,
+        agent_membership,
+    }
+    assert dict(role_handler.get_roles_per_scope(workspace, restored))[workspace] == [
+        builder
+    ]
+    assert (
+        role_handler.get_current_role_assignment(
+            restored, workspace, database.application_ptr
+        ).role
+        == builder
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("team_trashed", [False, True])
+def test_permanent_agent_deletion_cleans_team_memberships(
+    data_fixture, enterprise_data_fixture, team_trashed
+):
+    """Permanent deletion cleans memberships even when their team is also trashed."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+    agent = AgentService().create_agent(
+        user, workspace, name="Writer", team_ids=[team.id]
+    )
+    membership_id = TeamSubject.objects.get(team=team).id
+    AgentService().delete_agent(user, agent)
+    team.trashed = team_trashed
+    team.save()
+    assert TeamSubject.objects_and_trash.filter(id=membership_id).exists()
+
+    TrashHandler.permanently_delete(agent)
+
+    assert not Agent.objects_and_trash.filter(id=agent.id).exists()
+    assert not TeamSubject.objects_and_trash.filter(id=membership_id).exists()
