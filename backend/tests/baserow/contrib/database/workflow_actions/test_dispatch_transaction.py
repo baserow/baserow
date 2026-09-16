@@ -35,15 +35,16 @@ def _recording_transaction_state(request, seen):
     request.side_effect = record
 
 
-# `transaction=True` throughout: the plain `db` fixture wraps every test in a
-# transaction, so `in_atomic_block` would be true whatever the code did.
+# `transaction=True` where noted below: the plain `db` fixture wraps every
+# test in a transaction, so `in_atomic_block` would be true whatever the code
+# did. Those tests use it to see the connection the way production does.
 
 
 @pytest.mark.django_db(transaction=True)
 def test_a_click_sends_its_request_with_no_transaction_open(data_fixture):
     """
-    An HTTP request inside the dispatch savepoint held a connection and an open
-    transaction for its whole network wait.
+    A click's HTTP action sends with no transaction of ours open, so a slow
+    endpoint holds no connection for its network wait.
     """
 
     user = data_fixture.create_user()
@@ -60,6 +61,39 @@ def test_a_click_sends_its_request_with_no_transaction_open(data_fixture):
         )
 
     assert seen == [False]
+
+
+@pytest.mark.django_db
+def test_a_click_sends_its_request_with_no_savepoint_of_ours_open(data_fixture):
+    """
+    The plain `db` fixture wraps this test in a transaction of its own, so
+    `in_atomic_block` reads True throughout regardless of what the dispatch
+    does. The click must still send outside its own savepoint: the dispatch
+    context decides this, not whichever transaction the caller happens to be
+    running under.
+    """
+
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _http_action(data_fixture, button_field)
+
+    before = len(connection.savepoint_ids)
+    savepoints_open = []
+    with mock_advocate_request({"ok": True}) as request:
+        answer = request.side_effect
+
+        def record(*args, **kwargs):
+            savepoints_open.append(len(connection.savepoint_ids))
+            return answer(*args, **kwargs)
+
+        request.side_effect = record
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert savepoints_open == [before]
 
 
 @pytest.mark.django_db(transaction=True)

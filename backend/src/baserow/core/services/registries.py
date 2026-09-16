@@ -400,6 +400,21 @@ class ServiceType(
         :return: The service `dispatch_data` result if any.
         """
 
+    def _dispatch_and_transform(
+        self,
+        service: ServiceSubClass,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """
+        Runs `dispatch_data` and `dispatch_transform` together. `dispatch`
+        calls this from either side of its savepoint, so the pairing is
+        written once rather than once per side.
+        """
+
+        data = self.dispatch_data(service, resolved_values, dispatch_context)
+        return self.dispatch_transform(data)
+
     def dispatch(
         self,
         service: ServiceSubClass,
@@ -428,15 +443,18 @@ class ServiceType(
 
         # Formula resolution always runs inside this savepoint. `dispatch_data`
         # and `dispatch_transform` run inside it too, unless the service is
-        # external and no transaction is already open, in which case they run
-        # after it instead. A database error inside must not break the
-        # caller's transaction (#5621), so only this savepoint rolls back and
-        # the caller (and the sample data error save below) can still issue
-        # queries. An external call must not hold a transaction open for its
-        # network wait when nothing else already has one open; inside a
-        # caller's transaction it stays in, since that costs nothing more.
+        # external and the dispatch context says its caller sends outside a
+        # transaction, in which case they run after the savepoint instead. A
+        # database error inside must not break the caller's transaction
+        # (#5621), so only this savepoint rolls back and the caller (and the
+        # sample data error save below) can still issue queries. An external
+        # call that runs outside must not hold a transaction open for its
+        # network wait; a context whose caller already wraps dispatch in a
+        # transaction of its own opts out, since leaving the savepoint there
+        # gains nothing.
         sends_outside = (
-            self.is_external and not transaction.get_connection().in_atomic_block
+            self.is_external
+            and dispatch_context.sends_external_calls_outside_transaction
         )
         try:
             with transaction.atomic():
@@ -444,13 +462,13 @@ class ServiceType(
                     service, dispatch_context
                 )
                 if not sends_outside:
-                    data = self.dispatch_data(
+                    serialized_data = self._dispatch_and_transform(
                         service, resolved_values, dispatch_context
                     )
-                    serialized_data = self.dispatch_transform(data)
             if sends_outside:
-                data = self.dispatch_data(service, resolved_values, dispatch_context)
-                serialized_data = self.dispatch_transform(data)
+                serialized_data = self._dispatch_and_transform(
+                    service, resolved_values, dispatch_context
+                )
         except Exception as e:
             if dispatch_context.use_sample_data and (
                 dispatch_context.update_sample_data_for is None
