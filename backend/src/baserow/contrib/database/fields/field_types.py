@@ -8336,7 +8336,9 @@ class ButtonFieldType(ReadOnlyFieldType):
         # save trashes the actions it created before it undoes the type change,
         # and redo restores them from the trash. The backup is logged on the
         # undo action and copied into the audit log, so whatever a service
-        # calls sensitive is left blank, as a workspace export leaves it.
+        # calls sensitive is left blank, as a workspace export leaves it. An
+        # email action's service calls its whole message sensitive, so it comes
+        # back empty.
         import_export_config = ImportExportConfig(
             include_permission_data=True,
             reduce_disk_space_usage=False,

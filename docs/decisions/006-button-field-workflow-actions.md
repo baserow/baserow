@@ -569,22 +569,31 @@ the natural place to narrow this further when it is wanted.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
   and the button enters the reconfigure state rather than failing only at click time;
   restoring from trash heals it without reconfiguration.
-- **Field type conversion.** Converting away deletes actions and services; converting
-  into a button starts empty. Both directions are destructive, like other fields that
-  carry configuration.
+- **Field type conversion.** Converting away deletes actions and services, and undoing
+  the conversion recreates them from the copy the field update logged (see Undo/redo);
+  converting into a button starts empty.
 - **Undo/redo.** Clicks are never undoable, even when a sequence only touches rows: a
   partially undoable button is more confusing than none. Configuring the actions is:
   creating, updating, reordering and deleting each register an undoable action in the
   table scope, and the editor sends a save's field update and action calls under one
-  action group, so one undo takes back the whole save. An update logs the action's
-  values without the fields its service calls sensitive, since the log is copied into
-  the audit log and an HTTP action keeps its keys in its headers. Undo leaves those
-  fields as they are, and an edit to only those fields adds no undo step. A type change
-  keeps the service it replaces instead of deleting it, so undo and redo attach the
-  service each side had, sensitive fields included, after checking the user may still
-  read its integration; the kept service is deleted when the undo step is cleaned up.
-  A field changing away from a button logs its actions without sensitive values, so
-  undoing that brings them back with those fields blank.
+  action group, so one undo takes back the whole save. An undo takes back at most
+  `MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP` (20) steps of a group, newest first, so a save
+  that would register more is sent without a group and each step undoes on its own.
+  An update logs the action's values without the fields its service type declares in
+  `sensitive_fields`, since the log is copied into the audit log. That is decided per
+  service type: HTTP leaves out headers, query parameters, form data and body; email
+  leaves out sender, recipients, subject and body; Slack declares none, so its channel
+  and text are logged as they are, while its token stays on the integration. Undo
+  leaves the left-out fields as they are, so a save that changes both kinds is only
+  partly reverted: changing an HTTP action's URL and its headers, then undoing, puts
+  the old URL back with the new headers. An edit to only left-out fields adds no undo
+  step. A type change keeps the service it replaces instead of deleting it, so undo
+  and redo attach the service each side had, sensitive fields included, after checking
+  the user may still use its integration or workflow; the kept service is deleted when
+  the undo step is cleaned up. Undoing a delete restores the action and the order the
+  field had before it. A field changing away from a button logs its actions without
+  sensitive values, so undoing that brings them back with those fields blank: an email
+  action comes back with no sender, recipients, subject or body.
 - **Audit log.** A click registers one `dispatch_button_field` action after every
   permission check has passed and before the first action runs, inside the lock when
   there is one, so a click refused for permission or as already running leaves no entry
