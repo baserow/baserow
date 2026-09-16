@@ -60,16 +60,22 @@ from .serializers import (
 
 def _get_application_serializer_context(request: Request, applications: list) -> dict:
     """
-    One extra query regardless of the number of workspaces. The value can't be a
-    queryset annotation because `specific_queryset` drops annotations.
+    Loads what the serializer needs per user and per workspace up front, with a
+    query count that does not grow with the number of workspaces. The last viewed
+    value can't be a queryset annotation because `specific_queryset` drops
+    annotations.
 
     :param request: The request of the user the applications are serialized for.
     :param applications: The applications that are going to be serialized.
     :return: The context for the `PolymorphicApplicationResponseSerializer`.
     """
 
+    workspaces = {
+        application.workspace_id: application.workspace for application in applications
+    }
     return {
         "request": request,
+        "ai_provider_states": load_ai_provider_state(workspaces.values()),
         "last_viewed_per_application": (
             LastViewedHandler.get_last_viewed_per_application(
                 request.user, [application.id for application in applications]
@@ -109,13 +115,11 @@ class AllApplicationsView(APIView):
             CoreService().list_applications_in_workspaces(request.user, workspaces)
         )
 
-        context = {
-            **_get_application_serializer_context(request, all_applications),
-            "ai_provider_states": load_ai_provider_state(workspaces),
-        }
         return Response(
             PolymorphicApplicationResponseSerializer(
-                all_applications, many=True, context=context
+                all_applications,
+                many=True,
+                context=_get_application_serializer_context(request, all_applications),
             ).data
         )
 
@@ -172,13 +176,11 @@ class ApplicationsView(APIView):
             CoreService().list_applications_in_workspace(request.user, workspace)
         )
 
-        context = {
-            **_get_application_serializer_context(request, applications),
-            "ai_provider_states": load_ai_provider_state([workspace]),
-        }
         return Response(
             PolymorphicApplicationResponseSerializer(
-                applications, many=True, context=context
+                applications,
+                many=True,
+                context=_get_application_serializer_context(request, applications),
             ).data
         )
 
