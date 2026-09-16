@@ -11,7 +11,7 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field
-from pydantic_ai import RunContext
+from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.builder.pages.handler import PageHandler
@@ -21,7 +21,10 @@ from baserow_enterprise.assistant.tools.builder.themes import (
     ThemeName,
     apply_theme,
 )
-from baserow_enterprise.assistant.tools.shared import require_payload
+from baserow_enterprise.assistant.tools.shared import (
+    raise_if_permission_denied,
+    require_payload,
+)
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
@@ -469,15 +472,11 @@ def _create_elements_internal(
     page_id: int,
     elements: list[ElementItemCreate],
     before_element_id: int | None = None,
-    *,
-    tool_name: str,
 ) -> dict[str, Any]:
     """Shared implementation for all create_*_elements tools."""
 
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
-
-    require_payload(tool_name, "elements", elements)
 
     page = helpers.get_page(user, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
@@ -510,7 +509,8 @@ def _create_elements_internal(
                     shared_page_refs,
                     before_element_id,
                 )
-            except (ValueError, Exception) as exc:
+            except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"{el_create.ref}: {exc}")
                 continue
             ref_to_id[el_create.ref] = el_id
@@ -611,14 +611,9 @@ def create_display_elements(
     - For page-specific navigation (back, contextual links), place buttons on the page itself.
     """
 
+    require_payload("create_display_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(
-        ctx,
-        page_id,
-        internal,
-        before_element_id,
-        tool_name="create_display_elements",
-    )
+    return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
 
 def create_layout_elements(
@@ -658,14 +653,9 @@ def create_layout_elements(
     - Shared elements CANNOT reference page-specific data sources.
     """
 
+    require_payload("create_layout_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(
-        ctx,
-        page_id,
-        internal,
-        before_element_id,
-        tool_name="create_layout_elements",
-    )
+    return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
 
 def create_form_elements(
@@ -706,14 +696,9 @@ def create_form_elements(
     ALWAYS call create_actions after creating form_container elements.
     """
 
+    require_payload("create_form_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(
-        ctx,
-        page_id,
-        internal,
-        before_element_id,
-        tool_name="create_form_elements",
-    )
+    return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
 
 def create_collection_elements(
@@ -752,14 +737,9 @@ def create_collection_elements(
     - Add child elements inside the repeat via parent_element ref.
     """
 
+    require_payload("create_collection_elements", "elements", elements)
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(
-        ctx,
-        page_id,
-        internal,
-        before_element_id,
-        tool_name="create_collection_elements",
-    )
+    return _create_elements_internal(ctx, page_id, internal, before_element_id)
 
 
 # ---------------------------------------------------------------------------
@@ -959,6 +939,7 @@ def move_elements(
                 }
             )
         except Exception as exc:
+            raise_if_permission_denied(exc)
             errors.append(f"element {element_move.element_id}: {exc}")
 
     result: dict[str, Any] = {"moved_elements": moved}
@@ -1061,7 +1042,8 @@ def create_actions(
                 orm_action, action_id = helpers.create_workflow_action(
                     user, page, action_create, el_refs, ds_refs, integration
                 )
-            except (ValueError, Exception) as exc:
+            except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"{action_create.type} on {action_create.element}: {exc}")
                 continue
             action_pairs.append((orm_action, action_create))
@@ -1130,9 +1112,16 @@ def _setup_data_sources(
     integration,
     tool_helpers,
 ) -> tuple[list[dict], list[str]]:
-    """Create data sources, skipping duplicates by name or structural match.
+    """
+    Create data sources, skipping duplicates by name or structural match.
 
-    Mutates *ds_ref_to_id* in place. Returns ``(created, errors)``.
+    :param user: The acting user.
+    :param page: The page to create data sources on.
+    :param data_sources: The requested data source definitions.
+    :param ds_ref_to_id: Ref-to-ID mapping, mutated in place.
+    :param integration: The local Baserow integration to attach to.
+    :param tool_helpers: Provides status updates and cancellation.
+    :return: ``(created, errors)``.
     """
 
     created: list[dict] = []
@@ -1174,6 +1163,7 @@ def _setup_data_sources(
                     }
                 )
             except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"data_source {ds_create.ref}: {exc}")
     errors.extend(
         agents.update_data_source_formulas(user, page, ds_pairs, tool_helpers)
@@ -1190,10 +1180,17 @@ def _setup_elements(
     shared_page_refs: set[str],
     tool_helpers,
 ) -> tuple[list[dict], list[str]]:
-    """Create elements in order, generate formulas, and handle table actions.
+    """
+    Create elements in order, generate formulas, and handle table actions.
 
-    Mutates *el_ref_to_id* and *shared_page_refs* in place.
-    Returns ``(created, errors)``.
+    :param user: The acting user.
+    :param page: The page to create elements on.
+    :param elements: The requested element definitions.
+    :param el_ref_to_id: Ref-to-ID mapping, mutated in place.
+    :param ds_ref_to_id: Data source ref-to-ID mapping.
+    :param shared_page_refs: Refs placed on the shared page, mutated in place.
+    :param tool_helpers: Provides status updates and cancellation.
+    :return: ``(created, errors)``.
     """
 
     created: list[dict] = []
@@ -1228,6 +1225,7 @@ def _setup_elements(
                     {"id": el_id, "ref": el_create.ref, "type": el_create.type}
                 )
             except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(f"element {el_create.ref}: {exc}")
     errors.extend(
         agents.update_element_formulas(
@@ -1252,9 +1250,17 @@ def _setup_actions(
     integration,
     tool_helpers,
 ) -> tuple[list[dict], list[str]]:
-    """Create workflow actions and generate their formulas.
+    """
+    Create workflow actions and generate their formulas.
 
-    Returns ``(created, errors)``.
+    :param user: The acting user.
+    :param page: The page to create actions on.
+    :param actions: The requested action definitions.
+    :param el_ref_to_id: Element ref-to-ID mapping.
+    :param ds_ref_to_id: Data source ref-to-ID mapping.
+    :param integration: The local Baserow integration to attach to.
+    :param tool_helpers: Provides status updates and cancellation.
+    :return: ``(created, errors)``.
     """
 
     created: list[dict] = []
@@ -1288,6 +1294,7 @@ def _setup_actions(
                     }
                 )
             except Exception as exc:
+                raise_if_permission_denied(exc)
                 errors.append(
                     f"action {action_create.type} on {action_create.element}: {exc}"
                 )
@@ -1374,7 +1381,7 @@ def setup_page(
     tool_helpers = ctx.deps.tool_helpers
 
     if not data_sources and not elements and not actions:
-        raise helpers.ToolInputError(
+        raise ModelRetry(
             "setup_page was called with no content: `data_sources`, `elements` "
             "and `actions` were all empty, so nothing was created. An ID "
             "argument says where to act, never what to do — send the items to "
@@ -1484,6 +1491,7 @@ def setup_user_source(
     try:
         builder = helpers.get_builder(user, workspace, application_id)
     except Exception as exc:
+        raise_if_permission_denied(exc)
         return {"error": f"Could not find application: {exc}"}
 
     tool_helpers.update_status(_("Setting up user source..."))
@@ -1507,6 +1515,7 @@ def setup_user_source(
                 user, builder, setup.name, table, field_map, integration
             )
     except Exception as exc:
+        raise_if_permission_denied(exc)
         return {"error": str(exc)}
 
     # Create login page if not already set
@@ -1618,18 +1627,3 @@ TOOL_FUNCTIONS = [
     set_theme,
 ]
 builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
-
-ROUTING_RULES = """\
-- New page with content: call create_pages first, then setup_page for the NEW page. If elements don't fit the current page context, ask which page to target.
-- switch_mode: switch domain if task needs tools not in the current mode.
-- Use setup_page when creating all content for a page at once. Use individual tools (create_data_sources, create_*_elements, create_actions) when adding to or modifying a page that already has content.
-- Button/form actions (click, submit) → create_actions. Do NOT switch to database mode to use load_row_tools for this — that is for direct database CRUD, not builder page behavior.
-- switch_mode when the task needs tools from another domain. Examples:
-  - Filtering: switch_mode("database") → create_views + create_view_filters → switch_mode("application") → create_data_sources with view_id.
-  - New tables for an app: switch_mode("database") → create_tables → switch_mode("application") → create_pages → setup_page.
-- User authentication: if the app needs login/roles, call setup_user_source before creating pages with visibility="logged-in".
-- Completeness checks before finishing:
-  - Every page that displays data needs at least one data source.
-  - Table/repeat elements must specify their columns/fields.
-  - Forms need input elements + a submit action (create_row or update_row).
-  - Buttons and links need a click action (open_page, notification, etc.)."""
