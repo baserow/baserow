@@ -1,7 +1,7 @@
 import json
 import time
 from contextlib import contextmanager
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 from requests import exceptions as request_exceptions
@@ -17,7 +17,7 @@ from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
-# Custom context manager
+# Answers the service's outbound call, so nothing here reaches the network.
 @contextmanager
 def mock_advocate_request(
     body=None, headers=None, status_code=200, raise_exception=None
@@ -48,8 +48,11 @@ def mock_advocate_request(
         b"",
     ]
 
-    # Use the patch context manager to mock `advocate.request`
-    with patch("advocate.request", return_value=mock_response) as mock_request:
+    # Use the patch context manager to mock `send_http_request`
+    with patch(
+        "baserow.contrib.integrations.core.service_types.send_http_request",
+        return_value=mock_response,
+    ) as mock_request:
 
         def side_effect(*args, **kwargs):
             if raise_exception is not None:
@@ -82,8 +85,7 @@ def test_core_http_request_basic(
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.POST,
                 "params": {},
-                "timeout": 15,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -173,8 +175,7 @@ def test_core_http_request_basic_body_raw(
                 "data": "test",
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -203,8 +204,7 @@ def test_core_http_request_basic_body_json(
                 "json": {"test": "2"},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -304,8 +304,7 @@ def test_core_http_request_body_json_with_to_json_escapes_data_source(data_fixtu
                 "json": {"value1": 'foo "bar"'},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -344,8 +343,7 @@ def test_core_http_request_basic_body_json_with_control_characters(
                 "json": {"test": value},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -375,8 +373,7 @@ def test_core_http_request_with_formulas(
                 "json": {"test": "2"},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/2",
             }
         )
@@ -412,8 +409,7 @@ def test_core_http_request_with_headers(
                 },
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -445,8 +441,7 @@ def test_core_http_request_with_query_params(
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.GET,
                 "params": {"test": "test__2", "test2": "value"},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -479,8 +474,7 @@ def test_core_http_request_with_form_data(
                 "method": HTTP_METHOD.GET,
                 "data": {"test": "test__2", "test2": "value"},
                 "params": {},
-                "timeout": 30,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -781,8 +775,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.POST,
                 "params": {},
-                "timeout": 15,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -836,8 +829,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.POST,
                 "params": {},
-                "timeout": 15,
-                "stream": True,
+                "deadline": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -871,7 +863,10 @@ def test_a_response_bigger_than_the_ceiling_is_refused(data_fixture, settings):
     # More than the ceiling, handed over in chunks the way a real one arrives.
     mock_response.raw.read1.side_effect = [b"x" * 512] * 10 + [b""]
 
-    with patch("advocate.request", return_value=mock_response):
+    with patch(
+        "baserow.contrib.integrations.core.service_types.send_http_request",
+        return_value=mock_response,
+    ):
         with pytest.raises(ServiceImproperlyConfiguredDispatchException) as raised:
             service_type.dispatch(service, FakeDispatchContext())
 
@@ -919,7 +914,10 @@ def test_a_response_that_drips_forever_is_hung_up_on(data_fixture, settings):
     mock_response.status_code = 200
     mock_response.raw.read1.side_effect = drip
 
-    with patch("advocate.request", return_value=mock_response):
+    with patch(
+        "baserow.contrib.integrations.core.service_types.send_http_request",
+        return_value=mock_response,
+    ):
         dispatch_data = service_type.dispatch(service, FakeDispatchContext())
 
     # A deadline reached is reported the same way as any other timeout.
@@ -939,3 +937,51 @@ def test_a_response_that_arrives_in_time_is_not_hung_up_on(data_fixture, setting
         dispatch_data = service_type.dispatch(service, FakeDispatchContext())
 
     assert dispatch_data.data["body"] == {"title": "quick"}
+
+
+@pytest.mark.django_db
+def test_the_request_and_its_body_share_one_deadline(data_fixture):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.GET
+    )
+
+    before = time.monotonic()
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
+        with patch(
+            "baserow.contrib.integrations.core.service_types.read_response_within_limit"
+        ) as read:
+            service.get_type().dispatch(service, FakeDispatchContext())
+    after = time.monotonic()
+
+    deadline = mock_request.call_args.kwargs["deadline"]
+    assert before + 15 <= deadline <= after + 15
+    assert read.call_args.kwargs["deadline"] == deadline
+
+
+@pytest.mark.django_db
+def test_too_many_redirects_is_an_unexpected_dispatch_error(data_fixture):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.GET
+    )
+
+    with mock_advocate_request(
+        raise_exception=request_exceptions.TooManyRedirects("Exceeded 10 redirects.")
+    ):
+        with pytest.raises(UnexpectedDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_the_lock_budget_covers_a_read_already_waiting_at_the_deadline(
+    data_fixture,
+):
+    """
+    The request is hung up on at its deadline. The budget is doubled as headroom
+    for the hang-up's own scheduling and a slow address lookup.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=30, http_method=HTTP_METHOD.GET
+    )
+
+    assert service.get_type().max_dispatch_seconds(service) == 60
