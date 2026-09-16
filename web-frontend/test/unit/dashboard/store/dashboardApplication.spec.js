@@ -45,6 +45,60 @@ describe('dashboardApplication store', () => {
     mock.restore()
   })
 
+  test('fetchNewDataSources awaits missing results for an existing source', async () => {
+    store.commit('dashboardApplication/ADD_DATA_SOURCE', dataSource)
+    let completeDispatch
+    mock.onPost(`/dashboard/data-sources/${dataSource.id}/dispatch/`).reply(
+      () =>
+        new Promise((resolve) => {
+          completeDispatch = resolve
+        })
+    )
+
+    let refreshCompleted = false
+    const refresh = store
+      .dispatch('dashboardApplication/fetchNewDataSources', {
+        dashboardId,
+        requestId: store.state.dashboardApplication.fetchRequestId,
+      })
+      .then(() => {
+        refreshCompleted = true
+      })
+    await flushPromises()
+
+    expect(mock.history.post).toHaveLength(1)
+    expect(refreshCompleted).toBe(false)
+    expect(store.state.dashboardApplication.dataSources).toHaveLength(1)
+
+    completeDispatch([200, dataSourceResult])
+    await refresh
+
+    expect(refreshCompleted).toBe(true)
+    expect({
+      dataSources: store.state.dashboardApplication.dataSources,
+      data: store.state.dashboardApplication.data,
+    }).toMatchSnapshot()
+  })
+
+  test('fetchNewDataSources preserves cached results without dispatching again', async () => {
+    store.commit('dashboardApplication/ADD_DATA_SOURCE', dataSource)
+    store.commit('dashboardApplication/UPDATE_DATA', {
+      dataSourceId: dataSource.id,
+      values: dataSourceResult,
+    })
+
+    await store.dispatch('dashboardApplication/fetchNewDataSources', {
+      dashboardId,
+      requestId: store.state.dashboardApplication.fetchRequestId,
+    })
+
+    expect(mock.history.post).toHaveLength(0)
+    expect({
+      dataSources: store.state.dashboardApplication.dataSources,
+      data: store.state.dashboardApplication.data,
+    }).toMatchSnapshot()
+  })
+
   test('handleNewWidgetCreated replaces the optimistic widget and fetches its data source', async () => {
     const tempWidgetId = 99999
     store.commit('dashboardApplication/ADD_WIDGET', {
