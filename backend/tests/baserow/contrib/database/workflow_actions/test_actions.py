@@ -655,3 +655,37 @@ def test_redoing_a_delete_whose_action_was_trashed_since(data_fixture):
 
     assert all(entry.error is None for entry in redone)
     assert _ids(button_field) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_delete_and_reorder_puts_every_action_back_in_place(data_fixture):
+    user, session_id, table, button_field = _setup(data_fixture)
+    a = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    b = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    c = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    DatabaseWorkflowActionHandler().order_workflow_actions(
+        button_field, [b.id, a.id, c.id]
+    )
+
+    # What the editor sends for [B, A, C] saved as [C, A].
+    set_client_undo_redo_action_group_id(user, str(uuid.uuid4()))
+    DeleteDatabaseWorkflowActionActionType.do(user, b)
+    OrderDatabaseWorkflowActionsActionType.do(user, button_field, [c.id, a.id])
+
+    ActionHandler.undo(user, _scope(table), session_id)
+
+    assert _ids(button_field) == [b.id, a.id, c.id]
+    orders = DatabaseWorkflowAction.objects.filter(field=button_field).values_list(
+        "order", flat=True
+    )
+    assert len(set(orders)) == 3
+
+    ActionHandler.redo(user, _scope(table), session_id)
+    assert _ids(button_field) == [c.id, a.id]

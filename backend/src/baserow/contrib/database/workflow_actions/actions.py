@@ -48,6 +48,16 @@ def workflow_action_action_scope(field: ButtonField) -> ActionScopeStr:
     return TableActionScopeType.value(field.table_id)
 
 
+def _workflow_action_ids(field: ButtonField) -> List[int]:
+    """The ids of a field's actions, in the order they run."""
+
+    return list(
+        DatabaseWorkflowAction.objects.filter(field=field)
+        .order_by("order", "id")
+        .values_list("id", flat=True)
+    )
+
+
 def _restore_workflow_action(user: AbstractUser, workflow_action_id: int) -> bool:
     """
     Restores a trashed action for an undo or redo. One restored from the trash
@@ -365,6 +375,11 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
         field_id: int
         field_name: str
         workflow_action_id: int
+        # The field's order before the delete. Restoring alone brings back the
+        # action's old `order`, which the actions after it may have taken since.
+        original_workflow_action_ids: List[int] = dataclasses.field(
+            default_factory=list
+        )
 
     @classmethod
     def do(cls, user: AbstractUser, workflow_action: DatabaseWorkflowAction) -> None:
@@ -379,6 +394,7 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
             field.id,
             field.name,
             workflow_action.id,
+            _workflow_action_ids(field),
         )
 
         DatabaseWorkflowActionService().delete_workflow_action(user, workflow_action)
@@ -396,7 +412,18 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        _restore_workflow_action(user, params.workflow_action_id)
+        if not _restore_workflow_action(user, params.workflow_action_id):
+            return
+        if params.original_workflow_action_ids:
+            field = FieldHandler().get_field(
+                params.field_id, base_queryset=ButtonField.objects
+            )
+            existing = set(_workflow_action_ids(field))
+            DatabaseWorkflowActionService().order_workflow_actions(
+                user,
+                field,
+                [id_ for id_ in params.original_workflow_action_ids if id_ in existing],
+            )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
@@ -424,11 +451,7 @@ class OrderDatabaseWorkflowActionsActionType(UndoableActionType):
 
     @classmethod
     def do(cls, user: AbstractUser, field: ButtonField, order: List[int]) -> List[int]:
-        original_order = list(
-            DatabaseWorkflowAction.objects.filter(field=field)
-            .order_by("order", "id")
-            .values_list("id", flat=True)
-        )
+        original_order = _workflow_action_ids(field)
 
         full_order = DatabaseWorkflowActionService().order_workflow_actions(
             user, field, order
