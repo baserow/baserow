@@ -41,6 +41,7 @@ from baserow_enterprise.assistant.tools.registries import assistant_tool_registr
 from baserow_enterprise.assistant.tools.routing import (
     ModeAwareToolset,
     is_tool_active,
+    routed_tool_names,
     tool_home,
 )
 from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
@@ -377,6 +378,71 @@ def test_deps_expose_one_catalog(built: BuiltToolset) -> None:
 def test_canonical_home_is_independent_from_shared_visibility() -> None:
     assert tool_home("list_workflows") == AgentMode.AUTOMATION
     assert is_tool_active("list_workflows", AgentMode.EXPLAIN)
+
+
+DATABASE = AgentMode.DATABASE
+APPLICATION = AgentMode.APPLICATION
+AUTOMATION = AgentMode.AUTOMATION
+EXPLAIN = AgentMode.EXPLAIN
+EVERYWHERE = frozenset(AgentMode)
+
+# Adding a tool must fail here, so its reach is a decision and not a default.
+TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
+    "add_action_field_mapping": frozenset({APPLICATION}),
+    "add_nodes": frozenset({AUTOMATION}),
+    "ask_user": EVERYWHERE,
+    "create_actions": frozenset({APPLICATION}),
+    "create_builders": EVERYWHERE - {EXPLAIN},
+    "create_collection_elements": frozenset({APPLICATION}),
+    "create_data_sources": frozenset({APPLICATION}),
+    "create_display_elements": frozenset({APPLICATION}),
+    "create_fields": frozenset({DATABASE}),
+    "create_form_elements": frozenset({APPLICATION}),
+    "create_layout_elements": frozenset({APPLICATION}),
+    "create_pages": frozenset({APPLICATION}),
+    "create_tables": frozenset({DATABASE}),
+    "create_view_filters": frozenset({DATABASE}),
+    "create_views": frozenset({DATABASE}),
+    "create_workflows": frozenset({AUTOMATION}),
+    "delete_fields": frozenset({DATABASE}),
+    "delete_nodes": frozenset({AUTOMATION}),
+    "generate_formula": frozenset({DATABASE}),
+    "get_tables_schema": EVERYWHERE,
+    "list_actions": frozenset({APPLICATION, EXPLAIN}),
+    "list_builders": EVERYWHERE,
+    "list_data_sources": frozenset({APPLICATION, EXPLAIN}),
+    "list_elements": frozenset({APPLICATION, EXPLAIN}),
+    "list_nodes": frozenset({AUTOMATION, EXPLAIN}),
+    "list_pages": frozenset({APPLICATION, EXPLAIN}),
+    "list_rows": EVERYWHERE,
+    "list_tables": EVERYWHERE,
+    "list_views": EVERYWHERE,
+    "list_workflows": frozenset({AUTOMATION, EXPLAIN}),
+    "load_row_tools": frozenset({DATABASE}),
+    "move_elements": frozenset({APPLICATION}),
+    "navigate": EVERYWHERE,
+    "search_user_docs": frozenset({EXPLAIN}),
+    "set_theme": frozenset({APPLICATION}),
+    "setup_page": frozenset({APPLICATION}),
+    "setup_user_source": frozenset({APPLICATION}),
+    "switch_mode": EVERYWHERE,
+    "update_builder": EVERYWHERE - {EXPLAIN},
+    "update_data_source": frozenset({APPLICATION}),
+    "update_element": frozenset({APPLICATION}),
+    "update_element_style": frozenset({APPLICATION}),
+    "update_fields": frozenset({DATABASE}),
+    "update_nodes": frozenset({AUTOMATION}),
+    "update_page": frozenset({APPLICATION}),
+}
+
+
+def test_every_routed_tool_has_the_expected_reach() -> None:
+    actual = {
+        name: frozenset(mode for mode in AgentMode if is_tool_active(name, mode))
+        for name in routed_tool_names()
+    }
+
+    assert actual == TOOL_VISIBILITY
 
 
 @pytest.mark.django_db

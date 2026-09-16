@@ -721,6 +721,8 @@
         cell.appendChild(sub);
       }
       row.appendChild(cell);
+    }
+
     function scoreCell(row, value, baselineValue) {
       var cell = document.createElement("td");
       cell.className = "score";
@@ -774,14 +776,21 @@
       });
       table.appendChild(head);
 
+      var totals = {
+        scores: {},
+        weights: {},
+        baseline: {},
+        baselineWeights: {},
+        casesRun: 0,
+      };
+
       resultsData.forEach(function (dataset) {
         var byName = experimentsByName(dataset);
         var experiment = byName[selected];
         var baseline = byName["baseline"];
         var experimentComplete = experiment && experiment.complete;
         var comparable = experimentComplete && baseline && baseline.complete;
-        // Scores are means so they compare across repetition counts, but time
-        // and cost are totals and need dividing by the repetitions behind them.
+        // Scores are already means; time and cost are totals over the repetitions.
         var repetitions = function (candidate) {
           return (candidate && candidate.repetitions) || 1;
         };
@@ -865,7 +874,7 @@
         var cost = experimentComplete ? perPass(experiment, "cost") : null;
         var baseCost = comparable ? perPass(baseline, "cost") : null;
         usageCell(
-          row, experiment ? experiment.cost : null,
+          row, cost, baseCost,
           function (value) { return "$" + value.toFixed(2); },
           experimentComplete && experiment.tokens != null
             ? fmtTokens(perPass(experiment, "tokens")) : null
@@ -913,7 +922,6 @@
         table.appendChild(totalRow);
       }
 
-      body.textContent = "";
       body.appendChild(table);
       var note = document.createElement("p");
       note.className = "results-note";

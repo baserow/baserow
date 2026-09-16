@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import queue as queue_module
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -19,6 +20,8 @@ from baserow_enterprise.assistant.evals.types import EvalCase
 from baserow_enterprise.management.commands import (
     assistant_eval_runner as eval_runner_command,
 )
+
+from . import js_source
 
 
 @pytest.mark.parametrize("version", range(1, runner.HARNESS_VERSION + 1))
@@ -533,6 +536,49 @@ class TestResultsEndpoint:
             "experiment.score_counts[metric] === baseline.score_counts[metric]"
             not in page
         )
+
+
+class TestResultsPageScript:
+    """The substring assertions above pass against a page that cannot run."""
+
+    @pytest.fixture
+    def script(self):
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+        return js_source.inline_script(body.decode("utf-8"))
+
+    def test_index_script_braces_are_balanced(self, script):
+        assert js_source.brace_problems(script) == []
+
+    def test_index_script_declares_every_function_the_page_wires_up(self, script):
+        declared = js_source.declared_functions(script)
+
+        assert len(declared) > 20
+        assert "renderResults" in declared
+        assert "usageCell" in declared
+
+    def test_results_renderer_declares_its_own_totals(self, script):
+        renderer = js_source.function_body(script, "renderResults")
+
+        assert re.search(r"\b(?:var|let|const)\s+totals\b", renderer)
+
+    def test_results_renderer_clears_the_pane_before_appending_anything(self, script):
+        renderer = js_source.function_body(script, "renderResults")
+
+        clears = [m.start() for m in re.finditer(r"body\.textContent = \"\"", renderer)]
+        appends = [m.start() for m in re.finditer(r"body\.appendChild\(", renderer)]
+        assert len(clears) == 1
+        assert clears[0] < min(appends)
+
+    def test_usage_cells_pass_the_formatter_in_its_own_position(self, script):
+        calls = js_source.call_arguments(script, "usageCell")
+
+        assert len(calls) == 4
+        for arguments in calls:
+            assert len(arguments) in (4, 5), arguments
+            formatter = arguments[3]
+            assert formatter == "fmtDuration" or formatter.startswith("function")
 
 
 class TestDocsEndpoint:
