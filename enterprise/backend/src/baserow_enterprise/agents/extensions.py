@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.expressions import ArraySubquery
-from django.db.models import OuterRef, Q
+from django.db.models import OuterRef
 from django.db.models.functions import JSONObject
 
 from rest_framework import serializers
@@ -9,6 +9,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.core.agents.registries import AgentExtension
 from baserow.core.models import Agent
 from baserow_enterprise.features import RBAC, TEAMS
+from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.models import Team, TeamSubject
 from baserow_premium.license.handler import LicenseHandler
@@ -53,13 +54,16 @@ class EnterpriseAgentExtension(AgentExtension):
         return queryset.annotate(_agent_teams=ArraySubquery(teams))
 
     def role_uid_exists(self, role_uid, workspace):
+        """Validate selectable roles using the same aliases as role resolution."""
         if not LicenseHandler.workspace_has_feature(RBAC, workspace):
             return role_uid in {"ADMIN", "MEMBER"}
-        return (
-            Role.objects.filter(uid=role_uid, hidden=False)
-            .filter(Q(workspace__isnull=True) | Q(workspace=workspace))
-            .exists()
-        )
+        # Use the permission resolver so aliases such as MEMBER -> BUILDER have
+        # the same meaning during validation and permission checks.
+        try:
+            role = RoleAssignmentHandler().get_role_by_uid(role_uid)
+        except Role.DoesNotExist:
+            return False
+        return not role.hidden and role.workspace_id in (None, workspace.id)
 
     def get_default_role_uid(self, workspace):
         if LicenseHandler.workspace_has_feature(RBAC, workspace):
