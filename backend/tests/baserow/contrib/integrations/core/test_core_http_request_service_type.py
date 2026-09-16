@@ -74,7 +74,7 @@ def test_core_http_request_basic(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request(
         {"raw_body": "body"}, status_code=204, headers={"test": "header"}
     ) as mock_request:
@@ -111,7 +111,7 @@ def test_core_http_request_request_error(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     from requests.exceptions import InvalidHeader
 
     with pytest.raises(UnexpectedDispatchException):
@@ -165,7 +165,7 @@ def test_core_http_request_basic_body_raw(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -194,7 +194,7 @@ def test_core_http_request_basic_body_json(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -333,7 +333,7 @@ def test_core_http_request_basic_body_json_with_control_characters(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -363,7 +363,7 @@ def test_core_http_request_with_formulas(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -396,7 +396,7 @@ def test_core_http_request_with_headers(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -432,7 +432,7 @@ def test_core_http_request_with_query_params(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -464,7 +464,7 @@ def test_core_http_request_with_form_data(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -762,7 +762,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     if content_type is not None:
         headers["Content-Type"] = content_type
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request(
         {"fighters": {"Ryu": {"power": "Hadogen"}}},
         status_code=204,
@@ -816,7 +816,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
     if content_type is not None:
         headers["Content-Type"] = content_type
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request(
         "Hello world!",
         status_code=204,

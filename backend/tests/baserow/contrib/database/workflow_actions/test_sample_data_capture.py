@@ -39,7 +39,7 @@ def mock_advocate_request(body=None, status_code=200, raise_exception=None):
     mock_response.headers = {"Content-Type": "application/json"}
     mock_response.status_code = status_code
     # The service streams the body in so it can stop an endpoint that
-    # sends more than this installation accepts. `advocate.request` answers
+    # sends more than this installation accepts. `send_http_request` answers
     # with this same mock for every action that dispatches while the context
     # manager is open, so exhausting the real chunk still leaves later reads
     # an end-of-body marker rather than raising.

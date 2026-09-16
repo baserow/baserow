@@ -185,13 +185,11 @@ class _DeadlineAdvocateSession(_DeadlineMixin, advocate.Session):
 
 def _tracked_connection_class(connection_cls, opened, hung_up):
     """
-    A connection class that behaves exactly like `connection_cls`, except once
-    `connect()` has set up the real, final socket, after TLS wraps it for
-    https, it also gives the deadline watchdog a chance to act on this
-    connection: it is appended to `opened`, for the watchdog to find if it
-    fires later, and shut down immediately if `hung_up` is already set, in
-    case the watchdog already fired while this connection was still being
-    made, a slow DNS lookup or a slow handshake, and so never saw it.
+    A connection class that behaves like `connection_cls`, except once
+    `connect()` has set up the final socket it also registers the connection
+    with the deadline watchdog. If the watchdog already fired while this
+    connection was still being made, its socket is shut down immediately
+    instead of waiting for the watchdog to find it later.
     """
 
     class _TrackedConnection(connection_cls):

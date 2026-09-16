@@ -83,9 +83,11 @@ class ServiceType(
     # Does this service return a list of record?
     returns_list = False
 
-    # Whether dispatching this service waits on something outside this
-    # installation. Such a dispatch sends outside the savepoint when no
-    # transaction is already open, so a slow endpoint does not hold one.
+    # Whether dispatching this service sends to an endpoint it is configured
+    # with, such as HTTP, email, Slack or an AI provider. A file reader that
+    # downloads something it is not itself configured with is not one of
+    # these. Such a dispatch sends outside the savepoint when no transaction
+    # is already open, so a slow endpoint does not hold one.
     is_external = False
 
     # What parent object is responsible for dispatching this `ServiceType`?
@@ -424,17 +426,15 @@ class ServiceType(
         ):
             return DispatchResult(**sample_data)
 
-        # Formulas are resolved inside a savepoint so that, if they raise a
-        # database error, only this savepoint is rolled back. This keeps the
-        # surrounding transaction usable, so the caller (and the sample data
-        # error save below) can still issue queries instead of crashing with a
-        # `TransactionManagementError` on a broken transaction.
-        #
-        # A service that waits on something outside sends after the savepoint
-        # when no transaction is already open, since the savepoint would
-        # otherwise be a real transaction held open for the whole network
-        # wait. Inside a caller's transaction it stays in, which costs nothing
-        # more and keeps that protection.
+        # Formula resolution always runs inside this savepoint. `dispatch_data`
+        # and `dispatch_transform` run inside it too, unless the service is
+        # external and no transaction is already open, in which case they run
+        # after it instead. A database error inside must not break the
+        # caller's transaction (#5621), so only this savepoint rolls back and
+        # the caller (and the sample data error save below) can still issue
+        # queries. An external call must not hold a transaction open for its
+        # network wait when nothing else already has one open; inside a
+        # caller's transaction it stays in, since that costs nothing more.
         sends_outside = (
             self.is_external and not transaction.get_connection().in_atomic_block
         )
