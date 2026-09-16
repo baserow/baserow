@@ -18,7 +18,9 @@ from baserow.core.cache import local_cache
 from baserow.core.generative_ai.generative_ai_model_types import (
     GoogleGenerativeAIModelType,
     GroqGenerativeAIModelType,
+    OllamaGenerativeAIModelType,
     OpenAIGenerativeAIModelType,
+    OpenRouterGenerativeAIModelType,
 )
 
 
@@ -263,6 +265,64 @@ def test_environment_remains_fallback_when_database_provider_is_missing(settings
     model_type = OpenAIGenerativeAIModelType()
     assert model_type.get_api_key() == "environment-key"
     assert model_type.get_enabled_models() == ["environment-model"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("provider_type", ["ollama", "openrouter"])
+def test_environment_model_override_preserves_connection_settings(
+    provider_type, data_fixture, settings, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    state = get_ai_provider_state(workspace)
+    if provider_type == "ollama":
+        settings.BASEROW_OLLAMA_HOST = "http://localhost:11434/"
+        settings.BASEROW_OLLAMA_MODELS = ["environment-model"]
+        model_type = OllamaGenerativeAIModelType()
+        expected = {
+            "api_key": None,
+            "models": ["environment-model"],
+            "host": "http://localhost:11434/",
+        }
+    else:
+        settings.BASEROW_OPENROUTER_API_KEY = " environment-key "
+        settings.BASEROW_OPENROUTER_MODELS = ["environment-model"]
+        settings.BASEROW_OPENROUTER_ORGANIZATION = None
+        model_type = OpenRouterGenerativeAIModelType()
+        expected = {
+            "api_key": " environment-key ",
+            "models": ["environment-model"],
+            "organization": None,
+        }
+
+    with django_assert_num_queries(0):
+        assert (
+            model_type.get_model_settings_override(
+                "environment-model", workspace, state=state
+            )
+            == expected
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("workspace_owned", [False, True])
+def test_inactive_database_provider_prevents_environment_model_override(
+    workspace_owned, data_fixture, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["environment-model"]
+    workspace = data_fixture.create_workspace()
+    AIProviderConfig.objects.create(
+        workspace=workspace if workspace_owned else None,
+        provider_type="openai",
+        api_key="database-key",
+        is_active=False,
+    )
+    model_type = OpenAIGenerativeAIModelType()
+
+    assert model_type.get_enabled_models(workspace) == []
+    assert (
+        model_type.get_model_settings_override("environment-model", workspace) is None
+    )
 
 
 @pytest.mark.django_db
