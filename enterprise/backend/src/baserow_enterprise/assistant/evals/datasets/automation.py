@@ -693,7 +693,11 @@ def _check_creates_update_row_workflow(
             hint=f"node types: {[n.get('type') for n in nodes_args]}",
         ),
         CheckResult("update_row has >=1 field value", len(ur_values) >= 1),
-        CheckResult("update_row has row_id", bool(ur.get("row_id"))),
+        CheckResult(
+            "update_row names a row in DB",
+            any(bool(n.service.specific.row_id) for n in db_update_actions),
+            hint=f"db row_ids: {[n.service.specific.row_id for n in db_update_actions]}",
+        ),
         CheckResult(
             "update_row sets Status to 'Reviewed'",
             ur_has_reviewed,
