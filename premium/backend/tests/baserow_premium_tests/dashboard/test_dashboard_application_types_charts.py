@@ -133,7 +133,7 @@ def test_dashboard_export_serialized_with_chart_widget(premium_data_fixture):
                 "type": "chart",
                 "grid_x": 0,
                 "grid_y": 0,
-                "grid_width": 3,
+                "grid_width": 6,
                 "grid_height": 9,
                 "series_config": [],
                 "default_series_chart_type": "BAR",
@@ -281,7 +281,7 @@ def test_dashboard_import_serialized_with_widgets(premium_data_fixture):
     assert widget1.data_source.id == ds1.id
     assert widget1.grid_x == 0
     assert widget1.grid_y == 0
-    assert widget1.grid_width == 3
+    assert widget1.grid_width == 6
     assert widget1.grid_height == 9
 
     assert progress.progress == 100
@@ -390,7 +390,7 @@ def test_dashboard_export_serialized_with_chart_widget_config(premium_data_fixtu
                 "type": "chart",
                 "grid_x": 0,
                 "grid_y": 0,
-                "grid_width": 3,
+                "grid_width": 6,
                 "grid_height": 9,
                 "series_config": [
                     {"series_chart_type": "BAR", "series_id": series_1.id},
@@ -529,7 +529,7 @@ def test_dashboard_import_serialized_with_widget_config(premium_data_fixture):
     assert widget1.data_source.id == ds1.id
     assert widget1.grid_x == 0
     assert widget1.grid_y == 0
-    assert widget1.grid_width == 3
+    assert widget1.grid_width == 6
     assert widget1.grid_height == 9
 
     series_configs = ChartSeriesConfig.objects.filter(widget=widget1)
@@ -621,7 +621,7 @@ def test_dashboard_export_serialized_with_default_chart_type(premium_data_fixtur
                 "type": "chart",
                 "grid_x": 0,
                 "grid_y": 0,
-                "grid_width": 3,
+                "grid_width": 6,
                 "grid_height": 9,
                 "series_config": [],
                 "default_series_chart_type": "LINE",
