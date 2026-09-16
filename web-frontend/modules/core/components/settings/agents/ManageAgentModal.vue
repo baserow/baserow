@@ -48,12 +48,13 @@
           :roles="roles"
         />
         <div class="actions">
-          <Button type="secondary" @click.prevent="hide">{{
+          <Button type="secondary" button-type="button" @click="hide">{{
             isUpdate ? $t('action.close') : $t('action.cancel')
           }}</Button>
           <Button
             v-if="!isUpdate || hasSubmitFields"
             type="primary"
+            button-type="submit"
             :loading="loading"
             :disabled="loading || (isUpdate ? !hasChanges : !values.name)"
           >

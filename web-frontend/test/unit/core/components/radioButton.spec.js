@@ -3,6 +3,12 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import RadioButton from '@baserow/modules/core/components/RadioButton'
 
 describe('RadioButton.vue', () => {
+  test('renders a non-submit button', async () => {
+    const wrapper = await mountSuspended(RadioButton)
+
+    expect(wrapper.find('button').attributes('type')).toBe('button')
+  })
+
   it('renders the button', async () => {
     const wrapper = await mountSuspended(RadioButton)
 
