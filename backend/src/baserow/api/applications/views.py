@@ -39,7 +39,6 @@ from baserow.core.exceptions import (
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
 )
-from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -87,10 +86,6 @@ class AllApplicationsView(APIView):
 
         all_applications = list(
             CoreService().list_applications_in_workspaces(request.user, workspaces)
-        )
-
-        generative_ai_model_type_registry.prefetch_workspace_configuration(
-            [workspace.id for workspace in workspaces]
         )
 
         context = {
