@@ -87,6 +87,7 @@ export default {
       initialValues: {},
       values: { name: '', role_uid: 'MEMBER' },
       selectedSetting: null,
+      openingGeneration: 0,
     }
   },
   computed: {
@@ -145,6 +146,8 @@ export default {
   methods: {
     /** Initialize every registered setting so switching sidebar pages is lossless. */
     show(...args) {
+      this.openingGeneration++
+      this.loading = false
       const defaultRole = this.roles.some(
         (role) => role.uid === 'NO_ACCESS' && !role.isDeactivated
       )
@@ -183,6 +186,7 @@ export default {
     /** Submit only the active page while editing, or every page when creating. */
     async submit() {
       if (this.loading || (this.isUpdate && !this.hasChanges)) return
+      const openingGeneration = this.openingGeneration
       this.loading = true
       this.success = false
       this.hideError()
@@ -204,6 +208,7 @@ export default {
               workspaceId: this.workspace.id,
               values,
             })
+        if (openingGeneration !== this.openingGeneration) return
         this.$emit('saved', data)
         if (this.isUpdate) {
           // Only advance the saved page baseline; other pages keep their drafts.
@@ -213,9 +218,13 @@ export default {
           this.hide()
         }
       } catch (error) {
-        this.handleError(error, 'agent')
+        if (openingGeneration === this.openingGeneration) {
+          this.handleError(error, 'agent')
+        }
       } finally {
-        this.loading = false
+        if (openingGeneration === this.openingGeneration) {
+          this.loading = false
+        }
       }
     },
   },

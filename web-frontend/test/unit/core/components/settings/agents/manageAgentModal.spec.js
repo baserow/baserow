@@ -240,6 +240,77 @@ describe('ManageAgentModal', () => {
     }
   })
 
+  test('only closes the opening whose creation finished', async () => {
+    let resolveCreation
+    const dispatch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveCreation = resolve
+        })
+    )
+    const hide = vi.fn()
+    const wrapper = await mountSuspended(
+      {
+        components: {
+          ManageAgentModal: {
+            ...ManageAgentModal,
+            methods: { ...ManageAgentModal.methods, hide },
+          },
+        },
+        data: () => ({ workspace: { id: 12, _: { roles: [] } } }),
+        template: `
+          <div>
+            <button class="open" @click="$refs.modal.show()">Open</button>
+            <ManageAgentModal ref="modal" :workspace="workspace" />
+          </div>
+        `,
+      },
+      {
+        global: {
+          mocks: {
+            $registry: { getOrderedList: () => [generalSetting] },
+            $store: { dispatch },
+            $t: (key) => key,
+          },
+          stubs: {
+            Modal: modalStub,
+            Error: true,
+            FormGroup: { template: '<div><slot /></div>' },
+            FormInput: {
+              props: ['modelValue'],
+              emits: ['update:modelValue'],
+              template:
+                '<input class="name-input" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+              methods: { focus() {} },
+            },
+            Button: ButtonStub,
+            WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
+          },
+        },
+      }
+    )
+
+    await wrapper.find('.open').trigger('click')
+    await wrapper.find('.name-input').setValue('First draft')
+    await wrapper.find('form').trigger('submit')
+    expect(hide).not.toHaveBeenCalled()
+
+    await wrapper.find('.open').trigger('click')
+    await wrapper.find('.name-input').setValue('New draft')
+    resolveCreation({ id: 42 })
+    await flushPromises()
+
+    expect(hide).not.toHaveBeenCalled()
+    expect(wrapper.find('.name-input').element.value).toBe('New draft')
+
+    await wrapper.find('form').trigger('submit')
+    expect(hide).not.toHaveBeenCalled()
+    resolveCreation({ id: 43 })
+    await flushPromises()
+    expect(hide).toHaveBeenCalledOnce()
+    wrapper.unmount()
+  })
+
   test('hides commercial information in its role selector', async () => {
     const wrapper = await mountSuspended(ManageAgentModal, {
       props: {
