@@ -23,6 +23,8 @@ http_stub_image := "kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049da
 mail_image := "mailhog/mailhog:v1.0.1"
 # Answers the Slack API for the button field's Slack action, from e2e-tests/stubs/slack.
 slack_stub_image := "wiremock/wiremock:3.13.1"
+# Holds a button's request open until a test releases it, from e2e-tests/stubs/barrier.
+barrier_stub_image := "node:24.18.0-alpine"
 
 # Host ports (override with env vars to avoid collisions with a running dev stack).
 # Keep these well above the documented dev ranges so 8030-8060/3030-3060 stay
@@ -35,6 +37,8 @@ frontend_port := env_var_or_default("E2E_FRONTEND_PORT", "3070")
 frontend_cookie_prefix := env_var_or_default("E2E_FRONTEND_COOKIE_PREFIX", "baserow_e2e_")
 # MailHog's HTTP API, which the tests read sent mail from.
 mail_api_port := env_var_or_default("E2E_MAIL_API_PORT", "8075")
+# The barrier stub's control API, which the tests hold and release requests with.
+barrier_control_port := env_var_or_default("E2E_BARRIER_CONTROL_PORT", "8076")
 # How many external clicks one user gets per minute. Low so a test can reach it
 # in a few clicks; clicks that stay inside Baserow are not counted at all.
 button_rate_limit := env_var_or_default("E2E_BUTTON_RATE_LIMIT", "3")
@@ -139,7 +143,7 @@ up: _ensure-images
     fi
 
     # Clean up any stopped containers from previous runs
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-httpbin e2e-slack-stub e2e-mail 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-httpbin e2e-slack-stub e2e-barrier e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
 
     # Create network if it doesn't exist
@@ -177,6 +181,15 @@ up: _ensure-images
         docker run -d --network={{ network }} --name e2e-slack-stub \
             -v "$(pwd)/e2e-tests/stubs/slack:/home/wiremock:ro" \
             {{ slack_stub_image }}
+    fi
+
+    # Start the barrier stub the button field's concurrency tests hold requests on
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-barrier$"; then
+        echo "Starting barrier stub..."
+        docker run -d --network={{ network }} --name e2e-barrier \
+            -p {{ barrier_control_port }}:8080 \
+            -v "$(pwd)/e2e-tests/stubs/barrier:/stub:ro" \
+            {{ barrier_stub_image }} node /stub/server.mjs
     fi
 
     # Start MailHog, which catches what the email action sends
@@ -312,7 +325,7 @@ up: _ensure-images
 down:
     #!/usr/bin/env bash
     echo "Stopping E2E containers..."
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock e2e-httpbin e2e-slack-stub e2e-mail 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock e2e-httpbin e2e-slack-stub e2e-barrier e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
     docker network rm {{ network }} 2>/dev/null || true
     echo "E2E environment stopped."
@@ -364,6 +377,8 @@ test *ARGS:
     export E2E_HTTP_STUB_URL=http://e2e-httpbin:80
     export E2E_SLACK_STUB=yes
     export E2E_MAIL_API_URL=http://localhost:{{ mail_api_port }}
+    export E2E_BARRIER_STUB_URL=http://e2e-barrier:8080
+    export E2E_BARRIER_CONTROL_URL=http://localhost:{{ barrier_control_port }}
     export E2E_BUTTON_RATE_LIMIT={{ button_rate_limit }}
 
     # Install dependencies if needed

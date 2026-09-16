@@ -664,6 +664,15 @@ jobs:
             -v "$GITHUB_WORKSPACE/e2e-tests/stubs/slack:/home/wiremock:ro" \
             wiremock/wiremock:3.13.1
 
+          # Holds a button's request open until a test releases it, from
+          # e2e-tests/stubs/barrier, so the concurrency tests do not depend on
+          # an endpoint being slow enough.
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name barrier-stub \
+            -p 8102:8080 \
+            -v "$GITHUB_WORKSPACE/e2e-tests/stubs/barrier:/stub:ro" \
+            node:24.18.0-alpine node /stub/server.mjs
+
           docker run -d --network="${{ job.services.db.network }}" \
             --name backend \
             -e DATABASE_HOST=db \
@@ -783,6 +792,9 @@ jobs:
           E2E_SLACK_STUB: "yes"
           # MailHog as the tests reach it, from the runner.
           E2E_MAIL_API_URL: http://localhost:8025
+          # The barrier as the backend reaches it, and as the tests reach it.
+          E2E_BARRIER_STUB_URL: http://barrier-stub:8080
+          E2E_BARRIER_CONTROL_URL: http://localhost:8102
           E2E_BUTTON_RATE_LIMIT: "3"
           CI: 1
         run: |
