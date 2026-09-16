@@ -1,4 +1,4 @@
-import jwtDecode from 'jwt-decode'
+import { jwtDecode } from 'jwt-decode'
 
 import UserSourceService from '@baserow/modules/core/services/userSource'
 

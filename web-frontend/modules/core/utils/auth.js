@@ -1,7 +1,7 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { getCookieName } from '@baserow/modules/core/utils/cookie'
-import jwtDecode from 'jwt-decode'
+import { jwtDecode } from 'jwt-decode'
 import tldjs from 'tldjs'
 import { useCookie, useRuntimeConfig, nextTick } from '#imports'
 
