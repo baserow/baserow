@@ -30,14 +30,14 @@
         class="layout__col-2"
         :style="{
           left: col1Width + 'px',
-          right: col3Visible ? col3Width + 'px' : 0,
+          right: col3Shown ? col3Width + 'px' : 0,
         }"
       >
         <slot />
       </div>
 
       <div
-        v-if="col3Visible"
+        v-if="col3Shown"
         class="layout__col-3"
         :style="{ width: col3Width + 'px', right: 0 }"
       >
@@ -54,7 +54,7 @@
       />
 
       <HorizontalResize
-        v-if="col3Visible"
+        v-if="col3Shown"
         class="layout__resize"
         :width="col3Width"
         :style="{ right: col3Width - 3 + 'px' }"
@@ -115,6 +115,13 @@ const router = useRouter()
 // Pages can render an alternative sidebar via
 // `definePageMeta({ sidebarType: 'all-workspaces' })`.
 const sidebarType = computed(() => route.meta.sidebarType ?? 'workspace')
+
+// The right sidebar contains workspace specific components, like the assistant, so
+// it must not render on pages without a workspace context. The open state is kept,
+// so it shows again when navigating back to a workspace page.
+const col3Shown = computed(
+  () => col3Visible.value && sidebarType.value === 'workspace'
+)
 
 // Preserve authentication logic
 if (route.query.token) {

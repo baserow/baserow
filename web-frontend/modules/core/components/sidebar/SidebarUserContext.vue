@@ -97,7 +97,7 @@
           <SettingsModal ref="settingsModal"></SettingsModal>
         </li>
 
-        <li class="context__menu-item">
+        <li v-if="anyGuidedTourActive" class="context__menu-item">
           <a class="context__menu-item-link" @click="replayGuidedTour()">
             <i class="context__menu-item-icon iconoir-help-circle"></i>
             {{ $t('sidebar.replayGuidedTour') }}
@@ -189,6 +189,17 @@ export default {
           plugin.getUserContextComponents(this.selectedWorkspace)
         )
         .filter((component) => component !== null)
+    },
+    /**
+     * Replaying only makes sense when a guided tour can actually show on the
+     * current page. On the all workspaces homepage, for example, no tour is
+     * active, and forcing a start there would show nothing while blocking a later
+     * natural start.
+     */
+    anyGuidedTourActive() {
+      return Object.values(this.$registry.getAll('guidedTour')).some((tour) =>
+        tour.isActive(this.$route)
+      )
     },
     filteredWorkspaces() {
       let workspaces = this.workspaces
