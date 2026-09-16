@@ -5,9 +5,14 @@ from functools import cached_property
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
 
+from django.conf import settings
+
 from loguru import logger
 
-from baserow.core.ai_provider.constants import AI_PROVIDER_TYPES
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_TYPES,
+    PROVIDER_ENVIRONMENT_SETTINGS,
+)
 from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
 from baserow.core.ai_provider.resolution import (
     ScopedAIProviderState,
@@ -626,8 +631,8 @@ class GenerativeAIModelType(Instance):
         :param workspace: The owning workspace, or None for instance resolution.
         :param settings_override: An explicit connection override, if supplied.
         :param state: Pre-loaded provider state for this scope, if available.
-        :returns: The complete settings override, or None when provider getters
-            should resolve instance settings and environment compatibility defaults.
+        :returns: The complete settings override, including environment fallbacks,
+            or None when provider getters should resolve their own settings.
         """
 
         if settings_override is not None:
@@ -687,6 +692,27 @@ class GenerativeAIModelType(Instance):
             )
         ):
             return self._get_provider_settings(instance_provider)
+
+        if workspace_provider is None and instance_provider is None:
+            environment_settings = PROVIDER_ENVIRONMENT_SETTINGS.get(self.type)
+            if environment_settings is not None:
+                # Keep environment-backed prompts and file clients on the same
+                # resolved connection without reopening provider state in workers.
+                # Preserve raw values and absent optional settings just as the
+                # provider getters do; import validation must not alter them here.
+                api_key_setting = environment_settings["api_key"]
+                return {
+                    "api_key": getattr(settings, api_key_setting)
+                    if api_key_setting
+                    else None,
+                    "models": getattr(settings, environment_settings["models"]),
+                    **{
+                        name: getattr(settings, setting_name)
+                        for name, setting_name in environment_settings[
+                            "extra_settings"
+                        ].items()
+                    },
+                }
         return None
 
     def get_api_key(
