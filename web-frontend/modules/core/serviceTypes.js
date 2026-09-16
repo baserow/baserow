@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { ensureInteger } from '@baserow/modules/core/utils/validator'
 
 export const getCoreGroup = (app) => ({
   id: 'core',
@@ -188,7 +189,7 @@ export const DataSourceServiceTypeMixin = (Base) =>
      * Convert record-name endpoint keys back to the value type used by this service.
      */
     parseRecordId(value) {
-      return parseInt(value)
+      return ensureInteger(value)
     }
 
     /**

@@ -21,6 +21,7 @@ import {
   IMAGE_SOURCE_TYPES,
   PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
+import { LocalBaserowListRowsServiceType } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 
 describe('elementTypes tests', () => {
   let testApp
@@ -732,6 +733,29 @@ describe('elementTypes tests', () => {
       const element = { required: false, multiple: false, data_source_id: 1 }
       expect(elementType.isValid(element, 1, {})).toBe(true)
     })
+    test.each([
+      [false, '', null],
+      [false, null, null],
+      [false, '42', 42],
+      [true, [''], []],
+      [true, ['42', '43'], [42, 43]],
+    ])(
+      'Record selector List rows default: multiple=%s, value=%j',
+      (multiple, defaultValue, expected) => {
+        const elementType = new RecordSelectorElementType()
+        vi.spyOn(elementType, 'getRecordIdServiceType').mockReturnValue(
+          new LocalBaserowListRowsServiceType({})
+        )
+        vi.spyOn(elementType, 'resolveFormula').mockReturnValue(defaultValue)
+
+        expect(
+          elementType.getInitialFormDataValue(
+            { multiple, default_value: {} },
+            {}
+          )
+        ).toEqual(expected)
+      }
+    )
     test('RecordSelectorElementType | string data source id default value.', () => {
       const serviceType = {
         parseRecordId(value) {
