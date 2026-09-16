@@ -263,13 +263,21 @@ def create_workflows(
             )
         )
 
+    run_created = tool_helpers.request_context.setdefault(
+        reconciliation.RUN_CREATED_WORKFLOWS, {}
+    )
+    for summary, spec in zip(created_workflows, plan.to_create):
+        run_created[summary["id"]] = spec
+
     reused_workflows = reconciliation.describe_reused_workflows(user, plan.to_reuse)
     result: dict[str, Any] = {
         "created_workflows": created_workflows,
         "reused_workflows": reused_workflows,
     }
     result.update(
-        reconciliation.reused_workflow_report(plan.requested, reused_workflows)
+        reconciliation.reused_workflow_report(
+            plan.requested, reused_workflows, run_created
+        )
     )
     if formula_errors:
         result["formula_errors"] = formula_errors

@@ -408,6 +408,100 @@ def test_create_workflows_does_not_treat_matching_structure_as_matching_config(
     assert "complete" in second["next_steps"]
 
 
+@pytest.mark.django_db(transaction=True)
+def test_repeating_an_identical_create_workflows_call_settles_it(data_fixture):
+    """The agent's own creation must not read back as unverifiable reuse.
+
+    Re-issuing the same request used to return next_steps telling the model it
+    could not verify its own work and must not claim completion, which drove it
+    to call the tool again until the run hit its request limit.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(
+        user=user, database=database, name="Orders"
+    )
+    ctx = make_test_ctx(user, workspace)
+    spec = WorkflowCreate(
+        name="Process Orders",
+        trigger=TriggerNodeCreate(
+            ref="trigger",
+            label="Rows created",
+            type="rows_created",
+            rows_triggers_settings={"table_id": table.id},
+        ),
+        nodes=[
+            ActionNodeCreate(
+                ref="action",
+                label="Create row",
+                previous_node_ref="trigger",
+                type="create_row",
+                table_id=table.id,
+                values=[],
+            )
+        ],
+    )
+
+    first = create_workflows(
+        ctx, automation_id=automation.id, workflows=[spec], thought="create workflow"
+    )
+    second = create_workflows(
+        ctx, automation_id=automation.id, workflows=[spec], thought="verify workflow"
+    )
+
+    assert second["created_workflows"] == []
+    assert [w["id"] for w in second["reused_workflows"]] == [
+        first["created_workflows"][0]["id"]
+    ]
+    assert "next_steps" not in second
+    assert automation.workflows.count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reusing_a_workflow_this_run_did_not_create_still_warns(data_fixture):
+    """Labels and types cannot verify a workflow the run has no arguments for."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(
+        user=user, database=database, name="Orders"
+    )
+    data_fixture.create_automation_workflow(
+        automation=automation, name="Process Orders"
+    )
+    ctx = make_test_ctx(user, workspace)
+
+    result = create_workflows(
+        ctx,
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Process Orders",
+                trigger=TriggerNodeCreate(
+                    ref="trigger",
+                    label="Rows created",
+                    type="rows_created",
+                    rows_triggers_settings={"table_id": table.id},
+                ),
+                nodes=[],
+            )
+        ],
+        thought="create workflow",
+    )
+
+    assert result["created_workflows"] == []
+    assert "complete" in result["next_steps"]
+
+
 @pytest.mark.django_db
 def test_create_workflows_rejects_conflicting_same_name_requests(data_fixture):
     user = data_fixture.create_user()
