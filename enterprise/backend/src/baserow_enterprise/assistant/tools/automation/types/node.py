@@ -354,7 +354,13 @@ class ActionNodeCreate(BaseModel):
     # -- create_row / update_row / delete_row --
     table_id: int | None = None
     row_id: str | None = Field(
-        default=None, description=f"(update/delete_row) Row ID.{SUPPORTS_FORMULA}"
+        default=None,
+        description=(
+            f"(update/delete_row) Required: which row to act on. After a row "
+            f"trigger this is the triggering row, e.g. "
+            f"{FORMULA_PREFIX}id of the row that fired the trigger."
+            f"{SUPPORTS_FORMULA}"
+        ),
     )
     values: list[AutomationFieldValue] | None = None
 
