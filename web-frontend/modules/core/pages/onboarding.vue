@@ -279,6 +279,7 @@ export default {
             completeCallback
           )
         } catch (error) {
+          console.error(error)
           // Stop the creating process if any of the steps fail.
           this.creatingFailed = true
           return
@@ -306,6 +307,7 @@ export default {
                 responses
               )
             }
+            console.error(error)
             return
           }
         }
@@ -355,6 +357,7 @@ export default {
       } catch (error) {
         // Failing to offer an alternative must never block the user from leaving the
         // onboarding, so we're falling back on cancelling it.
+        console.error(error)
       }
 
       if (modal) {
