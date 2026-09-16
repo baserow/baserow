@@ -24,7 +24,7 @@ mail_image := "mailhog/mailhog:v1.0.1"
 # Answers the Slack API for the button field's Slack action, from e2e-tests/stubs/slack.
 slack_stub_image := "wiremock/wiremock:3.13.1"
 # Holds a button's request open until a test releases it, from e2e-tests/stubs/barrier.
-barrier_stub_image := "node:24.18.0-alpine"
+barrier_stub_image := "node:24.18.0-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd"
 
 # Host ports (override with env vars to avoid collisions with a running dev stack).
 # Keep these well above the documented dev ranges so 8030-8060/3030-3060 stay
