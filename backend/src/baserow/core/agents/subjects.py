@@ -15,9 +15,17 @@ class AgentSubjectType(SubjectType):
 
     has_direct_workspace_roles = True
 
-    def get_workspace_subjects(self, workspace: Workspace, include_trash=False):
+    def _get_workspace_agents(self, workspace: Workspace, include_trash: bool):
+        """Return agents using the requested agent and parent-workspace visibility."""
+
         manager = Agent.objects_and_trash if include_trash else Agent.objects
-        return manager.filter(workspace=workspace)
+        queryset = manager.filter(workspace=workspace)
+        if not include_trash:
+            queryset = queryset.filter(workspace__trashed=False)
+        return queryset
+
+    def get_workspace_subjects(self, workspace: Workspace, include_trash=False):
+        return self._get_workspace_agents(workspace, include_trash)
 
     def set_workspace_role_uid(
         self,
@@ -44,12 +52,12 @@ class AgentSubjectType(SubjectType):
     ) -> dict[int, str]:
         """Return direct Agent role UIDs keyed by Agent ID."""
 
-        agent_manager = Agent.objects_and_trash if include_trash else Agent.objects
         return dict(
-            agent_manager.filter(
-                workspace=workspace,
+            self._get_workspace_agents(workspace, include_trash)
+            .filter(
                 id__in=[subject.id for subject in subjects],
-            ).values_list("id", "role_uid")
+            )
+            .values_list("id", "role_uid")
         )
 
     def is_workspace_role_fallback(self, role_uid: str) -> bool:
@@ -75,11 +83,10 @@ class AgentSubjectType(SubjectType):
         workspace: Workspace,
         include_trash: bool = False,
     ) -> List[bool]:
-        agent_manager = Agent.objects_and_trash if include_trash else Agent.objects
         ids = set(
-            agent_manager.filter(
-                id__in=[subject.id for subject in subjects], workspace=workspace
-            ).values_list("id", flat=True)
+            self._get_workspace_agents(workspace, include_trash)
+            .filter(id__in=[subject.id for subject in subjects])
+            .values_list("id", flat=True)
         )
         return [subject.id in ids for subject in subjects]
 
