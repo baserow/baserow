@@ -40,6 +40,35 @@ def test_admin_can_crud_search_and_soft_delete_agents(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("sorts", [None, "+name", "-name"])
+def test_agent_pagination_with_duplicate_names(data_fixture, api_client, sorts):
+    """Tied names must have stable ordering across page boundaries."""
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    agents = Agent.objects.bulk_create(
+        [Agent(workspace=workspace, name=f"Agent {i % 3}") for i in range(400)]
+    )
+    expected = sorted(agents, key=lambda agent: agent.id)
+    if sorts:
+        expected.sort(key=lambda agent: agent.name, reverse=sorts == "-name")
+
+    url = reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id})
+    result_ids = []
+    for page in range(1, 5):
+        params = {"page": page, "size": 100}
+        if sorts:
+            params["sorts"] = sorts
+        response = api_client.get(url, params, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == 200
+        assert response.json()["count"] == 400
+        result_ids.extend(agent["id"] for agent in response.json()["results"])
+
+    assert result_ids == [agent.id for agent in expected]
+    assert len(set(result_ids)) == 400
+
+
+@pytest.mark.django_db
 def test_member_can_list_but_cannot_mutate_agents(data_fixture, api_client):
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
