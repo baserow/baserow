@@ -38,6 +38,12 @@ import { listRows } from "../../fixtures/database/rows";
 import { duplicateField } from "../../fixtures/database/field";
 import { User, createUser } from "../../fixtures/user";
 import { addUserToWorkspace } from "../../fixtures/workspace";
+import {
+  BARRIER_STUB_URL,
+  arrivedAt,
+  release,
+  resetBarrier,
+} from "../../fixtures/barrier";
 
 /** The stub as the *backend* reaches it, which is not where the tests run. */
 const STUB = process.env.E2E_HTTP_STUB_URL ?? "http://e2e-httpbin:80";
@@ -162,7 +168,7 @@ test.describe("Button field, external actions", () => {
     const echoRequest = await createHttpRequestAction(
       g.user,
       g.fieldByName["Echo"],
-      { url: `concat('${STUB}/anything/', get('row.field_${name.id}'))` },
+      { url: `concat('${STUB}/anything/', get('row.field_${name.id}'))` }
     );
     await createRowAction(g.user, g.fieldByName["Echo"], {
       type: "local_baserow_update_row",
@@ -193,7 +199,7 @@ test.describe("Button field, external actions", () => {
     const chainedRequest = await createHttpRequestAction(
       g.user,
       g.fieldByName["Chained"],
-      { url: `'${STUB}/json'` },
+      { url: `'${STUB}/json'` }
     );
     await createRowAction(g.user, g.fieldByName["Chained"], {
       type: "local_baserow_update_row",
@@ -207,10 +213,15 @@ test.describe("Button field, external actions", () => {
       ],
     });
 
-    // Slow enough that a second click lands while the first is still running.
-    for (const fieldName of ["Slow", "SlowTwo"]) {
+    // Held on the barrier until the test releases them, so a second click is
+    // known to land while the first request is in flight. Without a barrier
+    // the two tests using them are skipped, and the URL is never called.
+    for (const [fieldName, key] of [
+      ["Slow", "slow"],
+      ["SlowTwo", "slow-two"],
+    ]) {
       await createHttpRequestAction(g.user, g.fieldByName[fieldName], {
-        url: `'${STUB}/delay/3'`,
+        url: `'${BARRIER_STUB_URL ?? STUB}/hold/${key}'`,
       });
     }
 
@@ -232,7 +243,7 @@ test.describe("Button field, external actions", () => {
     capturedAction = await createHttpRequestAction(
       g.user,
       g.fieldByName["Captured"],
-      { url: `'${STUB}/json'` },
+      { url: `'${STUB}/json'` }
     );
 
     // "Limited" is clicked until the rate limit refuses it.
@@ -244,7 +255,7 @@ test.describe("Button field, external actions", () => {
     duplicateAction = await createHttpRequestAction(
       g.user,
       g.fieldByName["Duplicate"],
-      { url: `'${STUB}/json'` },
+      { url: `'${STUB}/json'` }
     );
   });
 
@@ -331,10 +342,10 @@ test.describe("Button field, external actions", () => {
     // leaving the missing body unexplained.
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer"),
+      actionItem(page, 0).locator(".sample-data-viewer")
     ).toHaveCount(0);
     await expect(actionItem(page, 0).locator(".alert")).toContainText(
-      "capture what the endpoint answers",
+      "capture what the endpoint answers"
     );
 
     // What a request always has is offered from the start; what the endpoint
@@ -378,7 +389,7 @@ test.describe("Button field, external actions", () => {
     // note about capturing is gone.
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer"),
+      actionItem(page, 0).locator(".sample-data-viewer")
     ).toHaveCount(1);
     await expect(actionItem(page, 0).locator(".alert")).toHaveCount(0);
 
@@ -425,7 +436,7 @@ test.describe("Button field, external actions", () => {
     await expect(
       explorer(page).locator(".node-explorer-content__name", {
         hasText: HTTP_ACTION,
-      }),
+      })
     ).toHaveCount(1);
   });
 
@@ -492,7 +503,7 @@ test.describe("Button field, external actions", () => {
     await openFieldEditor(page, "Session");
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer"),
+      actionItem(page, 0).locator(".sample-data-viewer")
     ).toHaveCount(1);
 
     await expandAction(page, 1);
@@ -530,7 +541,7 @@ test.describe("Button field, external actions", () => {
 
     // httpbin's own fixture, so the value can only have come from the request.
     await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
-      "Sample Slide Show",
+      "Sample Slide Show"
     );
 
     const rows = await listRows(g.user, g.table);
@@ -545,7 +556,7 @@ test.describe("Button field, external actions", () => {
     await actionItem(page, 0).locator(".button-icon").first().click();
 
     await expect(page.locator("[data-action-error]")).toContainText(
-      "no longer runs before it",
+      "no longer runs before it"
     );
   });
 
@@ -554,7 +565,7 @@ test.describe("Button field, external actions", () => {
   test("a user who keeps clicking is refused", async ({ page }) => {
     test.skip(
       !DECLARED_RATE_LIMIT,
-      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with",
+      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with"
     );
     test.setTimeout(120_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
@@ -582,7 +593,7 @@ test.describe("Button field, external actions", () => {
   }) => {
     test.skip(
       !DECLARED_RATE_LIMIT,
-      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with",
+      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with"
     );
     test.setTimeout(120_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
@@ -600,73 +611,93 @@ test.describe("Button field, external actions", () => {
     await expect(page.locator(".toast")).toHaveCount(0);
   });
 
-  // F. Two clicks at once, with a request slow enough to overlap
+  // F. Two clicks at once, with the first request held until the test lets it go
 
-  test("a click while the same row is still running is refused", async ({
-    page,
-    browser,
-  }) => {
-    test.setTimeout(120_000);
-    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
-    const clicker = await freshClicker();
-    const grid = await gridFor(page, clicker);
+  test.describe("while a request is held", () => {
+    test.skip(
+      !BARRIER_STUB_URL,
+      "Needs the barrier stub: set E2E_BARRIER_STUB_URL."
+    );
 
-    // The cell disables itself while its request is in flight, so a second
-    // click in the same session never reaches the server. Another session is
-    // what the lock is for.
-    const other = await browser.newContext({
-      viewport: { width: 3600, height: 900 },
+    // A test that fails before releasing would leave the backend waiting on
+    // the stub, and the next test's click refused by a lock it did not take.
+    test.afterEach(async () => {
+      await resetBarrier();
     });
-    const otherPage = await other.newPage();
-    const otherGrid = new GridPage(otherPage, clicker);
-    // Both pages are ready before either clicks, or the first request spends
-    // the second session's setup running and can be over before it competes.
-    await otherGrid.goTo(g.database, g.table);
 
-    const button = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
-    const otherButton = otherGrid
-      .fieldCellAt(0, SLOW_FIELD_INDEX)
-      .locator("button");
+    test("a click while the same row is still running is refused", async ({
+      page,
+      browser,
+    }) => {
+      test.setTimeout(120_000);
+      await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+      const clicker = await freshClicker();
+      const grid = await gridFor(page, clicker);
 
-    await button.click();
-    // The cell says when its request is really in flight, which is what the
-    // second click has to land inside.
-    await expect(button).toHaveClass(/button--loading/);
-    await otherButton.click();
+      // The cell disables itself while its request is in flight, so a second
+      // click in the same session never reaches the server. Another session
+      // is what the lock is for.
+      const other = await browser.newContext({
+        viewport: { width: 3600, height: 900 },
+      });
+      const otherPage = await other.newPage();
+      const otherGrid = new GridPage(otherPage, clicker);
+      await otherGrid.goTo(g.database, g.table);
 
-    await expect(otherPage.locator(".toast")).toBeVisible({ timeout: 20_000 });
+      const button = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+      const otherButton = otherGrid
+        .fieldCellAt(0, SLOW_FIELD_INDEX)
+        .locator("button");
 
-    // The first request is still in flight. Waiting for it keeps it out of
-    // the teardown and out of the test after this one.
-    await expect(button).not.toHaveClass(/button--loading/, {
-      timeout: 30_000,
+      await button.click();
+      // The stub has the request, so the backend holds the row's lock.
+      await expect.poll(() => arrivedAt("slow"), { timeout: 20_000 }).toBe(1);
+
+      await otherButton.click();
+      await expect(otherPage.locator(".toast")).toBeVisible({
+        timeout: 20_000,
+      });
+      // Refused before it sent anything.
+      expect(await arrivedAt("slow")).toBe(1);
+
+      await release("slow");
+      await expect(button).not.toHaveClass(/button--loading/, {
+        timeout: 30_000,
+      });
+      await other.close();
     });
-    await other.close();
-  });
 
-  test("two buttons on one row do not block each other", async ({ page }) => {
-    test.setTimeout(120_000);
-    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
-    const clicker = await freshClicker();
-    const grid = await gridFor(page, clicker);
+    test("two buttons on one row do not block each other", async ({ page }) => {
+      test.setTimeout(120_000);
+      await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+      const clicker = await freshClicker();
+      const grid = await gridFor(page, clicker);
 
-    // The lock is keyed on the field and the row together, so a slow request
-    // on one button must leave the other alone.
-    const first = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
-    const second = grid.fieldCellAt(0, SLOW_TWO_FIELD_INDEX).locator("button");
+      // The lock is keyed on the field and the row together, so a request
+      // held on one button must leave the other alone.
+      const first = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+      const second = grid
+        .fieldCellAt(0, SLOW_TWO_FIELD_INDEX)
+        .locator("button");
 
-    await first.click();
-    // It has to land while the first is still running, or the two locks are
-    // never asked to exist at once.
-    await expect(first).toHaveClass(/button--loading/);
-    await second.click();
+      await first.click();
+      await expect.poll(() => arrivedAt("slow"), { timeout: 20_000 }).toBe(1);
+      await second.click();
+      // Both requests are held at once, so both locks were taken at once.
+      await expect
+        .poll(() => arrivedAt("slow-two"), { timeout: 20_000 })
+        .toBe(1);
 
-    // Both have to come back before an absent toast means anything.
-    await expect(first).not.toHaveClass(/button--loading/, { timeout: 30_000 });
-    await expect(second).not.toHaveClass(/button--loading/, {
-      timeout: 30_000,
+      await release("slow");
+      await release("slow-two");
+      await expect(first).not.toHaveClass(/button--loading/, {
+        timeout: 30_000,
+      });
+      await expect(second).not.toHaveClass(/button--loading/, {
+        timeout: 30_000,
+      });
+      await expect(page.locator(".toast")).toHaveCount(0);
     });
-    await expect(page.locator(".toast")).toHaveCount(0);
   });
 
   // G. Copies
