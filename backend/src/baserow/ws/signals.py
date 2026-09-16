@@ -17,6 +17,7 @@ from baserow.api.workspaces.serializers import (
 )
 from baserow.core import signals
 from baserow.core.agents import signals as agent_signals
+from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
@@ -339,8 +340,13 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
 
 @receiver(agent_signals.agent_created)
 def agent_created(sender, agent, user=None, **kwargs):
+    """Notify permitted users when an agent is created or restored."""
+
     transaction.on_commit(
-        lambda: broadcast_to_group.delay(
+        lambda: broadcast_to_permitted_users.delay(
+            agent.workspace_id,
+            ListAgentsWorkspaceOperationType.type,
+            "workspace",
             agent.workspace_id,
             {
                 "type": "agent_created",
@@ -354,8 +360,13 @@ def agent_created(sender, agent, user=None, **kwargs):
 
 @receiver(agent_signals.agent_updated)
 def agent_updated(sender, agent, user, **kwargs):
+    """Notify users who can list agents about updated agent details."""
+
     transaction.on_commit(
-        lambda: broadcast_to_group.delay(
+        lambda: broadcast_to_permitted_users.delay(
+            agent.workspace_id,
+            ListAgentsWorkspaceOperationType.type,
+            "workspace",
             agent.workspace_id,
             {
                 "type": "agent_updated",
@@ -369,8 +380,13 @@ def agent_updated(sender, agent, user, **kwargs):
 
 @receiver(agent_signals.agent_deleted)
 def agent_deleted(sender, agent, user, **kwargs):
+    """Notify users who can list agents that an agent was deleted."""
+
     transaction.on_commit(
-        lambda: broadcast_to_group.delay(
+        lambda: broadcast_to_permitted_users.delay(
+            agent.workspace_id,
+            ListAgentsWorkspaceOperationType.type,
+            "workspace",
             agent.workspace_id,
             {
                 "type": "agent_deleted",
