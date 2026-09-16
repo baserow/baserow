@@ -84,6 +84,7 @@ import DashboardWidget from '@baserow/modules/dashboard/components/widget/Dashbo
 import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import {
+  DASHBOARD_DESKTOP_GRID_COLUMNS,
   createWidgetGridLayout,
   getDashboardGridColumns,
   getWidgetGridItemConstraints,
@@ -140,7 +141,11 @@ export default {
       )
     },
     columns() {
-      return getDashboardGridColumns(this.dimensions.width)
+      // Editing always uses persisted coordinates; responsive layouts are
+      // projections for viewing only.
+      return this.isEditMode
+        ? DASHBOARD_DESKTOP_GRID_COLUMNS
+        : getDashboardGridColumns(this.dimensions.width)
     },
     isEditMode() {
       return this.$store.getters[
@@ -155,17 +160,12 @@ export default {
       )
     },
     canManipulateLayout() {
-      return (
-        this.columns === 6 &&
-        this.isEditMode &&
-        this.canUpdateLayout &&
-        !this.isPersisting
-      )
+      return this.isEditMode && this.canUpdateLayout && !this.isPersisting
     },
   },
   watch: {
     columns() {
-      // A container breakpoint can interrupt an active pointer operation.
+      // Switching coordinate systems cancels any active pointer operation.
       this.isInteracting = false
       this.clearResizeState()
       this.syncLayoutFromWidgets()

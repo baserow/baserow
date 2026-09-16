@@ -26,6 +26,7 @@ export async function createDashboard(
     {
       name: dashboardName,
       type: "dashboard",
+      init_with_data: true,
     },
   );
   return new Dashboard(response.data.id, response.data.name, workspace);

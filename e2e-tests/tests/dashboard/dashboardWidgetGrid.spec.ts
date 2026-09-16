@@ -605,7 +605,72 @@ test.describe('Dashboard widget grid', () => {
     }
   })
 
-  test('keeps the canonical desktop layout when deleting from a tablet layout', async ({
+  for (const viewportWidth of [1500, 1100]) {
+    test(`edits the shared layout in a scrolling canvas at ${viewportWidth}px`, async ({
+      page,
+      workspacePage,
+    }) => {
+      const dashboard = await createDashboard(
+        'Dashboard small-screen editing',
+        workspacePage.workspace
+      )
+      const widget = await createSummaryWidget(dashboard, 'Editable widget')
+      await updateDashboardWidgetLayout(dashboard, [
+        {
+          id: widget.id,
+          grid_x: 4,
+          grid_y: 0,
+          grid_width: 2,
+          grid_height: 4,
+        },
+      ])
+      await page.setViewportSize({ width: viewportWidth, height: 1000 })
+      await goToDashboard(page, dashboard)
+      await enterEditMode(page)
+
+      const grid = page.getByTestId('dashboard-widget-grid')
+      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
+      const pane = page.locator('.dashboard-app__layout-scrollable')
+      await expect
+        .poll(() => pane.evaluate((el) => el.scrollWidth > el.clientWidth))
+        .toBe(true)
+      const gridBox = await grid.boundingBox()
+      if (!gridBox) throw new Error('Could not measure the dashboard grid')
+      const columnWidth = (gridBox.width + 16) / 6
+      const item = page.getByTestId(`dashboard-widget-grid-item-${widget.id}`)
+
+      const moveResponse = waitForWidgetLayoutUpdate(page, dashboard)
+      await dragBy(page, item.locator('.widget__header-title'), -columnWidth, 0)
+      expect((await moveResponse).ok()).toBe(true)
+      await expectWidgetLayout(dashboard, widget.id, { grid_x: 3, grid_y: 0 })
+      await expect
+        .poll(() => pane.evaluate((el) => el.scrollLeft))
+        .toBeGreaterThan(0)
+
+      const resizeResponse = waitForWidgetLayoutUpdate(page, dashboard)
+      await dragBy(page, item.locator('.vgl-item__resizer'), columnWidth, 40)
+      expect((await resizeResponse).ok()).toBe(true)
+      const expectedLayout = {
+        grid_x: 3,
+        grid_y: 0,
+        grid_width: 3,
+        grid_height: 5,
+      }
+      await expectWidgetLayout(dashboard, widget.id, expectedLayout)
+
+      await page.getByRole('button', { name: 'Done editing' }).click()
+      await page.setViewportSize({ width: 1100, height: 1000 })
+      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '4')
+      await expect(item.locator('.vgl-item__resizer')).toHaveCount(0)
+
+      await page.setViewportSize({ width: 1920, height: 1000 })
+      await page.reload({ waitUntil: 'networkidle' })
+      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
+      await expectWidgetLayout(dashboard, widget.id, expectedLayout)
+    })
+  }
+
+  test('keeps the canonical desktop layout when deleting on a small screen', async ({
     page,
     workspacePage,
   }) => {
@@ -632,9 +697,8 @@ test.describe('Dashboard widget grid', () => {
       },
     ])
 
-    await page.setViewportSize({ width: 1500, height: 1000 })
+    await page.setViewportSize({ width: 1100, height: 1000 })
     await goToDashboard(page, dashboard)
-    await enterEditMode(page)
 
     await expect(page.getByTestId('dashboard-widget-grid')).toHaveCSS(
       '--dashboard-widget-grid-columns',
@@ -657,6 +721,12 @@ test.describe('Dashboard widget grid', () => {
         return (firstBox.width + 16) / (secondBox.width + 16)
       })
       .toBeCloseTo(1 / 3, 1)
+
+    await enterEditMode(page)
+    await expect(page.getByTestId('dashboard-widget-grid')).toHaveCSS(
+      '--dashboard-widget-grid-columns',
+      '6'
+    )
 
     await page.getByTestId(`dashboard-widget-${firstWidget.id}`).hover()
     const contextButton = page.getByTestId(
