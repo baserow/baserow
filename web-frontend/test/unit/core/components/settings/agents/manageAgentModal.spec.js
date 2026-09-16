@@ -21,6 +21,11 @@ const WorkspaceRoleSelectorStub = {
   `,
 }
 
+const ButtonStub = {
+  props: { buttonType: { type: String, default: null } },
+  template: '<button :type="buttonType"><slot /></button>',
+}
+
 describe('ManageAgentModal', () => {
   const generalSetting = {
     component: AgentGeneralSettingsForm,
@@ -91,7 +96,7 @@ describe('ManageAgentModal', () => {
                 template: '<input />',
                 methods: { focus() {} },
               },
-              Button: { template: '<button><slot /></button>' },
+              Button: ButtonStub,
               WorkspaceRoleSelector: {
                 ...WorkspaceRoleSelectorStub,
                 template: '<div class="selected-role">{{ modelValue }}</div>',
@@ -176,7 +181,7 @@ describe('ManageAgentModal', () => {
                 '<input class="name-input" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
               methods: { focus() {} },
             },
-            Button: { template: '<button><slot /></button>' },
+            Button: ButtonStub,
             WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
           },
         },
@@ -250,7 +255,7 @@ describe('ManageAgentModal', () => {
           Error: true,
           FormGroup: { template: '<div><slot /></div>' },
           FormInput: true,
-          Button: { template: '<button><slot /></button>' },
+          Button: ButtonStub,
           WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
         },
       },
@@ -289,7 +294,7 @@ describe('ManageAgentModal', () => {
           Error: true,
           FormGroup: { template: '<div><slot /></div>' },
           FormInput: true,
-          Button: { template: '<button><slot /></button>' },
+          Button: ButtonStub,
           WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
         },
       },
@@ -304,6 +309,19 @@ describe('ManageAgentModal', () => {
 test('Cancel closes the Agent modal without submitting', async () => {
   const submit = vi.fn()
   const hide = vi.fn()
+  const setting = {
+    component: AgentGeneralSettingsForm,
+    componentPadding: true,
+    name: 'General',
+    showInCreate: true,
+    getType: () => 'general',
+    isActive: () => true,
+    getInitialValues: () => ({ name: '', role_uid: 'MEMBER' }),
+    getSubmitValues: ({ name, role_uid: roleUid }) => ({
+      name,
+      role_uid: roleUid,
+    }),
+  }
   const wrapper = await mountSuspended(
     {
       ...ManageAgentModal,
@@ -314,19 +332,30 @@ test('Cancel closes the Agent modal without submitting', async () => {
       attachTo: document.body,
       props: { workspace: { id: 12, _: { roles: [] } } },
       global: {
-        mocks: { $registry: { getOrderedList: () => [] }, $t: (key) => key },
+        mocks: {
+          $registry: { getOrderedList: () => [setting] },
+          $t: (key) => key,
+        },
         stubs: {
           Modal: { template: '<div><slot name="content" /></div>' },
           Error: true,
+          FormGroup: { template: '<div><slot /></div>' },
+          FormInput: true,
+          WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
         },
       },
     }
   )
   try {
-    wrapper
+    const cancel = wrapper
       .findAll('button')
       .find((button) => button.text() === 'action.cancel')
-      .element.click()
+    const create = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'agents.create')
+    expect(cancel.attributes('type')).toBe('button')
+    expect(create.attributes('type')).toBe('submit')
+    cancel.element.click()
     expect(hide).toHaveBeenCalledOnce()
     expect(submit).not.toHaveBeenCalled()
   } finally {

@@ -1,6 +1,7 @@
 <template>
   <Button
     type="secondary"
+    button-type="button"
     v-bind="restProps"
     :loading="loading"
     :disabled="disabled"
