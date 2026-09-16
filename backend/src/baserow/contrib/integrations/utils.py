@@ -10,6 +10,7 @@ from typing import Optional
 from django.conf import settings
 
 import requests
+from loguru import logger
 from requests import exceptions as request_exceptions
 from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
@@ -290,7 +291,13 @@ class _Watchdog:
                     condition.wait(remaining)
             # Outside the condition, so a slow shutdown does not hold up
             # requests starting or finishing meanwhile.
-            due.hang_up()
+            try:
+                due.hang_up()
+            except Exception:
+                # This is the only watchdog thread for the process: letting
+                # one request's hang-up kill it would leave every later
+                # deadline unenforced.
+                logger.exception("Failed to hang up a request past its deadline")
 
 
 _watchdog = _Watchdog()

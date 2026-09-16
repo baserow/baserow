@@ -501,6 +501,30 @@ def test_a_redirect_to_another_host_whose_headers_trickle_is_given_up_on(setting
     assert elapsed < 5
 
 
+def test_a_hang_up_that_raises_does_not_stop_the_watchdog(settings):
+    """
+    One watched request's hang-up blowing up must not take the single
+    watchdog thread down with it: a second request past its own deadline is
+    still hung up on, rather than left open for as long as the server likes.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/broken": stall(), "/slow": header_trickle()}) as (base, _):
+        broken = send_http_request(
+            "GET", base + "/broken", deadline=time.monotonic() + 0.3
+        )
+        broken._request_deadline.hang_up = Mock(side_effect=Exception("boom"))
+
+        started = time.monotonic()
+        with pytest.raises(request_exceptions.Timeout):
+            send_http_request("GET", base + "/slow", deadline=started + 1)
+        elapsed = time.monotonic() - started
+
+        broken.close()
+
+    assert elapsed < 5
+
+
 def test_the_watchdog_does_not_outlive_a_finished_request(settings):
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
     with local_server({"/": answer()}) as (base, _):
