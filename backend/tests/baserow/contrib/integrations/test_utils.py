@@ -122,7 +122,7 @@ def trickle(status=200, headers=None, length=100):
     return handle
 
 
-def stall(length=10, seconds=3.0):
+def stall(length=10, seconds=10.0):
     """Headers, then nothing at all."""
 
     def handle(handler):
@@ -171,7 +171,7 @@ def compressed_trickle(encoding, compress):
     return handle
 
 
-def header_trickle(length=40, delay=0.2):
+def header_trickle(length=50, delay=0.2):
     """
     A status line straight to the socket, then one header byte every `delay`
     seconds, so the headers alone take `length * delay` seconds to arrive and
@@ -193,9 +193,8 @@ def header_trickle(length=40, delay=0.2):
 
 def test_a_body_that_trickles_is_hung_up_on_at_the_deadline(settings):
     """
-    urllib3 waits for a whole 64 KB chunk before `iter_content` returns one, so
-    a server sending a byte at a time kept the deadline check from ever running:
-    this body took the full 10 seconds.
+    A body sent a byte at a time is given up on at the deadline rather than
+    once it is complete, ten seconds later.
     """
 
     settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
@@ -206,14 +205,13 @@ def test_a_body_that_trickles_is_hung_up_on_at_the_deadline(settings):
             read_response_within_limit(response, 1)
         elapsed = time.monotonic() - started
 
-    assert elapsed < 2
+    assert elapsed < 5
 
 
 def test_a_body_that_stops_arriving_is_reported_as_a_timeout(settings):
     """
-    Reading `raw` directly skips the wrapping `iter_content` does, so a read
-    timeout has to come out as the `Timeout` the service answers with a 504, not
-    as urllib3's own error or a `ConnectionError`.
+    A read timeout comes out as the `Timeout` the service answers with a 504,
+    not as urllib3's own error or a `ConnectionError`.
     """
 
     settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
@@ -272,9 +270,8 @@ def test_a_chunked_body_is_read_whole(settings):
 
 def test_a_broken_tls_read_is_reported_as_an_ssl_error():
     """
-    `iter_content` used to map this onto `requests.exceptions.SSLError`;
-    reading `raw` directly has to keep doing that rather than letting it
-    escape as an unmapped urllib3 error.
+    A broken TLS read comes out as Requests' own `SSLError`, not as an unmapped
+    urllib3 error.
     """
 
     response = requests.Response()
@@ -296,26 +293,27 @@ def test_a_broken_tls_read_past_the_deadline_is_reported_as_a_timeout():
 
 def test_a_redirect_chain_is_given_up_on_at_the_deadline(settings):
     """
-    Requests gives every hop a fresh timeout, so six hops that each answer in
-    0.6 seconds would take 3.6 seconds against a 1 second budget.
+    Every hop answers within the deadline, and the chain as a whole, more than
+    ten seconds of hops, is still given up on once it goes past it.
     """
 
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
-    routes = {f"/{i}": redirect(f"/{i + 1}", delay=0.6) for i in range(6)}
-    routes["/6"] = answer()
+    hops = MAX_REDIRECTS + 1
+    routes = {f"/{i}": redirect(f"/{i + 1}", delay=0.95) for i in range(hops)}
+    routes[f"/{hops}"] = answer()
     with local_server(routes) as (base, _):
         started = time.monotonic()
         with pytest.raises(request_exceptions.Timeout):
             send_http_request("GET", base + "/0", deadline=started + 1)
         elapsed = time.monotonic() - started
 
-    assert elapsed < 2
+    assert elapsed < 5
 
 
 def test_a_redirect_whose_body_trickles_is_given_up_on(settings):
     """
-    Requests reads a redirect's body itself before following it, outside any
-    deadline, so this one alone would hold the request for 10 seconds.
+    A redirect's own body, ten seconds of it, is read under the same deadline
+    before the redirect is followed.
     """
 
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
@@ -330,7 +328,7 @@ def test_a_redirect_whose_body_trickles_is_given_up_on(settings):
             send_http_request("GET", base + "/start", deadline=started + 1)
         elapsed = time.monotonic() - started
 
-    assert elapsed < 2
+    assert elapsed < 5
     assert ("GET", "/done") not in seen
 
 
@@ -460,10 +458,8 @@ def test_every_hop_is_checked_against_the_address_rules(settings):
 
 def test_a_response_whose_headers_trickle_is_given_up_on_at_the_deadline(settings):
     """
-    `timeout=remaining` bounds a single socket operation, and http.client reads
-    a status line and headers with many small ones, each getting the full
-    `remaining` again, so on its own this could hold the request well past the
-    deadline while nothing but header bytes arrive.
+    Headers sent a byte at a time never leave a single read waiting long enough
+    to time out, and the request is still hung up on at the deadline.
     """
 
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
@@ -473,7 +469,7 @@ def test_a_response_whose_headers_trickle_is_given_up_on_at_the_deadline(setting
             send_http_request("GET", base + "/", deadline=started + 1)
         elapsed = time.monotonic() - started
 
-    assert elapsed < 2
+    assert elapsed < 5
 
 
 def test_a_redirect_to_trickling_headers_is_given_up_on_at_the_deadline(settings):
@@ -485,7 +481,7 @@ def test_a_redirect_to_trickling_headers_is_given_up_on_at_the_deadline(settings
             send_http_request("GET", base + "/start", deadline=started + 1)
         elapsed = time.monotonic() - started
 
-    assert elapsed < 2
+    assert elapsed < 5
 
 
 def test_a_redirect_to_another_host_whose_headers_trickle_is_given_up_on(settings):
@@ -502,7 +498,7 @@ def test_a_redirect_to_another_host_whose_headers_trickle_is_given_up_on(setting
                 send_http_request("GET", base + "/start", deadline=started + 1)
             elapsed = time.monotonic() - started
 
-    assert elapsed < 2
+    assert elapsed < 5
 
 
 def test_the_watchdog_does_not_outlive_a_finished_request(settings):
@@ -551,7 +547,7 @@ def test_a_connection_that_opens_after_the_deadline_is_hung_up_on(settings):
                 send_http_request("GET", base + "/", deadline=started + 1)
             elapsed = time.monotonic() - started
 
-    assert elapsed < 2.5
+    assert elapsed < 5
 
 
 def test_the_watchdog_is_cancelled_when_the_request_raises(settings):

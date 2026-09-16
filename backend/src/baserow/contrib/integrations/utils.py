@@ -111,11 +111,10 @@ def _read_body(response, deadline: float, request_deadline) -> None:
     try:
         while True:
             try:
-                # `read1` hands back whatever has arrived. `iter_content` waits
-                # inside urllib3 for a whole chunk, so a server sending a byte
-                # at a time never let it return and the deadline below was
-                # never looked at. Reading `raw` skips the translation
-                # `iter_content` does, so its errors are translated here.
+                # `read1` hands back whatever has arrived, however little, so
+                # the deadline below is checked as the body comes in. Reading
+                # `raw` skips the translation `iter_content` does, so its
+                # errors are translated here.
                 chunk = response.raw.read1(64 * 1024, decode_content=True)
             except ReadTimeoutError as e:
                 raise request_exceptions.Timeout(e) from e
