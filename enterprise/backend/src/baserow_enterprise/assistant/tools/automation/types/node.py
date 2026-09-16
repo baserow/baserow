@@ -84,6 +84,23 @@ def _upsert_field_mappings(
 # ---------------------------------------------------------------------------
 
 
+def _is_blank(value: Any) -> bool:
+    """Whether a required field carries nothing to act on.
+
+    Only text is judged empty: a row action with no values still creates or
+    clears a row, but a blank row id names nothing.
+
+    :param value: The supplied field value.
+    :return: True when the field cannot satisfy a requirement.
+    """
+
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    return False
+
+
 class PeriodicTriggerSettings(BaseModel):
     """All times in UTC — remove timezone offsets."""
 
@@ -378,11 +395,7 @@ class ActionNodeCreate(BaseModel):
         required = self._REQUIRED_FIELDS.get(self.type)
         if required:
             missing = [
-                name
-                for attr, name in required
-                if getattr(self, attr) is None
-                # A blank row ID is no row at all: the node would fail every run.
-                or (attr == "row_id" and not getattr(self, attr).strip())
+                name for attr, name in required if _is_blank(getattr(self, attr))
             ]
             if missing:
                 raise ValueError(f"{self.type} requires {', '.join(missing)}")

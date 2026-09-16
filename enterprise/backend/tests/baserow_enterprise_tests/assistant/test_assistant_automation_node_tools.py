@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.operations import (
@@ -890,3 +891,40 @@ def test_update_nodes_direct_values_refresh_test_run_clone(
     assert service.field_mappings.get(field=field).value["formula"] == (
         "'Updated'" if property_name == "values" else "'Initial'"
     )
+
+
+def _update_row_node(**overrides):
+    kwargs = {
+        "ref": "action",
+        "label": "Update row",
+        "previous_node_ref": "trigger",
+        "type": "update_row",
+        "table_id": 1,
+        "row_id": "1",
+        "values": [AutomationFieldValue(field_id=1, value="Reviewed")],
+    }
+    kwargs.update(overrides)
+    return ActionNodeCreate(**kwargs)
+
+
+def test_a_blank_row_id_cannot_satisfy_the_requirement():
+    """An update_row node with a blank row id names no row to update."""
+
+    _update_row_node()
+
+    for blank in ("", "   "):
+        with pytest.raises(ValidationError) as exc_info:
+            _update_row_node(row_id=blank)
+        assert "row_id" in str(exc_info.value)
+
+
+def test_a_row_action_without_values_is_still_allowed():
+    """Creating or clearing a row without field values is a real request."""
+
+    assert _update_row_node(values=[]).values == []
+
+
+def test_a_required_node_field_still_accepts_a_falsy_but_real_value():
+    """Rejecting every falsy value would refuse legitimate zeroes."""
+
+    assert _update_row_node(table_id=0).table_id == 0
