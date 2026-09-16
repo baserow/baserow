@@ -183,7 +183,7 @@ export default {
         max_filesize: 5,
         allowed_filetypes: [],
         styles: {},
-        preview: false,
+        preview: true,
       },
       allowedValues: [
         'styles',

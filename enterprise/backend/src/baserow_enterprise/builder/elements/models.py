@@ -60,6 +60,6 @@ class FileInputElement(FormElement):
         help_text="Allowed file types for this input.",
     )
     preview = models.BooleanField(
-        default=False,
+        default=True,
         help_text="Whether to show a preview of image files.",
     )

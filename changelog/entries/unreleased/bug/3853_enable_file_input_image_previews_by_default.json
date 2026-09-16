@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Enable image previews by default for new File input elements.",
+    "issue_origin": "github",
+    "issue_number": 3853,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-09-15"
+}

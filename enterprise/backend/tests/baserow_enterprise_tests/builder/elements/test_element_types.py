@@ -109,6 +109,25 @@ def test_create_auth_form_with_user_source_another_app(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("values, expected", [({}, True), ({"preview": False}, False)])
+def test_create_file_input_preview_default(
+    data_fixture, enable_enterprise, values, expected
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    element = ElementService().create_element(
+        user,
+        element_type_registry.get("input_file"),
+        page=page,
+        **values,
+    )
+    element.refresh_from_db()
+
+    assert element.preview is expected
+
+
+@pytest.mark.django_db
 def test_file_input_element_is_valid(fake):
     element = MagicMock()
     element.multiple = False
