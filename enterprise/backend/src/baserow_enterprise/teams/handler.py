@@ -518,17 +518,19 @@ class TeamHandler:
                 f"The subject type {subject_natural_key} is unsupported."
             )
 
-        # We only support creating a subject via an ID/PK or
-        # in the case of a user, its email.
-        permitted_lookups = ["id", "pk", "email"]
-        unexpected_lookups = list(set(subject_lookup.keys()) - set(permitted_lookups))
+        subject_type = subject_type_registry.get(subject_natural_key)
+        unexpected_lookups = [
+            lookup
+            for lookup in subject_lookup
+            if not subject_type.supports_lookup_field(lookup)
+        ]
         if unexpected_lookups:
             raise TeamSubjectBadRequest(
                 f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
             )
 
         # Get the model for this `subject_natural_key`.
-        model_class = subject_type_registry.get(subject_natural_key).model_class
+        model_class = subject_type.model_class
 
         try:
             subject = model_class.objects.get(**subject_lookup)
@@ -538,7 +540,6 @@ class TeamHandler:
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
-        subject_type = subject_type_registry.get(subject_natural_key)
         if not subject_type.is_in_workspace(subject, team.workspace):
             raise TeamSubjectNotInGroup()
 

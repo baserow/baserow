@@ -12,6 +12,7 @@ class UserSubjectType(SubjectType):
     type = "auth.User"
     model_class = User
     display_name_field = "first_name"
+    lookup_fields = (*SubjectType.lookup_fields, "email")
 
     has_direct_workspace_roles = True
 

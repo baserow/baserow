@@ -311,6 +311,19 @@ def test_create_subject_with_unsupported_lookup(data_fixture, enterprise_data_fi
 
 
 @pytest.mark.django_db
+def test_create_agent_subject_with_email_lookup_is_rejected(
+    data_fixture, enterprise_data_fixture
+):
+    user = data_fixture.create_user()
+    team = enterprise_data_fixture.create_team()
+
+    with pytest.raises(TeamSubjectBadRequest):
+        TeamHandler().create_subject(
+            user, {"email": "agent@example.com"}, "core.Agent", team
+        )
+
+
+@pytest.mark.django_db
 def test_create_subject_from_different_workspace_to_team(
     data_fixture, enterprise_data_fixture
 ):

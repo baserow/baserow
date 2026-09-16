@@ -1356,6 +1356,12 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     """
 
     display_name_field: Optional[str] = None
+    lookup_fields = ("id", "pk")
+
+    def supports_lookup_field(self, field_name: str) -> bool:
+        """Return whether this subject type supports lookup by the given field."""
+
+        return field_name in self.lookup_fields
 
     # Types opting in own workspace role persistence outside RoleAssignment and
     # must implement get_workspace_subjects, get_workspace_role_uids, and

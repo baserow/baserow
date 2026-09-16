@@ -260,6 +260,34 @@ def test_create_team_subject_by_email(
 
 
 @pytest.mark.django_db
+def test_cannot_create_agent_team_subject_by_email(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+
+    response = api_client.post(
+        reverse("api:enterprise:teams:subject-list", kwargs={"team_id": team.id}),
+        {
+            "subject_user_email": "agent@example.com",
+            "subject_type": "core.Agent",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["subject_user_email"] == [
+        {
+            "code": "invalid",
+            "error": "Email lookup is not supported for this subject type.",
+        }
+    ]
+
+
+@pytest.mark.django_db
 def test_patch_team_subject(api_client, data_fixture, enterprise_data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
