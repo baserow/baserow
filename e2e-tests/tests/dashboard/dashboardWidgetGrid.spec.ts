@@ -660,8 +660,23 @@ test.describe('Dashboard widget grid', () => {
 
       await page.getByRole('button', { name: 'Done editing' }).click()
       await page.setViewportSize({ width: 1100, height: 1000 })
-      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '4')
+      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
       await expect(item.locator('.vgl-item__resizer')).toHaveCount(0)
+      await expect
+        .poll(() => pane.evaluate((el) => el.scrollWidth > el.clientWidth))
+        .toBe(true)
+      await expect
+        .poll(async () => {
+          const canvasBox = await grid.boundingBox()
+          const widgetBox = await item.boundingBox()
+          if (!canvasBox || !widgetBox) return null
+          const columnWidth = (canvasBox.width + 16) / 6
+          return {
+            x: Math.round((widgetBox.x - canvasBox.x) / columnWidth),
+            width: Math.round((widgetBox.width + 16) / columnWidth),
+          }
+        })
+        .toEqual({ x: 3, width: 3 })
 
       await page.setViewportSize({ width: 1920, height: 1000 })
       await page.reload({ waitUntil: 'networkidle' })
@@ -669,6 +684,73 @@ test.describe('Dashboard widget grid', () => {
       await expectWidgetLayout(dashboard, widget.id, expectedLayout)
     })
   }
+
+  test('preserves the saved row and scrolls to offscreen widgets in view mode', async ({
+    page,
+    workspacePage,
+  }) => {
+    const dashboard = await createDashboard(
+      'Dashboard scrolling view',
+      workspacePage.workspace
+    )
+    const widgets = await Promise.all(
+      [1, 2, 3].map((index) =>
+        createSummaryWidget(dashboard, `Summary ${index}`)
+      )
+    )
+    await updateDashboardWidgetLayout(
+      dashboard,
+      widgets.map((widget, index) => ({
+        id: widget.id,
+        grid_x: index * 2,
+        grid_y: 0,
+        grid_width: 2,
+        grid_height: 4,
+      }))
+    )
+    let layoutUpdates = 0
+    page.on('request', (request) => {
+      if (
+        request.method() === 'PATCH' &&
+        request.url().endsWith('/widgets/layout/')
+      ) {
+        layoutUpdates += 1
+      }
+    })
+    await goToDashboard(page, dashboard)
+
+    const grid = page.getByTestId('dashboard-widget-grid')
+    const items = grid.locator('.vgl-item:not(.vgl-item--placeholder)')
+    const pane = page.locator('.dashboard-app__layout-scrollable')
+    for (const width of [1100, 700]) {
+      await page.setViewportSize({ width, height: 1000 })
+      await expect(grid).toHaveCSS('--dashboard-widget-grid-columns', '6')
+      await expect(grid.locator('.vgl-item__resizer')).toHaveCount(0)
+      await expect
+        .poll(() =>
+          items.evaluateAll((elements) => {
+            const boxes = elements.map((element) =>
+              element.getBoundingClientRect()
+            )
+            return (
+              boxes.length === 3 &&
+              boxes.every(
+                (box, index) =>
+                  Math.abs(box.y - boxes[0].y) < 1 &&
+                  (index === 0 || box.x >= boxes[index - 1].right)
+              )
+            )
+          })
+        )
+        .toBe(true)
+      await items.last().scrollIntoViewIfNeeded()
+      await expect(items.last()).toBeInViewport({ ratio: 1 })
+      await expect
+        .poll(() => pane.evaluate((el) => el.scrollLeft))
+        .toBeGreaterThan(0)
+    }
+    expect(layoutUpdates).toBe(0)
+  })
 
   test('keeps the canonical desktop layout when deleting on a small screen', async ({
     page,
@@ -702,7 +784,7 @@ test.describe('Dashboard widget grid', () => {
 
     await expect(page.getByTestId('dashboard-widget-grid')).toHaveCSS(
       '--dashboard-widget-grid-columns',
-      '4'
+      '6'
     )
 
     const firstWidgetItem = page.getByTestId(
@@ -720,7 +802,7 @@ test.describe('Dashboard widget grid', () => {
         }
         return (firstBox.width + 16) / (secondBox.width + 16)
       })
-      .toBeCloseTo(1 / 3, 1)
+      .toBeCloseTo(1 / 2, 1)
 
     await enterEditMode(page)
     await expect(page.getByTestId('dashboard-widget-grid')).toHaveCSS(

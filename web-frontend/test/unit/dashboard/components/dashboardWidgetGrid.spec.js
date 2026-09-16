@@ -158,7 +158,7 @@ describe('DashboardWidgetGrid', () => {
     expect(
       wrapper.find('[data-testid="dashboard-widget-grid-loading"]').exists()
     ).toBe(true)
-    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('4')
+    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('6')
 
     await wrapper.findComponent(GridLayoutStub).vm.$emit('layout-ready')
 
@@ -263,19 +263,23 @@ describe('DashboardWidgetGrid', () => {
   )
 
   test.each([
-    ['desktop', 1200, '6'],
-    ['tablet', 700, '4'],
-    ['mobile', 599, '1'],
+    ['desktop', 1200],
+    ['tablet', 700],
+    ['mobile', 599],
   ])(
-    'keeps %s layouts responsive and read-only in view mode',
-    async (_viewport, width, columns) => {
-      mountGrid({ editMode: ref(false) })
+    'keeps saved positions and read-only controls on %s in view mode',
+    async (_viewport, width) => {
+      mountGrid({
+        editMode: ref(false),
+        widgetList: [{ ...widgets[0], grid_x: 2, grid_width: 4 }],
+      })
       await measureGrid(width)
 
       const gridLayout = wrapper.get('.vgl-layout')
       const gridItem = wrapper.get('.vgl-item')
 
-      expect(gridLayout.attributes('data-columns')).toBe(columns)
+      expect(gridLayout.attributes('data-columns')).toBe('6')
+      expect(gridItem.attributes()).toMatchObject({ x: '2', w: '4' })
       expect(gridLayout.attributes('data-draggable')).toBe('false')
       expect(gridLayout.attributes('data-resizable')).toBe('false')
       expect(gridItem.attributes('data-draggable')).toBe('false')
@@ -303,15 +307,16 @@ describe('DashboardWidgetGrid', () => {
     }
   )
 
-  test('switches between viewing and editing without saving projected coordinates', async () => {
+  test('keeps coordinates when switching modes and resumes remote updates after an interrupted drag', async () => {
     const editMode = ref(false)
-    mountGrid({
-      editMode,
-      widgetList: [{ ...widgets[0], grid_x: 2, grid_width: 4 }],
-    })
+    const widgetList = reactive([{ ...widgets[0], grid_x: 2, grid_width: 4 }])
+    mountGrid({ editMode, widgetList })
     await measureGrid(700)
-    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('4')
-    expect(wrapper.get('.vgl-item').attributes('w')).toBe('3')
+    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('6')
+    expect(wrapper.get('.vgl-item').attributes()).toMatchObject({
+      x: '2',
+      w: '4',
+    })
 
     editMode.value = true
     await flushPromises()
@@ -326,16 +331,24 @@ describe('DashboardWidgetGrid', () => {
       w: '4',
     })
 
+    await wrapper.findComponent(GridItemStub).vm.$emit('move', 1, 1, 0)
+    expect(wrapper.classes()).toContain('dashboard-widget-grid--interacting')
     editMode.value = false
     await flushPromises()
-    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('1')
+    expect(wrapper.classes()).not.toContain(
+      'dashboard-widget-grid--interacting'
+    )
+    expect(wrapper.get('.vgl-layout').attributes('data-columns')).toBe('6')
     expect(wrapper.get('.vgl-item').attributes()).toMatchObject({
-      x: '0',
-      w: '1',
+      x: '2',
+      w: '4',
     })
+    widgetList[0].grid_x = 1
+    await flushPromises()
+    expect(wrapper.get('.vgl-item').attributes('x')).toBe('1')
     await wrapper
       .findComponent(GridLayoutStub)
-      .vm.$emit('layout-updated', [{ i: 1, x: 0, y: 0, w: 1, h: 4 }])
+      .vm.$emit('layout-updated', [{ i: 1, x: 1, y: 0, w: 4, h: 4 }])
     expect(dispatch).not.toHaveBeenCalled()
   })
 

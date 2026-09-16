@@ -9,7 +9,7 @@
           class="dashboard-app__content"
           :class="{
             'dashboard-app__content--small': isInTemplate,
-            'dashboard-app__content--editing': isEditMode,
+            'dashboard-app__content--with-widgets': !isEmpty,
           }"
         >
           <DashboardContentHeader
