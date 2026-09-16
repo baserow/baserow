@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
+from baserow.core.registries import subject_type_registry
 from baserow_enterprise.api.role.serializers import RoleField
 from baserow_enterprise.exceptions import RoleNotExist
 from baserow_enterprise.role.models import Role
@@ -51,6 +52,22 @@ class TeamSubjectSerializer(
         model = TeamSubject
         fields = ("id", "subject_id", "subject_user_email", "subject_type")
         extra_kwargs = {"id": {"read_only": True}}
+
+    def validate(self, attrs):
+        """Reject email lookup when the selected subject type does not support it."""
+
+        subject_user_email = attrs.get("subject_user_email")
+        if subject_user_email:
+            subject_type = subject_type_registry.get(attrs["subject_type"])
+            if not subject_type.supports_lookup_field("email"):
+                raise serializers.ValidationError(
+                    {
+                        "subject_user_email": (
+                            "Email lookup is not supported for this subject type."
+                        )
+                    }
+                )
+        return attrs
 
 
 class TeamSerializer(
