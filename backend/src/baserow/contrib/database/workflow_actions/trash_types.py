@@ -25,7 +25,11 @@ class DatabaseWorkflowActionTrashableItemType(TrashableItemType):
         return trashed_item.field
 
     def get_name(self, trashed_item: DatabaseWorkflowAction) -> str:
-        return f"{trashed_item.get_type().type} ({trashed_item.id})"
+        # The position tells two actions of one type on the same button apart,
+        # as the builder's name does with the element.
+        return (
+            f"{trashed_item.get_type().type} #{trashed_item.order} ({trashed_item.id})"
+        )
 
     def trash(
         self,

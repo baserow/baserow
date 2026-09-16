@@ -57,7 +57,7 @@ def test_a_trashed_action_is_listed_under_its_field(data_fixture):
     )
 
     assert entry.application_id == button_field.table.database_id
-    assert entry.name == f"local_baserow_create_row ({action.id})"
+    assert entry.name == f"local_baserow_create_row #{action.order} ({action.id})"
     assert entry.parent_name == button_field.name
     assert not button_field.has_workflow_actions
 
