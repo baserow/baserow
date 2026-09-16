@@ -72,7 +72,7 @@ export const mutations = {
   },
 
   SET_CHATS(state, chats) {
-    state.chats = chats.map((chat) => ({
+    const fetched = chats.map((chat) => ({
       id: chat.uuid,
       title: chat.title,
       createdAt: chat.created_on,
@@ -84,6 +84,12 @@ export const mutations = {
       cancelling: false,
       currentMessageId: null,
     }))
+    // A chat created client-side is only persisted once its first message is
+    // sent, so the fetched list does not contain it yet.
+    const current = state.chats.find((c) => c.id === state.currentChatId)
+    const unsaved =
+      current && !fetched.some((c) => c.id === current.id) ? [current] : []
+    state.chats = [...unsaved, ...fetched]
   },
 
   SET_CHATS_LOADING(state, loading) {
@@ -91,7 +97,7 @@ export const mutations = {
   },
 
   REMOVE_CHAT(state, chatId) {
-    const index = state.chats.findIndex((chat) => chat.uid === chatId)
+    const index = state.chats.findIndex((chat) => chat.id === chatId)
     if (index > -1) {
       state.chats.splice(index, 1)
     }
@@ -260,10 +266,11 @@ export const actions = {
     { message, workspace }
   ) {
     const { $client, $i18n } = this
-    if (!state.currentChatId) {
+    let chat = state.chats.find((c) => c.id === state.currentChatId)
+    if (!chat) {
       await dispatch('createChat', workspace.id)
+      chat = state.chats.find((c) => c.id === state.currentChatId)
     }
-    const chat = state.chats.find((c) => c.id === state.currentChatId)
 
     const userMessage = {
       id: uuidv4(),
