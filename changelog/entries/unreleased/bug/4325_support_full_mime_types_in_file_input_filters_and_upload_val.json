@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Support full MIME types in file input filters and upload validation.",
+    "issue_origin": "github",
+    "issue_number": 4325,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-09-16"
+}
