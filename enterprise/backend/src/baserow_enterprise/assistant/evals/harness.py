@@ -206,6 +206,34 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
     return len(retry_errors), hint
 
 
+def executed_tool_calls(output: EvalRunOutput, name: str) -> list[dict]:
+    """
+    Return the calls to a tool that the mode router did not send back.
+
+    An incomplete call to a tool owned by another mode is answered with a
+    re-call redirect instead of running. Scoring that call reads the model's
+    first guess instead of the arguments that ran.
+
+    :param output: The recorded run output.
+    :param name: The tool function name.
+    :return: The surviving assistant call entries, in call order.
+    """
+
+    redirected = {
+        entry.get("tool_call_id")
+        for entry in output.messages
+        if entry["role"] == "user" and is_mode_redirect(entry.get("content"))
+    }
+    return [
+        entry
+        for entry in output.messages
+        if entry["role"] == "assistant"
+        and entry.get("tool_name") == name
+        and "args" in entry
+        and entry.get("tool_call_id") not in redirected
+    ]
+
+
 def tool_called(output: EvalRunOutput, name: str) -> int:
     """Return how many times *name* was called during the run."""
 

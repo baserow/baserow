@@ -32,13 +32,19 @@ from baserow_enterprise.assistant.evals.harness import (
     PROMPT_ATTR_TARGETS,
     EvalCaseTimeout,
     count_tool_errors,
+    executed_tool_calls,
     get_case_timeout_s,
     override_assistant_prompts,
     run_case,
 )
 from baserow_enterprise.assistant.evals.prompt_sync import SYNCED_PROMPTS
 from baserow_enterprise.assistant.evals.scenarios import make_fixtures
-from baserow_enterprise.assistant.evals.types import CheckResult, EvalCase, EvalScenario
+from baserow_enterprise.assistant.evals.types import (
+    CheckResult,
+    EvalCase,
+    EvalRunOutput,
+    EvalScenario,
+)
 from baserow_enterprise.assistant.model_profiles import (
     ORCHESTRATOR,
     ResolvedAssistantModelProfile,
@@ -339,6 +345,146 @@ class TestCountToolErrors:
         count, hint = count_tool_errors(result)
         assert count == 1
         assert "create_workflows" in hint
+
+    def test_router_redirect_is_recognised_from_the_router_itself(self):
+        """The harness must not carry its own copy of the redirect wording."""
+
+        from pydantic_ai.messages import ModelRequest, RetryPromptPart
+
+        from baserow_enterprise.assistant.evals.harness import count_tool_errors
+        from baserow_enterprise.assistant.tools.routing import mode_redirect_message
+
+        result = SimpleNamespace(
+            all_messages=lambda: [
+                ModelRequest(
+                    parts=[
+                        RetryPromptPart(
+                            content=mode_redirect_message(
+                                "create_workflows", AgentMode.AUTOMATION
+                            ),
+                            tool_name="create_workflows",
+                        )
+                    ]
+                )
+            ]
+        )
+
+        assert count_tool_errors(result) == (0, "")
+
+
+class TestExecutedToolCalls:
+    """A routed call is rejected and re-issued; only the re-issue ran."""
+
+    def _output(self, messages):
+        return EvalRunOutput(
+            answer="",
+            messages=messages,
+            tool_calls=[],
+            tool_error_count=0,
+            tool_error_hint="",
+            sources=[],
+            request_count=0,
+            duration_s=0.0,
+        )
+
+    def test_the_call_the_router_sent_back_is_not_scored(self):
+        from baserow_enterprise.assistant.evals.harness import executed_tool_calls
+        from baserow_enterprise.assistant.tools.routing import mode_redirect_message
+
+        output = self._output(
+            [
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "args": {"workflows": [{"name": "first guess"}]},
+                },
+                {
+                    "role": "user",
+                    "type": "RetryPromptPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "content": mode_redirect_message(
+                        "create_workflows", AgentMode.AUTOMATION
+                    ),
+                },
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "executed",
+                    "args": {"workflows": [{"name": "real request"}]},
+                },
+            ]
+        )
+
+        calls = executed_tool_calls(output, "create_workflows")
+
+        assert [call["tool_call_id"] for call in calls] == ["executed"]
+
+    def test_a_real_validation_retry_leaves_the_call_scored(self):
+        from baserow_enterprise.assistant.evals.harness import executed_tool_calls
+
+        output = self._output(
+            [
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "only",
+                    "args": {"workflows": []},
+                },
+                {
+                    "role": "user",
+                    "type": "RetryPromptPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "only",
+                    "content": "workflows must not be empty",
+                },
+            ]
+        )
+
+        calls = executed_tool_calls(output, "create_workflows")
+
+        assert [call["tool_call_id"] for call in calls] == ["only"]
+
+    def test_a_call_answered_with_a_redirect_result_is_not_scored(self):
+        output = self._output(
+            [
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "args": {"workflows": [{"name": "first guess"}]},
+                },
+                {
+                    "role": "user",
+                    "type": "ToolReturnPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "deferred",
+                    "content": {
+                        "changed": False,
+                        "mode": AgentMode.AUTOMATION.value,
+                        "next_steps": mode_redirect_message(
+                            "create_workflows", AgentMode.AUTOMATION
+                        ),
+                    },
+                },
+                {
+                    "role": "assistant",
+                    "type": "ToolCallPart",
+                    "tool_name": "create_workflows",
+                    "tool_call_id": "executed",
+                    "args": {"workflows": [{"name": "real request"}]},
+                },
+            ]
+        )
+
+        calls = executed_tool_calls(output, "create_workflows")
+
+        assert [call["tool_call_id"] for call in calls] == ["executed"]
 
 
 @pytest.mark.django_db

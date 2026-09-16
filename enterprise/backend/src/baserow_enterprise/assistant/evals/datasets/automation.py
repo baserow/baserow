@@ -17,7 +17,7 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.test_utils.fixtures import Fixtures
-from baserow_enterprise.assistant.evals.harness import tool_called
+from baserow_enterprise.assistant.evals.harness import executed_tool_calls, tool_called
 from baserow_enterprise.assistant.evals.registry import (
     register_case,
     register_scenario,
@@ -101,14 +101,10 @@ PROMPT_CREATES_EMAIL_NOTIFICATION_WORKFLOW = (
 
 
 def _get_create_workflows_args(output: EvalRunOutput) -> list[dict]:
-    """Return the parsed ``args`` dicts of every ``create_workflows`` call."""
+    """Return the parsed ``args`` dicts of every executed ``create_workflows`` call."""
 
     calls = [
-        deepcopy(e["args"])
-        for e in output.messages
-        if e["role"] == "assistant"
-        and e.get("tool_name") == "create_workflows"
-        and "args" in e
+        deepcopy(e["args"]) for e in executed_tool_calls(output, "create_workflows")
     ]
     # Match the same registered aliases accepted by the production tool schema.
     # Preserve the original trace and every other argument for the checks.
@@ -210,7 +206,7 @@ def _check_creates_workflow(
     workflows = AutomationWorkflow.objects.filter(automation=automation)
 
     call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[0] if call_args_list else {}
+    args = call_args_list[-1] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
     trigger_args = wf_args.get("trigger", {})
     nodes_args = wf_args.get("nodes", [])
@@ -412,7 +408,7 @@ def _check_creates_router_workflow(
     table = scenario.refs["table"]
 
     call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[0] if call_args_list else {}
+    args = call_args_list[-1] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
     nodes_args = wf_args.get("nodes", [])
     router_nodes_args = [n for n in nodes_args if _node_type(n) == "router"]
@@ -648,7 +644,7 @@ def _check_creates_update_row_workflow(
     table = scenario.refs["table"]
 
     call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[0] if call_args_list else {}
+    args = call_args_list[-1] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
     trigger_args = wf_args.get("trigger", {})
     nodes_args = wf_args.get("nodes", [])
@@ -761,7 +757,7 @@ def _check_creates_email_notification_workflow(
     table = scenario.refs["table"]
 
     call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[0] if call_args_list else {}
+    args = call_args_list[-1] if call_args_list else {}
     wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
     trigger_args = wf_args.get("trigger", {})
     trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
