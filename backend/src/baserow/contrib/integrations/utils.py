@@ -98,3 +98,87 @@ def read_response_within_limit(
     # dispatch is unchanged.
     response._content = bytes(content)
     response._content_consumed = True
+
+
+# Enough for http to https to a canonical host to a locale. The deadline is what
+# bounds how long a request takes; this only stops an endless chain early.
+MAX_REDIRECTS = 10
+
+
+class _DeadlineMixin:
+    """
+    Gives every hop of a request only the time left until one deadline.
+    Requests passes the same `timeout` to every hop of a redirect chain, and
+    applies it per socket operation, so on its own it bounds neither.
+    """
+
+    deadline: float
+
+    def send(self, request, **kwargs):
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise request_exceptions.Timeout("The request did not finish in time.")
+        # `resolve_redirects` calls `send` again for every hop, so each one
+        # gets what is left rather than the whole budget.
+        kwargs["timeout"] = remaining
+        return super().send(request, **kwargs)
+
+
+class _DeadlineSession(_DeadlineMixin, requests.Session):
+    pass
+
+
+class _DeadlineAdvocateSession(_DeadlineMixin, advocate.Session):
+    # Only `send` is overridden, so advocate's validating adapter still checks
+    # the address of every hop, redirects included.
+    pass
+
+
+def send_http_request(
+    method: str, url: str, deadline: float, **kwargs
+) -> requests.Response:
+    """
+    Sends a request that is over by `deadline`, redirects included, and returns
+    the final response with its body still unread.
+
+    The body is left for `read_response_within_limit`, which the caller hands
+    the same deadline, so the whole exchange shares one budget.
+
+    :param method: The HTTP method.
+    :param url: Where to send it.
+    :param deadline: The `time.monotonic()` value the request must be over by.
+    :param kwargs: Anything else `requests.Session.request` accepts, except
+        `timeout` and `stream`, which this sets.
+    :return: The final response, streamed.
+    :raises requests.exceptions.Timeout: When the deadline passes.
+    :raises requests.exceptions.TooManyRedirects: Past `MAX_REDIRECTS`.
+    :raises UnacceptableAddressException: When a hop resolves to an address
+        this installation does not allow.
+    """
+
+    session_class = (
+        _DeadlineSession
+        if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True
+        else _DeadlineAdvocateSession
+    )
+
+    def read_redirect_body(response, *args, **hook_kwargs):
+        # Requests reads a redirect's body itself before following it, with no
+        # deadline and no size ceiling. Hooks run first, so reading it here
+        # puts it under both.
+        if response.is_redirect:
+            read_response_within_limit(response, 0, deadline=deadline)
+
+    # Closed on return, the same as `requests.request` does: that only drops
+    # the idle connections in the pool, not the one the response is streaming
+    # from.
+    with session_class() as session:
+        session.deadline = deadline
+        session.max_redirects = MAX_REDIRECTS
+        return session.request(
+            method=method,
+            url=url,
+            stream=True,
+            hooks={"response": [read_redirect_body]},
+            **kwargs,
+        )
