@@ -254,15 +254,14 @@ class TeamHandler:
         # 4. Remove any existing subjects we don't want anymore.
         with atomic_if_not_already():
             # Build a default dict of existing subjects in the team. The key is the
-            # `TeamSubject.subject_type_natural_key`, the value contains the list of
-            # `subject_id` of that `subject_type`. We'll use this to determine if there
-            # are subjects to add, or remove.
-            existing_subjects = defaultdict(dict)
+            # `TeamSubject.subject_type_natural_key`, then the `subject_id`. Keep
+            # every membership ID so removing a subject also removes duplicates.
+            existing_subjects = defaultdict(lambda: defaultdict(list))
             existing_subject_qs = team.subjects.select_related("subject_type").all()
             for existing_subject in existing_subject_qs:
                 existing_subjects[existing_subject.subject_type_natural_key][
                     existing_subject.subject_id
-                ] = existing_subject.id
+                ].append(existing_subject.id)
 
             try:
                 team.name = name
@@ -297,9 +296,8 @@ class TeamHandler:
                     set(existing_subject_ids) - set(payload_subject_ids_for_type)
                 )
                 for removed_subject_id in removed_subjects:
-                    self.delete_subject_by_id(
-                        user, existing_subject_ids[removed_subject_id], team
-                    )
+                    for membership_id in existing_subject_ids[removed_subject_id]:
+                        self.delete_subject_by_id(user, membership_id, team)
 
             # If we've been given a `default_role`, assign it to the team.
             RoleAssignmentHandler().assign_role(team, team.workspace, default_role)
