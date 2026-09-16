@@ -30,7 +30,9 @@ class AgentSubjectType(SubjectType):
         )
 
     def is_workspace_role_fallback(self, role_uid: str) -> bool:
-        return role_uid == getattr(settings, "NO_ACCESS_ROLE_UID", "NO_ACCESS")
+        return role_uid == getattr(
+            settings, "NO_ROLE_LOW_PRIORITY_UID", "NO_ROLE_LOW_PRIORITY"
+        )
 
     def are_in_workspace(
         self,
