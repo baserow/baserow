@@ -591,8 +591,8 @@ def test_a_click_slack_refused_after_answering_still_spends_it(
     posted = Mock(return_value=refusal)
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=posted,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=posted,
     ):
         failed = _click(api_client, token, button_field, row)
 
@@ -602,8 +602,8 @@ def test_a_click_slack_refused_after_answering_still_spends_it(
     # The budget is spent, so the next click is refused rather than repeating
     # the post.
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=posted,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=posted,
     ):
         again = _click(api_client, token, button_field, row)
 
