@@ -19,11 +19,19 @@ export const state = () => ({
   isLoadingChats: false,
   uiLocation: null,
   uiLocationHistory: [],
+  // A message asked for from outside the panel, like the prompt on the workspace
+  // homepage. The panel picks it up when it mounts, which is the only moment it
+  // can send it, and it survives `reset` for that reason.
+  pendingPrompt: null,
 })
 
 export const mutations = {
   SET_CURRENT_CHAT_ID(state, id) {
     state.currentChatId = id
+  },
+
+  SET_PENDING_PROMPT(state, prompt) {
+    state.pendingPrompt = prompt
   },
 
   SET_CHAT_LOADING(state, { chat, value }) {
@@ -125,6 +133,10 @@ export const mutations = {
 }
 
 export const actions = {
+  setPendingPrompt({ commit }, prompt) {
+    commit('SET_PENDING_PROMPT', prompt)
+  },
+
   reset({ commit }) {
     commit('CLEAR_MESSAGES')
     commit('CLEAR_UI_LOCATION_HISTORY')
@@ -401,6 +413,8 @@ export const actions = {
 
 export const getters = {
   currentChatId: (state) => state.currentChatId,
+
+  pendingPrompt: (state) => state.pendingPrompt,
 
   currentChat: (state) => {
     return state.chats.find((chat) => chat.id === state.currentChatId)

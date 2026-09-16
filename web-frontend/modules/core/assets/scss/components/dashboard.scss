@@ -102,8 +102,12 @@
 }
 
 .dashboard__resources {
-  flex: 1;
-  min-width: 0;
+  // Only the row layout needs it to take the width up; it is the only child
+  // there, so it would otherwise stay at the width of its content.
+  @media screen and (min-width: 1280px) {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .dashboard__resources-wrapper {

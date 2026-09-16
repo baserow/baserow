@@ -12,6 +12,7 @@ import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
+import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
@@ -112,6 +113,12 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getSettingsPageComponents() {
     return [EnterpriseSettings]
+  }
+
+  getDashboardTopComponents(workspace) {
+    // The component decides whether the assistant is available, because that
+    // depends on permissions that are loaded after the page first renders.
+    return [AssistantDashboardPrompt]
   }
 
   getDashboardHelpComponents() {

@@ -69,6 +69,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /*
+   * Every registered plugin can display components at the top of the workspace
+   * homepage, above the resources. They are given the selected workspace.
+   */
+  getDashboardTopComponents(workspace) {
+    return []
+  }
+
+  /*
    * Every registered plugin can display a component in the `DashboardWorkspace`
    * component directly after the workspace name.
    */

@@ -1,0 +1,67 @@
+.assistant-prompt {
+  // Cancels the padding of the scroll container, so the band reaches the edges
+  // of the page, and the gap of the column below it, so the padding of the band
+  // is the only thing separating it from what follows.
+  margin: -24px -24px -32px;
+
+  // Matches the padding of the page, so the field lines up with the cards below.
+  padding: 24px;
+  background: linear-gradient(
+    180deg,
+    rgba($palette-cyan-50, 0.5) 0%,
+    rgba($palette-cyan-50, 0) 100%
+  );
+}
+
+.assistant-prompt__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.assistant-prompt__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+// The button sits inside the field instead of against its border, which is why
+// this isn't the regular form input.
+.assistant-prompt__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 8px;
+  border: 1px solid $palette-neutral-300;
+  background-color: $palette-neutral-0;
+
+  @include rounded($rounded-md);
+  @include elevation($elevation-low);
+
+  // Darkens while someone is typing in it.
+  &:focus-within {
+    border-color: $palette-neutral-500;
+  }
+}
+
+.assistant-prompt__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  background-color: transparent;
+  font-size: 13px;
+  color: $palette-neutral-1200;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: $palette-neutral-700;
+  }
+}
