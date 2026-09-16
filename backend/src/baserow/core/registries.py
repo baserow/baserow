@@ -1228,6 +1228,25 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
     display_name_field: Optional[str] = None
 
+    # Types opting in own workspace role persistence outside RoleAssignment and
+    # must implement get_workspace_subjects, get_workspace_role_uids, and
+    # set_workspace_role_uid. Other types keep using RoleAssignment records.
+    has_direct_workspace_roles: bool = False
+
+    def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
+        """Return subjects with direct roles in the workspace for role listing."""
+        raise NotImplementedError()
+
+    def set_workspace_role_uid(
+        self,
+        subject: Subject,
+        workspace: "Workspace",
+        role_uid: str,
+        send_signals: bool = True,
+    ):
+        """Persist a direct workspace role and emit the subject's update signals."""
+        raise NotImplementedError()
+
     def get_workspace_role_uids(
         self,
         subjects: List[Subject],

@@ -13,6 +13,35 @@ class UserSubjectType(SubjectType):
     model_class = User
     display_name_field = "first_name"
 
+    has_direct_workspace_roles = True
+
+    def get_workspace_subjects(self, workspace: Workspace, include_trash=False):
+        manager = (
+            WorkspaceUser.objects_and_trash if include_trash else WorkspaceUser.objects
+        )
+        return [
+            membership.user
+            for membership in manager.filter(workspace=workspace).select_related("user")
+        ]
+
+    def set_workspace_role_uid(
+        self,
+        subject: AbstractUser,
+        workspace: Workspace,
+        role_uid: str,
+        send_signals: bool = True,
+    ):
+        """Store workspace roles on membership records, retaining basic role names."""
+        from baserow.core.handler import CoreHandler
+
+        # Keep roles on WorkspaceUser.permissions so switching permission managers
+        # does not lose or duplicate information. Basic permissions call BUILDER MEMBER.
+        workspace_user = workspace.get_workspace_user(subject)
+        permissions = "MEMBER" if role_uid == "BUILDER" else role_uid
+        CoreHandler().force_update_workspace_user(
+            None, workspace_user, permissions=permissions
+        )
+
     def get_workspace_role_uids(
         self,
         subjects: List[Subject],

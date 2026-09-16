@@ -1,0 +1,184 @@
+from django.urls import reverse
+
+import pytest
+
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.registries import action_type_registry
+from baserow.core.action.scopes import WorkspaceActionScopeType
+from baserow.core.agents.service import AgentService
+from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent
+from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
+from baserow_enterprise.role.actions import BatchAssignRoleActionType
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import RoleAssignment
+from baserow_enterprise.role.types import NewRoleAssignment
+from baserow_enterprise.teams.models import TeamSubject
+
+
+@pytest.fixture(autouse=True)
+def enable_enterprise_and_roles(enable_enterprise, synced_roles):
+    pass
+
+
+@pytest.mark.django_db
+def test_agent_workspace_role_batch_then_patch(data_fixture, api_client):
+    """Both APIs write the same role, so a later downgrade cannot revive a grant."""
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = AgentService().create_agent(user, workspace, name="Writer")
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.post(
+        reverse("api:enterprise:role:batch", kwargs={"workspace_id": workspace.id}),
+        {
+            "items": [
+                {
+                    "scope_id": workspace.id,
+                    "scope_type": "workspace",
+                    "subject_id": agent.id,
+                    "subject_type": AgentSubjectType.type,
+                    "role": "ADMIN",
+                }
+            ]
+        },
+        format="json",
+        **headers,
+    )
+    assert response.status_code == 200
+    agent.refresh_from_db()
+    assert agent.role_uid == "ADMIN"
+    assert not RoleAssignment.objects.exists()
+    assert CoreHandler().check_permissions(
+        agent,
+        "workspace.update",
+        workspace=workspace,
+        context=workspace,
+        raise_permission_exceptions=False,
+    )
+    for role_uid in ["VIEWER", "NO_ACCESS", "NO_ROLE_LOW_PRIORITY"]:
+        response = api_client.patch(
+            reverse("api:agents:item", kwargs={"agent_id": agent.id}),
+            {"role_uid": role_uid},
+            format="json",
+            **headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["role_uid"] == role_uid
+        assert not CoreHandler().check_permissions(
+            agent,
+            "workspace.update",
+            workspace=workspace,
+            context=workspace,
+            raise_permission_exceptions=False,
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_uid", ["VIEWER", "NO_ACCESS", "NO_ROLE_LOW_PRIORITY"])
+def test_stale_agent_workspace_role_is_ignored(
+    data_fixture, enterprise_data_fixture, role_uid
+):
+    """Old workspace grants cannot override canonical roles or team inheritance."""
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(workspace=workspace, name="Writer", role_uid=role_uid)
+    handler = RoleAssignmentHandler()
+    admin = handler.get_role_by_uid("ADMIN")
+    viewer = handler.get_role_by_uid("VIEWER")
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+    TeamSubject.objects.create(team=team, subject=agent)
+    handler.assign_role(team, workspace, viewer)
+    RoleAssignment.objects.create(
+        subject=agent, workspace=workspace, scope=workspace, role=admin
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    handler.assign_role(agent, workspace, admin, scope=database.application_ptr)
+
+    roles = dict(handler.get_roles_per_scope(workspace, agent))
+    assert roles[workspace] == [
+        viewer
+        if role_uid == "NO_ROLE_LOW_PRIORITY"
+        else handler.get_role_by_uid(role_uid)
+    ]
+    assert roles[database.application_ptr] == [admin]
+    assert handler.get_current_role_assignment(agent, workspace).role.uid == role_uid
+    assert [
+        (ra.subject, ra.role.uid)
+        for ra in handler.get_role_assignments(workspace, workspace)
+    ] == [(team, "VIEWER"), (agent, role_uid)]
+
+    handler.remove_role(agent, workspace)
+    agent.refresh_from_db()
+    assert agent.role_uid == "NO_ACCESS"
+    assert (
+        RoleAssignment.objects.filter(
+            subject_id=agent.id, subject_type=AgentSubjectType().get_content_type()
+        ).count()
+        == 1
+    )
+    assert (
+        handler.get_current_role_assignment(
+            agent, workspace, database.application_ptr
+        ).role
+        == admin
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@pytest.mark.parametrize("new_role_uid", ["ADMIN", None])
+def test_agent_workspace_role_undo_redo(data_fixture, new_role_uid):
+    """Workspace assignment and removal restore the canonical prior role on undo."""
+    session_id = "agent-roles"
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    agent = Agent.objects.create(workspace=workspace, name="Writer", role_uid="VIEWER")
+    handler = RoleAssignmentHandler()
+    role = handler.get_role_by_uid(new_role_uid) if new_role_uid else None
+    action_type_registry.get_by_type(BatchAssignRoleActionType).do(
+        user, [NewRoleAssignment(agent, role, workspace)], workspace
+    )
+    agent.refresh_from_db()
+    assert agent.role_uid == (new_role_uid or "NO_ACCESS")
+    scopes = [WorkspaceActionScopeType.value(workspace_id=workspace.id)]
+    undone = ActionHandler.undo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(undone, [BatchAssignRoleActionType])
+    agent.refresh_from_db()
+    assert agent.role_uid == "VIEWER"
+    redone = ActionHandler.redo(user, scopes, session_id)
+    assert_undo_redo_actions_are_valid(redone, [BatchAssignRoleActionType])
+    agent.refresh_from_db()
+    assert agent.role_uid == (new_role_uid or "NO_ACCESS")
+    assert not RoleAssignment.objects.exists()
+
+
+@pytest.mark.django_db
+def test_agent_workspace_role_reads_respect_trash(data_fixture):
+    """Role readers use canonical storage even with a stale grant on a trashed agent."""
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(
+        workspace=workspace, name="Writer", role_uid="VIEWER", trashed=True
+    )
+    handler = RoleAssignmentHandler()
+    RoleAssignment.objects.create(
+        subject=agent,
+        workspace=workspace,
+        scope=workspace,
+        role=handler.get_role_by_uid("ADMIN"),
+    )
+    key = (agent, workspace)
+    assert handler.get_current_role_assignments(workspace, [key])[key] is None
+    assert (
+        handler.get_current_role_assignments(workspace, [key], include_trash=True)[
+            key
+        ].role.uid
+        == "VIEWER"
+    )
+    assert handler.get_role_assignments(workspace, workspace) == []
+
+    agent.trashed = False
+    agent.save()
+    handler.assign_role(agent, workspace, handler.get_role_by_uid("EDITOR"))
+    agent.refresh_from_db()
+    assert agent.role_uid == "EDITOR"
+    assert not RoleAssignment.objects.exists()
