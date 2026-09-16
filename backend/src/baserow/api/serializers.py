@@ -145,7 +145,10 @@ class CommaSeparatedValuesField(serializers.Field):
         return list_to_comma_separated_string(value)
 
     def to_internal_value(self, data):
-        return split_comma_separated_string(data)
+        try:
+            return split_comma_separated_string(data)
+        except ValueError as e:
+            raise serializers.ValidationError(str(e), code="invalid") from e
 
 
 class FileURLSerializerMixin(serializers.Serializer):

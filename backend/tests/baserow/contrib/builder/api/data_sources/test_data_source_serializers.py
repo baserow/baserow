@@ -11,6 +11,13 @@ from baserow.contrib.builder.api.data_sources.serializers import GetRecordIdsSer
         ({"record_ids": "1"}, {"record_ids": ["1"]}, True),
         ({"record_ids": "1,2,3"}, {"record_ids": ["1", "2", "3"]}, True),
         ({"record_ids": "1,invalid"}, {"record_ids": ["1", "invalid"]}, True),
+        ({"record_ids": "one\ntwo"}, None, False),
+        ({"record_ids": "one\rtwo"}, None, False),
+        (
+            {"record_ids": '"one\ntwo",Other'},
+            {"record_ids": ["one\ntwo", "Other"]},
+            True,
+        ),
         (
             {"record_ids": '"ACME, Inc.",Other'},
             {"record_ids": ["ACME, Inc.", "Other"]},

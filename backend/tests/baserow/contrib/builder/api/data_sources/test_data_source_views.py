@@ -2429,6 +2429,17 @@ def test_get_record_names(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["record_ids"] == ["The provided record ids are not valid."]
 
+    # Malformed CSV must return a validation error instead of a server error.
+    response = api_client.get(
+        base_url,
+        {"record_ids": "one\ntwo"},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["record_ids"][0].startswith(
+        "Could not split comma separated string:"
+    )
+
     # If the data source is not a list data source, it should raise an error
     non_list_data_source = (
         data_fixture.create_builder_local_baserow_get_row_data_source(
