@@ -114,6 +114,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     type = "http_request"
     model_class = CoreHTTPRequestService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
 
     # Where a credential on a request can sit. This service has no integration,
     # so there is nowhere else for one to be kept, and which header or field
@@ -741,6 +742,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     type = "smtp_email"
     model_class = CoreSMTPEmailService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
     integration_type = SMTPIntegrationType.type
 
     allowed_fields = [

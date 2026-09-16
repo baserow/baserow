@@ -37,6 +37,7 @@ class SlackWriteMessageServiceType(ServiceType):
     type = "slack_write_message"
     model_class = SlackWriteMessageService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
     integration_type = SlackBotIntegrationType.type
 
     allowed_fields = ["integration_id", "channel", "text"]

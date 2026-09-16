@@ -83,6 +83,11 @@ class ServiceType(
     # Does this service return a list of record?
     returns_list = False
 
+    # Whether dispatching this service waits on something outside this
+    # installation. Such a dispatch sends outside the savepoint when no
+    # transaction is already open, so a slow endpoint does not hold one.
+    is_external = False
+
     # What parent object is responsible for dispatching this `ServiceType`?
     # It could be via a `DataSource`, in which case `DATA` should be
     # chosen, or via a `WorkflowAction`, in which case `ACTION`
@@ -419,17 +424,31 @@ class ServiceType(
         ):
             return DispatchResult(**sample_data)
 
+        # Formulas are resolved inside a savepoint so that, if they raise a
+        # database error, only this savepoint is rolled back. This keeps the
+        # surrounding transaction usable, so the caller (and the sample data
+        # error save below) can still issue queries instead of crashing with a
+        # `TransactionManagementError` on a broken transaction.
+        #
+        # A service that waits on something outside sends after the savepoint
+        # when no transaction is already open, since the savepoint would
+        # otherwise be a real transaction held open for the whole network
+        # wait. Inside a caller's transaction it stays in, which costs nothing
+        # more and keeps that protection.
+        sends_outside = (
+            self.is_external and not transaction.get_connection().in_atomic_block
+        )
         try:
-            # Wrap the dispatch in a savepoint so that, if any of these
-            # operations raise a database error, only this savepoint is rolled
-            # back. This keeps the surrounding transaction usable, so the
-            # caller (and the sample data error save below) can still issue
-            # queries instead of crashing with a `TransactionManagementError`
-            # on a broken transaction.
             with transaction.atomic():
                 resolved_values = self.resolve_service_formulas(
                     service, dispatch_context
                 )
+                if not sends_outside:
+                    data = self.dispatch_data(
+                        service, resolved_values, dispatch_context
+                    )
+                    serialized_data = self.dispatch_transform(data)
+            if sends_outside:
                 data = self.dispatch_data(service, resolved_values, dispatch_context)
                 serialized_data = self.dispatch_transform(data)
         except Exception as e:
