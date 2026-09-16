@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixed a server error on the onboarding page that broke SSO logins for new users.",
+    "message": "Fixed new users getting an error page instead of the onboarding screen on their first SAML or OAuth2 SSO login.",
     "issue_origin": "github",
     "issue_number": 6043,
     "domain": "core",

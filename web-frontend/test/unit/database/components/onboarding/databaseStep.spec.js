@@ -21,13 +21,9 @@ describe('DatabaseStep', () => {
     const app = createSSRApp(DatabaseStep, { data: {} })
     app.use(createI18n({ legacy: false, locale: 'en', messages: { en: {} } }))
     app.use(testApp.store)
-    // The onboarding step components are globally registered by Nuxt, and are not
-    // resolvable in the bare app the server renderer needs.
+    // The step components are registered globally by Nuxt, not by this app.
     app.config.warnHandler = () => {}
-    Object.assign(app.config.globalProperties, {
-      $registry: testApp.$registry,
-      $t: (key) => key,
-    })
+    app.config.globalProperties.$t = (key) => key
     return renderToString(app)
   }
 
