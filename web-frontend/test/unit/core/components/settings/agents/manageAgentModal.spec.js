@@ -114,7 +114,9 @@ describe('ManageAgentModal', () => {
       ...generalSetting,
       name: 'Teams',
       getType: () => 'teams',
-      getInitialValues: () => ({ team_ids: [3] }),
+      getInitialValues: (agent) => ({
+        team_ids: (agent?.teams || []).map((team) => team.id),
+      }),
       getSubmitValues: ({ team_ids: teamIds }) => ({ team_ids: teamIds }),
       component: {
         props: ['modelValue'],
@@ -132,7 +134,12 @@ describe('ManageAgentModal', () => {
           },
         },
         data: () => ({
-          agent: { id: 42, name: 'Researcher', role_uid: 'MEMBER' },
+          agent: {
+            id: 42,
+            name: 'Researcher',
+            role_uid: 'MEMBER',
+            teams: [],
+          },
         }),
         template:
           '<ManageAgentModal ref="modal" :workspace="{ id: 12 }" :agent="agent" />',
@@ -178,7 +185,17 @@ describe('ManageAgentModal', () => {
     try {
       const pages = wrapper.findAll('.modal-sidebar__nav-link')
       await wrapper.find('.name-input').setValue('Renamed')
+      await wrapper.setData({
+        agent: {
+          id: 42,
+          name: 'Remote edit',
+          role_uid: 'MEMBER',
+          teams: [{ id: 5 }],
+        },
+      })
+      expect(wrapper.find('.name-input').element.value).toBe('Renamed')
       await pages[1].trigger('click')
+      expect(wrapper.find('.teams-input').element.value).toBe('')
       await wrapper.find('.teams-input').setValue('7')
       await wrapper.find('form').trigger('submit')
       await flushPromises()
