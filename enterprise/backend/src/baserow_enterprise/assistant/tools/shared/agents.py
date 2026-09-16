@@ -123,8 +123,15 @@ def get_formula_generator(
                 continue
 
             generated_formulas = result.output.generated_formulas
-            for field_id, formula in generated_formulas.items():
-                if field_id not in remaining:
+            # The model answers in JSON, so its keys are text even when ours are not.
+            keys_by_text = {str(key): key for key in remaining}
+            for raw_id, formula in generated_formulas.items():
+                field_id = keys_by_text.get(str(raw_id))
+                if field_id is None:
+                    feedback += (
+                        f"Unknown field id {raw_id}, expected one of "
+                        f"{sorted(keys_by_text)}\n"
+                    )
                     continue
                 try:
                     check_formula(formula, context)

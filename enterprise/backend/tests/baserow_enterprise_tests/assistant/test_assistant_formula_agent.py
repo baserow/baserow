@@ -365,3 +365,60 @@ def test_formula_fixer_contains_generator_failures(data_fixture, monkeypatch):
     fix_formula = database_agents.make_formula_fixer(user, workspace, tool_helpers)
 
     assert fix_formula(table, "Total", "field('Missing') *") is None
+
+
+class _StubContext:
+    """Minimal BaseFormulaContext stand-in for the generation loop."""
+
+    def get_formula_context(self) -> dict:
+        return {}
+
+    def get_context_metadata(self) -> dict:
+        return {}
+
+
+def _generation_env(monkeypatch, generated: dict, checked: list):
+    from baserow_enterprise.assistant.tools.shared import agents as shared_agents
+
+    monkeypatch.setattr(
+        shared_agents,
+        "run_agent_sync_with_model",
+        lambda *a, **kw: SimpleNamespace(
+            output=SimpleNamespace(generated_formulas=generated)
+        ),
+    )
+    monkeypatch.setattr(
+        shared_agents,
+        "resolve_formula",
+        lambda formula_object, registry, context: checked.append(
+            formula_object["formula"]
+        ),
+    )
+    return shared_agents.get_formula_generator(
+        "prompt", create_fake_tool_helpers().model_profile
+    )
+
+
+def test_generated_formulas_apply_when_the_model_keys_them_as_strings(monkeypatch):
+    """JSON object keys are strings; the request keys field ids as ints."""
+
+    checked: list = []
+    generate = _generation_env(
+        monkeypatch, {"892": "get('previous_node.206.0.field_890')"}, checked
+    )
+
+    result = generate({892: {"name": "Entry"}}, _StubContext())
+
+    assert result == {892: "get('previous_node.206.0.field_890')"}
+    assert checked == ["get('previous_node.206.0.field_890')"]
+
+
+def test_an_unrecognised_field_id_is_reported_instead_of_silently_dropped(monkeypatch):
+    """Silent drops made three identical retries look like an empty failure."""
+
+    generate = _generation_env(monkeypatch, {"999": "field('X')"}, [])
+
+    with pytest.raises(ValueError) as exc_info:
+        generate({892: {"name": "Entry"}}, _StubContext())
+
+    assert "999" in str(exc_info.value)
