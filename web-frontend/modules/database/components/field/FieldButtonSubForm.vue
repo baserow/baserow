@@ -36,6 +36,7 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
+import FieldService from '@baserow/modules/database/services/field'
 import {
   CLIENT_ID_KEY,
   reconcileWorkflowActions,
@@ -86,6 +87,11 @@ export default {
       // fetched them. An action that has never been saved carries no service
       // schema, so this is the only description of what it will return.
       tableFields: {},
+      // Only the server can tell, since it depends on what is in the trash.
+      // Refreshed after every save, as the field response predates the
+      // actions it saved.
+      requiresReconfiguration:
+        this.defaultValues?.requires_reconfiguration === true,
     }
   },
   computed: {
@@ -430,14 +436,32 @@ export default {
         } catch (refreshError) {
           notifyIf(refreshError, 'field')
         }
+        await this.refreshRequiresReconfiguration(fieldId)
       }
     },
     /**
-     * The field response carries a `has_workflow_actions` computed before the
-     * actions were saved, so the store needs the flag as it ended up.
+     * Asks the server whether the saved actions leave the button needing
+     * reconfiguration. On failure the flag stays as it was: the next broadcast
+     * or reload corrects it, and a toast here would bury the save's own result.
+     */
+    async refreshRequiresReconfiguration(fieldId) {
+      try {
+        const { data } = await FieldService(this.$client).get(fieldId)
+        this.requiresReconfiguration = data?.requires_reconfiguration === true
+      } catch {
+        // Kept as it was, see above.
+      }
+    },
+    /**
+     * The field response carries `has_workflow_actions` and
+     * `requires_reconfiguration` computed before these calls, so the store
+     * needs both flags as they ended up.
      */
     fieldValuesAfterSave() {
-      return { has_workflow_actions: this.serverActions.length > 0 }
+      return {
+        has_workflow_actions: this.serverActions.length > 0,
+        requires_reconfiguration: this.requiresReconfiguration,
+      }
     },
   },
   validations() {

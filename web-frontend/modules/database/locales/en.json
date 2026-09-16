@@ -1320,6 +1320,7 @@
     "noUrl": "Enter a URL to open.",
     "staleReference": "This action uses a result from an action that no longer runs before it.",
     "unreadableReference": "This action uses a result from an action that no longer returns one.",
+    "writesToTrashedField": "This action writes to a field that is in the trash. Restore the field, or delete it permanently, to run the action again.",
     "noInstanceSmtp": "This Baserow instance has no SMTP server configured, so a button cannot send email.",
     "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email.",
     "slackOk": "OK",

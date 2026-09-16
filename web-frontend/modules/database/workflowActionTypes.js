@@ -94,6 +94,23 @@ function staleReferenceError(app, workflowAction, applicationContext) {
 }
 
 /**
+ * Whether an action writes to a field that is in the trash. The dispatch
+ * refuses it rather than write the row without that value, unless there is an
+ * integration, which drops the mapping instead. The form can't show the
+ * mapping, since the field isn't in the table's field list any more, so this is
+ * the only place the editor learns of it.
+ */
+function writesToTrashedField(workflowAction) {
+  const service = workflowAction.service || {}
+  if (service.integration_id) {
+    return false
+  }
+  return (service.field_mappings || []).some(
+    (mapping) => mapping.enabled && mapping.trashed === true
+  )
+}
+
+/**
  * Base for a database workflow action backed by a service. No `execute`: a
  * click dispatches the sequence server side, so nothing runs in the browser.
  */
@@ -160,6 +177,9 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     const inherited = super.getErrorMessage(workflowAction, applicationContext)
     if (inherited) {
       return inherited
+    }
+    if (this.mapsFields && writesToTrashedField(workflowAction)) {
+      return this.app.$i18n.t('databaseWorkflowActionType.writesToTrashedField')
     }
     const serviceError = this.serviceType.getErrorMessage({
       service: workflowAction.service,

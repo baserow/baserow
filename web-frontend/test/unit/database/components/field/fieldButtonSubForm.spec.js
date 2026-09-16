@@ -749,12 +749,13 @@ describe('FieldButtonSubForm', () => {
     })
 
     test('fieldValuesAfterSave follows what the save left on the server', async () => {
-      // The field create/update response computes `has_workflow_actions`
-      // before these calls, so the contexts patch the store from this instead.
-      // It has to answer for what really persisted, in both directions.
+      // The field create/update response computes both flags before these
+      // calls, so the contexts patch the store from this instead. It has to
+      // answer for what really persisted, in both directions.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
+        requires_reconfiguration: false,
       })
 
       wrapper.vm.serverActions = []
@@ -764,24 +765,58 @@ describe('FieldButtonSubForm', () => {
       wrapper.vm.$client.post.mockResolvedValueOnce({
         data: { id: 55, type: 'local_baserow_create_row' },
       })
-      wrapper.vm.$client.get.mockResolvedValueOnce({
-        data: [{ id: 55, type: 'local_baserow_create_row', service: {} }],
-      })
+      wrapper.vm.$client.get
+        .mockResolvedValueOnce({
+          data: [{ id: 55, type: 'local_baserow_create_row', service: {} }],
+        })
+        // The field itself, asked for again: only the server knows whether
+        // what the action references is in the trash.
+        .mockResolvedValueOnce({
+          data: { id: 7, requires_reconfiguration: true },
+        })
 
       await wrapper.vm.afterFieldSaved(7)
 
+      expect(wrapper.vm.$client.get).toHaveBeenLastCalledWith(
+        '/database/fields/7/'
+      )
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: true,
+        requires_reconfiguration: true,
       })
 
       wrapper.vm.localActions = []
-      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [] })
+      wrapper.vm.$client.get
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValueOnce({
+          data: { id: 7, requires_reconfiguration: false },
+        })
 
       await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
+        requires_reconfiguration: false,
       })
+    })
+
+    test('a failed field refresh keeps the reconfigure flag it had', async () => {
+      const wrapper = await mountForm({
+        type: 'button',
+        label: 'Go',
+        id: 7,
+        requires_reconfiguration: true,
+      })
+      wrapper.vm.localActions = []
+      wrapper.vm.$client.get
+        .mockResolvedValueOnce({ data: [] })
+        .mockRejectedValueOnce(new Error('offline'))
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(wrapper.vm.fieldValuesAfterSave().requires_reconfiguration).toBe(
+        true
+      )
     })
 
     test('the action editor stays out of the field payload', async () => {

@@ -609,3 +609,68 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
     ).toBeNull()
   })
 })
+
+describe('row actions writing to a trashed field', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const action = (type, mapping, service = {}) => ({
+    id: 1,
+    type,
+    service: {
+      table_id: 5,
+      integration_id: null,
+      row_id: "get('row.id')",
+      field_mappings: [{ field_id: 9, value: "'x'", ...mapping }],
+      ...service,
+    },
+  })
+  const errorFor = (workflowAction) =>
+    testApp._app.$registry
+      .get('databaseWorkflowActionType', workflowAction.type)
+      .getErrorMessage(workflowAction, { workflowActions: [workflowAction] })
+
+  test.each(['local_baserow_create_row', 'local_baserow_update_row'])(
+    '%s says how to heal an enabled mapping on a trashed field',
+    (type) => {
+      // `$t` returns the key here (see the comment above), so the copy
+      // itself is pinned against the locale file separately, below.
+      expect(errorFor(action(type, { enabled: true, trashed: true }))).toBe(
+        'databaseWorkflowActionType.writesToTrashedField'
+      )
+    }
+  )
+
+  test('the trashed field copy says how to heal it', () => {
+    expect(en.databaseWorkflowActionType.writesToTrashedField).toContain(
+      'trash'
+    )
+  })
+
+  test('a disabled mapping on a trashed field is not an error', () => {
+    expect(
+      errorFor(
+        action('local_baserow_create_row', { enabled: false, trashed: true })
+      )
+    ).toBeNull()
+  })
+
+  test('with an integration the dispatch drops the mapping, so no error', () => {
+    expect(
+      errorFor(
+        action(
+          'local_baserow_create_row',
+          { enabled: true, trashed: true },
+          { integration_id: 3 }
+        )
+      )
+    ).toBeNull()
+  })
+})
