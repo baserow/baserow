@@ -1193,6 +1193,116 @@ def test_update_grouped_aggregate_rows_service(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change,remaining_sort_indexes",
+    [
+        ("remove_series", [1, 2]),
+        ("change_series_field", [1, 2]),
+        ("change_aggregation", [1, 2]),
+        ("remove_group", [0, 1]),
+        ("change_group", [0, 1]),
+        ("to_row_id_group", [0, 1]),
+        ("from_row_id_group", [0, 1]),
+        ("unchanged", [0, 1, 2]),
+    ],
+)
+def test_update_grouped_aggregate_rows_removes_obsolete_sorts(
+    data_fixture, change, remaining_sort_indexes
+):
+    """Configuration edits drop obsolete sorts while preserving valid sorts in order."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    primary = data_fixture.create_text_field(table=table, primary=True)
+    amount = data_fixture.create_number_field(table=table)
+    other_amount = data_fixture.create_number_field(table=table)
+    replacement_amount = data_fixture.create_number_field(table=table)
+    category = data_fixture.create_text_field(table=table)
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows, integration=integration, table=table
+    )
+    series = [
+        LocalBaserowTableServiceAggregationSeries.objects.create(
+            service=service, field=field, aggregation_type="sum", order=index
+        )
+        for index, field in enumerate([amount, other_amount])
+    ]
+    row_id_group = change == "from_row_id_group"
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None if row_id_group else category, order=0
+    )
+    sorts = [
+        LocalBaserowTableServiceAggregationSortBy.objects.create(
+            service=service,
+            sort_on=sort_on,
+            reference=reference,
+            direction=direction,
+            order=index,
+        )
+        for index, (sort_on, reference, direction) in enumerate(
+            [
+                ("SERIES", f"field_{amount.id}_sum", "ASC"),
+                ("SERIES", f"field_{other_amount.id}_sum", "DESC"),
+                (
+                    "GROUP_BY",
+                    f"field_{primary.id if row_id_group else category.id}",
+                    "ASC",
+                ),
+            ]
+        )
+    ]
+    series_values = [
+        {"id": item.id, "field_id": item.field_id, "aggregation_type": "sum"}
+        for item in series
+    ]
+    if change == "remove_series":
+        series_values.pop(0)
+    elif change == "change_series_field":
+        series_values[0]["field_id"] = replacement_amount.id
+    elif change == "change_aggregation":
+        series_values[0]["aggregation_type"] = "min"
+
+    if change in {
+        "remove_series",
+        "change_series_field",
+        "change_aggregation",
+        "unchanged",
+    }:
+        values = {"service_aggregation_series": series_values}
+    else:
+        group_values = {
+            "remove_group": [],
+            "change_group": [{"field_id": primary.id}],
+            "to_row_id_group": [{"field_id": None}],
+            "from_row_id_group": [{"field_id": category.id}],
+        }
+        values = {"service_aggregation_group_bys": group_values[change]}
+
+    # Exercise the prefetched instance used by real service update endpoints.
+    service = service_type.enhance_queryset(
+        LocalBaserowGroupedAggregateRows.objects.all()
+    ).get(pk=service.pk)
+    service = ServiceHandler().update_service(service_type, service, **values).service
+
+    assert [
+        (sort.id, sort.reference, sort.direction, sort.order)
+        for sort in service.service_aggregation_sorts.all()
+    ] == [
+        (
+            sorts[index].id,
+            sorts[index].reference,
+            sorts[index].direction,
+            sorts[index].order,
+        )
+        for index in remaining_sort_indexes
+    ]
+    result = ServiceHandler().dispatch_service(service, FakeDispatchContext())
+    assert "results" in result.data
+
+
+@pytest.mark.django_db
 def test_update_grouped_aggregate_rows_service_filters(data_fixture):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)

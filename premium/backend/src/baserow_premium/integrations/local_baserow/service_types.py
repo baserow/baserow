@@ -571,6 +571,23 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     ]
                 )
 
+    def _get_allowed_sort_references(self, service, model=None) -> list[str]:
+        """Return sort references supported by the current series and grouping."""
+
+        references = [
+            f"field_{series.field_id}_{series.aggregation_type}"
+            for series in service.service_aggregation_series.all()
+            if series.aggregation_type is not None and series.field_id is not None
+        ]
+        group_bys = list(service.service_aggregation_group_bys.all())
+        if group_bys:
+            field_id = group_bys[0].field_id
+            if field_id is None:
+                model = model if model is not None else service.table.get_model()
+                field_id = model.get_primary_field().id
+            references.append(f"field_{field_id}")
+        return references
+
     def _update_service_sorts(
         self,
         service: LocalBaserowGroupedAggregateRows,
@@ -579,22 +596,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         with atomic_if_not_already():
             service.service_aggregation_sorts.all().delete()
             if service_sorts is not None:
-                model = service.table.get_model()
-
-                allowed_sort_references = [
-                    f"field_{series.field_id}_{series.aggregation_type}"
-                    for series in service.service_aggregation_series.all()
-                    if series.aggregation_type is not None
-                    and series.field_id is not None
-                ]
-
-                if service.service_aggregation_group_bys.count() > 0:
-                    group_by = service.service_aggregation_group_bys.all()[0]
-                    allowed_sort_references += (
-                        [f"field_{group_by.field_id}"]
-                        if group_by.field_id is not None
-                        else [f"field_{model.get_primary_field().id}"]
-                    )
+                allowed_sort_references = self._get_allowed_sort_references(service)
 
                 def validate_sort(service_sort):
                     if service_sort["reference"] not in allowed_sort_references:
@@ -647,7 +649,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     ) -> None:
         """
         Responsible for updating service aggregation series and group bys.
-        At the moment all objects are recreated on update.
+        Existing sorts whose targets disappear are removed.
 
         :param instance: The service that was updated.
         :param values: A dictionary which may contain aggregation series and
@@ -661,6 +663,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         # Following a Table change, from one Table to another, we drop all
         # the things that are no longer applicable for the other table.
         from_table, to_table = changes.get("table", (None, None))
+
+        aggregation_changed = (
+            "service_aggregation_series" in values
+            or "service_aggregation_group_bys" in values
+        )
 
         if "service_aggregation_series" in values:
             self._update_service_aggregation_series(
@@ -676,12 +683,31 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         elif from_table and to_table:
             instance.service_aggregation_group_bys.all().delete()
 
+        # Related objects may have been prefetched before the update. Sort
+        # validation and the response must use the newly persisted configuration.
+        if (
+            aggregation_changed
+            or "service_aggregation_sorts" in values
+            or (from_table and to_table)
+        ):
+            prefetch_cache = getattr(instance, "_prefetched_objects_cache", {})
+            for relation in (
+                "service_aggregation_series",
+                "service_aggregation_group_bys",
+                "service_aggregation_sorts",
+            ):
+                prefetch_cache.pop(relation, None)
+
         if "service_aggregation_sorts" in values:
             self._update_service_sorts(
                 instance, values.pop("service_aggregation_sorts")
             )
         elif from_table and to_table:
             instance.service_aggregation_sorts.all().delete()
+        elif aggregation_changed:
+            instance.service_aggregation_sorts.exclude(
+                reference__in=self._get_allowed_sort_references(instance)
+            ).delete()
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
@@ -932,19 +958,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 other_buckets_qs = other_buckets_qs.annotate(**value.annotations)
                 combined_agg_dict[key] = value.aggregation
 
-        allowed_sort_references = [
-            f"field_{series.field_id}_{series.aggregation_type}"
-            for series in service.service_aggregation_series.all()
-            if series.aggregation_type is not None and series.field_id is not None
-        ]
-
-        if service.service_aggregation_group_bys.count() > 0:
-            group_by = service.service_aggregation_group_bys.all()[0]
-            allowed_sort_references += (
-                [f"field_{group_by.field_id}"]
-                if group_by.field_id is not None
-                else [f"field_{model.get_primary_field().id}"]
-            )
+        allowed_sort_references = self._get_allowed_sort_references(service, model)
 
         sorts = []
         sort_annotations = {}
