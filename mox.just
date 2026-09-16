@@ -7,7 +7,7 @@
 #   just mox send <address>   # send a test email through mox
 #
 # `just mox up` runs the same `email-receiver` role as production from the
-# backend dev image (compose profile "mox"), so nothing has to be installed on
+# backend dev image (compose profile "inbound-email"), so nothing has to be installed on
 # the host. It posts webhooks to the natively running backend through
 # host.docker.internal. Once BASEROW_INBOUND_EMAIL_DOMAIN and
 # BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET are set in .env.local, `just dev up`
@@ -33,8 +33,8 @@ MOX_SMTP_PORT := env_var_or_default("BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT", "202
 # and webhook secret the backend reads, keeping the two sides in sync.
 _load_env := 'set -a; [ -f .env.local ] && . ./.env.local; set +a'
 
-# The dev compose stack; the receiver lives in docker-compose.dev.yml behind the
-# "mox" profile.
+# The dev compose stack; the receiver is defined in docker-compose.yml behind the
+# "inbound-email" profile and built from the dev image by docker-compose.dev.yml.
 _dc := 'docker compose --env-file .env.docker-dev -f docker-compose.yml -f docker-compose.dev.yml'
 
 # Show the available mox recipes.
@@ -68,6 +68,12 @@ _ensure-env:
         echo "BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET=$(openssl rand -hex 16)" >> .env.local
         echo "  + added BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET (generated) to .env.local"
     fi
+    # The backend deletes handed-over messages through the receiver's web API,
+    # published on loopback by the dev compose override.
+    if [ -z "${BASEROW_INBOUND_EMAIL_RECEIVER_URL:-}" ]; then
+        echo "BASEROW_INBOUND_EMAIL_RECEIVER_URL=http://localhost:${BASEROW_INBOUND_EMAIL_WEBAPI_HOST_PORT:-8880}" >> .env.local
+        echo "  + added BASEROW_INBOUND_EMAIL_RECEIVER_URL to .env.local"
+    fi
 
 # Run the receiver in Docker from the backend dev image, next to a backend that
 # runs natively on the host. Builds the dev image on first use. Pass -d to run
@@ -96,16 +102,17 @@ up *FLAGS:
     export BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT="{{ MOX_SMTP_PORT }}"
     export BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP="${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}"
     export BASEROW_INBOUND_EMAIL_DOMAIN BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET
+    export BASEROW_INBOUND_EMAIL_WEBAPI_HOST_PORT="${BASEROW_INBOUND_EMAIL_WEBAPI_HOST_PORT:-8880}"
     if ! docker image inspect baserow_backend:dev >/dev/null 2>&1; then
         echo "Building the backend dev image (first run only, takes a few minutes)..."
         {{ _dc }} build email-receiver
     fi
     if [ "$DETACHED" = true ]; then
-        {{ _dc }} --profile mox up -d --no-deps email-receiver
+        {{ _dc }} --profile inbound-email up -d --no-deps email-receiver
         echo "Mox receiver started for '$BASEROW_INBOUND_EMAIL_DOMAIN' (SMTP on localhost:{{ MOX_SMTP_PORT }}, webhooks to $BASEROW_INBOUND_EMAIL_WEBHOOK_URL). Logs: docker logs -f baserow-email-receiver-1"
     else
         echo "Starting the mox receiver for '$BASEROW_INBOUND_EMAIL_DOMAIN' (SMTP on localhost:{{ MOX_SMTP_PORT }}, webhooks to $BASEROW_INBOUND_EMAIL_WEBHOOK_URL). Press Ctrl+C to stop."
-        exec {{ _dc }} --profile mox up --no-deps email-receiver
+        exec {{ _dc }} --profile inbound-email up --no-deps email-receiver
     fi
 
 # Wipe {{ MOX_DIR }} and generate a fresh, validated config for the native
@@ -226,8 +233,8 @@ up-native: _check-binary
 _down-docker:
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ -f .env.docker-dev ] && {{ _dc }} --profile mox ps -q email-receiver 2>/dev/null | grep -q .; then
-        {{ _dc }} --profile mox rm -sf email-receiver >/dev/null 2>&1
+    if [ -f .env.docker-dev ] && {{ _dc }} --profile inbound-email ps -q email-receiver 2>/dev/null | grep -q .; then
+        {{ _dc }} --profile inbound-email rm -sf email-receiver >/dev/null 2>&1
         echo "Stopped the mox receiver container."
     fi
 

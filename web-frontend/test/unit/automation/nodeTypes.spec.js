@@ -216,13 +216,16 @@ describe('NodeType.isEnabled', () => {
     expect(new TestNodeType({ app: {} }).isEnabled()).toBe(true)
   })
 
-  test('the email trigger is only enabled with an inbound email domain', () => {
-    const makeType = (domain) =>
+  test('the email trigger follows the instance settings flag', () => {
+    const makeType = (settings) =>
       new CoreInboundEmailTriggerNodeType({
-        app: { $config: { public: { baserowInboundEmailDomain: domain } } },
+        app: { $store: { getters: { 'settings/get': settings } } },
       })
 
-    expect(makeType('').isEnabled()).toBe(false)
-    expect(makeType('inbound.example.com').isEnabled()).toBe(true)
+    expect(makeType({ inbound_email_enabled: true }).isEnabled()).toBe(true)
+    expect(makeType({ inbound_email_enabled: false }).isEnabled()).toBe(false)
+    // Settings not loaded yet, or an older backend without the flag.
+    expect(makeType({}).isEnabled()).toBe(false)
+    expect(makeType(null).isEnabled()).toBe(false)
   })
 })

@@ -19,6 +19,7 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from ...inbound_email_test_utils import make_mox_payload
 
 INBOUND_DOMAIN = "inbound.test"
+RECEIVER_URL = "http://email-receiver:8880"
 SECRET = "super-secret-value"
 TOKEN = "a" * 32
 ADDRESS = f"{TOKEN}@{INBOUND_DOMAIN}"
@@ -37,7 +38,9 @@ def clear_cache():
 
 @pytest.mark.django_db
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 @pytest.mark.parametrize("http_method", ["get", "put", "patch", "delete"])
 def test_rejects_disallowed_methods(api_client, http_method):
@@ -48,7 +51,9 @@ def test_rejects_disallowed_methods(api_client, http_method):
 
 @pytest.mark.django_db
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_rejects_missing_authorization_header(api_client):
     resp = api_client.post(get_url(), make_mox_payload(ADDRESS), format="json")
@@ -58,7 +63,9 @@ def test_rejects_missing_authorization_header(api_client):
 
 @pytest.mark.django_db
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_rejects_wrong_secret(api_client):
     resp = api_client.post(
@@ -85,7 +92,9 @@ def test_rejects_all_requests_when_secret_not_configured(api_client):
 
 @pytest.mark.django_db
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_rejects_malformed_payload(api_client):
     resp = api_client.post(
@@ -101,7 +110,9 @@ def test_rejects_malformed_payload(api_client):
 
 @pytest.mark.django_db
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_discards_unknown_token(api_client):
     resp = api_client.post(
@@ -117,7 +128,9 @@ def test_discards_unknown_token(api_client):
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_accepts_email_and_starts_live_workflow(api_client, data_fixture):
     user, _ = data_fixture.create_user_and_token()
@@ -175,7 +188,9 @@ def test_accepts_email_and_starts_live_workflow(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_duplicate_delivery_is_idempotent(api_client, data_fixture):
     user = data_fixture.create_user()
@@ -200,7 +215,9 @@ def test_duplicate_delivery_is_idempotent(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_draft_workflow_not_started_outside_test_window(api_client, data_fixture):
     user = data_fixture.create_user()
@@ -228,7 +245,9 @@ def test_draft_workflow_not_started_outside_test_window(api_client, data_fixture
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_test_address_starts_draft_workflow_in_test_window(api_client, data_fixture):
     user = data_fixture.create_user()
@@ -256,7 +275,9 @@ def test_test_address_starts_draft_workflow_in_test_window(api_client, data_fixt
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_bare_address_does_not_reach_a_draft_workflow(api_client, data_fixture):
     user = data_fixture.create_user()
@@ -285,7 +306,9 @@ def test_bare_address_does_not_reach_a_draft_workflow(api_client, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(
-    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN, INBOUND_EMAIL_WEBHOOK_SECRET=SECRET
+    INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
 def test_test_address_does_not_reach_a_published_workflow(api_client, data_fixture):
     user = data_fixture.create_user()

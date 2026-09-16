@@ -78,12 +78,19 @@ def test_serializer_exposes_address_and_size_limit_read_only(data_fixture):
 
     # Both values describe the instance, not the service, so they must not be
     # writable.
-    request_data = service_type_registry.get_serializer(
+    request_serializer = service_type_registry.get_serializer(
         service, ServiceSerializer, request=True
-    ).data
+    )
+    request_data = request_serializer.data
     assert "email_address" not in request_data
     assert "test_email_address" not in request_data
     assert "max_message_size_mb" not in request_data
+    # The token is the address's only secret and is_public is managed by
+    # publishing, so neither can be set through the API either; the address is
+    # only ever changed through the write-only `regenerate_token` flag.
+    assert "token" not in request_serializer.fields
+    assert "is_public" not in request_serializer.fields
+    assert request_serializer.fields["regenerate_token"].write_only
 
 
 @pytest.mark.django_db
@@ -206,12 +213,26 @@ def test_import_serialized_sets_is_public(data_fixture, is_publishing):
     )
 
     assert instance.is_public is is_publishing
-    # Publishing must keep the same token so the address keeps working.
-    assert instance.token == service.token
+    if is_publishing:
+        # Publishing must keep the same token so the address keeps working.
+        assert instance.token == service.token
+    else:
+        # Any other import is a new trigger and gets its own address.
+        assert instance.token != service.token
 
 
 @pytest.mark.django_db
-def test_import_serialized_regenerates_token_on_duplicate(data_fixture):
+@pytest.mark.parametrize("is_duplicate", [True, False])
+def test_import_serialized_regenerates_token_unless_publishing(
+    data_fixture, is_duplicate
+):
+    """
+    Duplicating, installing a template and importing an exported application
+    must all produce a new address. Keeping the token would let an import of
+    someone else's export take over their trigger's mail on the same instance,
+    because the newest published service with a token is the one dispatched.
+    """
+
     trigger_node = data_fixture.create_inbound_email_trigger_node()
     service = trigger_node.service.specific
 
@@ -222,7 +243,7 @@ def test_import_serialized_regenerates_token_on_duplicate(data_fixture):
         include_permission_data=True,
         reduce_disk_space_usage=False,
         exclude_sensitive_data=False,
-        is_duplicate=True,
+        is_duplicate=is_duplicate,
     )
     instance = service_type.import_serialized(
         None,

@@ -2427,10 +2427,15 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
 
         if import_export_config:
             if import_export_config.is_publishing:
+                # Publishing must keep the token so the published address is
+                # the one shown next to the draft.
                 serialized_values["is_public"] = True
-            if import_export_config.is_duplicate:
-                # Ensure that duplicating a service (e.g. installing a template)
-                # results in a new unique inbound email address.
+            else:
+                # Every other import (duplicating, installing a template,
+                # importing an exported application) gets a new address. The
+                # token is the address's only secret: keeping it would let an
+                # import of someone's export take over their trigger's mail,
+                # since the newest published service with a token wins.
                 serialized_values["token"] = generate_inbound_email_token()
 
         return super().import_serialized(

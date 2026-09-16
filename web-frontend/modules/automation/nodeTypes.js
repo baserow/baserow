@@ -691,15 +691,18 @@ export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(
   }
 
   /**
-   * Only offered when the instance has an inbound email domain, exposed as
-   * public runtime config. The backend additionally requires the webhook
-   * secret, which is never exposed to the frontend, and refuses to create the
-   * node unless both are set, so the domain is the visible proxy here. Without
-   * it the trigger is left out of the menu rather than shown deactivated, so
-   * instances that never use inbound email do not carry a dead entry.
+   * Only offered when the instance is configured for inbound email. The
+   * backend derives that from its environment (domain, webhook secret and the
+   * receiver URL its message sweep needs) and publishes the result in the
+   * public settings, so this mirrors the exact gate that would otherwise
+   * refuse to create the node. Without it the trigger is left out of the menu
+   * rather than shown deactivated, so instances that never use inbound email
+   * do not carry a dead entry.
    */
   isEnabled() {
-    return Boolean(this.app.$config.public.baserowInboundEmailDomain)
+    return (
+      this.app.$store.getters['settings/get']?.inbound_email_enabled === true
+    )
   }
 
   getDefaultLabel({ automation, node }) {

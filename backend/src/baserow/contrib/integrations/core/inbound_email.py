@@ -55,6 +55,23 @@ def split_catchall_localpart(address: str) -> "tuple[str, str]":
     return base.lower(), (tag if separator else "")
 
 
+def is_inbound_email_configured() -> bool:
+    """
+    Whether this instance can offer the email trigger: an inbound email domain
+    to generate addresses, the webhook secret the receiver authenticates with,
+    and the receiver URL through which handed-over messages are deleted again.
+    Without the last one the mail server would keep every message forever, so
+    the trigger is withheld until all three are set. Used by the node type's
+    deactivation check and exposed to the frontend through the public settings.
+    """
+
+    return bool(
+        settings.INBOUND_EMAIL_DOMAIN
+        and settings.INBOUND_EMAIL_WEBHOOK_SECRET
+        and settings.INBOUND_EMAIL_RECEIVER_URL
+    )
+
+
 HANDLE_STATUS_ACCEPTED = "accepted"
 HANDLE_STATUS_DUPLICATE = "duplicate"
 HANDLE_STATUS_DISCARDED = "discarded"
@@ -326,6 +343,12 @@ class InboundEmailHandler:
 
         email = normalize_mox_payload(data)
 
+        # Whatever happens to it below, the message now exists on the receiver.
+        # Its id is the high-water mark for the periodic sweep that deletes
+        # handed-over messages from the mail server (see
+        # `inbound_email_receiver.py`).
+        self._record_receiver_message_id(email)
+
         # Loop protection: never dispatch automated messages (auto-replies,
         # delivery reports, etc), otherwise a forward rule plus an
         # auto-responder could create an infinite loop.
@@ -358,6 +381,17 @@ class InboundEmailHandler:
                 return status
 
         return HANDLE_STATUS_DISCARDED
+
+    def _record_receiver_message_id(self, email: InboundEmail) -> None:
+        from baserow.contrib.integrations.core.inbound_email_receiver import (
+            InboundEmailReceiverStateHandler,
+        )
+
+        try:
+            message_id = int(email.internal_message_id)
+        except (TypeError, ValueError):
+            return
+        InboundEmailReceiverStateHandler.record_seen_message(message_id)
 
     def _process_target(
         self, service_type, target: InboundEmailTarget, email: InboundEmail

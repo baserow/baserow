@@ -232,13 +232,13 @@ services:
     tty: true
 
   # Inbound email receiver (mox) for the "Start workflow by email" automation
-  # trigger. Opt-in via the "mox" profile: `just mox up` starts it next to a
-  # natively running backend, and `COMPOSE_PROFILES=optional,mox` starts it as
-  # part of `just dc-dev up`. Same `email-receiver` role as production, but
-  # built from the dev image so no Go toolchain or `brew install mox` is needed.
+  # trigger. Opt-in via the base file's "inbound-email" profile: `just mox up`
+  # starts it next to a natively running backend, and
+  # `COMPOSE_PROFILES=optional,inbound-email` starts it as part of
+  # `just dc-dev up`. Same `email-receiver` role as production, but built from
+  # the dev image so no Go toolchain or `brew install mox` is needed.
   email-receiver:
     image: baserow_backend:dev
-    profiles: ["mox"]
     build:
       dockerfile: ./backend/Dockerfile
       context: .
@@ -248,6 +248,10 @@ services:
         GID: $GID
     # The SMTP port mapping comes from the base file and is env-driven:
     # .env.docker-dev publishes it on 127.0.0.1:2025 (off port 25, like mailhog).
+    # The web API is published on loopback too so a natively running backend
+    # (`just dev`) can delete handed-over messages through it.
+    ports:
+      - "${BASEROW_HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_INBOUND_EMAIL_WEBAPI_HOST_PORT:-8880}:${BASEROW_INBOUND_EMAIL_WEBAPI_PORT:-8880}"
     # Lets the container reach a backend running natively on the host.
     extra_hosts:
       - "host.docker.internal:host-gateway"

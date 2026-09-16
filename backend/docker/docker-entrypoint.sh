@@ -437,7 +437,32 @@ case "$1" in
       # Run it from its own data directory so that never touches the backend
       # code directory, which is a bind-mounted checkout in the dev stack.
       cd "$MOX_DATA_DIR"
-      exec /usr/local/bin/mox -config "$MOX_DATA_DIR/config/mox.conf" serve
+      /usr/local/bin/mox -config "$MOX_DATA_DIR/config/mox.conf" serve &
+      mox_pid=$!
+      # A trapped signal interrupts the `wait` below straight away, so wait for
+      # mox inside the trap as well. Otherwise this script, and with it tini as
+      # PID 1, exits while mox is still shutting down and the kernel SIGKILLs it.
+      trap 'kill -TERM "$mox_pid" 2>/dev/null; wait "$mox_pid"' TERM INT
+
+      # The backend's periodic sweep deletes handed-over messages through mox's
+      # web API, authenticating as the inbound account with
+      # BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD (the webhook secret by default).
+      # A password can only be set through the running server's control
+      # socket, so wait for it and (re)apply the password on every start.
+      for _ in $(seq 1 60); do
+        [ -S "$MOX_DATA_DIR/data/ctl" ] && break
+        sleep 0.5
+      done
+      if printf '%s' "${BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD:-$BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET}" \
+        | /usr/local/bin/mox -config "$MOX_DATA_DIR/config/mox.conf" setaccountpassword inbound; then
+        echo "Inbound account web API password applied."
+      else
+        echo "WARNING: could not set the inbound account's web API password;" \
+          "the backend's periodic message sweep will fail until this is fixed." >&2
+      fi
+
+      wait "$mox_pid" || mox_status=$?
+      exit "${mox_status:-0}"
     ;;
     email-receiver-healthcheck)
       echo "Running email receiver healthcheck..."
