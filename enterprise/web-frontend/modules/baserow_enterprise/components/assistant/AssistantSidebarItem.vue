@@ -18,6 +18,8 @@
 </template>
 
 <script>
+import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
+
 export default {
   name: 'AssistantSidebarItem',
   emits: ['toggle-right-sidebar'],
@@ -33,21 +35,8 @@ export default {
     },
   },
   computed: {
-    hasPermission() {
-      return this.$hasPermission(
-        'assistant.chat',
-        this.workspace,
-        this.workspace.id
-      )
-    },
-    isConfigured() {
-      return (
-        this.workspace.ai_features?.kuma?.is_enabled ??
-        !!this.$config.public.baserowEnterpriseAssistantLlmModel
-      )
-    },
     isAvailable() {
-      return this.hasPermission && this.isConfigured
+      return isAssistantAvailable(this, this.workspace)
     },
   },
   watch: {

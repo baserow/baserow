@@ -110,7 +110,11 @@
               <a
                 v-if="canCreateCreateApplication"
                 class="dashboard__resource"
+                role="button"
+                tabindex="0"
                 @click="$refs.templateModal.show()"
+                @keydown.enter.prevent="$refs.templateModal.show()"
+                @keydown.space.prevent="$refs.templateModal.show()"
               >
                 <div class="dashboard__resource-inner">
                   <span class="dashboard__resource-icon">

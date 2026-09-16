@@ -8,11 +8,12 @@
     </div>
     <div class="assistant-prompt__field">
       <input
+        ref="input"
         v-model="prompt"
         type="text"
         class="assistant-prompt__input"
         :placeholder="$t('assistantDashboardPrompt.placeholder')"
-        @keydown.enter="build()"
+        @keydown.enter.prevent="build()"
       />
       <Button
         type="secondary"
@@ -27,6 +28,8 @@
 
 <script>
 import { mapActions } from 'vuex'
+
+import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
 
 /**
  * Lets someone start building with the assistant straight from the workspace
@@ -47,21 +50,8 @@ export default {
     }
   },
   computed: {
-    hasPermission() {
-      return this.$hasPermission(
-        'assistant.chat',
-        this.workspace,
-        this.workspace.id
-      )
-    },
-    isConfigured() {
-      return (
-        this.workspace.ai_features?.kuma?.is_enabled ??
-        !!this.$config.public.baserowEnterpriseAssistantLlmModel
-      )
-    },
     isAvailable() {
-      return this.hasPermission && this.isConfigured
+      return isAssistantAvailable(this, this.workspace)
     },
   },
   methods: {
@@ -74,6 +64,9 @@ export default {
         return
       }
       this.prompt = ''
+      // The conversation carries on in the panel, so the cursor shouldn't stay
+      // here.
+      this.$refs.input.blur()
       await this.setPendingPrompt(message)
       this.$bus.$emit('toggle-right-sidebar', true)
     },
