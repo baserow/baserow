@@ -195,5 +195,46 @@ describe('automation history store', () => {
       expect(testApp.mock.history.get).toHaveLength(2)
       expect(getHistory()).toEqual(page([current]))
     })
+
+    // The refetch is best effort: its failure must not replace the outcome of
+    // the cancellation request, which is what the caller reports.
+    test('resolves when the refetch fails after a successful cancellation', async () => {
+      testApp.dontFailOnErrorResponses()
+      testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([history()]))
+      await fetchHistory()
+
+      const cancelling = history({ cancellation_requested_on: REQUESTED_ON })
+      testApp.mock
+        .onPost(CANCEL_URL)
+        .reply(200, { ...cancelling, plugin_data: {} })
+      testApp.mock.onGet(HISTORY_URL).replyOnce(500)
+
+      await cancelRun()
+
+      expect(testApp.mock.history.get).toHaveLength(2)
+      // The cancellation response was applied and stays.
+      expect(getHistory().results[0]).toEqual(cancelling)
+    })
+
+    test('rejects with the cancellation error when the refetch fails too', async () => {
+      testApp.dontFailOnErrorResponses()
+      testApp.mock.onGet(HISTORY_URL).replyOnce(200, page([history()]))
+      await fetchHistory()
+
+      const code = 'ERROR_AUTOMATION_WORKFLOW_HISTORY_NOT_RUNNING'
+      testApp.mock.onPost(CANCEL_URL).reply(400, { error: code, detail: '' })
+      testApp.mock.onGet(HISTORY_URL).replyOnce(500)
+
+      let caught = null
+      try {
+        await cancelRun()
+      } catch (error) {
+        caught = error
+      }
+
+      expect(caught?.handler?.code).toBe(code)
+      expect(testApp.mock.history.get).toHaveLength(2)
+      expect(getHistory()).toEqual(page([history()]))
+    })
   })
 })

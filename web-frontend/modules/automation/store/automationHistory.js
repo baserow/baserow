@@ -115,7 +115,10 @@ const actions = {
         requestId: state.fetchRequestId,
       })
     } finally {
-      await dispatch('fetchWorkflowHistory', { workflowId })
+      // The refetch is best effort: what the caller reports is the outcome of
+      // the request above, which a failed refresh must not replace. The
+      // realtime event for the cancellation request refetches anyway.
+      await dispatch('fetchWorkflowHistory', { workflowId }).catch(() => {})
     }
   },
   invalidate({ commit }) {
