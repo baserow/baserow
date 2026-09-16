@@ -335,15 +335,18 @@ class UpdateDatabaseWorkflowActionActionType(
     def _service_is_needed(
         cls, service_id: int, action_being_cleaned_up: Action
     ) -> bool:
-        attached = any(
-            model_class.objects_and_trash.filter(service_id=service_id).exists()
+        # One query across every model with a service, trashed actions included.
+        attached = [
+            model_class.objects_and_trash.filter(service_id=service_id).values("pk")
             for model_class in {
                 action_type.model_class
                 for action_type in database_workflow_action_type_registry.get_all()
             }
             if any(field.name == "service" for field in model_class._meta.fields)
-        )
-        named_elsewhere = (
+        ]
+        if attached[0].union(*attached[1:], all=True)[:1]:
+            return True
+        return (
             Action.objects.filter(type=cls.type)
             .exclude(id=action_being_cleaned_up.id)
             .filter(
@@ -352,7 +355,6 @@ class UpdateDatabaseWorkflowActionActionType(
             )
             .exists()
         )
-        return attached or named_elsewhere
 
 
 class DeleteDatabaseWorkflowActionActionType(UndoableActionType):

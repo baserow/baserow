@@ -689,3 +689,46 @@ def test_undoing_a_delete_and_reorder_puts_every_action_back_in_place(data_fixtu
 
     ActionHandler.redo(user, _scope(table), session_id)
     assert _ids(button_field) == [c.id, a.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_service_still_attached_is_found_in_one_query(
+    data_fixture, django_assert_num_queries
+):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    changed = UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_delete_row"
+    )
+    logged = Action.objects.get(type="update_database_workflow_action")
+
+    with django_assert_num_queries(1):
+        assert UpdateDatabaseWorkflowActionActionType._service_is_needed(
+            changed.service_id, logged
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_service_left_unattached_is_found_in_two_queries(
+    data_fixture, django_assert_num_queries
+):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    replaced_service_id = LocalBaserowCreateRowWorkflowAction.objects.get(
+        pk=action.pk
+    ).service_id
+    UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_delete_row"
+    )
+    logged = Action.objects.get(type="update_database_workflow_action")
+
+    with django_assert_num_queries(2):
+        assert not UpdateDatabaseWorkflowActionActionType._service_is_needed(
+            replaced_service_id, logged
+        )
