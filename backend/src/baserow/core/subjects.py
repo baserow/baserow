@@ -79,12 +79,14 @@ class UserSubjectType(SubjectType):
         workspace_user_manager = (
             WorkspaceUser.objects_and_trash if include_trash else WorkspaceUser.objects
         )
-        user_ids_in_workspace = workspace_user_manager.filter(
-            user__in=subjects,
-            workspace=workspace,
-            user__profile__to_be_deleted=False,
-            user__is_active=True,
-        ).values_list("user_id", flat=True)
+        user_ids_in_workspace = set(
+            workspace_user_manager.filter(
+                user__in=subjects,
+                workspace=workspace,
+                user__profile__to_be_deleted=False,
+                user__is_active=True,
+            ).values_list("user_id", flat=True)
+        )
 
         return [s.id in user_ids_in_workspace for s in subjects]
 
