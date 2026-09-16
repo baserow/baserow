@@ -1,3 +1,7 @@
+import contextvars
+import heapq
+import itertools
+import os
 import socket
 import threading
 import time
@@ -7,9 +11,16 @@ from django.conf import settings
 
 import requests
 from requests import exceptions as request_exceptions
+from urllib3.connection import HTTPConnection, HTTPSConnection
+from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.exceptions import DecodeError, ProtocolError, ReadTimeoutError, SSLError
 
 import advocate
+from advocate.connection import ValidatingHTTPConnection, ValidatingHTTPSConnection
+from advocate.connectionpool import (
+    ValidatingHTTPConnectionPool,
+    ValidatingHTTPSConnectionPool,
+)
 from baserow.core.services.exceptions import ResponseTooLargeDispatchException
 
 
@@ -55,11 +66,34 @@ def read_response_within_limit(
         way as any other timeout.
     """
 
-    # Already read under the same limits by the redirect hook in
-    # `send_http_request`, when a redirect ends up being the final response.
-    # Reading again would find the socket empty and overwrite that body.
-    if response._content_consumed and isinstance(response._content, bytes):
-        return
+    # Only a response from `send_http_request` carries one.
+    request_deadline = getattr(response, "_request_deadline", None)
+    if not isinstance(request_deadline, _RequestDeadline):
+        request_deadline = None
+
+    try:
+        # Already read under the same limits by the redirect hook in
+        # `send_http_request`, when a redirect ends up being the final
+        # response. Reading again would find the socket empty and overwrite
+        # that body.
+        if response._content_consumed and isinstance(response._content, bytes):
+            return
+        if deadline is None:
+            deadline = time.monotonic() + timeout
+        _read_body(response, deadline, request_deadline)
+    finally:
+        # The request is over once its body is, so the watchdog lets go of it
+        # here rather than at its deadline.
+        if request_deadline is not None:
+            request_deadline.finish()
+
+
+def _read_body(response, deadline: float, request_deadline) -> None:
+    """
+    The loop behind `read_response_within_limit`, which the redirect hook in
+    `send_http_request` also uses for a redirect's body, where the request is
+    not over yet.
+    """
 
     # Read whatever the ceiling is set to. Returning early with the ceiling
     # off would leave the body unread under `stream=True`, so `response.json()`
@@ -67,17 +101,12 @@ def read_response_within_limit(
     # corrupt answer onto a message the caller can use, and the deadline below
     # would never be armed either.
     max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES or None
-    if deadline is None:
-        deadline = time.monotonic() + timeout
 
     content = bytearray()
-    # Set by `send_http_request` once its watchdog has hung up the request.
-    hung_up = getattr(response, "_deadline_hung_up", None)
 
     def timed_out():
-        return (hung_up is not None and hung_up.is_set()) or (
-            time.monotonic() > deadline
-        )
+        hung_up = request_deadline is not None and request_deadline.hung_up
+        return hung_up or time.monotonic() > deadline
 
     try:
         while True:
@@ -144,9 +173,205 @@ def read_response_within_limit(
 # bounds how long a request takes; this only stops an endless chain early.
 MAX_REDIRECTS = 10
 
-# Shared with the tests, so a rename here cannot make their checks for a
-# leftover watchdog thread silently pass for the wrong reason.
+# The one thread that hangs up requests past their deadline, named so it can be
+# told apart in a thread dump.
 DEADLINE_WATCHDOG_THREAD_NAME = "http-request-deadline"
+
+
+class _RequestDeadline:
+    """
+    What the watchdog needs to hang up one request: its deadline and a
+    duplicate of every socket it opened.
+
+    A duplicate rather than the connection: http.client lets go of a
+    connection's socket as soon as it sees an answer that is read until the
+    server closes it, and hands it to the response. Shutting the duplicate
+    down cuts the same TCP connection off whoever holds the socket. It is a
+    plain `socket.socket` even under TLS, so it leaves the `SSLSocket` a read
+    may be blocked on in another thread alone.
+
+    Holds nothing that refers back to the response, so a response carrying it
+    is freed as soon as the caller drops it.
+    """
+
+    def __init__(self, deadline: float):
+        self.deadline = deadline
+        self.hung_up = False
+        self._finished = False
+        self._sockets = []
+        # The duplicates are only shut down and only closed under this lock,
+        # and the watchdog never touches the caller's own sockets. A number
+        # the operating system hands out again once a socket is closed can
+        # therefore never be shut down in place of the one that was meant.
+        self._lock = threading.Lock()
+
+    def watch(self, sock: socket.socket) -> None:
+        watched = socket.fromfd(sock.fileno(), sock.family, sock.type)
+        with self._lock:
+            # Record and check under one lock: a socket opened while the
+            # watchdog hangs up is either shut down by it or sees `hung_up`.
+            if not self.hung_up and not self._finished:
+                self._sockets.append(watched)
+                return
+            if self.hung_up:
+                try:
+                    watched.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+            watched.close()
+
+    def hang_up(self) -> None:
+        with self._lock:
+            if self._finished:
+                return
+            self.hung_up = True
+            for watched in self._sockets:
+                try:
+                    watched.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                watched.close()
+            self._sockets.clear()
+
+    def finish(self) -> None:
+        with self._lock:
+            if self._finished:
+                return
+            self._finished = True
+            for watched in self._sockets:
+                watched.close()
+            self._sockets.clear()
+        _watchdog.forget(self)
+
+
+class _Watchdog:
+    """
+    One daemon thread for the process that hangs up every request still open
+    at its deadline, earliest first, instead of a thread per request.
+    """
+
+    def __init__(self):
+        self._reset()
+        # A forked child has no watchdog thread, and a lock held by another
+        # thread at the fork would never be released there.
+        os.register_at_fork(after_in_child=self._reset)
+
+    def _reset(self):
+        self._condition = threading.Condition()
+        self._heap = []
+        self._counter = itertools.count()
+        self._pid = None
+
+    def watch(self, request_deadline: _RequestDeadline) -> None:
+        with self._condition:
+            if self._pid != os.getpid():
+                threading.Thread(
+                    target=self._run,
+                    name=DEADLINE_WATCHDOG_THREAD_NAME,
+                    daemon=True,
+                ).start()
+                self._pid = os.getpid()
+            # The counter breaks ties between equal deadlines, which would
+            # otherwise compare the states themselves.
+            heapq.heappush(
+                self._heap,
+                (request_deadline.deadline, next(self._counter), request_deadline),
+            )
+            self._condition.notify()
+
+    def forget(self, request_deadline: _RequestDeadline) -> None:
+        with self._condition:
+            for index, (_, _, pending) in enumerate(self._heap):
+                if pending is request_deadline:
+                    del self._heap[index]
+                    heapq.heapify(self._heap)
+                    break
+
+    def pending_deadlines(self) -> list:
+        with self._condition:
+            return sorted(deadline for deadline, _, _ in self._heap)
+
+    def _run(self):
+        condition, heap = self._condition, self._heap
+        while True:
+            with condition:
+                while True:
+                    if not heap:
+                        condition.wait()
+                        continue
+                    remaining = heap[0][0] - time.monotonic()
+                    if remaining <= 0:
+                        _, _, due = heapq.heappop(heap)
+                        break
+                    condition.wait(remaining)
+            # Outside the condition, so a slow shutdown does not hold up
+            # requests starting or finishing meanwhile.
+            due.hang_up()
+
+
+_watchdog = _Watchdog()
+
+
+def _pending_deadlines() -> list:
+    """The deadlines the watchdog is still waiting on, for the tests."""
+
+    return _watchdog.pending_deadlines()
+
+
+# Set by `send_http_request` around `session.request`, which opens every
+# connection of the request, redirects included, on the calling thread. That is
+# how a connection finds the request it belongs to without a class per request.
+_current_request_deadline = contextvars.ContextVar(
+    "current_request_deadline", default=None
+)
+
+
+class _WatchedConnectionMixin:
+    def _new_conn(self):
+        # The plain TCP socket, before any TLS handshake or tunnel, so the
+        # watchdog can hang up on those too.
+        sock = super()._new_conn()
+        request_deadline = _current_request_deadline.get()
+        if request_deadline is not None:
+            request_deadline.watch(sock)
+        return sock
+
+
+class _WatchedHTTPConnection(_WatchedConnectionMixin, HTTPConnection):
+    pass
+
+
+class _WatchedHTTPSConnection(_WatchedConnectionMixin, HTTPSConnection):
+    pass
+
+
+# advocate's connections stay the base, so they keep validating every address.
+class _WatchedValidatingHTTPConnection(
+    _WatchedConnectionMixin, ValidatingHTTPConnection
+):
+    pass
+
+
+class _WatchedValidatingHTTPSConnection(
+    _WatchedConnectionMixin, ValidatingHTTPSConnection
+):
+    pass
+
+
+class _WatchedHTTPConnectionPool(HTTPConnectionPool):
+    ConnectionCls = _WatchedHTTPConnection
+
+
+class _WatchedHTTPSConnectionPool(HTTPSConnectionPool):
+    ConnectionCls = _WatchedHTTPSConnection
+
+
+class _WatchedValidatingHTTPConnectionPool(ValidatingHTTPConnectionPool):
+    ConnectionCls = _WatchedValidatingHTTPConnection
+
+
+class _WatchedValidatingHTTPSConnectionPool(ValidatingHTTPSConnectionPool):
+    ConnectionCls = _WatchedValidatingHTTPSConnection
 
 
 class _DeadlineMixin:
@@ -157,17 +382,25 @@ class _DeadlineMixin:
     longer than that, but nothing stops a hop taking many of them, each
     getting the shrunken timeout again. Reading a status line and headers is
     exactly that, many small reads, so a server trickling them out a byte at a
-    time could still hold a hop open long past the deadline. `send_http_request`
-    arms a watchdog for that, which hangs up whatever socket is open once the
-    deadline passes; this checks the flag it leaves behind, because a
-    hung-up connection can still hand back a response instead of raising.
+    time could still hold a hop open long past the deadline. The watchdog
+    hangs up whatever socket is open once the deadline passes; this checks the
+    flag it leaves behind, because a hung-up connection can still hand back a
+    response instead of raising.
     """
 
-    deadline: float
-    hung_up: threading.Event
+    request_deadline: _RequestDeadline
+    watched_pool_classes: dict
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for adapter in self.adapters.values():
+            # An instance attribute, on both `PoolManager` and advocate's
+            # `ValidatingPoolManager`: this leaves advocate's mount lock, which
+            # only guards `session.mount()`, untouched.
+            adapter.poolmanager.pool_classes_by_scheme = self.watched_pool_classes
 
     def send(self, request, **kwargs):
-        remaining = self.deadline - time.monotonic()
+        remaining = self.request_deadline.deadline - time.monotonic()
         if remaining <= 0:
             raise request_exceptions.Timeout("The request did not finish in time.")
         # `resolve_redirects` calls `send` again for every hop, so each one
@@ -178,75 +411,31 @@ class _DeadlineMixin:
         except request_exceptions.ConnectionError as e:
             # A socket the watchdog hangs up mid-read can come back as this
             # instead of as a response with the flag below to check.
-            if self.hung_up.is_set():
+            if self.request_deadline.hung_up:
                 raise request_exceptions.Timeout(
                     "The request did not finish in time."
                 ) from e
             raise
-        if self.hung_up.is_set():
+        if self.request_deadline.hung_up:
             response.close()
             raise request_exceptions.Timeout("The request did not finish in time.")
         return response
 
 
 class _DeadlineSession(_DeadlineMixin, requests.Session):
-    pass
+    watched_pool_classes = {
+        "http": _WatchedHTTPConnectionPool,
+        "https": _WatchedHTTPSConnectionPool,
+    }
 
 
 class _DeadlineAdvocateSession(_DeadlineMixin, advocate.Session):
-    # Only `send` is overridden, so advocate's validating adapter still checks
-    # the address of every hop, redirects included.
-    pass
-
-
-def _tracked_connection_class(connection_cls, opened, hung_up):
-    """
-    A connection class that behaves like `connection_cls`, except once
-    `connect()` has set up the final socket it also hands the deadline watchdog
-    a duplicate of it. If the watchdog already fired while this connection was
-    still being made, the socket is shut down immediately instead of waiting
-    for the watchdog to find it later.
-    """
-
-    class _TrackedConnection(connection_cls):
-        def connect(self):
-            super().connect()
-            # A duplicate rather than the connection: http.client lets go of
-            # the connection's socket as soon as it sees an answer that is
-            # read until the server closes it, and hands it to the response.
-            # Shutting the duplicate down cuts the same TCP connection off
-            # whoever holds the socket. It is a plain `socket.socket` even
-            # under TLS, so it leaves the `SSLSocket` a read may be blocked on
-            # in another thread alone.
-            watched = socket.fromfd(
-                self.sock.fileno(), self.sock.family, self.sock.type
-            )
-            # Record before checking: `hang_up` below sets `hung_up` before
-            # it iterates `opened`, so whichever of the two runs second is
-            # the one that actually shuts this socket down.
-            opened.append(watched)
-            if hung_up.is_set():
-                try:
-                    watched.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
-
-    return _TrackedConnection
-
-
-def _tracked_pool_class(pool_cls, opened, hung_up):
-    """
-    A pool class that behaves exactly like `pool_cls`, except its connections
-    are the tracked ones above, on every hop. `ConnectionCls` is subclassed,
-    not replaced, so advocate's own pool classes keep validating addresses.
-    """
-
-    class _TrackedPool(pool_cls):
-        ConnectionCls = _tracked_connection_class(
-            pool_cls.ConnectionCls, opened, hung_up
-        )
-
-    return _TrackedPool
+    # Only `send` and the pool classes are changed, so advocate's validating
+    # adapter still checks the address of every hop, redirects included.
+    watched_pool_classes = {
+        "http": _WatchedValidatingHTTPConnectionPool,
+        "https": _WatchedValidatingHTTPSConnectionPool,
+    }
 
 
 def send_http_request(
@@ -257,7 +446,9 @@ def send_http_request(
     the final response with its body still unread.
 
     The body is left for `read_response_within_limit`, which the caller hands
-    the same deadline, so the whole exchange shares one budget.
+    the same deadline, so the whole exchange shares one budget. Until then the
+    watchdog stays armed, and it hangs up the response at the deadline even if
+    the body is never read.
 
     :param method: The HTTP method.
     :param url: Where to send it.
@@ -279,64 +470,24 @@ def send_http_request(
         if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True
         else _DeadlineAdvocateSession
     )
+    request_deadline = _RequestDeadline(deadline)
 
     def read_redirect_body(response, *args, **hook_kwargs):
         # Requests reads a redirect's body itself before following it, with no
         # deadline and no size ceiling. Hooks run first, so reading it here
         # puts it under both.
         if response.is_redirect:
-            response._deadline_hung_up = hung_up
-            read_response_within_limit(response, 0, deadline=deadline)
+            _read_body(response, deadline, request_deadline)
 
-    # Closed on return, the same as `requests.request` does: that only drops
-    # the idle connections in the pool, not the one the response is streaming
-    # from.
-    with session_class() as session:
-        session.deadline = deadline
-        session.max_redirects = MAX_REDIRECTS
-
-        # `timeout=remaining`, set per hop by `_DeadlineMixin.send`, only
-        # bounds a single socket operation, so a server trickling out a status
-        # line or headers a byte at a time could still hold a hop open past
-        # the deadline. This watchdog hangs up whatever socket is open, any
-        # hop, headers or body, once the deadline passes regardless.
-        opened = []
-        hung_up = threading.Event()
-        session.hung_up = hung_up
-
-        for adapter in session.adapters.values():
-            pool_manager = adapter.poolmanager
-            # An instance attribute, on both `PoolManager` and advocate's
-            # `ValidatingPoolManager`: this leaves advocate's mount lock, which
-            # only guards `session.mount()`, untouched.
-            pool_manager.pool_classes_by_scheme = {
-                scheme: _tracked_pool_class(pool_cls, opened, hung_up)
-                for scheme, pool_cls in pool_manager.pool_classes_by_scheme.items()
-            }
-
-        def hang_up():
-            # Set before iterating `opened`: `_TrackedConnection.connect`
-            # appends itself and then checks this same flag, so whichever of
-            # the two runs second is the one that actually shuts a given
-            # connection's socket down.
-            hung_up.set()
-            for watched in list(opened):
-                try:
-                    watched.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
-
-        def stop_watching():
-            timer.cancel()
-            for watched in opened:
-                watched.close()
-
-        timer = threading.Timer(max(deadline - time.monotonic(), 0), hang_up)
-        timer.daemon = True
-        timer.name = DEADLINE_WATCHDOG_THREAD_NAME
-        timer.start()
-
-        try:
+    _watchdog.watch(request_deadline)
+    token = _current_request_deadline.set(request_deadline)
+    try:
+        # Closed on return, the same as `requests.request` does: that only
+        # drops the idle connections in the pool, not the one the response is
+        # streaming from.
+        with session_class() as session:
+            session.request_deadline = request_deadline
+            session.max_redirects = MAX_REDIRECTS
             response = session.request(
                 method=method,
                 url=url,
@@ -344,20 +495,12 @@ def send_http_request(
                 hooks={"response": [read_redirect_body]},
                 **kwargs,
             )
-        except Exception:
-            stop_watching()
-            raise
+    except BaseException:
+        request_deadline.finish()
+        raise
+    finally:
+        _current_request_deadline.reset(token)
 
-        # `read_response_within_limit` closes the response in its `finally`.
-        # Cancelling the watchdog there, rather than here, is what stops it
-        # firing on a body the caller is still reading; wrapping `close` is
-        # what stops it outliving a request that is already over.
-        original_close = response.close
-
-        def close_and_cancel_watchdog():
-            stop_watching()
-            original_close()
-
-        response.close = close_and_cancel_watchdog
-        response._deadline_hung_up = hung_up
-        return response
+    # `read_response_within_limit` finishes the request once the body is in.
+    response._request_deadline = request_deadline
+    return response

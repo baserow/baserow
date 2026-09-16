@@ -1,9 +1,11 @@
+import gc
 import gzip
 import ipaddress
 import json
 import secrets
 import threading
 import time
+import weakref
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock, patch
@@ -25,6 +27,7 @@ from advocate.connection import UnacceptableAddressException
 from baserow.contrib.integrations.utils import (
     DEADLINE_WATCHDOG_THREAD_NAME,
     MAX_REDIRECTS,
+    _pending_deadlines,
     read_response_within_limit,
     send_http_request,
 )
@@ -386,6 +389,50 @@ def test_a_redirect_that_is_not_followed_keeps_its_body(settings):
     assert seen == [("GET", "/start")]
 
 
+def test_a_redirect_to_the_same_host_reuses_the_connection(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    ports = []
+
+    def recording(route):
+        def handle(handler):
+            ports.append(handler.client_address[1])
+            route(handler)
+
+        return handle
+
+    routes = {
+        "/a": recording(
+            answer(b'{"moved": true}', headers={"Location": "/b"}, status=302)
+        ),
+        "/b": recording(answer(b'{"ok": true}')),
+    }
+    with local_server(routes) as (base, seen):
+        deadline = time.monotonic() + 5
+        response = send_http_request("GET", base + "/a", deadline=deadline)
+        read_response_within_limit(response, 5, deadline=deadline)
+
+    assert seen == [("GET", "/a"), ("GET", "/b")]
+    assert len(ports) == 2
+    assert ports[0] == ports[1]
+
+
+def test_a_read_response_is_freed_without_the_cycle_collector(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/": answer(b'{"ok": true}')}) as (base, _):
+        gc.collect()
+        gc.disable()
+        try:
+            deadline = time.monotonic() + 5
+            response = send_http_request("GET", base + "/", deadline=deadline)
+            read_response_within_limit(response, 5, deadline=deadline)
+            assert response.json() == {"ok": True}
+            freed = weakref.ref(response)
+            del response
+            assert freed() is None
+        finally:
+            gc.enable()
+
+
 def test_every_hop_is_checked_against_the_address_rules(settings):
     """
     The first address is allowed and the one it redirects to is not. Only the
@@ -441,17 +488,41 @@ def test_a_redirect_to_trickling_headers_is_given_up_on_at_the_deadline(settings
     assert elapsed < 2
 
 
+def test_a_redirect_to_another_host_whose_headers_trickle_is_given_up_on(settings):
+    """
+    The second hop opens a connection of its own rather than reusing the
+    first, and the watchdog still hangs it up.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/slow": header_trickle()}) as (other, _):
+        with local_server({"/start": redirect(other + "/slow")}) as (base, _):
+            started = time.monotonic()
+            with pytest.raises(request_exceptions.Timeout):
+                send_http_request("GET", base + "/start", deadline=started + 1)
+            elapsed = time.monotonic() - started
+
+    assert elapsed < 2
+
+
 def test_the_watchdog_does_not_outlive_a_finished_request(settings):
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
     with local_server({"/": answer()}) as (base, _):
-        deadline = time.monotonic() + 5
-        response = send_http_request("GET", base + "/", deadline=deadline)
-        read_response_within_limit(response, 5, deadline=deadline)
+        deadlines = []
+        for _ in range(2):
+            deadline = time.monotonic() + 5
+            response = send_http_request("GET", base + "/", deadline=deadline)
+            assert deadline in _pending_deadlines()
+            read_response_within_limit(response, 5, deadline=deadline)
+            deadlines.append(deadline)
 
-    for thread in threading.enumerate():
-        if thread.name == DEADLINE_WATCHDOG_THREAD_NAME:
-            thread.join(timeout=1)
-            assert not thread.is_alive()
+    assert not set(deadlines) & set(_pending_deadlines())
+    watchdogs = [
+        thread
+        for thread in threading.enumerate()
+        if thread.name == DEADLINE_WATCHDOG_THREAD_NAME
+    ]
+    assert len(watchdogs) == 1
 
 
 def test_a_connection_that_opens_after_the_deadline_is_hung_up_on(settings):
@@ -488,10 +559,8 @@ def test_the_watchdog_is_cancelled_when_the_request_raises(settings):
     routes = {f"/{i}": redirect(f"/{i + 1}") for i in range(MAX_REDIRECTS + 2)}
     routes[f"/{MAX_REDIRECTS + 2}"] = answer()
     with local_server(routes) as (base, _):
+        deadline = time.monotonic() + 5
         with pytest.raises(request_exceptions.TooManyRedirects):
-            send_http_request("GET", base + "/0", deadline=time.monotonic() + 5)
+            send_http_request("GET", base + "/0", deadline=deadline)
 
-    for thread in threading.enumerate():
-        if thread.name == DEADLINE_WATCHDOG_THREAD_NAME:
-            thread.join(timeout=1)
-            assert not thread.is_alive()
+    assert deadline not in _pending_deadlines()
