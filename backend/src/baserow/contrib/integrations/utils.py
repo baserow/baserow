@@ -5,7 +5,7 @@ import os
 import socket
 import threading
 import time
-from typing import Callable, Optional
+from typing import Optional
 
 from django.conf import settings
 
@@ -22,21 +22,6 @@ from advocate.connectionpool import (
     ValidatingHTTPSConnectionPool,
 )
 from baserow.core.services.exceptions import ResponseTooLargeDispatchException
-
-
-def get_http_request_function() -> Callable:
-    """
-    Return the appropriate request function based on production environment
-    or settings.
-    In production mode, the advocate library is used so that the internal
-    network can't be reached. This can be disabled by changing the Django
-    setting INTEGRATIONS_ALLOW_PRIVATE_ADDRESS.
-    """
-
-    if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True:
-        return requests.request
-    else:
-        return advocate.request
 
 
 def read_response_within_limit(
