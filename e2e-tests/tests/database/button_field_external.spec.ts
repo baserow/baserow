@@ -218,8 +218,6 @@ test.describe("Button field, external actions", () => {
     // Held on the barrier until the test releases them, so a second click is
     // known to land while the first request is in flight. Without a barrier
     // the two tests using them are skipped, and the URL is never called.
-    // Keyed on this run rather than a fixed name, so a concurrent project
-    // running the same file never arrives at, releases, or resets these keys.
     slowKey = `slow-${randomUUID()}`;
     slowTwoKey = `slow-two-${randomUUID()}`;
     for (const [fieldName, key] of [
@@ -627,8 +625,6 @@ test.describe("Button field, external actions", () => {
 
     // A test that fails before releasing would leave the backend waiting on
     // the stub, and the next test's click refused by a lock it did not take.
-    // Only this run's own keys are released: they are unique to this
-    // `beforeAll`, so releasing them never affects a concurrent project.
     test.afterEach(async () => {
       await release(slowKey);
       await release(slowTwoKey);

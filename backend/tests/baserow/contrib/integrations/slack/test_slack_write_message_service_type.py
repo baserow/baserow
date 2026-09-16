@@ -789,9 +789,8 @@ def test_slack_write_message_hangs_up_on_a_body_that_drips(data_fixture):
 @pytest.mark.django_db
 def test_slack_write_message_answers_where_its_schema_says_it_does(data_fixture):
     """
-    The schema is what the data explorer offers a later step, so a path it
-    names has to resolve against what a dispatch actually returns. These two
-    disagreed until the schema described the wrapper the dispatch answers with.
+    The schema is what the data explorer offers a later step, so every path it
+    names has to resolve against what a dispatch actually returns.
     """
 
     user = data_fixture.create_user()
