@@ -1391,6 +1391,13 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
         return False
 
+    def are_workspace_roles_available(
+        self, subjects: List[Subject], workspace: "Workspace"
+    ) -> List[bool]:
+        """Return whether each subject's workspace role is currently available."""
+
+        return [True] * len(subjects)
+
     def is_in_workspace(
         self,
         subject: Subject,

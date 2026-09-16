@@ -57,6 +57,18 @@ class AgentSubjectType(SubjectType):
             settings, "NO_ROLE_LOW_PRIORITY_UID", "NO_ROLE_LOW_PRIORITY"
         )
 
+    def are_workspace_roles_available(
+        self, subjects: List[Subject], workspace: Workspace
+    ) -> List[bool]:
+        """Return whether each stored role is supported by the current edition."""
+
+        from baserow.core.agents.registries import agent_extension_registry
+
+        return [
+            agent_extension_registry.role_uid_exists(subject.role_uid, workspace)
+            for subject in subjects
+        ]
+
     def are_in_workspace(
         self,
         subjects: List[Subject],

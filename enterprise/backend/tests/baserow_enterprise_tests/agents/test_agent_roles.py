@@ -2,6 +2,9 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
+from baserow.contrib.database.rows.operations import UpdateDatabaseRowOperationType
+from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import WorkspaceActionScopeType
@@ -230,6 +233,67 @@ def test_agent_rename_preserves_role_after_license_change(
     assert response.json()["error"] == "ERROR_AGENT_ROLE_DOES_NOT_EXIST"
     agent.refresh_from_db()
     assert agent.role_uid == role_uid
+
+
+@pytest.mark.django_db
+def test_agent_with_unavailable_role_is_denied_permissions(
+    data_fixture, enterprise_data_fixture
+):
+    """Losing RBAC cannot turn a restricted Agent into a basic workspace member."""
+
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(
+        workspace=workspace, name="Builder", role_uid="BUILDER"
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    table, fields, _ = data_fixture.build_table(
+        columns=[("text", "text")], rows=[], database=database
+    )
+    checks = [
+        (UpdateDatabaseRowOperationType.type, table),
+        (UpdateDatabaseTableOperationType.type, table),
+        (WriteFieldValuesOperationType.type, fields[0]),
+    ]
+
+    def permissions():
+        return [
+            CoreHandler().check_permissions(
+                agent,
+                operation,
+                workspace=workspace,
+                context=context,
+                raise_permission_exceptions=False,
+            )
+            for operation, context in checks
+        ]
+
+    assert permissions() == [True, True, True]
+    enterprise_data_fixture.delete_all_licenses()
+    assert permissions() == [False, False, False]
+    enterprise_data_fixture.enable_enterprise()
+    assert permissions() == [True, True, True]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_uid", ["ADMIN", "MEMBER"])
+def test_agent_with_basic_role_keeps_permissions_without_rbac(
+    data_fixture, enterprise_data_fixture, role_uid
+):
+    """Roles supported without RBAC continue to use the basic permission policy."""
+
+    workspace = data_fixture.create_workspace()
+    agent = Agent.objects.create(workspace=workspace, name="Basic", role_uid=role_uid)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+
+    enterprise_data_fixture.delete_all_licenses()
+    assert CoreHandler().check_permissions(
+        agent,
+        UpdateDatabaseRowOperationType.type,
+        workspace=workspace,
+        context=table,
+        raise_permission_exceptions=False,
+    )
 
 
 @pytest.mark.django_db

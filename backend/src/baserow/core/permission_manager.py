@@ -61,6 +61,41 @@ from .subjects import AnonymousUserSubjectType, UserSubjectType
 User = get_user_model()
 
 
+class WorkspaceRoleAvailabilityPermissionManagerType(PermissionManagerType):
+    """Deny workspace operations when an actor's stored role is unavailable."""
+
+    type = "workspace_role_availability"
+
+    def actor_is_supported(self, actor):
+        return True
+
+    def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
+        """Check role availability in batches for every registered subject type."""
+
+        if workspace is None:
+            return {}
+
+        checks_by_subject_type = defaultdict(list)
+        for check in checks:
+            checks_by_subject_type[
+                subject_type_registry.get_by_model(check.actor)
+            ].append(check)
+
+        result = {}
+        for subject_type, subject_checks in checks_by_subject_type.items():
+            actors = list({check.actor for check in subject_checks})
+            availability_by_actor = dict(
+                zip(
+                    actors,
+                    subject_type.are_workspace_roles_available(actors, workspace),
+                )
+            )
+            for check in subject_checks:
+                if not availability_by_actor[check.actor]:
+                    result[check] = PermissionDenied(check.actor)
+        return result
+
+
 class CorePermissionManagerType(PermissionManagerType):
     """
     Some operation are always allowed. This permission manager handle this case.
@@ -385,15 +420,15 @@ class BasicPermissionManagerType(PermissionManagerType):
             return {}
 
         permission_by_check = {}
-        users_to_query = set()
+        actors_to_query = set()
         for check in checks:
             if check.operation_name in self.ADMIN_ONLY_OPERATIONS:
-                users_to_query.add(check.actor)
+                actors_to_query.add(check.actor)
             else:
                 permission_by_check[check] = True
 
         role_uids_by_actor = self.get_workspace_role_uids_by_actor(
-            users_to_query, workspace, include_trash=include_trash
+            actors_to_query, workspace, include_trash=include_trash
         )
 
         for check in checks:
