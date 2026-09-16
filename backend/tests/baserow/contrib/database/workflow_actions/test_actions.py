@@ -26,10 +26,14 @@ from baserow.contrib.database.workflow_actions.models import (
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
+from baserow.contrib.database.workflow_actions.trash_types import (
+    DatabaseWorkflowActionTrashableItemType,
+)
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.signals import action_done
 from baserow.core.services.models import Service
+from baserow.core.trash.handler import TrashHandler
 
 
 def _url(formula):
@@ -589,3 +593,65 @@ def test_an_edit_to_only_sensitive_fields_adds_no_undo_step(data_fixture, settin
     # The audit log still records the update, as JSON it can store.
     assert json.loads(json.dumps(received))[0]["workflow_action_id"] == action.id
     assert _email_service(action.id).subject["formula"] == "'Changed'"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_save_whose_deleted_action_was_restored_since(data_fixture):
+    """
+    The action came back through the trash modal, so the undo has nothing to
+    restore and must not fail the rest of the save's group.
+    """
+
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    set_client_undo_redo_action_group_id(user, str(uuid.uuid4()))
+    UpdateFieldActionType.do(user, button_field, new_type_name="button", label="After")
+    DeleteDatabaseWorkflowActionActionType.do(user, action)
+
+    TrashHandler.restore_item(
+        user, DatabaseWorkflowActionTrashableItemType.type, action.id
+    )
+    undone = ActionHandler.undo(user, _scope(table), session_id)
+
+    assert all(entry.error is None for entry in undone)
+    button_field.refresh_from_db()
+    assert button_field.label == "Go"
+    assert _ids(button_field) == [action.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_redoing_a_create_whose_action_was_restored_since(data_fixture):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = CreateDatabaseWorkflowActionActionType.do(
+        user, database_workflow_action_type_registry.get("open_url"), button_field
+    )
+    ActionHandler.undo(user, _scope(table), session_id)
+    TrashHandler.restore_item(
+        user, DatabaseWorkflowActionTrashableItemType.type, action.id
+    )
+
+    redone = ActionHandler.redo(user, _scope(table), session_id)
+
+    assert all(entry.error is None for entry in redone)
+    assert _ids(button_field) == [action.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_redoing_a_delete_whose_action_was_trashed_since(data_fixture):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    DeleteDatabaseWorkflowActionActionType.do(user, action)
+    ActionHandler.undo(user, _scope(table), session_id)
+    TrashHandler.trash(user, table.database.workspace, table.database, action)
+
+    redone = ActionHandler.redo(user, _scope(table), session_id)
+
+    assert all(entry.error is None for entry in redone)
+    assert _ids(button_field) == []

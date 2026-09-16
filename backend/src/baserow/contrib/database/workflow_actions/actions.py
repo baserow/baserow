@@ -48,6 +48,36 @@ def workflow_action_action_scope(field: ButtonField) -> ActionScopeStr:
     return TableActionScopeType.value(field.table_id)
 
 
+def _restore_workflow_action(user: AbstractUser, workflow_action_id: int) -> bool:
+    """
+    Restores a trashed action for an undo or redo. One restored from the trash
+    since is left as it is, so the rest of its action group still applies.
+
+    :return: Whether the action had to be restored.
+    """
+
+    if DatabaseWorkflowAction.objects.filter(id=workflow_action_id).exists():
+        return False
+    TrashHandler.restore_item(
+        user, DatabaseWorkflowActionTrashableItemType.type, workflow_action_id
+    )
+    return True
+
+
+def _trash_workflow_action(user: AbstractUser, workflow_action_id: int) -> None:
+    """
+    Trashes an action for an undo or redo. One already trashed is left as it is.
+    """
+
+    workflow_action = DatabaseWorkflowAction.objects.filter(
+        id=workflow_action_id
+    ).first()
+    if workflow_action is not None:
+        DatabaseWorkflowActionService().delete_workflow_action(
+            user, workflow_action.specific
+        )
+
+
 class CreateDatabaseWorkflowActionActionType(UndoableActionType):
     type = "create_database_workflow_action"
     description = ActionTypeDescription(
@@ -107,18 +137,11 @@ class CreateDatabaseWorkflowActionActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        workflow_action = DatabaseWorkflowActionHandler().get_workflow_action(
-            params.workflow_action_id
-        )
-        DatabaseWorkflowActionService().delete_workflow_action(user, workflow_action)
+        _trash_workflow_action(user, params.workflow_action_id)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
-        TrashHandler.restore_item(
-            user,
-            DatabaseWorkflowActionTrashableItemType.type,
-            params.workflow_action_id,
-        )
+        _restore_workflow_action(user, params.workflow_action_id)
 
 
 class UpdateDatabaseWorkflowActionActionType(
@@ -373,18 +396,11 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        TrashHandler.restore_item(
-            user,
-            DatabaseWorkflowActionTrashableItemType.type,
-            params.workflow_action_id,
-        )
+        _restore_workflow_action(user, params.workflow_action_id)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
-        workflow_action = DatabaseWorkflowActionHandler().get_workflow_action(
-            params.workflow_action_id
-        )
-        DatabaseWorkflowActionService().delete_workflow_action(user, workflow_action)
+        _trash_workflow_action(user, params.workflow_action_id)
 
 
 class OrderDatabaseWorkflowActionsActionType(UndoableActionType):
