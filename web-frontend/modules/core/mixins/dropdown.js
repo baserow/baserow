@@ -220,9 +220,17 @@ export default {
         return [...registered]
       }
       const flatten = (vnodes) =>
-        vnodes.flatMap((vnode) =>
-          Array.isArray(vnode.children) ? flatten(vnode.children) : [vnode]
-        )
+        vnodes.flatMap((vnode) => {
+          if (Array.isArray(vnode.children)) {
+            return flatten(vnode.children)
+          }
+          // A component in between, like a `DropdownSection`, receives its
+          // items as a slot function rather than as an array.
+          if (typeof vnode.children?.default === 'function') {
+            return flatten(vnode.children.default())
+          }
+          return [vnode]
+        })
       const vnodes = this.$slots.default ? flatten(this.$slots.default()) : []
       return vnodes
         .filter((vnode) => vnode.props?.value !== undefined)

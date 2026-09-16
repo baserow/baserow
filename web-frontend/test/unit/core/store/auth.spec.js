@@ -87,6 +87,39 @@ describe('Auth store', () => {
     expect(store.getters['auth/getUserPreference']('sort')).toBe('name_desc')
   })
 
+  test('a superseded key does not drop the other keys of its change', async () => {
+    store.dispatch('auth/forceSetUserData', {
+      ...fakeUserData,
+      user: { id: 256, preferences: { sort: 'created', mode: 'expanded' } },
+    })
+    testApp.mock.onPatch('/user/preferences/').reply((config) => {
+      return [200, JSON.parse(config.data)]
+    })
+
+    const first = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_asc',
+      mode: 'compact',
+    })
+    const second = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_desc',
+    })
+    await Promise.all([first, second])
+
+    // Only the sort of the first change was superseded, its mode was not.
+    expect(testApp.mock.history.patch.map((r) => r.data)).toEqual([
+      JSON.stringify({ mode: 'compact' }),
+      JSON.stringify({ sort: 'name_desc' }),
+    ])
+    expect(store.getters['auth/getUserPreferences']).toStrictEqual({
+      sort: 'name_desc',
+      mode: 'compact',
+    })
+    expect(store.state.auth.confirmedPreferences).toStrictEqual({
+      sort: 'name_desc',
+      mode: 'compact',
+    })
+  })
+
   test('a preference response after a logout is ignored', async () => {
     store.dispatch('auth/forceSetUserData', {
       ...fakeUserData,
@@ -100,6 +133,9 @@ describe('Auth store', () => {
     await store.dispatch('auth/forceLogoff')
     await promise
     expect(store.getters['auth/isAuthenticated']).toBe(false)
+    // The late response must not leak into the confirmed values that a next
+    // session, possibly of another user, rolls back to.
+    expect(store.state.auth.confirmedPreferences).toStrictEqual({})
   })
 
   test('can update a users additional data', () => {
