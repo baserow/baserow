@@ -38,8 +38,3 @@ export async function arrivedAt(key: string): Promise<number> {
 export async function release(key: string): Promise<void> {
   await control("POST", `release/${encodeURIComponent(key)}`);
 }
-
-/** Releases everything, so a failed test leaves no request hanging. */
-export async function resetBarrier(): Promise<void> {
-  await control("POST", "reset");
-}

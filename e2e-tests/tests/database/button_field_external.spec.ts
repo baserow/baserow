@@ -10,6 +10,7 @@
  * defaults in `run-e2e-tests-locally.sh` use the public httpbin instead.
  */
 
+import { randomUUID } from "node:crypto";
 import { Page } from "@playwright/test";
 import { test, expect } from "../baserowTest";
 import { GridPage } from "../../pages/database/gridPage";
@@ -38,12 +39,7 @@ import { listRows } from "../../fixtures/database/rows";
 import { duplicateField } from "../../fixtures/database/field";
 import { User, createUser } from "../../fixtures/user";
 import { addUserToWorkspace } from "../../fixtures/workspace";
-import {
-  BARRIER_STUB_URL,
-  arrivedAt,
-  release,
-  resetBarrier,
-} from "../../fixtures/barrier";
+import { BARRIER_STUB_URL, arrivedAt, release } from "../../fixtures/barrier";
 
 /** The stub as the *backend* reaches it, which is not where the tests run. */
 const STUB = process.env.E2E_HTTP_STUB_URL ?? "http://e2e-httpbin:80";
@@ -83,6 +79,12 @@ let g: GridSetupResult;
 let httpAction: WorkflowAction;
 let capturedAction: WorkflowAction;
 let duplicateAction: WorkflowAction;
+
+// Unique to this `beforeAll` run, so the chrome and firefox projects (both
+// run by default) never hold or release each other's requests when they
+// execute this file's tests at the same time.
+let slowKey: string;
+let slowTwoKey: string;
 
 /**
  * A member of the workspace who has clicked nothing yet. The rate limit counts
@@ -216,9 +218,13 @@ test.describe("Button field, external actions", () => {
     // Held on the barrier until the test releases them, so a second click is
     // known to land while the first request is in flight. Without a barrier
     // the two tests using them are skipped, and the URL is never called.
+    // Keyed on this run rather than a fixed name, so a concurrent project
+    // running the same file never arrives at, releases, or resets these keys.
+    slowKey = `slow-${randomUUID()}`;
+    slowTwoKey = `slow-two-${randomUUID()}`;
     for (const [fieldName, key] of [
-      ["Slow", "slow"],
-      ["SlowTwo", "slow-two"],
+      ["Slow", slowKey],
+      ["SlowTwo", slowTwoKey],
     ]) {
       await createHttpRequestAction(g.user, g.fieldByName[fieldName], {
         url: `'${BARRIER_STUB_URL ?? STUB}/hold/${key}'`,
@@ -614,10 +620,6 @@ test.describe("Button field, external actions", () => {
   // F. Two clicks at once, with the first request held until the test lets it go
 
   test.describe("while a request is held", () => {
-    // F1 and F2 share the barrier stub's "slow" / "slow-two" keys and its
-    // reset, so a parallel worker running one can wipe the other's holds.
-    test.describe.configure({ mode: "serial" });
-
     test.skip(
       !BARRIER_STUB_URL,
       "Needs the barrier stub: set E2E_BARRIER_STUB_URL.",
@@ -625,8 +627,11 @@ test.describe("Button field, external actions", () => {
 
     // A test that fails before releasing would leave the backend waiting on
     // the stub, and the next test's click refused by a lock it did not take.
+    // Only this run's own keys are released: they are unique to this
+    // `beforeAll`, so releasing them never affects a concurrent project.
     test.afterEach(async () => {
-      await resetBarrier();
+      await release(slowKey);
+      await release(slowTwoKey);
     });
 
     test("a click while the same row is still running is refused", async ({
@@ -655,16 +660,16 @@ test.describe("Button field, external actions", () => {
 
       await button.click();
       // The stub has the request, so the backend holds the row's lock.
-      await expect.poll(() => arrivedAt("slow"), { timeout: 20_000 }).toBe(1);
+      await expect.poll(() => arrivedAt(slowKey), { timeout: 20_000 }).toBe(1);
 
       await otherButton.click();
       await expect(otherPage.locator(".toast")).toBeVisible({
         timeout: 20_000,
       });
       // Refused before it sent anything.
-      expect(await arrivedAt("slow")).toBe(1);
+      expect(await arrivedAt(slowKey)).toBe(1);
 
-      await release("slow");
+      await release(slowKey);
       await expect(button).not.toHaveClass(/button--loading/, {
         timeout: 30_000,
       });
@@ -685,15 +690,15 @@ test.describe("Button field, external actions", () => {
         .locator("button");
 
       await first.click();
-      await expect.poll(() => arrivedAt("slow"), { timeout: 20_000 }).toBe(1);
+      await expect.poll(() => arrivedAt(slowKey), { timeout: 20_000 }).toBe(1);
       await second.click();
       // Both requests are held at once, so both locks were taken at once.
       await expect
-        .poll(() => arrivedAt("slow-two"), { timeout: 20_000 })
+        .poll(() => arrivedAt(slowTwoKey), { timeout: 20_000 })
         .toBe(1);
 
-      await release("slow");
-      await release("slow-two");
+      await release(slowKey);
+      await release(slowTwoKey);
       await expect(first).not.toHaveClass(/button--loading/, {
         timeout: 30_000,
       });
