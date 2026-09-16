@@ -23,6 +23,33 @@ if TYPE_CHECKING:
 
 
 MODE_ROUTER_METADATA_KEY = "assistant_mode"
+MODE_REDIRECT_MARKERS = ("was not executed yet", "Switched to")
+
+
+def mode_redirect_message(name: str, mode: AgentMode) -> str:
+    """
+    Build the retry text telling the model to re-issue a routed tool call.
+
+    :param name: The tool name that triggered the switch.
+    :param mode: The mode the router switched to.
+    :return: The retry text, recognisable via ``MODE_REDIRECT_MARKERS``.
+    """
+
+    return (
+        f"Switched to {mode.value} mode. {name} was not executed yet. "
+        f"Call {name} again now using the full schema shown in this mode."
+    )
+
+
+def is_mode_redirect(content: str) -> bool:
+    """
+    Whether a retry prompt is the router's re-call redirect.
+
+    :param content: The retry prompt content.
+    :return: True when the retry is routing protocol rather than a failure.
+    """
+
+    return all(marker in content for marker in MODE_REDIRECT_MARKERS)
 
 
 @dataclass(frozen=True)
@@ -250,10 +277,7 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         routed_mode = _routed_mode(tool)
         if routed_mode is not None:
             self._deps.mode = routed_mode
-            raise ModelRetry(
-                f"Switched to {routed_mode.value} mode. {name} was not executed yet. "
-                f"Call {name} again now using the full schema shown in this mode."
-            )
+            raise ModelRetry(mode_redirect_message(name, routed_mode))
 
         try:
             return await self._inner.call_tool(name, tool_args, ctx, tool)
