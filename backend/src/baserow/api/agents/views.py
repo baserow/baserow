@@ -71,6 +71,9 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
         queryset = AgentService().list_agents(request.user, workspace)
         queryset = self.apply_search(query_params.get("search"), queryset)
         queryset = self.apply_sorts_or_default_sort(query_params.get("sorts"), queryset)
+        # Duplicate sort values need a unique tie-breaker for stable page boundaries.
+        if "id" not in queryset.query.order_by:
+            queryset = queryset.order_by(*queryset.query.order_by, "id")
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
         return paginator.get_paginated_response(AgentSerializer(page, many=True).data)
