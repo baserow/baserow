@@ -99,6 +99,7 @@ export default {
       currentChat: 'assistant/currentChat',
       chats: 'assistant/chats',
       isLoadingChats: 'assistant/isLoadingChats',
+      pendingPrompt: 'assistant/pendingPrompt',
       uiContext: 'assistant/uiContext',
       uiLocation: 'assistant/uiLocation',
     }),
@@ -123,6 +124,16 @@ export default {
       handler(newWorkspace) {
         this.resetStore()
         this.fetchChats(newWorkspace.id)
+      },
+      immediate: true,
+    },
+    // Declared after the workspace watcher, so the reset above has already run
+    // when a prompt is waiting for the panel to open.
+    pendingPrompt: {
+      handler(prompt) {
+        if (prompt) {
+          this.sendPendingPrompt(prompt)
+        }
       },
       immediate: true,
     },
@@ -274,7 +285,18 @@ export default {
       clearChat: 'assistant/clearChat',
       fetchChats: 'assistant/fetchChats',
       resetStore: 'assistant/reset',
+      setPendingPrompt: 'assistant/setPendingPrompt',
     }),
+
+    /**
+     * Sends a message that was typed somewhere else, always in a conversation of
+     * its own so it doesn't continue whatever was on screen before.
+     */
+    async sendPendingPrompt(prompt) {
+      await this.setPendingPrompt(null)
+      await this.clearChat()
+      await this.sendMessage({ message: prompt, workspace: this.workspace })
+    },
 
     async handleSendMessage(text) {
       const message = text

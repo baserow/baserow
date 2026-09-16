@@ -98,6 +98,12 @@
       ph-autocapture="dashboard-container"
     >
       <div class="dashboard__main">
+        <component
+          :is="component"
+          v-for="(component, index) in dashboardTopComponents"
+          :key="index"
+          :workspace="selectedWorkspace"
+        ></component>
         <div class="dashboard__extras">
           <div class="dashboard__resources">
             <div class="dashboard__resources-wrapper">
@@ -433,6 +439,18 @@ const dashboardWorkspaceRowUsageComponent = computed(() =>
 const dashboardWorkspacePlanBadge = computed(() =>
   Object.values($registry.getAll('plugin'))
     .map((p) => p.getDashboardWorkspacePlanBadge())
+    .filter((c) => c !== null)
+)
+
+const dashboardTopComponents = computed(() =>
+  Object.values($registry.getAll('plugin'))
+    .reduce(
+      (components, plugin) =>
+        components.concat(
+          plugin.getDashboardTopComponents(selectedWorkspace.value)
+        ),
+      []
+    )
     .filter((c) => c !== null)
 )
 
