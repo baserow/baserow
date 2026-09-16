@@ -53,26 +53,44 @@
           :component-arguments="workspaceComponentArguments"
           @workspace-updated="workspaceUpdated($event)"
         ></component>
-        <SkeletonBlock
-          v-if="!permissionsLoaded"
-          width="100px"
-          height="32px"
-        ></SkeletonBlock>
-        <span
-          v-else-if="canCreateCreateApplication"
-          ref="createApplicationContextLink"
-        >
-          <Button
-            icon="iconoir-plus"
-            tag="a"
+        <div class="dashboard__header-actions">
+          <SkeletonBlock
+            v-if="!permissionsLoaded"
+            width="100px"
+            height="32px"
+          ></SkeletonBlock>
+          <span
+            v-else-if="canCreateCreateApplication"
+            ref="createApplicationContextLink"
+          >
+            <Button
+              icon="iconoir-plus"
+              tag="a"
+              @click="
+                $refs.createApplicationContext.toggle(
+                  $refs.createApplicationContextLink
+                )
+              "
+              >{{ $t('dashboard.addNew') }}</Button
+            >
+          </span>
+          <span
+            ref="workspaceContextLink"
             @click="
-              $refs.createApplicationContext.toggle(
-                $refs.createApplicationContextLink
+              $refs.context.toggle(
+                $refs.workspaceContextLink,
+                'bottom',
+                'right',
+                4
               )
             "
-            >{{ $t('dashboard.addNew') }}</Button
           >
-        </span>
+            <ButtonIcon
+              type="secondary"
+              icon="baserow-icon-more-vertical"
+            ></ButtonIcon>
+          </span>
+        </div>
       </div>
     </div>
     <div
@@ -80,36 +98,29 @@
       ph-autocapture="dashboard-container"
     >
       <div class="dashboard__main">
-        <DashboardVerifyEmail
-          class="margin-top-0 margin-bottom-0"
-        ></DashboardVerifyEmail>
         <div class="dashboard__extras">
-          <div
-            v-if="canCreateCreateApplication"
-            class="dashboard__suggested-templates"
-          >
-            <h4>{{ $t('dashboard.suggestedTemplates') }}</h4>
-
-            <div class="dashboard__suggested-templates-wrapper">
-              <TemplateCard
-                v-for="(template, index) in templates"
-                :key="index"
-                :template="template"
-                class="dashboard__suggested-template"
-                @click="$refs.templateModal.show(template.slug)"
-              ></TemplateCard>
-
-              <TemplateCard
-                class="dashboard__suggested-template"
-                view-more
+          <div class="dashboard__resources">
+            <div class="dashboard__resources-wrapper">
+              <a
+                v-if="canCreateCreateApplication"
+                class="dashboard__resource"
                 @click="$refs.templateModal.show()"
               >
-              </TemplateCard>
-            </div>
-          </div>
-          <div class="dashboard__resources">
-            <h4>{{ $t('dashboard.resources') }}</h4>
-            <div class="dashboard__resources-wrapper">
+                <div class="dashboard__resource-inner">
+                  <span class="dashboard__resource-icon">
+                    <i class="iconoir-page"></i
+                  ></span>
+
+                  <div class="dashboard__resource-content">
+                    <h4 class="dashboard__resource-title">
+                      {{ $t('dashboard.templates') }}
+                    </h4>
+                    <p class="dashboard__resource-text">
+                      {{ $t('dashboard.templatesMessage') }}
+                    </p>
+                  </div>
+                </div>
+              </a>
               <a
                 href="https://baserow.io/user-docs"
                 target="_new"
@@ -270,9 +281,7 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
-import TemplateCard from '@baserow/modules/core/components/template/TemplateCard'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
-import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import DashboardHelp from '@baserow/modules/core/components/dashboard/DashboardHelp'
 
@@ -307,26 +316,12 @@ const selectedWorkspace = ref(
   ) || null
 )
 const workspaceComponentArguments = ref({})
-const templates = ref([
-  {
-    name: 'Project Management',
-    slug: 'project-management',
-    type: 'calendar',
-    color: 'yellow',
-  },
-  {
-    name: 'Performance Reviews',
-    slug: 'performance-reviews',
-    type: 'table',
-    color: 'purple',
-  },
-])
 
 // refs used in template
 const context = ref(null)
 const contextLink = ref(null)
 const createApplicationContext = ref(null)
-const createApplicationContextLink = ref(null)
+const workspaceContextLink = ref(null)
 const createApplicationContextLink2 = ref(null)
 const rename = ref(null)
 const templateModal = ref(null)
