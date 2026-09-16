@@ -12,7 +12,7 @@ from baserow_premium.integrations.local_baserow.models import (
 )
 
 CHART_GRID_LAYOUT = {
-    "default_width": 3,
+    "default_width": 6,
     "default_height": 9,
     "min_width": 3,
     "min_height": 8,
@@ -21,7 +21,7 @@ CHART_GRID_LAYOUT = {
 }
 
 
-def chart_grid_fields(width=3, height=9):
+def chart_grid_fields(width=6, height=9):
     return {
         "grid_x": 0,
         "grid_y": 0,
@@ -154,7 +154,7 @@ def test_get_widgets_with_chart_widget(api_client, premium_data_fixture):
             "data_source_id": data_source.id,
             "order": "1.00000000000000000000",
             "type": "chart",
-            **chart_grid_fields(width=6),
+            **chart_grid_fields(),
             "series_config": [
                 {
                     "series_id": series_1.id,
@@ -324,7 +324,7 @@ def test_update_widget_preserve_chart_config(api_client, premium_data_fixture):
         "data_source_id": data_source.id,
         "order": "1.00000000000000000000",
         "type": "chart",
-        **chart_grid_fields(width=6),
+        **chart_grid_fields(),
         "series_config": [
             {
                 "series_id": series_1.id,
