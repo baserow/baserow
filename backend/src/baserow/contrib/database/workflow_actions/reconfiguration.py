@@ -1,5 +1,8 @@
+from typing import Iterable
+
 from django.db.models import Exists, OuterRef, Q, QuerySet
 
+from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
@@ -49,3 +52,42 @@ def workflow_actions_requiring_reconfiguration() -> QuerySet[DatabaseWorkflowAct
         | Q(localbaserowupdaterowworkflowaction__service_id__in=broken_upserts)
         | Q(localbaserowdeleterowworkflowaction__service_id__in=broken_deletes)
     )
+
+
+def button_fields_depending_on(
+    *,
+    field_ids: Iterable[int] = (),
+    table_ids: Iterable[int] = (),
+    database_ids: Iterable[int] = (),
+) -> QuerySet[ButtonField]:
+    """
+    The button fields with a row action that maps one of these fields or
+    targets one of these tables or a table in one of these databases, so their
+    `requires_reconfiguration` may have just changed. Buttons that are
+    themselves in a trashed table or database are left out: nobody can see them.
+    """
+
+    field_ids, table_ids, database_ids = (
+        list(field_ids),
+        list(table_ids),
+        list(database_ids),
+    )
+    maps_a_field = Exists(
+        LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+            service_id=OuterRef("pk"), field_id__in=field_ids
+        )
+    )
+    targets = Q(table_id__in=table_ids) | Q(table__database_id__in=database_ids)
+    upserts = LocalBaserowUpsertRow.objects.filter(targets | maps_a_field).values("pk")
+    deletes = LocalBaserowDeleteRow.objects.filter(targets).values("pk")
+    actions = DatabaseWorkflowAction.objects.filter(
+        Q(localbaserowcreaterowworkflowaction__service_id__in=upserts)
+        | Q(localbaserowupdaterowworkflowaction__service_id__in=upserts)
+        | Q(localbaserowdeleterowworkflowaction__service_id__in=deletes)
+    )
+
+    return ButtonField.objects.filter(
+        workflow_actions__in=actions,
+        table__trashed=False,
+        table__database__trashed=False,
+    ).distinct()
