@@ -91,6 +91,7 @@ export const mutations = {
   LOGOFF(state) {
     state.token = null
     state.refreshToken = null
+    state.confirmedPreferences = {}
     state.tokenUpdatedAt = 0
     state.tokenPayload = null
     state.refreshTokenPayload = null
@@ -299,41 +300,44 @@ export const actions = {
    * the backend confirmed, unless a newer change already replaced them.
    */
   async updateUserPreferences({ state, getters, commit, dispatch }, values) {
-    const keys = Object.keys(values)
     const userId = getters.getUserId
-    const pickKeys = (source) =>
+    const pick = (source, keys) =>
       Object.fromEntries(keys.map((key) => [key, source[key]]))
-    // A response must not touch the store of another session.
-    const stillApplies = () =>
-      getters.isAuthenticated &&
-      getters.getUserId === userId &&
-      keys.every((key) => getters.getUserPreference(key) === values[key])
-    const apply = (source) =>
+    // A response must not touch the store, nor the confirmed values, of another
+    // session.
+    const sessionApplies = () =>
+      getters.isAuthenticated && getters.getUserId === userId
+    // Tracked per key, so that one value being superseded by a newer change
+    // doesn't drop the other keys of the same change from the request.
+    const applyingKeys = (keys = Object.keys(values)) =>
+      keys.filter((key) => getters.getUserPreference(key) === values[key])
+    const apply = (source, keys) =>
       dispatch('forceUpdateUserData', {
         user: {
-          preferences: { ...getters.getUserPreferences, ...pickKeys(source) },
+          preferences: { ...getters.getUserPreferences, ...pick(source, keys) },
         },
       })
 
-    apply(values)
+    apply(values, Object.keys(values))
     const write = (this._preferenceWrite ?? Promise.resolve())
       .catch(() => {})
       .then(async () => {
-        if (!stillApplies()) {
+        const keys = sessionApplies() ? applyingKeys() : []
+        if (keys.length === 0) {
           return null
         }
         try {
           const { data } = await AuthService(this.$client).updatePreferences(
-            values
+            pick(values, keys)
           )
-          commit('SET_CONFIRMED_PREFERENCES', pickKeys(data))
-          if (stillApplies()) {
-            apply(data)
+          if (sessionApplies()) {
+            commit('SET_CONFIRMED_PREFERENCES', pick(data, keys))
+            apply(data, applyingKeys(keys))
           }
           return data
         } catch (error) {
-          if (stillApplies()) {
-            apply(state.confirmedPreferences)
+          if (sessionApplies()) {
+            apply(state.confirmedPreferences, applyingKeys(keys))
           }
           throw error
         }
