@@ -29,8 +29,8 @@ Backend `FieldType`, `ViewType`, filter, aggregation, data-sync, export, and wor
 registries are the extension boundary. Their frontend counterparts normalize the
 same capabilities for stores and components. When a base hook changes, search its
 registrations, overrides, and consumers across core, premium, and enterprise.
-Database must not import Builder, Automation, or Dashboard; those products consume
-Database contracts or register extensions from their own layer.
+Builder, Automation, and Dashboard consume Database contracts or register extensions
+from their own layer.
 
 For the changed concept, trace one coherent path:
 

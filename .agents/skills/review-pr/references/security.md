@@ -66,7 +66,8 @@ make it safe for another.
 - **Commands, paths, and archives:** pass argument vectors without a shell; allowlist
   any executable/grammar. Resolve storage paths beneath the intended root and reject
   traversal, absolute paths, alternate separators, symlink escapes, and overwrite.
-  Workspace imports extract only signed-manifest members.
+  Workspace imports extract only manifest-listed members; manifest signature
+  verification is separate and gated on the `verify_import_signature` setting.
 - **Templates, formulas, and expressions:** use the owning parser/AST and an
   allowlisted context. Do not use regex rewriting, general evaluation, or template
   engines where a restricted language is promised. Treat LLM and integration output
