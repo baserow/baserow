@@ -35,7 +35,7 @@ class ChartWidgetType(WidgetType):
     type = "chart"
     model_class = ChartWidget
     grid_layout = WidgetGridLayout(
-        default_width=3,
+        default_width=6,
         default_height=9,
         min_width=3,
         min_height=8,
