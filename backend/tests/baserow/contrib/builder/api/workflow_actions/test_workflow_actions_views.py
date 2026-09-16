@@ -2101,3 +2101,56 @@ def test_public_dispatch_authentication(api_client, data_fixture, actor, endpoin
         assert table.get_model().objects.count() == (
             0 if actor == "other_builder" else 1
         )
+
+
+@pytest.mark.django_db
+def test_notification_workflow_action_formats(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+
+    url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {"type": "notification", "event": "click", "element_id": element.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    # The title and description are formatted formulas: plain until switched.
+    assert response_json["title"]["format"] == "plain"
+    assert response_json["description"]["format"] == "plain"
+
+    url = reverse(
+        "api:builder:workflow_action:item",
+        kwargs={"workflow_action_id": response_json["id"]},
+    )
+    response = api_client.patch(
+        url,
+        {
+            "title": {"formula": "'**Saved**'", "format": "markdown"},
+            "description": {
+                "formula": "'See [details](/details)'",
+                "format": "markdown",
+            },
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["title"]["format"] == "markdown"
+    assert response.json()["description"]["format"] == "markdown"
+
+    response = api_client.patch(
+        url,
+        {"title": {"formula": "'Saved'", "format": "html"}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["title"]["format"][0]["code"] == ("invalid_choice")

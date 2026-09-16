@@ -1,5 +1,10 @@
 from django.db import models
 
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
+)
+
 IMPORT_SERIALIZED_IMPORTING = "importing"
 
 # A color field can store a hex color value, e.g. "#abc123ff". It can also
@@ -28,6 +33,18 @@ class BACKGROUND_IMAGE_MODES(models.TextChoices):
     TILE = "tile"
     FILL = "fill"
     FIT = "fit"
+
+
+class TextFormats(models.TextChoices):
+    """
+    How a user-provided text is rendered by the frontend. The formula surfaces
+    that can be Markdown are declared as `FormattedFormulaField`s and carry the
+    format on their value; this enum backs the surfaces that have a column for
+    it instead: the plain-string ones and the Text element.
+    """
+
+    PLAIN = BASEROW_FORMULA_FORMAT_PLAIN
+    MARKDOWN = BASEROW_FORMULA_FORMAT_MARKDOWN
 
 
 class FontWeights(models.TextChoices):

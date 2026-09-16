@@ -4,6 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from rest_framework.fields import empty
 
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -17,10 +18,13 @@ from baserow.core.formula.parser.formula_validation_visitor import (
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_FORMATS,
     BASEROW_FORMULA_MODE_ADVANCED,
     BASEROW_FORMULA_MODE_RAW,
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormulaObject,
+    FormattedFormulaObject,
 )
 from baserow.core.registry import Registry
 
@@ -152,3 +156,50 @@ class FormulaSerializerField(serializers.JSONField):
             return data
         except BaserowFormulaSyntaxError as e:
             raise ValidationError(f"The formula is invalid: {e}", code="invalid")
+
+
+@extend_schema_field(OpenApiTypes.OBJECT)
+class FormattedFormulaSerializerField(FormulaSerializerField):
+    """
+    The serializer field of a `FormattedFormulaField`: a formula object whose
+    `format` says how the surface showing the resolved value renders it, as plain
+    text or as Markdown. The format is validated next to the formula and always
+    returned, defaulting to plain when the payload doesn't give one.
+
+    Only the surfaces declared with this field accept a format. A plain
+    `FormulaSerializerField` doesn't know the key and drops it, the way it drops
+    any key it doesn't declare, so the API only keeps a format where the UI
+    offers the toggle.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.default = FormattedFormulaObject.create()
+        self.format_field = serializers.ChoiceField(
+            choices=BASEROW_FORMULA_FORMATS,
+            default=BASEROW_FORMULA_FORMAT_PLAIN,
+            help_text="How the resolved value is rendered by the surface showing it.",
+        )
+
+    def to_internal_value(self, data: Union[str, Dict[str, str]]):
+        format = BASEROW_FORMULA_FORMAT_PLAIN
+        if isinstance(data, dict):
+            # Validate the format apart from the three keys the base field
+            # validates, so that the base object serializer stays unaware of it.
+            data = dict(data)
+            try:
+                format = self.format_field.run_validation(data.pop("format", empty))
+            except ValidationError as exc:
+                raise ValidationError({"format": exc.detail})
+
+        formula = super().to_internal_value(data)
+        return FormattedFormulaObject.from_formula(formula, format)
+
+    def to_representation(self, value):
+        value = super().to_representation(value)
+        # The model field always returns a `FormattedFormulaObject`; this only
+        # covers a value that didn't go through it, e.g. an instance that was
+        # bulk created and never re-read.
+        if isinstance(value, dict):
+            return FormattedFormulaObject.from_formula(value)
+        return value
