@@ -15,6 +15,7 @@ from pydantic_ai import Agent
 from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
+from pydantic_ai.tool_manager import ToolManager
 from pydantic_ai.usage import UsageLimits
 
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
@@ -190,6 +191,13 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
                     content = str(part.content)
                     if "Unknown tool name" in content:
                         continue
+                    # The mode router's re-call redirect is protocol, not a failure.
+                    if "was not executed yet" in content and "Switched to" in content:
+                        continue
+                    # pydantic-ai's nudge after an empty model response, which it
+                    # recovers from on its own — not a tool failure.
+                    if part.tool_name is None and content.startswith("Please "):
+                        continue
                     retry_errors.append(
                         {
                             "tool_name": getattr(part, "tool_name", None),
@@ -270,20 +278,22 @@ def run_case(
     start = time.monotonic()
     # Cancelling the managed run closes the model client on the same event loop.
     try:
-        result = run_until_complete(
-            asyncio.wait_for(
-                run_agent_with_model(
-                    main_agent,
-                    case.prompt,
-                    deps=ctx.deps,
-                    model=ctx.model,
-                    model_settings=model_profile.get_settings(ORCHESTRATOR),
-                    usage_limits=UsageLimits(request_limit=case.max_iters),
-                    toolsets=[ctx.toolset],
-                ),
-                timeout_s,
+        # Sequential tool execution mirrors production (assistant.py).
+        with ToolManager.parallel_execution_mode("sequential"):
+            result = run_until_complete(
+                asyncio.wait_for(
+                    run_agent_with_model(
+                        main_agent,
+                        case.prompt,
+                        deps=ctx.deps,
+                        model=ctx.model,
+                        model_settings=model_profile.get_settings(ORCHESTRATOR),
+                        usage_limits=UsageLimits(request_limit=case.max_iters),
+                        toolsets=[ctx.toolset],
+                    ),
+                    timeout_s,
+                )
             )
-        )
     except (TimeoutError, asyncio.CancelledError) as exc:
         raise EvalCaseTimeout(
             f"{case.id} exceeded {timeout_s:g}s and was cancelled"

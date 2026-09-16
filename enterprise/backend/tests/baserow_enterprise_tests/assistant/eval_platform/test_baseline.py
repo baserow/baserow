@@ -277,3 +277,36 @@ class TestImportBaseline:
         results = import_baseline(client)
 
         assert results["kuma-database"] == "dataset not found in Phoenix"
+
+
+class TestDumpSnapshot:
+    def test_round_trips_and_keeps_each_run_on_one_line(self):
+        """The one-line-per-run format caps the committed file's line count
+        (a pretty-printed snapshot is ~20k diff lines) without losing data."""
+
+        snapshot = {
+            "captured_at": "2026-09-02T00:00:00+00:00",
+            "datasets": {
+                "kuma-core": {
+                    "experiment_name": "run-x",
+                    "metadata": {"model": "m"},
+                    "totals": {"total_cost": 1.5},
+                    "runs": [
+                        {"case_id": "core/a", "output": {"answer": "hi\nthere"}},
+                        {"case_id": "core/b", "output": {}},
+                    ],
+                },
+                "kuma-docs": {
+                    "experiment_name": None,
+                    "metadata": {},
+                    "totals": {},
+                    "runs": [],
+                },
+            },
+        }
+
+        text = baseline._dump_snapshot(snapshot)
+
+        assert json.loads(text) == snapshot
+        run_lines = [line for line in text.splitlines() if '"case_id"' in line]
+        assert len(run_lines) == 2
