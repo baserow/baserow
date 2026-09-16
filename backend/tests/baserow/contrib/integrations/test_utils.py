@@ -135,6 +135,26 @@ def chunked(parts):
     return handle
 
 
+def header_trickle(length=40, delay=0.2):
+    """
+    A status line straight to the socket, then one header byte every `delay`
+    seconds, so the headers alone take `length * delay` seconds to arrive and
+    are never completed.
+    """
+
+    def handle(handler):
+        handler.wfile.write(b"HTTP/1.1 200 OK\r\n")
+        try:
+            for _ in range(length):
+                handler.wfile.write(b"x")
+                handler.wfile.flush()
+                time.sleep(delay)
+        except OSError:
+            pass
+
+    return handle
+
+
 def test_a_body_that_trickles_is_hung_up_on_at_the_deadline(settings):
     """
     urllib3 waits for a whole 64 KB chunk before `iter_content` returns one, so
@@ -235,7 +255,7 @@ def test_a_redirect_chain_stops_at_the_cap(settings):
         with pytest.raises(request_exceptions.TooManyRedirects):
             send_http_request("GET", base + "/0", deadline=time.monotonic() + 5)
 
-    assert len(seen) <= MAX_REDIRECTS + 1
+    assert len(seen) == MAX_REDIRECTS + 1
 
 
 def test_a_redirect_is_followed_the_way_requests_follows_it(settings):
@@ -261,7 +281,7 @@ def test_every_hop_is_checked_against_the_address_rules(settings):
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = False
     with local_server({"/done": answer()}) as (other, other_seen):
         routes = {"/start": redirect(other + "/done")}
-        with local_server(routes) as (base, _):
+        with local_server(routes) as (base, seen):
             validator = AddrValidator(
                 ip_whitelist={ipaddress.ip_network("127.0.0.1/32")},
                 port_whitelist={int(base.rsplit(":", 1)[1])},
@@ -273,4 +293,48 @@ def test_every_hop_is_checked_against_the_address_rules(settings):
                         "GET", base + "/start", deadline=time.monotonic() + 5
                     )
 
+    assert seen == [("GET", "/start")]
     assert other_seen == []
+
+
+def test_a_response_whose_headers_trickle_is_given_up_on_at_the_deadline(settings):
+    """
+    `timeout=remaining` bounds a single socket operation, and http.client reads
+    a status line and headers with many small ones, each getting the full
+    `remaining` again, so on its own this could hold the request well past the
+    deadline while nothing but header bytes arrive.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/": header_trickle()}) as (base, _):
+        started = time.monotonic()
+        with pytest.raises(request_exceptions.Timeout):
+            send_http_request("GET", base + "/", deadline=started + 1)
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 2
+
+
+def test_a_redirect_to_trickling_headers_is_given_up_on_at_the_deadline(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    routes = {"/start": redirect("/slow"), "/slow": header_trickle()}
+    with local_server(routes) as (base, _):
+        started = time.monotonic()
+        with pytest.raises(request_exceptions.Timeout):
+            send_http_request("GET", base + "/start", deadline=started + 1)
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 2
+
+
+def test_the_watchdog_does_not_outlive_a_finished_request(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/": answer()}) as (base, _):
+        deadline = time.monotonic() + 5
+        response = send_http_request("GET", base + "/", deadline=deadline)
+        read_response_within_limit(response, 5, deadline=deadline)
+
+    for thread in threading.enumerate():
+        if thread.name == "http-request-deadline":
+            thread.join(timeout=1)
+            assert not thread.is_alive()
