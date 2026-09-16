@@ -171,3 +171,9 @@ class LocalBaserowTableServiceFieldMappingSerializer(serializers.Serializer):
         help_text="Indicates whether the field mapping is enabled or not."
     )
     value = FormulaSerializerField()
+    trashed = serializers.BooleanField(
+        source="field.trashed",
+        read_only=True,
+        help_text="A field mapping is considered trashed if the field it's "
+        "associated with is trashed.",
+    )

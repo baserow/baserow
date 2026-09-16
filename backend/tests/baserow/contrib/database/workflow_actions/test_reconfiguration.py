@@ -1,3 +1,7 @@
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
+
 import pytest
 
 from baserow.contrib.database.fields.field_types import ButtonFieldType
@@ -186,3 +190,47 @@ def test_other_action_types_never_need_reconfiguring(data_fixture, setup, model_
     data_fixture.create_database_workflow_action(model_class, field=button_field)
 
     assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+def test_listing_actions_does_not_query_per_mapping(api_client, data_fixture):
+    """`trashed` reads the mapped field, which must not cost a query each."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    _, service = _row_action(
+        data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, table
+    )
+    url = reverse(
+        "api:database:workflow_actions:list", kwargs={"field_id": button_field.id}
+    )
+
+    def list_actions():
+        with CaptureQueriesContext(connection) as captured:
+            response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+            assert response.status_code == 200, response.json()
+        return response.json(), len(captured)
+
+    service.field_mappings.create(
+        field=data_fixture.create_text_field(table=table), value="'a'", enabled=True
+    )
+    list_actions()
+    _, one_mapping_queries = list_actions()
+
+    for _ in range(3):
+        service.field_mappings.create(
+            field=data_fixture.create_text_field(table=table),
+            value="'a'",
+            enabled=True,
+        )
+
+    # Adding fields bumps the table's schema version, so the first list call
+    # after that pays a one-off cost rebuilding the cached table model. Warm
+    # that up the same way the one-mapping baseline above does, so the
+    # comparison below isolates the per-mapping cost this test is about.
+    list_actions()
+    payload, four_mapping_queries = list_actions()
+
+    assert all("trashed" in m for m in payload[0]["service"]["field_mappings"])
+    assert four_mapping_queries == one_mapping_queries

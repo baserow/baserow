@@ -534,6 +534,7 @@ def test_update_create_row_workflow_action(api_client, data_fixture):
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
             "enabled": True,
+            "trashed": False,
         }
     ]
 
@@ -651,6 +652,7 @@ def test_update_update_row_workflow_action(api_client, data_fixture):
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
             "enabled": True,
+            "trashed": False,
         }
     ]
 

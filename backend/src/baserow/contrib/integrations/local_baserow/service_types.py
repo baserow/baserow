@@ -16,7 +16,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 from django.dispatch import Signal
 from django.utils.translation import gettext as _
 
@@ -1929,14 +1929,26 @@ class LocalBaserowUpsertRowServiceType(
 
         if "field_mappings" in values and instance.table_id:
             bulk_field_mappings = []
-            # Bulk delete the existing field mappings on the service.
-            # We'll bulk create the mappings in the values `field_mappings`.
-            instance.field_mappings.all().delete()
+            field_mappings = values.get("field_mappings", [])
+            # A mapping on a trashed field can't come back in the payload,
+            # since `get_field` refuses a trashed field, so replacing the whole
+            # list would lose it and restoring the field would no longer heal
+            # the action (ADR 006 section 8). Only the current table's are
+            # kept: a mapping left from a previous table goes with the rest.
+            kept_field_ids = set(
+                instance.field_mappings.filter(
+                    field__trashed=True, field__table_id=instance.table_id
+                ).values_list("field_id", flat=True)
+            )
+            instance.field_mappings.exclude(field_id__in=kept_field_ids).delete()
             # The queryset we'll use to narrow down the `get_field` query,
             # this ensures we find the field within the service's table.
             base_field_qs = instance.table.field_set.all()
-            field_mappings = values.get("field_mappings", [])
             for field_mapping in field_mappings:
+                # Undo replays exported mappings, trashed ones included, and the
+                # mapping is already there.
+                if field_mapping.get("field_id") in kept_field_ids:
+                    continue
                 try:
                     field = FieldHandler().get_field(
                         field_mapping["field_id"], base_queryset=base_field_qs
@@ -2137,7 +2149,19 @@ class LocalBaserowUpsertRowServiceType(
         return service
 
     def enhance_queryset(self, queryset):
-        return super().enhance_queryset(queryset).prefetch_related("field_mappings")
+        # Every serialized mapping reads its field for `trashed`.
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related(
+                Prefetch(
+                    "field_mappings",
+                    queryset=LocalBaserowTableServiceFieldMapping.objects_and_trash.select_related(
+                        "field"
+                    ),
+                )
+            )
+        )
 
     def formulas_to_resolve(
         self, service: LocalBaserowUpsertRow

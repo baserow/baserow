@@ -30,6 +30,7 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -1720,3 +1721,98 @@ def test_upsert_row_service_field_mapping_update_can_be_undone(data_fixture):
     )
     service.refresh_from_db()
     assert service.field_mappings.get(field=name_field).value["formula"] == ""
+
+
+@pytest.mark.django_db
+def test_replacing_the_mappings_keeps_one_on_a_trashed_field(data_fixture):
+    """
+    A trashed field is not in the table's field list, so no payload can carry
+    its mapping. Replacing the list must not lose it, or restoring the field
+    would no longer heal the action (ADR 006 section 8).
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    kept_field = data_fixture.create_text_field(table=table, name="Kept")
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=kept_field, value="'a'", enabled=True)
+    service.field_mappings.create(field=doomed_field, value="'b'", enabled=True)
+    FieldHandler().delete_field(user, doomed_field)
+
+    ServiceHandler().update_service(
+        service.get_type(),
+        service,
+        field_mappings=[{"field_id": kept_field.id, "enabled": True, "value": "'c'"}],
+    )
+
+    mappings = {
+        m.field_id: m.value["formula"]
+        for m in service.field_mappings(manager="objects_and_trash").all()
+    }
+    assert mappings == {kept_field.id: "'c'", doomed_field.id: "'b'"}
+
+    TrashHandler.restore_item(user, "field", doomed_field.id)
+
+    assert service.field_mappings.filter(field=doomed_field).exists()
+
+
+@pytest.mark.django_db
+def test_a_payload_naming_a_trashed_field_does_not_duplicate_its_mapping(
+    data_fixture,
+):
+    """Undo replays the exported mappings, trashed ones included."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=doomed_field, value="'b'", enabled=True)
+    service_type = service.get_type()
+    exported = service_type.export_prepared_values(service)["field_mappings"]
+    FieldHandler().delete_field(user, doomed_field)
+
+    ServiceHandler().update_service(service_type, service, field_mappings=exported)
+
+    assert service.field_mappings.filter(field=doomed_field).count() == 1
+
+
+@pytest.mark.django_db
+def test_changing_the_table_drops_the_old_tables_trashed_mappings(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    other_table = data_fixture.create_database_table(user=user, database=table.database)
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=doomed_field, value="'b'", enabled=True)
+    FieldHandler().delete_field(user, doomed_field)
+
+    ServiceHandler().update_service(
+        service.get_type(), service, table=other_table, field_mappings=[]
+    )
+
+    assert service.field_mappings.count() == 0
+
+
+@pytest.mark.django_db
+def test_a_serialized_mapping_says_whether_its_field_is_trashed(data_fixture):
+    from baserow.contrib.integrations.local_baserow.api.serializers import (
+        LocalBaserowTableServiceFieldMappingSerializer,
+    )
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    mapping = service.field_mappings.create(field=field, value="'a'", enabled=True)
+
+    assert LocalBaserowTableServiceFieldMappingSerializer(mapping).data["trashed"] is (
+        False
+    )
+
+    FieldHandler().delete_field(user, field)
+    mapping.refresh_from_db()
+
+    assert LocalBaserowTableServiceFieldMappingSerializer(mapping).data["trashed"] is (
+        True
+    )
