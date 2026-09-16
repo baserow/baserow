@@ -7,7 +7,7 @@ from django.conf import settings
 
 import requests
 from requests import exceptions as request_exceptions
-from urllib3.exceptions import DecodeError, ProtocolError, ReadTimeoutError
+from urllib3.exceptions import DecodeError, ProtocolError, ReadTimeoutError, SSLError
 
 import advocate
 from baserow.core.services.exceptions import ResponseTooLargeDispatchException
@@ -85,6 +85,14 @@ def read_response_within_limit(
                 if time.monotonic() > deadline:
                     raise request_exceptions.Timeout(e) from e
                 raise request_exceptions.ConnectionError(e) from e
+            except SSLError as e:
+                # `SSLError` subclasses `HTTPError`, the same as
+                # `ProtocolError`, not `ProtocolError` itself, so a broken TLS
+                # record is not caught by the branch above; the deadline can
+                # still be why the connection failed.
+                if time.monotonic() > deadline:
+                    raise request_exceptions.Timeout(e) from e
+                raise request_exceptions.SSLError(e) from e
             except DecodeError as e:
                 raise request_exceptions.ContentDecodingError(e) from e
             if not chunk:

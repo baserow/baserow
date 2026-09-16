@@ -5,12 +5,13 @@ import threading
 import time
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 import requests
 import urllib3.util.connection
 from requests import exceptions as request_exceptions
+from urllib3.exceptions import SSLError
 
 import advocate
 from advocate import AddrValidator
@@ -207,6 +208,28 @@ def test_a_chunked_body_is_read_whole(settings):
         read_response_within_limit(response, 5)
 
     assert response.json() == {"a": 1}
+
+
+def test_a_broken_tls_read_is_reported_as_an_ssl_error():
+    """
+    `iter_content` used to map this onto `requests.exceptions.SSLError`;
+    reading `raw` directly has to keep doing that rather than letting it
+    escape as an unmapped urllib3 error.
+    """
+
+    response = Mock()
+    response.raw.read1.side_effect = SSLError("bad record mac")
+
+    with pytest.raises(request_exceptions.SSLError):
+        read_response_within_limit(response, 5)
+
+
+def test_a_broken_tls_read_past_the_deadline_is_reported_as_a_timeout():
+    response = Mock()
+    response.raw.read1.side_effect = SSLError("bad record mac")
+
+    with pytest.raises(request_exceptions.Timeout):
+        read_response_within_limit(response, 0, deadline=time.monotonic() - 1)
 
 
 def test_a_redirect_chain_is_given_up_on_at_the_deadline(settings):
