@@ -256,7 +256,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, watchEffect } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import { useRoute, useRouter, useNuxtApp, createError } from '#app'
 import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
@@ -360,11 +360,17 @@ const { data: dashboardData, loading } = await usePageAsyncData(
     try {
       workspace = await $store.dispatch('workspace/selectById', workspaceId)
     } catch (e) {
-      // Only when the workspace is unknown the user is redirected to the all
-      // workspaces homepage after the async data resolves. Any other failure, like
-      // a transient permissions fetch error, must show the normal error page.
+      // Only an unknown workspace is a not found error. Any other failure, like a
+      // transient permissions fetch error, is a loading error.
       if (e instanceof StoreItemLookupError) {
-        return { workspaceNotFound: true }
+        throw createError({
+          statusCode: 404,
+          message: 'Workspace not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
       }
       throw createError({
         statusCode: 400,
@@ -389,19 +395,6 @@ const { data: dashboardData, loading } = await usePageAsyncData(
       })
     }
   }
-)
-
-// The fetch doesn't block the navigation, so whether the workspace exists is
-// only known after the page has rendered. The redirect to the all workspaces
-// homepage must therefore happen from a watcher.
-watch(
-  dashboardData,
-  (value) => {
-    if (value?.workspaceNotFound) {
-      router.replace({ name: 'all-workspaces' })
-    }
-  },
-  { immediate: true }
 )
 
 /**
