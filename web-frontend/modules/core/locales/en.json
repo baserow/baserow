@@ -28,6 +28,26 @@
     "members": "Members",
     "settings": "Settings"
   },
+  "recentlyViewed": {
+    "title": "Recently viewed",
+    "yourItems": "Your items",
+    "name": "Name",
+    "lastViewed": "Last viewed",
+    "workspace": "Workspace",
+    "allWorkspaces": "All workspaces",
+    "workspacesSelected": "{count} workspace | {count} workspaces",
+    "allItems": "All items",
+    "itemTypesSelected": "{count} item type | {count} item types",
+    "tableView": "Table",
+    "cardsView": "Cards",
+    "loadMore": "Load more",
+    "emptyTitle": "Nothing viewed recently",
+    "emptyDescription": "The views, pages, dashboards and workflows you open show up here.",
+    "noFilterMatchesTitle": "No items match the selected filters",
+    "noFilterMatchesDescription": "Try selecting other workspaces or item types.",
+    "clearFilters": "Clear filters",
+    "goToWorkspaces": "Go to your workspaces"
+  },
   "workspaceSearch": {
     "title": "Search",
     "searchEverything": "Search...",
@@ -89,6 +109,7 @@
     "adminTools": "Admin tools",
     "home": "Home",
     "allWorkspaces": "All workspaces",
+    "recentlyViewed": "Recently viewed",
     "backToHome": "Back to home",
     "templates": "Templates",
     "dashboard": "Dashboard",
@@ -614,9 +635,6 @@
     "addNew": "Add new...",
     "noWorkspace": "No workspace",
     "noWorkspaceDescription": "Get started by creating a new workspace"
-  },
-  "dashboardApplication": {
-    "createdAt": "created"
   },
   "templateCard": {
     "viewMore": "View more"

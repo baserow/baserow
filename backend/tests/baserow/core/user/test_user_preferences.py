@@ -94,4 +94,6 @@ def test_get_user_preferences_falls_back_to_the_default_for_invalid_values(
     assert UserHandler().get_user_preferences(user) == {
         "all_workspaces_sort_by": "last_viewed",
         "all_workspaces_view_mode": "compact",
+        "recently_viewed_view_mode": "table",
+        "workspace_recently_viewed_view_mode": "table",
     }

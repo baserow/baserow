@@ -158,6 +158,7 @@ export default defineNuxtPlugin({
     registry.registerNamespace('authProvider')
     registry.registerNamespace('job')
     registry.registerNamespace('view')
+    registry.registerNamespace('lastViewedItem')
     registry.registerNamespace('field')
     registry.registerNamespace('settings')
     registry.registerNamespace('workspaceSettings')

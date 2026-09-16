@@ -1375,5 +1375,8 @@
   "rowEditFieldFormViewEditRow": {
     "copyLink": "Copy link",
     "noFormView": "No form view configured"
+  },
+  "lastViewedItemType": {
+    "databaseView": "{name} view"
   }
 }

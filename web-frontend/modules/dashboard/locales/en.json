@@ -45,5 +45,8 @@
   },
   "trashType": {
     "widget": "widget"
+  },
+  "lastViewedItemType": {
+    "dashboard": "Dashboard"
   }
 }

@@ -221,3 +221,14 @@ class OrderTablesSerializer(serializers.Serializer):
     table_ids = serializers.ListField(
         child=serializers.IntegerField(), help_text="Table ids in the desired order."
     )
+
+
+class TableReferenceSerializer(serializers.ModelSerializer):
+    """
+    Identifies a table where the full `TableSerializer` would be wasteful, like the
+    parent of a recently viewed view.
+    """
+
+    class Meta:
+        model = Table
+        fields = ("id", "name")

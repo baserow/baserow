@@ -17,6 +17,10 @@ export class DashboardApplicationType extends ApplicationType {
     return 'baserow-icon-dashboard'
   }
 
+  getIconColor() {
+    return 'magenta'
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.dashboard')
