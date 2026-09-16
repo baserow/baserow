@@ -912,127 +912,15 @@ class RowHandler:
         else:
             prepared_values = values
 
-        before_return = before_rows_create.send(
-            self, user=user, table=table, model=model
-        )
-
-        row_values, manytomany_values = self.extract_manytomany_values(
-            prepared_values, model
-        )
-        row_values["order"] = self.get_unique_orders_before_row(before, model)[0]
-
-        if getattr(model, CREATED_BY_COLUMN_NAME, None):
-            row_values[CREATED_BY_COLUMN_NAME] = user if user and user.id else None
-
-        if getattr(model, LAST_MODIFIED_BY_COLUMN_NAME, None):
-            row_values[LAST_MODIFIED_BY_COLUMN_NAME] = (
-                user if user and user.id else None
-            )
-
-        field_rules_handler = FieldRuleHandler(table, user)
-
-        field_rules_handler.on_rows_create([row_values])
-        instance = model(**row_values)
-        field_rules_handler.validate_row(instance)
-
-        def safe_save_instance():
-            try:
-                with transaction.atomic():
-                    instance.save(force_insert=True)
-                rows_created_counter.add(1)
-            except Exception as exc:
-                if is_unique_violation_error(exc):
-                    raise FieldDataConstraintException()
-                else:
-                    raise exc
-
-        try:
-            safe_save_instance()
-        except Exception as exc:
-            if is_index_row_size_error(exc):
-                from baserow.contrib.database.views.handler import (
-                    ViewIndexingHandler,
-                )
-
-                ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
-                safe_save_instance()
-            else:
-                raise exc
-
-        m2m_change_tracker = RowM2MChangeTracker()
-        for field_name, value in manytomany_values.items():
-            m2m_objects, _ = self._prepare_m2m_field_related_objects(
-                instance, field_name, value
-            )
-            field_object = model.get_field_object(field_name)
-            m2m_change_tracker.track_m2m_created_for_new_row(
-                instance,
-                field_object["field"],
-                value,
-            )
-            getattr(instance, field_name).through.objects.bulk_create(m2m_objects)
-
-        cascade_update = field_rules_handler.collector.get_processed_rows()
-
-        fields, dependant_fields, dependant_rows_updates = (
-            self.update_dependencies_of_rows_created(model, [instance])
-        )
-
-        _, cascade_dependant_rows_updates = self.update_dependencies_of_rows_updated(
-            table=table,
+        return self.force_create_rows(
+            user,
+            table,
+            [prepared_values],
+            before_row=before,
             model=model,
-            updated_rows=cascade_update.updated_rows,
-            updated_field_ids=cascade_update.field_ids,
-        )
-        dependant_rows_updates = merge_dependant_rows_updates(
-            dependant_rows_updates,
-            cascade_dependant_rows_updates,
-            self.cascade_dependant_rows_update(
-                table,
-                cascade_update.row_ids,
-                cascade_update.field_ids,
-                exclude_row_ids=[instance.id],
-            ),
-        )
-
-        if model.fields_requiring_refresh_after_insert():
-            instance.refresh_from_db(
-                fields=model.fields_requiring_refresh_after_insert()
-            )
-
-        from baserow.contrib.database.views.handler import ViewHandler
-
-        ViewHandler().field_value_updated(fields + dependant_fields)
-        SearchHandler.schedule_update_search_data(
-            table, row_ids=[instance.id] + cascade_update.row_ids
-        )
-
-        if cascade_update.row_ids:
-            updated_rows = list(
-                model.objects.all()
-                .enhance_by_fields()
-                .filter(id__in=list(cascade_update.row_ids))
-            )
-            cascade_update.updated_rows = updated_rows
-
-        rows_created.send(
-            self,
-            rows=[instance],
-            before=before,
-            user=user,
-            table=table,
-            model=model,
-            send_realtime_update=True,
             send_webhook_events=send_webhook_events,
-            rows_values_refreshed_from_db=False,
-            m2m_change_tracker=m2m_change_tracker,
-            fields=fields,
-            dependant_fields=dependant_fields,
-            before_return=before_return,
-        )
-        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
-
-        return instance
+            values_already_prepared=True,
+        ).created_rows[0]
 
     # noinspection PyMethodMayBeStatic
     def map_user_field_name_dict_to_internal(
@@ -1154,132 +1042,24 @@ class RowHandler:
         if model is None:
             model = table.get_model()
 
-        updated_fields_by_name = {}
-        updated_fields = []
-        updated_field_ids = set()
-        for field_id, field in model._field_objects.items():
-            if field_id in values or field["name"] in values:
-                updated_field_ids.add(field_id)
-                updated_fields_by_name[field["name"]] = field["field"]
-                updated_fields.append(field["field"])
-
         self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
 
-        rows = [row]
-        before_return = before_rows_update.send(
-            self,
-            rows=rows,
-            user=user,
-            table=table,
-            model=model,
-            updated_field_ids=updated_field_ids,
-        )
-
         if not values_already_prepared:
-            prepared_values = self.prepare_values(model._field_objects, values)
-        else:
-            prepared_values = values
+            values = self.prepare_values(model._field_objects, values)
 
-        row_values, manytomany_values = self.extract_manytomany_values(
-            prepared_values, model
-        )
-        update_row_fields = []
-        for name, value in row_values.items():
-            setattr(row, name, value)
-            update_row_fields.append(name)
-
-        # This update can remove link row connections with other rows. We need to keep
-        # track of these so we can later update any dependant cells in those rows that
-        # we used to link to. This is a dictionary where the key is the id link row
-        # field in this table, and the value is a set of row ids that this row used to
-        # link to via that link row field.
-        m2m_change_tracker = RowM2MChangeTracker()
-
-        for name, value in manytomany_values.items():
-            field = updated_fields_by_name[name]
-            value = [v if not hasattr(v, "id") else v.id for v in value]
-            m2m_change_tracker.track_m2m_update_for_field_and_row(
-                field, name, row, value
-            )
-            self._set_m2m_values_in_order(row, name, value)
-
-        field_objects_to_always_update = model.get_field_objects_to_always_update()
-        always_updated_fields = ["updated_on"] + [
-            fo["field"].db_column for fo in field_objects_to_always_update
-        ]
-        for field_object in field_objects_to_always_update:
-            updated_field_ids.add(field_object["field"].id)
-        if getattr(model, LAST_MODIFIED_BY_COLUMN_NAME, None):
-            setattr(row, LAST_MODIFIED_BY_COLUMN_NAME, user if user.id else None)
-            always_updated_fields.append(LAST_MODIFIED_BY_COLUMN_NAME)
-
-        def safe_save_row():
-            try:
-                with transaction.atomic():
-                    row.save(update_fields=update_row_fields + always_updated_fields)
-            except Exception as exc:
-                if is_unique_violation_error(exc):
-                    raise FieldDataConstraintException()
-                else:
-                    raise exc
-
-        try:
-            safe_save_row()
-        except Exception as exc:
-            if is_index_row_size_error(exc):
-                from baserow.contrib.database.views.handler import (
-                    ViewIndexingHandler,
-                )
-
-                ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
-                safe_save_row()
-            else:
-                raise exc
-        rows_updated_counter.add(1)
-
-        dependant_fields, dependant_rows_updates = (
-            self.update_dependencies_of_rows_updated(
-                table, [row], model, updated_field_ids, m2m_change_tracker
-            )
-        )
-
-        updated_field_ids.update(
-            field.id for field in dependant_fields if field.table_id == table.id
-        )
-
-        # We need to refresh here as ExpressionFields might have had their values
-        # updated. Django does not support UPDATE .... RETURNING and so we need to
-        # query for the rows updated values instead.
-        row.refresh_from_db(fields=model.fields_requiring_refresh_after_update())
-
-        from baserow.contrib.database.views.handler import ViewHandler
-
-        ViewHandler().field_value_updated(updated_fields + dependant_fields)
-        SearchHandler.schedule_update_search_data(
+        self.force_update_rows(
+            user,
             table,
-            fields=[f for f in updated_fields if f.id in updated_field_ids],
-            row_ids=[row.id],
-        )
-
-        # rows_before_update is serialized in full so the frontend can
-        # reconstruct the pre-update state for filter/sort/search transitions.
-        # rows can be partial because the frontend merges it onto the existing row.
-        rows_updated.send(
-            self,
-            rows=rows,
-            user=user,
-            table=table,
+            [{**values, "id": row.id}],
             model=model,
-            before_return=before_return,
-            updated_field_ids=updated_field_ids,
-            serialize_only_updated_fields=True,
-            m2m_change_tracker=m2m_change_tracker,
-            fields=[f for f in updated_fields if f.id in updated_field_ids],
-            dependant_fields=dependant_fields,
+            rows_to_update=cast(RowsForUpdate, [row]),
+            values_already_prepared=True,
         )
-        self.send_dependant_rows_updated(user, table, dependant_rows_updates)
-
+        # Preserve the single-row API's in-place update contract, including refreshed
+        # formula values and invalidation of any prefetched relations.
+        row.refresh_from_db()
+        del row._m2m_values
         return row
 
     def send_dependant_rows_updated(
@@ -1428,6 +1208,7 @@ class RowHandler:
         generate_error_report: bool = False,
         skip_search_update: bool = False,
         signal_params: Optional[Dict] = None,
+        values_already_prepared: bool = False,
     ) -> CreatedRowsData:
         """
         Creates new rows for a given table without checking permissions. It also calls
@@ -1449,6 +1230,8 @@ class RowHandler:
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.
         :param signal_params: Additional parameters that are added to the signal.
+        :param values_already_prepared: Whether to use the supplied values directly,
+            skipping defaults and value preparation.
         :return: The created row instances.
 
         """
@@ -1466,15 +1249,18 @@ class RowHandler:
         )
 
         report = {}
-        rows_values_with_defaults = self.prepare_values_with_defaults(
-            model._field_objects, rows_values
-        )
-        prepared_rows_values, errors = self.prepare_rows_in_bulk(
-            model._field_objects,
-            rows_values_with_defaults,
-            generate_error_report=generate_error_report,
-        )
-        report.update({index: err for index, err in errors.items()})
+        if values_already_prepared:
+            prepared_rows_values = [values.copy() for values in rows_values]
+        else:
+            rows_values_with_defaults = self.prepare_values_with_defaults(
+                model._field_objects, rows_values
+            )
+            prepared_rows_values, errors = self.prepare_rows_in_bulk(
+                model._field_objects,
+                rows_values_with_defaults,
+                generate_error_report=generate_error_report,
+            )
+            report.update({index: err for index, err in errors.items()})
 
         before_return = before_rows_create.send(
             self, user=user, table=table, model=model
@@ -1578,6 +1364,21 @@ class RowHandler:
                 collect_dependant_rows=send_realtime_update,
             )
         )
+
+        if cascade_updated.updated_rows:
+            _, cascade_dependant_rows_updates = (
+                self.update_dependencies_of_rows_updated(
+                    table=table,
+                    model=model,
+                    updated_rows=cascade_updated.updated_rows,
+                    updated_field_ids=cascade_updated.field_ids,
+                    skip_search_updates=skip_search_update,
+                    collect_dependant_rows=send_realtime_update,
+                )
+            )
+            dependant_rows_updates = merge_dependant_rows_updates(
+                dependant_rows_updates, cascade_dependant_rows_updates
+            )
 
         from baserow.contrib.database.views.handler import ViewHandler
 
@@ -1808,48 +1609,6 @@ class RowHandler:
                 )
             update_collector.apply_updates_and_get_updated_fields(field_cache)
         return fields, dependant_fields, update_collector.get_dependant_rows_updates()
-
-    def _set_m2m_values_in_order(
-        self, row: GeneratedTableModel, field_name: str, value_ids: List[Any]
-    ):
-        """
-        Replaces the relations of a many to many field, adding new ones in the order
-        they were given. Django's ``set`` bulk creates the through rows from a Python
-        set, so their order follows id hashing instead of the provided list, which
-        makes the cell value and any sort on it non-deterministic.
-
-        Like ``update_rows``, relations that are already present keep their through
-        row, so reordering values that are all already set does not move them.
-
-        :param row: The row whose relations must be replaced.
-        :param field_name: The name of the many to many field.
-        :param value_ids: The ids to relate the row to, newly added ones in the order
-            they should be stored in.
-        """
-
-        manager = getattr(row, field_name)
-        # Django's `set` does this; without it later reads return the stale relations.
-        manager._remove_prefetched_objects()
-        existing_ids = set(manager.values_list("pk", flat=True))
-
-        ordered_ids = list(dict.fromkeys(value_ids))
-        wanted_ids = set(ordered_ids)
-
-        m2m_objects, (row_column, value_column) = (
-            self._prepare_m2m_field_related_objects(
-                row, field_name, [v for v in ordered_ids if v not in existing_ids]
-            )
-        )
-        through = manager.through
-
-        to_delete = existing_ids - wanted_ids
-        if to_delete:
-            through.objects.filter(
-                **{row_column: row.id, f"{value_column}__in": to_delete}
-            ).delete()
-
-        if m2m_objects:
-            through.objects.bulk_create(m2m_objects)
 
     def _prepare_m2m_field_related_objects(
         self, row: GeneratedTableModel, field_name: str, value: List[Any]
@@ -2525,6 +2284,7 @@ class RowHandler:
         skip_search_update: bool = False,
         generate_error_report: bool = False,
         signal_params: Optional[Dict] = None,
+        values_already_prepared: bool = False,
     ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
@@ -2547,6 +2307,8 @@ class RowHandler:
             but make sure you trigger it eventually.
         :param generate_error_report: Generate error report if set to True.
         :param signal_params: Additional parameters that are added to the signal.
+        :param values_already_prepared: Whether the values are already sanitized and
+            validated and can be used without preparing them again.
         :raises RowIdsNotUnique: When trying to update the same row multiple
             times.
         :raises RowDoesNotExist: When any of the rows don't exist.
@@ -2563,12 +2325,17 @@ class RowHandler:
 
         user_id = user and user.id
 
-        prepared_rows_values, errors = self.prepare_rows_in_bulk(
-            model._field_objects,
-            rows_values,
-            generate_error_report=generate_error_report,
-        )
-        report = {index: err for index, err in errors.items()}
+        if values_already_prepared:
+            # Row IDs are removed below, so do not mutate the caller's dictionaries.
+            prepared_rows_values = [values.copy() for values in rows_values]
+            report = {}
+        else:
+            prepared_rows_values, errors = self.prepare_rows_in_bulk(
+                model._field_objects,
+                rows_values,
+                generate_error_report=generate_error_report,
+            )
+            report = {index: err for index, err in errors.items()}
         row_ids = [r["id"] for r in prepared_rows_values]
 
         non_unique_ids = get_non_unique_values(row_ids)
@@ -2691,15 +2458,15 @@ class RowHandler:
                 # rows which previously were connected to an updated row, but no
                 # longer are.
                 field_obj = field_name_to_field[field_name]
+                # Prepared values can contain model instances. Track and compare IDs.
+                value_ids = [v.id if hasattr(v, "id") else v for v in value]
                 m2m_change_tracker.track_m2m_update_for_field_and_row(
-                    field_obj, field_name, row, value
+                    field_obj, field_name, row, value_ids
                 )
 
                 original_set_of_values = set(
                     original_row_values_by_id[row.id].get(field_name) or []
                 )
-                # if a list of models is provided as value, make sure to compare the ids
-                value_ids = [v.id if hasattr(v, "id") else v for v in value]
                 new_set_of_values = set(value_ids)
                 to_add = new_set_of_values - original_set_of_values
                 to_delete = original_set_of_values - new_set_of_values
@@ -2737,7 +2504,9 @@ class RowHandler:
         for field_name, m2m_to_add in m2m_values_to_add.items():
             through = getattr(model, field_name).through
             row_column_name = row_column_names[field_name]
-            through.objects.bulk_create(m2m_to_add)
+            # Related managers hide trashed rows even though their through rows
+            # still exist. Match Django's set() when inserting those links again.
+            through.objects.bulk_create(m2m_to_add, ignore_conflicts=True)
 
         bulk_update_fields = ["updated_on"]
         if field_rules_handler.has_field_rules():

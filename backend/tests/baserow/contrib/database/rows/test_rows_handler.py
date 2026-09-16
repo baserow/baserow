@@ -170,7 +170,7 @@ def test_create_row(send_mock, data_fixture):
     )
     assert getattr(row_1, f"field_{name_field.id}") == "Tesla"
     assert getattr(row_1, f"field_{speed_field.id}") == 240
-    assert getattr(row_1, f"field_{price_field.id}") == 59999.99
+    assert getattr(row_1, f"field_{price_field.id}") == Decimal("59999.99")
     assert not getattr(row_1, f"field_9999", None)
     assert row_1.order == 1
     row_1.refresh_from_db()
@@ -272,6 +272,118 @@ def test_create_row(send_mock, data_fixture):
     row_2.delete()
     row_8 = handler.create_row(user, table=table)
     assert row_8.order == Decimal("3.00000000000000000000")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("force", [False, True])
+def test_create_row_prepared_values_skip_defaults_and_preparation(data_fixture, force):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    status_field = data_fixture.create_single_select_field(table=table, name="Status")
+    status = data_fixture.create_select_option(field=status_field, value="Prepared")
+    tags_field = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    default_tag = data_fixture.create_select_option(field=tags_field, value="Default")
+    FieldHandler().update_field(
+        user, tags_field, multiple_select_default=[default_tag.id]
+    )
+    handler = RowHandler()
+    values = {status_field.db_column: status}
+
+    with (
+        patch.object(
+            handler, "prepare_values_with_defaults", side_effect=AssertionError
+        ),
+        patch.object(handler, "prepare_values", side_effect=AssertionError),
+        patch.object(handler, "prepare_rows_in_bulk", side_effect=AssertionError),
+    ):
+        if force:
+            row = handler.force_create_row(
+                None, table, values, values_already_prepared=True
+            )
+        else:
+            row = handler.create_row(user, table, values, values_already_prepared=True)
+
+    assert getattr(row, status_field.db_column).id == status.id
+    assert list(getattr(row, tags_field.db_column).all()) == []
+    assert row.created_by == (None if force else user)
+    assert row.last_modified_by == (None if force else user)
+    assert values == {status_field.db_column: status}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("force", [False, True])
+@pytest.mark.parametrize("user_field_names", [False, True])
+def test_create_row_preserves_field_key_handling(data_fixture, force, user_field_names):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(
+        table=table, name="Name", text_default="Default name"
+    )
+    notes_field = data_fixture.create_text_field(
+        table=table, name="Notes", text_default="Default notes"
+    )
+    values = (
+        {"Name": "Explicit name"}
+        if user_field_names
+        else {
+            name_field.id: "Explicit name",
+            name_field.db_column: "Ignored duplicate",
+            "unknown": "Ignored",
+        }
+    )
+    handler = RowHandler()
+    create_row = handler.force_create_row if force else handler.create_row
+
+    row = create_row(user, table, values, user_field_names=user_field_names)
+
+    assert getattr(row, name_field.db_column) == "Explicit name"
+    assert getattr(row, notes_field.db_column) == "Default notes"
+
+
+@pytest.mark.django_db
+def test_create_row_preserves_signals_and_returns_refreshed_values(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    formula_field = data_fixture.create_formula_field(
+        table=table, name="Formula", formula="field('Name') + '!'"
+    )
+    tags_field = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    first = data_fixture.create_select_option(field=tags_field, value="First")
+    second = data_fixture.create_select_option(field=tags_field, value="Second")
+    handler = RowHandler()
+    before_row = handler.create_row(user, table, {name_field.db_column: "Existing"})
+
+    with (
+        patch(
+            "baserow.contrib.database.rows.signals.before_rows_create.send"
+        ) as before,
+        patch("baserow.contrib.database.rows.signals.rows_created.send") as created,
+    ):
+        row = handler.create_row(
+            user,
+            table,
+            {
+                name_field.db_column: "Created",
+                tags_field.db_column: [second.id, first.id],
+            },
+            before_row=before_row,
+            send_webhook_events=False,
+        )
+
+    assert row.order < before_row.order
+    assert getattr(row, formula_field.db_column) == "Created!"
+    assert [option.id for option in getattr(row, tags_field.db_column).all()] == [
+        second.id,
+        first.id,
+    ]
+    before.assert_called_once()
+    created.assert_called_once()
+    assert created.call_args.kwargs["before_return"] == before.return_value
+    assert created.call_args.kwargs["before"] is before_row
+    assert created.call_args.kwargs["send_webhook_events"] is False
+    assert created.call_args.kwargs["send_realtime_update"] is True
+    assert created.call_args.kwargs["rows"][0].id == row.id
 
 
 @pytest.mark.django_db
@@ -701,6 +813,157 @@ def test_update_row_by_id(send_mock, data_fixture):
     assert send_mock.call_args[1]["table"].id == table.id
     assert send_mock.call_args[1]["model"]._generated_table_model
     assert send_mock.call_args[1]["before_return"] == before_send_mock.return_value
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("by_id", [False, True])
+def test_update_row_preserves_field_key_handling(data_fixture, by_id):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    notes_field = data_fixture.create_text_field(table=table, name="Notes")
+    handler = RowHandler()
+    row = handler.create_row(user, table, {name_field.id: "Original"})
+    other_row = handler.create_row(user, table, {name_field.id: "Other"})
+    values = {
+        name_field.id: "Integer key wins",
+        name_field.db_column: "Ignored duplicate",
+        notes_field.db_column: "Updated notes",
+        "unknown": "Ignored",
+        "field_999999999": "Ignored",
+        "id": other_row.id,
+    }
+    original_values = values.copy()
+
+    if by_id:
+        updated_row = handler.update_row_by_id(user, table, row.id, values)
+    else:
+        updated_row = handler.update_row(user, table, row, values)
+
+    assert updated_row.id == row.id
+    assert getattr(updated_row, name_field.db_column) == "Integer key wins"
+    assert getattr(updated_row, notes_field.db_column) == "Updated notes"
+    assert values == original_values
+    row.refresh_from_db()
+    other_row.refresh_from_db()
+    assert getattr(row, name_field.db_column) == "Integer key wins"
+    assert getattr(row, notes_field.db_column) == "Updated notes"
+    assert getattr(other_row, name_field.db_column) == "Other"
+
+
+@pytest.mark.django_db
+def test_update_row_refreshes_supplied_row_and_cached_relations(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    formula_field = data_fixture.create_formula_field(
+        table=table, name="Formula", formula="field('Name') + '!'"
+    )
+    status_field = data_fixture.create_single_select_field(table=table, name="Status")
+    tags_field = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    old_status = data_fixture.create_select_option(field=status_field, value="Old")
+    new_status = data_fixture.create_select_option(field=status_field, value="New")
+    old_tag = data_fixture.create_select_option(field=tags_field, value="Old")
+    new_tag = data_fixture.create_select_option(field=tags_field, value="New")
+    handler = RowHandler()
+    row = handler.create_row(
+        user,
+        table,
+        {
+            name_field.db_column: "Before",
+            status_field.db_column: old_status.id,
+            tags_field.db_column: [old_tag.id],
+        },
+    )
+    model = table.get_model()
+    row = model.objects.all().enhance_by_fields().get(id=row.id)
+    assert getattr(row, status_field.db_column).id == old_status.id
+    assert [option.id for option in getattr(row, tags_field.db_column).all()] == [
+        old_tag.id
+    ]
+    assert getattr(row, formula_field.db_column) == "Before!"
+
+    updated_row = handler.update_row(
+        user,
+        table,
+        row,
+        {
+            name_field.db_column: "After",
+            status_field.db_column: new_status.id,
+            tags_field.db_column: [new_tag.id],
+        },
+        model=model,
+    )
+
+    assert updated_row is row
+    assert getattr(row, name_field.db_column) == "After"
+    assert getattr(row, formula_field.db_column) == "After!"
+    assert getattr(row, status_field.db_column).id == new_status.id
+    assert [option.id for option in getattr(row, tags_field.db_column).all()] == [
+        new_tag.id
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("by_id", [False, True])
+def test_update_row_accepts_prepared_values_without_preparing_again(
+    data_fixture, by_id
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_single_select_field(table=table)
+    option = data_fixture.create_select_option(field=field, value="Prepared")
+    handler = RowHandler()
+    row = handler.create_row(user, table)
+    values = {field.db_column: option}
+
+    with (
+        patch.object(handler, "prepare_values", side_effect=AssertionError),
+        patch.object(handler, "prepare_rows_in_bulk", side_effect=AssertionError),
+    ):
+        if by_id:
+            updated_row = handler.update_row_by_id(
+                user, table, row.id, values, values_already_prepared=True
+            )
+        else:
+            updated_row = handler.update_row(
+                user, table, row, values, values_already_prepared=True
+            )
+
+    assert getattr(updated_row, field.db_column).id == option.id
+    row.refresh_from_db()
+    assert getattr(row, field.db_column).id == option.id
+    assert values == {field.db_column: option}
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.rows.signals.rows_updated.send")
+def test_update_row_tracks_prepared_link_models_as_ids(send_mock, data_fixture):
+    user = data_fixture.create_user()
+    table, linked_table, field = data_fixture.create_two_linked_tables(user=user)
+    handler = RowHandler()
+    first = handler.create_row(user, linked_table)
+    second = handler.create_row(user, linked_table)
+    row = handler.create_row(user, table, {field.db_column: [first.id]})
+
+    handler.update_row(
+        user,
+        table,
+        row,
+        {field.db_column: [first, second]},
+        values_already_prepared=True,
+    )
+
+    send_mock.assert_called_once()
+    tracker = send_mock.call_args.kwargs["m2m_change_tracker"]
+    deleted = tracker.get_deleted_m2m_rels_per_field_id_for_type("link_row")
+    created = tracker.get_created_m2m_rels_per_field_for_type("link_row")
+    assert deleted[field][row] == set()
+    assert created[field][row] == {second.id}
+    assert [linked.id for linked in getattr(row, field.db_column).all()] == [
+        first.id,
+        second.id,
+    ]
 
 
 @pytest.mark.django_db
@@ -2390,3 +2653,56 @@ def test_update_row_by_id_removes_and_dedupes_multiple_select_options(data_fixtu
     RowHandler().update_row_by_id(user, table, row.id, {field.db_column: []})
     stored = model.objects.prefetch_related(field.db_column).get(id=row.id)
     assert list(getattr(stored, field.db_column).all()) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("update_in_bulk", [False, True])
+@pytest.mark.parametrize("self_referencing", [False, True])
+def test_update_row_keeps_links_to_trashed_rows(
+    data_fixture, update_in_bulk, self_referencing
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    linked_table = (
+        table
+        if self_referencing
+        else data_fixture.create_database_table(database=table.database)
+    )
+    field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Links",
+        type_name="link_row",
+        link_row_table=linked_table,
+    )
+    handler = RowHandler()
+    first, second, third = [
+        handler.create_row(user=user, table=linked_table) for _ in range(3)
+    ]
+    row = handler.create_row(
+        user=user, table=table, values={field.db_column: [first.id, second.id]}
+    )
+    handler.delete_row(user, linked_table, second)
+
+    values = {field.db_column: [first.id, second.id, third.id]}
+    if update_in_bulk:
+        updated_row = handler.update_rows(
+            user, table, [{"id": row.id, **values}]
+        ).updated_rows[0]
+    else:
+        updated_row = handler.update_row_by_id(user, table, row.id, values)
+
+    assert [r.id for r in getattr(updated_row, field.db_column).all()] == [
+        first.id,
+        third.id,
+    ]
+
+    TrashHandler.restore_item(
+        user, "row", second.id, parent_trash_item_id=linked_table.id
+    )
+    stored = table.get_model().objects.prefetch_related(field.db_column).get(id=row.id)
+    assert [r.id for r in getattr(stored, field.db_column).all()] == [
+        first.id,
+        second.id,
+        third.id,
+    ]

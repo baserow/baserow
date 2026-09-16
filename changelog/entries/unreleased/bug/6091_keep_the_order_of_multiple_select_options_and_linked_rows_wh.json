@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Keep the order of multiple select options and linked rows when updating a row.",
+    "message": "Fix row updates failing when they include an existing link to a trashed row.",
     "issue_origin": "github",
     "issue_number": 6091,
     "domain": "database",
