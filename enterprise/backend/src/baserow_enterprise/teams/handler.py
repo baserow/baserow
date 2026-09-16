@@ -9,6 +9,7 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
 from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.mixins import TrashableModelMixin
 from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.subjects import UserSubjectType
@@ -44,6 +45,18 @@ SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type, AgentSubjectType.type)
 
 
 class TeamHandler:
+    def get_team_subjects_queryset(self) -> QuerySet:
+        """Hide trashed subjects while retaining memberships for their restoration."""
+        queryset = TeamSubject.objects.all()
+        for subject_type in subject_type_registry.get_all():
+            if issubclass(subject_type.model_class, TrashableModelMixin):
+                # IDs can overlap across subject types, so filter by both fields.
+                queryset = queryset.exclude(
+                    subject_type=subject_type.get_content_type(),
+                    subject_id__in=subject_type.model_class.trash.values("id"),
+                )
+        return queryset
+
     def get_teams_queryset(self) -> QuerySet:
         """
         Responsible for returning a `Team` queryset with an annotated
@@ -53,7 +66,8 @@ class TeamHandler:
         """
 
         subj_count = (
-            TeamSubject.objects.filter(team_id=OuterRef("id"))
+            self.get_team_subjects_queryset()
+            .filter(team_id=OuterRef("id"))
             .order_by()
             .values("team_id")
             .annotate(count=Count("*"))
@@ -122,8 +136,21 @@ class TeamHandler:
             )
             join_params.extend(type_params)
 
-        # CASE placeholders occur before JOIN placeholders in the generated SQL.
-        subject_sample_params = [*case_params, *join_params, subject_sample_size]
+        # Use the same visibility rules for samples, counts, and member lists.
+        # Filter before LIMIT so hidden subjects don't consume sample slots.
+        visible_subjects_sql, visible_subjects_params = (
+            self.get_team_subjects_queryset()
+            .order_by()
+            .values("id")
+            .query.sql_with_params()
+        )
+        # Placeholder order follows CASE, JOIN, visibility filter, then LIMIT.
+        subject_sample_params = [
+            *case_params,
+            *join_params,
+            *visible_subjects_params,
+            subject_sample_size,
+        ]
 
         subject_sample_sql = f"""
             SELECT COALESCE(json_agg(sub), '[]') FROM (
@@ -138,6 +165,7 @@ class TeamHandler:
                 INNER JOIN django_content_type ct ON (ct.id = sub.subject_type_id)
                 {" ".join(subject_joins)}
                 WHERE sub.team_id = baserow_enterprise_team.id
+                    AND sub.id IN ({visible_subjects_sql})
                 ORDER BY sub.created_on DESC
                 LIMIT %s
             ) sub
@@ -257,7 +285,9 @@ class TeamHandler:
             # `TeamSubject.subject_type_natural_key`, then the `subject_id`. Keep
             # every membership ID so removing a subject also removes duplicates.
             existing_subjects = defaultdict(lambda: defaultdict(list))
-            existing_subject_qs = team.subjects.select_related("subject_type").all()
+            # Trashed subjects are absent from the edit form. Preserve their
+            # memberships so saving visible members does not break restoration.
+            existing_subject_qs = self.list_subjects_in_team(team.id)
             for existing_subject in existing_subject_qs:
                 existing_subjects[existing_subject.subject_type_natural_key][
                     existing_subject.subject_id
@@ -345,10 +375,10 @@ class TeamHandler:
         return team
 
     def get_teamsubject_subject_qs(self, subject, base_queryset=None) -> QuerySet:
-        """ """
+        """Return visible memberships belonging to a subject."""
 
         if base_queryset is None:
-            base_queryset = TeamSubject.objects
+            base_queryset = self.get_team_subjects_queryset()
 
         return base_queryset.filter(
             subject_id=subject.id,
@@ -364,7 +394,7 @@ class TeamHandler:
         """
 
         if base_queryset is None:
-            base_queryset = TeamSubject.objects
+            base_queryset = self.get_team_subjects_queryset()
 
         try:
             subject = base_queryset.select_related("subject_type").get(
@@ -528,17 +558,24 @@ class TeamHandler:
         Returns a list of subjects in a given workspace.
         """
 
-        return TeamSubject.objects.select_related("subject_type").filter(team=team_id)
+        return (
+            self.get_team_subjects_queryset()
+            .select_related("subject_type")
+            .filter(team=team_id)
+        )
 
     def get_subject_for_update(
         self, subject_id: int, team: Team
     ) -> TeamSubjectForUpdate:
+        """Lock a visible membership before modifying it."""
         return cast(
             TeamSubjectForUpdate,
             self.get_subject(
                 subject_id,
                 team,
-                base_queryset=TeamSubject.objects.select_for_update(of=("self",)),
+                base_queryset=self.get_team_subjects_queryset().select_for_update(
+                    of=("self",)
+                ),
             ),
         )
 
