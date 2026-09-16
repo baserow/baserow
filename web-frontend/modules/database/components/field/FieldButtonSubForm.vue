@@ -44,6 +44,7 @@ import DatabaseFormulaInput from '@baserow/modules/database/components/field/Dat
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import {
   CLIENT_ID_KEY,
+  countUndoSteps,
   rebaseWorkflowActions,
   reconcileWorkflowActions,
   workflowActionConfig,
@@ -56,6 +57,7 @@ import {
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+import { MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP } from '@baserow/modules/database/utils/action'
 
 /** An action without the answer a click left on its service. */
 const withoutCapturedAnswers = (action) =>
@@ -395,13 +397,22 @@ export default {
      * once the field is saved, since a new field has no id until then.
      *
      * `undoRedoActionGroupId` is the group the field save was sent under, so
-     * one undo takes back the field and its actions together.
+     * one undo takes back the field and its actions together. A save with more
+     * steps than a group can undo at once is sent without it.
      */
     async afterFieldSaved(fieldId, { undoRedoActionGroupId = null } = {}) {
-      const { toCreate, toUpdate, toDelete, order } = reconcileWorkflowActions(
+      const plan = reconcileWorkflowActions(
         this.serverActions,
         this.localActions
       )
+      const { toCreate, toUpdate, toDelete, order } = plan
+      // One undo takes back only the newest steps of a group, and the field
+      // save is the oldest. A save that would not fit is sent ungrouped, so
+      // each step undoes on its own rather than one undo leaving it half done.
+      const groupId =
+        1 + countUndoSteps(plan) <= MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP
+          ? undoRedoActionGroupId
+          : null
       const service = WorkflowActionService(this.$client)
       const createdIds = []
       const assignedIds = new Map()
@@ -419,7 +430,7 @@ export default {
           const { data } = await service.create(
             fieldId,
             this.resolveActionIds(this.createPayload(action), idMap),
-            undoRedoActionGroupId
+            groupId
           )
           createdIds.push(data.id)
           // Both ways of naming it are mapped: an unsaved action is referenced
@@ -450,28 +461,20 @@ export default {
           if (Object.keys(payload).length === 0) {
             continue
           }
-          const { data } = await service.update(
-            id,
-            payload,
-            undoRedoActionGroupId
-          )
+          const { data } = await service.update(id, payload, groupId)
           if (defersConfig) {
             const config = this.resolveActionIds(
               this.configPayload(values, data),
               idMap
             )
             if (Object.keys(config).length > 0) {
-              await service.update(
-                data?.id ?? id,
-                config,
-                undoRedoActionGroupId
-              )
+              await service.update(data?.id ?? id, config, groupId)
             }
           }
         }
 
         for (const id of toDelete) {
-          await service.delete(id, undoRedoActionGroupId)
+          await service.delete(id, groupId)
         }
 
         // `order` holds null for creates; fill them in as they were made.
@@ -492,7 +495,7 @@ export default {
         ]
 
         if (finalOrder.length > 0 && !_.isEqual(finalOrder, orderWithoutCall)) {
-          await service.order(fieldId, finalOrder, undoRedoActionGroupId)
+          await service.order(fieldId, finalOrder, groupId)
         }
       } catch (error) {
         failed = true

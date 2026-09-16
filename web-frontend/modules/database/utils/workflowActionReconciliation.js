@@ -41,6 +41,22 @@ export function referencedActionIdsInConfig(action) {
 }
 
 /**
+ * How many undo steps the calls for `plan` can register. Counts the most a save
+ * can send: an update that changes the type and its config is two calls, and an
+ * order call is counted whenever there is a list to order.
+ */
+export function countUndoSteps({ toCreate, toUpdate, toDelete, order }) {
+  const updates = toUpdate.reduce(
+    (count, { values }) =>
+      count + (values.type !== undefined && 'service' in values ? 2 : 1),
+    0
+  )
+  return (
+    toCreate.length + updates + toDelete.length + (order.length > 0 ? 1 : 0)
+  )
+}
+
+/**
  * Works out the API calls needed to make the server's action list match the
  * editor's local one. The editor buffers changes so that cancelling discards
  * them, which means the difference has to be computed at submit time.

@@ -876,6 +876,50 @@ describe('FieldButtonSubForm', () => {
       )
     })
 
+    test('a save too big for one undo group is sent without one', async () => {
+      // One undo takes back only the newest 20 steps of a group, which would
+      // leave the field save applied.
+      const client = testApp.getApp().$client
+      let nextId = 100
+      client.post.mockImplementation(() =>
+        Promise.resolve({ data: { id: nextId++, type: 'open_url' } })
+      )
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = Array.from({ length: 20 }, (_, i) => ({
+        [CLIENT_ID_KEY]: `new-${i}`,
+        type: 'open_url',
+        url: `u${i}`,
+      }))
+
+      await wrapper.vm.afterFieldSaved(7, { undoRedoActionGroupId: 'group-1' })
+
+      expect(client.post).toHaveBeenCalledTimes(20)
+      client.post.mock.calls.forEach((call) => expect(call[2]).toEqual(noGroup))
+    })
+
+    test('a save that fits one undo group keeps it', async () => {
+      const client = testApp.getApp().$client
+      let nextId = 100
+      client.post.mockImplementation(() =>
+        Promise.resolve({ data: { id: nextId++, type: 'open_url' } })
+      )
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      // With the field save and the counted order call, 20 steps.
+      wrapper.vm.localActions = Array.from({ length: 18 }, (_, i) => ({
+        [CLIENT_ID_KEY]: `new-${i}`,
+        type: 'open_url',
+        url: `u${i}`,
+      }))
+
+      await wrapper.vm.afterFieldSaved(7, { undoRedoActionGroupId: 'group-1' })
+
+      client.post.mock.calls.forEach((call) =>
+        expect(call[2].headers.ClientUndoRedoActionGroupId).toBe('group-1')
+      )
+    })
+
     test('every call a save makes carries the undo group it is given', async () => {
       // One undo takes back the field and all of its actions only when every
       // request of the save shares the group.

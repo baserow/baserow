@@ -1,4 +1,5 @@
 import {
+  countUndoSteps,
   rebaseWorkflowActions,
   reconcileWorkflowActions,
   workflowActionConfig,
@@ -240,5 +241,27 @@ describe('rebaseWorkflowActions', () => {
       action(1, 'a'),
       added,
     ])
+  })
+})
+
+describe('countUndoSteps', () => {
+  test('counts one step per call, two for a type change with config', () => {
+    expect(
+      countUndoSteps({
+        toCreate: [{}, {}],
+        toUpdate: [
+          { id: 1, values: { url: 'a' } },
+          { id: 2, values: { type: 'open_url', service: {} } },
+        ],
+        toDelete: [3],
+        order: [null, null, 1, 2],
+      })
+    ).toBe(7)
+  })
+
+  test('an empty list needs no order call', () => {
+    expect(
+      countUndoSteps({ toCreate: [], toUpdate: [], toDelete: [4], order: [] })
+    ).toBe(1)
   })
 })
