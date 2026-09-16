@@ -95,6 +95,69 @@ describe('Premium integrations service types', () => {
     ).toBe('Category A')
   })
 
+  test('grouped result lookups use collision-free names from the schema', () => {
+    const serviceType = useNuxtApp().$registry.get(
+      'service',
+      'local_baserow_grouped_aggregate_rows'
+    )
+    const service = {
+      aggregation_group_bys: [{ field_id: 1 }],
+      schema: {
+        type: 'array',
+        items: {
+          properties: {
+            id: { type: 'string', title: 'Id' },
+            field_1: {
+              type: 'string',
+              title: 'Amount sum',
+              metadata: {
+                type: 'text',
+                result_name: 'Amount sum [field_1]',
+              },
+            },
+            field_2_sum: {
+              type: 'number',
+              title: 'Amount sum',
+              metadata: {
+                aggregation: { type: 'sum' },
+                display_name: 'Amount sum',
+                result_name: 'Amount sum [field_2_sum]',
+              },
+            },
+          },
+        },
+      },
+    }
+    const record = {
+      id: 'record-id',
+      'Amount sum [field_1]': 'Fruit',
+      'Amount sum [field_2_sum]': 10,
+    }
+    expect(
+      Object.fromEntries(
+        ['id', 'field_1', 'field_2_sum'].map((key) => {
+          const resultName = serviceType.getResultPropertyName(service, key)
+          return [
+            key,
+            {
+              resultName,
+              path: serviceType.prepareValuePath(service, [key]),
+              value: record[resultName],
+            },
+          ]
+        })
+      )
+    ).toMatchSnapshot()
+    expect(serviceType.getRecordName(service, record)).toBe('Fruit')
+    expect(serviceType.prepareValuePath(service, [])).toEqual([])
+    expect(serviceType.prepareValuePath(service, ['unknown'])).toEqual([
+      'unknown',
+    ])
+    expect(
+      serviceType.prepareValuePath(service, ['field_2_sum', 'value'])
+    ).toEqual(['Amount sum [field_2_sum]', 'value'])
+  })
+
   test.each(['boolean', 'rating', 'url', 'file', 'single_select', 'formula'])(
     'numeric aggregates of %s fields use the result type and direct formula',
     (originalType) => {

@@ -1,4 +1,5 @@
 import re
+from collections import Counter
 from typing import Any
 
 from django.conf import settings
@@ -265,7 +266,49 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 "metadata": self.get_aggregation_result_metadata(aggregation_series),
             }
 
+        self._disambiguate_result_property_names(properties)
         return properties
+
+    def _disambiguate_result_property_names(self, properties: dict) -> None:
+        """
+        Add result-name overrides for colliding labels, reserving the record ID.
+
+        Reserve all original labels before assigning suffixes so that generated
+        names cannot collide with another field's label. Technical property keys
+        make the mapping independent of series order. Compute this on the full
+        schema before filtering allowed fields so permissions cannot change names.
+        """
+
+        names = {
+            key: (
+                key
+                if key == GROUPED_AGGREGATE_ROW_ID
+                else prop.get("metadata", {}).get("display_name")
+                or prop.get("title")
+                or key
+            )
+            for key, prop in properties.items()
+        }
+        counts = Counter(names.values())
+        used_names = set(names.values()) | {GROUPED_AGGREGATE_ROW_ID}
+        for key in sorted(properties):
+            name = names[key]
+            if key == GROUPED_AGGREGATE_ROW_ID or (
+                counts[name] == 1 and name != GROUPED_AGGREGATE_ROW_ID
+            ):
+                continue
+
+            base_name = f"{name} [{key}]"
+            result_name = base_name
+            suffix = 2
+            while result_name in used_names:
+                result_name = f"{base_name} ({suffix})"
+                suffix += 1
+            used_names.add(result_name)
+            properties[key]["metadata"] = {
+                **properties[key].get("metadata", {}),
+                "result_name": result_name,
+            }
 
     def get_aggregation_result_metadata(
         self, aggregation_series: LocalBaserowTableServiceAggregationSeries
@@ -304,7 +347,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             return property_name
 
         return (
-            property_schema.get("metadata", {}).get("display_name")
+            property_schema.get("metadata", {}).get("result_name")
+            or property_schema.get("metadata", {}).get("display_name")
             or property_schema.get("title")
             or property_name
         )

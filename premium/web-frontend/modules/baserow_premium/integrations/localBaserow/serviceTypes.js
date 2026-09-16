@@ -96,11 +96,25 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
   }
 
   getResultPropertyName(service, propertyName) {
+    if (propertyName === 'id') {
+      return propertyName
+    }
     const property = this.getSchemaProperty(service, propertyName)
+    if (property?.metadata?.result_name) {
+      return property.metadata.result_name
+    }
     if (property?.metadata?.aggregation) {
       return property.metadata.display_name || property?.title || propertyName
     }
     return property?.title || propertyName
+  }
+
+  prepareValuePath(service, path) {
+    if (path.length === 0) {
+      return path
+    }
+    const [propertyName, ...rest] = path
+    return [this.getResultPropertyName(service, propertyName), ...rest]
   }
 
   getRecordName(service, record) {
@@ -128,7 +142,9 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
     const fieldType = field?.type
       ? this.app.$registry.get('field', field.type)
       : null
-    const value = record[nameProperty]
+    const value =
+      record[this.getResultPropertyName(service, nameProperty)] ??
+      record[nameProperty]
     if (!fieldType || value === undefined || value === null) {
       return fallbackName
     }

@@ -276,6 +276,107 @@ def test_grouped_aggregate_rows_service_prepare_value_path(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("group_name", ["Amount sum", "id"])
+@pytest.mark.parametrize("group_by_row_id", [False, True])
+def test_grouped_aggregate_rows_result_name_collisions(
+    data_fixture, group_name, group_by_row_id
+):
+    """Colliding labels remain distinct in results, formulas and restricted schemas."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    group_field = data_fixture.create_text_field(
+        table=table, name=group_name, primary=group_by_row_id
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        table=table,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=amount, aggregation_type="sum", order=0
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None if group_by_row_id else group_field, order=0
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[{group_field.db_column: "Fruit", amount.db_column: 10}],
+    )
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    group_key = group_field.db_column
+    sum_key = f"{amount.db_column}_sum"
+    group_result_name = f"{group_name} [{group_key}]"
+    sum_result_name = (
+        f"Amount sum [{sum_key}]" if group_name == "Amount sum" else "Amount sum"
+    )
+
+    result = ServiceHandler().dispatch_service(service, FakeDispatchContext()).data
+    assert result == {
+        "has_next_page": False,
+        "results": [
+            {"id": "Fruit", group_result_name: "Fruit", sum_result_name: Decimal("10")}
+        ],
+    }
+    expected_names = {
+        "id": "id",
+        group_key: group_result_name,
+        sum_key: sum_result_name,
+    }
+    expected_values = {"id": "Fruit", group_key: "Fruit", sum_key: Decimal("10")}
+    full_schema = service_type.generate_schema(service)["items"]["properties"]
+    assert set(full_schema) == set(expected_names)
+    assert full_schema[group_key]["title"] == group_name
+    for key, result_name in expected_names.items():
+        path = service_type.prepare_value_path(service, [key])
+        assert path == [result_name]
+        assert result["results"][0][path[0]] == expected_values[key]
+        restricted_schema = service_type.generate_schema(service, allowed_fields=[key])
+        assert restricted_schema["items"]["properties"] == {key: full_schema[key]}
+        sanitized = service_type.sanitize_result(service, result, [key])
+        assert sanitized == {
+            "has_next_page": False,
+            "results": [{result_name: result["results"][0][result_name]}],
+        }
+
+
+def test_grouped_aggregate_result_names_avoid_generated_suffix_collisions():
+    """Generated suffixes never overwrite real labels or depend on series order."""
+
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    titles = {
+        "id": "Id",
+        "field_1": "Amount sum",
+        "field_2_sum": "Amount sum",
+        "field_3": "Amount sum [field_1]",
+        "field_4": "Amount sum [field_1] (2)",
+    }
+    mappings = []
+    for keys in (list(titles), list(reversed(titles))):
+        properties = {key: {"title": titles[key]} for key in keys}
+        service_type._disambiguate_result_property_names(properties)
+        mappings.append(
+            {
+                key: prop.get("metadata", {}).get("result_name", titles[key])
+                for key, prop in properties.items()
+            }
+        )
+    assert (
+        mappings[0]
+        == mappings[1]
+        == {
+            "id": "Id",
+            "field_1": "Amount sum [field_1] (3)",
+            "field_2_sum": "Amount sum [field_2_sum]",
+            "field_3": "Amount sum [field_1]",
+            "field_4": "Amount sum [field_1] (2)",
+        }
+    )
+
+
+@pytest.mark.django_db
 def test_grouped_aggregate_rows_data_source_extract_properties(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
