@@ -23,18 +23,23 @@ class AgentHandler:
         queryset = Agent.objects.filter(workspace=workspace).select_related("workspace")
         return agent_extension_registry.enhance_queryset(queryset, workspace)
 
-    def get_agent(self, agent_id: int, base_queryset=None) -> Agent:
+    def get_agent(
+        self, agent_id: int, base_queryset=None, for_update: bool = False
+    ) -> Agent:
         """
         Returns the agent with the given ID.
 
         :param agent_id: The ID of the agent to return.
         :param base_queryset: An optional queryset to use when retrieving the agent.
+        :param for_update: Lock the agent until the surrounding transaction ends.
         :raises AgentDoesNotExist: If an agent with the given ID does not exist in
             the queryset.
         :return: The requested agent.
         """
 
         queryset = base_queryset if base_queryset is not None else Agent.objects
+        if for_update:
+            queryset = queryset.select_for_update(of=("self",))
         try:
             return queryset.select_related("workspace").get(id=agent_id)
         except Agent.DoesNotExist as exc:

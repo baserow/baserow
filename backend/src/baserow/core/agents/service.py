@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 
 from baserow.core.agents.exceptions import AgentRoleDoesNotExist
 from baserow.core.agents.handler import AgentHandler
@@ -62,6 +63,7 @@ class AgentService:
         agent_created.send(self, user=user, agent=agent)
         return agent
 
+    @transaction.atomic
     def update_agent(self, user: AbstractUser, agent: Agent, **values) -> Agent:
         """
         Updates an agent and its registered extension data.
@@ -79,6 +81,9 @@ class AgentService:
             workspace=agent.workspace,
             context=agent.workspace,
         )
+        # Lock the agent before reading extension state, even for team-only edits.
+        # Membership locks alone cannot serialize updates to an empty team set.
+        agent = AgentHandler().get_agent(agent.id, for_update=True)
         # A license change can make the stored role unavailable for selection.
         # Resubmitting it during an unrelated edit must preserve that role.
         if (
