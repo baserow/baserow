@@ -98,4 +98,78 @@ describe('AgentsTable', () => {
     await flushPromises()
     expect(editor().props('agent').teams).toEqual([])
   })
+
+  test.each([
+    [['agent.create'], 2, 3, false, false],
+    [['agent.update'], 0, 4, true, false],
+    [['agent.delete'], 0, 4, false, true],
+    [[], 0, 3, false, false],
+  ])(
+    'shows controls for independent Agent permissions: %s',
+    async (
+      permissions,
+      createButtonCount,
+      columnCount,
+      showsEdit,
+      showsDelete
+    ) => {
+      const agent = { id: 10, workspace_id: 1, name: 'Writer' }
+      await testApp.store.dispatch('agent/forceCreate', agent)
+      const wrapper = await testApp.mount(AgentsTable, {
+        props: {
+          workspace: { id: 1, name: 'Workspace', _: { roles: [] } },
+        },
+        global: {
+          mocks: {
+            $hasPermission: (operation) => permissions.includes(operation),
+          },
+          stubs: {
+            CrudTable: {
+              name: 'CrudTable',
+              props: ['columns'],
+              data: () => ({ agent }),
+              template: `
+                <div>
+                  <slot name="empty" />
+                  <slot name="header-right-side" />
+                  <span class="column-count">{{ columns.length }}</span>
+                  <button class="open-row" @click="$emit('row-context', { row: agent, target: $el })">Open row</button>
+                  <slot name="menus" />
+                </div>
+              `,
+              methods: { refresh() {} },
+            },
+            Context: {
+              template: '<div><slot /></div>',
+              methods: { show() {}, hide() {} },
+            },
+            ManageAgentModal: {
+              name: 'ManageAgentModal',
+              props: ['agent'],
+              template:
+                '<div class="agent-modal">{{ agent ? "update" : "create" }}</div>',
+              methods: { show() {} },
+            },
+          },
+        },
+      })
+
+      expect(
+        wrapper
+          .findAll('button')
+          .filter((button) => button.text() === 'agents.create')
+      ).toHaveLength(createButtonCount)
+      expect(wrapper.find('.column-count').text()).toBe(String(columnCount))
+
+      await wrapper.find('.open-row').trigger('click')
+      await flushPromises()
+      expect(wrapper.text().includes('agents.edit')).toBe(showsEdit)
+      expect(wrapper.text().includes('agents.delete')).toBe(showsDelete)
+      expect(
+        wrapper
+          .findAll('.agent-modal')
+          .some((modal) => modal.text() === 'update')
+      ).toBe(showsEdit)
+    }
+  )
 })
