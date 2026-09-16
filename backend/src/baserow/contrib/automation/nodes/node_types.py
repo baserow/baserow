@@ -1,6 +1,5 @@
 from typing import Any, Callable, Dict, Iterable, Optional
 
-from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import router
 from django.db.models import Q
@@ -773,13 +772,14 @@ class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
     service_type = CoreInboundEmailTriggerServiceType.type
 
     def is_deactivated(self, workspace) -> bool:
-        # The trigger needs an inbound email domain and a webhook secret set on
-        # the instance: without them no address can be generated and the webhook
-        # endpoint rejects every delivery. It is therefore deactivated
-        # instance-wide (the workspace is irrelevant) until both are configured.
-        return not (
-            settings.INBOUND_EMAIL_DOMAIN and settings.INBOUND_EMAIL_WEBHOOK_SECRET
+        # Instance-wide (the workspace is irrelevant): the trigger is withheld
+        # until the domain, the webhook secret and the receiver URL are all
+        # configured. See `is_inbound_email_configured` for why each matters.
+        from baserow.contrib.integrations.core.inbound_email import (
+            is_inbound_email_configured,
         )
+
+        return not is_inbound_email_configured()
 
 
 class CoreManualTriggerNodeType(AutomationNodeTriggerType):

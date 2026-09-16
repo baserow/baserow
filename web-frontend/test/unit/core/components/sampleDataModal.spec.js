@@ -79,7 +79,12 @@ describe('SampleDataModal', () => {
 
     const iframe = wrapper.find('iframe.sample-data-modal__html-preview')
     expect(iframe.exists()).toBe(true)
-    expect(iframe.attributes('srcdoc')).toBe('<p>An email body</p>')
+    // The document is prefixed with a policy that blocks remote loads, so a
+    // tracking pixel cannot report the preview.
+    expect(iframe.attributes('srcdoc')).toMatch(
+      /^<meta http-equiv="Content-Security-Policy" content="default-src 'none'; /
+    )
+    expect(iframe.attributes('srcdoc')).toContain('<p>An email body</p>')
     expect(iframe.attributes('sandbox')).toBe('')
   })
 

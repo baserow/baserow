@@ -41,7 +41,7 @@
           v-if="sampleDataHtml"
           class="sample-data-modal__html-preview"
           sandbox=""
-          :srcdoc="sampleDataHtml"
+          :srcdoc="sandboxedSampleDataHtml"
           :title="title"
         ></iframe>
         <div v-else class="sample-data-modal__notice">
@@ -60,6 +60,13 @@ import modal from '@baserow/modules/core/mixins/modal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const MAX_FORMATTED_SAMPLE_DATA_LENGTH = 10000
+
+// Prepended to the HTML preview. The iframe's empty sandbox already blocks
+// scripts, forms and navigation; this policy additionally stops the document
+// from loading anything remote, so a tracking pixel in a received email cannot
+// report when, and from which address, the sample was previewed.
+const SAMPLE_DATA_HTML_CSP =
+  '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data:; style-src \'unsafe-inline\'; font-src data:">'
 
 export default {
   name: 'SampleDataModal',
@@ -105,6 +112,11 @@ export default {
   computed: {
     hasHtmlTab() {
       return this.contentType === 'html'
+    },
+    sandboxedSampleDataHtml() {
+      return this.sampleDataHtml
+        ? `${SAMPLE_DATA_HTML_CSP}${this.sampleDataHtml}`
+        : null
     },
     maxFormattedSampleDataLength() {
       return MAX_FORMATTED_SAMPLE_DATA_LENGTH

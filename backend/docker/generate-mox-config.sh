@@ -33,6 +33,23 @@ MOX_USER="${BASEROW_INBOUND_EMAIL_MOX_USER:-9999}"
 # The largest raw message (attachments included) mox accepts. Larger messages
 # are refused during SMTP delivery and bounce back to the sender.
 MAX_MESSAGE_SIZE_MB="${BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:-25}"
+# Plain-HTTP web API (never published) through which the backend's periodic
+# sweep deletes messages it has already received, since mox has no retention
+# setting of its own. It gets its own listener so its bind address can differ
+# from the SMTP one: 0.0.0.0 lets the backend container reach it over the
+# Compose network, while the all-in-one image binds it to 127.0.0.1 because
+# the backend runs in the same container. The backend authenticates as this
+# explicit address with BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD, which defaults
+# to the webhook secret (the entrypoint applies it after mox starts); the
+# localpart must match INBOUND_EMAIL_WEBAPI_LOCALPART in
+# inbound_email_receiver.py.
+WEBAPI_PORT="${BASEROW_INBOUND_EMAIL_WEBAPI_PORT:-8880}"
+WEBAPI_BIND_IP="${BASEROW_INBOUND_EMAIL_WEBAPI_BIND_IP:-0.0.0.0}"
+WEBAPI_LOCALPART="webapi"
+WEBAPI_PASSWORD="${BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD:-$WEBHOOK_SECRET}"
+if [ "${#WEBAPI_PASSWORD}" -lt 8 ]; then
+  echo "WARNING: the web API password (BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD, or BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET when unset) is shorter than 8 characters; mox will refuse it and received messages will not be deleted from the receiver." >&2
+fi
 if ! [[ "$MAX_MESSAGE_SIZE_MB" =~ ^[0-9]+$ ]] || [[ "$MAX_MESSAGE_SIZE_MB" -eq 0 ]]; then
   echo "BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB must be a positive whole number of MB, got: $MAX_MESSAGE_SIZE_MB" >&2
   exit 1
@@ -123,6 +140,12 @@ Listeners:
 		SMTP:
 			Enabled: true
 			Port: $SMTP_PORT
+	webapi:
+		IPs:
+			- $WEBAPI_BIND_IP
+		WebAPIHTTP:
+			Enabled: true
+			Port: $WEBAPI_PORT
 Postmaster:
 	Account: inbound
 	Mailbox: Inbox
@@ -140,10 +163,15 @@ Accounts:
 		KeepRetiredWebhookPeriod: 72h0m0s
 		Domain:
 		Destinations:
+			$WEBAPI_LOCALPART@$DOMAIN: nil
 			@$DOMAIN: nil
 		RejectsMailbox: Rejects
 		NoFirstTimeSenderDelay: true
 EOF
+
+# domains.conf carries the webhook secret: keep both files out of reach of
+# other users in the container.
+chmod 0640 "$CONFIG_DIR/mox.conf" "$CONFIG_DIR/domains.conf"
 
 # The unprivileged mox process must be able to write its message store and
 # webhook retry queue.

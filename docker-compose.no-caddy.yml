@@ -15,7 +15,8 @@
 #      to the URL the user's browser can access the files on.
 #   4. Ensure requests sent to the backend in /ws path are upgraded to websocket
 #      connections.
-#   5. (Optional) To use the "Start workflow by email" automation trigger, set
+#   5. (Optional) To use the "Start workflow by email" automation trigger, enable
+#      the "inbound-email" profile (COMPOSE_PROFILES=inbound-email) and set
 #      BASEROW_INBOUND_EMAIL_DOMAIN, BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET and
 #      BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP=0.0.0.0 so the email-receiver's SMTP
 #      port is reachable by sending mail servers. See the email-receiver service.
@@ -184,6 +185,9 @@ x-backend-variables:
   BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
   BASEROW_INBOUND_EMAIL_DOMAIN:
   BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:
+  BASEROW_INBOUND_EMAIL_RECEIVER_URL: ${BASEROW_INBOUND_EMAIL_RECEIVER_URL:-http://email-receiver:8880}
+  BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD:
+  BASEROW_INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES:
   BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:
   BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS:
   BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE:
@@ -320,7 +324,6 @@ services:
       BASEROW_FORMULA_RANGE_MAX_ITEMS:
       BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT:
       BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
-      BASEROW_INBOUND_EMAIL_DOMAIN:
       BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
@@ -402,9 +405,13 @@ services:
       local:
 
   # Receives inbound email for the "Start workflow by email" automation trigger
-  # and forwards it to the backend. It stays idle until both
-  # BASEROW_INBOUND_EMAIL_DOMAIN and BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET are
-  # set. Runs as root because mox binds its sockets as root and then drops
+  # and forwards it to the backend. Opt-in through the "inbound-email" Compose
+  # profile (COMPOSE_PROFILES=inbound-email): Compose cannot publish a port
+  # conditionally, so without the profile the SMTP port below would be bound on
+  # the host of every installation, including the ones that never use the
+  # trigger. Also set BASEROW_INBOUND_EMAIL_DOMAIN and
+  # BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET; the service idles until both are
+  # present. Runs as root because mox binds its sockets as root and then drops
   # privileges itself.
   #
   # Like the other services in this file, the SMTP port is only published on the
@@ -413,7 +420,8 @@ services:
   # BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP=0.0.0.0 to publish only this port on all
   # interfaces without also exposing the backend and web-frontend ports.
   email-receiver:
-    image: baserow/backend:2.3.3
+    image: baserow/backend:2.3.4
+    profiles: ["inbound-email"]
     restart: unless-stopped
     user: root
     command: email-receiver
@@ -435,6 +443,9 @@ services:
       BASEROW_INBOUND_EMAIL_TLS_CERT_FILE:
       BASEROW_INBOUND_EMAIL_TLS_KEY_FILE:
       BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:
+      BASEROW_INBOUND_EMAIL_WEBAPI_PORT:
+      BASEROW_INBOUND_EMAIL_WEBAPI_BIND_IP:
+      BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD:
       PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
       BASEROW_DEPLOYMENT_ENV:
       OTEL_RESOURCE_ATTRIBUTES:

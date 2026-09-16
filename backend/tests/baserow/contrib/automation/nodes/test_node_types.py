@@ -808,18 +808,36 @@ def test_automation_node_type_has_display_name(node_type):
     )
 
 
-@override_settings(INBOUND_EMAIL_DOMAIN="", INBOUND_EMAIL_WEBHOOK_SECRET="")
-def test_inbound_email_trigger_deactivated_when_unconfigured():
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "INBOUND_EMAIL_DOMAIN",
+        "INBOUND_EMAIL_WEBHOOK_SECRET",
+        "INBOUND_EMAIL_RECEIVER_URL",
+    ],
+)
+def test_inbound_email_trigger_deactivated_when_any_setting_is_missing(missing):
     from baserow.contrib.automation.nodes.registries import (
         automation_node_type_registry,
     )
 
+    values = {
+        "INBOUND_EMAIL_DOMAIN": "inbound.example.com",
+        "INBOUND_EMAIL_WEBHOOK_SECRET": "s",
+        # Without the receiver URL the sweep cannot delete handed-over messages
+        # and the mail server's disk would grow forever, so the trigger stays off.
+        "INBOUND_EMAIL_RECEIVER_URL": "http://email-receiver:8880",
+        missing: "",
+    }
     node_type = automation_node_type_registry.get("email_trigger")
-    assert node_type.is_deactivated(None) is True
+    with override_settings(**values):
+        assert node_type.is_deactivated(None) is True
 
 
 @override_settings(
-    INBOUND_EMAIL_DOMAIN="inbound.example.com", INBOUND_EMAIL_WEBHOOK_SECRET="s"
+    INBOUND_EMAIL_DOMAIN="inbound.example.com",
+    INBOUND_EMAIL_WEBHOOK_SECRET="s",
+    INBOUND_EMAIL_RECEIVER_URL="http://email-receiver:8880",
 )
 def test_inbound_email_trigger_active_when_configured():
     from baserow.contrib.automation.nodes.registries import (

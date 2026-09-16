@@ -63,7 +63,6 @@ export default defineNuxtModule({
         disableAnonymousPublicViewWsConnections: '',
         baserowMaxImportFileSizeMb: 512,
         featureFlags: '',
-        baserowInboundEmailDomain: '',
         baserowPresenceVisibleUsers: '3',
         baserowDisableGoogleDocsFilePreview: '',
         baserowMaxSnapshotsPerGroup: -1,

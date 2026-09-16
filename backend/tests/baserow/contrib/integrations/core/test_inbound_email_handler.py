@@ -210,6 +210,7 @@ def test_to_payload_exposes_recipient_tag():
     assert payload["recipient_tag"] == ""
 
 
+@pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_discards_automated_email():
     payload = make_mox_payload(ADDRESS)
@@ -222,6 +223,7 @@ def test_handle_webhook_payload_discards_automated_email():
     mocked.assert_not_called()
 
 
+@pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN="")
 def test_handle_webhook_payload_discards_when_domain_not_configured():
     handler = InboundEmailHandler()
@@ -231,6 +233,7 @@ def test_handle_webhook_payload_discards_when_domain_not_configured():
     )
 
 
+@pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_discards_when_no_token_matches():
     handler = InboundEmailHandler()
@@ -324,6 +327,7 @@ def _inbound_email_log(messages):
     return record
 
 
+@pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_logs_automated_discard(inbound_email_logs):
     payload = make_mox_payload(ADDRESS)
@@ -336,6 +340,7 @@ def test_handle_webhook_payload_logs_automated_discard(inbound_email_logs):
     assert "token=-" in record
 
 
+@pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_logs_no_matching_recipient(inbound_email_logs):
     InboundEmailHandler().handle_webhook_payload(
@@ -346,6 +351,7 @@ def test_handle_webhook_payload_logs_no_matching_recipient(inbound_email_logs):
     assert "discarded: no recipient matches a trigger address" in record
 
 
+@pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN="")
 def test_handle_webhook_payload_logs_domain_not_configured(inbound_email_logs):
     InboundEmailHandler().handle_webhook_payload(make_mox_payload(ADDRESS))
@@ -466,6 +472,7 @@ def test_dedupe_cache_key_differs_between_test_and_published_targets():
     assert TOKEN in published_key and f"test-{TOKEN}" in test_key
 
 
+@pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_passes_simulate_to_the_service_type():
     from baserow.core.services.registries import service_type_registry

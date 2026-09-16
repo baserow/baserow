@@ -609,7 +609,7 @@ dc-dev *ARGS:
             mkdir -p web-frontend/node_modules
         fi
 
-        # Enable the "mox" profile (inbound email receiver) automatically once
+        # Enable the "inbound-email" profile (mox receiver) automatically once
         # .env.docker-dev configures the trigger, so no COMPOSE_PROFILES edit is
         # needed. Read from the file on purpose: the native `just dev` flow
         # starts its own receiver via `just mox up -d`.
@@ -617,8 +617,8 @@ dc-dev *ARGS:
         if [[ -n "$(_env_value BASEROW_INBOUND_EMAIL_DOMAIN)" && -n "$(_env_value BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET)" ]]; then
             PROFILES="${COMPOSE_PROFILES:-$(_env_value COMPOSE_PROFILES)}"
             case ",${PROFILES}," in
-                *,mox,*) ;;
-                *) PROFILES="${PROFILES:+${PROFILES},}mox" ;;
+                *,inbound-email,*) ;;
+                *) PROFILES="${PROFILES:+${PROFILES},}inbound-email" ;;
             esac
             export COMPOSE_PROFILES="$PROFILES"
         fi

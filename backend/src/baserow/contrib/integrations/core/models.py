@@ -427,3 +427,26 @@ class CoreInboundEmailTriggerService(Service):
         """
 
         return settings.INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB
+
+
+class CoreInboundEmailReceiverState(models.Model):
+    """
+    Tracks which messages the bundled inbound mail server (mox) still holds.
+    Mox keeps every accepted message on disk, has no retention setting and no
+    way to list messages, but its message ids are sequential per account and
+    every accepted message reaches the inbound email webhook. The highest id
+    seen there is therefore a high-water mark, and the periodic sweep deletes
+    everything between the last swept id and that mark through the receiver's
+    web API. There is a single row per instance.
+    """
+
+    last_seen_message_id = models.BigIntegerField(
+        default=0,
+        help_text="The highest receiver-side message id that reached the webhook.",
+    )
+    last_deleted_message_id = models.BigIntegerField(
+        default=0,
+        help_text="Every message up to and including this id has been deleted "
+        "from the receiver.",
+    )
+    updated_on = models.DateTimeField(auto_now=True)

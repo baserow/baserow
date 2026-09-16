@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from django.db import DEFAULT_DB_ALIAS
 from django.shortcuts import reverse
+from django.test import override_settings
 
 import pytest
 from rest_framework.status import (
@@ -42,6 +43,49 @@ def test_get_settings(api_client):
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["email_verification"] == "no_verification"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "domain,secret,receiver_url,expected",
+    [
+        ("inbound.example.com", "s", "http://email-receiver:8880", True),
+        ("", "s", "http://email-receiver:8880", False),
+        ("inbound.example.com", "", "http://email-receiver:8880", False),
+        ("inbound.example.com", "s", "", False),
+    ],
+)
+def test_get_settings_reports_whether_inbound_email_is_enabled(
+    api_client, domain, secret, receiver_url, expected
+):
+    # The frontend hides the email trigger unless this is true; it mirrors the
+    # backend's own gate, so an instance with the domain and secret but no
+    # receiver URL (and therefore no message sweep) does not offer the trigger.
+    with override_settings(
+        INBOUND_EMAIL_DOMAIN=domain,
+        INBOUND_EMAIL_WEBHOOK_SECRET=secret,
+        INBOUND_EMAIL_RECEIVER_URL=receiver_url,
+    ):
+        response = api_client.get(reverse("api:settings:get"))
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["inbound_email_enabled"] is expected
+
+
+@pytest.mark.django_db
+def test_inbound_email_enabled_cannot_be_updated(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+
+    response = api_client.patch(
+        reverse("api:settings:update"),
+        {"inbound_email_enabled": True, "allow_new_signups": False},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["allow_new_signups"] is False
+    assert response.json()["inbound_email_enabled"] is False
 
 
 @pytest.mark.django_db

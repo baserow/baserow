@@ -9,6 +9,11 @@ class SettingsSerializer(serializers.ModelSerializer):
         required=False,
         help_text="Co-branding logo that's placed next to the Baserow logo (176x29).",
     )
+    inbound_email_enabled = serializers.SerializerMethodField(
+        help_text="Whether this instance is configured to receive inbound email "
+        "for the automation email trigger. Derived from the instance's environment "
+        "and read-only.",
+    )
 
     class Meta:
         model = Settings
@@ -25,6 +30,7 @@ class SettingsSerializer(serializers.ModelSerializer):
             "email_verification",
             "verify_import_signature",
             "allow_reporting_abuse",
+            "inbound_email_enabled",
         )
         extra_kwargs = {
             "allow_new_signups": {"required": False},
@@ -38,6 +44,13 @@ class SettingsSerializer(serializers.ModelSerializer):
             "verify_import_signature": {"required": False},
             "allow_reporting_abuse": {"required": False},
         }
+
+    def get_inbound_email_enabled(self, instance) -> bool:
+        from baserow.contrib.integrations.core.inbound_email import (
+            is_inbound_email_configured,
+        )
+
+        return is_inbound_email_configured()
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
