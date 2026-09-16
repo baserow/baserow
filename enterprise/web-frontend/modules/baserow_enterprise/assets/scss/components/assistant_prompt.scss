@@ -41,7 +41,6 @@
   @include rounded($rounded-md);
   @include elevation($elevation-low);
 
-  // Darkens while someone is typing in it.
   &:focus-within {
     border-color: $palette-neutral-500;
   }

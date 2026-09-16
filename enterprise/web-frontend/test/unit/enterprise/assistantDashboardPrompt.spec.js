@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, test, vi } from 'vitest'
 
@@ -12,6 +13,7 @@ async function mount({
   emit = vi.fn(),
 } = {}) {
   const wrapper = await mountSuspended(AssistantDashboardPrompt, {
+    attachTo: document.body,
     props: { workspace: value },
     global: {
       mocks: {
@@ -60,6 +62,27 @@ describe('AssistantDashboardPrompt', () => {
     expect(emit).toHaveBeenCalledWith('toggle-right-sidebar', true)
     // The box is left empty, so returning to it doesn't resend the same thing.
     expect(wrapper.find('input').element.value).toBe('')
+  })
+
+  test('enter hands over without leaving the focus or a newline behind', async () => {
+    const { wrapper, dispatch } = await mount()
+    const input = wrapper.find('input')
+    await input.setValue('Create an asset tracker')
+    input.element.focus()
+
+    // A real event, so the default action can be checked: the panel takes the
+    // focus straight after, and the key press would otherwise land there.
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    })
+    input.element.dispatchEvent(event)
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledOnce()
+    expect(event.defaultPrevented).toBe(true)
+    expect(document.activeElement).not.toBe(input.element)
   })
 
   test('does nothing while the box is empty', async () => {

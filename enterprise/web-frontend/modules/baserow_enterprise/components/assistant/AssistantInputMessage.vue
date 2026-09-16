@@ -92,8 +92,11 @@ export default {
       this.$nextTick(() => {
         this.calculateLineHeight()
         this.adjustHeight()
-        this.$refs.textarea.focus()
+        this.focus()
       })
+    },
+    focus() {
+      this.$refs.textarea.focus()
     },
     handleEnter(event) {
       // If shift key is pressed, allow the default behavior (new line)

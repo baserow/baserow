@@ -635,9 +635,6 @@
     "noWorkspace": "No workspace",
     "noWorkspaceDescription": "Get started by creating a new workspace"
   },
-  "templateCard": {
-    "viewMore": "View more"
-  },
   "login": {
     "title": "Welcome back",
     "emailPlaceholder": "Enter your email address..",
