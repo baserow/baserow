@@ -21,6 +21,9 @@ class WorkflowCreationPlan:
     conflicting_names: list[str]
 
 
+RUN_CREATED_WORKFLOWS = "run_created_workflows"
+
+
 def _canonical_workflow_requests(
     requested: Sequence[WorkflowCreate],
 ) -> tuple[list[WorkflowCreate], list[str]]:
@@ -142,7 +145,9 @@ def _incomplete_reused_workflows(
 
 
 def reused_workflow_report(
-    requested: Sequence[WorkflowCreate], actual: Sequence[dict[str, Any]]
+    requested: Sequence[WorkflowCreate],
+    actual: Sequence[dict[str, Any]],
+    run_created: dict[int, WorkflowCreate] | None = None,
 ) -> dict[str, Any]:
     """
     Build follow-up guidance for reused workflows.
@@ -150,6 +155,8 @@ def reused_workflow_report(
     :param requested: The requested workflow definitions.
     :param actual: The reused workflows as described by
         describe_reused_workflows.
+    :param run_created: Workflows this run created, by id, with the request
+        that created them.
     :return: Incomplete workflows and next_steps keys, or an empty dict when
         nothing was reused.
     """
@@ -159,6 +166,14 @@ def reused_workflow_report(
 
     requested_by_name = {workflow.name: workflow for workflow in requested}
     incomplete = _incomplete_reused_workflows(requested_by_name, actual)
+    created_this_run = run_created or {}
+    # Re-asking for what this run already built is answered, not unverifiable.
+    unverified = [
+        workflow
+        for workflow in actual
+        if workflow["id"] not in created_this_run
+        or created_this_run[workflow["id"]] != requested_by_name.get(workflow["name"])
+    ]
 
     report: dict[str, Any] = {}
     if incomplete:
@@ -172,6 +187,11 @@ def reused_workflow_report(
         )
     else:
         structure_steps = ""
+
+    if not unverified:
+        if structure_steps:
+            report["next_steps"] = structure_steps.strip()
+        return report
 
     report["next_steps"] = structure_steps + (
         "Node labels and types alone do not verify trigger or action "
