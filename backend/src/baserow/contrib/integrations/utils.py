@@ -55,6 +55,12 @@ def read_response_within_limit(
         way as any other timeout.
     """
 
+    # Already read under the same limits by the redirect hook in
+    # `send_http_request`, when a redirect ends up being the final response.
+    # Reading again would find the socket empty and overwrite that body.
+    if response._content_consumed and isinstance(response._content, bytes):
+        return
+
     # Read whatever the ceiling is set to. Returning early with the ceiling
     # off would leave the body unread under `stream=True`, so `response.json()`
     # would pull it in later, outside the block that maps a truncated or

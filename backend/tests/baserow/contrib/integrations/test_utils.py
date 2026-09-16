@@ -297,6 +297,36 @@ def test_a_redirect_is_followed_the_way_requests_follows_it(settings):
     assert seen == [("POST", "/start"), ("GET", "/done")]
 
 
+def test_a_redirect_with_no_location_to_follow_keeps_its_body(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    route = answer(b'{"moved": true}', headers={"Location": ""}, status=302)
+    with local_server({"/": route}) as (base, _):
+        deadline = time.monotonic() + 5
+        response = send_http_request("GET", base + "/", deadline=deadline)
+        read_response_within_limit(response, 5, deadline=deadline)
+
+    assert response.status_code == 302
+    assert response.json() == {"moved": True}
+
+
+def test_a_redirect_that_is_not_followed_keeps_its_body(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    routes = {
+        "/start": answer(b'{"moved": true}', headers={"Location": "/done"}, status=302),
+        "/done": answer(),
+    }
+    with local_server(routes) as (base, seen):
+        deadline = time.monotonic() + 5
+        response = send_http_request(
+            "GET", base + "/start", deadline=deadline, allow_redirects=False
+        )
+        read_response_within_limit(response, 5, deadline=deadline)
+
+    assert response.status_code == 302
+    assert response.json() == {"moved": True}
+    assert seen == [("GET", "/start")]
+
+
 def test_every_hop_is_checked_against_the_address_rules(settings):
     """
     The first address is allowed and the one it redirects to is not. Only the
