@@ -12,15 +12,23 @@ class KeepLockSingleton(Singleton):
     """
     Keeps the lock for the whole update interval after a real write, because the
     database floor makes every run inside that interval a no-op that would still
-    cost a task, two queries and a row lock. A run that wrote nothing releases it,
-    otherwise a delayed worker or an item that could not be resolved would silence
-    the user's next view for a whole interval. Eager runs (tests) share one Redis
-    across workers, so they release as before.
+    cost a task, two queries and a row lock. The lock was taken when the task was
+    enqueued, so its lifetime is re-armed from the moment of the write; otherwise
+    a delay in the queue would let it expire before the floor does. A run that
+    wrote nothing releases it, otherwise an item that could not be resolved would
+    silence the user's next view for a whole interval. Eager runs (tests) share
+    one Redis across workers, so they release as before.
     """
 
     def on_success(self, retval, task_id, args, kwargs):
         if self.request.is_eager or not retval:
             self.release_lock(task_args=args, task_kwargs=kwargs)
+            return
+        self.singleton_backend.extend_lock_if(
+            self.generate_lock(self.name, args, kwargs),
+            task_id,
+            settings.BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS,
+        )
 
 
 # No `autoretry_for` here: a retry re-enters `Singleton.apply_async` while this task
@@ -33,10 +41,8 @@ class KeepLockSingleton(Singleton):
     # Nothing reads the return value; storing it would leave a result key per run
     # and a result subscription in the web worker that published it.
     ignore_result=True,
-    # Strictly longer than the database floor, otherwise the run right after the
-    # expiry can be a no-op because the previous write happened `countdown` seconds
-    # after its lock was taken. Also bounds how long a crashed worker keeps the
-    # (user, item) locked.
+    # Bounds how long a crashed worker keeps the (user, item) locked; a completed
+    # write re-arms the lock for the floor itself.
     lock_expiry=(
         settings.BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS
         + settings.BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS
