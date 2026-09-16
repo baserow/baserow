@@ -71,6 +71,13 @@ def read_response_within_limit(
         deadline = time.monotonic() + timeout
 
     content = bytearray()
+    # Set by `send_http_request` once its watchdog has hung up the request.
+    hung_up = getattr(response, "_deadline_hung_up", None)
+
+    def timed_out():
+        return (hung_up is not None and hung_up.is_set()) or (
+            time.monotonic() > deadline
+        )
 
     try:
         while True:
@@ -86,9 +93,8 @@ def read_response_within_limit(
             except ProtocolError as e:
                 # The deadline watchdog hanging up the socket can surface here
                 # as a broken connection rather than as `read1` simply
-                # returning nothing, so it is answered the same way once past
-                # the deadline.
-                if time.monotonic() > deadline:
+                # returning nothing, so it is answered the same way.
+                if timed_out():
                     raise request_exceptions.Timeout(e) from e
                 raise request_exceptions.ConnectionError(e) from e
             except SSLError as e:
@@ -96,10 +102,14 @@ def read_response_within_limit(
                 # `ProtocolError`, not `ProtocolError` itself, so a broken TLS
                 # record is not caught by the branch above; the deadline can
                 # still be why the connection failed.
-                if time.monotonic() > deadline:
+                if timed_out():
                     raise request_exceptions.Timeout(e) from e
                 raise request_exceptions.SSLError(e) from e
             except DecodeError as e:
+                # A compressed body cut off by the watchdog is incomplete, and
+                # the decoder says so when `read1` reaches the end of it.
+                if timed_out():
+                    raise request_exceptions.Timeout(e) from e
                 raise request_exceptions.ContentDecodingError(e) from e
             if not chunk:
                 break
@@ -117,7 +127,7 @@ def read_response_within_limit(
         # shut-down connection makes `read1` return an empty chunk, which
         # looks the same here as a body that finished normally, so a body cut
         # short past the deadline is still caught.
-        if time.monotonic() > deadline:
+        if timed_out():
             raise request_exceptions.Timeout(
                 "The response body did not arrive in time."
             )
@@ -192,22 +202,32 @@ class _DeadlineAdvocateSession(_DeadlineMixin, advocate.Session):
 def _tracked_connection_class(connection_cls, opened, hung_up):
     """
     A connection class that behaves like `connection_cls`, except once
-    `connect()` has set up the final socket it also registers the connection
-    with the deadline watchdog. If the watchdog already fired while this
-    connection was still being made, its socket is shut down immediately
-    instead of waiting for the watchdog to find it later.
+    `connect()` has set up the final socket it also hands the deadline watchdog
+    a duplicate of it. If the watchdog already fired while this connection was
+    still being made, the socket is shut down immediately instead of waiting
+    for the watchdog to find it later.
     """
 
     class _TrackedConnection(connection_cls):
         def connect(self):
             super().connect()
+            # A duplicate rather than the connection: http.client lets go of
+            # the connection's socket as soon as it sees an answer that is
+            # read until the server closes it, and hands it to the response.
+            # Shutting the duplicate down cuts the same TCP connection off
+            # whoever holds the socket. It is a plain `socket.socket` even
+            # under TLS, so it leaves the `SSLSocket` a read may be blocked on
+            # in another thread alone.
+            watched = socket.fromfd(
+                self.sock.fileno(), self.sock.family, self.sock.type
+            )
             # Record before checking: `hang_up` below sets `hung_up` before
             # it iterates `opened`, so whichever of the two runs second is
             # the one that actually shuts this socket down.
-            opened.append(self)
+            opened.append(watched)
             if hung_up.is_set():
                 try:
-                    socket.socket.shutdown(self.sock, socket.SHUT_RDWR)
+                    watched.shutdown(socket.SHUT_RDWR)
                 except OSError:
                     pass
 
@@ -265,6 +285,7 @@ def send_http_request(
         # deadline and no size ceiling. Hooks run first, so reading it here
         # puts it under both.
         if response.is_redirect:
+            response._deadline_hung_up = hung_up
             read_response_within_limit(response, 0, deadline=deadline)
 
     # Closed on return, the same as `requests.request` does: that only drops
@@ -299,18 +320,16 @@ def send_http_request(
             # the two runs second is the one that actually shuts a given
             # connection's socket down.
             hung_up.set()
-            for conn in list(opened):
-                sock = getattr(conn, "sock", None)
-                if sock is None:
-                    continue
+            for watched in list(opened):
                 try:
-                    # The base `socket.socket.shutdown`, not `sock.shutdown`:
-                    # `ssl.SSLSocket` overrides it and tears down `_sslobj`,
-                    # which would break a read blocked on this same socket in
-                    # another thread.
-                    socket.socket.shutdown(sock, socket.SHUT_RDWR)
+                    watched.shutdown(socket.SHUT_RDWR)
                 except OSError:
                     pass
+
+        def stop_watching():
+            timer.cancel()
+            for watched in opened:
+                watched.close()
 
         timer = threading.Timer(max(deadline - time.monotonic(), 0), hang_up)
         timer.daemon = True
@@ -326,7 +345,7 @@ def send_http_request(
                 **kwargs,
             )
         except Exception:
-            timer.cancel()
+            stop_watching()
             raise
 
         # `read_response_within_limit` closes the response in its `finally`.
@@ -336,8 +355,9 @@ def send_http_request(
         original_close = response.close
 
         def close_and_cancel_watchdog():
-            timer.cancel()
+            stop_watching()
             original_close()
 
         response.close = close_and_cancel_watchdog
+        response._deadline_hung_up = hung_up
         return response

@@ -1,6 +1,7 @@
 import gzip
 import ipaddress
 import json
+import secrets
 import threading
 import time
 from contextlib import contextmanager
@@ -12,6 +13,11 @@ import requests
 import urllib3.util.connection
 from requests import exceptions as request_exceptions
 from urllib3.exceptions import SSLError
+
+try:
+    from compression import zstd
+except ImportError:
+    zstd = None
 
 import advocate
 from advocate import AddrValidator
@@ -138,6 +144,30 @@ def chunked(parts):
     return handle
 
 
+def compressed_trickle(encoding, compress):
+    """
+    A compressed body with no length, so the client reads until the connection
+    closes, sent a byte every 0.1 seconds and taking well over 10 seconds.
+    """
+
+    body = compress(json.dumps({"title": secrets.token_hex(1024)}).encode())
+
+    def handle(handler):
+        handler.send_response(200)
+        handler.send_header("Content-Encoding", encoding)
+        handler.send_header("Connection", "close")
+        handler.end_headers()
+        try:
+            for byte in body:
+                handler.wfile.write(bytes([byte]))
+                handler.wfile.flush()
+                time.sleep(0.1)
+        except OSError:
+            pass
+
+    return handle
+
+
 def header_trickle(length=40, delay=0.2):
     """
     A status line straight to the socket, then one header byte every `delay`
@@ -201,6 +231,33 @@ def test_a_compressed_body_is_read_decoded(settings):
     assert response.json() == {"title": "x" * 5000}
 
 
+@pytest.mark.parametrize(
+    "encoding,compress",
+    [
+        ("gzip", gzip.compress),
+        pytest.param(
+            "zstd",
+            zstd.compress if zstd else None,
+            marks=pytest.mark.skipif(zstd is None, reason="no zstd support"),
+        ),
+    ],
+)
+def test_a_compressed_body_cut_off_at_the_deadline_is_a_timeout(
+    settings, encoding, compress
+):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
+    with local_server({"/": compressed_trickle(encoding, compress)}) as (base, _):
+        started = time.monotonic()
+        deadline = started + 1
+        with pytest.raises(request_exceptions.Timeout):
+            response = send_http_request("GET", base + "/", deadline=deadline)
+            read_response_within_limit(response, 1, deadline=deadline)
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 5
+
+
 def test_a_chunked_body_is_read_whole(settings):
     settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
     with local_server({"/": chunked([b'{"a": ', b"1}"])}) as (base, _):
@@ -217,7 +274,8 @@ def test_a_broken_tls_read_is_reported_as_an_ssl_error():
     escape as an unmapped urllib3 error.
     """
 
-    response = Mock()
+    response = requests.Response()
+    response.raw = Mock()
     response.raw.read1.side_effect = SSLError("bad record mac")
 
     with pytest.raises(request_exceptions.SSLError):
@@ -225,7 +283,8 @@ def test_a_broken_tls_read_is_reported_as_an_ssl_error():
 
 
 def test_a_broken_tls_read_past_the_deadline_is_reported_as_a_timeout():
-    response = Mock()
+    response = requests.Response()
+    response.raw = Mock()
     response.raw.read1.side_effect = SSLError("bad record mac")
 
     with pytest.raises(request_exceptions.Timeout):
