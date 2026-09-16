@@ -547,6 +547,130 @@ def test_grouped_aggregate_rows_service_dispatch_adds_synthetic_row_id(data_fixt
     assert result[0]["id"] == "B"
 
 
+def test_grouped_readable_ids_disambiguate_duplicate_and_suffix_labels():
+    """Duplicate labels get readable suffixes which cannot overwrite real labels."""
+
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    rows = [
+        {"id": name} for name in ["Sales", "Sales", "Sales (1)", "-", "-", "- (1)", "0"]
+    ]
+    service_type._set_unique_record_ids(rows)
+    assert [row["id"] for row in rows] == [
+        "Sales (2)",
+        "Sales (3)",
+        "Sales (1)",
+        "- (2)",
+        "- (3)",
+        "- (1)",
+        "0",
+    ]
+
+
+def test_grouped_record_names_do_not_dispatch(mocker):
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+    dispatch = mocker.patch.object(service_type, "dispatch_data")
+    names = ["Sales (2)", "-", "OTHER_VALUES (2)"]
+    assert service_type.get_record_names(Mock(), names, FakeDispatchContext()) == {
+        name: name for name in names
+    }
+    dispatch.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("row_grouping", [False, True])
+def test_grouped_readable_ids_select_one_group(data_fixture, row_grouping):
+    """Empty and duplicate labels each select exactly one returned group."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    category = data_fixture.create_text_field(
+        table=table, name="Category", primary=True
+    )
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        table=table,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=amount, aggregation_type="sum", order=0
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None if row_grouping else category, order=0
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {category.db_column: name, amount.db_column: index}
+            for index, name in enumerate(
+                ["Sales", "Sales", "Sales (1)", "", "-", "0"], start=1
+            )
+        ],
+    )
+    service_type = service.get_type()
+    rows = service_type.dispatch_data(service, {}, FakeDispatchContext())["data"][
+        "results"
+    ]
+    assert any(row["Category"] == "" for row in rows)
+    assert all(row["id"] for row in rows)
+    assert len(rows) == (6 if row_grouping else 5)
+    assert len({row["id"] for row in rows}) == len(rows)
+    assert "0" in {row["id"] for row in rows}
+    for row in rows:
+        selected = service_type.dispatch_data(
+            service, {}, FakeDispatchContext(only_record_id=row["id"])
+        )["data"]["results"]
+        assert selected == [row]
+
+
+@pytest.mark.django_db
+def test_grouped_readable_ids_distinguish_overflow(data_fixture, settings):
+    """The overflow label cannot collide with a real OTHER_VALUES group."""
+
+    settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS = 3
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    category = data_fixture.create_text_field(table=table, name="Category")
+    amount = data_fixture.create_number_field(table=table, name="Amount")
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        table=table,
+        integration=data_fixture.create_local_baserow_integration(user=user),
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=amount, aggregation_type="sum", order=0
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=category, order=0
+    )
+    LocalBaserowTableServiceAggregationSortBy.objects.create(
+        service=service,
+        sort_on="GROUP_BY",
+        reference=category.db_column,
+        direction="ASC",
+        order=0,
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {category.db_column: name, amount.db_column: index}
+            for index, name in enumerate(
+                ["OTHER_VALUES", "OTHER_VALUES (1)", "Z", "ZZ"], start=1
+            )
+        ],
+    )
+    rows = service.get_type().dispatch_data(service, {}, FakeDispatchContext())["data"][
+        "results"
+    ]
+    assert {row["id"]: row["Amount sum"] for row in rows} == {
+        "OTHER_VALUES (2)": 1,
+        "OTHER_VALUES (1)": 2,
+        "OTHER_VALUES (3)": 7,
+    }
+
+
 @pytest.mark.django_db
 def test_grouped_aggregate_rows_service_get_record_names(data_fixture):
     user = data_fixture.create_user()

@@ -84,7 +84,10 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
   }
 
   getRecordNameFromId(service, recordId) {
-    return recordId
+    const otherValues = /^OTHER_VALUES( \(\d+\))?$/.exec(`${recordId}`)
+    return otherValues
+      ? `${this.app.$i18n.t('chart.other')}${otherValues[1] || ''}`
+      : recordId
   }
 
   getSchemaPropertyDisplayName(service, propertyName) {
@@ -118,37 +121,9 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
   }
 
   getRecordName(service, record) {
-    const fallbackName =
-      record.id !== undefined && record.id !== null ? `${record.id}` : ''
-    const schema = this.getDataSchema(service)
-    const properties = schema?.items?.properties
-    if (!properties) {
-      return fallbackName
-    }
-
-    const groupBy = service.aggregation_group_bys?.[0]
-    if (!groupBy) {
-      return fallbackName
-    }
-
-    const nameProperty =
-      groupBy.field_id === null
-        ? Object.entries(properties).find(
-            ([property, { metadata }]) => property !== 'id' && metadata?.primary
-          )?.[0]
-        : `field_${groupBy.field_id}`
-
-    const field = properties[nameProperty]?.metadata
-    const fieldType = field?.type
-      ? this.app.$registry.get('field', field.type)
-      : null
-    const value =
-      record[this.getResultPropertyName(service, nameProperty)] ??
-      record[nameProperty]
-    if (!fieldType || value === undefined || value === null) {
-      return fallbackName
-    }
-    return fieldType.toHumanReadableString(field, value)
+    return record.id !== undefined && record.id !== null
+      ? this.getRecordNameFromId(service, `${record.id}`)
+      : ''
   }
 
   getErrorMessage({ service, application, workspace = null }) {

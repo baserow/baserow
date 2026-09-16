@@ -163,25 +163,23 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
         return str(human_readable_value)
 
-    def _get_result_record_id(
-        self,
-        service: LocalBaserowGroupedAggregateRows,
-        result: dict,
-        index: int,
-        model,
-    ) -> str:
-        name_property = self.get_name_property(service)
-        if name_property is None:
-            return "Result"
+    def _set_unique_record_ids(self, results: list[dict]) -> None:
+        """Keep readable labels, suffixing duplicates without colliding with real labels."""
 
-        value = self._get_human_readable_result_value(
-            result.get(name_property), self._get_name_field_object(service), model
-        )
-
-        if value is None or value == "":
-            return str(index)
-
-        return value
+        counts = Counter(row[GROUPED_AGGREGATE_ROW_ID] for row in results)
+        used = set(counts)
+        occurrences = Counter()
+        for row in results:
+            name = row[GROUPED_AGGREGATE_ROW_ID]
+            if counts[name] == 1:
+                continue
+            while True:
+                occurrences[name] += 1
+                candidate = f"{name} ({occurrences[name]})"
+                if candidate not in used:
+                    break
+            row[GROUPED_AGGREGATE_ROW_ID] = candidate
+            used.add(candidate)
 
     def generate_schema(
         self,
@@ -1049,7 +1047,9 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             for field in group_by_fields
         }
 
-        def process_individual_result(result: dict, index: int):
+        def process_individual_result(result: dict, overflow=False):
+            """Finalize aggregates and assign readable group labels before deduplication."""
+
             result = {**result}
             for agg_series in defined_agg_series:
                 key = f"{agg_series.field.db_column}_{agg_series.aggregation_type}"
@@ -1060,14 +1060,23 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 )
             if "total" in result:
                 del result["total"]
-            result[GROUPED_AGGREGATE_ROW_ID] = self._get_result_record_id(
-                service, result, index, model
-            )
+            name_property = self.get_name_property(service)
+            if overflow:
+                name = "OTHER_VALUES"
+            elif name_property:
+                name = self._get_human_readable_result_value(
+                    result.get(name_property),
+                    self._get_name_field_object(service),
+                    model,
+                )
+            else:
+                name = "Result"
+            result[GROUPED_AGGREGATE_ROW_ID] = name or "-"
             for (
                 db_column,
                 serialize_value,
             ) in group_by_value_serializers_by_db_column.items():
-                if db_column not in result:
+                if overflow or db_column not in result:
                     continue
                 result[db_column] = serialize_value(result[db_column])
             return result
@@ -1080,10 +1089,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             ]
             raw_results = list(queryset)
 
-            results = [
-                process_individual_result(result, index)
-                for index, result in enumerate(raw_results)
-            ]
+            results = [process_individual_result(result) for result in raw_results]
             buckets_count = len(raw_results)
             if (
                 buckets_count
@@ -1117,7 +1123,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                         **other_bucket_primary_field,
                         **other_bucket_results,
                     },
-                    len(results),
+                    overflow=True,
                 )
                 results.append(other_bucket_results)
                 first_sort_by = service.service_aggregation_sorts.first()
@@ -1129,9 +1135,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     )
         else:
             results = queryset.aggregate(**combined_agg_dict)
-            results = process_individual_result(results, 0)
+            results = process_individual_result(results)
             results = [results]
 
+        self._set_unique_record_ids(results)
         if dispatch_context.only_record_id is not None:
             current_record_id = str(dispatch_context.only_record_id)
             results = [

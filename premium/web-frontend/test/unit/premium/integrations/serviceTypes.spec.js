@@ -19,6 +19,20 @@ describe('Premium integrations service types', () => {
     expect(serviceType.integrationType.getType()).toBe('local_baserow')
   })
 
+  test('readable identifiers display the same labels before and after fetching', () => {
+    const serviceType = useNuxtApp().$registry.get(
+      'service',
+      'local_baserow_grouped_aggregate_rows'
+    )
+    const names = ['Sales (2)', '-', 'OTHER_VALUES', 'OTHER_VALUES (2)']
+    expect(
+      names.map((id) => ({
+        selected: serviceType.getRecordNameFromId({}, id),
+        option: serviceType.getRecordName({}, { id }),
+      }))
+    ).toMatchSnapshot()
+  })
+
   test('LocalBaserowGroupedAggregateRowsServiceType exposes the backend list schema', () => {
     const testApp = useNuxtApp()
     const serviceType = testApp.$registry.get(
@@ -81,7 +95,7 @@ describe('Premium integrations service types', () => {
           ...service,
           aggregation_group_bys: [{ field_id: 3 }],
         },
-        { id: 0, field_3: { id: 1, value: 'Selected' } }
+        { id: 'Selected', field_3: { id: 1, value: 'Selected' } }
       )
     ).toBe('Selected')
     expect(
@@ -148,7 +162,7 @@ describe('Premium integrations service types', () => {
         })
       )
     ).toMatchSnapshot()
-    expect(serviceType.getRecordName(service, record)).toBe('Fruit')
+    expect(serviceType.getRecordName(service, record)).toBe('record-id')
     expect(serviceType.prepareValuePath(service, [])).toEqual([])
     expect(serviceType.prepareValuePath(service, ['unknown'])).toEqual([
       'unknown',

@@ -26,6 +26,27 @@ exports[`Premium integrations service types > grouped result lookups use collisi
 }
 `;
 
+exports[`Premium integrations service types > readable identifiers display the same labels before and after fetching 1`] = `
+[
+  {
+    "option": "Sales (2)",
+    "selected": "Sales (2)",
+  },
+  {
+    "option": "-",
+    "selected": "-",
+  },
+  {
+    "option": "chart.other",
+    "selected": "chart.other",
+  },
+  {
+    "option": "chart.other (2)",
+    "selected": "chart.other (2)",
+  },
+]
+`;
+
 exports[`Premium integrations service types > selecting a grouped source in a Table generates result columns 1`] = `
 [
   {
