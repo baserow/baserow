@@ -1437,6 +1437,7 @@ BASEROW_IMPORT_EXPORT_TABLE_ROWS_COUNT_LIMIT = int(
 )
 
 PERMISSION_MANAGERS = [
+    "workspace_role_availability",
     "view_ownership",
     "core",
     "setting_operation",

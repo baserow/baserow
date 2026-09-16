@@ -164,6 +164,7 @@ class CoreConfig(AppConfig):
             StaffOnlyPermissionManagerType,
             StaffOnlySettingOperationPermissionManagerType,
             WorkspaceMemberOnlyPermissionManagerType,
+            WorkspaceRoleAvailabilityPermissionManagerType,
         )
         from baserow.core.registries import (
             email_context_registry,
@@ -176,6 +177,9 @@ class CoreConfig(AppConfig):
 
         email_context_registry.register(CoreEmailContextType())
 
+        permission_manager_type_registry.register(
+            WorkspaceRoleAvailabilityPermissionManagerType()
+        )
         permission_manager_type_registry.register(CorePermissionManagerType())
         permission_manager_type_registry.register(StaffOnlyPermissionManagerType())
         permission_manager_type_registry.register(BasicPermissionManagerType())
