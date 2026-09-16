@@ -79,8 +79,14 @@ class AgentService:
             workspace=agent.workspace,
             context=agent.workspace,
         )
-        if "role_uid" in values and not agent_extension_registry.role_uid_exists(
-            values["role_uid"], agent.workspace
+        # A license change can make the stored role unavailable for selection.
+        # Resubmitting it during an unrelated edit must preserve that role.
+        if (
+            "role_uid" in values
+            and values["role_uid"] != agent.role_uid
+            and not agent_extension_registry.role_uid_exists(
+                values["role_uid"], agent.workspace
+            )
         ):
             raise AgentRoleDoesNotExist()
         AgentHandler().update_agent(agent, **values)

@@ -10,9 +10,10 @@ from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
 from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
+from baserow_enterprise.agents.extensions import EnterpriseAgentExtension
 from baserow_enterprise.role.actions import BatchAssignRoleActionType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
-from baserow_enterprise.role.models import RoleAssignment
+from baserow_enterprise.role.models import Role, RoleAssignment
 from baserow_enterprise.role.types import NewRoleAssignment
 from baserow_enterprise.teams.models import TeamSubject
 
@@ -182,3 +183,108 @@ def test_agent_workspace_role_reads_respect_trash(data_fixture):
     agent.refresh_from_db()
     assert agent.role_uid == "EDITOR"
     assert not RoleAssignment.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("enable_rbac", [True, False])
+@pytest.mark.parametrize("resubmit_role", [True, False])
+def test_agent_rename_preserves_role_after_license_change(
+    data_fixture, enterprise_data_fixture, api_client, enable_rbac, resubmit_role
+):
+    """Unrelated edits preserve stored roles through either license transition."""
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    role_uid = "MEMBER" if enable_rbac else "VIEWER"
+    if enable_rbac:
+        enterprise_data_fixture.delete_all_licenses()
+    agent = AgentService().create_agent(
+        user, workspace, name="Original", role_uid=role_uid
+    )
+    if enable_rbac:
+        enterprise_data_fixture.enable_enterprise()
+    else:
+        enterprise_data_fixture.delete_all_licenses()
+
+    values = {"name": "Renamed"}
+    if resubmit_role:
+        values["role_uid"] = role_uid
+    response = api_client.patch(
+        reverse("api:agents:item", kwargs={"agent_id": agent.id}),
+        values,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200
+    agent.refresh_from_db()
+    assert agent.name == "Renamed"
+    assert agent.role_uid == role_uid
+
+    # Preserving an existing role must not allow selecting unavailable roles.
+    response = api_client.patch(
+        reverse("api:agents:item", kwargs={"agent_id": agent.id}),
+        {"role_uid": "missing" if enable_rbac else "EDITOR"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_AGENT_ROLE_DOES_NOT_EXIST"
+    agent.refresh_from_db()
+    assert agent.role_uid == role_uid
+
+
+@pytest.mark.django_db
+def test_agent_member_alias_is_valid_with_rbac(data_fixture, api_client):
+    """Creation and updates accept the same MEMBER alias as role resolution."""
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.post(
+        reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id}),
+        {"name": "Member", "role_uid": "MEMBER"},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == 200
+    agent = Agent.objects.get(id=response.json()["id"])
+    assert agent.role_uid == "MEMBER"
+    handler = RoleAssignmentHandler()
+    assert handler.get_current_role_assignment(agent, workspace).role.uid == "BUILDER"
+    assert dict(handler.get_roles_per_scope(workspace, agent))[workspace] == [
+        handler.get_role_by_uid("BUILDER")
+    ]
+    AgentService().update_agent(user, agent, role_uid="VIEWER")
+    response = api_client.patch(
+        reverse("api:agents:item", kwargs={"agent_id": agent.id}),
+        {"role_uid": "MEMBER"},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == 200
+    agent.refresh_from_db()
+    assert handler.get_current_role_assignment(agent, workspace).role.uid == "BUILDER"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "hidden, scope, allowed",
+    [
+        (False, "global", True),
+        (False, "own", True),
+        (False, "other", False),
+        (True, "own", False),
+    ],
+)
+def test_agent_role_validation_respects_visibility_and_workspace(
+    data_fixture, hidden, scope, allowed
+):
+    """Using role resolution must retain the agent API's selection restrictions."""
+    workspace = data_fixture.create_workspace()
+    role_workspace = {
+        "global": None,
+        "own": workspace,
+        "other": data_fixture.create_workspace(),
+    }[scope]
+    role = Role.objects.create(name="Custom", hidden=hidden, workspace=role_workspace)
+    assert (
+        EnterpriseAgentExtension().role_uid_exists(str(role.uid), workspace) == allowed
+    )
