@@ -1,10 +1,11 @@
 import time
-from typing import Callable
+from typing import Callable, Optional
 
 from django.conf import settings
 
 import requests
 from requests import exceptions as request_exceptions
+from urllib3.exceptions import DecodeError, ProtocolError, ReadTimeoutError
 
 import advocate
 from baserow.core.services.exceptions import ResponseTooLargeDispatchException
@@ -25,7 +26,9 @@ def get_http_request_function() -> Callable:
         return advocate.request
 
 
-def read_response_within_limit(response, timeout: int) -> None:
+def read_response_within_limit(
+    response, timeout: int, deadline: Optional[float] = None
+) -> None:
     """
     Pulls the body in with a ceiling on its size and a deadline on how long it
     may take, and hangs up on an endpoint that goes past either.
@@ -39,11 +42,15 @@ def read_response_within_limit(response, timeout: int) -> None:
     row.
 
     :param response: The streamed response.
-    :param timeout: How long the whole body may take to arrive, in seconds.
+    :param timeout: How long the whole body may take to arrive, in seconds,
+        counted from now. Ignored when `deadline` is given.
+    :param deadline: The `time.monotonic()` value the body must have arrived
+        by, when the caller's budget started earlier than the body did.
     :raises ResponseTooLargeDispatchException: When the body is larger than the
         ceiling.
     :raises requests.exceptions.Timeout: When it takes longer than the
-        deadline, which the caller answers the same way as any other timeout.
+        deadline, or a single read times out, which the caller answers the same
+        way as any other timeout.
     """
 
     # Read whatever the ceiling is set to. Returning early with the ceiling
@@ -52,12 +59,28 @@ def read_response_within_limit(response, timeout: int) -> None:
     # corrupt answer onto a message the caller can use, and the deadline below
     # would never be armed either.
     max_bytes = settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES or None
-    deadline = time.monotonic() + timeout
+    if deadline is None:
+        deadline = time.monotonic() + timeout
 
     content = bytearray()
 
     try:
-        for chunk in response.iter_content(chunk_size=64 * 1024):
+        while True:
+            try:
+                # `read1` hands back whatever has arrived. `iter_content` waits
+                # inside urllib3 for a whole chunk, so a server sending a byte
+                # at a time never let it return and the deadline below was
+                # never looked at. Reading `raw` skips the translation
+                # `iter_content` does, so its errors are translated here.
+                chunk = response.raw.read1(64 * 1024, decode_content=True)
+            except ReadTimeoutError as e:
+                raise request_exceptions.Timeout(e) from e
+            except ProtocolError as e:
+                raise request_exceptions.ConnectionError(e) from e
+            except DecodeError as e:
+                raise request_exceptions.ContentDecodingError(e) from e
+            if not chunk:
+                break
             content += chunk
             if max_bytes is not None and len(content) > max_bytes:
                 raise ResponseTooLargeDispatchException(
@@ -66,7 +89,7 @@ def read_response_within_limit(response, timeout: int) -> None:
                 )
             if time.monotonic() > deadline:
                 raise request_exceptions.Timeout(
-                    f"The response body took longer than {timeout} seconds."
+                    "The response body did not arrive in time."
                 )
     finally:
         response.close()

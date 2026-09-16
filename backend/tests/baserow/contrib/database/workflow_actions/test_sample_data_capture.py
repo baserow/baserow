@@ -38,10 +38,12 @@ def mock_advocate_request(body=None, status_code=200, raise_exception=None):
     mock_response.headers = {"Content-Type": "application/json"}
     mock_response.status_code = status_code
     # The service streams the body in so it can stop an endpoint that
-    # sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter(
-        [str(mock_response.text or "").encode()]
-    )
+    # sends more than this installation accepts. `advocate.request` answers
+    # with this same mock for every action that dispatches while the context
+    # manager is open, so exhausting the real chunk still leaves later reads
+    # an end-of-body marker rather than raising.
+    chunks = iter([str(mock_response.text or "").encode(), b""])
+    mock_response.raw.read1.side_effect = lambda *args, **kwargs: next(chunks, b"")
 
     with patch("advocate.request") as mock_request:
 

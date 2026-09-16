@@ -43,9 +43,10 @@ def mock_advocate_request(
     mock_response.status_code = status_code
     # The service streams the body in so it can stop an endpoint that
     # sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter(
-        [str(mock_response.text or "").encode()]
-    )
+    mock_response.raw.read1.side_effect = [
+        str(mock_response.text or "").encode(),
+        b"",
+    ]
 
     # Use the patch context manager to mock `advocate.request`
     with patch("advocate.request", return_value=mock_response) as mock_request:
@@ -868,7 +869,7 @@ def test_a_response_bigger_than_the_ceiling_is_refused(data_fixture, settings):
     mock_response.headers = {}
     mock_response.status_code = 200
     # More than the ceiling, handed over in chunks the way a real one arrives.
-    mock_response.iter_content.return_value = iter([b"x" * 512] * 10)
+    mock_response.raw.read1.side_effect = [b"x" * 512] * 10 + [b""]
 
     with patch("advocate.request", return_value=mock_response):
         with pytest.raises(ServiceImproperlyConfiguredDispatchException) as raised:
@@ -908,16 +909,15 @@ def test_a_response_that_drips_forever_is_hung_up_on(data_fixture, settings):
     )
     service_type = service.get_type()
 
-    def drip():
+    def drip(*args, **kwargs):
         # Never enough to reach the size ceiling, and never finished.
-        while True:
-            time.sleep(0.1)
-            yield b"x"
+        time.sleep(0.1)
+        return b"x"
 
     mock_response = Mock()
     mock_response.headers = {}
     mock_response.status_code = 200
-    mock_response.iter_content.return_value = drip()
+    mock_response.raw.read1.side_effect = drip
 
     with patch("advocate.request", return_value=mock_response):
         dispatch_data = service_type.dispatch(service, FakeDispatchContext())

@@ -70,7 +70,7 @@ def test_dispatch_slack_write_message_basic(data_fixture):
     }
     # The service streams the body in, so it can stop an endpoint
     # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_response.raw.read1.side_effect = [b"{}", b""]
 
     mock_request = Mock(return_value=mock_response)
 
@@ -148,7 +148,7 @@ def test_dispatch_slack_write_message_api_errors(
     }
     # The service streams the body in, so it can stop an endpoint
     # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_response.raw.read1.side_effect = [b"{}", b""]
 
     mock_request = Mock(return_value=mock_response)
 
@@ -213,7 +213,7 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
     }
     # The service streams the body in, so it can stop an endpoint
     # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_response.raw.read1.side_effect = [b"{}", b""]
     mock_request = Mock(return_value=mock_response)
 
     with patch(
@@ -463,7 +463,7 @@ def test_slack_write_message_keeps_the_message_out_of_the_url(data_fixture):
     )
     mock_response = Mock()
     mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.0"}
-    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_response.raw.read1.side_effect = [b"{}", b""]
     mock_request = Mock(return_value=mock_response)
 
     with patch(
@@ -491,7 +491,7 @@ def test_slack_write_message_does_not_follow_redirects(data_fixture):
     )
     mock_response = Mock()
     mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.0"}
-    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_response.raw.read1.side_effect = [b"{}", b""]
     mock_request = Mock(return_value=mock_response)
 
     with patch(
@@ -522,7 +522,7 @@ def test_slack_write_message_posts_to_the_configured_api(data_fixture):
     mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.2"}
     # The service streams the body in, so it can stop an endpoint
     # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_response.raw.read1.side_effect = [b"{}", b""]
     mock_request = Mock(return_value=mock_response)
 
     with patch(
@@ -555,7 +555,7 @@ def test_slack_write_message_refusal_without_an_error_code(data_fixture):
     answered.json.return_value = {"message": "forbidden"}
     # The service streams the body in, so it can stop an endpoint
     # that sends more than this installation accepts.
-    answered.iter_content.return_value = iter([b"{}"])
+    answered.raw.read1.side_effect = [b"{}", b""]
 
     with patch(
         "baserow.contrib.integrations.slack.service_types.get_http_request_function",
@@ -680,7 +680,7 @@ def test_slack_write_message_answer_that_is_not_an_object(data_fixture, body):
     answered.json.return_value = body
     # The service streams the body in, so it can stop an endpoint
     # that sends more than this installation accepts.
-    answered.iter_content.return_value = iter([b"{}"])
+    answered.raw.read1.side_effect = [b"{}", b""]
 
     with patch(
         "baserow.contrib.integrations.slack.service_types.get_http_request_function",
@@ -709,8 +709,8 @@ def _streamed(body, chunks=None):
 
     answered = Mock()
     answered.json.return_value = body
-    answered.iter_content.return_value = iter(
-        chunks if chunks is not None else [json.dumps(body).encode()]
+    answered.raw.read1.side_effect = (
+        chunks if chunks is not None else [json.dumps(body).encode(), b""]
     )
     return answered
 
@@ -801,7 +801,7 @@ def test_slack_write_message_answers_where_its_schema_says_it_does(data_fixture)
         "channel": "C123456",
         "ts": "1503435956.000247",
     }
-    mock_response.iter_content.return_value = iter([b"{}"])
+    mock_response.raw.read1.side_effect = [b"{}", b""]
 
     with patch(
         "baserow.contrib.integrations.slack.service_types.get_http_request_function",
@@ -890,7 +890,7 @@ def test_slack_write_message_answer_that_is_not_json(data_fixture):
         channel="general", text="'Hello'"
     )
     response = Mock()
-    response.iter_content.return_value = iter([b"<html>Moved</html>"])
+    response.raw.read1.side_effect = [b"<html>Moved</html>", b""]
     response.json.side_effect = ValueError("Expecting value: line 1 column 1")
 
     with patch(
