@@ -73,9 +73,13 @@ export default {
   components: { CrudTable, AgentContext, ManageAgentModal },
   props: { workspace: { type: Object, required: true } },
   data() {
-    return { count: 0, focusedAgent: null }
+    return { count: 0, focusedAgentId: null }
   },
   computed: {
+    focusedAgent() {
+      // Resolve the selection by ID so realtime updates reach the editor prop.
+      return this.$store.getters['agent/get'](this.focusedAgentId) || null
+    },
     canManage() {
       return this.$hasPermission(
         'agent.create',
@@ -154,7 +158,7 @@ export default {
     openContext({ row, event, target }) {
       if (!this.canManage) return
       event?.preventDefault()
-      this.focusedAgent = row
+      this.focusedAgentId = row.id
       this.$nextTick(() =>
         this.$refs.context.show(
           target || event.currentTarget,

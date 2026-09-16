@@ -47,4 +47,55 @@ describe('AgentsTable', () => {
 
     expect(wrapper.text()).toContain('Restored agent')
   })
+
+  test('passes realtime updates to the selected editor through its agent prop', async () => {
+    const agent = {
+      id: 10,
+      workspace_id: 1,
+      name: 'Writer',
+      teams: [{ id: 3 }],
+    }
+    await testApp.store.dispatch('agent/forceCreate', agent)
+    const wrapper = await testApp.mount(
+      {
+        ...AgentsTable,
+        computed: { ...AgentsTable.computed, canManage: () => true },
+      },
+      {
+        props: { workspace: { id: 1, name: 'Workspace', _: { roles: [] } } },
+        global: {
+          stubs: {
+            CrudTable: {
+              name: 'CrudTable',
+              template: '<div><slot name="menus" /></div>',
+              methods: { refresh() {} },
+            },
+            AgentContext: {
+              name: 'AgentContext',
+              template: '<div />',
+              methods: { show() {} },
+            },
+            ManageAgentModal: {
+              name: 'ManageAgentModal',
+              props: ['agent'],
+              template: '<div />',
+            },
+          },
+        },
+      }
+    )
+    wrapper
+      .findComponent({ name: 'CrudTable' })
+      .vm.$emit('row-context', { row: agent, target: document.body })
+    await flushPromises()
+    const editor = () =>
+      wrapper
+        .findAllComponents({ name: 'ManageAgentModal' })
+        .find((modal) => modal.props('agent'))
+    expect(editor().props('agent').teams).toEqual([{ id: 3 }])
+
+    await testApp.store.dispatch('agent/forceUpdate', { ...agent, teams: [] })
+    await flushPromises()
+    expect(editor().props('agent').teams).toEqual([])
+  })
 })
