@@ -115,39 +115,65 @@ def test_list_teams_in_workspace_includes_agent_in_subject_sample(
 
 
 @pytest.mark.django_db
-def test_no_access_agent_inherits_team_workspace_role(
-    data_fixture, enterprise_data_fixture
+@pytest.mark.parametrize(
+    "role_uid,expected_role_uid,can_list_agents",
+    [
+        (None, "NO_ACCESS", False),
+        ("NO_ACCESS", "NO_ACCESS", False),
+        ("NO_ROLE_LOW_PRIORITY", "BUILDER", True),
+    ],
+)
+def test_agent_team_workspace_role_inheritance(
+    data_fixture, enterprise_data_fixture, role_uid, expected_role_uid, can_list_agents
 ):
+    """Only the low-priority role allows an agent to inherit team permissions."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     team = enterprise_data_fixture.create_team(workspace=workspace)
     builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
     RoleAssignmentHandler().assign_role(team, workspace, builder_role)
     agent = AgentService().create_agent(
-        user, workspace, name="Writer", team_ids=[team.id]
+        user,
+        workspace,
+        name="Writer",
+        team_ids=[team.id],
+        **({"role_uid": role_uid} if role_uid is not None else {}),
     )
 
-    assert agent.role_uid == "NO_ACCESS"
-    assert CoreHandler().check_permissions(
-        agent,
-        ListAgentsWorkspaceOperationType.type,
-        workspace=workspace,
-        context=workspace,
+    assert agent.role_uid == (role_uid or "NO_ACCESS")
+    role_handler = RoleAssignmentHandler()
+    assert role_handler.get_roles_per_scope(workspace, agent)[0] == (
+        workspace,
+        [role_handler.get_role_by_uid(expected_role_uid)],
+    )
+    assert (
+        CoreHandler().check_permissions(
+            agent,
+            ListAgentsWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+            raise_permission_exceptions=False,
+        )
+        is can_list_agents
     )
 
 
 @pytest.mark.django_db
-def test_no_access_agent_without_team_keeps_no_access(data_fixture):
+@pytest.mark.parametrize("role_uid", ["NO_ACCESS", "NO_ROLE_LOW_PRIORITY"])
+def test_agent_without_team_has_no_permissions(data_fixture, role_uid):
+    """Neither no-access nor low-priority roles grant access without a team."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    agent = AgentService().create_agent(user, workspace, name="Writer")
+    agent = AgentService().create_agent(
+        user, workspace, name="Writer", role_uid=role_uid
+    )
     role_handler = RoleAssignmentHandler()
 
     roles_per_scope = role_handler.get_roles_per_scope(workspace, agent)
 
     assert roles_per_scope[0] == (
         workspace,
-        [role_handler.get_role_by_uid("NO_ACCESS")],
+        [role_handler.get_role_by_uid(role_uid)],
     )
     assert not CoreHandler().check_permissions(
         agent,
@@ -159,9 +185,10 @@ def test_no_access_agent_without_team_keeps_no_access(data_fixture):
 
 
 @pytest.mark.django_db
-def test_no_access_agent_inherits_multiple_team_workspace_roles(
+def test_low_priority_agent_inherits_multiple_team_workspace_roles(
     data_fixture, enterprise_data_fixture
 ):
+    """Low-priority agents inherit all applicable team workspace roles."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder_team = enterprise_data_fixture.create_team(workspace=workspace)
@@ -177,6 +204,7 @@ def test_no_access_agent_inherits_multiple_team_workspace_roles(
         user,
         workspace,
         name="Writer",
+        role_uid="NO_ROLE_LOW_PRIORITY",
         team_ids=[builder_team.id, viewer_team.id],
     )
 
@@ -193,6 +221,7 @@ def test_no_access_agent_inherits_multiple_team_workspace_roles(
         ("VIEWER", "ADMIN"),
         ("BUILDER", "EDITOR"),
         ("EDITOR", None),
+        ("NO_ACCESS", "BUILDER"),
     ],
 )
 @pytest.mark.django_db

@@ -246,7 +246,10 @@ def test_update_team_removes_all_duplicate_memberships(
     retained = []
     if agents_enabled:
         agent = Agent.objects.create(
-            id=member.id, workspace=workspace, name="Agent", role_uid="NO_ACCESS"
+            id=member.id,
+            workspace=workspace,
+            name="Agent",
+            role_uid="NO_ROLE_LOW_PRIORITY",
         )
         subject = agent if subject_type == "core.Agent" else member
         retained_type = "auth.User" if subject_type == "core.Agent" else "core.Agent"
