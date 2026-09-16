@@ -120,6 +120,10 @@ def read_response_within_limit(
 # bounds how long a request takes; this only stops an endless chain early.
 MAX_REDIRECTS = 10
 
+# Shared with the tests, so a rename here cannot make their checks for a
+# leftover watchdog thread silently pass for the wrong reason.
+DEADLINE_WATCHDOG_THREAD_NAME = "http-request-deadline"
+
 
 class _DeadlineMixin:
     """
@@ -171,18 +175,44 @@ class _DeadlineAdvocateSession(_DeadlineMixin, advocate.Session):
     pass
 
 
-def _tracked_pool_class(pool_cls, opened):
+def _tracked_connection_class(connection_cls, opened, hung_up):
     """
-    A pool class that behaves exactly like `pool_cls`, except every connection
-    it hands out, fresh or pooled, any hop, is also appended to `opened`, so
-    the deadline watchdog has a socket to hang up on.
+    A connection class that behaves exactly like `connection_cls`, except once
+    `connect()` has set up the real, final socket, after TLS wraps it for
+    https, it also gives the deadline watchdog a chance to act on this
+    connection: it is appended to `opened`, for the watchdog to find if it
+    fires later, and shut down immediately if `hung_up` is already set, in
+    case the watchdog already fired while this connection was still being
+    made, a slow DNS lookup or a slow handshake, and so never saw it.
+    """
+
+    class _TrackedConnection(connection_cls):
+        def connect(self):
+            super().connect()
+            # Record before checking: `hang_up` below sets `hung_up` before
+            # it iterates `opened`, so whichever of the two runs second is
+            # the one that actually shuts this socket down.
+            opened.append(self)
+            if hung_up.is_set():
+                try:
+                    socket.socket.shutdown(self.sock, socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+    return _TrackedConnection
+
+
+def _tracked_pool_class(pool_cls, opened, hung_up):
+    """
+    A pool class that behaves exactly like `pool_cls`, except its connections
+    are the tracked ones above, on every hop. `ConnectionCls` is subclassed,
+    not replaced, so advocate's own pool classes keep validating addresses.
     """
 
     class _TrackedPool(pool_cls):
-        def _get_conn(self, timeout=None):
-            conn = super()._get_conn(timeout)
-            opened.append(conn)
-            return conn
+        ConnectionCls = _tracked_connection_class(
+            pool_cls.ConnectionCls, opened, hung_up
+        )
 
     return _TrackedPool
 
@@ -245,15 +275,17 @@ def send_http_request(
             pool_manager = adapter.poolmanager
             # An instance attribute, on both `PoolManager` and advocate's
             # `ValidatingPoolManager`: this leaves advocate's mount lock, which
-            # only guards `session.mount()`, untouched. Advocate's own pool
-            # classes keep `ConnectionCls`, so address validation is
-            # unaffected.
+            # only guards `session.mount()`, untouched.
             pool_manager.pool_classes_by_scheme = {
-                scheme: _tracked_pool_class(pool_cls, opened)
+                scheme: _tracked_pool_class(pool_cls, opened, hung_up)
                 for scheme, pool_cls in pool_manager.pool_classes_by_scheme.items()
             }
 
         def hang_up():
+            # Set before iterating `opened`: `_TrackedConnection.connect`
+            # appends itself and then checks this same flag, so whichever of
+            # the two runs second is the one that actually shuts a given
+            # connection's socket down.
             hung_up.set()
             for conn in list(opened):
                 sock = getattr(conn, "sock", None)
@@ -270,7 +302,7 @@ def send_http_request(
 
         timer = threading.Timer(max(deadline - time.monotonic(), 0), hang_up)
         timer.daemon = True
-        timer.name = "http-request-deadline"
+        timer.name = DEADLINE_WATCHDOG_THREAD_NAME
         timer.start()
 
         try:

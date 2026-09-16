@@ -9,12 +9,14 @@ from unittest.mock import patch
 
 import pytest
 import requests
+import urllib3.util.connection
 from requests import exceptions as request_exceptions
 
 import advocate
 from advocate import AddrValidator
 from advocate.connection import UnacceptableAddressException
 from baserow.contrib.integrations.utils import (
+    DEADLINE_WATCHDOG_THREAD_NAME,
     MAX_REDIRECTS,
     read_response_within_limit,
     send_http_request,
@@ -335,6 +337,49 @@ def test_the_watchdog_does_not_outlive_a_finished_request(settings):
         read_response_within_limit(response, 5, deadline=deadline)
 
     for thread in threading.enumerate():
-        if thread.name == "http-request-deadline":
+        if thread.name == DEADLINE_WATCHDOG_THREAD_NAME:
+            thread.join(timeout=1)
+            assert not thread.is_alive()
+
+
+def test_a_connection_that_opens_after_the_deadline_is_hung_up_on(settings):
+    """
+    Standing in for a slow DNS lookup or a slow handshake: the deadline passes
+    while the connection is still being made, so the watchdog's one pass over
+    already-open connections never saw it. The connection itself has to catch
+    up once it finishes connecting, or the header trickle below would hold the
+    request open indefinitely.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    real_create_connection = urllib3.util.connection.create_connection
+
+    def slow_create_connection(*args, **kwargs):
+        time.sleep(1.2)
+        return real_create_connection(*args, **kwargs)
+
+    with local_server({"/": header_trickle()}) as (base, _):
+        with patch(
+            "urllib3.util.connection.create_connection",
+            side_effect=slow_create_connection,
+        ):
+            started = time.monotonic()
+            with pytest.raises(request_exceptions.Timeout):
+                send_http_request("GET", base + "/", deadline=started + 1)
+            elapsed = time.monotonic() - started
+
+    assert elapsed < 2.5
+
+
+def test_the_watchdog_is_cancelled_when_the_request_raises(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    routes = {f"/{i}": redirect(f"/{i + 1}") for i in range(MAX_REDIRECTS + 2)}
+    routes[f"/{MAX_REDIRECTS + 2}"] = answer()
+    with local_server(routes) as (base, _):
+        with pytest.raises(request_exceptions.TooManyRedirects):
+            send_http_request("GET", base + "/0", deadline=time.monotonic() + 5)
+
+    for thread in threading.enumerate():
+        if thread.name == DEADLINE_WATCHDOG_THREAD_NAME:
             thread.join(timeout=1)
             assert not thread.is_alive()
