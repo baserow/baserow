@@ -97,6 +97,13 @@ class DatabaseWorkflowServiceActionType(
         service: Dict
 
     @property
+    def is_external(self) -> bool:
+        # The service the action dispatches through already says whether it
+        # reaches outside Baserow, so this reads that flag rather than
+        # keeping a second one that could drift from it.
+        return service_type_registry.get(self.service_type).is_external
+
+    @property
     def allowed_fields(self) -> List[str]:
         return super().allowed_fields + ["service"]
 
@@ -600,7 +607,6 @@ class CoreHTTPRequestWorkflowActionType(DatabaseWorkflowServiceActionType):
 
     # What an endpoint answers with is unknowable until it has answered once.
     captures_sample_data = True
-    is_external = True
 
     # Everything that decides which request goes out. `timeout` is left out:
     # it changes how long the answer may take, not what is in it.
@@ -638,7 +644,6 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
     type = "smtp_email"
     model_class = CoreSMTPEmailWorkflowAction
     service_type = CoreSMTPEmailServiceType.type
-    is_external = True
 
     def prepare_values(
         self,
@@ -712,7 +717,6 @@ class SlackWriteMessageWorkflowActionType(DatabaseWorkflowServiceActionType):
     type = "slack_write_message"
     model_class = SlackWriteMessageWorkflowAction
     service_type = SlackWriteMessageServiceType.type
-    is_external = True
     allowed_integration_types = [SlackBotIntegrationType.type]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:

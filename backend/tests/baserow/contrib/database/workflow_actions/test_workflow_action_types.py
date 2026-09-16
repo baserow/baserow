@@ -30,6 +30,7 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.registries import service_type_registry
 
 
 def test_every_type_is_registered():
@@ -78,6 +79,16 @@ def test_types_map_to_their_models_and_services():
     assert registry.get("http_request").service_type == "http_request"
     assert registry.get("smtp_email").model_class is CoreSMTPEmailWorkflowAction
     assert registry.get("smtp_email").service_type == "smtp_email"
+
+
+def test_is_external_follows_the_backing_service_type():
+    for action_type in database_workflow_action_type_registry.get_all():
+        service_type_name = getattr(action_type, "service_type", None)
+        if service_type_name is None:
+            continue
+
+        service_type = service_type_registry.get(service_type_name)
+        assert action_type.is_external is service_type.is_external, action_type.type
 
 
 @pytest.mark.django_db
