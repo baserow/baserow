@@ -32,6 +32,8 @@ import {
   userSourceCookieTokenName,
   setToken,
 } from '@baserow/modules/core/utils/auth'
+import { AfterLoginEvent } from '@baserow/modules/builder/eventTypes'
+import { resumePendingLogin } from '@baserow/modules/builder/utils/pendingLogin'
 import { consumeUserSourceCallback } from '@baserow/modules/core/utils/userSourceCallback'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
@@ -301,10 +303,7 @@ watch(
       }),
     ])
 
-    if (newIsAuthenticated) {
-      // If the user has just logged in, we redirect him to the next page.
-      await maybeRedirectToNextPage()
-    } else {
+    if (!newIsAuthenticated) {
       // If the user is on a hidden page, redirect them to the Login page if possible.
       await maybeRedirectUserToLoginPage()
     }
@@ -312,11 +311,18 @@ watch(
 )
 
 onMounted(async () => {
-  // The server callback bridge has already authenticated the clean SSR request.
-  if (isAuthenticated.value && (await maybeRedirectToNextPage())) {
-    return
-  }
   await checkProviderAuthentication()
+  const context = { ...applicationContext.value, page: props.page }
+  const resumed = await resumePendingLogin(nuxtApp, context)
+  if (isAuthenticated.value) {
+    const result =
+      resumed ??
+      (await new AfterLoginEvent({ app: nuxtApp }).fire({
+        workflowActions: [],
+        applicationContext: context,
+      }))
+    if (result.navigationRequested) return
+  }
   checkProviderLoginError()
   await maybeRedirectUserToLoginPage()
 })
@@ -360,29 +366,6 @@ const maybeRedirectUserToLoginPage = async () => {
       await router.push({ path: url, query: { next: nextPath } })
     }
   }
-}
-
-const maybeRedirectToNextPage = async () => {
-  const callback = consumeUserSourceCallback(
-    new URL(route.fullPath, window.location.origin)
-  )
-  const next = callback
-    ? callback.url.searchParams.get('next')
-    : route.query.next
-  if (typeof next !== 'string') {
-    return false
-  }
-  let decodedNext
-  try {
-    decodedNext = decodeURIComponent(next)
-  } catch {
-    return false
-  }
-  if (decodedNext.startsWith('/') && !/^[/\\]{2}|[\\\r\n]/.test(decodedNext)) {
-    await router.push(decodedNext)
-    return true
-  }
-  return false
 }
 
 const logOffAndReturnToLogin = async ({ builder, store, redirect }) => {

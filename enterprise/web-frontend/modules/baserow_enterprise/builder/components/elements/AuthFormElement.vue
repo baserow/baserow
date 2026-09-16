@@ -33,6 +33,7 @@ import element from '@baserow/modules/builder/mixins/element'
 import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { mapActions } from 'vuex'
+import { rememberPendingLogin } from '@baserow/modules/builder/utils/pendingLogin'
 
 export default {
   name: 'AuthFormElement',
@@ -164,13 +165,29 @@ export default {
         this.showError(this.$t('loginError.title'), message)
       }
     },
-    async beforeLogin() {
+    async beforeLogin({ redirect = false } = {}) {
+      let attemptId
+      if (redirect && !this.isEditMode) {
+        attemptId = rememberPendingLogin({
+          builder: this.builder,
+          page: this.currentPage,
+          element: this.element,
+          userSource: this.selectedUserSource,
+          workflowActions: this.$store.getters[
+            'builderWorkflowAction/getElementWorkflowActions'
+          ](this.elementPage, this.element.id).filter(
+            ({ event }) => event === 'after_login'
+          ),
+          recordIndexPath: this.applicationContext.recordIndexPath,
+        })
+      }
       if (this.isAuthenticated) {
         await this.userLogoff({
           application: this.builder,
         })
         await this.$nextTick()
       }
+      return attemptId
     },
     async authenticateWithCredentials(credentials) {
       await this.userAuthenticate({

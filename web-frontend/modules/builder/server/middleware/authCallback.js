@@ -11,7 +11,10 @@ import {
   getTokenCookieOptions,
   userSourceCookieTokenName,
 } from '../../../core/utils/cookie'
-import { consumeUserSourceCallback } from '../../../core/utils/userSourceCallback'
+import {
+  consumeUserSourceCallback,
+  getLoginCompletionCookieName,
+} from '../../../core/utils/userSourceCallback'
 import {
   getBuilderPreviewCookiePath,
   getBuilderPreviewUserSourceCookieName,
@@ -50,6 +53,20 @@ export default defineEventHandler((event) => {
           path: getBuilderPreviewCookiePath(previewBuilderId),
         }),
       })
+    )
+  }
+  if (callback.token && callback.attemptId) {
+    setCookie(
+      event,
+      getCookieName(config, getLoginCompletionCookieName(callback.attemptId)),
+      '1',
+      {
+        ...getTokenCookieOptions(config, {
+          sameSite: 'lax',
+          ...(isPreview && { cookieUrl: config.public.builderPreviewUrl }),
+        }),
+        maxAge: 60,
+      }
     )
   }
   setResponseHeader(event, 'Cache-Control', 'no-store')

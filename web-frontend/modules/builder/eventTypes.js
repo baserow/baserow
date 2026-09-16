@@ -1,3 +1,4 @@
+import { getUserSourceNextPath } from '@baserow/modules/core/utils/userSourceCallback'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -18,6 +19,7 @@ export class Event {
   }
 
   async fire({ workflowActions, applicationContext }) {
+    let navigationRequested = false
     const additionalContext = {}
     const { element, builder, page } = applicationContext
     const pages = [page, this.app.$store.getters['page/getSharedPage'](builder)]
@@ -108,6 +110,9 @@ export class Event {
               currentDispatchId,
             },
             resolveFormula: localResolveFormula,
+            onNavigate: () => {
+              navigationRequested = true
+            },
           }
         )
       } catch (e) {
@@ -126,6 +131,7 @@ export class Event {
         })
       }
     }
+    return { navigationRequested }
   }
 }
 
@@ -153,6 +159,22 @@ export class SubmitEvent extends Event {
 }
 
 export class AfterLoginEvent extends Event {
+  async fire(args) {
+    const next = getUserSourceNextPath(this.app.$router.currentRoute.value)
+    const result = args.workflowActions.length
+      ? await super.fire(args)
+      : { navigationRequested: false }
+    if (
+      !result.navigationRequested &&
+      next &&
+      args.applicationContext.mode !== 'editing'
+    ) {
+      await this.app.$router.push(next)
+      return { navigationRequested: true }
+    }
+    return result
+  }
+
   constructor(args) {
     super({
       name: 'after_login',
