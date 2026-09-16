@@ -1,0 +1,31 @@
+.item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-0;
+  font-size: 18px;
+  color: $palette-neutral-1200;
+
+  @include rounded($rounded-lg);
+  @include elevation($elevation-low);
+}
+
+.item-icon--blue {
+  color: $palette-blue-600;
+}
+
+.item-icon--green {
+  color: $palette-green-600;
+}
+
+.item-icon--magenta {
+  color: $palette-magenta-600;
+}
+
+.item-icon--yellow {
+  color: $palette-yellow-600;
+}

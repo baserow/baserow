@@ -1,7 +1,7 @@
 // Out of the flow, so the text can use the full width until the button shows.
 // Only hidden visually so it stays in the tab order, and always shown where
 // there is no hover state to reveal it, like on touch screens.
-.application-card__more {
+.item-card__more {
   position: absolute;
   top: 50%;
   right: 12px;
@@ -13,7 +13,7 @@
   }
 }
 
-.application-card {
+.item-card {
   position: relative;
   display: flex;
   align-items: center;
@@ -31,8 +31,8 @@
     background-color: $palette-neutral-100;
   }
 
-  &:hover .application-card__more,
-  &:focus-within .application-card__more {
+  &:hover .item-card__more,
+  &:focus-within .item-card__more {
     opacity: 1;
   }
 
@@ -42,7 +42,22 @@
   }
 }
 
-.application-card--more {
+.item-card--skeleton {
+  cursor: default;
+
+  &:hover {
+    border-color: $palette-neutral-200;
+    background-color: $palette-neutral-25;
+  }
+}
+
+.item-card__details--skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-card--more {
   justify-content: center;
   background-color: $white;
 
@@ -51,54 +66,26 @@
   }
 }
 
-.application-card__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
-  border: 1px solid $palette-neutral-200;
-  background-color: $white;
-  font-size: 18px;
-  color: $palette-neutral-1200;
-
-  @include rounded($rounded-lg);
-  @include elevation($elevation-low);
-
-  &.application-card__icon--database {
-    color: $palette-green-600;
-  }
-
-  &.application-card__icon--builder {
-    color: $palette-blue-600;
-  }
-
-  &.application-card__icon--dashboard {
-    color: $palette-magenta-600;
-  }
-
-  &.application-card__icon--automation {
-    color: $palette-yellow-600;
-  }
-}
-
-.application-card__details {
+.item-card__details {
   flex: 1 1 auto;
   min-width: 0;
 
-  // Button width plus the gap, reserved only while the button is visible.
-  .application-card:hover &,
-  .application-card:focus-within & {
+  // Button width plus the gap, reserved only while the button is visible. A card
+  // without actions has nothing to make room for, so its text keeps the full
+  // width on hover too.
+  .item-card--with-actions:hover &,
+  .item-card--with-actions:focus-within & {
     padding-right: 48px;
   }
 
   @media (hover: none) {
-    padding-right: 48px;
+    .item-card--with-actions & {
+      padding-right: 48px;
+    }
   }
 }
 
-.application-card__name {
+.item-card__name {
   font-size: 13px;
   font-weight: 500;
   color: $palette-neutral-1200;
@@ -106,7 +93,7 @@
   @extend %ellipsis;
 }
 
-.application-card__meta {
+.item-card__meta {
   margin-top: 7px;
   font-size: 12px;
   color: $palette-neutral-900;
@@ -114,12 +101,12 @@
   @extend %ellipsis;
 }
 
-.application-card__meta-separator {
+.item-card__meta-separator {
   margin: 0 2px;
   color: $palette-neutral-400;
 }
 
-.application-card__more-label {
+.item-card__more-label {
   font-size: 13px;
   font-weight: 600;
   color: $palette-neutral-1200;
@@ -127,6 +114,6 @@
   @include flex-align-items(6px);
 }
 
-.application-card__more-arrow {
+.item-card__more-arrow {
   color: $palette-neutral-700;
 }

@@ -98,20 +98,20 @@
         ></AllWorkspacesApplicationCard>
         <div
           v-if="hiddenApplicationCount > 0"
-          class="application-card application-card--more"
+          class="item-card item-card--more"
           role="button"
           tabindex="0"
           @click="revealed = true"
           @keydown.enter.prevent="revealed = true"
           @keydown.space.prevent="revealed = true"
         >
-          <div class="application-card__more-label">
+          <div class="item-card__more-label">
             {{
               $t('allWorkspaces.moreElements', {
                 count: hiddenApplicationCount,
               })
             }}
-            <i class="application-card__more-arrow iconoir-nav-arrow-right"></i>
+            <i class="item-card__more-arrow iconoir-nav-arrow-right"></i>
           </div>
         </div>
       </div>

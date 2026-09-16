@@ -180,26 +180,30 @@
           </div>
         </div>
         <div class="dashboard__wrapper">
-          <ul
+          <RecentlyViewed
             v-if="orderedApplicationsInSelectedWorkspace.length"
-            class="dashboard__applications"
+            :workspace="selectedWorkspace"
+            :title="$t('recentlyViewed.yourItems')"
+            view-mode-preference-key="workspace_recently_viewed_view_mode"
           >
-            <template
-              v-for="application in orderedApplicationsInSelectedWorkspace"
-            >
-              <li
-                v-if="getApplicationType(application).isVisible(application)"
-                :key="application.id"
+            <template #empty-action>
+              <span
+                v-if="canCreateCreateApplication"
+                ref="createApplicationContextLink2"
               >
-                <DashboardApplication
-                  :application="application"
-                  :workspace="selectedWorkspace"
-                  @click="selectApplication(application)"
-                />
-                <div class="dashboard__application-separator"></div>
-              </li>
+                <Button
+                  icon="iconoir-plus"
+                  tag="a"
+                  @click="
+                    $refs.createApplicationContext.toggle(
+                      $refs.createApplicationContextLink2
+                    )
+                  "
+                  >{{ $t('dashboard.addNew') }}</Button
+                >
+              </span>
             </template>
-          </ul>
+          </RecentlyViewed>
           <div v-else class="dashboard__no-application">
             <img
               src="@baserow/modules/core/assets/images/empty_workspace_illustration.png"
@@ -257,7 +261,7 @@
 
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
-import { useRoute, useRouter, useNuxtApp, createError } from '#app'
+import { useRoute, useNuxtApp, createError } from '#app'
 import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
@@ -265,7 +269,7 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
-import DashboardApplication from '@baserow/modules/core/components/dashboard/DashboardApplication'
+import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
 import TemplateCard from '@baserow/modules/core/components/template/TemplateCard'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -289,7 +293,6 @@ defineOptions({
 })
 
 const route = useRoute()
-const router = useRouter()
 const nuxtApp = useNuxtApp()
 const { $store, $registry, $i18n, $hasPermission } = nuxtApp
 
@@ -484,16 +487,6 @@ const workspaceExists = computed(() => {
 // ----------------------------------------------------------------------------
 // METHODS
 // ----------------------------------------------------------------------------
-function getApplicationType(application) {
-  return $registry.get('application', application.type)
-}
-
-function selectApplication(application) {
-  const type = getApplicationType(application)
-  const { $store, $i18n } = nuxtApp
-  type.select(application, { $router: router, $store, $i18n })
-}
-
 async function workspaceUpdated(workspace) {
   const extraData = await fetchWorkspaceExtraData(workspace)
   workspaceComponentArguments.value = extraData.workspaceComponentArguments

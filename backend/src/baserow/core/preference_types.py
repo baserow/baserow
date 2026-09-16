@@ -16,3 +16,20 @@ class AllWorkspacesViewModePreferenceType(ChoiceUserPreferenceType):
     type = "all_workspaces_view_mode"
     choices = ["expanded", "compact"]
     default = "expanded"
+
+
+class RecentlyViewedViewModePreferenceType(ChoiceUserPreferenceType):
+    type = "recently_viewed_view_mode"
+    choices = ["table", "cards"]
+    default = "table"
+
+
+class WorkspaceRecentlyViewedViewModePreferenceType(ChoiceUserPreferenceType):
+    """
+    Same switch as `recently_viewed_view_mode`, remembered separately for the list
+    on the workspace homepage.
+    """
+
+    type = "workspace_recently_viewed_view_mode"
+    choices = ["table", "cards"]
+    default = "table"
