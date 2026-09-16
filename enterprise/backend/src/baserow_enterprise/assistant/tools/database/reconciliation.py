@@ -37,7 +37,12 @@ def _canonical_table_requests(
         if first_request is None:
             canonical.append(table)
             by_name[table.name] = table
-        elif table != first_request and table.name not in conflicting_names:
+            continue
+        # Pydantic __eq__ ignores which settings were stated, and stated-ness routes.
+        differs = table.model_dump(exclude_unset=True) != first_request.model_dump(
+            exclude_unset=True
+        )
+        if differs and table.name not in conflicting_names:
             conflicting_names.append(table.name)
 
     return canonical, conflicting_names
@@ -106,6 +111,9 @@ def _select_option_conflicts(
 def _setting_conflicts(requested: FieldItemCreate, actual: FieldItem) -> dict[str, Any]:
     conflicts = {}
     for setting in _FIELD_SETTINGS.get(requested.type, ()):
+        # A defaulted setting is not intent, and resolving it rewrites stored rows.
+        if setting not in requested.model_fields_set:
+            continue
         requested_value = getattr(requested, setting)
         actual_value = getattr(actual, setting)
         if requested_value != actual_value:
@@ -233,7 +241,9 @@ def table_schema_conflict(
 
         actual_field = actual_fields.get(requested_field.name)
         if actual_field is None:
-            missing_fields.append(requested_field.model_dump(exclude_none=True))
+            missing_fields.append(
+                requested_field.model_dump(exclude_none=True, exclude_unset=True)
+            )
             continue
 
         if field_conflict := _field_conflict(

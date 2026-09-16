@@ -108,6 +108,89 @@ def test_reused_table_detects_field_setting_mismatches():
     ]
 
 
+def test_reused_table_ignores_settings_the_request_never_stated():
+    requested = TableItemCreate(
+        name="Orders",
+        primary_field_name="Order",
+        fields=[
+            FieldItemCreate(name="Total", type="number"),
+            FieldItemCreate(name="Stars", type="rating"),
+            FieldItemCreate(name="Due", type="date"),
+            FieldItemCreate(name="Notes", type="long_text"),
+            FieldItemCreate(name="Doubled", type="formula"),
+        ],
+    )
+    actual = TableItem(
+        id=1,
+        name="Orders",
+        primary_field=FieldItem(id=2, name="Order", type="text"),
+        fields=[
+            FieldItem(id=3, name="Total", type="number", decimal_places=2, suffix="€"),
+            FieldItem(id=4, name="Stars", type="rating", max_value=10),
+            FieldItem(id=5, name="Due", type="date", include_time=True),
+            FieldItem(id=6, name="Notes", type="long_text", rich_text=False),
+            FieldItem(id=7, name="Doubled", type="formula", formula="field('Total')*2"),
+        ],
+    )
+
+    assert table_schema_conflict(requested, actual) is None
+
+
+def test_duplicate_table_requests_conflict_on_stated_settings_either_way():
+    unset = TableItemCreate(
+        name="Orders",
+        primary_field_name="Order",
+        fields=[FieldItemCreate(name="Total", type="number")],
+    )
+    stated = TableItemCreate(
+        name="Orders",
+        primary_field_name="Order",
+        fields=[FieldItemCreate(name="Total", type="number", decimal_places=0)],
+    )
+
+    assert plan_table_creation([unset, stated], []).conflicting_names == ["Orders"]
+    assert plan_table_creation([stated, unset], []).conflicting_names == ["Orders"]
+
+
+def test_reused_table_reports_a_stated_setting_that_matches_the_pydantic_default():
+    requested = TableItemCreate(
+        name="Orders",
+        primary_field_name="Order",
+        fields=[FieldItemCreate(name="Total", type="number", decimal_places=0)],
+    )
+    actual = TableItem(
+        id=1,
+        name="Orders",
+        primary_field=FieldItem(id=2, name="Order", type="text"),
+        fields=[FieldItem(id=3, name="Total", type="number", decimal_places=2)],
+    )
+
+    conflict = table_schema_conflict(requested, actual)
+
+    assert conflict["field_mismatches"][0]["decimal_places"] == {
+        "actual": 2,
+        "requested": 0,
+    }
+
+
+def test_missing_field_payload_omits_settings_the_request_never_stated():
+    requested = TableItemCreate(
+        name="Orders",
+        primary_field_name="Order",
+        fields=[FieldItemCreate(name="City", type="text")],
+    )
+    actual = TableItem(
+        id=1,
+        name="Orders",
+        primary_field=FieldItem(id=2, name="Order", type="text"),
+        fields=[],
+    )
+
+    conflict = table_schema_conflict(requested, actual)
+
+    assert conflict["missing_fields"] == [{"name": "City", "type": "text"}]
+
+
 def test_reused_table_detects_a_non_text_primary_field():
     requested = TableItemCreate(name="Orders", primary_field_name="Order", fields=[])
     actual = TableItem(

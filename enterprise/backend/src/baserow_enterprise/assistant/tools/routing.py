@@ -110,6 +110,16 @@ def is_tool_active(name: str, mode: AgentMode) -> bool:
     return route is not None and mode in route.active_modes
 
 
+def routed_tool_names() -> frozenset[str]:
+    """
+    Return every tool name the router knows about.
+
+    :return: The routed tool function names.
+    """
+
+    return frozenset(_tool_routes())
+
+
 def tool_home(name: str) -> AgentMode | None:
     """
     Return a tool's canonical mode.
