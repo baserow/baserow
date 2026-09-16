@@ -409,7 +409,7 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
   }
 
   getIdProperty(service, record) {
-    return record?.id || record?._id
+    return record?.id != null ? 'id' : '_id'
   }
 
   getResult(service, data) {

@@ -3,6 +3,7 @@ import MockAdapter from 'axios-mock-adapter'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import RecordSelectorElement from '@baserow/modules/builder/components/elements/components/RecordSelectorElement.vue'
 import flushPromises from 'flush-promises'
+import { reactive } from 'vue'
 
 // Ignore `notifyIf` and `notifyIf404` function calls
 vi.mock('@baserow/modules/core/utils/error.js')
@@ -33,6 +34,65 @@ describe('RecordSelectorElement', () => {
       global: { provide },
     })
   }
+
+  test.each([
+    ['id', { id: 42 }, 42],
+    ['_id', { _id: 43 }, 43],
+    ['zero id', { id: 0, _id: 43 }, 0],
+    ['id precedence', { id: 42, _id: 43 }, 42],
+    ['null id fallback', { id: null, _id: 43 }, 43],
+  ])('selects imported records using %s', async (_name, record, expectedId) => {
+    const page = {
+      id: 1,
+      dataSources: [{ id: 1, type: 'csv_file_reader' }],
+      elements: [],
+    }
+    const sharedPage = { id: 2, dataSources: [], elements: [], shared: true }
+    const builder = {
+      id: 1,
+      theme: { primary_color: '#ccc' },
+      pages: [sharedPage, page],
+    }
+    const element = reactive({
+      id: 1,
+      type: 'record_selector',
+      data_source_id: 1,
+      items_per_page: 5,
+      page_id: page.id,
+    })
+    const mode = 'public'
+    await store.dispatch('element/forceCreate', { page, element })
+    mockServer.mock
+      .onPost('builder/domains/published/data-source/1/dispatch/')
+      .reply(200, {
+        results: [{ ...record, name: 'Imported record' }],
+        has_next_page: false,
+      })
+
+    const wrapper = await mountComponent({
+      props: { element },
+      provide: {
+        builder,
+        currentPage: page,
+        elementPage: page,
+        mode,
+        applicationContext: { builder, page, mode, element },
+        element,
+        workspace: {},
+      },
+    })
+
+    await wrapper.find('.ab-dropdown__selected').trigger('click')
+    await flushPromises()
+    await wrapper.find('.ab-dropdownitem__item-link').trigger('click')
+    await flushPromises()
+
+    expect(
+      wrapper.findComponent({ name: 'ABDropdown' }).emitted('update:modelValue')
+    ).toEqual([[expectedId]])
+    expect(wrapper.find('.ab-dropdown__selected-text').text()).toMatchSnapshot()
+    wrapper.unmount()
+  })
 
   test('does not paginate if API returns 400/404', async () => {
     const page = {
