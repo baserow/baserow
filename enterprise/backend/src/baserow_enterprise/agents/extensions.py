@@ -7,11 +7,17 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from baserow.core.agents.registries import AgentExtension
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
+from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC, TEAMS
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.models import Team, TeamSubject
+from baserow_enterprise.teams.operations import (
+    CreateTeamSubjectOperationType,
+    DeleteTeamSubjectOperationType,
+)
 from baserow_premium.license.handler import LicenseHandler
 
 
@@ -71,6 +77,8 @@ class EnterpriseAgentExtension(AgentExtension):
         return None
 
     def _sync_teams(self, agent, team_ids, user):
+        """Authorize all membership changes before replacing an agent's teams."""
+
         if team_ids is None:
             return
         LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, agent.workspace)
@@ -82,22 +90,35 @@ class EnterpriseAgentExtension(AgentExtension):
                 {"team_ids": "Every team must belong to the agent's workspace."}
             )
         subject_type = ContentType.objects.get_for_model(Agent)
-        TeamSubject.objects.filter(
-            subject_type=subject_type, subject_id=agent.id
-        ).exclude(team_id__in=team_ids).delete()
-        existing_ids = set(
+        memberships = list(
             TeamSubject.objects.filter(
-                subject_type=subject_type,
-                subject_id=agent.id,
-                team_id__in=team_ids,
-            ).values_list("team_id", flat=True)
+                subject_type=subject_type, subject_id=agent.id
+            ).select_related("team__workspace")
         )
+        existing_ids = {membership.team_id for membership in memberships}
+        added_teams = [team for team in teams if team.id not in existing_ids]
+        removed_memberships = [
+            membership
+            for membership in memberships
+            if membership.team_id not in team_ids
+        ]
+        # Match the team-subject endpoints' scopes and authorize the whole diff
+        # before writing. Retained memberships require no extra permissions.
+        checks = [
+            PermissionCheck(user, CreateTeamSubjectOperationType.type, team)
+            for team in added_teams
+        ] + [
+            PermissionCheck(user, DeleteTeamSubjectOperationType.type, membership)
+            for membership in removed_memberships
+        ]
+        CoreHandler().check_multiple_permissions(
+            checks, workspace=agent.workspace, raise_exception=True
+        )
+        TeamSubject.objects.filter(
+            id__in=[membership.id for membership in removed_memberships]
+        ).delete()
         TeamSubject.objects.bulk_create(
-            [
-                TeamSubject(team=team, subject=agent)
-                for team in teams
-                if team.id not in existing_ids
-            ]
+            [TeamSubject(team=team, subject=agent) for team in added_teams]
         )
 
     def create(self, agent, values, user):
