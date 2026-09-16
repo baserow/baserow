@@ -34,6 +34,7 @@ import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
 import AgentService from '@baserow/modules/core/services/agent'
+import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 import {
   getTeamSubjectKey,
   makeTeamSubject,
@@ -67,6 +68,16 @@ export default {
     }
   },
   computed: {
+    canListAgents() {
+      return (
+        this.$featureFlagIsEnabled(FF_AGENTS) &&
+        this.$hasPermission(
+          'workspace.list_agents',
+          this.workspace,
+          this.workspace.id
+        )
+      )
+    },
     uninvitedSubjects() {
       const invitedSubjectKeys = this.invitedSubjects.map(getTeamSubjectKey)
       return this.availableSubjects.filter(
@@ -95,7 +106,9 @@ export default {
         const [{ data: teamSubjects }, { data: agentsResponse }] =
           await Promise.all([
             TeamService(this.$client).fetchAllSubjects(this.team.id),
-            AgentService(this.$client).list(this.workspace.id),
+            this.canListAgents
+              ? AgentService(this.$client).list(this.workspace.id)
+              : Promise.resolve({ data: [] }),
           ])
         const userSubjectType = this.$registry.get('subject', 'auth.User')
         const agentSubjectType = this.$registry.get('subject', 'core.Agent')
