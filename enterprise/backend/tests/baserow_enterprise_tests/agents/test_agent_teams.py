@@ -9,6 +9,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import RoleAssignment
 from baserow_enterprise.teams.exceptions import TeamSubjectDoesNotExist
 from baserow_enterprise.teams.handler import TeamHandler
 from baserow_enterprise.teams.models import TeamSubject
@@ -404,23 +405,51 @@ def test_agent_team_memberships_survive_trash_restore_and_team_edits(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("team_trashed", [False, True])
-def test_permanent_agent_deletion_cleans_team_memberships(
+def test_permanent_agent_deletion_cleans_access_records(
     data_fixture, enterprise_data_fixture, team_trashed
 ):
-    """Permanent deletion cleans memberships even when their team is also trashed."""
+    """Permanent deletion prevents generic access records applying to a reused ID."""
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     team = enterprise_data_fixture.create_team(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
     agent = AgentService().create_agent(
         user, workspace, name="Writer", team_ids=[team.id]
     )
+    agent_id = agent.id
     membership_id = TeamSubject.objects.get(team=team).id
+    role_handler = RoleAssignmentHandler()
+    role_handler.assign_role(
+        agent,
+        workspace,
+        role_handler.get_role_by_uid("BUILDER"),
+        scope=database.application_ptr,
+    )
+    agent_content_type = AgentSubjectType().get_content_type()
+    assignment_id = RoleAssignment.objects.get(
+        subject_type=agent_content_type, subject_id=agent.id
+    ).id
     AgentService().delete_agent(user, agent)
     team.trashed = team_trashed
     team.save()
     assert TeamSubject.objects_and_trash.filter(id=membership_id).exists()
+    assert RoleAssignment.objects.filter(id=assignment_id).exists()
 
     TrashHandler.permanently_delete(agent)
 
-    assert not Agent.objects_and_trash.filter(id=agent.id).exists()
+    assert not Agent.objects_and_trash.filter(id=agent_id).exists()
     assert not TeamSubject.objects_and_trash.filter(id=membership_id).exists()
+    assert not RoleAssignment.objects.filter(id=assignment_id).exists()
+
+    reused_agent = Agent.objects.create(
+        id=agent_id, workspace=workspace, name="Reused", role_uid="NO_ACCESS"
+    )
+    assert not TeamSubject.objects_and_trash.filter(
+        subject_type=agent_content_type, subject_id=reused_agent.id
+    ).exists()
+    assert (
+        role_handler.get_current_role_assignment(
+            reused_agent, workspace, database.application_ptr
+        )
+        is None
+    )
