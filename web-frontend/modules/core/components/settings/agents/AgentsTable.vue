@@ -15,7 +15,7 @@
         <h2>{{ $t('agents.emptyTitle') }}</h2>
         <p>{{ $t('agents.emptyDescription') }}</p>
         <Button
-          v-if="canManage"
+          v-if="canCreate"
           type="primary"
           icon="iconoir-plus"
           @click="$refs.createModal.show()"
@@ -29,7 +29,7 @@
     }}</template>
     <template #header-right-side>
       <Button
-        v-if="canManage"
+        v-if="canCreate"
         type="primary"
         size="large"
         class="margin-left-2"
@@ -44,13 +44,15 @@
         v-if="focusedAgent && canManage"
         ref="context"
         :agent="focusedAgent"
+        :can-update="canUpdate"
+        :can-delete="canDelete"
         @edit="$refs.updateModal.show()"
       />
     </template>
   </CrudTable>
   <ManageAgentModal ref="createModal" :workspace="workspace" />
   <ManageAgentModal
-    v-if="focusedAgent"
+    v-if="focusedAgent && canUpdate"
     ref="updateModal"
     :workspace="workspace"
     :agent="focusedAgent"
@@ -80,12 +82,29 @@ export default {
       // Resolve the selection by ID so realtime updates reach the editor prop.
       return this.$store.getters['agent/get'](this.focusedAgentId) || null
     },
-    canManage() {
+    canCreate() {
       return this.$hasPermission(
         'agent.create',
         this.workspace,
         this.workspace.id
       )
+    },
+    canUpdate() {
+      return this.$hasPermission(
+        'agent.update',
+        this.workspace,
+        this.workspace.id
+      )
+    },
+    canDelete() {
+      return this.$hasPermission(
+        'agent.delete',
+        this.workspace,
+        this.workspace.id
+      )
+    },
+    canManage() {
+      return this.canUpdate || this.canDelete
     },
     service() {
       const service = AgentService(this.$client)

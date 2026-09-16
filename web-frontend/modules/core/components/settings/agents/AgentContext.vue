@@ -1,13 +1,17 @@
 <template>
   <Context ref="context">
     <ul class="context__menu">
-      <li class="context__menu-item">
+      <li v-if="canUpdate" class="context__menu-item">
         <a class="context__menu-item-link" @click.prevent="edit">
           <i class="context__menu-item-icon iconoir-edit-pencil"></i>
           {{ $t('agents.edit') }}
         </a>
       </li>
-      <li class="context__menu-item context__menu-item--with-separator">
+      <li
+        v-if="canDelete"
+        class="context__menu-item"
+        :class="{ 'context__menu-item--with-separator': canUpdate }"
+      >
         <a
           class="context__menu-item-link context__menu-item-link--delete"
           @click.prevent="remove"
@@ -26,7 +30,11 @@ import context from '@baserow/modules/core/mixins/context'
 export default {
   name: 'AgentContext',
   mixins: [context],
-  props: { agent: { type: Object, required: true } },
+  props: {
+    agent: { type: Object, required: true },
+    canUpdate: { type: Boolean, required: true },
+    canDelete: { type: Boolean, required: true },
+  },
   emits: ['edit', 'deleted'],
   methods: {
     edit() {
