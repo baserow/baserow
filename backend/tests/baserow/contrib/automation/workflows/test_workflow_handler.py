@@ -20,6 +20,9 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
 )
+from baserow.contrib.automation.workflows.actions import (
+    UpdateAutomationWorkflowActionType,
+)
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
     WORKFLOW_DIRTY_CACHE_KEY,
@@ -33,9 +36,11 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.core.action.handler import ActionHandler
 from baserow.core.cache import global_cache, local_cache
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from tests.baserow.contrib.automation.history.utils import assert_history
 
@@ -1946,3 +1951,232 @@ def test_async_start_workflow_test_run_creates_test_clone(
     mock_start_workflow_celery_task.delay.assert_called_once_with(
         history.workflow_id, history.id
     )
+
+
+@pytest.mark.django_db
+def test_async_start_workflow_records_who_triggered_it(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    published = AutomationWorkflowHandler().publish(workflow)
+
+    with patch(
+        "baserow.contrib.automation.workflows.handler.start_workflow_celery_task"
+    ):
+        AutomationWorkflowHandler().async_start_workflow(published, triggered_by=user)
+
+    history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
+    assert history.triggered_by_id == user.id
+
+
+@pytest.mark.django_db
+def test_async_start_workflow_records_the_trigger_on_a_refused_run(data_fixture):
+    """The rate limited branch writes its own history row; it names the user too."""
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    published = AutomationWorkflowHandler().publish(workflow)
+
+    with patch.object(
+        AutomationWorkflowHandler,
+        "before_run",
+        side_effect=AutomationWorkflowRateLimited("too fast"),
+    ):
+        AutomationWorkflowHandler().async_start_workflow(published, triggered_by=user)
+
+    history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
+    assert history.status == "error"
+    assert history.triggered_by_id == user.id
+
+
+def _fire_rows_created_event(workflow, table):
+    trigger = workflow.get_trigger()
+    service = trigger.service.specific
+    trigger.get_type().on_event(
+        service.get_type().model_class.objects.filter(table=table),
+        [{"id": 1, "order": "1.00000000000000000000"}],
+    )
+
+
+@pytest.mark.django_db
+def test_a_test_run_waiting_for_its_event_records_who_started_it(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        user,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_service_kwargs={"table": table},
+    )
+
+    with patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task"):
+        AutomationWorkflowHandler().toggle_test_run(
+            workflow, simulate_until_node=None, triggered_by=user
+        )
+        assert not AutomationWorkflowHistory.objects.filter(
+            original_workflow=workflow
+        ).exists()
+
+        _fire_rows_created_event(workflow, table)
+
+    history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
+    assert history.is_test_run is True
+    assert history.triggered_by_id == user.id
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+
+
+@pytest.mark.django_db
+def test_a_simulation_waiting_for_its_event_records_who_started_it(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        user,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_service_kwargs={"table": table},
+    )
+
+    with patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task"):
+        AutomationWorkflowHandler().toggle_test_run(
+            workflow, simulate_until_node=workflow.get_trigger(), triggered_by=user
+        )
+        assert not AutomationWorkflowHistory.objects.filter(
+            original_workflow=workflow
+        ).exists()
+
+        _fire_rows_created_event(workflow, table)
+
+    history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
+    assert history.simulate_until_node_id == workflow.get_trigger().id
+    assert history.triggered_by_id == user.id
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+
+
+@pytest.mark.django_db
+def test_cancelling_a_waiting_test_run_forgets_who_started_it(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+    )
+    handler = AutomationWorkflowHandler()
+
+    handler.toggle_test_run(workflow, simulate_until_node=None, triggered_by=user)
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id == user.id
+
+    handler.toggle_test_run(workflow, simulate_until_node=None)
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+    assert handler.get_test_run_triggered_by(workflow) is None
+
+
+@pytest.mark.django_db
+def test_a_waiting_test_run_whose_starter_was_deleted_records_nobody(data_fixture):
+    user = data_fixture.create_user()
+    starter = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+    )
+
+    AutomationWorkflowHandler().toggle_test_run(
+        workflow, simulate_until_node=None, triggered_by=starter
+    )
+    starter.delete()
+    workflow.refresh_from_db()
+
+    assert AutomationWorkflowHandler().get_test_run_triggered_by(workflow) is None
+
+
+@pytest.mark.django_db
+def test_opening_the_test_run_window_through_an_update_records_who_opened_it(
+    data_fixture,
+):
+    first = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=first)
+    second = data_fixture.create_user(workspace=workspace)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    table = data_fixture.create_database_table(user=first)
+    workflow = data_fixture.create_automation_workflow(
+        first,
+        automation=automation,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_service_kwargs={"table": table},
+    )
+
+    AutomationWorkflowHandler().toggle_test_run(
+        workflow, simulate_until_node=None, triggered_by=first
+    )
+    UpdateAutomationWorkflowActionType.do(first, workflow.id, {"allow_test_run": False})
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+
+    UpdateAutomationWorkflowActionType.do(second, workflow.id, {"allow_test_run": True})
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id == second.id
+
+    with patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task"):
+        _fire_rows_created_event(workflow, table)
+
+    history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
+    assert history.triggered_by_id == second.id
+
+
+@pytest.mark.django_db
+def test_resetting_temporary_states_forgets_the_starter_type(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+    )
+    workflow.test_run_triggered_by_id = 1
+    workflow.test_run_triggered_by_type = "core.Token"
+    workflow.save()
+
+    AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+    assert workflow.test_run_triggered_by_type == UserSubjectType.type
+
+
+@pytest.mark.django_db
+def test_scheduling_a_test_run_without_a_starter_forgets_an_earlier_one(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+    )
+    handler = AutomationWorkflowHandler()
+    workflow.test_run_triggered_by_id = user.id
+    workflow.save()
+
+    handler.set_workflow_temporary_states(workflow)
+
+    workflow.refresh_from_db()
+    assert workflow.test_run_triggered_by_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_an_unrelated_update_keeps_the_test_run_starter(data_fixture):
+    first = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=first)
+    session_id = "undo-keeps-starter"
+    second = data_fixture.create_user(workspace=workspace, session_id=session_id)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        first,
+        automation=automation,
+        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+    )
+    AutomationWorkflowHandler().toggle_test_run(
+        workflow, simulate_until_node=None, triggered_by=first
+    )
+
+    UpdateAutomationWorkflowActionType.do(second, workflow.id, {"name": "Renamed"})
+    ActionHandler.undo(
+        second, [UpdateAutomationWorkflowActionType.scope(automation.id)], session_id
+    )
+
+    workflow.refresh_from_db()
+    assert workflow.name != "Renamed"
+    assert workflow.test_run_triggered_by_id == first.id

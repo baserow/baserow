@@ -559,3 +559,57 @@ def test_get_edge_labels_returns_expected_data(data_fixture):
         node_history_1.id: "foo label",
         node_history_2.id: "bar label",
     }
+
+
+@pytest.mark.django_db
+def test_create_workflow_history_records_who_triggered_it(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+        triggered_by=user,
+    )
+
+    history.refresh_from_db()
+    assert history.triggered_by_id == user.id
+    assert history.triggered_by_type == "auth.User"
+    assert history.triggered_by_name == user.first_name
+
+
+@pytest.mark.django_db
+def test_create_workflow_history_defaults_to_nobody(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+    )
+
+    assert history.triggered_by_id is None
+    assert history.triggered_by_name == ""
+
+
+@pytest.mark.django_db
+def test_deleting_the_user_keeps_who_started_the_run(data_fixture):
+    user = data_fixture.create_user(first_name="Ada")
+    workflow = data_fixture.create_automation_workflow()
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+        triggered_by=user,
+    )
+    user_id = user.id
+    user.delete()
+
+    history.refresh_from_db()
+    assert history.triggered_by_id == user_id
+    assert history.triggered_by_name == "Ada"

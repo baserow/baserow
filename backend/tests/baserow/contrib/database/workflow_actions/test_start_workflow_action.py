@@ -411,7 +411,7 @@ def test_a_click_starts_the_published_workflow(data_fixture):
     ) as async_start_workflow:
         DatabaseWorkflowActionService().dispatch_workflow_actions(user, field, row)
 
-    async_start_workflow.assert_called_once_with(published)
+    async_start_workflow.assert_called_once_with(published, triggered_by=user)
 
 
 @pytest.mark.django_db
@@ -459,6 +459,7 @@ def test_a_click_through_the_api_queues_the_published_workflow(
     history = AutomationWorkflowHistory.objects.get(original_workflow=workflow)
     assert history.workflow_id == published.id
     assert history.status == "started"
+    assert history.triggered_by_id == clicker.id
     celery_task.delay.assert_called_once_with(published.id, history.id)
 
 

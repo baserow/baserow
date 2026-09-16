@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a crash when snapshotting, duplicating, or importing a database containing formulas with implicit link field references to array-typed primary fields",
+    "issue_origin": "github",
+    "issue_number": 6067,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-10"
+}

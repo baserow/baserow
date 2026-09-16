@@ -1972,3 +1972,71 @@ def test_create_row_action_can_access_the_field_of_previous_action(
     # The ID of the new row that was created by the first Workflow Action
     row_id = action_1.service.table.get_model().objects.all()[2].id
     assert getattr(results[0], fields_2[0].db_column) == str(row_id)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("actor", ["user_source", "anonymous", "other_builder"])
+@pytest.mark.parametrize("endpoint", ["data_source", "workflow"])
+def test_public_dispatch_authentication(api_client, data_fixture, actor, endpoint):
+    """Public dispatch accepts its own external users and rejects other Builders."""
+    user = data_fixture.create_user()
+    draft = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=draft, published_to=builder)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    table, fields, _ = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[]
+    )
+    if endpoint == "workflow":
+        element = data_fixture.create_builder_button_element(page=page)
+        service = data_fixture.create_local_baserow_upsert_row_service(
+            integration=integration, table=table
+        )
+        service.field_mappings.create(field=fields[0], value="'Public row'")
+        workflow = data_fixture.create_local_baserow_create_row_workflow_action(
+            page=page, element=element, event=EventTypes.CLICK, service=service
+        )
+        url = reverse("api:builder:workflow_action:dispatch", args=[workflow.id])
+    else:
+        data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=page, integration=integration, table=table, user=user
+        )
+        url = reverse("api:builder:domains:public_dispatch", args=[data_source.id])
+
+    headers = {}
+    if actor != "anonymous":
+        source_builder = builder
+        if actor == "other_builder":
+            source_builder = data_fixture.create_builder_application(workspace=None)
+            data_fixture.create_builder_custom_domain(
+                builder=data_fixture.create_builder_application(user=user),
+                published_to=source_builder,
+            )
+        source = data_fixture.create_local_baserow_table_user_source(
+            application=source_builder,
+            integration=data_fixture.create_local_baserow_integration(
+                application=source_builder, user=user
+            ),
+            user=user,
+        )
+        row = source.table.get_model().objects.first()
+        external_user = data_fixture.create_user_source_user(
+            user_source=source, user_id=row.id
+        )
+        headers["HTTP_AUTHORIZATION"] = (
+            f"JWT {external_user.get_refresh_token().access_token}"
+        )
+
+    response = api_client.post(url, {}, format="json", **headers)
+    assert response.status_code == (401 if actor == "other_builder" else 200), (
+        response.json()
+    )
+    if actor == "other_builder":
+        assert response.json()["error"] == "PERMISSION_DENIED"
+    if endpoint == "workflow":
+        assert table.get_model().objects.count() == (
+            0 if actor == "other_builder" else 1
+        )

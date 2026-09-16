@@ -11,6 +11,7 @@ from rest_framework.fields import DateTimeField
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
 from baserow.contrib.database.api.export.views import _validate_options
+from baserow.contrib.database.export.models import ExportJob
 from baserow.contrib.database.rows.handler import RowHandler
 
 
@@ -600,3 +601,15 @@ def test_validate_options_omits_group_by_when_not_provided():
         }
     )
     assert "group_by" not in result
+
+
+@pytest.mark.django_db
+def test_export_ownership_rejects_user_source_principal(data_fixture, api_client):
+    """The export guard works independently of primary API authentication."""
+    owner = data_fixture.create_user()
+    export = ExportJob.objects.create(user=owner, export_options={})
+    external_user = data_fixture.create_user_source_user(user_id=owner.id)
+    api_client.force_authenticate(user=external_user)
+    response = api_client.get(reverse("api:database:export:get", args=[export.id]))
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_EXPORT_JOB_DOES_NOT_EXIST"

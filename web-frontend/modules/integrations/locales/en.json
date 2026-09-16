@@ -251,7 +251,7 @@
   "coreStartWorkflowServiceForm": {
     "automation": "Automation",
     "workflow": "Workflow",
-    "workflowHelperText": "Only published workflows with a manual trigger can be started. If this workflow has unpublished changes, the latest published version will run."
+    "workflowHelperText": "Only published workflows whose trigger can start on demand, such as a manual or periodic trigger, can be started. If this workflow has unpublished changes, the latest published version will run."
   },
   "coreGotoServiceForm": {
     "conditionLabel": "Condition",

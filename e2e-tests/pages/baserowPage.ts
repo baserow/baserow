@@ -22,6 +22,10 @@ export class BaserowPage {
   async authenticate(user: User) {
     await this.page.goto(`${this.baseUrl}?token=${user.refreshToken}`);
     await this.recoverFromNuxtError();
+    // The AI panel would otherwise open over the page header on every visit.
+    await this.page.evaluate(() => {
+      localStorage.setItem("baserow.rightSidebarOpen", "false");
+    });
   }
 
   async goto(params = {}) {

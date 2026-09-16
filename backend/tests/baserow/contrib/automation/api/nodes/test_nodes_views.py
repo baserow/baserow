@@ -1005,7 +1005,7 @@ def test_simulate_dispatch_trigger_node_immediate_dispatch(
 
     assert workflow.simulate_until_node_id == trigger_node.id
     # In case of an immediate dispatch we want to trigger immediately the workflow
-    mock_async_start_workflow.assert_called_with(workflow)
+    mock_async_start_workflow.assert_called_with(workflow, triggered_by=user)
 
     trigger_node.service.get_type().can_be_immediately_dispatched = old_imm
 
@@ -1166,7 +1166,7 @@ def test_simulate_dispatch_action_node_with_sample_data(
     assert response.status_code == HTTP_202_ACCEPTED
 
     # As the trigger node has sample data we can immediately trigger the workflow
-    mock_async_start_workflow.assert_called_with(workflow)
+    mock_async_start_workflow.assert_called_with(workflow, triggered_by=user)
 
     workflow.refresh_from_db()
     assert workflow.simulate_until_node_id == action_node.id

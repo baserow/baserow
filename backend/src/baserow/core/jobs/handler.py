@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Type
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
@@ -98,6 +99,10 @@ class JobHandler:
         :return: the job.
         """
 
+        # Numeric IDs are only meaningful within the same principal type.
+        if not isinstance(user, get_user_model()) or user.pk is None:
+            raise JobDoesNotExist(f"The job with id {job_id} does not exist.")
+
         if not job_model:
             job_model = Job
 
@@ -106,7 +111,7 @@ class JobHandler:
 
         try:
             return base_queryset.select_related("user").get(id=job_id, user_id=user.id)
-        except Job.DoesNotExist:
+        except job_model.DoesNotExist:
             raise JobDoesNotExist(f"The job with id {job_id} does not exist.")
 
     @classmethod
@@ -133,6 +138,9 @@ class JobHandler:
 
         if base_model is None:
             base_model = Job
+
+        if not isinstance(user, get_user_model()) or user.pk is None:
+            return base_model.objects.none()
 
         def get_job_states_filter(states):
             states_q = Q()

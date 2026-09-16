@@ -114,6 +114,42 @@ def data_source_fixture(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_public_builder_by_domain_name_with_user_source_token(
+    api_client, data_fixture
+):
+    """Domain lookup accepts a published Builder user's access token."""
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(workspace=None)
+    domain = data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(user=user),
+        published_to=builder,
+    )
+    source = data_fixture.create_local_baserow_table_user_source(
+        application=builder,
+        integration=data_fixture.create_local_baserow_integration(
+            application=builder, user=user
+        ),
+        user=user,
+    )
+    row = source.table.get_model().objects.first()
+    external_user = data_fixture.create_user_source_user(
+        user_source=source, user_id=row.id
+    )
+    token = external_user.get_refresh_token().access_token
+
+    response = api_client.get(
+        reverse(
+            "api:builder:domains:get_builder_by_domain_name",
+            kwargs={"domain_name": domain.domain_name},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["id"] == builder.id
+
+
+@pytest.mark.django_db
 def test_get_public_builder_by_domain_name(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     favicon_file = data_fixture.create_user_file(original_extension=".png")

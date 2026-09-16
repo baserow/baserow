@@ -29,6 +29,7 @@ from baserow.contrib.database.workflow_actions.trash_types import (
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
+    ActionType,
     ActionTypeDescription,
     UndoableActionCustomCleanupMixin,
     UndoableActionType,
@@ -454,3 +455,70 @@ class OrderDatabaseWorkflowActionsActionType(UndoableActionType):
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
         cls._order(user, params, params.workflow_action_ids)
+
+
+class DispatchButtonFieldActionType(ActionType):
+    """A button click, recorded for the audit log. Not undoable (ADR 006 s.8)."""
+
+    type = "dispatch_button_field"
+    description = ActionTypeDescription(
+        _("Click button"),
+        _('Button "%(field_name)s" (%(field_id)s) clicked on row %(row_id)s'),
+        TABLE_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "table_id",
+        "database_id",
+        "workspace_id",
+        "field_id",
+        "action_count",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        workspace_id: int
+        workspace_name: str
+        field_id: int
+        field_name: str
+        row_id: int
+        action_count: int
+
+    @classmethod
+    def do(cls, user: AbstractUser, field: ButtonField, row: Any, action_count: int):
+        """
+        Records the click.
+
+        :param user: The clicker.
+        :param field: The clicked button field.
+        :param row: The clicked row, a generated table model instance.
+        :param action_count: How many actions the button carried at the click.
+        """
+
+        table = field.table
+        database = table.database
+        workspace = database.workspace
+        cls.register_action(
+            user,
+            cls.Params(
+                table.id,
+                table.name,
+                database.id,
+                database.name,
+                workspace.id,
+                workspace.name,
+                field.id,
+                field.name,
+                row.id,
+                action_count,
+            ),
+            cls.scope(table.id),
+            workspace,
+        )
+
+    @classmethod
+    def scope(cls, table_id: int):
+        return TableActionScopeType.value(table_id)

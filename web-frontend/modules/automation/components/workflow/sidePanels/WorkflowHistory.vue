@@ -21,6 +21,9 @@
           type="secondary"
         />
       </div>
+      <div v-if="triggeredByName" class="workflow-history__started-by">
+        {{ $t('historySidePanel.startedBy', { name: triggeredByName }) }}
+      </div>
     </template>
 
     <template #default>
@@ -79,6 +82,7 @@ import historySuccessIcon from '@baserow/modules/core/assets/images/history-succ
 import historyFailedIcon from '@baserow/modules/core/assets/images/history-failed.svg?url'
 import historyDisabledIcon from '@baserow/modules/core/assets/images/history-disabled.svg?url'
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory.vue'
+import { getCollaboratorName } from '@baserow/modules/core/utils/collaborator'
 
 const app = useNuxtApp()
 const store = useStore()
@@ -127,6 +131,15 @@ const onToggle = () => {
 const nodeHistoriesEntry = computed(() =>
   store.getters['automationHistory/getNodeHistories'](props.item.id)
 )
+
+// A user's name comes from the workspace store so a rename shows; any other
+// subject, or a user who left, falls back to the name stored on the run.
+const triggeredByName = computed(() => {
+  const triggeredBy = props.item.triggered_by
+  if (!triggeredBy) return ''
+  if (triggeredBy.type !== 'auth.User') return triggeredBy.name
+  return getCollaboratorName(triggeredBy, store)
+})
 
 const statusTitle = computed(() => {
   switch (props.item.status) {

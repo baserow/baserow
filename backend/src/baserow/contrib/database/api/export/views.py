@@ -59,6 +59,8 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.jobs.exceptions import JobDoesNotExist
+from baserow.core.jobs.handler import JobHandler
 
 User = get_user_model()
 
@@ -212,8 +214,8 @@ class ExportJobView(APIView):
         """
 
         try:
-            job = ExportJob.objects.get(id=job_id, user_id=request.user.id)
-        except ExportJob.DoesNotExist:
+            job = JobHandler.get_job(request.user, job_id, job_model=ExportJob)
+        except JobDoesNotExist:
             raise ExportJobDoesNotExistException()
 
         return Response(ExportJobSerializer(job).data)

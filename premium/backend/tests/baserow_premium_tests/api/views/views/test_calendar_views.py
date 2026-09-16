@@ -1160,6 +1160,284 @@ def test_list_public_rows_doesnt_show_hidden_columns(api_client, premium_data_fi
             assert other_day["count"] == 0
 
 
+def _create_public_calendar_with_hidden_field(premium_data_fixture):
+    """
+    A published calendar with one visible and one hidden text field, holding a
+    single row whose hidden cell contains "secret".
+    """
+
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+
+    date_field = premium_data_fixture.create_date_field(table=table, name="date")
+    visible_field = premium_data_fixture.create_text_field(table=table, name="visible")
+    hidden_field = premium_data_fixture.create_text_field(table=table, name="hidden")
+
+    calendar_view = premium_data_fixture.create_calendar_view(
+        table=table, user=user, public=True, date_field=date_field
+    )
+    premium_data_fixture.create_calendar_view_field_option(
+        calendar_view, visible_field, hidden=False
+    )
+    premium_data_fixture.create_calendar_view_field_option(
+        calendar_view, hidden_field, hidden=True
+    )
+
+    with freeze_time("2023-01-10 12:00"):
+        row = RowHandler().create_row(
+            user,
+            table,
+            values={
+                f"field_{date_field.id}": "2023-01-10 12:00",
+                f"field_{visible_field.id}": "shown",
+                f"field_{hidden_field.id}": "secret",
+            },
+        )
+
+    return user, table, calendar_view, visible_field, hidden_field, row
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_list_public_rows_cannot_filter_on_hidden_field(
+    api_client, premium_data_fixture
+):
+    """
+    An anonymous visitor must not be able to use a hidden field as a filter. Doing
+    so would turn the per-day `count` and the returned row ids into an oracle that
+    reveals the hidden cell value, even though the cell itself is never serialized.
+    """
+
+    (
+        user,
+        table,
+        calendar_view,
+        visible_field,
+        hidden_field,
+        row,
+    ) = _create_public_calendar_with_hidden_field(premium_data_fixture)
+
+    with freeze_time("2023-01-10 12:00"):
+        # A filter that would match the hidden value, and one that would not. Both
+        # must be rejected identically, so that neither response distinguishes a
+        # correct guess from an incorrect one.
+        for value in ["sec", "zzz"]:
+            response = api_client.get(
+                get_public_list_url(calendar_view.slug)
+                + f"&filter__field_{hidden_field.id}__starts_with={value}"
+            )
+            assert response.status_code == HTTP_400_BAD_REQUEST, value
+            assert response.json()["error"] == "ERROR_FILTER_FIELD_NOT_FOUND", value
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_list_public_rows_cannot_filter_on_hidden_field_via_filters_param(
+    api_client, premium_data_fixture
+):
+    """
+    The grouped `filters=` JSON parameter is a second way to supply ad hoc filters
+    and must enforce the same restriction as the simple `filter__field_x__y` form.
+    """
+
+    (
+        user,
+        table,
+        calendar_view,
+        visible_field,
+        hidden_field,
+        row,
+    ) = _create_public_calendar_with_hidden_field(premium_data_fixture)
+
+    filters = {
+        "filter_type": "AND",
+        "filters": [
+            {
+                "field": hidden_field.id,
+                "type": "starts_with",
+                "value": "sec",
+            }
+        ],
+        "groups": [],
+    }
+
+    with freeze_time("2023-01-10 12:00"):
+        response = api_client.get(
+            get_public_list_url(calendar_view.slug) + f"&filters={json.dumps(filters)}"
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
+
+
+def _nested_group_filters(field_id, value):
+    """
+    The same single filter, but wrapped in a nested group so that it is reached
+    through the recursive branch of the grouped filter parser rather than the
+    top level one.
+    """
+
+    return {
+        "filter_type": "AND",
+        "filters": [],
+        "groups": [
+            {
+                "filter_type": "OR",
+                "filters": [{"field": field_id, "type": "starts_with", "value": value}],
+                "groups": [],
+            }
+        ],
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_list_public_rows_cannot_filter_on_hidden_field_in_nested_group(
+    api_client, premium_data_fixture
+):
+    """
+    A hidden field nested inside a filter group must be rejected just like one at
+    the top level, otherwise the restriction could be bypassed by wrapping the
+    filter in a single group.
+    """
+
+    (
+        user,
+        table,
+        calendar_view,
+        visible_field,
+        hidden_field,
+        row,
+    ) = _create_public_calendar_with_hidden_field(premium_data_fixture)
+
+    filters = _nested_group_filters(hidden_field.id, "sec")
+
+    with freeze_time("2023-01-10 12:00"):
+        response = api_client.get(
+            get_public_list_url(calendar_view.slug) + f"&filters={json.dumps(filters)}"
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_FILTER_FIELD_NOT_FOUND"
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_list_public_rows_can_still_filter_on_visible_field_in_nested_group(
+    api_client, premium_data_fixture
+):
+    """
+    Rejecting hidden fields inside nested groups must not break a legitimate
+    nested group on a visible field.
+    """
+
+    (
+        user,
+        table,
+        calendar_view,
+        visible_field,
+        hidden_field,
+        row,
+    ) = _create_public_calendar_with_hidden_field(premium_data_fixture)
+
+    with freeze_time("2023-01-10 12:00"):
+        matching = api_client.get(
+            get_public_list_url(calendar_view.slug)
+            + f"&filters={json.dumps(_nested_group_filters(visible_field.id, 'sho'))}"
+        )
+        assert matching.status_code == HTTP_200_OK
+        day = matching.json()["rows"]["2023-01-10"]
+        assert day["count"] == 1
+        assert [result["id"] for result in day["results"]] == [row.id]
+
+        non_matching = api_client.get(
+            get_public_list_url(calendar_view.slug)
+            + f"&filters={json.dumps(_nested_group_filters(visible_field.id, 'zzz'))}"
+        )
+        assert non_matching.status_code == HTTP_200_OK
+        assert non_matching.json()["rows"]["2023-01-10"]["count"] == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_list_public_rows_can_still_filter_on_visible_field(
+    api_client, premium_data_fixture
+):
+    """
+    Restricting the filterable fields must not break ad hoc filtering on the fields
+    the view actually publishes.
+    """
+
+    (
+        user,
+        table,
+        calendar_view,
+        visible_field,
+        hidden_field,
+        row,
+    ) = _create_public_calendar_with_hidden_field(premium_data_fixture)
+
+    with freeze_time("2023-01-10 12:00"):
+        matching = api_client.get(
+            get_public_list_url(calendar_view.slug)
+            + f"&filter__field_{visible_field.id}__starts_with=sho"
+        )
+        assert matching.status_code == HTTP_200_OK
+        day = matching.json()["rows"]["2023-01-10"]
+        assert day["count"] == 1
+        assert [result["id"] for result in day["results"]] == [row.id]
+
+        non_matching = api_client.get(
+            get_public_list_url(calendar_view.slug)
+            + f"&filter__field_{visible_field.id}__starts_with=zzz"
+        )
+        assert non_matching.status_code == HTTP_200_OK
+        assert non_matching.json()["rows"]["2023-01-10"]["count"] == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_list_public_rows_still_applies_saved_view_filter_on_hidden_field(
+    api_client, premium_data_fixture
+):
+    """
+    A filter the view owner saved on a hidden field is a deliberate restriction of
+    which rows the view publishes, not an information leak, so it must keep being
+    applied to anonymous visitors.
+    """
+
+    (
+        user,
+        table,
+        calendar_view,
+        visible_field,
+        hidden_field,
+        row,
+    ) = _create_public_calendar_with_hidden_field(premium_data_fixture)
+
+    with freeze_time("2023-01-10 12:00"):
+        excluded_row = RowHandler().create_row(
+            user,
+            table,
+            values={
+                f"field_{calendar_view.date_field_id}": "2023-01-10 12:00",
+                f"field_{hidden_field.id}": "other",
+            },
+        )
+
+        premium_data_fixture.create_view_filter(
+            view=calendar_view,
+            field=hidden_field,
+            type="equal",
+            value="secret",
+        )
+
+        response = api_client.get(get_public_list_url(calendar_view.slug))
+        assert response.status_code == HTTP_200_OK
+        day = response.json()["rows"]["2023-01-10"]
+        assert day["count"] == 1
+        assert [result["id"] for result in day["results"]] == [row.id]
+        assert excluded_row.id not in [result["id"] for result in day["results"]]
+
+
 @pytest.mark.django_db
 def test_list_public_rows_limit_offset(api_client, premium_data_fixture):
     user, token = premium_data_fixture.create_user_and_token()

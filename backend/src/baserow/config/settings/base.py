@@ -445,7 +445,6 @@ SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "baserow.api.user_sources.authentication.UserSourceJSONWebTokenAuthentication",
         "baserow.api.authentication.JSONWebTokenAuthentication",
     ),
     "DEFAULT_RENDERER_CLASSES": ("baserow.api.renderers.BaserowJSONRenderer",),
@@ -568,7 +567,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.3.3",
+    "VERSION": "2.3.4",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},

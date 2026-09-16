@@ -661,6 +661,12 @@ class DatabaseWorkflowActionService:
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.
         if not server_actions:
+            # Imported here: the action module reads this service.
+            from baserow.contrib.database.workflow_actions.actions import (
+                DispatchButtonFieldActionType,
+            )
+
+            DispatchButtonFieldActionType.do(user, field, row, len(workflow_actions))
             return WorkflowActionsDispatchResult(
                 client_actions=client_actions, positions=positions
             )
@@ -688,6 +694,14 @@ class DatabaseWorkflowActionService:
             raise WorkflowActionDispatchInProgress()
 
         try:
+            # Inside the lock, so a click refused as already running leaves no entry.
+            # Imported here: the action module reads this service.
+            from baserow.contrib.database.workflow_actions.actions import (
+                DispatchButtonFieldActionType,
+            )
+
+            DispatchButtonFieldActionType.do(user, field, row, len(workflow_actions))
+
             # Remembering a result edits the button's configuration, so it
             # follows the field's update permission rather than the lower bar
             # for clicking (ADR 006 section 7). Only asked when an action of

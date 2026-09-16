@@ -1,4 +1,5 @@
 import { getClient } from "../../client";
+import { waitForJob } from "../job";
 import { User } from "../user";
 import { Table } from "./table";
 
@@ -112,21 +113,10 @@ export async function duplicateField(
     { duplicate_data: options.copyData ?? false },
   );
 
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    const poll: any = await client.get(`jobs/${job.data.id}/`);
-    if (poll.data.state === "failed") {
-      throw new Error(
-        `Duplicating "${field.name}" failed: ${
-          poll.data.human_readable_error || ""
-        }`,
-      );
-    }
-    if (poll.data.state === "finished") {
-      return poll.data.duplicated_field as Field;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  throw new Error(`Duplicating "${field.name}" did not finish in time`);
+  const finished = await waitForJob(
+    client,
+    job.data.id,
+    `Duplicating "${field.name}"`,
+  );
+  return finished.duplicated_field as Field;
 }

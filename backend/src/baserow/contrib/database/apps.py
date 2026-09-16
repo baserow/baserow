@@ -61,6 +61,10 @@ class DatabaseConfig(AppConfig):
 
         action_type_registry.register(ExportTableActionType())
 
+        from .workflow_actions.actions import DispatchButtonFieldActionType
+
+        action_type_registry.register(DispatchButtonFieldActionType())
+
         from .airtable.actions import ImportDatabaseFromAirtableActionType
 
         action_type_registry.register(ImportDatabaseFromAirtableActionType())
