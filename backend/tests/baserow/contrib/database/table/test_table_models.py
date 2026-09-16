@@ -1443,6 +1443,17 @@ def test_order_by_fields_string_with_group_by_string_uses_group_by_sort_order(
     )
 
     handler = RowHandler()
+    # Add X first and Y second so the through rows are inserted in that order.
+    # A single update with [X, Y] goes through Django's M2M ``set()``, which
+    # bulk-creates the through rows in Python set iteration order of the option
+    # ids, so depending on the ids the sequence hands out it can insert Y before
+    # X and make row1 sort as "Y,X" instead of "X,Y".
+    handler.update_row_by_id(
+        user,
+        table,
+        row1.id,
+        {f"field_{ms_sort_field.id}": [option_x.id]},
+    )
     handler.update_row_by_id(
         user,
         table,
