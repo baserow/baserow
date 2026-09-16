@@ -75,6 +75,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
@@ -144,9 +145,9 @@ class DatabaseWorkflowActionsView(APIView):
         workflow_action_type = database_workflow_action_type_registry.get(type_name)
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
-        workflow_action = CreateDatabaseWorkflowActionActionType.do(
-            request.user, workflow_action_type, field, **data
-        )
+        workflow_action = action_type_registry.get(
+            CreateDatabaseWorkflowActionActionType.type
+        ).do(request.user, workflow_action_type, field, **data)
 
         serializer = database_workflow_action_type_registry.get_serializer(
             workflow_action,
@@ -257,7 +258,9 @@ class DatabaseWorkflowActionView(APIView):
             )
         )
 
-        DeleteDatabaseWorkflowActionActionType.do(request.user, workflow_action)
+        action_type_registry.get(DeleteDatabaseWorkflowActionActionType.type).do(
+            request.user, workflow_action
+        )
 
         return Response(status=204)
 
@@ -335,9 +338,9 @@ class DatabaseWorkflowActionView(APIView):
             partial=True,
         )
 
-        workflow_action_updated = UpdateDatabaseWorkflowActionActionType.do(
-            request.user, workflow_action, **data
-        )
+        workflow_action_updated = action_type_registry.get(
+            UpdateDatabaseWorkflowActionActionType.type
+        ).do(request.user, workflow_action, **data)
 
         serializer = database_workflow_action_type_registry.get_serializer(
             workflow_action_updated,
@@ -391,7 +394,7 @@ class OrderDatabaseWorkflowActionsView(APIView):
 
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
-        OrderDatabaseWorkflowActionsActionType.do(
+        action_type_registry.get(OrderDatabaseWorkflowActionsActionType.type).do(
             request.user, field, data["workflow_action_ids"]
         )
 

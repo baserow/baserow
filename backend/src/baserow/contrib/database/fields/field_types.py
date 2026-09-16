@@ -174,6 +174,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import grouper, list_to_comma_separated_string
@@ -8433,7 +8434,5 @@ class ButtonFieldType(ReadOnlyFieldType):
                     ),
                 )
                 if trashed:
-                    from baserow.core.trash.handler import TrashHandler
-
                     database = field.table.database
                     TrashHandler.trash(user, database.workspace, database, action)

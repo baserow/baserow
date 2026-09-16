@@ -44,6 +44,7 @@ from baserow.contrib.database.workflow_actions.types import (
     WorkflowActionsDispatchResult,
 )
 from baserow.core.action.context import without_undo_redo_registration
+from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -591,6 +592,11 @@ class DatabaseWorkflowActionService:
             actions for the caller to run itself, both in order.
         """
 
+        # Imported here: the action module reads this service.
+        from baserow.contrib.database.workflow_actions.actions import (
+            DispatchButtonFieldActionType,
+        )
+
         # Field scoped, so it also covers a button with no actions: without it
         # an outsider would get an empty result rather than a refusal.
         CoreHandler().check_permissions(
@@ -655,12 +661,9 @@ class DatabaseWorkflowActionService:
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.
         if not server_actions:
-            # Imported here: the action module reads this service.
-            from baserow.contrib.database.workflow_actions.actions import (
-                DispatchButtonFieldActionType,
+            action_type_registry.get(DispatchButtonFieldActionType.type).do(
+                user, field, row, len(workflow_actions)
             )
-
-            DispatchButtonFieldActionType.do(user, field, row, len(workflow_actions))
             return WorkflowActionsDispatchResult(
                 client_actions=client_actions, positions=positions
             )
@@ -689,12 +692,9 @@ class DatabaseWorkflowActionService:
 
         try:
             # Inside the lock, so a click refused as already running leaves no entry.
-            # Imported here: the action module reads this service.
-            from baserow.contrib.database.workflow_actions.actions import (
-                DispatchButtonFieldActionType,
+            action_type_registry.get(DispatchButtonFieldActionType.type).do(
+                user, field, row, len(workflow_actions)
             )
-
-            DispatchButtonFieldActionType.do(user, field, row, len(workflow_actions))
 
             # Remembering a result edits the button's configuration, so it
             # follows the field's update permission rather than the lower bar
