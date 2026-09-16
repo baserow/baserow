@@ -1,7 +1,20 @@
 <template>
   <div class="control__elements">
     <span
-      v-if="hasWorkflowActions"
+      v-if="requiresReconfiguration"
+      v-tooltip="$t('buttonField.requiresReconfiguration')"
+    >
+      <Button
+        size="tiny"
+        type="secondary"
+        icon="iconoir-warning-triangle"
+        disabled
+      >
+        {{ field.label }}
+      </Button>
+    </span>
+    <span
+      v-else-if="hasWorkflowActions"
       v-tooltip="
         rowIsCreated ? null : $t('rowEditFieldButtonField.createRowBefore')
       "

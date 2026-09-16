@@ -51,6 +51,20 @@ describe('FunctionalGridViewFieldButtonField', () => {
     expect(wrapper.find('button').text()).toBe('Open')
   })
 
+  test('a field that needs reconfiguring renders a disabled button with a warning', async () => {
+    const wrapper = await mountCell({
+      field: { ...field, requires_reconfiguration: true },
+    })
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.iconoir-warning-triangle').exists()).toBe(true)
+
+    await button.trigger('click')
+
+    expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+  })
+
   test('resolves the client action fields from the field store', async () => {
     const storeFields = [{ id: 1, type: 'text', name: 'Slug' }, field]
     testApp.store.commit('field/SET_ITEMS', storeFields)

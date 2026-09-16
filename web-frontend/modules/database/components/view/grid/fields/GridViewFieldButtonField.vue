@@ -1,8 +1,23 @@
 <template>
   <div ref="cell" class="grid-view__cell">
     <div class="grid-field-button">
+      <!-- A disabled button fires no mouse events, so the tooltip sits on a
+           wrapper. -->
+      <span
+        v-if="requiresReconfiguration"
+        v-tooltip="$t('buttonField.requiresReconfiguration')"
+      >
+        <Button
+          size="tiny"
+          type="secondary"
+          icon="iconoir-warning-triangle"
+          disabled
+        >
+          {{ field.label }}
+        </Button>
+      </span>
       <Button
-        v-if="hasWorkflowActions"
+        v-else-if="hasWorkflowActions"
         size="tiny"
         type="secondary"
         :loading="dispatching"
