@@ -13,6 +13,29 @@ class AgentSubjectType(SubjectType):
     model_class = Agent
     display_name_field = "name"
 
+    has_direct_workspace_roles = True
+
+    def get_workspace_subjects(self, workspace: Workspace, include_trash=False):
+        manager = Agent.objects_and_trash if include_trash else Agent.objects
+        return manager.filter(workspace=workspace)
+
+    def set_workspace_role_uid(
+        self,
+        subject: Agent,
+        workspace: Workspace,
+        role_uid: str,
+        send_signals: bool = True,
+    ):
+        """Persist the agent role and notify clients about its updated permissions."""
+        from baserow.core.agents.handler import AgentHandler
+        from baserow.core.agents.signals import agent_updated
+        from baserow.core.signals import permissions_updated
+
+        AgentHandler().update_agent(subject, role_uid=role_uid)
+        if send_signals:
+            agent_updated.send(self, user=None, agent=subject)
+            permissions_updated.send(self, subject=subject, workspace=workspace)
+
     def get_workspace_role_uids(
         self,
         subjects: List[Subject],
