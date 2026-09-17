@@ -40,13 +40,21 @@ test.each([false, true])(
       },
       {
         global: {
-          mocks: { $client: client },
+          mocks: { $client: client, $t: (key) => key },
           stubs: {
             Modal: {
               template: '<div><slot /></div>',
               methods: { show() {}, hide() {} },
             },
-            MemberAssignmentModal: true,
+            MemberAssignmentModal: {
+              props: ['title', 'description'],
+              template: `
+                <div>
+                  <span class="assignment-title">{{ title }}</span>
+                  <span class="assignment-description">{{ description }}</span>
+                </div>
+              `,
+            },
             ManageTeamForm: {
               props: ['invitedSubjects', 'disabled'],
               methods: { reset() {} },
@@ -59,6 +67,12 @@ test.each([false, true])(
     try {
       await wrapper.find('.open').trigger('click')
       await flushPromises()
+      expect(wrapper.find('.assignment-title').text()).toBe(
+        'manageTeamForm.accessModalTitle'
+      )
+      expect(wrapper.find('.assignment-description').text()).toBe(
+        'manageTeamForm.accessModalDescription'
+      )
       if (loadFails) {
         expect(wrapper.text()).toContain('Unable to load agents')
         expect(wrapper.find('.save').element.disabled).toBe(true)
