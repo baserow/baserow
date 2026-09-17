@@ -13,7 +13,7 @@ from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
 from baserow.test_utils.helpers import assert_undo_redo_actions_are_valid
-from baserow_enterprise.agents.extensions import EnterpriseAgentExtension
+from baserow_enterprise.agents.agent_extension_types import EnterpriseAgentExtensionType
 from baserow_enterprise.role.actions import BatchAssignRoleActionType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
@@ -350,5 +350,6 @@ def test_agent_role_validation_respects_visibility_and_workspace(
     }[scope]
     role = Role.objects.create(name="Custom", hidden=hidden, workspace=role_workspace)
     assert (
-        EnterpriseAgentExtension().role_uid_exists(str(role.uid), workspace) == allowed
+        EnterpriseAgentExtensionType().role_uid_exists(str(role.uid), workspace)
+        == allowed
     )

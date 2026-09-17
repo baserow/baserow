@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from baserow.core.agents.registries import AgentExtension
+from baserow.core.agents.registries import AgentExtensionType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
 from baserow.core.types import PermissionCheck
@@ -45,8 +45,8 @@ class AgentTeamsField(serializers.Field):
         )
 
 
-class EnterpriseAgentExtension(AgentExtension):
-    type = "enterprise_teams"
+class EnterpriseAgentExtensionType(AgentExtensionType):
+    type = "enterprise_permissions"
     request_fields = {
         "team_ids": serializers.ListField(
             child=serializers.IntegerField(), required=False

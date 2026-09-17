@@ -70,10 +70,10 @@ class AgentSubjectType(SubjectType):
     ) -> List[bool]:
         """Return whether each stored role is supported by the current edition."""
 
-        from baserow.core.agents.registries import agent_extension_registry
+        from baserow.core.agents.registries import agent_extension_type_registry
 
         return [
-            agent_extension_registry.role_uid_exists(subject.role_uid, workspace)
+            agent_extension_type_registry.role_uid_exists(subject.role_uid, workspace)
             for subject in subjects
         ]
 

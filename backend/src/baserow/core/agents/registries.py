@@ -1,7 +1,7 @@
 from baserow.core.registry import Instance, Registry
 
 
-class AgentExtension(Instance):
+class AgentExtensionType(Instance):
     """Optional hooks for extending Agent API fields and persistence."""
 
     request_fields = {}
@@ -26,7 +26,7 @@ class AgentExtension(Instance):
         return None
 
 
-class AgentExtensionRegistry(Registry[AgentExtension]):
+class AgentExtensionTypeRegistry(Registry[AgentExtensionType]):
     name = "agent_extension"
 
     def enhance_queryset(self, queryset, workspace):
@@ -50,4 +50,4 @@ class AgentExtensionRegistry(Registry[AgentExtension]):
         return "MEMBER"
 
 
-agent_extension_registry = AgentExtensionRegistry()
+agent_extension_type_registry = AgentExtensionTypeRegistry()
