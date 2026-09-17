@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 
 from baserow.core.agents.service import AgentService
 from baserow.core.agents.subjects import AgentSubjectType
-from baserow_enterprise.agents.extensions import EnterpriseAgentExtension
+from baserow_enterprise.agents.agent_extension_types import EnterpriseAgentExtensionType
 from baserow_enterprise.teams.models import TeamSubject
 
 
@@ -42,7 +42,7 @@ def test_concurrent_agent_team_replacements_are_serialized(
     release_first = Event()
     second_connected = Event()
     second_pid = []
-    original_update = EnterpriseAgentExtension.update
+    original_update = EnterpriseAgentExtensionType.update
 
     def pause_first_update(extension, agent, values, user):
         if values["team_ids"] == [first_team.id]:
@@ -69,7 +69,7 @@ def test_concurrent_agent_team_replacements_are_serialized(
             connections.close_all()
 
     with (
-        patch.object(EnterpriseAgentExtension, "update", pause_first_update),
+        patch.object(EnterpriseAgentExtensionType, "update", pause_first_update),
         ThreadPoolExecutor(max_workers=2) as executor,
     ):
         first = executor.submit(request_update, first_team.id)

@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.validators import no_url_validation
-from baserow.core.agents.registries import agent_extension_registry
+from baserow.core.agents.registries import agent_extension_type_registry
 from baserow.core.models import Agent
 
 
@@ -19,7 +19,7 @@ class AgentSerializer(serializers.ModelSerializer):
 
     def get_fields(self):
         fields = super().get_fields()
-        for extension in agent_extension_registry.get_all():
+        for extension in agent_extension_type_registry.get_all():
             fields.update(deepcopy(extension.response_fields))
         return fields
 
@@ -44,7 +44,7 @@ class AgentRequestSerializer(
 
     def get_fields(self):
         fields = super().get_fields()
-        for extension in agent_extension_registry.get_all():
+        for extension in agent_extension_type_registry.get_all():
             fields.update(deepcopy(extension.request_fields))
         return fields
 

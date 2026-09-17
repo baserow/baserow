@@ -9,7 +9,7 @@ from baserow.core.agents.operations import (
     ListAgentsWorkspaceOperationType,
     UpdateAgentOperationType,
 )
-from baserow.core.agents.registries import agent_extension_registry
+from baserow.core.agents.registries import agent_extension_type_registry
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent, Workspace
@@ -50,12 +50,14 @@ class AgentService:
             user, CreateAgentOperationType.type, workspace=workspace, context=workspace
         )
         values.setdefault(
-            "role_uid", agent_extension_registry.get_default_role_uid(workspace)
+            "role_uid", agent_extension_type_registry.get_default_role_uid(workspace)
         )
-        if not agent_extension_registry.role_uid_exists(values["role_uid"], workspace):
+        if not agent_extension_type_registry.role_uid_exists(
+            values["role_uid"], workspace
+        ):
             raise AgentRoleDoesNotExist()
         agent = AgentHandler().create_agent(workspace, **values)
-        for extension in agent_extension_registry.get_all():
+        for extension in agent_extension_type_registry.get_all():
             extension.create(agent, values, user)
         agent = AgentHandler().get_agent(
             agent.id, AgentHandler().get_queryset(workspace)
@@ -89,13 +91,13 @@ class AgentService:
         if (
             "role_uid" in values
             and values["role_uid"] != agent.role_uid
-            and not agent_extension_registry.role_uid_exists(
+            and not agent_extension_type_registry.role_uid_exists(
                 values["role_uid"], agent.workspace
             )
         ):
             raise AgentRoleDoesNotExist()
         AgentHandler().update_agent(agent, **values)
-        for extension in agent_extension_registry.get_all():
+        for extension in agent_extension_type_registry.get_all():
             extension.update(agent, values, user)
         agent = AgentHandler().get_agent(
             agent.id, AgentHandler().get_queryset(agent.workspace)
@@ -117,7 +119,7 @@ class AgentService:
             workspace=agent.workspace,
             context=agent.workspace,
         )
-        for extension in agent_extension_registry.get_all():
+        for extension in agent_extension_type_registry.get_all():
             extension.before_delete(agent, user)
         AgentHandler().delete_agent(user, agent)
         agent_deleted.send(self, user=user, agent=agent)

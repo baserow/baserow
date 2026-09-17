@@ -3,7 +3,7 @@ from typing import Any
 from django.db.models import QuerySet
 
 from baserow.core.agents.exceptions import AgentDoesNotExist
-from baserow.core.agents.registries import agent_extension_registry
+from baserow.core.agents.registries import agent_extension_type_registry
 from baserow.core.models import Agent, Workspace
 from baserow.core.trash.handler import TrashHandler
 
@@ -22,7 +22,7 @@ class AgentHandler:
         """
 
         queryset = Agent.objects.filter(workspace=workspace).select_related("workspace")
-        return agent_extension_registry.enhance_queryset(queryset, workspace)
+        return agent_extension_type_registry.enhance_queryset(queryset, workspace)
 
     def get_agent(
         self, agent_id: int, base_queryset=None, for_update: bool = False

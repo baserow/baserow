@@ -321,7 +321,7 @@ def test_agent_list_loads_workspace_and_team_summaries_in_one_query(
         TeamSubject.objects.create(team=team, subject=agent)
         TeamSubject.objects.create(team=trashed_team, subject=agent)
     with patch(
-        "baserow_enterprise.agents.extensions.LicenseHandler.workspace_has_feature",
+        "baserow_enterprise.agents.agent_extension_types.LicenseHandler.workspace_has_feature",
         return_value=teams_enabled,
     ) as workspace_has_feature:
         queryset = AgentHandler().get_queryset(workspace)
