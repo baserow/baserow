@@ -71,6 +71,7 @@ import _ from 'lodash'
 
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
+import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 export default {
   name: 'ManageAgentModal',
@@ -219,7 +220,14 @@ export default {
         }
       } catch (error) {
         if (openingGeneration === this.openingGeneration) {
-          this.handleError(error, 'agent')
+          this.handleError(error, 'agent', null, {
+            name: {
+              invalid_name: new ResponseErrorMessage(
+                this.$t('agents.invalidNameTitle'),
+                this.$t('error.nameContainsUrl')
+              ),
+            },
+          })
         }
       } finally {
         if (openingGeneration === this.openingGeneration) {
