@@ -44,6 +44,14 @@ export const consumeUserSourceCallback = (url) => {
   }
 
   return {
+    provider:
+      callbacks.length === 1
+        ? callbacks[0].match(/^user_source_(.+)_token__\d+$/)[1]
+        : null,
+    userSourceId:
+      callbacks.length === 1
+        ? Number(callbacks[0].match(/_token__(\d+)$/)[1])
+        : null,
     token: tokens.length === 1 && tokens[0] ? tokens[0] : null,
     url: cleanUrl,
   }

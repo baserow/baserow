@@ -1,8 +1,17 @@
 import pytest
 
+from baserow.contrib.builder.api.domains.serializers import (
+    PublicPolymorphicAppAuthProviderSerializer,
+)
 from baserow.contrib.builder.domains.handler import DomainHandler
+from baserow_enterprise.integrations.common.sso.oauth2.models import (
+    OpenIdConnectAppAuthProviderModel,
+)
 from baserow_enterprise.integrations.common.sso.saml.models import (
     SamlAppAuthProviderModel,
+)
+from baserow_enterprise.integrations.local_baserow.models import (
+    LocalBaserowPasswordAppAuthProvider,
 )
 
 from ...local_baserow.helpers import populate_local_baserow_test_data
@@ -75,3 +84,27 @@ def test_saml_app_auth_provider_attr_keys_survive_publishing(
     assert published_provider.email_attr_key == "email"
     assert published_provider.first_name_attr_key == "firstName"
     assert published_provider.last_name_attr_key == "lastName"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "model, enabled, expected",
+    [
+        (SamlAppAuthProviderModel, True, True),
+        (SamlAppAuthProviderModel, False, False),
+        (OpenIdConnectAppAuthProviderModel, True, True),
+        (OpenIdConnectAppAuthProviderModel, False, False),
+        (LocalBaserowPasswordAppAuthProvider, True, False),
+    ],
+)
+def test_public_provider_declares_callback_support(
+    data_fixture, model, enabled, expected
+):
+    data = populate_local_baserow_test_data(data_fixture)
+    provider = data_fixture.create_app_auth_provider(
+        model, user_source=data["unpublished_user_source"], enabled=enabled
+    )
+    assert (
+        PublicPolymorphicAppAuthProviderSerializer(provider).data["supports_callback"]
+        is expected
+    )
