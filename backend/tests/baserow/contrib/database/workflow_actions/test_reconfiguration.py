@@ -288,3 +288,48 @@ def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
             assert "Index Cond" in scan, scan
             rows_read = scan["Actual Rows"] + scan.get("Rows Removed by Filter", 0)
             assert rows_read <= 1, scan
+
+
+@pytest.mark.django_db
+def test_updating_an_action_does_not_query_per_mapping(api_client, data_fixture):
+    """Neither saving the mappings nor sending them back costs a query each."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    fields = [data_fixture.create_text_field(table=table) for _ in range(10)]
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    action, _ = _row_action(
+        data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, table
+    )
+    url = reverse(
+        "api:database:workflow_actions:item",
+        kwargs={"workflow_action_id": action.id},
+    )
+
+    def update_mappings(mapped_fields):
+        payload = {
+            "type": "local_baserow_create_row",
+            "service": {
+                "type": "local_baserow_upsert_row",
+                "table_id": table.id,
+                "field_mappings": [
+                    {"field_id": field.id, "value": "'a'", "enabled": True}
+                    for field in mapped_fields
+                ],
+            },
+        }
+        with CaptureQueriesContext(connection) as captured:
+            response = api_client.patch(
+                url, payload, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+            )
+            assert response.status_code == 200, response.json()
+        return response.json(), len(captured)
+
+    update_mappings(fields[:1])
+    _, one_mapping_queries = update_mappings(fields[:1])
+    update_mappings(fields)
+    payload, ten_mapping_queries = update_mappings(fields)
+
+    assert len(payload["service"]["field_mappings"]) == 10
+    assert all(m["trashed"] is False for m in payload["service"]["field_mappings"])
+    assert ten_mapping_queries == one_mapping_queries

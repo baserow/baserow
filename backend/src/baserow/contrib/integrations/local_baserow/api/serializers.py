@@ -1,3 +1,6 @@
+from django.db.models import prefetch_related_objects
+from django.db.models.manager import BaseManager
+
 from rest_framework import serializers
 
 from baserow.contrib.integrations.local_baserow.models import (
@@ -163,6 +166,17 @@ class LocalBaserowTableServiceFilterSerializerMixin(serializers.Serializer):
         return data
 
 
+class LocalBaserowTableServiceFieldMappingListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        # `trashed` reads each mapping's field. A service fetched through
+        # `enhance_queryset` has them already, any other loads them all at once
+        # here rather than one query per mapping.
+        if isinstance(data, BaseManager):
+            data = list(data.all())
+            prefetch_related_objects(data, "field")
+        return super().to_representation(data)
+
+
 class LocalBaserowTableServiceFieldMappingSerializer(serializers.Serializer):
     field_id = serializers.IntegerField(
         help_text="The primary key of the associated database table field."
@@ -177,3 +191,6 @@ class LocalBaserowTableServiceFieldMappingSerializer(serializers.Serializer):
         help_text="A field mapping is considered trashed if the field it's "
         "associated with is trashed.",
     )
+
+    class Meta:
+        list_serializer_class = LocalBaserowTableServiceFieldMappingListSerializer

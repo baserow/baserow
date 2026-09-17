@@ -31,7 +31,6 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.exceptions import (
     FieldDataConstraintException,
-    FieldDoesNotExist,
     IncompatibleField,
 )
 from baserow.contrib.database.fields.field_types import (
@@ -1941,22 +1940,30 @@ class LocalBaserowUpsertRowServiceType(
                 ).values_list("field_id", flat=True)
             )
             instance.field_mappings.exclude(field_id__in=kept_field_ids).delete()
-            # The queryset we'll use to narrow down the `get_field` query,
-            # this ensures we find the field within the service's table.
-            base_field_qs = instance.table.field_set.all()
+            # Fetched in one query rather than one per mapping, and only from
+            # the service's table.
+            fields = {
+                field.id: field
+                for field in instance.table.field_set.filter(
+                    id__in=[m["field_id"] for m in field_mappings if "field_id" in m]
+                )
+            }
+            if fields and TrashHandler.item_has_a_trashed_parent(
+                instance.table, check_item_also=True
+            ):
+                fields = {}
             for field_mapping in field_mappings:
                 # Undo replays exported mappings, trashed ones included, and the
                 # mapping is already there.
                 if field_mapping.get("field_id") in kept_field_ids:
                     continue
-                try:
-                    field = FieldHandler().get_field(
-                        field_mapping["field_id"], base_queryset=base_field_qs
-                    )
-                except KeyError:
+                if "field_id" not in field_mapping:
                     raise DRFValidationError("A field mapping must have a `field_id`.")
-                except FieldDoesNotExist as exc:
-                    raise DRFValidationError(str(exc))
+                field = fields.get(field_mapping["field_id"])
+                if field is None:
+                    raise DRFValidationError(
+                        f"The field with id {field_mapping['field_id']} does not exist."
+                    )
 
                 bulk_field_mappings.append(
                     LocalBaserowTableServiceFieldMapping(
