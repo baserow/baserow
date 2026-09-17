@@ -123,7 +123,7 @@ describe('AgentsTable', () => {
   })
 
   test.each([
-    [['agent.create'], 2, 3, false, false],
+    [['agent.create'], 1, 3, false, false],
     [['agent.update'], 0, 4, true, false],
     [['agent.delete'], 0, 4, false, true],
     [[], 0, 3, false, false],

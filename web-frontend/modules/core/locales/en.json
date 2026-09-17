@@ -1354,8 +1354,6 @@
     "saved": "Changes saved",
     "tabTitle": "Agents",
     "title": "{count} agents in {workspace}",
-    "emptyTitle": "You have not created any agents yet",
-    "emptyDescription": "Agents are virtual users for AI. They cannot sign in, but they can hold roles and join teams.",
     "create": "Create agent",
     "createTitle": "Create agent",
     "updateTitle": "Edit agent",
