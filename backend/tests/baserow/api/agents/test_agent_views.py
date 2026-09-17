@@ -155,6 +155,42 @@ def test_agent_list_openapi_schema_matches_paginated_response(api_client):
     assert set(components[team_ref.split("/")[-1]]["properties"]) == {"id", "name"}
 
 
+def test_agent_openapi_operations_have_stable_ids_and_explicit_path_parameters(
+    api_client,
+):
+    """Agent client operations have stable names and typed path parameters."""
+
+    schema = api_client.get(reverse("api:json_schema")).json()
+    operations = [
+        (
+            "/api/agents/workspace/{workspace_id}/",
+            "get",
+            "list_workspace_agents",
+            "workspace_id",
+        ),
+        (
+            "/api/agents/workspace/{workspace_id}/",
+            "post",
+            "create_workspace_agent",
+            "workspace_id",
+        ),
+        ("/api/agents/{agent_id}/", "patch", "update_agent", "agent_id"),
+        ("/api/agents/{agent_id}/", "delete", "delete_agent", "agent_id"),
+    ]
+
+    for path, method, operation_id, parameter_name in operations:
+        operation = schema["paths"][path][method]
+        assert operation["operationId"] == operation_id
+        path_parameters = [
+            parameter
+            for parameter in operation["parameters"]
+            if parameter["in"] == "path"
+        ]
+        assert len(path_parameters) == 1
+        assert path_parameters[0]["name"] == parameter_name
+        assert path_parameters[0]["schema"]["type"] == "integer"
+
+
 @pytest.mark.django_db
 def test_cannot_create_agent_when_feature_flag_is_disabled(
     data_fixture, api_client, settings
