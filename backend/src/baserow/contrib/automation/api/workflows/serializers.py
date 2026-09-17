@@ -141,6 +141,7 @@ class AutomationWorkflowHistorySerializer(AutomationHistorySerializer):
         fields = AutomationHistorySerializer.Meta.fields + (
             "is_test_run",
             "simulate_until_node",
+            "cancellation_requested_on",
             "plugin_data",
             "triggered_by",
         )

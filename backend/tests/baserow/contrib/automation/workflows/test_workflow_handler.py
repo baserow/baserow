@@ -2,14 +2,17 @@ import datetime
 from unittest.mock import MagicMock, patch
 
 from django.db import connection
+from django.db.models import QuerySet
 from django.db.utils import IntegrityError
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
     AutomationWorkflowHistory,
@@ -1728,6 +1731,191 @@ def test_mark_failure_for_timed_out_history(data_fixture):
     assert node_history.status == HistoryStatusChoices.ERROR
     assert node_history.message == error_message
     assert node_history.completed_on == timed_out_history.completed_on
+
+
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
+def test_mark_failure_for_timed_out_history_with_cancellation_requested(
+    data_fixture,
+):
+    """
+    A timed-out run whose cancellation was requested but never noticed by the
+    runner (hung node, dead worker) resolves as cancelled, not as a generic
+    timeout error. Other timed-out runs still resolve as errors.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    with freeze_time("2026-04-16 12:00:00"):
+        cancelled_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+            cancellation_requested_by=user,
+            cancellation_requested_on=timezone.now(),
+        )
+        cancelled_node_history = AutomationNodeHistory.objects.create(
+            workflow_history=cancelled_history,
+            node=workflow.get_trigger(),
+            started_on=cancelled_history.started_on,
+            status=HistoryStatusChoices.STARTED,
+        )
+        timed_out_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+
+    with freeze_time("2026-04-16 12:59:00"):
+        # Cancellation requested, but the run hasn't timed out yet.
+        running_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+            cancellation_requested_by=user,
+            cancellation_requested_on=timezone.now(),
+        )
+
+    with freeze_time("2026-04-16 13:00:01"):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
+
+    error_message = "This workflow took too long and was timed out."
+
+    cancelled_history.refresh_from_db()
+    assert cancelled_history.status == HistoryStatusChoices.CANCELLED
+    assert cancelled_history.message == (
+        "Cancellation was requested and the run was force-stopped after timing out."
+    )
+    assert cancelled_history.completed_on is not None
+
+    # The hung node itself is still reported as timed out.
+    cancelled_node_history.refresh_from_db()
+    assert cancelled_node_history.status == HistoryStatusChoices.ERROR
+    assert cancelled_node_history.message == error_message
+    assert cancelled_node_history.completed_on == cancelled_history.completed_on
+
+    timed_out_history.refresh_from_db()
+    assert timed_out_history.status == HistoryStatusChoices.ERROR
+    assert timed_out_history.message == error_message
+    assert timed_out_history.completed_on == cancelled_history.completed_on
+
+    running_history.refresh_from_db()
+    assert running_history.status == HistoryStatusChoices.STARTED
+    assert running_history.completed_on is None
+
+
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
+def test_mark_failure_for_timed_out_history_rechecks_rows_at_write_time(
+    data_fixture,
+):
+    """
+    The sweep reads the timed-out runs, then writes. Anything that resolves or
+    receives a cancellation request in between must win: the writes are guarded
+    on the row still being `STARTED`, and the cancellation flag is re-read at
+    update time rather than taken from the snapshot.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history_handler = AutomationHistoryHandler()
+
+    with freeze_time("2026-04-16 12:00:00"):
+        completed_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+        cancelled_before_write_history = (
+            data_fixture.create_automation_workflow_history(
+                workflow=workflow,
+                status=HistoryStatusChoices.STARTED,
+            )
+        )
+        cancelled_between_writes_history = (
+            data_fixture.create_automation_workflow_history(
+                workflow=workflow,
+                status=HistoryStatusChoices.STARTED,
+            )
+        )
+        timed_out_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+
+    real_update = QuerySet.update
+    sweep_writes = 0
+    racing = False
+
+    def racing_update(queryset, *args, **kwargs):
+        """
+        Runs concurrent writers just before each of the sweep's workflow
+        history updates, i.e. after its snapshot was taken.
+        """
+
+        nonlocal sweep_writes, racing
+        if queryset.model is AutomationWorkflowHistory and not racing:
+            sweep_writes += 1
+            racing = True
+            try:
+                if sweep_writes == 1:
+                    # Before the cancelled write: the dispatch-done handler
+                    # finishes one run and a user cancels another.
+                    AutomationWorkflowHistory.objects.filter(
+                        id=completed_history.id,
+                        status=HistoryStatusChoices.STARTED,
+                    ).update(
+                        status=HistoryStatusChoices.SUCCESS,
+                        completed_on=timezone.now(),
+                    )
+                    history_handler.request_workflow_history_cancellation(
+                        cancelled_before_write_history, user
+                    )
+                elif sweep_writes == 2:
+                    # Between the cancelled and the errored write.
+                    history_handler.request_workflow_history_cancellation(
+                        cancelled_between_writes_history, user
+                    )
+            finally:
+                racing = False
+        return real_update(queryset, *args, **kwargs)
+
+    with (
+        freeze_time("2026-04-16 13:00:01"),
+        patch.object(QuerySet, "update", racing_update),
+    ):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
+
+    assert sweep_writes == 2
+
+    # The run that completed after the snapshot keeps its real outcome.
+    completed_history.refresh_from_db()
+    assert completed_history.status == HistoryStatusChoices.SUCCESS
+    assert completed_history.message == ""
+
+    # The cancellation requested after the snapshot is honoured right away.
+    cancelled_before_write_history.refresh_from_db()
+    assert cancelled_before_write_history.status == HistoryStatusChoices.CANCELLED
+    assert cancelled_before_write_history.message == (
+        "Cancellation was requested and the run was force-stopped after timing out."
+    )
+    assert cancelled_before_write_history.cancellation_requested_by == user
+
+    # A request landing between the two writes matches neither, so the run is
+    # left running with its request intact and resolved by the next sweep.
+    cancelled_between_writes_history.refresh_from_db()
+    assert cancelled_between_writes_history.status == HistoryStatusChoices.STARTED
+    assert cancelled_between_writes_history.cancellation_requested_on is not None
+
+    timed_out_history.refresh_from_db()
+    assert timed_out_history.status == HistoryStatusChoices.ERROR
+    assert timed_out_history.message == (
+        "This workflow took too long and was timed out."
+    )
+
+    with freeze_time("2026-04-16 14:00:01"):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
+
+    cancelled_between_writes_history.refresh_from_db()
+    assert cancelled_between_writes_history.status == HistoryStatusChoices.CANCELLED
+    assert cancelled_between_writes_history.cancellation_requested_by == user
 
 
 @pytest.mark.django_db
