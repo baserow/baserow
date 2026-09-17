@@ -40,5 +40,5 @@ def setup_periodic_enterprise_data_sync_tasks(sender, **kwargs):
 def sync_periodic_data_sync(self, periodic_data_sync_id):
     from baserow_enterprise.data_sync.handler import EnterpriseDataSyncHandler
 
-    # No transaction wrapper: the sync job's isolation level needs a fresh one.
+    # No transaction wrapper: the sync job manages its own transactions.
     EnterpriseDataSyncHandler().sync_periodic_data_sync(periodic_data_sync_id)

@@ -1,9 +1,11 @@
+import contextlib
 from collections import defaultdict
 from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -22,14 +24,10 @@ from baserow.contrib.database.data_sync.exceptions import (
     SyncDataSyncTableAlreadyRunning,
     SyncError,
 )
-from baserow.contrib.database.db.atomic import (
-    read_repeatable_read_single_table_transaction,
-)
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.signals import table_updated
 from baserow.core.action.registries import action_type_registry
-from baserow.core.db import transaction_atomic
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -48,6 +46,14 @@ from .operations import ListDataSyncJobsOperationType, SyncTableOperationType
 from .registries import data_sync_type_registry
 
 MAX_FOREIGN_DATA_SYNCS_TO_SCOPE = 50
+
+# Stored as `last_error` when a sync fails with anything other than a `SyncError`.
+# The underlying exception is unexpected and may contain internal details, so it is
+# not exposed verbatim; the job row keeps the real error for debugging.
+UNEXPECTED_SYNC_ERROR = (
+    "The sync failed unexpectedly. Some rows may already have been written. "
+    "Please try again."
+)
 
 
 def validation_error_to_human_readable_string(e):
@@ -196,16 +202,23 @@ class SyncDataSyncTableJobType(JobType):
 
     def on_error(self, job: SyncDataSyncTableJob, error: Exception) -> None:
         """
-        Persists the sync error on the data sync and notifies clients. This must
-        happen here because the failed sync's transaction, including the
-        ``last_error`` write done inside it, has been rolled back.
+        Persists the sync error on the data sync and notifies clients. The sync
+        writes its rows in a short transaction that has already committed or rolled
+        back by the time this runs, so the ``last_error`` write is done here, on its
+        own, rather than from inside the failed sync.
         """
 
-        if not isinstance(error, SyncError) or not job.data_sync:
+        if not job.data_sync:
             return
 
         data_sync = job.data_sync
-        data_sync.last_error = str(error)
+        # Every failure is recorded, not just `SyncError`. The write phase commits
+        # on its own, so an unexpected error (worker kill, timeout, database error)
+        # can leave rows committed while the data sync still says it never ran.
+        # `last_error` is the only signal left that something went wrong.
+        data_sync.last_error = (
+            str(error) if isinstance(error, SyncError) else UNEXPECTED_SYNC_ERROR
+        )
         data_sync.save(update_fields=("last_error",))
 
         if not data_sync.table.trashed:
@@ -214,22 +227,54 @@ class SyncDataSyncTableJobType(JobType):
             )
 
     def on_cancelled(self, job: SyncDataSyncTableJob) -> None:
-        # Delete table if this is the initial sync job (last_sync is None), to avoid
-        # leaving an empty, unsynced table that the user never explicitly created.
-        if job.data_sync and job.data_sync.last_sync is None:
-            try:
-                TableHandler().delete_table(job.user, job.data_sync.table)
-            except Exception:
-                logger.exception(
-                    f"Failed to delete table for cancelled data sync job {job.id}."
-                )
+        """
+        Deletes the table of a cancelled initial sync, to avoid leaving an empty,
+        unsynced table that the user never explicitly created.
+
+        The table is only deleted when it is genuinely empty. `last_sync is None`
+        on its own is not enough: the write phase commits in its own transaction,
+        so a sync that wrote rows and then failed before `last_sync` was set leaves
+        rows behind on a data sync that still reads as never synced. Deleting the
+        table on that basis would discard committed rows.
+        """
+
+        if not job.data_sync or job.data_sync.last_sync is not None:
+            return
+
+        try:
+            table = job.data_sync.table
+            if table.trashed:
+                return
+
+            with transaction.atomic():
+                # Under READ COMMITTED a concurrent sync could commit rows between
+                # the check and the delete. `SHARE` blocks writers until both ran.
+                model = table.get_model()
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        f'LOCK TABLE "{model._meta.db_table}" IN SHARE MODE'  # nosec B608
+                    )
+
+                if model.objects.exists():
+                    logger.warning(
+                        f"Not deleting the table of the cancelled data sync job "
+                        f"{job.id} because it already contains rows."
+                    )
+                    return
+
+                TableHandler().delete_table(job.user, table)
+        except Exception:
+            logger.exception(
+                f"Failed to delete table for cancelled data sync job {job.id}."
+            )
 
     def transaction_atomic_context(self, job: "SyncDataSyncTableJob"):
-        # If the job doesn't exist, the job won't be executed, so we can start a normal
-        # transaction.
-        if not job.data_sync:
-            return transaction_atomic()
-        return read_repeatable_read_single_table_transaction(job.data_sync.table_id)
+        # `_do_sync_table` opens its own transaction around the schema phase and
+        # another (READ COMMITTED, see `read_committed_single_table_transaction`)
+        # around the write phase, so the outer job wrapper must not open a
+        # long-lived transaction that would stay idle for the duration of the
+        # (potentially slow) HTTP fetch phase in between.
+        return contextlib.nullcontext()
 
     def prepare_values(self, values, user):
         data_sync = DataSyncHandler().get_data_sync(values["data_sync_id"])

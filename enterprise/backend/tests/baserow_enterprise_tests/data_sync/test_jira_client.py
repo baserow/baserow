@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import responses
@@ -24,6 +25,12 @@ def _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_API_TOKEN, url=BASE_URL):
     instance.jira_api_token = "token123"
     instance.jira_personal_access_token = "token123"
     return instance
+
+
+def _search_query_params(call_index=-1):
+    """Query parameters of one of the recorded Jira requests."""
+
+    return parse_qs(urlparse(responses.calls[call_index].request.url).query)
 
 
 def test_is_cloud_from_server_info_cloud():
@@ -220,9 +227,9 @@ def test_fetch_issues_on_prem_single_page():
 def test_fetch_issues_on_prem_pagination():
     instance = _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN)
     page1_issues = [
-        {"id": str(i), "key": f"TEST-{i}", "fields": {}} for i in range(1, 51)
+        {"id": str(i), "key": f"TEST-{i}", "fields": {}} for i in range(1, 101)
     ]
-    page2_issues = [{"id": "51", "key": "TEST-51", "fields": {}}]
+    page2_issues = [{"id": "101", "key": "TEST-101", "fields": {}}]
     responses.add(
         responses.GET,
         f"{BASE_URL}/rest/api/2/serverInfo",
@@ -236,8 +243,8 @@ def test_fetch_issues_on_prem_pagination():
         json={
             "issues": page1_issues,
             "startAt": 0,
-            "maxResults": 50,
-            "total": 51,
+            "maxResults": 100,
+            "total": 101,
         },
     )
     responses.add(
@@ -246,15 +253,15 @@ def test_fetch_issues_on_prem_pagination():
         status=200,
         json={
             "issues": page2_issues,
-            "startAt": 50,
-            "maxResults": 50,
-            "total": 51,
+            "startAt": 100,
+            "maxResults": 100,
+            "total": 101,
         },
     )
     issues = fetch_issues(instance, "project=TEST")
-    assert len(issues) == 51
+    assert len(issues) == 101
     assert issues[0]["id"] == "1"
-    assert issues[-1]["id"] == "51"
+    assert issues[-1]["id"] == "101"
 
 
 @responses.activate
@@ -349,3 +356,110 @@ def test_fetch_issues_on_prem_bearer_auth():
     fetch_issues(instance, "project=TEST")
     search_request = responses.calls[1].request
     assert search_request.headers["Authorization"] == "Bearer token123"
+
+
+@responses.activate
+def test_fetch_issues_on_prem_short_page_is_not_the_last_page():
+    """
+    Jira Server caps the page size at `jira.search.views.default.max`, which can be
+    lower than what is asked for, so it answers a 100 request with fewer issues
+    while `total` still reports the rest. Those must not be dropped.
+    """
+
+    instance = _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN)
+    responses.add(
+        responses.GET,
+        f"{BASE_URL}/rest/api/2/serverInfo",
+        status=200,
+        json={"deploymentType": "Server"},
+    )
+    # The instance caps at 50, so each page comes back shorter than requested.
+    for start in (0, 50, 100):
+        page = [
+            {"id": str(i), "key": f"TEST-{i}", "fields": {}}
+            for i in range(start + 1, min(start + 50, 120) + 1)
+        ]
+        responses.add(
+            responses.GET,
+            f"{BASE_URL}/rest/api/2/search",
+            status=200,
+            json={
+                "issues": page,
+                "startAt": start,
+                "maxResults": 50,
+                "total": 120,
+            },
+        )
+
+    issues = fetch_issues(instance, "project=TEST")
+
+    assert len(issues) == 120, (
+        f"the instance capped the page size below the requested one, so every page "
+        f"came back short; only {len(issues)} of the 120 issues `total` reports "
+        f"were fetched"
+    )
+    assert issues[-1]["id"] == "120"
+
+
+@responses.activate
+def test_fetch_issues_on_prem_stops_on_an_empty_page_when_total_is_wrong():
+    """`total` can over-report; the empty page has to end the loop regardless."""
+
+    instance = _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN)
+    responses.add(
+        responses.GET,
+        f"{BASE_URL}/rest/api/2/serverInfo",
+        status=200,
+        json={"deploymentType": "Server"},
+    )
+    responses.add(
+        responses.GET,
+        f"{BASE_URL}/rest/api/2/search",
+        status=200,
+        json={
+            "issues": [{"id": "1", "key": "TEST-1", "fields": {}}],
+            "startAt": 0,
+            "maxResults": 100,
+            "total": 999,
+        },
+    )
+    responses.add(
+        responses.GET,
+        f"{BASE_URL}/rest/api/2/search",
+        status=200,
+        json={"issues": [], "startAt": 1, "maxResults": 100, "total": 999},
+    )
+
+    issues = fetch_issues(instance, "project=TEST")
+
+    assert len(issues) == 1
+    # serverInfo + the two search pages, and no third request.
+    assert len(responses.calls) == 3
+
+
+@responses.activate
+def test_fetch_issues_on_prem_requests_only_the_fields_the_sync_reads():
+    instance = _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN)
+    responses.add(
+        responses.GET,
+        f"{BASE_URL}/rest/api/2/serverInfo",
+        status=200,
+        json={"deploymentType": "Server"},
+    )
+    responses.add(
+        responses.GET,
+        f"{BASE_URL}/rest/api/2/search",
+        status=200,
+        json={
+            "issues": [{"id": "1", "key": "TEST-1", "fields": {}}],
+            "startAt": 0,
+            "maxResults": 100,
+            "total": 1,
+        },
+    )
+
+    fetch_issues(instance, "project=TEST")
+
+    params = _search_query_params()
+    assert params["maxResults"] == ["100"]
+    assert "*all" not in params.get("fields", [""])[0]

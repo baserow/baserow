@@ -18,7 +18,14 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-JIRA_MAX_RESULTS_PER_PAGE = 50
+JIRA_MAX_RESULTS_PER_PAGE = 100
+
+# Only the fields used by JiraIssuesDataSyncType.get_all_rows(). The Jira API
+# always returns `id` and `key` regardless of this parameter.
+JIRA_SYNC_FIELDS = (
+    "summary,description,assignee,reporter,project,"
+    "status,labels,created,updated,resolutiondate,duedate"
+)
 
 JIRA_NO_ISSUES_ERROR = (
     "No issues found. This is usually because the authentication details are wrong."
@@ -120,7 +127,7 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
         while True:
             page = jira.enhanced_jql(
                 jql,
-                fields="*all",
+                fields=JIRA_SYNC_FIELDS,
                 limit=JIRA_MAX_RESULTS_PER_PAGE,
                 nextPageToken=token,
             )
@@ -135,7 +142,10 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
         start = 0
         while True:
             page = jira.jql(
-                jql, fields="*all", start=start, limit=JIRA_MAX_RESULTS_PER_PAGE
+                jql,
+                fields=JIRA_SYNC_FIELDS,
+                start=start,
+                limit=JIRA_MAX_RESULTS_PER_PAGE,
             )
             if not isinstance(page, dict):
                 raise SyncError("The request to Jira did not return a valid response.")
@@ -143,11 +153,9 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
             page_issues = page.get("issues", [])
             start += len(page_issues)
             total = int(page.get("total") or 0)
-            if (
-                total <= start
-                or not page_issues
-                or len(page_issues) < JIRA_MAX_RESULTS_PER_PAGE
-            ):
+            # A short page is not the last page: Jira Server caps the page size at
+            # `jira.search.views.default.max`, which can be below what we ask for.
+            if total <= start or not page_issues:
                 return
 
 

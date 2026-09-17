@@ -208,7 +208,7 @@ class EnterpriseDataSyncHandler:
         authorized_user = periodic_data_sync.authorized_user
         data_sync_id = periodic_data_sync.data_sync_id
 
-        # The job runs outside a transaction: its context sets the isolation level.
+        # The job runs outside a transaction.
         try:
             job = JobHandler().create_and_start_job(
                 authorized_user,
