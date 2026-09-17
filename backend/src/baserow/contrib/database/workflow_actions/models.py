@@ -1,5 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models import OuterRef
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.core.formula.field import FormulaField as CoreFormulaModelField
@@ -86,8 +87,8 @@ class DatabaseWorkflowServiceAction(DatabaseWorkflowAction):
             action_requires_reconfiguration,
         )
 
-        return DatabaseWorkflowAction.objects_and_trash.filter(
-            action_requires_reconfiguration(self.pk), pk=self.pk
+        return DatabaseWorkflowAction.objects.filter(
+            action_requires_reconfiguration(OuterRef("pk")), pk=self.pk
         ).exists()
 
     class Meta:
