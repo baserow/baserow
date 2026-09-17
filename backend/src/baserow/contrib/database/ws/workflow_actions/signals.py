@@ -112,7 +112,9 @@ def button_target_field_restored(sender, field, **kwargs):
 
 @receiver(table_signals.table_deleted)
 def button_target_table_deleted(sender, table_id, **kwargs):
-    _broadcast_dependent_buttons(table_ids=[table_id])
+    # Trashing a table also trashes the link fields to it in other tables,
+    # without a `field_deleted` for them.
+    _broadcast_dependent_buttons(table_ids=[table_id], link_row_table_ids=[table_id])
 
 
 # Also sent when a table is restored from the trash.

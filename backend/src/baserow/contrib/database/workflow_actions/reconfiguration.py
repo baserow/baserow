@@ -2,7 +2,7 @@ from typing import Iterable
 
 from django.db.models import Exists, OuterRef, Q, QuerySet
 
-from baserow.contrib.database.fields.models import ButtonField
+from baserow.contrib.database.fields.models import ButtonField, LinkRowField
 from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     DatabaseWorkflowServiceAction,
@@ -119,16 +119,18 @@ def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
 def button_fields_depending_on(
     *,
     field_ids: Iterable[int] = (),
+    link_row_table_ids: Iterable[int] = (),
     table_ids: Iterable[int] = (),
     database_ids: Iterable[int] = (),
     integration_ids: Iterable[int] = (),
 ) -> QuerySet[ButtonField]:
     """
-    The button fields with a row action that maps one of these fields or
-    targets one of these tables or a table in one of these databases, or an
-    action using one of these integrations, so their
-    `requires_reconfiguration` may have just changed. Buttons that are
-    themselves in a trashed table or database are left out: nobody can see them.
+    The button fields with a row action that maps one of these fields or a link
+    field to one of `link_row_table_ids`, or targets one of these tables or a
+    table in one of these databases, or an action using one of these
+    integrations, so their `requires_reconfiguration` may have just changed.
+    Buttons that are themselves in a trashed table or database are left out:
+    nobody can see them.
 
     Every table and application created runs this, and usually nothing points
     at it, so one query first checks whether any service does. The services
@@ -136,8 +138,9 @@ def button_fields_depending_on(
     automation services.
     """
 
-    field_ids, table_ids, database_ids, integration_ids = (
+    field_ids, link_row_table_ids, table_ids, database_ids, integration_ids = (
         list(field_ids),
+        list(link_row_table_ids),
         list(table_ids),
         list(database_ids),
         list(integration_ids),
@@ -148,13 +151,23 @@ def button_fields_depending_on(
     if database_ids:
         targets |= Q(table__database_id__in=database_ids)
 
+    mapped_fields = Q()
+    if field_ids:
+        mapped_fields |= Q(field_id__in=field_ids)
+    if link_row_table_ids:
+        mapped_fields |= Q(
+            field_id__in=LinkRowField.objects_and_trash.filter(
+                link_row_table_id__in=link_row_table_ids
+            ).values("pk")
+        )
+
     # Each service lookup, with the action models whose services it can match.
     lookups = []
-    if field_ids:
+    if mapped_fields:
         lookups.append(
             (
                 LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-                    field_id__in=field_ids
+                    mapped_fields
                 ).values("service_id"),
                 ROW_ACTION_MODELS,
             )

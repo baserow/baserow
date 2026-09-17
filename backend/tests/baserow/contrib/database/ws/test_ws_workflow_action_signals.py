@@ -402,3 +402,39 @@ def test_a_table_no_action_targets_stops_at_one_lookup(
     assert "database_buttonfield" not in captured[0]["sql"]
     assert "database_databaseworkflowaction" not in captured[0]["sql"]
     mock_broadcast_to_channel_group.delay.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("has_related_field", [True, False])
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_trashing_a_table_updates_a_button_mapping_a_link_to_it(
+    mock_broadcast_to_channel_group, data_fixture, has_related_field
+):
+    """Trashing a table trashes the link fields to it in other tables too."""
+
+    user = data_fixture.create_user()
+    linked = data_fixture.create_database_table(user=user, name="A")
+    target = data_fixture.create_database_table(
+        user=user, database=linked.database, name="B"
+    )
+    link = FieldHandler().create_field(
+        user,
+        target,
+        "link_row",
+        name="Link",
+        link_row_table=linked,
+        has_related_field=has_related_field,
+    )
+    button_field = _button_writing_to(data_fixture, user, target, link)
+
+    TableHandler().delete_table(user, linked)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+    assert message["field"]["requires_reconfiguration"] is True
+
+    mock_broadcast_to_channel_group.reset_mock()
+    TrashHandler.restore_item(user, "table", linked.id)
+
+    [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert message["field"]["requires_reconfiguration"] is False
