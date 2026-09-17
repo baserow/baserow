@@ -7,23 +7,6 @@
     @total-count-update="count = $event"
     @row-context="openContext"
   >
-    <template #empty>
-      <div class="agents-table__empty">
-        <span class="agents-table__empty-icon"
-          ><i class="baserow-icon-agent"></i
-        ></span>
-        <h2>{{ $t('agents.emptyTitle') }}</h2>
-        <p>{{ $t('agents.emptyDescription') }}</p>
-        <Button
-          v-if="canCreate"
-          type="primary"
-          icon="iconoir-plus"
-          @click="$refs.createModal.show()"
-        >
-          {{ $t('agents.create') }}
-        </Button>
-      </div>
-    </template>
     <template #title>{{
       $t('agents.title', { count, workspace: workspace.name })
     }}</template>
