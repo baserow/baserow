@@ -46,8 +46,8 @@
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
+import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import AgentService from '@baserow/modules/core/services/agent'
-import AgentNameField from './AgentNameField'
 import AgentLastActiveField from './AgentLastActiveField'
 import AgentRoleField from './AgentRoleField'
 import AgentContext from './AgentContext'
@@ -112,7 +112,7 @@ export default {
         new CrudTableColumn(
           'name',
           this.$t('agents.name'),
-          AgentNameField,
+          SimpleField,
           true,
           true
         ),
