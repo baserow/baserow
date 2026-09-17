@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from rest_framework.exceptions import ValidationError
 
@@ -8,6 +10,7 @@ from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
+from baserow_enterprise.features import TEAMS
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import RoleAssignment
 from baserow_enterprise.teams.exceptions import TeamSubjectDoesNotExist
@@ -299,8 +302,9 @@ def test_enterprise_admin_can_restore_agent(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("teams_enabled", [True, False])
 def test_agent_list_loads_workspace_and_team_summaries_in_one_query(
-    data_fixture, enterprise_data_fixture, django_assert_num_queries
+    data_fixture, enterprise_data_fixture, django_assert_num_queries, teams_enabled
 ):
     from baserow.core.agents.handler import AgentHandler
 
@@ -316,14 +320,21 @@ def test_agent_list_loads_workspace_and_team_summaries_in_one_query(
     for agent in agents:
         TeamSubject.objects.create(team=team, subject=agent)
         TeamSubject.objects.create(team=trashed_team, subject=agent)
-    queryset = AgentHandler().get_queryset(workspace)
+    with patch(
+        "baserow_enterprise.agents.extensions.LicenseHandler.workspace_has_feature",
+        return_value=teams_enabled,
+    ) as workspace_has_feature:
+        queryset = AgentHandler().get_queryset(workspace)
 
-    with django_assert_num_queries(1):
-        result = AgentSerializer(queryset, many=True).data
+        with django_assert_num_queries(1):
+            result = AgentSerializer(queryset, many=True).data
+
+    workspace_has_feature.assert_called_once_with(TEAMS, workspace)
 
     assert len(result) == 5
     assert all(item["workspace_id"] == workspace.id for item in result)
-    assert all(item["teams"] == [{"id": team.id, "name": team.name}] for item in result)
+    expected_teams = [{"id": team.id, "name": team.name}] if teams_enabled else []
+    assert all(item["teams"] == expected_teams for item in result)
 
 
 @pytest.mark.django_db
