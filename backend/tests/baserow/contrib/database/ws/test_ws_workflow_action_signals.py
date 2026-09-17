@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.db import OperationalError, connection
+from django.db import OperationalError, connection, transaction
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -23,6 +23,8 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.models import WorkspaceUser
+from baserow.core.signals import workspace_restored
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -654,3 +656,54 @@ def test_duplicating_a_table_does_not_send_the_copied_buttons(
         copied_table.id
     )
     assert _button_messages_in(mock_broadcast_to_channel_group, [copied_table]) == []
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_restoring_a_workspace_does_not_send_its_own_buttons(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """Its members load it again, and nobody has one of its tables open."""
+
+    user = data_fixture.create_user()
+    button_field = _self_targeting_button(data_fixture, user)
+    workspace = button_field.table.database.workspace
+    CoreHandler().delete_workspace(user, workspace)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    TrashHandler.restore_item(user, "workspace", workspace.id)
+
+    assert (
+        _button_messages_in(mock_broadcast_to_channel_group, [button_field.table]) == []
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_a_workspace_restored_for_each_member_sends_the_buttons_once(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """However each member's copy of the workspace was loaded."""
+
+    user = data_fixture.create_user()
+    button_table = data_fixture.create_database_table(user=user)
+    other_workspace = data_fixture.create_workspace(
+        users=[user, data_fixture.create_user()]
+    )
+    target = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=other_workspace)
+    )
+    button_field = data_fixture.create_button_field(table=button_table, label="Go")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("local_baserow_create_row"),
+        button_field,
+        service={"table_id": target.id},
+    )
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with transaction.atomic():
+        for workspace_user in WorkspaceUser.objects.filter(workspace=other_workspace):
+            workspace_restored.send(None, workspace_user=workspace_user, user=None)
+
+    assert len(_button_messages(mock_broadcast_to_channel_group, button_field)) == 1

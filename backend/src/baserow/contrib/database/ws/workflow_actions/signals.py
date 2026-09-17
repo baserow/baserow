@@ -98,12 +98,16 @@ def _broadcast_buttons(button_fields: QuerySet[ButtonField]) -> None:
         )
 
 
-def _broadcast_dependent_buttons(exclude: Q | None = None, **lookup) -> None:
+def _broadcast_dependent_buttons(
+    exclude: Q | None = None, once_key: tuple | None = None, **lookup
+) -> None:
     """
     Sends out again every button whose `requires_reconfiguration` may have
     changed because something its actions reference was trashed or restored.
 
     :param exclude: The buttons to leave out, as a filter on them.
+    :param once_key: When set, a broadcast already waiting for the same commit
+        with this key makes this one a no-op.
     :param lookup: The `button_fields_depending_on` arguments.
     """
 
@@ -112,6 +116,14 @@ def _broadcast_dependent_buttons(exclude: Q | None = None, **lookup) -> None:
         if exclude is not None:
             button_fields = button_fields.exclude(exclude)
         _broadcast_buttons(button_fields)
+
+    if once_key is not None:
+        broadcast.once_key = once_key
+        # A rollback drops its callbacks from this list, so a key never
+        # outlives its transaction.
+        waiting = transaction.get_connection().run_on_commit
+        if any(getattr(f, "once_key", None) == once_key for _, f, _ in waiting):
+            return
 
     # Looked up on commit, so the trash state it reads is the committed one.
     transaction.on_commit(broadcast)
@@ -160,18 +172,16 @@ def button_target_workspace_deleted(sender, workspace_id, **kwargs):
     _broadcast_dependent_buttons(workspace_ids=[workspace_id])
 
 
-# Set on the restored workspace, which every `workspace_restored` it sends
-# shares, so the buttons go out once rather than once per member.
-WORKSPACE_RESTORE_SENT_ATTRIBUTE = "_dependent_buttons_broadcast"
-
-
+# Sent once per member, in the restore's transaction, so the buttons are keyed
+# to go out once. Its own buttons are left out as for a table.
 @receiver(core_signals.workspace_restored)
 def button_target_workspace_restored(sender, workspace_user, **kwargs):
-    workspace = workspace_user.workspace
-    if getattr(workspace, WORKSPACE_RESTORE_SENT_ATTRIBUTE, False):
-        return
-    setattr(workspace, WORKSPACE_RESTORE_SENT_ATTRIBUTE, True)
-    _broadcast_dependent_buttons(workspace_ids=[workspace.id])
+    workspace_id = workspace_user.workspace_id
+    _broadcast_dependent_buttons(
+        workspace_ids=[workspace_id],
+        exclude=Q(table__database__workspace_id=workspace_id),
+        once_key=("workspace_restored", workspace_id),
+    )
 
 
 def _in_a_database(application: Application) -> bool:
