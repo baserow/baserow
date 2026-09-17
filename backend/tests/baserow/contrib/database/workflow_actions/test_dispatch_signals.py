@@ -1,3 +1,4 @@
+import logging
 from contextlib import contextmanager
 from unittest.mock import patch
 
@@ -461,3 +462,36 @@ def test_a_raising_button_field_dispatched_receiver_still_reports_a_failed_click
         button_field_dispatched.disconnect(_raise)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_a_raising_receiver_never_leaks_its_exception_message(data_fixture, caplog):
+    user = data_fixture.create_user()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+
+    def leaky(sender, **kwargs):
+        raise RuntimeError("https://secret.example/?key=1")
+
+    workflow_action_dispatched.connect(leaky)
+    try:
+        with caplog.at_level(logging.ERROR):
+            with patch(
+                "baserow.contrib.database.workflow_actions.signals.logger"
+            ) as mock_logger:
+                DatabaseWorkflowActionService().dispatch_workflow_actions(
+                    user, button_field, row
+                )
+    finally:
+        workflow_action_dispatched.disconnect(leaky)
+
+    for record in caplog.records:
+        assert "secret.example" not in record.getMessage()
+        assert "secret.example" not in (record.exc_text or "")
+        assert record.name != "django.dispatch"
+
+    mock_logger.error.assert_called_once()
+    args, kwargs = mock_logger.error.call_args
+    assert kwargs.get("exception") == "RuntimeError"
+    for value in list(args) + list(kwargs.values()):
+        assert "secret" not in str(value)

@@ -3,6 +3,7 @@ from unittest.mock import patch
 from django.urls import reverse
 
 import pytest
+from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
@@ -110,7 +111,7 @@ def test_a_click_through_the_api_captures_one_event(
         OpenUrlWorkflowAction, field=button_field
     )
 
-    api_client.post(
+    response = api_client.post(
         reverse(
             "api:database:workflow_actions:dispatch",
             kwargs={"field_id": button_field.id},
@@ -120,6 +121,7 @@ def test_a_click_through_the_api_captures_one_event(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
+    assert response.status_code == HTTP_200_OK
     assert [call.args[1] for call in mock_capture.call_args_list] == [
         "button_field_dispatched"
     ]

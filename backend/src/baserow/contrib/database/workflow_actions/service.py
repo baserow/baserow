@@ -36,7 +36,6 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     button_field_before_dispatch,
-    send_without_failing,
     workflow_action_created,
     workflow_action_dispatched,
     workflow_action_updated,
@@ -571,8 +570,7 @@ class DatabaseWorkflowActionService:
         result: Optional[DispatchResult] = None,
         exception: Optional[Exception] = None,
     ) -> None:
-        send_without_failing(
-            workflow_action_dispatched,
+        workflow_action_dispatched.send_robust(
             self,
             workflow_action=workflow_action,
             dispatch_context=dispatch_context,
