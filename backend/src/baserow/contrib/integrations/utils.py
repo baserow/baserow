@@ -3,6 +3,7 @@ import heapq
 import itertools
 import os
 import socket
+import sys
 import threading
 import time
 from typing import Optional
@@ -320,6 +321,36 @@ def _pending_deadlines() -> list:
 _current_request_deadline = contextvars.ContextVar(
     "current_request_deadline", default=None
 )
+
+
+def _bound_connect_to_deadline(event: str, args: tuple) -> None:
+    """
+    An audit hook that gives every connect attempt of a request only the time
+    left until its deadline. urllib3 and advocate try each address a host
+    resolves to in turn, all with the timeout the hop started with, and the
+    watchdog only sees a socket once it is connected, so a host with several
+    addresses that never answer would otherwise take one timeout per address.
+    """
+
+    if event != "socket.connect":
+        return
+    request_deadline = _current_request_deadline.get()
+    if request_deadline is None:
+        return
+    remaining = request_deadline.deadline - time.monotonic()
+    if remaining <= 0:
+        # Raised from inside `connect`, so the address loop reports it the
+        # same as an attempt that timed out.
+        raise TimeoutError("The request did not finish in time.")
+    sock = args[0]
+    timeout = sock.gettimeout()
+    if timeout is None or timeout > remaining:
+        sock.settimeout(remaining)
+
+
+# An audit hook cannot be removed, and runs for every audited event in the
+# process, so it returns on the first comparison for anything but a connect.
+sys.addaudithook(_bound_connect_to_deadline)
 
 
 class _WatchedConnectionMixin:

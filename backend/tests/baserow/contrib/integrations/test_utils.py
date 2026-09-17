@@ -196,6 +196,35 @@ def header_trickle(length=50, delay=0.2):
     return handle
 
 
+@contextmanager
+def unanswered_address():
+    """
+    Yields the host and port of a listener whose queue is full, so a connect to
+    it waits out its whole timeout, the same as one to an address that drops
+    packets.
+    """
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(0)
+    address = listener.getsockname()
+    queued = []
+    try:
+        while True:
+            client = socket.socket()
+            queued.append(client)
+            client.settimeout(0.1)
+            try:
+                client.connect(address)
+            except TimeoutError:
+                break
+        yield address
+    finally:
+        for client in queued:
+            client.close()
+        listener.close()
+
+
 def test_a_body_that_trickles_is_hung_up_on_at_the_deadline(settings):
     """
     A body sent a byte at a time is given up on at the deadline rather than
@@ -597,6 +626,37 @@ def test_the_watchdog_does_not_outlive_a_finished_request(settings):
         if thread.name == DEADLINE_WATCHDOG_THREAD_NAME
     ]
     assert len(watchdogs) == 1
+
+
+@pytest.mark.parametrize("allow_private_address", [True, False])
+def test_every_address_of_a_host_shares_the_deadline(settings, allow_private_address):
+    """
+    A host with several addresses is tried one after another, and the address
+    lookup hands every attempt the timeout the hop started with. Four addresses
+    that never answer would take four of those. Both with and without
+    advocate, which has an address loop of its own.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = allow_private_address
+    with unanswered_address() as (host, port):
+        records = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        validator = AddrValidator(
+            ip_whitelist={ipaddress.ip_network("127.0.0.1/32")},
+            port_whitelist={port},
+            autodetect_local_addresses=False,
+        )
+        with (
+            patch("socket.getaddrinfo", return_value=records * 4),
+            patch.object(advocate.Session, "DEFAULT_VALIDATOR", validator),
+        ):
+            started = time.monotonic()
+            with pytest.raises(request_exceptions.Timeout):
+                send_http_request(
+                    "GET", f"http://unanswered.example:{port}/", deadline=started + 1
+                )
+            elapsed = time.monotonic() - started
+
+    assert elapsed < 2.5
 
 
 def test_a_connection_that_opens_after_the_deadline_is_hung_up_on(settings):
