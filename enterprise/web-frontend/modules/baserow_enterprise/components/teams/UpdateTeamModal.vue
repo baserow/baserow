@@ -21,6 +21,8 @@
     <MemberAssignmentModal
       ref="memberAssignmentModal"
       :members="uninvitedSubjects"
+      :title="$t('manageTeamForm.accessModalTitle')"
+      :description="$t('manageTeamForm.accessModalDescription')"
       @select="storeSelectedSubjects"
     />
   </Modal>

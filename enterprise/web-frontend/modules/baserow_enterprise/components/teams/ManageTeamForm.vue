@@ -73,11 +73,7 @@
         <h3>{{ $t('manageTeamForm.membersTitle') }}</h3>
         <div v-if="subjectsLoading" class="loading"></div>
         <p v-if="!invitedSubjects.length">
-          {{
-            $t('manageTeamForm.noSubjectsSelected', {
-              buttonLabel: $t('manageTeamForm.inviteMembers'),
-            })
-          }}
+          {{ $t('manageTeamForm.noSubjectsSelected') }}
         </p>
         <List
           v-if="invitedSubjects.length && !subjectsLoading"

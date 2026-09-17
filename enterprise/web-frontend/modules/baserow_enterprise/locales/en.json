@@ -71,10 +71,12 @@
     "submit": "Save",
     "nameTitle": "Name",
     "roleTitle": "Default role",
-    "inviteMembers": "Add members",
+    "inviteMembers": "Manage access",
     "agentLabel": "Agent",
-    "membersTitle": "Members",
-    "noSubjectsSelected": "Click '{buttonLabel}' to optionally add team members.",
+    "membersTitle": "Team members",
+    "noSubjectsSelected": "No one has access through this team yet.",
+    "accessModalTitle": "Manage team access",
+    "accessModalDescription": "Choose the people and agents who belong to this team.",
     "roleHelpText": "User specific roles will always override Team roles."
   },
   "editTeamContext": {
