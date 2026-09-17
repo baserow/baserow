@@ -1929,25 +1929,17 @@ class LocalBaserowUpsertRowServiceType(
         if "field_mappings" in values and instance.table_id:
             bulk_field_mappings = []
             field_mappings = values.get("field_mappings", [])
-            # A mapping on a trashed field can't come back in the payload,
-            # since the table's fields leave a trashed one out, so replacing the
-            # whole list would lose it and restoring the field would no longer
-            # heal the action (ADR 006 section 8). Only the current table's are
-            # kept: a mapping left from a previous table goes with the rest.
-            kept_mappings = {
-                mapping.field_id: mapping
-                for mapping in instance.field_mappings.filter(
-                    field__trashed=True, field__table_id=instance.table_id
-                )
-            }
-            instance.field_mappings.exclude(field_id__in=list(kept_mappings)).delete()
-            updated_kept_mappings = []
+            # The payload replaces the list. The editor sends mappings on
+            # trashed fields back and undo replays them, so a trashed field of
+            # the service's table is accepted (ADR 006 section 8).
+            instance.field_mappings.all().delete()
             # Fetched in one query rather than one per mapping, and only from
             # the service's table.
             fields = {
                 field.id: field
-                for field in instance.table.field_set.filter(
-                    id__in=[m["field_id"] for m in field_mappings if "field_id" in m]
+                for field in Field.objects_and_trash.filter(
+                    table_id=instance.table_id,
+                    id__in=[m["field_id"] for m in field_mappings if "field_id" in m],
                 )
             }
             if fields and TrashHandler.item_has_a_trashed_parent(
@@ -1955,14 +1947,6 @@ class LocalBaserowUpsertRowServiceType(
             ):
                 fields = {}
             for field_mapping in field_mappings:
-                # Undo replays exported mappings, trashed ones included. The
-                # mapping is already there, so it only takes the replayed values.
-                kept_mapping = kept_mappings.get(field_mapping.get("field_id"))
-                if kept_mapping is not None:
-                    kept_mapping.enabled = field_mapping["enabled"]
-                    kept_mapping.value = field_mapping["value"]
-                    updated_kept_mappings.append(kept_mapping)
-                    continue
                 if "field_id" not in field_mapping:
                     raise DRFValidationError("A field mapping must have a `field_id`.")
                 field = fields.get(field_mapping["field_id"])
@@ -1981,9 +1965,6 @@ class LocalBaserowUpsertRowServiceType(
                 )
             LocalBaserowTableServiceFieldMapping.objects.bulk_create(
                 bulk_field_mappings
-            )
-            LocalBaserowTableServiceFieldMapping.objects_and_trash.bulk_update(
-                updated_kept_mappings, ["enabled", "value"]
             )
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:

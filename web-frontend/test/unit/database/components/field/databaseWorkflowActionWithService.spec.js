@@ -471,6 +471,50 @@ describe('DatabaseWorkflowActionWithService', () => {
     ).toBe(true)
   })
 
+  test('editing another mapping keeps the trashed field error', async () => {
+    await seedApplications()
+    testApp.mock.onGet('/database/fields/table/1/').reply(200, TABLE_FIELDS)
+    const service = {
+      table_id: 1,
+      integration_id: null,
+      field_mappings: [
+        { field_id: 10, enabled: true, value: "'a'", trashed: false },
+        // The table's fields leave a trashed one out.
+        { field_id: 99, enabled: true, value: "'b'", trashed: true },
+      ],
+    }
+    const workflowAction = { id: 1, type: 'local_baserow_create_row', service }
+    const wrapper = await testApp.mount(DatabaseWorkflowActionWithService, {
+      props: {
+        workflowAction,
+        database: { id: OWN_DATABASE_ID, workspace: WORKSPACE },
+        defaultValues: { service },
+      },
+      global: {
+        provide: { workspace: WORKSPACE },
+        stubs: { FieldMappingForm: true },
+      },
+    })
+    await flushPromises()
+
+    wrapper
+      .findAllComponents({ name: 'FieldMappingForm' })
+      .find((mappingForm) => mappingForm.props('field').id === 10)
+      .vm.$emit('update', { value: "'changed'" })
+    await flushPromises()
+
+    const edited = { ...workflowAction, service: wrapper.vm.values.service }
+    expect(edited.service.field_mappings.map((m) => m.field_id)).toEqual([
+      10, 99,
+    ])
+    expect(
+      testApp
+        .getRegistry()
+        .get('databaseWorkflowActionType', 'local_baserow_create_row')
+        .getErrorMessage(edited, { workflowActions: [edited] })
+    ).toBe('databaseWorkflowActionType.writesToTrashedField')
+  })
+
   describe('what a click remembered', () => {
     test('an HTTP action that nothing has clicked says so', async () => {
       await seedApplications()

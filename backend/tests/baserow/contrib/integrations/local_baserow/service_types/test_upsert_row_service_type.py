@@ -1747,14 +1747,50 @@ def test_upsert_row_service_field_mapping_update_can_be_undone(data_fixture):
     assert service.field_mappings.get(field=name_field).value["formula"] == ""
 
 
+def _mappings(service):
+    return {
+        m.field_id: (m.enabled, m.value["formula"])
+        for m in service.field_mappings(manager="objects_and_trash").all()
+    }
+
+
 @pytest.mark.django_db
-def test_replacing_the_mappings_keeps_one_on_a_trashed_field(data_fixture):
+def test_a_payload_that_sends_a_trashed_mapping_back_keeps_it(data_fixture):
     """
-    A trashed field is not in the table's field list, so no payload can carry
-    its mapping. Replacing the list must not lose it, or restoring the field
-    would no longer heal the action (ADR 006 section 8).
+    The editor sends a mapping on a trashed field back unchanged, so saving
+    keeps it and restoring the field heals the action (ADR 006 section 8).
     """
 
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    kept_field = data_fixture.create_text_field(table=table, name="Kept")
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=kept_field, value="'a'", enabled=True)
+    service.field_mappings.create(field=doomed_field, value="'b'", enabled=True)
+    FieldHandler().delete_field(user, doomed_field)
+
+    ServiceHandler().update_service(
+        service.get_type(),
+        service,
+        field_mappings=[
+            {"field_id": kept_field.id, "enabled": True, "value": "'c'"},
+            {"field_id": doomed_field.id, "enabled": True, "value": "'b'"},
+        ],
+    )
+
+    assert _mappings(service) == {
+        kept_field.id: (True, "'c'"),
+        doomed_field.id: (True, "'b'"),
+    }
+
+    TrashHandler.restore_item(user, "field", doomed_field.id)
+
+    assert service.field_mappings.filter(field=doomed_field).exists()
+
+
+@pytest.mark.django_db
+def test_a_payload_that_leaves_a_trashed_mapping_out_removes_it(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     kept_field = data_fixture.create_text_field(table=table, name="Kept")
@@ -1770,15 +1806,104 @@ def test_replacing_the_mappings_keeps_one_on_a_trashed_field(data_fixture):
         field_mappings=[{"field_id": kept_field.id, "enabled": True, "value": "'c'"}],
     )
 
-    mappings = {
-        m.field_id: m.value["formula"]
-        for m in service.field_mappings(manager="objects_and_trash").all()
+    assert _mappings(service) == {kept_field.id: (True, "'c'")}
+
+
+@pytest.mark.django_db
+def test_undoing_an_added_mapping_removes_it_once_its_field_is_trashed(
+    data_fixture,
+):
+    """
+    The user adds a mapping on F, a collaborator trashes F, then the user
+    undoes. The replayed list has no F, so F's mapping goes and restoring F
+    doesn't bring back a write the user undid.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field_x = data_fixture.create_text_field(table=table, name="X")
+    field_f = data_fixture.create_text_field(table=table, name="F")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=field_x, value="'x'", enabled=True)
+    service_type = service.get_type()
+    original = service_type.export_prepared_values(service)["field_mappings"]
+
+    ServiceHandler().update_service(
+        service_type,
+        service,
+        field_mappings=[
+            *original,
+            {"field_id": field_f.id, "enabled": True, "value": "'f'"},
+        ],
+    )
+    FieldHandler().delete_field(user, field_f)
+
+    ServiceHandler().update_service(service_type, service, field_mappings=original)
+
+    assert _mappings(service) == {field_x.id: (True, "'x'")}
+
+    TrashHandler.restore_item(user, "field", field_f.id)
+
+    assert not service.field_mappings.filter(field=field_f).exists()
+
+
+@pytest.mark.django_db
+def test_undoing_a_removed_mapping_brings_it_back_while_its_field_is_trashed(
+    data_fixture,
+):
+    """
+    The user removes F's mapping, F is trashed, then the user undoes. The
+    replayed list names the trashed F, which is still on the service's table.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field_x = data_fixture.create_text_field(table=table, name="X")
+    field_f = data_fixture.create_text_field(table=table, name="F")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=field_x, value="'x'", enabled=True)
+    service.field_mappings.create(field=field_f, value="'f'", enabled=False)
+    service_type = service.get_type()
+    original = service_type.export_prepared_values(service)["field_mappings"]
+
+    ServiceHandler().update_service(
+        service_type,
+        service,
+        field_mappings=[{"field_id": field_x.id, "enabled": True, "value": "'x'"}],
+    )
+    FieldHandler().delete_field(user, field_f)
+
+    ServiceHandler().update_service(service_type, service, field_mappings=original)
+
+    assert _mappings(service) == {
+        field_x.id: (True, "'x'"),
+        field_f.id: (False, "'f'"),
     }
-    assert mappings == {kept_field.id: "'c'", doomed_field.id: "'b'"}
 
-    TrashHandler.restore_item(user, "field", doomed_field.id)
 
-    assert service.field_mappings.filter(field=doomed_field).exists()
+@pytest.mark.django_db
+@pytest.mark.parametrize("trashed", [False, True])
+def test_a_mapping_on_another_tables_field_is_refused(data_fixture, trashed):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    other_table = data_fixture.create_database_table(user=user, database=table.database)
+    field = data_fixture.create_text_field(table=table)
+    other_field = data_fixture.create_text_field(table=other_table)
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    if trashed:
+        FieldHandler().delete_field(user, other_field)
+
+    with pytest.raises(ValidationError) as exc:
+        ServiceHandler().update_service(
+            service.get_type(),
+            service,
+            field_mappings=[
+                {"field_id": field.id, "enabled": True, "value": "'a'"},
+                {"field_id": other_field.id, "enabled": True, "value": "'b'"},
+            ],
+        )
+
+    assert exc.value.args[0] == f"The field with id {other_field.id} does not exist."
 
 
 @pytest.mark.django_db

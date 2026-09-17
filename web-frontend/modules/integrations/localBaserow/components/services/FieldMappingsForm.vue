@@ -55,9 +55,12 @@ export default {
       )
       const existingFieldIds = this.fields.map(({ id }) => id)
 
-      // If the field has been removed in the meantime we want to ignore it
-      const filteredValue = this.modelValue.filter(({ field_id: fieldId }) =>
-        existingFieldIds.includes(fieldId)
+      // A mapping on a field that is gone is dropped. One on a trashed field
+      // is sent back as it is, since the field list leaves it out and the
+      // server replaces the mappings with what it gets.
+      const filteredValue = this.modelValue.filter(
+        ({ field_id: fieldId, trashed }) =>
+          trashed === true || existingFieldIds.includes(fieldId)
       )
 
       if (existingMapping) {
