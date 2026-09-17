@@ -97,7 +97,10 @@
   },
   "enterpriseAgents": {
     "teams": "Teams",
-    "noTeams": "No teams"
+    "noTeams": "No teams",
+    "teamsLoadError": "The teams could not be loaded.",
+    "teamsLoadErrorDescription": "Check the connection and try again.",
+    "retry": "Retry"
   },
   "teamsSettings": {
     "teamsTabTitle": "Teams"

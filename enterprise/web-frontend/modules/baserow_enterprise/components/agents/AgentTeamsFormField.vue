@@ -1,6 +1,13 @@
 <template>
   <FormGroup :label="$t('enterpriseAgents.teams')" class="margin-top-2">
     <div v-if="loading" class="loading"></div>
+    <Alert v-else-if="loadError" type="error">
+      <template #title>{{ $t('enterpriseAgents.teamsLoadError') }}</template>
+      <p>{{ $t('enterpriseAgents.teamsLoadErrorDescription') }}</p>
+      <Button type="secondary" @click="fetchTeams">
+        {{ $t('enterpriseAgents.retry') }}
+      </Button>
+    </Alert>
     <div v-else class="agent-teams-form-field">
       <span v-if="teams.length === 0" class="agent-teams-form-field__empty">
         {{ $t('enterpriseAgents.noTeams') }}
@@ -36,7 +43,7 @@ export default {
   },
   emits: ['update:modelValue'],
   data() {
-    return { loading: true, teams: [] }
+    return { loading: true, loadError: false, teams: [] }
   },
   computed: {
     selectedTeamIds() {
@@ -45,12 +52,24 @@ export default {
         : []
     },
   },
-  async mounted() {
-    const { data } = await TeamService(this.$client).fetchAll(this.workspace.id)
-    this.teams = data.results || data
-    this.loading = false
+  mounted() {
+    this.fetchTeams()
   },
   methods: {
+    async fetchTeams() {
+      this.loading = true
+      this.loadError = false
+      try {
+        const { data } = await TeamService(this.$client).fetchAll(
+          this.workspace.id
+        )
+        this.teams = data.results || data
+      } catch {
+        this.loadError = true
+      } finally {
+        this.loading = false
+      }
+    },
     toggle(teamId, selected) {
       const ids = new Set(this.selectedTeamIds)
       if (selected) {
