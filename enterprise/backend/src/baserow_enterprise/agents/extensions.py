@@ -3,6 +3,7 @@ from django.contrib.postgres.expressions import ArraySubquery
 from django.db.models import JSONField, OuterRef, Value
 from django.db.models.functions import JSONObject
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -21,6 +22,12 @@ from baserow_enterprise.teams.operations import (
 from baserow_premium.license.handler import LicenseHandler
 
 
+class AgentTeamSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
+@extend_schema_field(AgentTeamSummarySerializer(many=True))
 class AgentTeamsField(serializers.Field):
     def to_representation(self, agent):
         # Enhanced list querysets only set this annotation after checking the
