@@ -454,6 +454,38 @@ def test_trashing_a_table_updates_a_button_mapping_a_link_to_it(
     assert message["field"]["requires_reconfiguration"] is False
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("has_related_field", [True, False])
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_permanently_deleting_a_table_updates_a_button_mapping_a_link_to_it(
+    mock_broadcast_to_channel_group, data_fixture, has_related_field
+):
+    """The link field to the table is deleted with it, and so is its mapping."""
+
+    user = data_fixture.create_user()
+    linked = data_fixture.create_database_table(user=user, name="A")
+    target = data_fixture.create_database_table(
+        user=user, database=linked.database, name="B"
+    )
+    link = FieldHandler().create_field(
+        user,
+        target,
+        "link_row",
+        name="Link",
+        link_row_table=linked,
+        has_related_field=has_related_field,
+    )
+    button_field = _button_writing_to(data_fixture, user, target, link)
+    TableHandler().delete_table(user, linked)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    _empty_the_trash(user, linked.database)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+    assert message["field"]["requires_reconfiguration"] is False
+
+
 def _field_messages(mock_broadcast):
     """Every `field_updated` sent, as (group, message)."""
 

@@ -194,10 +194,14 @@ def button_integration_created(sender, integration, **kwargs):
 
 
 # The `button_fields_depending_on` argument for each trash item type whose
-# permanent deletion can change a button's reconfigure state. Deleting a table
-# or a database can't: it leaves the service without a table, which still
-# counts.
-PERMANENT_DELETION_LOOKUPS = {"field": "field_ids", "integration": "integration_ids"}
+# permanent deletion can change a button's reconfigure state. A table takes the
+# link fields to it in other tables with it, and their mappings. A service
+# left without a table still counts, as it did while the table was trashed.
+PERMANENT_DELETION_LOOKUPS = {
+    "field": "field_ids",
+    "table": "link_row_table_ids",
+    "integration": "integration_ids",
+}
 
 # Set on the item being deleted, which both signals are sent with, so nothing
 # outlives a deletion that fails between them.
@@ -213,7 +217,7 @@ def button_dependency_before_permanently_deleted(
         return
     if sender == "integration" and not _in_a_database(trash_item.application):
         return
-    # Now, while the mapping or the integration reference still exists.
+    # Now, while the mapping, the link field or the integration reference exists.
     setattr(
         trash_item,
         DEPENDENT_BUTTONS_ATTRIBUTE,
