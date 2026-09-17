@@ -5,11 +5,11 @@ export const GROUP_GAP = 8
 // matching the fixed-height ungrouped `GridViewRowAdd`.
 export const ADD_ROW_HEIGHT = ROW_HEIGHT
 
-export const GROUP_BY_LAYOUT_BANNER = 'banner'
+export const GROUP_BY_LAYOUT_SECTION = 'section'
 export const GROUP_BY_LAYOUT_COLUMN = 'column'
 
-const BANNER_GEOMETRY = Object.freeze({
-  layout: GROUP_BY_LAYOUT_BANNER,
+const SECTION_GEOMETRY = Object.freeze({
+  layout: GROUP_BY_LAYOUT_SECTION,
   headerHeight: HEADER_HEIGHT,
   groupGap: GROUP_GAP,
   addRowHeight: ADD_ROW_HEIGHT,
@@ -21,7 +21,7 @@ const EXPAND_ALL = Object.freeze({ mode: 'expand', paths: [] })
 
 export function getLayoutGeometry(layout, rowHeight = ROW_HEIGHT) {
   if (layout !== GROUP_BY_LAYOUT_COLUMN) {
-    return BANNER_GEOMETRY
+    return SECTION_GEOMETRY
   }
   return {
     layout: GROUP_BY_LAYOUT_COLUMN,
@@ -35,7 +35,7 @@ export function getLayoutGeometry(layout, rowHeight = ROW_HEIGHT) {
 }
 
 function layoutGeometryOf(layout) {
-  return layout?.geometry || BANNER_GEOMETRY
+  return layout?.geometry || SECTION_GEOMETRY
 }
 
 function pushGroupHeader(items, geometry, rowHeight, node) {
@@ -200,7 +200,7 @@ export function buildLayout({
   fields,
   rowHeight = ROW_HEIGHT,
   pageSize = GROUP_PAGE_SIZE,
-  layout = GROUP_BY_LAYOUT_BANNER,
+  layout = GROUP_BY_LAYOUT_SECTION,
   rootRowCount = null,
 }) {
   const geometry = getLayoutGeometry(layout, rowHeight)
@@ -398,7 +398,7 @@ function buildPagedLayout({
   fields,
   rowHeight = ROW_HEIGHT,
   pageSize = GROUP_PAGE_SIZE,
-  geometry = BANNER_GEOMETRY,
+  geometry = SECTION_GEOMETRY,
   rootRowCount = null,
 }) {
   const items = []

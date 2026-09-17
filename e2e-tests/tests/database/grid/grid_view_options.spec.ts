@@ -1050,7 +1050,7 @@ test.describe("9.6 Group layout", () => {
     await expect(page.locator(".grid-view__group-by-banner")).toHaveCount(0);
   });
 
-  test("9.6.2 a second group-by adds a second column and Banners restores the banners", async ({
+  test("9.6.2 a second group-by adds a second column and Sections restores the banners", async ({
     page,
   }) => {
     const { g, grid } = await setupGroupLayoutGrid(page);
@@ -1082,8 +1082,8 @@ test.describe("9.6 Group layout", () => {
     await expectSingleViewPatch(
       page,
       g.view.id,
-      { group_by_layout: "banner" },
-      () => grid.selectGroupLayout("Banners"),
+      { group_by_layout: "section" },
+      () => grid.selectGroupLayout("Sections"),
     );
     await grid.expectGroupByBanner("A", 2);
     await grid.expectGroupByBanner("B", 1);

@@ -269,7 +269,7 @@ export class GridPage {
     });
   }
 
-  async selectGroupLayout(label: "Banners" | "Columns"): Promise<void> {
+  async selectGroupLayout(label: "Sections" | "Columns"): Promise<void> {
     await this.openGroupByContext();
     await this.groupByContext()
       .locator(".segment-control__button", { hasText: label })

@@ -641,7 +641,7 @@ def test_to_baserow_database_export():
             "row_identifier_type": "count",
             "row_height_size": "small",
             "frozen_column_count": 1,
-            "group_by_layout": "banner",
+            "group_by_layout": "section",
             "filter_type": "AND",
             "filters_disabled": False,
             "filters": [],

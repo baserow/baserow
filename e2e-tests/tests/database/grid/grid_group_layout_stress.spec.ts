@@ -114,7 +114,7 @@ test.describe("9.6 Column group layout at scale @slow", () => {
     }
 
     await patchView(g.user, g.view, {
-      group_by_layout: "banner",
+      group_by_layout: "section",
       row_identifier_type: "count",
     });
   });
@@ -224,7 +224,7 @@ test.describe("9.6 Column group layout at scale @slow", () => {
     await expect(grid.rightRows()).toHaveCount(0);
 
     // Columns always expands the hierarchy for display, without losing the saved
-    // collapse-all state that must be restored when returning to Banners.
+    // collapse-all state that must be restored when returning to Sections.
     await grid.selectGroupLayout("Columns");
     await expectVisibleGroupSpanCount(
       "Cluster 0000",
@@ -290,7 +290,7 @@ test.describe("9.6 Column group layout at scale @slow", () => {
 
     await expectVirtualizedDom();
 
-    await grid.selectGroupLayout("Banners");
+    await grid.selectGroupLayout("Sections");
     await grid.expectGroupByBanner(
       `Cluster ${padded(PARENT_GROUP_COUNT - 1)}`,
       PARENT_GROUPS[PARENT_GROUP_COUNT - 1].rowCount,

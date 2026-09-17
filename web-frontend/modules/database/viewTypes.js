@@ -678,7 +678,7 @@ export class GridViewType extends ViewType {
     )
     await store.dispatch(
       storePrefix + 'view/grid/setGroupByLayout',
-      view.group_by_layout || 'banner'
+      view.group_by_layout || 'section'
     )
     await store.dispatch(storePrefix + 'view/grid/fetchInitial', {
       gridId: view.id,

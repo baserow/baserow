@@ -51,7 +51,7 @@ def test_view_created_event_type(data_fixture):
             "slug": view.slug,
             "row_height_size": "small",
             "frozen_column_count": 1,
-            "group_by_layout": "banner",
+            "group_by_layout": "section",
         },
     }
 
@@ -96,7 +96,7 @@ def test_view_created_event_type_test_payload(data_fixture):
             "public": False,
             "row_height_size": "small",
             "frozen_column_count": 1,
-            "group_by_layout": "banner",
+            "group_by_layout": "section",
         },
     }
 
@@ -152,7 +152,7 @@ def test_view_updated_event_type(data_fixture):
             "slug": view.slug,
             "row_height_size": "small",
             "frozen_column_count": 1,
-            "group_by_layout": "banner",
+            "group_by_layout": "section",
         },
     }
 
@@ -197,7 +197,7 @@ def test_view_updated_event_type_test_payload(data_fixture):
             "public": False,
             "row_height_size": "small",
             "frozen_column_count": 1,
-            "group_by_layout": "banner",
+            "group_by_layout": "section",
         },
     }
 

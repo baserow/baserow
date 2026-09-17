@@ -44,7 +44,7 @@ import {
   renderViewport,
   visibleGroupPagesInViewport,
   visibleSectionsInViewport,
-  GROUP_BY_LAYOUT_BANNER,
+  GROUP_BY_LAYOUT_SECTION,
   GROUP_BY_LAYOUT_COLUMN,
 } from '@baserow/modules/database/utils/gridGroupByRender'
 import {
@@ -978,7 +978,7 @@ export const state = () => ({
   count: 0,
   // The height of a single row.
   rowHeight: 33,
-  groupByLayout: GROUP_BY_LAYOUT_BANNER,
+  groupByLayout: GROUP_BY_LAYOUT_SECTION,
   // The distance to the top in pixels the visible rows should have.
   rowsTop: 0,
   // The amount of rows that must be visible above and under the middle row.
@@ -1736,7 +1736,7 @@ export const mutations = {
     state.groupByLayout =
       value === GROUP_BY_LAYOUT_COLUMN
         ? GROUP_BY_LAYOUT_COLUMN
-        : GROUP_BY_LAYOUT_BANNER
+        : GROUP_BY_LAYOUT_SECTION
   },
   ADD_CHECKBOX_SELECTED_ROW(state, rowId) {
     if (!state.checkboxSelectedRows.includes(rowId)) {
@@ -2187,7 +2187,7 @@ export const actions = {
       fields
     )
     const viewport = getGroupByViewport(getters, scrollTop)
-    // Columns always render every level expanded, even when the saved Banner
+    // Columns always render every level expanded, even when the saved Section
     // collapse state is collapse-all. Its fetch strategy must match that layout.
     const forceExpandedLayout = getters.isGroupByColumnLayout
     const useDepthPages =
@@ -3119,7 +3119,7 @@ export const actions = {
     }
 
     // Keep the persisted collapse state in the snapshot so switching back to
-    // Banners restores it. Only the fetch decisions are forced to expand for Columns.
+    // Sections restores it. Only the fetch decisions are forced to expand for Columns.
     const forceExpandedLayout = getters.isGroupByColumnLayout
     const effectiveExpandAll =
       forceExpandedLayout ||
@@ -6545,7 +6545,7 @@ export const getters = {
     return state.rows.length
   },
   getSelectionMaxRowIndex(state, getters) {
-    // Columns use absolute row offsets, including unloaded group pages. Banners
+    // Columns use absolute row offsets, including unloaded group pages. Sections
     // number only the expanded sections, while flat grids use their row buffer.
     if (getters.isGroupByMode && getters.isGroupByColumnLayout) {
       return state.count - 1

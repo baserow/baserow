@@ -103,9 +103,9 @@ written.
 | Paste     | group-by   | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                          |
 
 Regular-field filter/sort create/update cases and saved filter/sort load cases
-are parametrized to run in both flat and expanded Banners group-by views.
+are parametrized to run in both flat and expanded Sections group-by views.
 Columns-specific coverage is listed in section 9.6. Dedicated group-by rows above
-cover creating inside a Banners group and changing a grouped value.
+cover creating inside a Sections group and changing a grouped value.
 
 ### Combined constraints (TODO)
 
@@ -145,7 +145,7 @@ optimistic) and any-formula (deferred) configurations.
 
 ### 1.2.1a Add row that does not match an active simple-field filter and keep it selected
 
-These simple-field filter cases run in both flat and expanded Banners group-by
+These simple-field filter cases run in both flat and expanded Sections group-by
 views.
 
 - Empty row is appended at the bottom.
@@ -230,7 +230,7 @@ views.
 
 ### 1.3.1a Add row with simple-field sort ASC and keep it selected
 
-These simple-field sort cases run in both flat and expanded Banners group-by
+These simple-field sort cases run in both flat and expanded Sections group-by
 views.
 
 - Empty row is appended at the bottom.
@@ -342,7 +342,7 @@ views.
 
 ### 1.5.1 Add row from a group add-row line
 
-These add-in-group scenarios exercise the per-leaf add-row lines in Banners.
+These add-in-group scenarios exercise the per-leaf add-row lines in Sections.
 
 - New row is inserted at the bottom of the selected group.
 - The group-by field is set to that group's value.
@@ -429,7 +429,7 @@ These add-in-group scenarios exercise the per-leaf add-row lines in Banners.
 
 ### 2.2.1a Edit filtered row to non-matching value and keep it selected
 
-These simple-field filter cases run in both flat and expanded Banners group-by
+These simple-field filter cases run in both flat and expanded Sections group-by
 views.
 
 - Typed value is visible immediately.
@@ -541,7 +541,7 @@ views.
 
 ### 2.3.1a Edit sorted row so it should move and keep it selected
 
-These simple-field sort cases run in both flat and expanded Banners group-by
+These simple-field sort cases run in both flat and expanded Sections group-by
 views.
 
 - Typed value is visible immediately.
@@ -762,7 +762,7 @@ views.
 
 ## Filters
 
-These saved filter cases run in both flat and expanded Banners group-by views.
+These saved filter cases run in both flat and expanded Sections group-by views.
 
 ### 5.1.1 Load view with API-created filter
 
@@ -781,7 +781,7 @@ These saved filter cases run in both flat and expanded Banners group-by views.
 
 ## Sorts
 
-These saved sort cases run in both flat and expanded Banners group-by views.
+These saved sort cases run in both flat and expanded Sections group-by views.
 
 ### 6.1.1 Sort ASC
 
@@ -803,24 +803,24 @@ operation buckets — create in a group (1.5.x), changing a group-by value (2.2.
 2.4.x), and group-by-affecting paste (4.7.x) — plus the parametrized
 flat/group-by runs, the same way filters and sorts do.
 
-### 7.1.1 Banners views load expanded and collapse or expand all groups
+### 7.1.1 Sections views load expanded and collapse or expand all groups
 
-- A grouped view using Banners initially renders its group banners expanded with
+- A grouped view using Sections initially renders its group banners expanded with
   their rows visible.
 - Collapsing all groups hides every group's rows and leaves the banners visible.
 - Expanding all groups restores the rows in their groups and keeps group counters.
 - Rows fetched on the initial expanded load stay in the store while collapsed, so
   re-expanding does not refetch them.
 
-### 7.1.2 Collapse and expand a group in Banners
+### 7.1.2 Collapse and expand a group in Sections
 
 - Collapsing one group hides only that group's rows.
 - Other expanded groups stay visible.
 - Expanding the group restores its rows in place.
 
-### 7.2.1 Adding a group-by in Banners refreshes with one metadata and one row request
+### 7.2.1 Adding a group-by in Sections refreshes with one metadata and one row request
 
-- A Banners view already grouped by one field renders its group banners with
+- A Sections view already grouped by one field renders its group banners with
   counters.
 - Adding a second group-by field issues exactly one group-by-data metadata
   request and exactly one grid rows request, not a request per group.
@@ -828,7 +828,7 @@ flat/group-by runs, the same way filters and sorts do.
 - New nested group banners and their counters are visible after the refresh.
 - Total row count is unchanged.
 
-### 7.3.1 Banners group headers show per-column aggregation summaries
+### 7.3.1 Sections group headers show per-column aggregation summaries
 
 - When a column has a "Summarize" aggregation configured, each group header shows
   that column's aggregation computed over that group's rows, column-aligned under
@@ -839,7 +839,7 @@ flat/group-by runs, the same way filters and sorts do.
   its bottom-footer value is unaffected.
 - The bottom footer still shows the overall total for the column.
 
-### 7.3.2 Hovering a Banners group header to pick or change an aggregation
+### 7.3.2 Hovering a Sections group header to pick or change an aggregation
 
 - Hovering a group-by header reveals, per column, the aggregation value or a
   `+ Summarize` affordance on the hovered column (only the hovered column).
@@ -850,9 +850,9 @@ flat/group-by runs, the same way filters and sorts do.
   update in place. The group layout (rows, counts, offsets) is not rebuilt; only
   the aggregation values change.
 
-### 7.3.3 Live Banners group aggregation updates on row changes
+### 7.3.3 Live Sections group aggregation updates on row changes
 
-- In Banners, editing a cell updates that row's group value (and its ancestor
+- In Sections, editing a cell updates that row's group value (and its ancestor
   groups + the footer total) in place, with no spinner — like a spreadsheet SUM.
 - Moving a row between groups (editing a group-by field) updates both the source
   and destination group values.
@@ -913,9 +913,9 @@ flat/group-by runs, the same way filters and sorts do.
 - No row loading spinner is shown because row coloring is loaded from the saved
   view decoration.
 
-### 9.1.2 Row coloring with Banners group-by
+### 9.1.2 Row coloring with Sections group-by
 
-- Grid opens with the saved group-by and Banners layout applied.
+- Grid opens with the saved group-by and Sections layout applied.
 - Group banners show each group value with its row count.
 - Row background uses the selected option color in the frozen-left section.
 - Row background uses the selected option color in the scrollable-right section.
@@ -976,8 +976,8 @@ flat/group-by runs, the same way filters and sorts do.
 ### 9.6.1 Switch to Columns replaces banners with spanning group cells
 
 - Grouped by Team with three rows in two groups.
-- The group layout control uses the user-facing labels "Banners" and "Columns";
-  their stored values are `banner` and `column`.
+- The group layout control uses the user-facing labels "Sections" and "Columns";
+  their stored values are `section` and `column`.
 - Choosing "Columns" in the group-by menu sends one view PATCH with
   `group_by_layout: "column"`.
 - No `.grid-view__group-by-banner` remains; each group renders one
@@ -985,11 +985,11 @@ flat/group-by runs, the same way filters and sorts do.
   shows the group's row count; all rows stay visible and ordered.
 - The layout survives a reload.
 
-### 9.6.2 Second level adds a column; Banners restores the banners
+### 9.6.2 Second level adds a column; Sections restores the banners
 
 - Adding a second group-by in Columns renders two `.grid-view__head-group`
   header cells and one correctly counted span for each nested group.
-- Choosing "Banners" sends one view PATCH, restores the banners and removes every
+- Choosing "Sections" sends one view PATCH, restores the banners and removes every
   span.
 
 ### 9.6.3 Five Columns groups keep the data pane usable at a narrow viewport
@@ -1029,8 +1029,8 @@ flat/group-by runs, the same way filters and sorts do.
   leaf groups. Leaf groups alternate between one and three rows, while parents
   alternate between 29 and 31 leaves, forcing sparse page estimates to converge
   across uneven boundaries.
-- Switching from collapsed Banners to Columns expands the rendered hierarchy
-  without overwriting the saved Banner collapse state.
+- Switching from collapsed Sections to Columns expands the rendered hierarchy
+  without overwriting the saved Sections collapse state.
 - Deep wheel jumps across singleton/large leaf, parent, sparse-page and midpoint
   boundaries render exact absolute count identifiers and matching parent/leaf
   spans.
@@ -1039,7 +1039,7 @@ flat/group-by runs, the same way filters and sorts do.
 - Fewer than 100 left rows, right rows and spans are mounted at both the start and
   end. Attempted group and row data requests remain independently below 200 and
   below 250 combined.
-- Switching back to Banners restores the collapsed state; switching to Columns
+- Switching back to Sections restores the collapsed state; switching to Columns
   again and reloading preserves the Columns layout, hydrates the first row, and
   reaches a deep sparse row directly.
 - No API response with an error status, non-cancellation transport failure, or
@@ -1239,7 +1239,7 @@ flat/group-by runs, the same way filters and sorts do.
       valid drag targets.
     - Insertion slots in every other leaf group are unavailable, including when
       the destination differs only in writable grouped fields.
-    - In Banners, collapsed group headers are never drop targets; unloaded row
+    - In Sections, collapsed group headers are never drop targets; unloaded row
       placeholders are never drop targets in either layout.
 
 ## TODO Coverage
@@ -1271,17 +1271,17 @@ flat/group-by runs, the same way filters and sorts do.
   constraints. Regular keep-selected and deselect-before-confirmation are covered
   by 4.7.1a–4.7.1b.
 - 5.3.x: OR filter combinations and filter groups.
-- 7.x: Remaining Banners-specific standalone behavior not yet automated — each
+- 7.x: Remaining Sections-specific standalone behavior not yet automated — each
   leaf group renders its own add-row line and adding from a non-first group lands
   in that group; the add-row line keeps the small row height at medium/large row
   heights (covered by unit tests, not e2e); an empty grouped view keeps a
   top-level add-row line and a row created from it lands in its value-derived
   group, selected and with a filter warning when it does not match (covered by
-  unit tests, not e2e); Banners group headers draw a vertical cell separator at
+  unit tests, not e2e); Sections group headers draw a vertical cell separator at
   each field boundary in the scrollable-right section (covered by unit tests,
   not e2e); collapse/expand state persists across reload and is re-projected
   (kept on trailing-level add/remove, reset on reorder/replace); nested
-  multi-level Banners collapse/expand, counts, and add-row; lazy-loading rows
+  multi-level Sections collapse/expand, counts, and add-row; lazy-loading rows
   when scrolling deep into a large group (covered by unit tests, not e2e).
 - 9.6.x: Columns-specific behavior not yet automated — editable views expose one
   trailing add-row line for the whole grid and no per-group add-row lines; adding

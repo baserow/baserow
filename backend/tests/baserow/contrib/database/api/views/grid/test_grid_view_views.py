@@ -5832,18 +5832,19 @@ def test_update_grid_view_group_by_layout(api_client, data_fixture):
 
     response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == HTTP_200_OK
-    assert response.json()["group_by_layout"] == "banner"
+    assert response.json()["group_by_layout"] == "section"
 
-    response = api_client.patch(
-        url,
-        {"group_by_layout": "column"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    assert response.json()["group_by_layout"] == "column"
-    grid_view.refresh_from_db()
-    assert grid_view.group_by_layout == "column"
+    for group_by_layout in ("column", "section"):
+        response = api_client.patch(
+            url,
+            {"group_by_layout": group_by_layout},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["group_by_layout"] == group_by_layout
+        grid_view.refresh_from_db()
+        assert grid_view.group_by_layout == group_by_layout
 
     response = api_client.patch(
         url,

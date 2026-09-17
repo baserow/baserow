@@ -611,7 +611,7 @@ class GridView(View):
         large = "large"
 
     class GroupByLayouts(models.TextChoices):
-        banner = "banner"
+        section = "section"
         column = "column"
 
     # `field_options` is a very misleading name
@@ -634,11 +634,11 @@ class GridView(View):
     frozen_column_count = models.PositiveSmallIntegerField(default=1, db_default=1)
     group_by_layout = models.CharField(
         choices=GroupByLayouts.choices,
-        default=GroupByLayouts.banner,
-        db_default=GroupByLayouts.banner,
+        default=GroupByLayouts.section,
+        db_default=GroupByLayouts.section,
         max_length=10,
-        help_text="How grouped rows are presented: banners above each group, or "
-        "one column per group-by level beside the rows.",
+        help_text="How grouped rows are presented: sections with a header above each "
+        "group, or one column per group-by level beside the rows.",
     )
 
 

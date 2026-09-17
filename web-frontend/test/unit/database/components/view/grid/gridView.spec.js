@@ -213,7 +213,7 @@ describe('GridView component', () => {
       expect(wrapper.findComponent(GridViewRowDragging).props('offset')).toBe(
         200
       )
-      await wrapper.setProps({ view: { ...view, group_by_layout: 'banner' } })
+      await wrapper.setProps({ view: { ...view, group_by_layout: 'section' } })
       expect(wrapper.findComponent(GridViewRowDragging).props('offset')).toBe(0)
     } finally {
       await testApp.afterEach()

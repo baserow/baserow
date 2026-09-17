@@ -642,7 +642,7 @@ export default {
       }
       // A live group-width resize mutates the active group object in place, so the
       // shallow activeGroupBys watcher does not run. Watch the effective Columns width
-      // instead; it stays zero in Banner and while responsive fitting keeps the same
+      // instead; it stays zero in Sections and while responsive fitting keeps the same
       // total, avoiding work when the grid geometry did not actually change.
       this.$nextTick(() => this.fieldsUpdated())
     },

@@ -97,7 +97,7 @@ describe('GridViewGroupByRows component', () => {
       wrapper.findAll('.grid-view__group-by-rows-row--group-end')
     ).toHaveLength(2)
 
-    await store.dispatch('page/view/grid/setGroupByLayout', 'banner')
+    await store.dispatch('page/view/grid/setGroupByLayout', 'section')
     await wrapper.vm.$nextTick()
 
     expect(

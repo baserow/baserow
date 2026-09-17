@@ -11,12 +11,12 @@ class Migration(migrations.Migration):
             model_name="gridview",
             name="group_by_layout",
             field=models.CharField(
-                choices=[("banner", "Banner"), ("column", "Column")],
-                db_default="banner",
-                default="banner",
+                choices=[("section", "Section"), ("column", "Column")],
+                db_default="section",
+                default="section",
                 max_length=10,
-                help_text="How grouped rows are presented: banners above each group, "
-                "or one column per group-by level beside the rows.",
+                help_text="How grouped rows are presented: sections with a header above "
+                "each group, or one column per group-by level beside the rows.",
             ),
         ),
     ]

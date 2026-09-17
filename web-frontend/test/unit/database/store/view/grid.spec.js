@@ -10426,7 +10426,7 @@ describe('Grid view store group-by layout mode', () => {
     expect(fetchGroupByRowsByScrollTop).not.toHaveBeenCalled()
   })
 
-  test.each(['column', 'banner'])(
+  test.each(['column', 'section'])(
     '%s layout selects loaded rows beyond an unloaded group page',
     async (layout) => {
       const nodes = Object.fromEntries(
@@ -10714,7 +10714,7 @@ describe('Grid view store group-by layout mode', () => {
     expect(rowRequests[0].get('offset')).toBe('7960')
   })
 
-  test('column layout refresh uses expanded paging but preserves banner collapse state', async () => {
+  test('column layout refresh uses expanded paging but preserves section collapse state', async () => {
     const nestedFields = [
       { id: 1, name: 'Name', type: 'text', primary: true },
       { id: 2, name: 'Team', type: 'text' },

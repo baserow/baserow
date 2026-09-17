@@ -55,11 +55,11 @@ describe('ViewGroupByContext', () => {
       .map((button) => button.textContent.trim())
       .filter(Boolean)
 
-  test('banner layout shows the layout switch and the collapse buttons', async () => {
-    await mountContext(makeView('banner'))
+  test('section layout shows the layout switch and the collapse buttons', async () => {
+    await mountContext(makeView('section'))
 
     expect(segmentLabels()).toEqual([
-      'viewGroupByContext.layoutBanner',
+      'viewGroupByContext.layoutSection',
       'viewGroupByContext.layoutColumn',
     ])
     expect(buttonTexts()).toEqual(
@@ -85,23 +85,29 @@ describe('ViewGroupByContext', () => {
     expect(active.textContent.trim()).toBe('viewGroupByContext.layoutColumn')
   })
 
-  test('choosing Columns updates the view setting', async () => {
-    const view = makeView('banner')
-    await mountContext(view)
-    const dispatch = vi
-      .spyOn(testApp.store, 'dispatch')
-      .mockResolvedValue(undefined)
+  test.each([
+    ['Sections', 'column', 'section', 0],
+    ['Columns', 'section', 'column', 1],
+  ])(
+    'choosing %s updates the view setting',
+    async (_label, currentLayout, selectedLayout, index) => {
+      const view = makeView(currentLayout)
+      await mountContext(view)
+      const dispatch = vi
+        .spyOn(testApp.store, 'dispatch')
+        .mockResolvedValue(undefined)
 
-    const columns = [
-      ...contextElement().querySelectorAll('.segment-control__button'),
-    ][1]
-    columns.click()
-    await flushPromises()
+      const selected = [
+        ...contextElement().querySelectorAll('.segment-control__button'),
+      ][index]
+      selected.click()
+      await flushPromises()
 
-    expect(dispatch).toHaveBeenCalledWith('view/update', {
-      view,
-      values: { group_by_layout: 'column' },
-      readOnly: false,
-    })
-  })
+      expect(dispatch).toHaveBeenCalledWith('view/update', {
+        view,
+        values: { group_by_layout: selectedLayout },
+        readOnly: false,
+      })
+    }
+  )
 })

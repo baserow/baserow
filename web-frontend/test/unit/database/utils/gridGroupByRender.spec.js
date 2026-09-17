@@ -3,7 +3,7 @@ import {
   ROW_HEIGHT,
   ADD_ROW_HEIGHT,
   GROUP_GAP,
-  GROUP_BY_LAYOUT_BANNER,
+  GROUP_BY_LAYOUT_SECTION,
   GROUP_BY_LAYOUT_COLUMN,
   buildLayout,
   pathKey,
@@ -1389,15 +1389,17 @@ describe('gridGroupByRender', () => {
         true,
       ])
 
-      const bannerRows = renderRows(
+      const sectionLayoutRows = renderRows(
         buildLayout({
           nodes: groupedNodes,
           collapse: column,
           fields: f,
-          layout: GROUP_BY_LAYOUT_BANNER,
+          layout: GROUP_BY_LAYOUT_SECTION,
         })
       )
-      expect(bannerRows.every((item) => item.groupEnd === false)).toBe(true)
+      expect(sectionLayoutRows.every((item) => item.groupEnd === false)).toBe(
+        true
+      )
     })
 
     test('renderViewport clips spans and renders unloaded ranges as one placeholder block', () => {
@@ -1467,17 +1469,17 @@ describe('gridGroupByRender', () => {
       ).toMatchObject({ before: null, position: 2 })
     })
 
-    test('banner layout output is unchanged', () => {
-      const banner = buildLayout({ nodes, collapse: column, fields })
+    test('section layout output is unchanged', () => {
+      const section = buildLayout({ nodes, collapse: column, fields })
       const explicit = buildLayout({
         nodes,
         collapse: column,
         fields,
-        layout: GROUP_BY_LAYOUT_BANNER,
+        layout: GROUP_BY_LAYOUT_SECTION,
       })
-      expect(explicit.items).toEqual(banner.items)
-      expect(banner.items.map((i) => i.type)).toContain('header')
-      expect(banner.items.some((i) => i.type === 'groupSpan')).toBe(false)
+      expect(explicit.items).toEqual(section.items)
+      expect(section.items.map((i) => i.type)).toContain('header')
+      expect(section.items.some((i) => i.type === 'groupSpan')).toBe(false)
     })
   })
 })

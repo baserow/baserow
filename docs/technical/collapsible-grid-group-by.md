@@ -63,7 +63,7 @@ keeps layout size proportional to loaded group metadata, not total row count.
 
 ### Compact Collapse State
 
-The Banners layout applies collapse state modeled as a mode plus exceptions:
+The Sections layout applies collapse state modeled as a mode plus exceptions:
 
 - expand mode with no exceptions means every group is expanded;
 - collapse mode with no exceptions means every group is collapsed;
@@ -76,7 +76,7 @@ Expand-all and mixed states load per parent, descending each visible parent's
 subtree to its leaves so one request returns everything the viewport needs
 instead of one request per depth. The Columns layout retains this state but does
 not apply or mutate it: Columns always renders and fetches the expanded tree, and
-switching back to Banners restores the retained collapse state.
+switching back to Sections restores the retained collapse state.
 
 ### Viewport-Driven Fetching
 
@@ -243,7 +243,7 @@ Known costs to keep in mind:
 
 ## Group Aggregations
 
-When a column has a footer "Summarize" aggregation, the Banners layout shows that
+When a column has a footer "Summarize" aggregation, the Sections layout shows that
 aggregation in each group header, computed over the group's rows at every depth.
 The Columns layout does not render per-group aggregation values, but it uses the
 same group metadata and keeps the overall footer total. The values travel inside
@@ -259,30 +259,30 @@ order-independent.
 
 ## Layouts
 
-A grid view stores a `group_by_layout` setting with the values `banner` and
-`column`; the corresponding user-facing labels are **Banners** and **Columns**.
+A grid view stores a `group_by_layout` setting with the values `section` and
+`column`; the corresponding user-facing labels are **Sections** and **Columns**.
 Both layouts share the group metadata and row paging layers, while the setting
 also controls the effective collapse, fetch, and render behavior.
 
-- **Banners** (`banner`, the default): each group contributes a header and a gap.
+- **Sections** (`section`, the default): each group contributes a header and a gap.
   Editable views expose an add-row line for each leaf group, groups can be
   collapsed, and per-group aggregations are shown.
 - **Columns** (`column`): one column per group-by level sits at the left of the
   frozen section, and each group's value is drawn once as a cell spanning its
   rows with a row count. Headers, gaps, and per-group add-row lines take no space.
-  The tree is always rendered and fetched fully expanded while the saved Banners
+  The tree is always rendered and fetched fully expanded while the saved Sections
   collapse state is retained but ignored, so collapse controls are unavailable.
   Editable views expose one trailing add-row line for the whole grid. Per-group
   aggregations are still computed but not rendered; the overall footer remains.
 
 The builder emits a `groupSpan` item per group at every depth instead of a header
 in Columns. Its requests use expanded per-parent descendant loading even when the
-retained Banners state is collapse-all. Consumers that only read row sections
+retained Sections state is collapse-all. Consumers that only read row sections
 (row fetching, drag targets, scroll-to-row, multi-select) are unaffected; any
 loop over layout items that rejects unexpected types must skip spans. In Columns,
 unloaded sibling ranges use adjacent loaded groups' absolute row offsets and
 the parent's boundaries to determine their row space. Missing pages within a
 range share that space until their offsets are known, keeping loaded groups
 anchored while viewport fetches refine the gaps. Selection bounds also use the
-full row count, including unloaded groups. In Banners, placeholders are sized by
+full row count, including unloaded groups. In Sections, placeholders are sized by
 header height and selection uses the visible row indexes as before.

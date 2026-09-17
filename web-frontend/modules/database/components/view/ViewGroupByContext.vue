@@ -166,7 +166,7 @@ import {
 } from '@baserow/modules/database/constants'
 import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrder.vue'
 
-const GROUP_BY_LAYOUTS = ['banner', 'column']
+const GROUP_BY_LAYOUTS = ['section', 'column']
 
 export default {
   name: 'ViewGroupByContext',
@@ -222,7 +222,7 @@ export default {
     },
     layoutSegments() {
       return [
-        { label: this.$t('viewGroupByContext.layoutBanner') },
+        { label: this.$t('viewGroupByContext.layoutSection') },
         { label: this.$t('viewGroupByContext.layoutColumn') },
       ]
     },
