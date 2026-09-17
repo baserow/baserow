@@ -8,7 +8,7 @@ export const getUserSourceCallbackToken = (query, provider, userSourceId) => {
 export const consumeUserSourceCallback = (url) => {
   const cleanUrl = new URL(url)
   const callbacks = [...cleanUrl.searchParams.keys()].filter((key) =>
-    /^user_source_(saml|oidc)_token__\d+$/.test(key)
+    /^user_source_.+_token__\d+$/.test(key)
   )
   if (callbacks.length === 0) {
     return null
@@ -25,7 +25,7 @@ export const consumeUserSourceCallback = (url) => {
     let decoded = next
     while (true) {
       if (
-        /user_source_(saml|oidc)_token__/.test(decoded) ||
+        /user_source_.+_token__/.test(decoded) ||
         tokens.some((token) => token && decoded.includes(token))
       ) {
         cleanUrl.searchParams.delete('next')
