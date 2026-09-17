@@ -288,6 +288,42 @@ def test_permanently_deleting_a_mapped_field_updates_the_button(
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("mapped_side", ["link", "related"])
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_permanently_deleting_a_link_field_updates_a_button_mapping_its_related_field(
+    mock_broadcast_to_channel_group, data_fixture, mapped_side
+):
+    """
+    Trashing a link field trashes its related field under the same trash entry,
+    and deleting it deletes the related field and its mappings too.
+    """
+
+    user = data_fixture.create_user()
+    table_a = data_fixture.create_database_table(user=user, name="A")
+    table_b = data_fixture.create_database_table(
+        user=user, database=table_a.database, name="B"
+    )
+    link = FieldHandler().create_field(
+        user, table_a, "link_row", name="AtoB", link_row_table=table_b
+    )
+    related = link.link_row_related_field
+    mapped, trashed = (link, related) if mapped_side == "link" else (related, link)
+    button_field = _button_writing_to(data_fixture, user, mapped.table, mapped)
+    unrelated = _button_writing_to(data_fixture, user, mapped.table)
+    FieldHandler().delete_field(user, trashed)
+    [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert message["field"]["requires_reconfiguration"] is True
+    mock_broadcast_to_channel_group.reset_mock()
+
+    _empty_the_trash(user, table_a.database)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+    assert message["field"]["requires_reconfiguration"] is False
+    assert _button_messages(mock_broadcast_to_channel_group, unrelated) == []
+
+
+@pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
 def test_permanently_deleting_an_integration_leaves_the_button_needing_one(
     mock_broadcast_to_channel_group, data_fixture

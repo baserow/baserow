@@ -9,6 +9,7 @@ from django.dispatch import receiver
 from baserow.contrib.database.fields import signals as field_signals
 from baserow.contrib.database.fields.field_types import ButtonFieldType
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table import signals as table_signals
 from baserow.contrib.database.workflow_actions import signals as workflow_action_signals
@@ -227,15 +228,23 @@ def button_dependency_before_permanently_deleted(
         return
     if sender == "integration" and not _in_a_database(trash_item.application):
         return
+    ids = [trash_item_id]
+    if sender == "field":
+        # Deleted with it, like a link field's related field, and so are their
+        # mappings.
+        field = trash_item.specific
+        field_type = field_type_registry.get_by_model(field)
+        ids += [
+            other.id
+            for other in field_type.get_other_fields_to_trash_restore_always_together(
+                field
+            )
+        ]
     # Now, while the mapping, the link field or the integration reference exists.
     setattr(
         trash_item,
         DEPENDENT_BUTTONS_ATTRIBUTE,
-        list(
-            button_fields_depending_on(**{lookup: [trash_item_id]}).values_list(
-                "id", flat=True
-            )
-        ),
+        list(button_fields_depending_on(**{lookup: ids}).values_list("id", flat=True)),
     )
 
 
