@@ -39,7 +39,12 @@ import { listRows } from "../../fixtures/database/rows";
 import { duplicateField } from "../../fixtures/database/field";
 import { User, createUser } from "../../fixtures/user";
 import { addUserToWorkspace } from "../../fixtures/workspace";
-import { BARRIER_STUB_URL, arrivedAt, release } from "../../fixtures/barrier";
+import {
+  BARRIER_STUB_URL,
+  arrivedAt,
+  forget,
+  release,
+} from "../../fixtures/barrier";
 
 /** The stub as the *backend* reaches it, which is not where the tests run. */
 const STUB = process.env.E2E_HTTP_STUB_URL ?? "http://e2e-httpbin:80";
@@ -622,6 +627,15 @@ test.describe("Button field, external actions", () => {
       !BARRIER_STUB_URL,
       "Needs the barrier stub: set E2E_BARRIER_STUB_URL.",
     );
+
+    // The keys are shared by every test in this worker, and a released key
+    // stays released with its count, so each test starts them over. Without
+    // this the second test's first request is answered at once and never
+    // holds its lock while the other click lands.
+    test.beforeEach(async () => {
+      await forget(slowKey);
+      await forget(slowTwoKey);
+    });
 
     // A test that fails before releasing would leave the backend waiting on
     // the stub, and the next test's click refused by a lock it did not take.

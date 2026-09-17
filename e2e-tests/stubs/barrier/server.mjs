@@ -8,6 +8,7 @@
  *   GET  /hold/:key             waits until :key is released
  *   GET  /control/arrived/:key  {"count": n}, how many holds :key has had
  *   POST /control/release/:key  releases every waiting and future hold on :key
+ *   POST /control/forget/:key   forgets :key's count and release, so it holds again
  *   POST /control/reset         releases everything and forgets all counts
  */
 
@@ -85,6 +86,12 @@ const server = http.createServer((req, res) => {
     }
     if (req.method === "POST" && action === "release" && key) {
       releaseKey(key);
+      reply(res, 204);
+      return;
+    }
+    if (req.method === "POST" && action === "forget" && key) {
+      arrivals.delete(key);
+      released.delete(key);
       reply(res, 204);
       return;
     }

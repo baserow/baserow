@@ -38,3 +38,8 @@ export async function arrivedAt(key: string): Promise<number> {
 export async function release(key: string): Promise<void> {
   await control("POST", `release/${encodeURIComponent(key)}`);
 }
+
+/** Starts this key over: no requests counted, and the next one is held. */
+export async function forget(key: string): Promise<void> {
+  await control("POST", `forget/${encodeURIComponent(key)}`);
+}
