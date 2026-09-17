@@ -293,11 +293,16 @@ class _Watchdog:
             # requests starting or finishing meanwhile.
             try:
                 due.hang_up()
-            except Exception:
+            except Exception as exc:
                 # This is the only watchdog thread for the process: letting
                 # one request's hang-up kill it would leave every later
-                # deadline unenforced.
-                logger.exception("Failed to hang up a request past its deadline")
+                # deadline unenforced. Only the class is logged: loguru prints
+                # frame locals beside a traceback, and a watched socket names
+                # the address the request went to.
+                logger.error(
+                    "Failed to hang up a request past its deadline with {exception}.",
+                    exception=type(exc).__name__,
+                )
 
 
 _watchdog = _Watchdog()

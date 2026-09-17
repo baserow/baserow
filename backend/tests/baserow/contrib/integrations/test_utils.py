@@ -2,7 +2,9 @@ import gc
 import gzip
 import ipaddress
 import json
+import os
 import secrets
+import socket
 import threading
 import time
 import weakref
@@ -13,6 +15,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 import urllib3.util.connection
+from loguru import logger
 from requests import exceptions as request_exceptions
 from urllib3.exceptions import SSLError
 
@@ -28,6 +31,8 @@ from baserow.contrib.integrations.utils import (
     DEADLINE_WATCHDOG_THREAD_NAME,
     MAX_REDIRECTS,
     _pending_deadlines,
+    _RequestDeadline,
+    _watchdog,
     read_response_within_limit,
     send_http_request,
 )
@@ -523,6 +528,49 @@ def test_a_hang_up_that_raises_does_not_stop_the_watchdog(settings):
         broken.close()
 
     assert elapsed < 5
+
+
+def test_a_failed_hang_up_does_not_log_the_address(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+
+    class FailingClose(socket.socket):
+        # Named like a real socket, so its repr is as short as one: loguru
+        # cuts a long repr off before the address it would otherwise show.
+        __module__ = "socket"
+        __qualname__ = "socket"
+
+        def shutdown(self, how):
+            # Left connected: on Linux a shut down socket still names its
+            # peer, which macOS forgets as soon as it is shut down.
+            pass
+
+        def close(self):
+            raise OSError("boom")
+
+    written = []
+    sink_id = logger.add(written.append, level="DEBUG", diagnose=True, backtrace=True)
+    try:
+        with local_server({}) as (base, _):
+            host, port = base.removeprefix("http://").split(":")
+            connected = socket.create_connection((host, int(port)))
+            failing = FailingClose(fileno=os.dup(connected.fileno()))
+            request_deadline = _RequestDeadline(time.monotonic())
+            request_deadline._sockets.append(failing)
+            _watchdog.watch(request_deadline)
+            for _ in range(50):
+                if written:
+                    break
+                time.sleep(0.1)
+
+            socket.socket.close(failing)
+            connected.close()
+    finally:
+        logger.remove(sink_id)
+
+    logged = "".join(written)
+    assert "OSError" in logged
+    assert "raddr" not in logged
+    assert port not in logged
 
 
 def test_the_watchdog_does_not_outlive_a_finished_request(settings):
