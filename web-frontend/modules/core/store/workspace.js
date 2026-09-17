@@ -1,9 +1,5 @@
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
-import {
-  setWorkspaceCookie,
-  unsetWorkspaceCookie,
-} from '@baserow/modules/core/utils/workspace'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsService from '@baserow/modules/core/services/permissions'
 import RolesService from '@baserow/modules/core/services/roles'
@@ -468,10 +464,10 @@ export const actions = {
     })
 
     if (workspace._.selected) {
-      // Navigate to the dashboard if selected because any of those related pages
-      // can't be accessed anymore.
+      // Navigate to the all workspaces homepage if selected because any of those
+      // related pages can't be accessed anymore.
       await dispatch('unselect', workspace)
-      await this.$router.push({ name: 'dashboard' })
+      await this.$router.push({ name: 'all-workspaces' })
       await pageFinished(this.app)
       await nextTick()
     }
@@ -524,8 +520,6 @@ export const actions = {
    * Select a workspace and fetch all the applications related to that workspace.
    */
   async select({ commit, dispatch, state }, workspace) {
-    const nuxtApp = this
-
     commit('INCREMENT_SELECT_REQUEST_ID')
     const requestId = state.selectRequestId
 
@@ -533,12 +527,11 @@ export const actions = {
     await dispatch('fetchRoles', workspace)
     // Pages select without blocking the navigation, so a slower selection of the
     // workspace that was navigated away from can finish after the current one.
-    // It must then not switch the selection, cookie and scopes back.
+    // It must then not switch the selection and scopes back.
     if (requestId !== state.selectRequestId) {
       return workspace
     }
     commit('SET_SELECTED', workspace)
-    setWorkspaceCookie(workspace.id, nuxtApp)
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.workspace(workspace.id),
@@ -563,10 +556,7 @@ export const actions = {
    * Unselect a workspace if selected and clears all the fetched applications.
    */
   unselect({ commit, dispatch, getters }, workspace) {
-    const nuxtApp = this
-
     commit('UNSELECT', {})
-    unsetWorkspaceCookie(nuxtApp)
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.workspace(null),

@@ -95,7 +95,7 @@ const { data: invitation } = await useAsyncData(
   async () => {
     // Redirect if already authenticated
     if (store.getters['auth/isAuthenticated']) {
-      await navigateTo({ name: 'dashboard' })
+      await navigateTo({ name: 'all-workspaces' })
       return null
     }
 
@@ -156,7 +156,13 @@ const next = (params) => {
   ) {
     displayEmailNotVerified.value = true
   } else {
-    router.push({ name: 'dashboard' }).then(() => {
+    const to = invitation.value?.workspace_id
+      ? {
+          name: 'workspace',
+          params: { workspaceId: invitation.value.workspace_id },
+        }
+      : { name: 'all-workspaces' }
+    router.push(to).then(() => {
       store.dispatch('settings/hideAdminSignupPage')
     })
   }

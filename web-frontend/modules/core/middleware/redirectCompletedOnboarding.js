@@ -3,6 +3,6 @@ export default defineNuxtRouteMiddleware(() => {
   const user = $store.getters['auth/getUserObject']
 
   if (user.completed_onboarding) {
-    return navigateTo({ name: 'dashboard' })
+    return navigateTo({ name: 'all-workspaces' })
   }
 })

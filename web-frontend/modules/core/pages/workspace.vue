@@ -83,12 +83,6 @@
         <DashboardVerifyEmail
           class="margin-top-0 margin-bottom-0"
         ></DashboardVerifyEmail>
-        <WorkspaceInvitation
-          v-for="invitation in workspaceInvitations"
-          :key="'invitation-' + invitation.id"
-          :invitation="invitation"
-          class="margin-top-0 margin-bottom-0"
-        ></WorkspaceInvitation>
         <div class="dashboard__extras">
           <div
             v-if="canCreateCreateApplication"
@@ -267,10 +261,11 @@ import { useRoute, useRouter, useNuxtApp, createError } from '#app'
 import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
+import { StoreItemLookupError } from '@baserow/modules/core/errors'
+
 import WorkspaceContext from '@baserow/modules/core/components/workspace/WorkspaceContext'
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import DashboardApplication from '@baserow/modules/core/components/dashboard/DashboardApplication'
-import WorkspaceInvitation from '@baserow/modules/core/components/workspace/WorkspaceInvitation'
 import TemplateCard from '@baserow/modules/core/components/template/TemplateCard'
 import editWorkspace from '@baserow/modules/core/mixins/editWorkspace'
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -365,9 +360,21 @@ const { data: dashboardData, loading } = await usePageAsyncData(
     try {
       workspace = await $store.dispatch('workspace/selectById', workspaceId)
     } catch (e) {
+      // Only an unknown workspace is a not found error. Any other failure, like a
+      // transient permissions fetch error, is a loading error.
+      if (e instanceof StoreItemLookupError) {
+        throw createError({
+          statusCode: 404,
+          message: 'Workspace not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
+      }
       throw createError({
-        statusCode: 404,
-        message: 'Workspace not found.',
+        statusCode: 400,
+        message: 'Error loading dashboard.',
         data: {
           report: false,
         },
@@ -376,7 +383,6 @@ const { data: dashboardData, loading } = await usePageAsyncData(
     }
 
     try {
-      await $store.dispatch('auth/fetchWorkspaceInvitations')
       return await fetchWorkspaceExtraData(workspace)
     } catch {
       throw createError({
@@ -406,10 +412,6 @@ watchEffect(() => {
 useHead(() => ({
   title: $i18n.t('dashboard.title'),
 }))
-
-const workspaceInvitations = computed(
-  () => $store.getters['auth/getWorkspaceInvitations']
-)
 
 const getAllOfWorkspace = (ws) =>
   $store.getters['application/getAllOfWorkspace'](ws)
