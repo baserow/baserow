@@ -1952,13 +1952,15 @@ class LocalBaserowUpsertRowServiceType(
                 fields = {}
             # An open editor or an undo can still send a field deleted from the
             # trash since. Its mapping is dropped, but a field that still exists
-            # is refused.
+            # in the workspace is refused. A field of another workspace is
+            # dropped too, so the response doesn't reveal that it exists.
             not_found = field_ids - fields.keys()
             still_exist = (
                 set(
-                    Field.objects_and_trash.filter(id__in=not_found).values_list(
-                        "id", flat=True
-                    )
+                    Field.objects_and_trash.filter(
+                        id__in=not_found,
+                        table__database__workspace_id=instance.table.database.workspace_id,
+                    ).values_list("id", flat=True)
                 )
                 if not_found
                 else set()

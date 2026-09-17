@@ -1519,7 +1519,7 @@ def test_local_baserow_upsert_row_service_after_update(data_fixture):
     assert exc.value.args[0] == "A field mapping must have a `field_id`."
 
     # Changing the table results in the `field_mapping` getting reset.
-    table2 = data_fixture.create_database_table()
+    table2 = data_fixture.create_database_table(database=table.database)
     service.table = table2
     service.save()
 
@@ -1904,6 +1904,32 @@ def test_a_mapping_on_another_tables_field_is_refused(data_fixture, trashed):
         )
 
     assert exc.value.args[0] == f"The field with id {other_field.id} does not exist."
+
+
+@pytest.mark.django_db
+def test_a_mapping_on_another_workspaces_field_is_dropped_like_a_deleted_one(
+    data_fixture,
+):
+    """
+    Refusing it would tell the editor that the field exists elsewhere.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    foreign_field = data_fixture.create_text_field()
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+
+    ServiceHandler().update_service(
+        service.get_type(),
+        service,
+        field_mappings=[
+            {"field_id": field.id, "enabled": True, "value": "'a'"},
+            {"field_id": foreign_field.id, "enabled": True, "value": "'b'"},
+        ],
+    )
+
+    assert _mappings(service) == {field.id: (True, "'a'")}
 
 
 def _trash_and_purge(user, field):
