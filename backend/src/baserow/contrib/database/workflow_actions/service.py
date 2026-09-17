@@ -1,5 +1,6 @@
 import json
 from dataclasses import fields as dataclass_fields
+from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional
 
 from django.conf import settings
@@ -34,7 +35,9 @@ from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
 from baserow.contrib.database.workflow_actions.signals import (
+    button_field_before_dispatch,
     workflow_action_created,
+    workflow_action_dispatched,
     workflow_action_updated,
     workflow_actions_reordered,
 )
@@ -658,6 +661,16 @@ class DatabaseWorkflowActionService:
             for index, workflow_action in enumerate(workflow_actions, start=1)
         }
 
+        # Before the lock and the audit entry, so a receiver that refuses the
+        # click (SaaS quota) leaves nothing behind. After the permission and
+        # deactivation checks, so its reason reaches only a user who may
+        # click. Not sent for a frontend-only button: there is nothing to
+        # meter.
+        if server_actions:
+            button_field_before_dispatch.send(
+                self, user=user, field=field, workflow_actions=server_actions
+            )
+
         # Refused as a whole too, and for the same reason: an action whose saved
         # configuration cannot run is known before the click starts, and the
         # actions ahead of it would not be rolled back.
@@ -735,11 +748,21 @@ class DatabaseWorkflowActionService:
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
                     is_external = workflow_action.get_type().is_external
+                    started = perf_counter()
                     try:
                         result = self.handler.dispatch_workflow_action(
                             workflow_action, dispatch_context
                         )
                     except Exception as exc:
+                        workflow_action_dispatched.send(
+                            self,
+                            workflow_action=workflow_action,
+                            dispatch_context=dispatch_context,
+                            position=positions[workflow_action.id],
+                            result=None,
+                            exception=exc,
+                            duration_ms=(perf_counter() - started) * 1000,
+                        )
                         if (
                             is_external
                             and on_external_dispatch
@@ -793,6 +816,15 @@ class DatabaseWorkflowActionService:
                                 positions[workflow_action.id],
                             ) from exc
                         raise
+                    workflow_action_dispatched.send(
+                        self,
+                        workflow_action=workflow_action,
+                        dispatch_context=dispatch_context,
+                        position=positions[workflow_action.id],
+                        result=result,
+                        exception=None,
+                        duration_ms=(perf_counter() - started) * 1000,
+                    )
                     if is_external and on_external_dispatch:
                         on_external_dispatch(workflow_action)
                     if may_configure:
