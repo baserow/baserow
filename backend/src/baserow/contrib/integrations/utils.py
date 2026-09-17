@@ -13,6 +13,7 @@ from django.conf import settings
 import requests
 from loguru import logger
 from requests import exceptions as request_exceptions
+from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.exceptions import DecodeError, ProtocolError, ReadTimeoutError, SSLError
@@ -449,7 +450,30 @@ class _DeadlineMixin:
         return response
 
 
-class _DeadlineSession(_DeadlineMixin, requests.Session):
+class _WatchedProxyHTTPAdapter(HTTPAdapter):
+    """
+    Requests' adapter, except that a proxy's connection pools are watched the
+    same as direct ones. Requests keeps a pool manager per proxy apart from
+    `poolmanager`, so the pool classes put on that do not reach it.
+    """
+
+    def proxy_manager_for(self, proxy, **proxy_kwargs):
+        manager = super().proxy_manager_for(proxy, **proxy_kwargs)
+        manager.pool_classes_by_scheme = self.poolmanager.pool_classes_by_scheme
+        return manager
+
+
+class _WatchedProxySession(requests.Session):
+    def __init__(self):
+        super().__init__()
+        # Mounted before `_DeadlineMixin` puts the watched pool classes on
+        # every adapter, which this one then hands on to its proxies. advocate
+        # needs none of this: it refuses to send through a proxy at all.
+        self.mount("https://", _WatchedProxyHTTPAdapter())
+        self.mount("http://", _WatchedProxyHTTPAdapter())
+
+
+class _DeadlineSession(_DeadlineMixin, _WatchedProxySession):
     watched_pool_classes = {
         "http": _WatchedHTTPConnectionPool,
         "https": _WatchedHTTPSConnectionPool,

@@ -506,6 +506,27 @@ def test_a_response_whose_headers_trickle_is_given_up_on_at_the_deadline(setting
     assert elapsed < 5
 
 
+def test_headers_trickled_through_a_proxy_are_given_up_on_at_the_deadline(settings):
+    """
+    Requests sends through a proxy with a connection pool of its own, which
+    has to be watched the same as a direct one.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"http://target.example/": header_trickle()}) as (proxy, _):
+        started = time.monotonic()
+        with pytest.raises(request_exceptions.Timeout):
+            send_http_request(
+                "GET",
+                "http://target.example/",
+                deadline=started + 1,
+                proxies={"http": proxy},
+            )
+        elapsed = time.monotonic() - started
+
+    assert elapsed < 5
+
+
 def test_a_redirect_to_trickling_headers_is_given_up_on_at_the_deadline(settings):
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
     routes = {"/start": redirect("/slow"), "/slow": header_trickle()}
