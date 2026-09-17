@@ -24,6 +24,7 @@ from baserow.api.errors import (
     ERROR_GROUP_DOES_NOT_EXIST,
     ERROR_INVALID_SORT_ATTRIBUTE,
     ERROR_INVALID_SORT_DIRECTION,
+    ERROR_USER_NOT_IN_GROUP,
 )
 from baserow.api.exceptions import (
     InvalidSortAttributeException,
@@ -31,10 +32,11 @@ from baserow.api.exceptions import (
 )
 from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.pagination import PageNumberPagination
+from baserow.api.schemas import get_error_schema
 from baserow.core.agents.exceptions import AgentDoesNotExist, AgentRoleDoesNotExist
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.service import AgentService
-from baserow.core.exceptions import WorkspaceDoesNotExist
+from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 
@@ -82,7 +84,12 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
         tags=["Agents"],
         description="Creates a new agent in a workspace.",
         request=AgentRequestSerializer,
-        responses={200: AgentSerializer},
+        responses={
+            200: AgentSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_AGENT_ROLE_DOES_NOT_EXIST"]
+            ),
+        },
     )
     @transaction.atomic
     @validate_body(AgentRequestSerializer)
@@ -90,6 +97,7 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
         {
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             AgentRoleDoesNotExist: ERROR_AGENT_ROLE_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
     def post(self, request, data, workspace_id):
@@ -110,7 +118,12 @@ class AgentView(APIView):
         tags=["Agents"],
         description="Updates an existing agent.",
         request=UpdateAgentRequestSerializer,
-        responses={200: AgentSerializer},
+        responses={
+            200: AgentSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_AGENT_ROLE_DOES_NOT_EXIST"]
+            ),
+        },
     )
     @transaction.atomic
     @validate_body(UpdateAgentRequestSerializer)
@@ -118,6 +131,7 @@ class AgentView(APIView):
         {
             AgentDoesNotExist: ERROR_AGENT_DOES_NOT_EXIST,
             AgentRoleDoesNotExist: ERROR_AGENT_ROLE_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
     def patch(self, request, data, agent_id):
@@ -130,10 +144,18 @@ class AgentView(APIView):
     @extend_schema(
         tags=["Agents"],
         description="Deletes an existing agent.",
-        responses={204: None},
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+        },
     )
     @transaction.atomic
-    @map_exceptions({AgentDoesNotExist: ERROR_AGENT_DOES_NOT_EXIST})
+    @map_exceptions(
+        {
+            AgentDoesNotExist: ERROR_AGENT_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
     def delete(self, request, agent_id):
         """Deletes an existing agent."""
 
