@@ -42,6 +42,19 @@ from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 
+WORKSPACE_ID_PATH_PARAMETER = OpenApiParameter(
+    name="workspace_id",
+    type=OpenApiTypes.INT,
+    location=OpenApiParameter.PATH,
+    description="The workspace whose agents are being managed.",
+)
+AGENT_ID_PATH_PARAMETER = OpenApiParameter(
+    name="agent_id",
+    type=OpenApiTypes.INT,
+    location=OpenApiParameter.PATH,
+    description="The agent being managed.",
+)
+
 
 class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
     """Lists agents in a workspace and creates new workspace agents."""
@@ -57,6 +70,7 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
 
     @extend_schema(
         parameters=[
+            WORKSPACE_ID_PATH_PARAMETER,
             OpenApiParameter(
                 name="page",
                 type=OpenApiTypes.INT,
@@ -83,6 +97,7 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
             ),
         ],
         tags=["Agents"],
+        operation_id="list_workspace_agents",
         description="Lists the agents in a workspace.",
         responses={
             200: get_example_pagination_serializer_class(
@@ -113,7 +128,9 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
         return paginator.get_paginated_response(AgentSerializer(page, many=True).data)
 
     @extend_schema(
+        parameters=[WORKSPACE_ID_PATH_PARAMETER],
         tags=["Agents"],
+        operation_id="create_workspace_agent",
         description="Creates a new agent in a workspace.",
         request=AgentRequestSerializer,
         responses={
@@ -147,7 +164,9 @@ class AgentView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
+        parameters=[AGENT_ID_PATH_PARAMETER],
         tags=["Agents"],
+        operation_id="update_agent",
         description="Updates an existing agent.",
         request=UpdateAgentRequestSerializer,
         responses={
@@ -174,7 +193,9 @@ class AgentView(APIView):
         return Response(AgentSerializer(agent).data)
 
     @extend_schema(
+        parameters=[AGENT_ID_PATH_PARAMETER],
         tags=["Agents"],
+        operation_id="delete_agent",
         description="Deletes an existing agent.",
         responses={
             204: None,
