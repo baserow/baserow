@@ -5,6 +5,7 @@ from django.db.models import QuerySet
 from baserow.core.agents.exceptions import AgentDoesNotExist
 from baserow.core.agents.registries import agent_extension_registry
 from baserow.core.models import Agent, Workspace
+from baserow.core.trash.handler import TrashHandler
 
 
 class AgentHandler:
@@ -82,7 +83,5 @@ class AgentHandler:
         :param user: The user deleting the agent.
         :param agent: The agent to delete.
         """
-
-        from baserow.core.trash.handler import TrashHandler
 
         TrashHandler.trash(user, agent.workspace, None, agent)
