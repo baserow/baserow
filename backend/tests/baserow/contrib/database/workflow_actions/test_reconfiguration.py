@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -640,3 +642,24 @@ def test_updating_an_action_does_not_query_per_mapping(api_client, data_fixture)
     assert len(payload["service"]["field_mappings"]) == 10
     assert all(m["trashed"] is False for m in payload["service"]["field_mappings"])
     assert ten_mapping_queries == one_mapping_queries
+
+
+@pytest.mark.django_db
+def test_a_lookup_no_action_model_can_use_matches_no_button(data_fixture, setup):
+    """
+    With no action model to pair the integration's services with, the lookup
+    matches no button rather than every one.
+    """
+
+    user, database, table, _, button_field = setup
+    bot = data_fixture.create_slack_bot_integration(application=database, user=user)
+    _slack_action(data_fixture, button_field, bot)
+    other_button = data_fixture.create_button_field(table=table, label="Other")
+    _row_action(data_fixture, LocalBaserowCreateRowWorkflowAction, other_button, table)
+
+    with patch(
+        "baserow.contrib.database.workflow_actions.reconfiguration."
+        "_unusable_integration_by_action_model",
+        return_value={},
+    ):
+        assert list(button_fields_depending_on(integration_ids=[bot.id])) == []

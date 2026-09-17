@@ -253,6 +253,9 @@ def button_fields_depending_on(
                 list(_unusable_integration_by_action_model()),
             )
         )
+    # A lookup with no action model adds no filter, and no filter at all would
+    # match every action.
+    lookups = [lookup for lookup in lookups if lookup[1]]
     if not lookups:
         return ButtonField.objects.none()
 
