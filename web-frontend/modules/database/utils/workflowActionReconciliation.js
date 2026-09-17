@@ -2,7 +2,13 @@ import _ from 'lodash'
 import { referencedActionIds } from '@baserow/modules/database/utils/workflowActionFormulas'
 
 // Keys the API owns. Everything else is the type's own config.
-const API_OWNED_KEYS = ['id', 'type', 'order', 'field_id']
+const API_OWNED_KEYS = [
+  'id',
+  'type',
+  'order',
+  'field_id',
+  'requires_reconfiguration',
+]
 
 // How the editor tells one unsaved action from another, before the server has
 // given it an id. Never sent, and never part of a diff against the server.

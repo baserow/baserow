@@ -29,6 +29,9 @@ from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAct
 from baserow.contrib.database.workflow_actions.operations import (
     DispatchDatabaseWorkflowActionOperationType,
 )
+from baserow.contrib.database.workflow_actions.reconfiguration import (
+    annotate_actions_requiring_reconfiguration,
+)
 from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
     database_workflow_action_type_registry,
@@ -178,7 +181,14 @@ class DatabaseWorkflowActionService:
             context=field,
         )
 
-        return list(self.handler.get_workflow_actions(field))
+        return list(
+            self.handler.get_workflow_actions(
+                field,
+                base_queryset=annotate_actions_requiring_reconfiguration(
+                    DatabaseWorkflowAction.objects.all()
+                ),
+            )
+        )
 
     def create_workflow_action(
         self,

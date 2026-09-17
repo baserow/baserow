@@ -676,3 +676,79 @@ describe('row actions writing to a trashed field', () => {
     ).toBeNull()
   })
 })
+
+describe('actions the server says need reconfiguring', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const errorFor = (workflowAction) =>
+    testApp._app.$registry
+      .get('databaseWorkflowActionType', workflowAction.type)
+      .getErrorMessage(workflowAction, { workflowActions: [workflowAction] })
+
+  const createRow = (over = {}, service = {}) => ({
+    id: 1,
+    type: 'local_baserow_create_row',
+    service: {
+      table_id: 5,
+      integration_id: null,
+      field_mappings: [],
+      ...service,
+    },
+    ...over,
+  })
+
+  test('a row action whose table is in the trash is named', () => {
+    expect(errorFor(createRow({ requires_reconfiguration: true }))).toBe(
+      'databaseWorkflowActionType.requiresReconfiguration'
+    )
+  })
+
+  test('a slack action whose bot is in the trash is named', () => {
+    expect(
+      errorFor({
+        id: 2,
+        type: 'slack_write_message',
+        service: {
+          integration_id: 3,
+          channel: 'general',
+          text: { formula: "'hi'", mode: 'simple' },
+        },
+        requires_reconfiguration: true,
+      })
+    ).toBe('databaseWorkflowActionType.requiresReconfiguration')
+  })
+
+  test('an action the server does not flag is not', () => {
+    expect(errorFor(createRow({ requires_reconfiguration: false }))).toBeNull()
+    expect(errorFor(createRow())).toBeNull()
+  })
+
+  test('a mapping on a trashed field keeps its own message', () => {
+    expect(
+      errorFor(
+        createRow(
+          { requires_reconfiguration: true },
+          {
+            field_mappings: [
+              { field_id: 9, value: "'x'", enabled: true, trashed: true },
+            ],
+          }
+        )
+      )
+    ).toBe('databaseWorkflowActionType.writesToTrashedField')
+  })
+
+  test('the copy says what is wrong', () => {
+    expect(en.databaseWorkflowActionType.requiresReconfiguration).toBe(
+      'This action points at a table, field or integration that is in the trash or gone.'
+    )
+  })
+})

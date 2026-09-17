@@ -71,6 +71,25 @@ class DatabaseWorkflowServiceAction(DatabaseWorkflowAction):
         related_name="%(app_label)s_%(class)s_set",
     )
 
+    # Set by `annotate_actions_requiring_reconfiguration` when a field's actions
+    # are listed, so the flag costs no query per action there.
+    REQUIRES_RECONFIGURATION_ANNOTATION = "requires_reconfiguration_annotated"
+
+    @property
+    def requires_reconfiguration(self) -> bool:
+        annotated = getattr(self, self.REQUIRES_RECONFIGURATION_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
+        # Imported here: the reconfiguration module imports this one.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            action_requires_reconfiguration,
+        )
+
+        return DatabaseWorkflowAction.objects_and_trash.filter(
+            action_requires_reconfiguration(self.pk), pk=self.pk
+        ).exists()
+
     class Meta:
         abstract = True
 

@@ -409,6 +409,17 @@ describe('ButtonFieldActionList', () => {
       )
     })
 
+    test('an action the server says needs reconfiguring is marked', async () => {
+      const wrapper = await mountList([
+        CREATE({ requires_reconfiguration: true }),
+        OPEN_URL(),
+      ])
+
+      expect(errors(wrapper)).toEqual([
+        'databaseWorkflowActionType.requiresReconfiguration',
+      ])
+    })
+
     test('a url action with no url is marked', async () => {
       const wrapper = await mountList([
         OPEN_URL({ url: { formula: '', mode: 'simple' } }),

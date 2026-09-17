@@ -187,7 +187,22 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     if (serviceError) {
       return serviceError
     }
-    return staleReferenceError(this.app, workflowAction, applicationContext)
+    const staleReference = staleReferenceError(
+      this.app,
+      workflowAction,
+      applicationContext
+    )
+    if (staleReference) {
+      return staleReference
+    }
+    // What the server found when the action was last read, for a target the
+    // editor can't see itself: a trashed table, database or integration.
+    if (workflowAction.requires_reconfiguration === true) {
+      return this.app.$i18n.t(
+        'databaseWorkflowActionType.requiresReconfiguration'
+      )
+    }
+    return null
   }
 
   getNewActionValues() {

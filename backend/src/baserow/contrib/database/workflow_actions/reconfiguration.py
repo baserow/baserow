@@ -1,6 +1,15 @@
+from functools import reduce
+from operator import or_
 from typing import Iterable
 
-from django.db.models import Exists, OuterRef, Q, QuerySet
+from django.db.models import (
+    BooleanField,
+    Exists,
+    ExpressionWrapper,
+    OuterRef,
+    Q,
+    QuerySet,
+)
 
 from baserow.contrib.database.fields.models import ButtonField, LinkRowField
 from baserow.contrib.database.workflow_actions.models import (
@@ -66,30 +75,17 @@ def _unusable_table() -> Q:
     )
 
 
-def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
+def _broken_services_by_action_model() -> dict[
+    type[DatabaseWorkflowServiceAction], list[tuple[type[Service], Q]]
+]:
     """
-    Whether the button field has an action that is sure to fail at click
-    time because something it references is in the trash or gone (ADR 006
-    section 8). Used both to annotate button fields in bulk and to answer for a
-    single one, so the two can't drift apart.
-
-    Each check starts from the button's own actions and looks up their services
-    by primary key: the service tables are shared with the builder and
-    automations, so anything uncorrelated would scan all of them.
+    For each action model that can be sure to fail, the service model behind
+    it and which of those services the dispatch refuses.
 
     A mapping on a trashed field only counts without an integration: with one,
     the dispatch drops the mapping rather than failing. A trashed integration
     always counts, and so does none on an action whose service needs one.
-
-    :param field_ref: The button field's id, or `OuterRef("pk")` when
-        annotating a button field queryset.
     """
-
-    def has_broken_action(action_model, service_model, broken: Q) -> Exists:
-        broken_service = service_model.objects.filter(broken, pk=OuterRef("service_id"))
-        return Exists(
-            action_model.objects.filter(Exists(broken_service), field_id=field_ref)
-        )
 
     mapping_on_trashed_field = Exists(
         LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
@@ -100,22 +96,83 @@ def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
         Q(integration__isnull=True) & mapping_on_trashed_field
     )
 
-    broken = (
-        has_broken_action(
-            LocalBaserowCreateRowWorkflowAction, LocalBaserowUpsertRow, broken_upsert
+    broken = {
+        action_model: [(LocalBaserowUpsertRow, broken_upsert)]
+        for action_model in UPSERT_ROW_ACTION_MODELS
+    }
+    broken[LocalBaserowDeleteRowWorkflowAction] = [
+        (LocalBaserowDeleteRow, _unusable_table())
+    ]
+    for action_model, unusable in _unusable_integration_by_action_model().items():
+        broken.setdefault(action_model, []).append((Service, unusable))
+    return broken
+
+
+def action_requires_reconfiguration(action_ref: int | OuterRef) -> Q:
+    """
+    Whether the workflow action is sure to fail at click time because something
+    it references is in the trash or gone (ADR 006 section 8). A button field
+    needs reconfiguring when any of its actions does, so this is the one
+    definition of both.
+
+    The action and its service are looked up by primary key: the service tables
+    are shared with the builder and automations, so anything uncorrelated would
+    scan all of them.
+
+    :param action_ref: The action's id, or `OuterRef("pk")` when annotating a
+        `DatabaseWorkflowAction` queryset.
+    """
+
+    checks = []
+    for action_model, services in _broken_services_by_action_model().items():
+        broken_service = reduce(
+            or_,
+            (
+                Exists(service_model.objects.filter(broken, pk=OuterRef("service_id")))
+                for service_model, broken in services
+            ),
         )
-        | has_broken_action(
-            LocalBaserowUpdateRowWorkflowAction, LocalBaserowUpsertRow, broken_upsert
+        checks.append(
+            Exists(action_model.objects.filter(broken_service, pk=action_ref))
         )
-        | has_broken_action(
-            LocalBaserowDeleteRowWorkflowAction,
-            LocalBaserowDeleteRow,
-            _unusable_table(),
+    return Q(reduce(or_, checks))
+
+
+def requires_reconfiguration(field_ref: int | OuterRef) -> Exists:
+    """
+    Whether the button field has an action that needs reconfiguring (see
+    `action_requires_reconfiguration`). Used both to annotate button fields in
+    bulk and to answer for a single one, so the two can't drift apart.
+
+    :param field_ref: The button field's id, or `OuterRef("pk")` when
+        annotating a button field queryset.
+    """
+
+    return Exists(
+        DatabaseWorkflowAction.objects.filter(
+            action_requires_reconfiguration(OuterRef("pk")), field_id=field_ref
         )
     )
-    for action_model, unusable in _unusable_integration_by_action_model().items():
-        broken |= has_broken_action(action_model, Service, unusable)
-    return broken
+
+
+def annotate_actions_requiring_reconfiguration(
+    queryset: QuerySet[DatabaseWorkflowAction],
+) -> QuerySet[DatabaseWorkflowAction]:
+    """
+    Annotates each action's `requires_reconfiguration`, so listing a field's
+    actions costs no query per action.
+    """
+
+    return queryset.annotate(
+        **{
+            DatabaseWorkflowServiceAction.REQUIRES_RECONFIGURATION_ANNOTATION: (
+                ExpressionWrapper(
+                    action_requires_reconfiguration(OuterRef("pk")),
+                    output_field=BooleanField(),
+                )
+            )
+        }
+    )
 
 
 def button_fields_depending_on(

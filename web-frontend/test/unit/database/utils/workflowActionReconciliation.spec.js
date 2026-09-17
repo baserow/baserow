@@ -159,6 +159,34 @@ describe('reconcileWorkflowActions', () => {
     expect(result.toUpdate).toEqual([])
   })
 
+  test('the reconfigure flag is the server answer, never an edit to send', () => {
+    const server = [
+      {
+        id: 1,
+        type: 'local_baserow_create_row',
+        requires_reconfiguration: true,
+        service: { table_id: 5 },
+      },
+    ]
+    const local = [
+      {
+        id: 1,
+        type: 'local_baserow_create_row',
+        requires_reconfiguration: false,
+        service: { table_id: 6 },
+      },
+    ]
+
+    const result = reconcileWorkflowActions(server, local)
+
+    expect(result.toUpdate).toEqual([
+      { id: 1, values: { service: { table_id: 6 } } },
+    ])
+    expect(workflowActionConfig(server[0])).toEqual({
+      service: { table_id: 5 },
+    })
+  })
+
   test('a row whose type has not been chosen yet is not an action', () => {
     // A row added but not yet given a type must produce no calls at all, and
     // take no slot in the order.

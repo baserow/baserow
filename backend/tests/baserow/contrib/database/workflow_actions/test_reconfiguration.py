@@ -11,6 +11,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
     CoreSMTPEmailWorkflowAction,
+    DatabaseWorkflowServiceAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
@@ -35,6 +36,8 @@ def _requires_reconfiguration(button_field):
     """
     Reads the flag both ways a button field is loaded, and fails if they
     disagree, so every case below also pins the annotation to the fallback.
+    It also reads each action's own flag both ways, and fails unless the
+    field's flag is whether any action has it.
     """
 
     annotated = (
@@ -45,6 +48,22 @@ def _requires_reconfiguration(button_field):
     )
     fallback = ButtonField.objects.get(id=button_field.id).requires_reconfiguration
     assert annotated == fallback, "The annotation and the fallback disagree."
+
+    user = button_field.table.database.workspace.users.first()
+    listed = [
+        action
+        for action in DatabaseWorkflowActionService().get_workflow_actions(
+            user, button_field
+        )
+        if isinstance(action, DatabaseWorkflowServiceAction)
+    ]
+    per_action = [action.requires_reconfiguration for action in listed]
+    per_action_fallback = [
+        type(action).objects.get(pk=action.pk).requires_reconfiguration
+        for action in listed
+    ]
+    assert per_action == per_action_fallback, "An action's flag disagrees."
+    assert any(per_action) == annotated, "The field isn't any of its actions."
     return annotated
 
 
@@ -332,6 +351,88 @@ def test_listing_actions_does_not_query_per_mapping(api_client, data_fixture):
 
     assert all("trashed" in m for m in payload[0]["service"]["field_mappings"])
     assert four_mapping_queries == one_mapping_queries
+
+
+@pytest.mark.django_db
+def test_the_action_list_says_which_actions_need_reconfiguring(
+    api_client, data_fixture
+):
+    """The editor names the action behind the button's flag."""
+
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    target = data_fixture.create_database_table(user=user, database=database)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    trashed_target_action, _ = _row_action(
+        data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, target
+    )
+    _row_action(data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, table)
+    bot = data_fixture.create_slack_bot_integration(application=database, user=user)
+    _slack_action(data_fixture, button_field, bot)
+    data_fixture.create_database_workflow_action(
+        CoreHTTPRequestWorkflowAction, field=button_field
+    )
+    list_url = reverse(
+        "api:database:workflow_actions:list", kwargs={"field_id": button_field.id}
+    )
+
+    def flags():
+        response = api_client.get(list_url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == 200, response.json()
+        return [action["requires_reconfiguration"] for action in response.json()]
+
+    assert flags() == [False, False, False, False]
+
+    TableHandler().delete_table(user, target)
+    IntegrationService().delete_integration(user, bot)
+
+    assert flags() == [True, False, True, False]
+
+    # An action saved on its own is answered for without the list's annotation.
+    response = api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": trashed_target_action.id},
+        ),
+        {"type": "local_baserow_create_row"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["requires_reconfiguration"] is True
+
+
+@pytest.mark.django_db
+def test_listing_actions_does_not_query_per_action_for_the_flag(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    url = reverse(
+        "api:database:workflow_actions:list", kwargs={"field_id": button_field.id}
+    )
+
+    def list_actions():
+        with CaptureQueriesContext(connection) as captured:
+            response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+            assert response.status_code == 200, response.json()
+        return response.json(), len(captured)
+
+    # No table, so each of them needs reconfiguring.
+    _row_action(data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, None)
+    list_actions()
+    _, one_action_queries = list_actions()
+
+    for _ in range(3):
+        _row_action(
+            data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, None
+        )
+    payload, four_action_queries = list_actions()
+
+    assert [action["requires_reconfiguration"] for action in payload] == [True] * 4
+    assert four_action_queries == one_action_queries
 
 
 SERVICE_TABLES = {
