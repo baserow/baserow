@@ -573,8 +573,9 @@ the natural place to narrow this further when it is wanted.
   trashed field (without an integration, which drops the mapping instead), no table, or
   a table that is trashed or in a trashed database. The cell renders a disabled button
   with a warning, and the editor names the action. An action whose integration is
-  trashed puts the button in the same state, but the editor can't name it: its
-  integration list can't tell a trashed integration from one the user can't see.
+  trashed, or that has none while its service needs one, puts the button in the same
+  state. The editor names a missing one, but not a trashed one: its integration list
+  can't tell a trashed integration from one the user can't see.
   Editing an action keeps its mappings on trashed fields. Permanently deleting the
   field removes its mapping, which ends the state and updates open grids, and the click
   then writes the row without that value.
