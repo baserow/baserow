@@ -891,5 +891,10 @@
   "aiProviderModelFeature": {
     "kuma": "Kuma",
     "kumaDescription": "Power the Kuma AI assistant."
+  },
+  "assistantDashboardPrompt": {
+    "title": "Tell us what you want to create",
+    "placeholder": "Create company asset tracker",
+    "build": "Build it"
   }
 }

@@ -106,7 +106,7 @@
     "logoff": "Log out",
     "errorNoWorkspace": "You don’t have any workspaces.",
     "adminTools": "Admin tools",
-    "home": "Home",
+    "recents": "Recents",
     "allWorkspaces": "All workspaces",
     "recentlyViewed": "Recently viewed",
     "backToHome": "Back to home",
@@ -619,8 +619,8 @@
     "shareOnReddit": "Share on Reddit",
     "shareOnFacebook": "Share on Facebook",
     "shareOnLinkedIn": "Share on LinkedIn",
-    "suggestedTemplates": "Suggested templates",
-    "resources": "Resources",
+    "templates": "Templates",
+    "templatesMessage": "Start with a ready made solution",
     "knowledgeBase": "Knowledge base",
     "knowledgeBaseMessage": "Find answers to all of your questions",
     "tutorials": "Tutorials",
@@ -634,9 +634,6 @@
     "addNew": "Add new...",
     "noWorkspace": "No workspace",
     "noWorkspaceDescription": "Get started by creating a new workspace"
-  },
-  "templateCard": {
-    "viewMore": "View more"
   },
   "login": {
     "title": "Welcome back",
