@@ -1970,8 +1970,9 @@ def test_a_payload_naming_a_trashed_field_does_not_duplicate_its_mapping(
     data_fixture,
 ):
     """
-    Undo replays the exported mappings, trashed ones included, so the kept
-    mapping takes the replayed value and enabled flag.
+    Undo replays the exported mappings, trashed ones included. The payload
+    replaces every mapping, so the trashed field ends with one, holding the
+    replayed value and enabled flag.
     """
 
     user = data_fixture.create_user()
@@ -2002,15 +2003,19 @@ def test_changing_the_table_drops_the_old_tables_trashed_mappings(data_fixture):
     table = data_fixture.create_database_table(user=user)
     other_table = data_fixture.create_database_table(user=user, database=table.database)
     doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    new_field = data_fixture.create_text_field(table=other_table, name="New")
     service = data_fixture.create_local_baserow_upsert_row_service(table=table)
     service.field_mappings.create(field=doomed_field, value="'b'", enabled=True)
     FieldHandler().delete_field(user, doomed_field)
 
     ServiceHandler().update_service(
-        service.get_type(), service, table=other_table, field_mappings=[]
+        service.get_type(),
+        service,
+        table=other_table,
+        field_mappings=[{"field_id": new_field.id, "enabled": True, "value": "'c'"}],
     )
 
-    assert service.field_mappings.count() == 0
+    assert _mappings(service) == {new_field.id: (True, "'c'")}
 
 
 @pytest.mark.django_db
