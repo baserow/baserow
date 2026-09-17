@@ -20,6 +20,8 @@ class SamlAppAuthProviderType(SamlAuthProviderTypeMixin, AppAuthProviderType):
     The SAML authentication provider type allows users to login using SAML.
     """
 
+    supports_callback = True
+
     model_class = SamlAppAuthProviderModel
 
     compatible_user_source_types = [LocalBaserowUserSourceType.type]

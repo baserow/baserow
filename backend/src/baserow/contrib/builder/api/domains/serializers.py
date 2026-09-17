@@ -185,12 +185,23 @@ class PublicPageSerializer(serializers.ModelSerializer):
         }
 
 
+class PublicAppAuthProviderSerializer(AppAuthProviderSerializer):
+    supports_callback = serializers.SerializerMethodField()
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_supports_callback(self, instance):
+        return instance.enabled and instance.get_type().supports_callback
+
+    class Meta(AppAuthProviderSerializer.Meta):
+        fields = (*AppAuthProviderSerializer.Meta.fields, "supports_callback")
+
+
 class PublicPolymorphicAppAuthProviderSerializer(PolymorphicSerializer):
     """
     Polymorphic serializer for App Auth providers.
     """
 
-    base_class = AppAuthProviderSerializer
+    base_class = PublicAppAuthProviderSerializer
     registry = app_auth_provider_type_registry
     extra_params = {"public": True}
 

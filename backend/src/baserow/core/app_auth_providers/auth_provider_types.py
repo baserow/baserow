@@ -23,6 +23,9 @@ class AppAuthProviderType(
     Authentication provider for application user sources.
     """
 
+    # Opt in only when this provider issues user-source callback credentials.
+    supports_callback = False
+
     default_create_allowed_fields = ["domain", "enabled", "user_source"]
     default_update_allowed_fields = ["domain", "enabled"]
 

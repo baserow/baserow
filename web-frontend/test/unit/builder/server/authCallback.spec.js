@@ -1,9 +1,28 @@
 // @vitest-environment node
 import { createApp, defineEventHandler, toWebHandler } from 'h3'
+import { $fetch } from 'ofetch'
 import callback from '@baserow/modules/builder/server/middleware/authCallback'
+
+vi.mock('ofetch', () => ({ $fetch: vi.fn() }))
+
+beforeEach(() => {
+  $fetch.mockReset()
+  $fetch.mockResolvedValue({
+    user_sources: [
+      {
+        id: 42,
+        auth_providers: ['saml', 'oidc', 'custom_provider-v2'].map((type) => ({
+          type,
+          supports_callback: true,
+        })),
+      },
+    ],
+  })
+})
 
 vi.mock('nitropack/runtime', () => ({
   useRuntimeConfig: () => ({
+    privateBackendUrl: 'http://backend:8000',
     public: {
       publicWebFrontendUrl: 'https://baserow.example.com',
       builderPreviewUrl: 'http://preview.example.com',
@@ -12,13 +31,17 @@ vi.mock('nitropack/runtime', () => ({
   }),
 }))
 
-const request = (path, origin = 'https://builder.example.com') => {
+const request = (
+  path,
+  origin = 'https://builder.example.com',
+  headers = {}
+) => {
   const app = createApp()
   app.use(callback)
   app.use(defineEventHandler(() => 'page rendered'))
   return toWebHandler(app)(
     new Request(`${origin}${path}`, {
-      headers: { host: new URL(origin).host },
+      headers: { host: new URL(origin).host, ...headers },
     })
   )
 }
@@ -132,8 +155,104 @@ test('keeps a double-slash request path on the current host', async () => {
   const response = await request(
     '//other.example.com/page?user_source_saml_token__42=test-refresh-token'
   )
+  expect(response.headers.get('location')).toMatch(/^\/(?![/\\])/)
   expect(
     new URL(response.headers.get('location'), 'https://builder.example.com')
       .origin
   ).toBe('https://builder.example.com')
+})
+
+test.each([
+  { user_sources: [{ id: 42, auth_providers: [{ type: 'password' }] }] },
+  { user_sources: [{ id: 99, auth_providers: [{ type: 'saml' }] }] },
+  { user_sources: [] },
+  {
+    user_sources: [
+      { id: 42, auth_providers: [{ type: 'saml', supports_callback: false }] },
+    ],
+  },
+])(
+  'does not replace the session for an unconfigured callback',
+  async (builder) => {
+    $fetch.mockResolvedValue(builder)
+    const response = await request(
+      '/login?user_source_saml_token__42=attacker-token'
+    )
+    expect(response.status).toBe(303)
+    expect(response.headers.get('set-cookie')).toBeNull()
+    expect(response.headers.get('location')).toBe('/login')
+  }
+)
+test('does not install a token when the Builder cannot be loaded', async () => {
+  $fetch.mockRejectedValue({ statusCode: 404 })
+  const response = await request(
+    '/login?user_source_saml_token__42=attacker-token'
+  )
+  expect(response.headers.get('set-cookie')).toBeNull()
+})
+
+test('resolves published callbacks by domain without forwarding browser cookies', async () => {
+  await request('/login?user_source_saml_token__42=token', undefined, {
+    cookie: 'unrelated=secret',
+  })
+  expect($fetch).toHaveBeenCalledWith(
+    'builder/domains/published/by_name/builder.example.com/',
+    {
+      baseURL: 'http://backend:8000/api/',
+      headers: {},
+      retry: 0,
+    }
+  )
+})
+test('resolves previews using only the preview SSR credential', async () => {
+  await request(
+    '/builder/preview/17/login?user_source_saml_token__42=token',
+    'http://preview.example.com',
+    {
+      cookie:
+        'test_baserow_builder_preview_ssr=preview-session; unrelated=secret',
+    }
+  )
+  expect($fetch).toHaveBeenCalledWith('builder/preview/17/current/', {
+    baseURL: 'http://backend:8000/api/',
+    headers: { Cookie: 'test_baserow_builder_preview=preview-session' },
+    retry: 0,
+  })
+})
+test('resolves the published-by-ID route on the frontend host', async () => {
+  await request(
+    '/builder/published/17/login?user_source_saml_token__42=token',
+    'https://baserow.example.com'
+  )
+  expect($fetch.mock.calls[0][0]).toBe('builder/domains/published/by_id/17/')
+})
+test.each([401, 403, 404])(
+  'rejects unauthorized preview callbacks (%s)',
+  async (statusCode) => {
+    $fetch.mockRejectedValue({ statusCode })
+    const response = await request(
+      '/builder/preview/17/login?user_source_saml_token__42=token',
+      'http://preview.example.com'
+    )
+    expect(response.headers.get('set-cookie')).toBeNull()
+    expect(response.status).toBe(303)
+  }
+)
+
+test('a password provider cannot be used as a callback even when configured', async () => {
+  $fetch.mockResolvedValue({
+    user_sources: [
+      {
+        id: 42,
+        auth_providers: [
+          { type: 'local_baserow_password', supports_callback: false },
+        ],
+      },
+    ],
+  })
+  const response = await request(
+    '/login?user_source_local_baserow_password_token__42=attacker-token'
+  )
+  expect(response.headers.get('set-cookie')).toBeNull()
+  expect(response.status).toBe(303)
 })

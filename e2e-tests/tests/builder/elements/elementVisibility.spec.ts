@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { getClient } from "../../../client";
 import { expect, test } from "../../baserowTest";
 import {
   createLicense,
@@ -141,6 +144,31 @@ test.describe("Builder element visibility on published pages", () => {
       }
     );
 
+    // Configure SAML before publication: callback credentials must belong to a
+    // provider on this Builder. OIDC is deliberately absent for the rejection case.
+    const { data: sources } = await getClient(user).get(
+      `application/${builder.id}/user-sources/`
+    );
+    const source = sources.find(
+      (item: { id: number }) => item.id === userSource.id
+    );
+    await getClient(user).patch(`user-source/${userSource.id}/`, {
+      auth_providers: [
+        ...source.auth_providers,
+        {
+          type: "saml",
+          domain: "example.com",
+          metadata: readFileSync(
+            path.resolve(
+              __dirname,
+              "../../../../enterprise/backend/tests/baserow_enterprise_tests/fixtures/sso/saml/idp_valid_metadata_builder.xml"
+            ),
+            "utf8"
+          ),
+        },
+      ],
+    });
+
     // --- Publish. The published copy filters elements by visibility.
     const published = await publishBuilder(
       builder,
@@ -256,7 +284,7 @@ test.describe("Builder element visibility on published pages", () => {
       );
       await assertVisibleFor(
         callbackAuth.refreshToken,
-        EXPECTED.loggedInEditor,
+        provider === "saml" ? EXPECTED.loggedInEditor : EXPECTED.anonymous,
         provider
       );
     }
