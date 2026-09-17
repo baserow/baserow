@@ -1,10 +1,13 @@
-from typing import Iterable
+from itertools import groupby
+from operator import attrgetter
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
+from django.db.models import QuerySet
 from django.dispatch import receiver
 
 from baserow.contrib.database.fields import signals as field_signals
+from baserow.contrib.database.fields.field_types import ButtonFieldType
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table import signals as table_signals
@@ -63,7 +66,7 @@ def workflow_actions_reordered(sender, field, order, user, **kwargs):
     _broadcast_field(field, user)
 
 
-def _broadcast_buttons(button_fields: Iterable[ButtonField]) -> None:
+def _broadcast_buttons(button_fields: QuerySet[ButtonField]) -> None:
     """
     Sends these buttons out again to their tables. They usually live in
     another table than the one that changed, so nothing else tells the people
@@ -72,16 +75,26 @@ def _broadcast_buttons(button_fields: Iterable[ButtonField]) -> None:
     No session is left out: whoever trashed the field may be looking at the
     button's table, and nothing updates their copy either.
 
+    Each table gets one message with its first button as `field` and the rest
+    as `related_fields`, as every `field_updated` refreshes the whole grid.
+
     :param button_fields: The buttons whose `requires_reconfiguration` may
         have changed.
     """
 
     table_page_type = page_registry.get("table")
-    for button_field in button_fields:
+    buttons = ButtonFieldType().enhance_field_queryset(
+        button_fields.select_related("table__database")
+        .prefetch_related("field_constraints")
+        .order_by("table_id", "id"),
+        None,
+    )
+    for table_id, in_table in groupby(buttons, key=attrgetter("table_id")):
+        first, *rest = in_table
         table_page_type.broadcast(
-            RealtimeFieldMessages.field_updated(button_field, []),
+            RealtimeFieldMessages.field_updated(first, rest),
             None,
-            table_id=button_field.table_id,
+            table_id=table_id,
         )
 
 

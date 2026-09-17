@@ -112,12 +112,15 @@ def _button_messages(mock_broadcast, button_field):
     ]
 
 
-def _button_writing_to(data_fixture, user, target_table, mapped_field=None):
-    """A button in its own table whose create row action targets another."""
+def _button_writing_to(
+    data_fixture, user, target_table, mapped_field=None, button_table=None
+):
+    """A button, in a new table by default, whose create row action targets another."""
 
-    button_table = data_fixture.create_database_table(
-        user=user, database=target_table.database
-    )
+    if button_table is None:
+        button_table = data_fixture.create_database_table(
+            user=user, database=target_table.database
+        )
     button_field = data_fixture.create_button_field(table=button_table, label="Go")
     action = data_fixture.create_database_workflow_action(
         LocalBaserowCreateRowWorkflowAction, field=button_field
@@ -438,3 +441,73 @@ def test_trashing_a_table_updates_a_button_mapping_a_link_to_it(
 
     [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
     assert message["field"]["requires_reconfiguration"] is False
+
+
+def _field_messages(mock_broadcast):
+    """Every `field_updated` sent, as (group, message)."""
+
+    return [
+        (call.args[0], call.args[1])
+        for call in mock_broadcast.delay.call_args_list
+        if call.args[1].get("type") == "field_updated"
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_buttons_in_one_table_are_sent_in_one_message(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """Each message refreshes the whole grid, so a table gets one."""
+
+    user = data_fixture.create_user()
+    target = data_fixture.create_database_table(user=user)
+    mapped = data_fixture.create_text_field(table=target, name="Mapped")
+    button_table = data_fixture.create_database_table(
+        user=user, database=target.database
+    )
+    first, second = [
+        _button_writing_to(data_fixture, user, target, mapped, button_table)
+        for _ in range(2)
+    ]
+    elsewhere = _button_writing_to(data_fixture, user, target, mapped)
+
+    FieldHandler().delete_field(user, mapped)
+
+    messages = _field_messages(mock_broadcast_to_channel_group)
+    assert sorted(group for group, _ in messages) == sorted(
+        [f"table-{button_table.id}", f"table-{elsewhere.table_id}"]
+    )
+    message = dict(messages)[f"table-{button_table.id}"]
+    sent = [message["field"], *message["related_fields"]]
+    assert sorted(f["id"] for f in sent) == [first.id, second.id]
+    assert all(f["requires_reconfiguration"] is True for f in sent)
+    assert all(f["has_workflow_actions"] is True for f in sent)
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_sending_the_buttons_does_not_query_per_button(
+    mock_broadcast_to_channel_group, data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    target = data_fixture.create_database_table(user=user)
+    button_table = data_fixture.create_database_table(
+        user=user, database=target.database
+    )
+
+    def broadcast_queries(button_count):
+        mapped = data_fixture.create_text_field(table=target)
+        for _ in range(button_count):
+            _button_writing_to(data_fixture, user, target, mapped, button_table)
+        with django_capture_on_commit_callbacks() as callbacks:
+            FieldHandler().delete_field(user, mapped)
+        [broadcast] = [
+            c for c in callbacks if "_broadcast_dependent_buttons" in c.__qualname__
+        ]
+        broadcast()
+        with CaptureQueriesContext(connection) as captured:
+            broadcast()
+        return len(captured)
+
+    assert broadcast_queries(3) == broadcast_queries(1)
