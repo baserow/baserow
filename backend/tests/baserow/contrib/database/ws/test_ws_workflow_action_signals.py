@@ -251,6 +251,58 @@ def test_trashing_and_restoring_an_integration_updates_the_button(
     assert message["field"]["requires_reconfiguration"] is False
 
 
+def _empty_the_trash(user, database):
+    """Marks the database's trash for deletion and deletes it, as Celery does."""
+
+    TrashHandler.empty(user, database.workspace_id, database.id)
+    TrashHandler.permanently_delete_marked_trash()
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_permanently_deleting_a_mapped_field_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    target = data_fixture.create_database_table(user=user)
+    mapped = data_fixture.create_text_field(table=target, name="Mapped")
+    button_field = _button_writing_to(data_fixture, user, target, mapped)
+    unrelated = _button_writing_to(data_fixture, user, target)
+    FieldHandler().delete_field(user, mapped)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    _empty_the_trash(user, target.database)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+    assert message["field"]["requires_reconfiguration"] is False
+    assert _button_messages(mock_broadcast_to_channel_group, unrelated) == []
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_permanently_deleting_an_integration_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    bot = data_fixture.create_slack_bot_integration(application=database, user=user)
+    button_field = _button_sending_through(data_fixture, user, bot)
+    other_bot = data_fixture.create_slack_bot_integration(
+        application=database, user=user
+    )
+    unrelated = _button_sending_through(data_fixture, user, other_bot)
+    IntegrationService().delete_integration(user, bot)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    _empty_the_trash(user, database)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+    assert message["field"]["requires_reconfiguration"] is False
+    assert _button_messages(mock_broadcast_to_channel_group, unrelated) == []
+
+
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
 def test_trashing_the_buttons_own_table_sends_the_button_nowhere(

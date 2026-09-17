@@ -1,3 +1,5 @@
+from typing import Iterable
+
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
@@ -12,6 +14,7 @@ from baserow.contrib.database.workflow_actions.reconfiguration import (
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
 from baserow.core import signals as core_signals
 from baserow.core.integrations import signals as integration_signals
+from baserow.core.trash import signals as trash_signals
 from baserow.ws.registries import page_registry
 
 
@@ -58,27 +61,38 @@ def workflow_actions_reordered(sender, field, order, user, **kwargs):
     _broadcast_field(field, user)
 
 
+def _broadcast_buttons(button_fields: Iterable[ButtonField]) -> None:
+    """
+    Sends these buttons out again to their tables. They usually live in
+    another table than the one that changed, so nothing else tells the people
+    looking at them.
+
+    No session is left out: whoever trashed the field may be looking at the
+    button's table, and nothing updates their copy either.
+
+    :param button_fields: The buttons whose `requires_reconfiguration` may
+        have changed.
+    """
+
+    table_page_type = page_registry.get("table")
+    for button_field in button_fields:
+        table_page_type.broadcast(
+            RealtimeFieldMessages.field_updated(button_field, []),
+            None,
+            table_id=button_field.table_id,
+        )
+
+
 def _broadcast_dependent_buttons(**lookup) -> None:
     """
     Sends out again every button whose `requires_reconfiguration` may have
     changed because something its actions reference was trashed or restored.
-    Those buttons usually live in another table than the one that changed, so
-    nothing else tells the people looking at them.
-
-    No session is left out: whoever trashed the field may be looking at the
-    button's table, and nothing updates their copy either.
 
     :param lookup: The `button_fields_depending_on` arguments.
     """
 
     def broadcast():
-        table_page_type = page_registry.get("table")
-        for button_field in button_fields_depending_on(**lookup):
-            table_page_type.broadcast(
-                RealtimeFieldMessages.field_updated(button_field, []),
-                None,
-                table_id=button_field.table_id,
-            )
+        _broadcast_buttons(button_fields_depending_on(**lookup))
 
     # Looked up on commit, so the trash state it reads is the committed one.
     transaction.on_commit(broadcast)
@@ -125,3 +139,49 @@ def button_integration_deleted(sender, integration_id, **kwargs):
 @receiver(integration_signals.integration_created)
 def button_integration_created(sender, integration, **kwargs):
     _broadcast_dependent_buttons(integration_ids=[integration.id])
+
+
+# The `button_fields_depending_on` argument for each trash item type whose
+# permanent deletion can end a button's reconfigure state. Deleting a table or
+# a database can't: it leaves the service without a table, which still counts.
+PERMANENT_DELETION_LOOKUPS = {"field": "field_ids", "integration": "integration_ids"}
+
+# The buttons found before an item is permanently deleted, by trash item type
+# and id, until its deletion is done.
+_buttons_losing_a_dependency: dict[tuple[str, int], list[int]] = {}
+
+
+@receiver(trash_signals.before_permanently_deleted)
+def button_dependency_before_permanently_deleted(sender, trash_item_id, **kwargs):
+    lookup = PERMANENT_DELETION_LOOKUPS.get(sender)
+    if lookup is None:
+        return
+    # Now, while the mapping or the integration reference still exists.
+    button_field_ids = list(
+        button_fields_depending_on(**{lookup: [trash_item_id]}).values_list(
+            "id", flat=True
+        )
+    )
+    if button_field_ids:
+        _buttons_losing_a_dependency[(sender, trash_item_id)] = button_field_ids
+
+
+@receiver(trash_signals.permanently_deleted)
+def button_dependency_permanently_deleted(sender, trash_item_id, **kwargs):
+    button_field_ids = _buttons_losing_a_dependency.pop((sender, trash_item_id), None)
+    if not button_field_ids:
+        return
+
+    def broadcast():
+        # Fetched again, so the flag is read after the deletion.
+        _broadcast_buttons(
+            ButtonField.objects.filter(
+                id__in=button_field_ids,
+                table__trashed=False,
+                table__database__trashed=False,
+            )
+        )
+
+    # Here rather than before the deletion: outside an atomic block this runs
+    # straight away.
+    transaction.on_commit(broadcast)
