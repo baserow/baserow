@@ -38,6 +38,24 @@ def test_client_deletes_a_message_with_the_web_api_request_shape():
     # an address of the account.
     assert request.body == "request=%7B%22MsgID%22%3A+42%7D"
     assert request.headers["Authorization"].startswith("Basic ")
+    # Mox only serves the web API for requests addressed to an IP, its own
+    # hostname or "localhost"; the compose deployments reach it by service
+    # name, so the client must not send that name as the Host header.
+    assert request.headers["Host"] == "localhost"
+
+
+def test_client_reuses_one_session_and_closes_it():
+    client = make_client()
+    session = MagicMock()
+    session.post.return_value = MagicMock(status_code=200)
+    client._session = session
+
+    assert client.delete_message(1) is True
+    assert client.delete_message(2) is True
+
+    assert session.post.call_count == 2
+    client.close()
+    session.close.assert_called_once_with()
 
 
 @responses.activate
@@ -174,6 +192,24 @@ def test_webhook_ignores_a_missing_receiver_id():
         InboundEmailHandler().handle_webhook_payload(payload)
 
     assert CoreInboundEmailReceiverState.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_sweep_closes_the_client_it_created_but_not_an_injected_one():
+    InboundEmailReceiverStateHandler.record_seen_message(1)
+    created = MagicMock()
+    created.delete_message.return_value = True
+    with patch.object(
+        InboundEmailReceiverClient, "from_settings", return_value=created
+    ):
+        sweep_inbound_email_receiver()
+    created.close.assert_called_once_with()
+
+    injected = MagicMock()
+    injected.delete_message.return_value = True
+    InboundEmailReceiverStateHandler.record_seen_message(2)
+    sweep_inbound_email_receiver(client=injected)
+    injected.close.assert_not_called()
 
 
 @pytest.mark.django_db

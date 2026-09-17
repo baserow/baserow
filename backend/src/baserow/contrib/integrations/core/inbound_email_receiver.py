@@ -37,11 +37,21 @@ class InboundEmailReceiverError(Exception):
     """Raised when the receiver's web API cannot be used."""
 
 
+# Mox only serves its internal web services, the web API included, when the
+# request's Host header is an IP address, the listener's own hostname or
+# "localhost"; anything else gets a 404. The backend reaches the receiver by
+# whatever name the deployment gives it (`email-receiver` in compose), so the
+# client always presents itself as localhost instead of the URL's hostname.
+INBOUND_EMAIL_RECEIVER_HOST_HEADER = "localhost"
+
+
 class InboundEmailReceiverClient:
     """
     Minimal client for mox's web API: `POST {base}/webapi/v0/<Method>` with a
     form field `request` holding the JSON request, HTTP basic auth with an
-    address of the account.
+    address of the account. One session is kept for the client's lifetime so a
+    sweep of many messages reuses its connection instead of opening one per
+    call.
     """
 
     def __init__(
@@ -55,6 +65,12 @@ class InboundEmailReceiverClient:
         self.username = username
         self.password = password
         self.timeout = timeout
+        self._session = requests.Session()
+        self._session.auth = (username, password)
+        self._session.headers["Host"] = INBOUND_EMAIL_RECEIVER_HOST_HEADER
+
+    def close(self) -> None:
+        self._session.close()
 
     @classmethod
     def from_settings(cls) -> Optional["InboundEmailReceiverClient"]:
@@ -85,10 +101,9 @@ class InboundEmailReceiverClient:
         """
 
         try:
-            response = requests.post(
+            response = self._session.post(
                 f"{self.base_url}/webapi/v0/MessageDelete",
                 data={"request": json.dumps({"MsgID": message_id})},
-                auth=(self.username, self.password),
                 timeout=self.timeout,
             )
         except requests.RequestException as exc:
@@ -168,10 +183,19 @@ def sweep_inbound_email_receiver(
         the sweep is not configured on this instance.
     """
 
+    owns_client = client is None
     client = client or InboundEmailReceiverClient.from_settings()
     if client is None:
         return None
 
+    try:
+        return _sweep(client, max_messages)
+    finally:
+        if owns_client:
+            client.close()
+
+
+def _sweep(client: InboundEmailReceiverClient, max_messages: int) -> Dict[str, int]:
     state = InboundEmailReceiverStateHandler.get_state()
     first = state.last_deleted_message_id + 1
     last = min(state.last_seen_message_id, first + max_messages - 1)

@@ -51,6 +51,9 @@ from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
+from baserow.contrib.integrations.core.inbound_email import (
+    is_inbound_email_configured,
+)
 from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.contrib.integrations.core.service_types import (
     CoreCSVFileReaderServiceType,
@@ -775,10 +778,6 @@ class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
         # Instance-wide (the workspace is irrelevant): the trigger is withheld
         # until the domain, the webhook secret and the receiver URL are all
         # configured. See `is_inbound_email_configured` for why each matters.
-        from baserow.contrib.integrations.core.inbound_email import (
-            is_inbound_email_configured,
-        )
-
         return not is_inbound_email_configured()
 
 

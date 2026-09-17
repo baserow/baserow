@@ -1,6 +1,9 @@
 from rest_framework import serializers
 
 from baserow.api.user_files.serializers import UserFileField
+from baserow.contrib.integrations.core.inbound_email import (
+    is_inbound_email_configured,
+)
 from baserow.core.models import Settings
 
 
@@ -46,10 +49,6 @@ class SettingsSerializer(serializers.ModelSerializer):
         }
 
     def get_inbound_email_enabled(self, instance) -> bool:
-        from baserow.contrib.integrations.core.inbound_email import (
-            is_inbound_email_configured,
-        )
-
         return is_inbound_email_configured()
 
     def to_representation(self, instance):
