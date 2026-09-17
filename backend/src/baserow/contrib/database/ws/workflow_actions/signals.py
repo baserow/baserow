@@ -6,6 +6,7 @@ from django.dispatch import receiver
 
 from baserow.contrib.database.fields import signals as field_signals
 from baserow.contrib.database.fields.models import ButtonField
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.table import signals as table_signals
 from baserow.contrib.database.workflow_actions import signals as workflow_action_signals
 from baserow.contrib.database.workflow_actions.reconfiguration import (
@@ -14,6 +15,7 @@ from baserow.contrib.database.workflow_actions.reconfiguration import (
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
 from baserow.core import signals as core_signals
 from baserow.core.integrations import signals as integration_signals
+from baserow.core.models import Application
 from baserow.core.trash import signals as trash_signals
 from baserow.ws.registries import page_registry
 
@@ -130,45 +132,60 @@ def button_target_application_created(sender, application, **kwargs):
     _broadcast_dependent_buttons(database_ids=[application.id])
 
 
+def _in_a_database(application: Application) -> bool:
+    """Only a database's integrations can be used by a button."""
+
+    return issubclass(application.specific_class, Database)
+
+
 @receiver(integration_signals.integration_deleted)
-def button_integration_deleted(sender, integration_id, **kwargs):
-    _broadcast_dependent_buttons(integration_ids=[integration_id])
+def button_integration_deleted(sender, integration_id, application, **kwargs):
+    if _in_a_database(application):
+        _broadcast_dependent_buttons(integration_ids=[integration_id])
 
 
 # Also sent when an integration is restored from the trash.
 @receiver(integration_signals.integration_created)
 def button_integration_created(sender, integration, **kwargs):
-    _broadcast_dependent_buttons(integration_ids=[integration.id])
+    if _in_a_database(integration.application):
+        _broadcast_dependent_buttons(integration_ids=[integration.id])
 
 
 # The `button_fields_depending_on` argument for each trash item type whose
-# permanent deletion can end a button's reconfigure state. Deleting a table or
-# a database can't: it leaves the service without a table, which still counts.
+# permanent deletion can change a button's reconfigure state. Deleting a table
+# or a database can't: it leaves the service without a table, which still
+# counts.
 PERMANENT_DELETION_LOOKUPS = {"field": "field_ids", "integration": "integration_ids"}
 
-# The buttons found before an item is permanently deleted, by trash item type
-# and id, until its deletion is done.
-_buttons_losing_a_dependency: dict[tuple[str, int], list[int]] = {}
+# Set on the item being deleted, which both signals are sent with, so nothing
+# outlives a deletion that fails between them.
+DEPENDENT_BUTTONS_ATTRIBUTE = "_dependent_button_field_ids"
 
 
 @receiver(trash_signals.before_permanently_deleted)
-def button_dependency_before_permanently_deleted(sender, trash_item_id, **kwargs):
+def button_dependency_before_permanently_deleted(
+    sender, trash_item_id, trash_item, **kwargs
+):
     lookup = PERMANENT_DELETION_LOOKUPS.get(sender)
     if lookup is None:
         return
+    if sender == "integration" and not _in_a_database(trash_item.application):
+        return
     # Now, while the mapping or the integration reference still exists.
-    button_field_ids = list(
-        button_fields_depending_on(**{lookup: [trash_item_id]}).values_list(
-            "id", flat=True
-        )
+    setattr(
+        trash_item,
+        DEPENDENT_BUTTONS_ATTRIBUTE,
+        list(
+            button_fields_depending_on(**{lookup: [trash_item_id]}).values_list(
+                "id", flat=True
+            )
+        ),
     )
-    if button_field_ids:
-        _buttons_losing_a_dependency[(sender, trash_item_id)] = button_field_ids
 
 
 @receiver(trash_signals.permanently_deleted)
-def button_dependency_permanently_deleted(sender, trash_item_id, **kwargs):
-    button_field_ids = _buttons_losing_a_dependency.pop((sender, trash_item_id), None)
+def button_dependency_permanently_deleted(sender, trash_item, **kwargs):
+    button_field_ids = getattr(trash_item, DEPENDENT_BUTTONS_ATTRIBUTE, None)
     if not button_field_ids:
         return
 
@@ -182,6 +199,6 @@ def button_dependency_permanently_deleted(sender, trash_item_id, **kwargs):
             )
         )
 
-    # Here rather than before the deletion: outside an atomic block this runs
-    # straight away.
+    # Registered after the deletion rather than before: outside an atomic block
+    # this runs straight away. Inside one, a rollback drops it.
     transaction.on_commit(broadcast)

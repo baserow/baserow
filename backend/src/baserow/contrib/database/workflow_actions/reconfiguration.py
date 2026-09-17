@@ -19,6 +19,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowUpsertRow,
 )
 from baserow.core.services.models import Service
+from baserow.core.services.registries import service_type_registry
 
 ROW_ACTION_MODELS = [
     LocalBaserowCreateRowWorkflowAction,
@@ -27,17 +28,27 @@ ROW_ACTION_MODELS = [
 ]
 
 
-def _integration_action_models() -> list[type[DatabaseWorkflowServiceAction]]:
+def _unusable_integration_by_action_model() -> dict[
+    type[DatabaseWorkflowServiceAction], Q
+]:
     """
-    The action models that can carry an integration. Every other type has one
-    refused on save, import and click (ADR 006 section 5).
+    For each action model that can carry an integration, which of its services
+    the dispatch refuses for their integration: a trashed one, and none when
+    the service type needs one. Every other type has an integration refused on
+    save, import and click (ADR 006 section 5).
     """
 
-    return [
-        action_type.model_class
-        for action_type in database_workflow_action_type_registry.get_all()
-        if action_type.allowed_integration_types
-    ]
+    unusable = {}
+    for action_type in database_workflow_action_type_registry.get_all():
+        if not action_type.allowed_integration_types:
+            continue
+        service_type = service_type_registry.get(action_type.service_type)
+        condition = Q(integration__trashed=True)
+        # Asked of a new service, as the query can't ask each one.
+        if service_type.requires_integration(service_type.model_class()):
+            condition |= Q(integration__isnull=True)
+        unusable[action_type.model_class] = condition
+    return unusable
 
 
 def _unusable_table() -> Q:
@@ -66,7 +77,7 @@ def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
 
     A mapping on a trashed field only counts without an integration: with one,
     the dispatch drops the mapping rather than failing. A trashed integration
-    always counts, as the dispatch refuses it.
+    always counts, and so does none on an action whose service needs one.
 
     :param field_ref: The button field's id, or `OuterRef("pk")` when
         annotating a button field queryset.
@@ -100,8 +111,8 @@ def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
             _unusable_table(),
         )
     )
-    for action_model in _integration_action_models():
-        broken |= has_broken_action(action_model, Service, Q(integration__trashed=True))
+    for action_model, unusable in _unusable_integration_by_action_model().items():
+        broken |= has_broken_action(action_model, Service, unusable)
     return broken
 
 
@@ -120,8 +131,9 @@ def button_fields_depending_on(
     themselves in a trashed table or database are left out: nobody can see them.
 
     Every table and application created runs this, and usually nothing points
-    at it, so the matching services are found first and the buttons only
-    looked up when there are some.
+    at it, so one query first checks whether any service does. The services
+    then stay a subquery: a table can be the target of many builder and
+    automation services.
     """
 
     field_ids, table_ids, database_ids, integration_ids = (
@@ -136,40 +148,42 @@ def button_fields_depending_on(
     if database_ids:
         targets |= Q(table__database_id__in=database_ids)
 
+    # Each service lookup, with the action models whose services it can match.
     lookups = []
     if field_ids:
         lookups.append(
-            LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-                field_id__in=field_ids
-            ).values_list("service_id", flat=True)
+            (
+                LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+                    field_id__in=field_ids
+                ).values("service_id"),
+                ROW_ACTION_MODELS,
+            )
         )
     if targets:
         for service_model in [LocalBaserowUpsertRow, LocalBaserowDeleteRow]:
             lookups.append(
-                service_model.objects.filter(targets).values_list("pk", flat=True)
+                (service_model.objects.filter(targets).values("pk"), ROW_ACTION_MODELS)
             )
-    action_models = []
-    if field_ids or targets:
-        action_models += ROW_ACTION_MODELS
     if integration_ids:
         lookups.append(
-            Service.objects.filter(integration_id__in=integration_ids).values_list(
-                "pk", flat=True
+            (
+                Service.objects.filter(integration_id__in=integration_ids).values("pk"),
+                list(_unusable_integration_by_action_model()),
             )
         )
-        action_models += _integration_action_models()
     if not lookups:
         return ButtonField.objects.none()
 
-    service_ids = list(lookups[0].union(*lookups[1:]))
-    if not service_ids:
+    services = [service_ids for service_ids, _ in lookups]
+    if not services[0].union(*services[1:]).exists():
         return ButtonField.objects.none()
 
     uses_a_service = Q()
-    for action_model in action_models:
-        uses_a_service |= Q(
-            **{f"{action_model._meta.model_name}__service_id__in": service_ids}
-        )
+    for service_ids, action_models in lookups:
+        for action_model in action_models:
+            uses_a_service |= Q(
+                **{f"{action_model._meta.model_name}__service_id__in": service_ids}
+            )
     actions = DatabaseWorkflowAction.objects.filter(uses_a_service)
 
     return ButtonField.objects.filter(

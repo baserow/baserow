@@ -1,12 +1,13 @@
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import OperationalError, connection
 from django.test.utils import CaptureQueriesContext
 
 import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.trash.trash_types import FieldTrashableItemType
 from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowCreateRowWorkflowAction,
     OpenUrlWorkflowAction,
@@ -19,6 +20,7 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.trash.handler import TrashHandler
 
@@ -281,9 +283,11 @@ def test_permanently_deleting_a_mapped_field_updates_the_button(
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
-def test_permanently_deleting_an_integration_updates_the_button(
+def test_permanently_deleting_an_integration_leaves_the_button_needing_one(
     mock_broadcast_to_channel_group, data_fixture
 ):
+    """The service is left with no integration, which Slack still needs."""
+
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     bot = data_fixture.create_slack_bot_integration(application=database, user=user)
@@ -299,8 +303,55 @@ def test_permanently_deleting_an_integration_updates_the_button(
 
     [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
     assert group == f"table-{button_field.table_id}"
-    assert message["field"]["requires_reconfiguration"] is False
+    assert message["field"]["requires_reconfiguration"] is True
     assert _button_messages(mock_broadcast_to_channel_group, unrelated) == []
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_a_permanent_deletion_that_rolls_back_sends_nothing(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    target = data_fixture.create_database_table(user=user)
+    mapped = data_fixture.create_text_field(table=target, name="Mapped")
+    button_field = _button_writing_to(data_fixture, user, target, mapped)
+    FieldHandler().delete_field(user, mapped)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with (
+        patch.object(
+            FieldTrashableItemType,
+            "permanently_delete_item",
+            side_effect=OperationalError("Lost the connection."),
+        ),
+        pytest.raises(OperationalError),
+    ):
+        _empty_the_trash(user, target.database)
+
+    assert _button_messages(mock_broadcast_to_channel_group, button_field) == []
+
+
+@pytest.mark.django_db
+def test_an_integration_outside_a_database_is_never_looked_up(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    """No button can use a builder's or an automation's integration."""
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    integration_type = integration_type_registry.get("local_baserow")
+
+    with django_capture_on_commit_callbacks() as callbacks:
+        integration = IntegrationService().create_integration(
+            user, integration_type, builder
+        )
+        IntegrationService().delete_integration(user, integration)
+        TrashHandler.restore_item(user, "integration", integration.id)
+
+    assert [
+        c for c in callbacks if "_broadcast_dependent_buttons" in c.__qualname__
+    ] == []
 
 
 @pytest.mark.django_db(transaction=True)

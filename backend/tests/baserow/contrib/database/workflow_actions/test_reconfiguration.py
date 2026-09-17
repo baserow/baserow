@@ -10,11 +10,15 @@ from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
+    CoreSMTPEmailWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
     SlackWriteMessageWorkflowAction,
+)
+from baserow.contrib.database.workflow_actions.reconfiguration import (
+    button_fields_depending_on,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.service import IntegrationService
@@ -213,11 +217,30 @@ def test_a_trashed_integration_needs_reconfiguring_until_restored(data_fixture, 
 
 
 @pytest.mark.django_db
-def test_an_action_without_an_integration_does_not_need_reconfiguring(
+def test_an_action_missing_the_integration_it_needs_needs_reconfiguring(
     data_fixture, setup
 ):
+    """The dispatch refuses a Slack action with no bot picked."""
+
     *_, button_field = setup
     _slack_action(data_fixture, button_field, None)
+
+    assert _requires_reconfiguration(button_field) is True
+
+
+@pytest.mark.django_db
+def test_an_email_action_without_an_integration_does_not_need_reconfiguring(
+    data_fixture, setup
+):
+    """A button's email action always sends through the instance's server."""
+
+    *_, button_field = setup
+    action = data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.use_instance_smtp_settings = True
+    service.save()
 
     assert _requires_reconfiguration(button_field) is False
 
@@ -342,6 +365,27 @@ def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
             assert "Index Cond" in scan, scan
             rows_read = scan["Actual Rows"] + scan.get("Rows Removed by Filter", 0)
             assert rows_read <= 1, scan
+
+
+@pytest.mark.django_db
+def test_the_realtime_lookup_keeps_the_services_in_a_subquery(data_fixture, setup):
+    """
+    A table can be the target of many builder and automation services, so their
+    ids are not read into Python only to be sent back.
+    """
+
+    *_, table, _, button_field = setup
+    _row_action(data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, table)
+    for _ in range(3):
+        data_fixture.create_local_baserow_upsert_row_service(table=table)
+
+    with CaptureQueriesContext(connection) as captured:
+        assert list(button_fields_depending_on(table_ids=[table.id])) == [button_field]
+
+    check, buttons = captured.captured_queries
+    # Asks whether there is one rather than reading them all.
+    assert check["sql"].endswith("LIMIT 1")
+    assert "integrations_localbaserowupsertrow" in buttons["sql"]
 
 
 @pytest.mark.django_db
