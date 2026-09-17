@@ -27,6 +27,7 @@
       ref="actionList"
       :value="localActions"
       :database="database"
+      :table-fields="tableFields"
       @input="localActions = $event"
     />
   </div>
@@ -57,7 +58,10 @@ import {
 } from '@baserow/modules/database/utils/workflowActionFormulas'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+import {
+  FIELDS_UNAVAILABLE,
+  TABLE_MISSING,
+} from '@baserow/modules/database/utils/buttonField'
 import { MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP } from '@baserow/modules/database/utils/action'
 
 /** An action without the answer a click left on its service. */
@@ -158,10 +162,12 @@ export default {
     },
     registerTableFields(tableId, fields) {
       // Two actions can point at the same table, and a fetch that failed for
-      // one of them says nothing about the fields the other already has.
+      // one of them says nothing about the fields the other already has, or
+      // about a table the other found missing.
+      const known = this.tableFields[tableId]
       if (
         fields === FIELDS_UNAVAILABLE &&
-        Array.isArray(this.tableFields[tableId])
+        (Array.isArray(known) || known === TABLE_MISSING)
       ) {
         return
       }

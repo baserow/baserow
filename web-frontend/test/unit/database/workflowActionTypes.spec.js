@@ -3,6 +3,10 @@ import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import OpenUrlWorkflowActionForm from '@baserow/modules/database/components/field/OpenUrlWorkflowActionForm'
+import {
+  FIELDS_UNAVAILABLE,
+  TABLE_MISSING,
+} from '@baserow/modules/database/utils/buttonField'
 
 // Read rather than imported: the i18n loader turns an imported locale file
 // into compiled message ASTs, which the copy below can't be read off of.
@@ -749,6 +753,90 @@ describe('actions the server says need reconfiguring', () => {
   test('the copy says what is wrong', () => {
     expect(en.databaseWorkflowActionType.requiresReconfiguration).toBe(
       'This action points at a table, field or integration that is in the trash or gone.'
+    )
+  })
+})
+
+describe('row actions whose table is in the trash', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const TRASHED_MAPPING = {
+    field_id: 9,
+    value: "'x'",
+    enabled: true,
+    // What the API reports for every field of a trashed table.
+    trashed: true,
+  }
+
+  const rowAction = (type) => ({
+    id: 1,
+    type,
+    requires_reconfiguration: true,
+    service: {
+      table_id: 5,
+      integration_id: null,
+      row_id: "get('row.id')",
+      field_mappings: [TRASHED_MAPPING],
+    },
+  })
+
+  const errorFor = (workflowAction, tableFields) =>
+    testApp._app.$registry
+      .get('databaseWorkflowActionType', workflowAction.type)
+      .getErrorMessage(workflowAction, {
+        workflowActions: [workflowAction],
+        tableFields,
+      })
+
+  test.each([
+    'local_baserow_create_row',
+    'local_baserow_update_row',
+    'local_baserow_delete_row',
+  ])('%s names the table rather than its trashed fields', (type) => {
+    expect(errorFor(rowAction(type), { 5: TABLE_MISSING })).toBe(
+      'databaseWorkflowActionType.tableTrashed'
+    )
+  })
+
+  test('a trashed field on a table that loaded keeps the field message', () => {
+    const fields = [{ id: 10, name: 'Name', type: 'text', read_only: false }]
+
+    expect(errorFor(rowAction('local_baserow_create_row'), { 5: fields })).toBe(
+      'databaseWorkflowActionType.writesToTrashedField'
+    )
+  })
+
+  test('a fetch that failed for another reason says nothing about the table', () => {
+    expect(
+      errorFor(rowAction('local_baserow_create_row'), { 5: FIELDS_UNAVAILABLE })
+    ).toBe('databaseWorkflowActionType.writesToTrashedField')
+  })
+
+  test('a missing table offers only the row id to later actions', () => {
+    const workflowAction = rowAction('local_baserow_create_row')
+    workflowAction.service.schema = {
+      type: 'object',
+      properties: { field_9: { type: 'string', title: 'Stale' } },
+    }
+
+    const schema = testApp._app.$registry
+      .get('databaseWorkflowActionType', 'local_baserow_create_row')
+      .getDataSchema({ tableFields: { 5: TABLE_MISSING } }, workflowAction)
+
+    expect(Object.keys(schema.properties)).toEqual(['id'])
+  })
+
+  test('the copy says to restore the table', () => {
+    expect(en.databaseWorkflowActionType.tableTrashed).toBe(
+      'This action uses a table that is in the trash or no longer exists. Restore the table or pick another one.'
     )
   })
 })

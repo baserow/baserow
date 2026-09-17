@@ -31,7 +31,10 @@ import form from '@baserow/modules/core/mixins/form'
 import SampleDataViewer from '@baserow/modules/core/components/SampleDataViewer'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+import {
+  FIELDS_UNAVAILABLE,
+  TABLE_MISSING,
+} from '@baserow/modules/database/utils/buttonField'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
 export default {
@@ -184,6 +187,11 @@ export default {
           return
         }
         this.mappableFields = []
+        // The action's own error names a missing table, so no toast for it.
+        if (error.handler?.code === 'ERROR_TABLE_DOES_NOT_EXIST') {
+          this.registerTableFields?.(tableId, TABLE_MISSING)
+          return
+        }
         // Marked rather than left alone, so the explorer offers this action's
         // `id` and nothing else. Without it the schema falls back to the last
         // save's, which describes the table it pointed at before.

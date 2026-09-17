@@ -3,6 +3,9 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 // empty list, which is a table that really has no fields, and from an absent
 // entry, which is a table nothing has fetched yet.
 export const FIELDS_UNAVAILABLE = Symbol('fieldsUnavailable')
+// Recorded for a table the API says does not exist: trashed, in a trashed
+// database or workspace, or deleted. Its fields are unavailable too.
+export const TABLE_MISSING = Symbol('tableMissing')
 
 /**
  * Percent-encodes the whitespace in a resolved URL. Row values often contain

@@ -20,6 +20,7 @@ import {
   encodeUrlWhitespace,
   urlWithAllowedProtocol,
   FIELDS_UNAVAILABLE,
+  TABLE_MISSING,
 } from '@baserow/modules/database/utils/buttonField'
 import {
   referencedActionIdsInConfig,
@@ -111,6 +112,18 @@ function writesToTrashedField(workflowAction) {
 }
 
 /**
+ * Whether fetching the target table's fields found no table. Its fields then
+ * all report trashed, but only restoring the table heals the action.
+ */
+function targetsMissingTable(workflowAction, applicationContext) {
+  const tableId = workflowAction.service?.table_id
+  return (
+    Boolean(tableId) &&
+    applicationContext?.tableFields?.[tableId] === TABLE_MISSING
+  )
+}
+
+/**
  * Base for a database workflow action backed by a service. No `execute`: a
  * click dispatches the sequence server side, so nothing runs in the browser.
  */
@@ -178,6 +191,9 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     if (inherited) {
       return inherited
     }
+    if (targetsMissingTable(workflowAction, applicationContext)) {
+      return this.app.$i18n.t('databaseWorkflowActionType.tableTrashed')
+    }
     if (this.mapsFields && writesToTrashedField(workflowAction)) {
       return this.app.$i18n.t('databaseWorkflowActionType.writesToTrashedField')
     }
@@ -223,7 +239,7 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
 
     // A fetch that failed says the saved schema cannot be trusted either, since
     // it describes whichever table the action pointed at when it was saved.
-    if (fields === FIELDS_UNAVAILABLE) {
+    if (fields === FIELDS_UNAVAILABLE || fields === TABLE_MISSING) {
       return {
         type: 'object',
         title: this.label,

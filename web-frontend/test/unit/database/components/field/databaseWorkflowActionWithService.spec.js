@@ -4,7 +4,10 @@ import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import DatabaseWorkflowActionWithService from '@baserow/modules/database/components/field/DatabaseWorkflowActionWithService'
-import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+import {
+  FIELDS_UNAVAILABLE,
+  TABLE_MISSING,
+} from '@baserow/modules/database/utils/buttonField'
 
 // Read rather than imported: the i18n loader turns an imported locale file
 // into compiled message ASTs, which the copy below can't be read off of.
@@ -296,6 +299,36 @@ describe('DatabaseWorkflowActionWithService', () => {
 
     expect(registerTableFields).toHaveBeenCalledWith(1, TABLE_FIELDS)
     expect(registerTableFields).toHaveBeenLastCalledWith(2, FIELDS_UNAVAILABLE)
+  })
+
+  test('a table the API says is gone is marked missing, without a toast', async () => {
+    // A trashed table, or one in a trashed database or workspace, answers 404.
+    // The action names that itself, so a toast on opening the editor would
+    // only repeat it.
+    await seedApplications()
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/database/fields/table/2/').reply(404, {
+      error: 'ERROR_TABLE_DOES_NOT_EXIST',
+      detail: 'The requested table does not exist.',
+    })
+    const registerTableFields = vi.fn()
+
+    await testApp.mount(DatabaseWorkflowActionWithService, {
+      props: {
+        workflowAction: {
+          id: 1,
+          type: 'local_baserow_create_row',
+          service: {},
+        },
+        database: { id: OWN_DATABASE_ID, workspace: WORKSPACE },
+        defaultValues: { service: { table_id: 2 } },
+      },
+      global: { provide: { workspace: WORKSPACE, registerTableFields } },
+    })
+    await flushPromises()
+
+    expect(registerTableFields).toHaveBeenLastCalledWith(2, TABLE_MISSING)
+    expect(testApp.store.state.toast.items).toEqual([])
   })
 
   test('re-picking the table already selected keeps the mappings visible', async () => {

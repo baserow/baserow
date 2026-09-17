@@ -6,7 +6,10 @@ import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionRec
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import ButtonFieldActionForm from '@baserow/modules/database/components/field/ButtonFieldActionForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+import {
+  FIELDS_UNAVAILABLE,
+  TABLE_MISSING,
+} from '@baserow/modules/database/utils/buttonField'
 
 describe('FieldButtonSubForm', () => {
   let testApp = null
@@ -403,6 +406,11 @@ describe('FieldButtonSubForm', () => {
       // A table with nothing fetched still records that the fetch failed.
       wrapper.vm.registerTableFields(3, FIELDS_UNAVAILABLE)
       expect(wrapper.vm.tableFields[3]).toBe(FIELDS_UNAVAILABLE)
+
+      // Nor does it say anything about a table another fetch found missing.
+      wrapper.vm.registerTableFields(4, TABLE_MISSING)
+      wrapper.vm.registerTableFields(4, FIELDS_UNAVAILABLE)
+      expect(wrapper.vm.tableFields[4]).toBe(TABLE_MISSING)
     })
 
     test('an unresolved reference is presentable, so the edits survive', async () => {
@@ -1478,5 +1486,107 @@ describe('FieldButtonSubForm integrations', () => {
     expect(
       testApp.store.getters['application/get'](DATABASE_ID).integrations
     ).toHaveLength(1)
+  })
+})
+
+describe('FieldButtonSubForm action on a trashed table', () => {
+  let testApp = null
+  const DATABASE_ID = 2002
+  const TABLE_ID = 8
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  // A create row action as the API lists it once its table is trashed: the
+  // table's fields report trashed too.
+  const savedAction = {
+    id: 1,
+    type: 'local_baserow_create_row',
+    order: '1',
+    requires_reconfiguration: true,
+    service: {
+      id: 11,
+      type: 'local_baserow_create_row',
+      table_id: TABLE_ID,
+      integration_id: null,
+      field_mappings: [
+        { field_id: 81, value: "'x'", enabled: true, trashed: true },
+      ],
+    },
+  }
+
+  const mountForm = async () => {
+    await testApp.store.dispatch('application/forceSetAll', {
+      applications: [
+        {
+          id: DATABASE_ID,
+          name: 'Customers',
+          type: 'database',
+          workspace: { id: 1 },
+          tables: [],
+        },
+      ],
+    })
+    testApp.mock
+      .onGet('database/field/5/workflow_actions/')
+      .reply(200, [savedAction])
+    const wrapper = await testApp.mount(FieldButtonSubForm, {
+      propsData: {
+        table: { id: 1 },
+        view: null,
+        primary: false,
+        allFieldsInTable: [{ id: 1, type: 'text', name: 'Name' }],
+        name: 'button',
+        database: testApp.store.getters['application/get'](DATABASE_ID),
+        defaultValues: { type: 'button', id: 5, label: 'Go' },
+      },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  const actionErrors = (wrapper) =>
+    wrapper.findAll('[data-action-error]').map((node) => node.text())
+
+  test('the action names the table, collapsed or not, without a toast', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet(`/database/fields/table/${TABLE_ID}/`).reply(404, {
+      error: 'ERROR_TABLE_DOES_NOT_EXIST',
+      detail: 'The requested table does not exist.',
+    })
+
+    const wrapper = await mountForm()
+    const list = wrapper.vm.$refs.actionList
+
+    expect(list.isExpanded(savedAction)).toBe(false)
+    expect(actionErrors(wrapper)).toEqual([
+      'databaseWorkflowActionType.tableTrashed',
+    ])
+
+    list.toggleAction(savedAction)
+    await flushPromises()
+
+    expect(list.isExpanded(savedAction)).toBe(true)
+    expect(actionErrors(wrapper)).toEqual([
+      'databaseWorkflowActionType.tableTrashed',
+    ])
+    expect(testApp.store.state.toast.items).toEqual([])
+  })
+
+  test('a trashed field on a table that is fine keeps the field message', async () => {
+    testApp.mock
+      .onGet(`/database/fields/table/${TABLE_ID}/`)
+      .reply(200, [{ id: 80, name: 'Name', type: 'text', read_only: false }])
+
+    const wrapper = await mountForm()
+
+    expect(actionErrors(wrapper)).toEqual([
+      'databaseWorkflowActionType.writesToTrashedField',
+    ])
   })
 })
