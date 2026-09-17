@@ -49,4 +49,13 @@ class UserLastViewedItem(models.Model):
             # Serves the trash receivers and the stale row sweep, which look items
             # up by their polymorphic reference across all users.
             models.Index(fields=["item_type", "item_id"], name="lastviewed_item_idx"),
+            # Serves the recently viewed listing, which walks a user's rows newest
+            # first and stops after a page. Including `last_viewed` costs the HOT
+            # update path, which is acceptable because writes are floored to one
+            # per item per `BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS` while the
+            # listing is read on every workspace homepage visit.
+            models.Index(
+                fields=["user", "-last_viewed", "-id"],
+                name="lastviewed_user_recent_idx",
+            ),
         ]

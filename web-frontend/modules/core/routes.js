@@ -72,6 +72,11 @@ export const routes = [
         file: path.resolve(__dirname, 'pages/allWorkspaces.vue'),
       },
       {
+        name: 'recently-viewed',
+        path: '/recently-viewed',
+        file: path.resolve(__dirname, 'pages/recentlyViewed.vue'),
+      },
+      {
         name: 'workspace',
         path: '/workspace/:workspaceId',
         file: path.resolve(__dirname, 'pages/workspace.vue'),

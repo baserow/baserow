@@ -1,18 +1,23 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import connection, transaction
-from django.db.models import Exists, Max, OuterRef, QuerySet
+from django.db.models import Exists, Max, OuterRef, Q, QuerySet
 from django.utils import timezone
 
 from loguru import logger
 from rest_framework import serializers
 
+from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import sql
-from baserow.core.registries import last_viewed_item_type_registry
+from baserow.core.registries import (
+    LastViewedItemType,
+    last_viewed_item_type_registry,
+)
 
 from .models import UserLastViewedItem
 from .tasks import mark_item_viewed
@@ -20,6 +25,17 @@ from .tasks import mark_item_viewed
 # Small enough to keep every delete transaction short, so a sweep over a large
 # table never holds locks for long.
 DELETE_BATCH_SIZE = 10_000
+
+# How many rows the first batch of a listing reads. Large enough that one batch
+# serves a page in every normal case, small enough to stay cheap when it does not.
+SCAN_BATCH_SIZE = 200
+MAX_SCAN_BATCH_SIZE = 5_000
+
+# How deep the listing pages. Every item before the offset has to be resolved to
+# know which ones follow it, so paging on forever would let one request walk an
+# entire history. The listing reports no more items once this depth is reached,
+# which is far beyond what answering "what was I working on" needs.
+MAX_LISTED_ITEMS = 400
 
 # Stateless for `to_representation`, so one instance serves every caller.
 _LAST_VIEWED_FIELD = serializers.DateTimeField()
@@ -45,6 +61,23 @@ class LastViewedUpdate:
     application_id: int
     workspace_id: int
     last_viewed: datetime
+
+
+@dataclass(frozen=True)
+class LastViewedListItem:
+    """
+    One entry of the recently viewed listing: the stored row together with the
+    resolved item, so the serializer never has to query again.
+    """
+
+    row: UserLastViewedItem
+    item_type: LastViewedItemType
+    instance: Any
+    sub_type: Optional[str]
+
+
+# Optional sub types per item type, `None` meaning every item of that type.
+LastViewedTypeFilters = Dict[str, Optional[Iterable[str]]]
 
 
 class LastViewedHandler:
@@ -190,6 +223,187 @@ class LastViewedHandler:
         ):
             result.setdefault(user_id, {})[application_id] = last_viewed
         return result
+
+    @classmethod
+    def list_items(
+        cls,
+        user: AbstractUser,
+        *,
+        workspace_ids: Optional[Iterable[int]] = None,
+        type_filters: Optional[LastViewedTypeFilters] = None,
+        limit: int,
+        offset: int = 0,
+    ) -> Tuple[List[LastViewedListItem], bool]:
+        """
+        Lists the items the user opened most recently, newest first.
+
+        The rows are walked newest first in batches and the visibility of a batch is
+        resolved separately, because asking the permission managers for every
+        workspace of the user at once makes the statement grow with the number of
+        workspaces they are a member of: a batch only spans the few workspaces it
+        actually contains. The rows of a batch are read as tuples, so looking past
+        items that no longer exist never instantiates them.
+
+        :param user: The user whose history is listed.
+        :param workspace_ids: Limits the result to these workspaces. Workspaces the
+            user is not a member of are silently ignored.
+        :param type_filters: Limits the result to these item types, each optionally
+            limited to sub types. Every registered type when omitted.
+        :param limit: The maximum number of items to return.
+        :param offset: The number of visible items to skip.
+        :return: The items of the page and whether more items follow.
+        """
+
+        core_handler = CoreHandler()
+        # The enhanced queryset prefetches the memberships, which keeps the
+        # permission managers from querying once per workspace.
+        workspace_queryset = core_handler.list_user_workspaces(user)
+        if workspace_ids is not None:
+            workspace_queryset = workspace_queryset.filter(id__in=workspace_ids)
+        workspaces = {workspace.id: workspace for workspace in workspace_queryset}
+        # Without workspaces the permission filtering would run globally instead of
+        # denying everything, so it must not be reached.
+        if not workspaces:
+            return [], False
+
+        if type_filters is None:
+            type_filters = {
+                item_type.type: None
+                for item_type in last_viewed_item_type_registry.get_all()
+            }
+
+        candidates = UserLastViewedItem.objects.filter(
+            user_id=user.id,
+            workspace_id__in=list(workspaces),
+            item_type__in=list(type_filters),
+        ).order_by("-last_viewed", "-id")
+
+        # One more than requested tells whether a next page exists without a count.
+        end = min(offset + limit, MAX_LISTED_ITEMS)
+        wanted = end + 1
+        visible: List[Tuple[int, str, int]] = []
+        cursor = None
+        batch_size = SCAN_BATCH_SIZE
+        while len(visible) < wanted:
+            batch_queryset = candidates
+            if cursor is not None:
+                last_viewed, row_id = cursor
+                batch_queryset = batch_queryset.filter(
+                    Q(last_viewed__lt=last_viewed)
+                    | Q(last_viewed=last_viewed, id__lt=row_id)
+                )
+            batch = list(
+                batch_queryset.values_list(
+                    "id", "item_type", "item_id", "workspace_id", "last_viewed"
+                )[:batch_size]
+            )
+            if not batch:
+                break
+
+            visible.extend(
+                cls._filter_visible_rows(
+                    core_handler, user, batch, type_filters, workspaces
+                )
+            )
+            if len(batch) < batch_size:
+                break
+
+            cursor = (batch[-1][4], batch[-1][0])
+            # Most pages are served by the first batch. Growing the next ones keeps
+            # the number of round trips low when a user has many items they can no
+            # longer see, without reading far ahead for everyone else.
+            batch_size = min(batch_size * 2, MAX_SCAN_BATCH_SIZE)
+
+        page = visible[offset:end]
+        # Nothing follows the last item the listing pages to, so the caller is not
+        # invited to ask for a page it would be refused.
+        has_more = len(visible) > end and end < MAX_LISTED_ITEMS
+        if not page:
+            return [], has_more
+
+        rows = UserLastViewedItem.objects.filter(
+            id__in=[row_id for row_id, _, _ in page]
+        ).select_related("application", "workspace")
+        rows_by_id = {row.id: row for row in rows}
+
+        item_ids_per_type = defaultdict(list)
+        for _, type_name, item_id in page:
+            item_ids_per_type[type_name].append(item_id)
+
+        instances = {}
+        for type_name, item_ids in item_ids_per_type.items():
+            item_type = last_viewed_item_type_registry.get(type_name)
+            queryset = item_type.enhance_list_queryset(
+                item_type.get_visible_queryset()
+            ).filter(id__in=item_ids)
+            for instance in queryset:
+                instances[(type_name, instance.id)] = instance
+
+        items = []
+        for row_id, type_name, item_id in page:
+            row = rows_by_id.get(row_id)
+            instance = instances.get((type_name, item_id))
+            # Gone between the queries, which the next page load corrects.
+            if row is None or instance is None:
+                continue
+            item_type = last_viewed_item_type_registry.get(type_name)
+            items.append(
+                LastViewedListItem(
+                    row=row,
+                    item_type=item_type,
+                    instance=instance,
+                    sub_type=item_type.get_sub_type(instance),
+                )
+            )
+        return items, has_more
+
+    @classmethod
+    def _filter_visible_rows(
+        cls,
+        core_handler: CoreHandler,
+        user: AbstractUser,
+        batch: List[Tuple],
+        type_filters: LastViewedTypeFilters,
+        workspaces: Dict[int, Any],
+    ) -> List[Tuple[int, str, int]]:
+        """
+        Resolves which rows of one batch point at an item the user can still open, in
+        one query per item type of the batch. Items that were trashed or that
+        permissions hide are left out, so they never occupy a slot of a page.
+
+        :param core_handler: Reused so its per request caches are shared.
+        :param user: The user whose history is listed.
+        :param batch: Tuples of `(id, item_type, item_id, workspace_id, last_viewed)`,
+            newest first.
+        :param type_filters: The requested types and sub types.
+        :param workspaces: The workspaces of the user, keyed by id.
+        :return: The `(id, item_type, item_id)` of the visible rows, in batch order.
+        """
+
+        item_ids_per_type = defaultdict(list)
+        batch_workspace_ids = set()
+        for _, type_name, item_id, workspace_id, _ in batch:
+            item_ids_per_type[type_name].append(item_id)
+            batch_workspace_ids.add(workspace_id)
+        batch_workspaces = [workspaces[id] for id in batch_workspace_ids]
+
+        visible_ids_per_type = {}
+        for type_name, item_ids in item_ids_per_type.items():
+            item_type = last_viewed_item_type_registry.get(type_name)
+            queryset = item_type.get_visible_queryset().filter(id__in=item_ids)
+            sub_types = type_filters.get(type_name)
+            if sub_types:
+                queryset = item_type.filter_queryset_by_sub_types(queryset, sub_types)
+            queryset = core_handler.filter_queryset_for_workspaces(
+                user, item_type.list_operation_type, queryset, batch_workspaces
+            )
+            visible_ids_per_type[type_name] = set(queryset.values_list("id", flat=True))
+
+        return [
+            (row_id, type_name, item_id)
+            for row_id, type_name, item_id, _, _ in batch
+            if item_id in visible_ids_per_type[type_name]
+        ]
 
     @classmethod
     def delete_for_user_in_workspace(cls, user_id: int, workspace_id: int) -> int:

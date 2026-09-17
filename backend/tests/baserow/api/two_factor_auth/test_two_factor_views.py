@@ -488,6 +488,8 @@ def test_verify_totp_code_view(api_client, data_fixture):
                 "preferences": {
                     "all_workspaces_sort_by": "last_viewed",
                     "all_workspaces_view_mode": "expanded",
+                    "recently_viewed_view_mode": "table",
+                    "workspace_recently_viewed_view_mode": "table",
                 },
                 "username": user.email,
             },
@@ -572,6 +574,8 @@ def test_verify_totp_backup_code_view(api_client, data_fixture):
             "preferences": {
                 "all_workspaces_sort_by": "last_viewed",
                 "all_workspaces_view_mode": "expanded",
+                "recently_viewed_view_mode": "table",
+                "workspace_recently_viewed_view_mode": "table",
             },
             "username": user.email,
         },

@@ -24,6 +24,8 @@ def test_update_user_preferences(api_client, data_fixture):
     assert response.json() == {
         "all_workspaces_sort_by": "name_desc",
         "all_workspaces_view_mode": "expanded",
+        "recently_viewed_view_mode": "table",
+        "workspace_recently_viewed_view_mode": "table",
     }
 
     response = api_client.patch(
@@ -36,6 +38,8 @@ def test_update_user_preferences(api_client, data_fixture):
     assert response.json() == {
         "all_workspaces_sort_by": "name_desc",
         "all_workspaces_view_mode": "compact",
+        "recently_viewed_view_mode": "table",
+        "workspace_recently_viewed_view_mode": "table",
     }
     user.profile.refresh_from_db()
     assert user.profile.preferences == {
@@ -94,4 +98,6 @@ def test_token_auth_exposes_user_preferences(api_client, data_fixture):
     assert response.json()["user"]["preferences"] == {
         "all_workspaces_sort_by": "last_viewed",
         "all_workspaces_view_mode": "compact",
+        "recently_viewed_view_mode": "table",
+        "workspace_recently_viewed_view_mode": "table",
     }

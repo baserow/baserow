@@ -1629,12 +1629,37 @@ class EmailContextRegistry(Registry[EmailContextType]):
         return context
 
 
-class LastViewedItemType(Instance, ModelInstanceMixin):
+class LastViewedItemType(CustomFieldsInstanceMixin, ModelInstanceMixin, Instance):
     """
     A leaf item whose "last viewed" moments are tracked per user, like a view or a
     builder page. Only leaves are registered: applications and workspaces derive
     their value from their children.
     """
+
+    list_operation_type: str = None
+    """
+    The list operation whose object scope is `model_class`. Used to filter the items
+    a user may see when listing what was recently viewed, so RBAC and the other
+    permission managers apply exactly like in the regular list endpoints.
+    """
+
+    serializer_field_names = ["id", "name"]
+    """
+    The fields of `model_class` exposed by the recently viewed listing. Types add
+    what the frontend needs to navigate to the item, like the table of a view.
+    """
+
+    def get_visible_queryset(self) -> QuerySet:
+        """
+        Items that exist and are not trashed, also not through a trashed parent.
+        Membership and permissions are deliberately not part of it: the listing
+        applies them once for all types, and the write path adds the membership
+        check in `get_queryset_for_user`.
+
+        :return: The items that can be shown to anyone with access.
+        """
+
+        raise NotImplementedError
 
     def get_queryset_for_user(self, user_id: int) -> QuerySet:
         """
@@ -1664,6 +1689,49 @@ class LastViewedItemType(Instance, ModelInstanceMixin):
         """
 
         raise NotImplementedError
+
+    def get_sub_types(self) -> List[str]:
+        """
+        A type whose items are polymorphic, like a view, exposes the sub types here
+        so they can be filtered on individually. The sub type is never stored with
+        the last viewed row because the item already knows its own type.
+
+        :return: The sub type names, empty when the items are homogeneous.
+        """
+
+        return []
+
+    def filter_queryset_by_sub_types(
+        self, queryset: QuerySet, sub_types: Iterable[str]
+    ) -> QuerySet:
+        """
+        Only called for types with sub types.
+
+        :param queryset: A queryset of `model_class`.
+        :param sub_types: A subset of `get_sub_types()`.
+        :return: The queryset limited to items of those sub types.
+        """
+
+        raise NotImplementedError
+
+    def get_sub_type(self, instance) -> Optional[str]:
+        """
+        :param instance: An item fetched with `enhance_list_queryset`.
+        :return: The sub type of the item, `None` for homogeneous types.
+        """
+
+        return None
+
+    def enhance_list_queryset(self, queryset: QuerySet) -> QuerySet:
+        """
+        Adds the `select_related` the serializer needs, so listing a page of items
+        costs one query per type.
+
+        :param queryset: The visible queryset limited to the items of a page.
+        :return: The enhanced queryset.
+        """
+
+        return queryset
 
     def get_existing_item_ids_queryset(self) -> QuerySet:
         """

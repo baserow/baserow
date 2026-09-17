@@ -2,7 +2,9 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from django.contrib.auth.models import AnonymousUser
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from freezegun import freeze_time
@@ -299,3 +301,362 @@ def test_delete_stale_items_deletes_in_batches(data_fixture):
     assert list(UserLastViewedItem.objects.values_list("item_id", flat=True)) == [
         kept_view.id
     ]
+
+
+def _record(user, item_type, item, application, workspace, when):
+    return UserLastViewedItem.objects.create(
+        user=user,
+        item_type=item_type,
+        item_id=item.id,
+        application=application,
+        workspace=workspace,
+        last_viewed=datetime.fromisoformat(when).replace(tzinfo=timezone.utc),
+    )
+
+
+def _ids(items):
+    return [(item.item_type.type, item.instance.id) for item in items]
+
+
+@pytest.mark.django_db
+def test_list_items_orders_newest_first_and_paginates(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view_1 = data_fixture.create_grid_view(table=table)
+    view_2 = data_fixture.create_grid_view(table=table)
+    view_3 = data_fixture.create_grid_view(table=table)
+    _record(user, "database_view", view_1, database, workspace, "2026-01-01 10:00")
+    _record(user, "database_view", view_2, database, workspace, "2026-01-03 10:00")
+    _record(user, "database_view", view_3, database, workspace, "2026-01-02 10:00")
+
+    items, has_more = LastViewedHandler.list_items(user, limit=2)
+    assert _ids(items) == [("database_view", view_2.id), ("database_view", view_3.id)]
+    assert has_more is True
+
+    items, has_more = LastViewedHandler.list_items(user, limit=2, offset=2)
+    assert _ids(items) == [("database_view", view_1.id)]
+    assert has_more is False
+
+    items, has_more = LastViewedHandler.list_items(user, limit=3)
+    assert len(items) == 3
+    assert has_more is False
+
+
+@pytest.mark.django_db
+def test_list_items_resolves_every_item_type(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_form_view(table=table)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+
+    _record(user, "database_view", view, database, workspace, "2026-01-04 10:00")
+    _record(user, "builder_page", page, builder, workspace, "2026-01-03 10:00")
+    _record(user, "dashboard", dashboard, dashboard, workspace, "2026-01-02 10:00")
+    _record(
+        user, "automation_workflow", workflow, automation, workspace, "2026-01-01 10:00"
+    )
+
+    items, has_more = LastViewedHandler.list_items(user, limit=20)
+
+    assert has_more is False
+    assert [
+        (item.item_type.type, item.instance.id, item.sub_type, item.row.application_id)
+        for item in items
+    ] == [
+        ("database_view", view.id, "form", database.id),
+        ("builder_page", page.id, None, builder.id),
+        ("dashboard", dashboard.id, None, dashboard.id),
+        ("automation_workflow", workflow.id, None, automation.id),
+    ]
+    # Fetched with the row, so the serializer does not query per item.
+    assert items[0].row.workspace.name == workspace.name
+    assert items[0].instance.table.name == table.name
+
+
+@pytest.mark.django_db
+def test_list_items_filters_by_workspace(data_fixture):
+    user = data_fixture.create_user()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_2 = data_fixture.create_workspace(user=user)
+    other_workspace = data_fixture.create_workspace()
+    dashboard_1 = data_fixture.create_dashboard_application(workspace=workspace_1)
+    dashboard_2 = data_fixture.create_dashboard_application(workspace=workspace_2)
+    other_dashboard = data_fixture.create_dashboard_application(
+        workspace=other_workspace
+    )
+    _record(
+        user, "dashboard", dashboard_1, dashboard_1, workspace_1, "2026-01-01 10:00"
+    )
+    _record(
+        user, "dashboard", dashboard_2, dashboard_2, workspace_2, "2026-01-02 10:00"
+    )
+    # Left behind by a membership that no longer exists.
+    _record(
+        user,
+        "dashboard",
+        other_dashboard,
+        other_dashboard,
+        other_workspace,
+        "2026-01-03 10:00",
+    )
+
+    items, _ = LastViewedHandler.list_items(user, limit=20)
+    assert _ids(items) == [("dashboard", dashboard_2.id), ("dashboard", dashboard_1.id)]
+
+    items, _ = LastViewedHandler.list_items(
+        user, workspace_ids=[workspace_1.id], limit=20
+    )
+    assert _ids(items) == [("dashboard", dashboard_1.id)]
+
+    items, has_more = LastViewedHandler.list_items(
+        user, workspace_ids=[other_workspace.id], limit=20
+    )
+    assert items == []
+    assert has_more is False
+
+
+@pytest.mark.django_db
+def test_list_items_returns_nothing_for_a_user_without_workspaces(data_fixture):
+    user = data_fixture.create_user()
+
+    assert LastViewedHandler.list_items(user, limit=20) == ([], False)
+
+
+@pytest.mark.django_db
+def test_list_items_filters_by_type_and_sub_type(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    grid = data_fixture.create_grid_view(table=table)
+    form = data_fixture.create_form_view(table=table)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    _record(user, "database_view", grid, database, workspace, "2026-01-03 10:00")
+    _record(user, "database_view", form, database, workspace, "2026-01-02 10:00")
+    _record(user, "builder_page", page, builder, workspace, "2026-01-01 10:00")
+
+    items, _ = LastViewedHandler.list_items(
+        user, type_filters={"database_view": {"form"}}, limit=20
+    )
+    assert _ids(items) == [("database_view", form.id)]
+
+    items, _ = LastViewedHandler.list_items(
+        user, type_filters={"database_view": None}, limit=20
+    )
+    assert _ids(items) == [("database_view", grid.id), ("database_view", form.id)]
+
+    items, _ = LastViewedHandler.list_items(
+        user,
+        type_filters={"database_view": {"grid"}, "builder_page": None},
+        limit=20,
+    )
+    assert _ids(items) == [("database_view", grid.id), ("builder_page", page.id)]
+
+
+@pytest.mark.django_db
+def test_list_items_excludes_trashed_items_without_leaving_gaps(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    trashed_table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table)
+    trashed_view = data_fixture.create_grid_view(table=table)
+    view_of_trashed_table = data_fixture.create_grid_view(table=trashed_table)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    trashed_builder = data_fixture.create_builder_application(workspace=workspace)
+    page_of_trashed_builder = data_fixture.create_builder_page(builder=trashed_builder)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    trashed_workflow = data_fixture.create_automation_workflow(automation=automation)
+
+    _record(
+        user, "database_view", trashed_view, database, workspace, "2026-01-09 10:00"
+    )
+    _record(
+        user,
+        "database_view",
+        view_of_trashed_table,
+        database,
+        workspace,
+        "2026-01-08 10:00",
+    )
+    _record(
+        user,
+        "builder_page",
+        page_of_trashed_builder,
+        trashed_builder,
+        workspace,
+        "2026-01-07 10:00",
+    )
+    _record(
+        user,
+        "automation_workflow",
+        trashed_workflow,
+        automation,
+        workspace,
+        "2026-01-06 10:00",
+    )
+    _record(user, "database_view", view, database, workspace, "2026-01-02 10:00")
+    _record(user, "builder_page", page, builder, workspace, "2026-01-01 10:00")
+
+    TrashHandler.trash(user, workspace, database, trashed_view)
+    TrashHandler.trash(user, workspace, database, trashed_table)
+    TrashHandler.trash(user, workspace, trashed_builder, trashed_builder)
+    TrashHandler.trash(user, workspace, automation, trashed_workflow)
+
+    # The trashed rows are newer, but they must not consume a slot of the page.
+    items, has_more = LastViewedHandler.list_items(user, limit=1)
+    assert _ids(items) == [("database_view", view.id)]
+    assert has_more is True
+
+    items, has_more = LastViewedHandler.list_items(user, limit=1, offset=1)
+    assert _ids(items) == [("builder_page", page.id)]
+    assert has_more is False
+
+
+@pytest.mark.django_db
+def test_list_items_query_count_is_independent_of_rows_and_workspaces(data_fixture):
+    user = data_fixture.create_user()
+
+    def add_workspace_with_items(count):
+        workspace = data_fixture.create_workspace(user=user)
+        database = data_fixture.create_database_application(workspace=workspace)
+        table = data_fixture.create_database_table(database=database)
+        builder = data_fixture.create_builder_application(workspace=workspace)
+        automation = data_fixture.create_automation_application(workspace=workspace)
+        dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+        for i in range(count):
+            view = data_fixture.create_grid_view(table=table)
+            page = data_fixture.create_builder_page(builder=builder)
+            workflow = data_fixture.create_automation_workflow(automation=automation)
+            when = f"2026-01-{i + 1:02d} 10:00"
+            _record(user, "database_view", view, database, workspace, when)
+            _record(user, "builder_page", page, builder, workspace, when)
+            _record(user, "automation_workflow", workflow, automation, workspace, when)
+        _record(user, "dashboard", dashboard, dashboard, workspace, "2026-02-01 10:00")
+
+    add_workspace_with_items(1)
+    with CaptureQueriesContext(connection) as small:
+        items, _ = LastViewedHandler.list_items(user, limit=20)
+    assert len(items) == 4
+
+    add_workspace_with_items(5)
+    add_workspace_with_items(5)
+    with CaptureQueriesContext(connection) as large:
+        items, _ = LastViewedHandler.list_items(user, limit=20)
+    assert len(items) == 20
+
+    assert len(large.captured_queries) == len(small.captured_queries)
+
+
+@pytest.mark.django_db
+def test_list_items_costs_a_fixed_number_of_queries(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    _record(user, "database_view", view, database, workspace, "2026-01-04 10:00")
+    _record(user, "builder_page", page, builder, workspace, "2026-01-03 10:00")
+    _record(user, "dashboard", dashboard, dashboard, workspace, "2026-01-02 10:00")
+    _record(
+        user, "automation_workflow", workflow, automation, workspace, "2026-01-01 10:00"
+    )
+
+    # The first call fills the caches the permission managers keep per request.
+    LastViewedHandler.list_items(user, limit=20)
+
+    with CaptureQueriesContext(connection) as ctx:
+        items, _ = LastViewedHandler.list_items(user, limit=20)
+
+    assert len(items) == 4
+    # The workspaces of the user, the batch of rows, the visibility of each type
+    # in it, the rows of the page and the items of each type in it.
+    assert len(ctx.captured_queries) == 13, "\n\n".join(
+        q["sql"][:200] for q in ctx.captured_queries
+    )
+
+
+@pytest.mark.django_db
+def test_list_items_scans_past_items_that_are_gone_in_growing_batches(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    view = data_fixture.create_grid_view(table=table)
+
+    # Rows of items that no longer exist, all viewed more recently than the only
+    # one that is left, so the scan has to look past every one of them.
+    UserLastViewedItem.objects.bulk_create(
+        [
+            UserLastViewedItem(
+                user=user,
+                item_type="database_view",
+                item_id=1_000_000 + i,
+                application=database,
+                workspace=workspace,
+                last_viewed=datetime(2026, 2, 1, tzinfo=timezone.utc)
+                + timedelta(minutes=i),
+            )
+            for i in range(700)
+        ]
+    )
+    _record(user, "database_view", view, database, workspace, "2026-01-01 10:00")
+
+    with CaptureQueriesContext(connection) as ctx:
+        items, has_more = LastViewedHandler.list_items(user, limit=20)
+
+    assert _ids(items) == [("database_view", view.id)]
+    assert has_more is False
+    # Each batch is twice the size of the one before, so looking past 700 rows
+    # takes a handful of queries instead of one per row.
+    assert len(ctx.captured_queries) == 13
+
+
+@pytest.mark.django_db
+def test_list_items_stops_paging_at_the_maximum_depth(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    views = [data_fixture.create_grid_view(table=table) for _ in range(5)]
+    for index, view in enumerate(views):
+        _record(
+            user,
+            "database_view",
+            view,
+            database,
+            workspace,
+            f"2026-01-0{index + 1} 10:00",
+        )
+
+    with patch("baserow.core.last_viewed.handler.MAX_LISTED_ITEMS", 4):
+        items, has_more = LastViewedHandler.list_items(user, limit=2)
+        assert len(items) == 2
+        assert has_more is True
+
+        # The last page the listing pages to does not invite another one, even
+        # though a row follows it, so the caller is never refused.
+        items, has_more = LastViewedHandler.list_items(user, limit=2, offset=2)
+        assert len(items) == 2
+        assert has_more is False
+
+        # Asking past the depth is empty rather than an error.
+        items, has_more = LastViewedHandler.list_items(user, limit=2, offset=4)
+        assert items == []
+        assert has_more is False

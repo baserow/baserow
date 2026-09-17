@@ -27,6 +27,10 @@ export class DatabaseApplicationType extends ApplicationType {
     return 'iconoir-db'
   }
 
+  getIconColor() {
+    return 'green'
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.database')
