@@ -16,6 +16,7 @@ from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.operations import ListAutomationWorkflowsOperationType
 from baserow.contrib.automation.types import AutomationDict
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -265,29 +266,38 @@ class AutomationApplicationType(ApplicationType):
             return instance and list(instance.workflows.all()) or []
 
     def _get_workflows_queryset(self) -> QuerySet[AutomationWorkflow]:
-        return AutomationWorkflow.objects.select_related(
+        queryset = AutomationWorkflow.objects.select_related(
             "automation__workspace"
-        ).prefetch_related("notification_recipients")
+        ).prefetch_related(
+            "notification_recipients",
+            # The nodes with their base services so that
+            # `can_be_immediately_dispatched` doesn't need a query per workflow.
+            Prefetch(
+                "automation_workflow_nodes",
+                queryset=AutomationNode.objects.select_related("service"),
+            ),
+        )
+        return AutomationWorkflowHandler().annotate_published_workflow_data(queryset)
 
     def enhance_queryset(self, queryset):
         return queryset.prefetch_related(
             Prefetch("workflows", queryset=self._get_workflows_queryset())
         )
 
-    def enhance_and_filter_queryset(
+    def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet[Automation],
         user: AbstractUser,
-        workspace: Workspace,
+        workspaces: List[Workspace],
     ) -> QuerySet[Automation]:
         return queryset.prefetch_related(
             Prefetch(
                 "workflows",
-                queryset=CoreHandler().filter_queryset(
+                queryset=CoreHandler().filter_queryset_for_workspaces(
                     user,
                     ListAutomationWorkflowsOperationType.type,
                     self._get_workflows_queryset(),
-                    workspace=workspace,
+                    workspaces,
                 ),
             ),
         )
