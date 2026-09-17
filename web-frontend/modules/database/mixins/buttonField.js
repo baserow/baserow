@@ -144,6 +144,17 @@ export default {
               ),
             },
           })
+        // The server cannot tell whether the browser opened the URL, so this
+        // is the one button event sent from the client.
+        try {
+          this.$posthog?.capture('button_field_client_action', {
+            field_id: this.field.id,
+            workflow_action_type: workflowAction.type,
+            ran: ran !== false,
+          })
+        } catch {
+          // Analytics must never stop the actions after this one.
+        }
         // An action that could not run stops the ones after it, the way a
         // failed server action stops the sequence. Carrying on would navigate
         // away from the message this one just raised.
