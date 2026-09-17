@@ -998,14 +998,15 @@ class ButtonField(Field):
 
     label = models.CharField(max_length=255, blank=True, default="", db_default="")
 
-    # Set by `ButtonFieldType.enhance_field_queryset` when fields are fetched in
-    # bulk, so `has_workflow_actions` costs no query of its own there.
+    # Set by `ButtonFieldType.enhance_field_queryset_for_serialization` when fields
+    # are fetched in bulk, so `has_workflow_actions` costs no query there. A
+    # field from a table model never has it, so the flags are never stale.
     HAS_WORKFLOW_ACTIONS_ANNOTATION = "has_workflow_actions_annotated"
 
     @property
     def has_workflow_actions(self) -> bool:
         # Falls back to its own query when the field wasn't fetched through
-        # `enhance_field_queryset` and so carries no annotation.
+        # `enhance_field_queryset_for_serialization` and so carries no annotation.
         annotated = getattr(self, self.HAS_WORKFLOW_ACTIONS_ANNOTATION, None)
         if annotated is not None:
             return annotated

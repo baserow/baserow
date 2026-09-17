@@ -42,7 +42,9 @@ def _requires_reconfiguration(button_field):
 
     annotated = (
         ButtonFieldType()
-        .enhance_field_queryset(ButtonField.objects.filter(id=button_field.id), None)
+        .enhance_field_queryset_for_serialization(
+            ButtonField.objects.filter(id=button_field.id), None
+        )
         .get()
         .requires_reconfiguration
     )
@@ -310,6 +312,49 @@ def test_other_action_types_never_need_reconfiguring(data_fixture, setup, model_
 
 
 @pytest.mark.django_db
+def test_a_cached_table_model_serves_no_stale_flag(data_fixture, setup):
+    """
+    A table's model is cached until its own schema changes, and trashing what
+    a button points at in another table doesn't change it.
+    """
+
+    user, database, table, _, button_field = setup
+    target = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name="Target",
+        fields=[("Id", "text", {}), ("Name", "text", {})],
+    )
+    target_field = target.field_set.get(name="Name")
+    _, service = _row_action(
+        data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, target
+    )
+    service.field_mappings.create(field=target_field, value="'x'", enabled=True)
+
+    def button_from_model():
+        return table._get_model()._field_objects[button_field.id]["field"]
+
+    assert button_from_model().requires_reconfiguration is False
+
+    FieldHandler().delete_field(user, target_field)
+
+    assert button_from_model().requires_reconfiguration is True
+
+
+@pytest.mark.django_db
+def test_generating_a_table_model_does_not_compute_the_flags(setup):
+    """Nothing in a table's model reads them, and each costs subqueries."""
+
+    *_, table, _, _ = setup
+
+    with CaptureQueriesContext(connection) as captured:
+        table._get_model(use_cache=False)
+
+    sql = " ".join(query["sql"] for query in captured.captured_queries)
+    assert "database_databaseworkflowaction" not in sql
+
+
+@pytest.mark.django_db
 def test_listing_actions_does_not_query_per_mapping(api_client, data_fixture):
     """`trashed` reads the mapped field, which must not cost a query each."""
 
@@ -484,7 +529,7 @@ def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
         unrelated.field_mappings.create(field=name_field, value="'x'", enabled=True)
         data_fixture.create_slack_write_message_service()
 
-    annotated = ButtonFieldType().enhance_field_queryset(
+    annotated = ButtonFieldType().enhance_field_queryset_for_serialization(
         ButtonField.objects.filter(id=button_field.id), None
     )
     with CaptureQueriesContext(connection) as captured:

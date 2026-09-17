@@ -83,7 +83,7 @@ def _broadcast_buttons(button_fields: QuerySet[ButtonField]) -> None:
     """
 
     table_page_type = page_registry.get("table")
-    buttons = ButtonFieldType().enhance_field_queryset(
+    buttons = ButtonFieldType().enhance_field_queryset_for_serialization(
         button_fields.select_related("table__database")
         .prefetch_related("field_constraints")
         .order_by("table_id", "id"),

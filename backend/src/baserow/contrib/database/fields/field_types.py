@@ -8274,15 +8274,18 @@ class ButtonFieldType(ReadOnlyFieldType):
                 "The label of a button field can't be empty."
             )
 
-    def enhance_field_queryset(
+    def enhance_field_queryset_for_serialization(
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
         # Both flags are serialized for every button field, so without this a
-        # table's field list costs queries per button.
+        # table's field list costs queries per button. Not in
+        # `enhance_field_queryset`: they depend on other tables, so the cached
+        # table model would serve them stale.
         from baserow.contrib.database.workflow_actions.reconfiguration import (
             requires_reconfiguration,
         )
 
+        queryset = super().enhance_field_queryset_for_serialization(queryset, field)
         return queryset.annotate(
             **{
                 ButtonField.HAS_WORKFLOW_ACTIONS_ANNOTATION: Exists(

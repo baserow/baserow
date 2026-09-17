@@ -266,7 +266,7 @@ class FieldsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             per_content_type_queryset_hook=(
                 lambda field, queryset: field_type_registry.get_by_model(
                     field
-                ).enhance_field_queryset(queryset, field)
+                ).enhance_field_queryset_for_serialization(queryset, field)
             ),
         )
 
