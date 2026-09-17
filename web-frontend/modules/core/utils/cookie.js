@@ -1,4 +1,4 @@
-import { isSecureURL } from './string'
+import { isSecureURL } from '@baserow/modules/core/utils/string'
 
 export const userSourceCookieTokenName = 'user_source_token'
 export const refreshTokenMaxAge = 60 * 60 * 24 * 7

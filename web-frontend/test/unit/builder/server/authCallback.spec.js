@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createApp, defineEventHandler, toWebHandler } from 'h3'
-import callback from '../../../../modules/builder/server/middleware/authCallback'
+import callback from '@baserow/modules/builder/server/middleware/authCallback'
 
 vi.mock('nitropack/runtime', () => ({
   useRuntimeConfig: () => ({
@@ -24,7 +24,7 @@ const request = (path, origin = 'https://builder.example.com') => {
 }
 
 describe('Builder SSO callback bridge', () => {
-  test.each(['saml', 'oidc'])(
+  test.each(['saml', 'oidc', 'custom_provider-v2'])(
     'sets the existing host cookie and redirects before rendering for %s',
     async (provider) => {
       const response = await request(
@@ -48,7 +48,7 @@ describe('Builder SSO callback bridge', () => {
   )
 })
 
-test.each(['saml', 'oidc'])(
+test.each(['saml', 'oidc', 'custom_provider-v2'])(
   'authenticates %s previews with the builder-scoped cookie',
   async (provider) => {
     for (const origin of [
@@ -86,6 +86,9 @@ test('a published page with a preview-like path keeps the published cookie', asy
 test.each([
   '/members?user_source_oidc_token__42=test-refresh-token',
   encodeURIComponent('/members?user_source_saml_token__99=test-refresh-token'),
+  encodeURIComponent(
+    '/members?user_source_custom_provider-v2_token__99=another-token'
+  ),
   encodeURIComponent(encodeURIComponent('/members?secret=test-refresh-token')),
 ])('does not carry callback credentials inside next: %s', async (next) => {
   const response = await request(
