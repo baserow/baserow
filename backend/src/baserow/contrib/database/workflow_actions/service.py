@@ -588,7 +588,9 @@ class DatabaseWorkflowActionService:
             duration_ms=(perf_counter() - started) * 1000,
         )
 
-    @baserow_trace(tracer)
+    # An external action's exception message can name the address it reached
+    # (with its query string), so this span never records it.
+    @baserow_trace(tracer, record_exception=False)
     def dispatch_workflow_actions(
         self,
         user: AbstractUser,
@@ -782,9 +784,12 @@ class DatabaseWorkflowActionService:
                     try:
                         # A span per action, so the type and position of one
                         # do not overwrite the last one's on the click's span.
+                        # `record_exception=False`: the action's own failure
+                        # can name the address it reached.
                         with baserow_trace_phase(
                             tracer,
                             "DatabaseWorkflowActionService.dispatch_workflow_action",
+                            record_exception=False,
                         ):
                             add_baserow_trace_attrs(
                                 workflow_action_type=workflow_action.get_type().type,

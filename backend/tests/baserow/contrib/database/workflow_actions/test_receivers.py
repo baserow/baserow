@@ -126,7 +126,7 @@ def test_a_click_through_the_api_captures_one_event(
     )
 
     assert response.status_code == HTTP_200_OK
-    assert [call.args[1] for call in mock_capture.call_args_list] == [
+    assert [mock_call.args[1] for mock_call in mock_capture.call_args_list] == [
         "button_field_dispatched"
     ]
 
@@ -145,7 +145,7 @@ def test_the_audit_log_click_is_not_sent_to_posthog(mock_capture, data_fixture):
     DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
 
     assert "dispatch_button_field" not in [
-        call.args[1] for call in mock_capture.call_args_list
+        mock_call.args[1] for mock_call in mock_capture.call_args_list
     ]
 
 
