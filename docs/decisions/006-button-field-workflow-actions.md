@@ -572,9 +572,12 @@ the natural place to narrow this further when it is wanted.
   `requires_reconfiguration` on the field: a row action with an enabled mapping on a
   trashed field (without an integration, which drops the mapping instead), no table, or
   a table that is trashed or in a trashed database. The cell renders a disabled button
-  with a warning, and the editor names the action. Editing an action keeps its mappings
-  on trashed fields. Deleting the field permanently removes its mapping, which ends the
-  state and lets the click write the row without that value.
+  with a warning, and the editor names the action. An action whose integration is
+  trashed puts the button in the same state, but the editor can't name it: its
+  integration list can't tell a trashed integration from one the user can't see.
+  Editing an action keeps its mappings on trashed fields. Permanently deleting the
+  field removes its mapping, which ends the state and updates open grids, and the click
+  then writes the row without that value.
 - **Field type conversion.** Converting away deletes actions and services, and undoing
   the conversion recreates them from the copy the field update logged (see Undo/redo);
   converting into a button starts empty.
