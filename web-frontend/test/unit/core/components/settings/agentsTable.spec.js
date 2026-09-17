@@ -48,6 +48,29 @@ describe('AgentsTable', () => {
     expect(wrapper.text()).toContain('Restored agent')
   })
 
+  test('uses the paginated response total in the heading', async () => {
+    testApp.mock.onGet('/agents/workspace/1/').replyOnce(200, {
+      count: 250,
+      results: [
+        {
+          id: 10,
+          name: 'First page agent',
+          last_active: null,
+          role_uid: 'NO_ACCESS',
+        },
+      ],
+    })
+
+    const wrapper = await testApp.mount(AgentsTable, {
+      props: {
+        workspace: { id: 1, name: 'Workspace', _: { roles: [] } },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.vm.count).toBe(250)
+  })
+
   test('passes realtime updates to the selected editor through its agent prop', async () => {
     const agent = {
       id: 10,

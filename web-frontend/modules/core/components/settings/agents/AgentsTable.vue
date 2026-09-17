@@ -4,7 +4,7 @@
     :service="service"
     :columns="columns"
     row-id-key="id"
-    @rows-update="count = $event.length"
+    @total-count-update="count = $event"
     @row-context="openContext"
   >
     <template #empty>
