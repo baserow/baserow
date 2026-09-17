@@ -2073,10 +2073,13 @@ def test_builder_application_imports_correct_default_roles(data_fixture):
     user = data_fixture.create_user(email="test@baserow.io")
     workspace = data_fixture.create_workspace(user=user)
 
-    serialized_values = IMPORT_REFERENCE.copy()
+    serialized_values = deepcopy(IMPORT_REFERENCE)
     first_page = serialized_values["pages"][0]
 
     serialized_user_source = serialized_values["user_sources"][0]
+    # Reserve the exported ID so the imported source must receive a different one.
+    original_user_source = data_fixture.create_user_source_with_first_type(user=user)
+    serialized_user_source["id"] = original_user_source.id
     serialized_user_source["role_field_id"] = None
 
     serialized_element = serialized_values["pages"][0]["elements"][0]
