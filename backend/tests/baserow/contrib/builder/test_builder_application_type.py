@@ -343,7 +343,6 @@ def test_builder_application_export(data_fixture):
                 "fields": [
                     {
                         "name": f.name,
-                        "name_format": f.name_format,
                         "type": f.type,
                         "config": f.config,
                         "uid": str(f.uid),
