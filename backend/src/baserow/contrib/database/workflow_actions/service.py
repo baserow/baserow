@@ -35,6 +35,7 @@ from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
 from baserow.contrib.database.workflow_actions.signals import (
+    button_field_before_dispatch,
     workflow_action_created,
     workflow_action_dispatched,
     workflow_action_updated,
@@ -699,6 +700,12 @@ class DatabaseWorkflowActionService:
             return WorkflowActionsDispatchResult(
                 client_actions=client_actions, positions=positions
             )
+
+        # After the checks above, so a plugin's refusal, a quota for instance,
+        # only ever reaches someone who may click.
+        button_field_before_dispatch.send(
+            self, user=user, field=field, workflow_actions=server_actions
+        )
 
         # Taken only when the key is absent, so a double click cannot run the
         # sequence twice, and released by a script that checks ownership first,

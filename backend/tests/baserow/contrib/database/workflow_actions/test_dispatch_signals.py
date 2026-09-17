@@ -15,6 +15,9 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.workflow_actions.actions import (
+    DispatchButtonFieldActionType,
+)
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
 )
@@ -28,10 +31,12 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.contrib.database.workflow_actions.signals import (
+    button_field_before_dispatch,
     button_field_dispatched,
     workflow_action_dispatched,
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
+from baserow.core.action.signals import action_done
 from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
@@ -324,3 +329,73 @@ def test_a_click_on_a_missing_field_sends_nothing(api_client, data_fixture):
         _click(api_client, token, button_field, row.id)
 
     assert calls == []
+
+
+@pytest.mark.django_db
+def test_before_dispatch_is_sent_with_the_server_actions(data_fixture):
+    user = data_fixture.create_user()
+    table, button_field, row = _button(data_fixture, user)
+    first = _add_row_action(data_fixture, button_field, table)
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with _received(button_field_before_dispatch) as calls:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert len(calls) == 1
+    assert calls[0]["user"] == user
+    assert calls[0]["field"] == button_field
+    assert [wa.id for wa in calls[0]["workflow_actions"]] == [first.id]
+
+
+@pytest.mark.django_db
+def test_before_dispatch_is_not_sent_for_a_frontend_only_button(data_fixture):
+    user = data_fixture.create_user()
+    table, button_field, row = _button(data_fixture, user)
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with _received(button_field_before_dispatch) as calls:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert calls == []
+
+
+class _Refused(Exception):
+    pass
+
+
+@pytest.mark.django_db
+def test_a_refusing_receiver_leaves_no_lock_and_no_audit_entry(data_fixture):
+    user = data_fixture.create_user()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    audited = []
+
+    def audit(sender, action_type, **kwargs):
+        if action_type is DispatchButtonFieldActionType:
+            audited.append(kwargs)
+
+    def refuse(sender, **kwargs):
+        raise _Refused()
+
+    action_done.connect(audit)
+    button_field_before_dispatch.connect(refuse)
+    try:
+        with pytest.raises(_Refused):
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+    finally:
+        button_field_before_dispatch.disconnect(refuse)
+        action_done.disconnect(audit)
+
+    assert audited == []
+    assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
+    assert table.get_model().objects.count() == 1

@@ -13,3 +13,8 @@ workflow_action_dispatched = Signal()
 # Once per click that reached the dispatch view with an existing button field,
 # refused clicks included, with what became of it.
 button_field_dispatched = Signal()
+
+# Before a click with server-side actions takes its lock, after every
+# permission and configuration check. A receiver may raise to refuse the
+# click; nothing has run and nothing is held at that point.
+button_field_before_dispatch = Signal()
