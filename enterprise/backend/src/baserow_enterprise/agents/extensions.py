@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.expressions import ArraySubquery
-from django.db.models import OuterRef
+from django.db.models import JSONField, OuterRef, Value
 from django.db.models.functions import JSONObject
 
 from rest_framework import serializers
@@ -23,10 +23,13 @@ from baserow_premium.license.handler import LicenseHandler
 
 class AgentTeamsField(serializers.Field):
     def to_representation(self, agent):
-        if not LicenseHandler.workspace_has_feature(TEAMS, agent.workspace):
-            return []
+        # Enhanced list querysets only set this annotation after checking the
+        # workspace license once. Read it first to avoid one cache read per agent;
+        # standalone agents fall through to the explicit license check below.
         if hasattr(agent, "_agent_teams"):
             return agent._agent_teams
+        if not LicenseHandler.workspace_has_feature(TEAMS, agent.workspace):
+            return []
         return list(
             Team.objects.filter(
                 subjects__subject_type=ContentType.objects.get_for_model(Agent),
@@ -48,7 +51,9 @@ class EnterpriseAgentExtension(AgentExtension):
         """Load team summaries with the Agents instead of querying each Agent."""
 
         if not LicenseHandler.workspace_has_feature(TEAMS, workspace):
-            return queryset
+            # Keep the annotation so serialization does not repeat the feature
+            # check for every agent in a disabled workspace.
+            return queryset.annotate(_agent_teams=Value([], output_field=JSONField()))
         teams = (
             Team.objects.filter(
                 subjects__subject_type=ContentType.objects.get_for_model(Agent),
