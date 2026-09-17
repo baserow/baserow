@@ -1906,6 +1906,65 @@ def test_a_mapping_on_another_tables_field_is_refused(data_fixture, trashed):
     assert exc.value.args[0] == f"The field with id {other_field.id} does not exist."
 
 
+def _trash_and_purge(user, field):
+    FieldHandler().delete_field(user, field)
+    TrashHandler.permanently_delete(field)
+
+
+@pytest.mark.django_db
+def test_a_payload_naming_a_deleted_field_drops_its_mapping(data_fixture):
+    """
+    An open editor still holds the mapping of a field deleted from the trash
+    since it loaded, and sends it with every save.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    kept_field = data_fixture.create_text_field(table=table, name="Kept")
+    doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=kept_field, value="'a'", enabled=True)
+    service.field_mappings.create(field=doomed_field, value="'b'", enabled=True)
+    _trash_and_purge(user, doomed_field)
+
+    ServiceHandler().update_service(
+        service.get_type(),
+        service,
+        field_mappings=[
+            {"field_id": kept_field.id, "enabled": True, "value": "'c'"},
+            {"field_id": doomed_field.id, "enabled": True, "value": "'b'"},
+        ],
+    )
+
+    assert _mappings(service) == {kept_field.id: (True, "'c'")}
+
+
+@pytest.mark.django_db
+def test_undoing_after_a_mapped_field_is_deleted_from_the_trash_drops_it(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field_x = data_fixture.create_text_field(table=table, name="X")
+    field_f = data_fixture.create_text_field(table=table, name="F")
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=field_x, value="'x'", enabled=True)
+    service.field_mappings.create(field=field_f, value="'f'", enabled=True)
+    service_type = service.get_type()
+    original = service_type.export_prepared_values(service)["field_mappings"]
+
+    ServiceHandler().update_service(
+        service_type,
+        service,
+        field_mappings=[{"field_id": field_x.id, "enabled": True, "value": "'y'"}],
+    )
+    _trash_and_purge(user, field_f)
+
+    ServiceHandler().update_service(service_type, service, field_mappings=original)
+
+    assert _mappings(service) == {field_x.id: (True, "'x'")}
+
+
 @pytest.mark.django_db
 def test_a_payload_naming_a_trashed_field_does_not_duplicate_its_mapping(
     data_fixture,

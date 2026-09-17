@@ -1937,24 +1937,39 @@ class LocalBaserowUpsertRowServiceType(
             # trashed fields back and undo replays them, so a trashed field of
             # the service's table is accepted (ADR 006 section 8).
             instance.field_mappings.all().delete()
+            field_ids = {m["field_id"] for m in field_mappings if "field_id" in m}
             # Fetched in one query rather than one per mapping, and only from
             # the service's table.
             fields = {
                 field.id: field
                 for field in Field.objects_and_trash.filter(
-                    table_id=instance.table_id,
-                    id__in=[m["field_id"] for m in field_mappings if "field_id" in m],
+                    table_id=instance.table_id, id__in=field_ids
                 )
             }
             if fields and TrashHandler.item_has_a_trashed_parent(
                 instance.table, check_item_also=True
             ):
                 fields = {}
+            # An open editor or an undo can still send a field deleted from the
+            # trash since. Its mapping is dropped, but a field that still exists
+            # is refused.
+            not_found = field_ids - fields.keys()
+            still_exist = (
+                set(
+                    Field.objects_and_trash.filter(id__in=not_found).values_list(
+                        "id", flat=True
+                    )
+                )
+                if not_found
+                else set()
+            )
             for field_mapping in field_mappings:
                 if "field_id" not in field_mapping:
                     raise DRFValidationError("A field mapping must have a `field_id`.")
                 field = fields.get(field_mapping["field_id"])
                 if field is None:
+                    if field_mapping["field_id"] not in still_exist:
+                        continue
                     raise DRFValidationError(
                         f"The field with id {field_mapping['field_id']} does not exist."
                     )
