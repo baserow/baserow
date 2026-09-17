@@ -347,12 +347,10 @@ export default {
       // Calculate horizontal offset based on context width
       switch (contentType) {
         case 'search':
+        case 'sort':
+        case 'group':
           return -400
         case 'filter':
-          return -660
-        case 'sort':
-          return -660
-        case 'group':
           return -660
         default:
           return 0
