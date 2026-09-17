@@ -16,6 +16,7 @@
         v-model:search="search"
         v-model:selected-types="selectedTypes"
         v-model:view-mode="viewMode"
+        v-model:sort-by="sortBy"
         @collapse-all="collapseAll"
         @expand-all="expandAll"
       ></AllWorkspacesHeader>
@@ -30,6 +31,7 @@
           :total-application-count="applicationsOf(workspace).length"
           :collapsed="collapsedIds.has(workspace.id)"
           :compact="viewMode === 'compact'"
+          :sort-by="sortBy"
           @toggle-collapsed="toggleCollapsed(workspace.id)"
           @select-application="selectApplication"
         ></AllWorkspacesWorkspaceBox>
@@ -70,6 +72,7 @@
               :application="match.application"
               :workspace="match.workspace"
               :highlight="query"
+              :sort-by="sortBy"
               @click="selectApplication(match.application)"
             ></AllWorkspacesApplicationCard>
           </div>
@@ -107,10 +110,16 @@ import AllWorkspacesWorkspaceBox from '@baserow/modules/core/components/allWorks
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import { getRoleTranslations } from '@baserow/modules/core/store/workspace'
+import { matchesQuery } from '@baserow/modules/core/utils/search'
 import {
   isTypeFilterActive,
-  matchesQuery,
-} from '@baserow/modules/core/utils/allWorkspacesSearch'
+  SORT_BY_CREATED,
+  SORT_BY_LAST_VIEWED,
+  getApplicationComparator,
+  getSearchResultComparator,
+  sortWorkspaces,
+} from '@baserow/modules/core/utils/allWorkspaces'
+import { useUserPreference } from '@baserow/modules/core/composables/useUserPreference'
 
 // Role uids meaning the user only has access through a lower scope. Showing them
 // as a badge next to a workspace the user can open would be misleading.
@@ -159,10 +168,10 @@ const typeFilterActive = computed(() =>
   isTypeFilterActive(selectedTypes.value, applicationTypeCount)
 )
 
-const viewMode = ref('expanded')
 const collapsedIds = ref(new Set())
 
-const workspaces = computed(() => store.getters['workspace/getAllSorted'])
+const viewMode = useUserPreference('all_workspaces_view_mode', 'expanded')
+const sortBy = useUserPreference('all_workspaces_sort_by', SORT_BY_LAST_VIEWED)
 
 const roleTranslations = getRoleTranslations($registry)
 
@@ -189,8 +198,9 @@ const applicationsByWorkspaceId = computed(() => {
     grouped.get(workspaceId).push(application)
   }
 
+  const comparator = getApplicationComparator(sortBy.value)
   for (const applications of grouped.values()) {
-    applications.sort((a, b) => a.order - b.order)
+    applications.sort(comparator)
   }
 
   return grouped
@@ -217,6 +227,14 @@ function applicationsOf(workspace) {
   return applicationsByWorkspaceId.value.get(workspace.id) ?? []
 }
 
+const workspaces = computed(() =>
+  sortWorkspaces(
+    store.getters['workspace/getAllSorted'],
+    sortBy.value,
+    applicationsOf
+  )
+)
+
 function filteredApplicationsOf(workspace) {
   return filteredApplicationsByWorkspaceId.value.get(workspace.id) ?? []
 }
@@ -227,15 +245,21 @@ const matchedWorkspaces = computed(() =>
   )
 )
 
-const matchedApplications = computed(() =>
-  workspaces.value.flatMap((workspace) =>
+const matchedApplications = computed(() => {
+  const matches = workspaces.value.flatMap((workspace) =>
     filteredApplicationsOf(workspace)
       .filter((application) =>
         matchesQuery(application.name, application.id, query.value)
       )
       .map((application) => ({ application, workspace }))
   )
-)
+  if (sortBy.value !== SORT_BY_CREATED) {
+    // Matches come grouped per workspace, but this section is a flat list.
+    const comparator = getSearchResultComparator(sortBy.value)
+    matches.sort((a, b) => comparator(a.application, b.application))
+  }
+  return matches
+})
 
 const noResults = computed(
   () =>

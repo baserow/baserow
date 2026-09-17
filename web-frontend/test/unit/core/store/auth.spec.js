@@ -3,11 +3,12 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 describe('Auth store', () => {
   let testApp = null
   let store = null
+  let fakeUserData = null
 
   beforeEach(() => {
     testApp = new TestApp()
     store = testApp.store
-    const fakeUserData = {
+    fakeUserData = {
       user: {
         id: 256,
       },
@@ -25,6 +26,116 @@ describe('Auth store', () => {
 
   afterEach(() => {
     testApp.afterEach()
+  })
+
+  test('updating user preferences is optimistic and merges the response', async () => {
+    store.dispatch('auth/forceUpdateUserData', {
+      user: { preferences: { sort: 'created', mode: 'expanded' } },
+    })
+    testApp.mock
+      .onPatch('/user/preferences/', { sort: 'name_asc' })
+      .reply(200, { sort: 'name_asc', mode: 'expanded' })
+
+    const promise = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_asc',
+    })
+    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_asc')
+    await promise
+    expect(store.getters['auth/getUserPreferences']).toStrictEqual({
+      sort: 'name_asc',
+      mode: 'expanded',
+    })
+  })
+
+  test('updating user preferences rolls back to the confirmed value', async () => {
+    store.dispatch('auth/forceSetUserData', {
+      ...fakeUserData,
+      user: { id: 256, preferences: { sort: 'created' } },
+    })
+    testApp.mock.onPatch('/user/preferences/').reply(400, {
+      error: 'ERROR_REQUEST_BODY_VALIDATION',
+    })
+
+    await expect(
+      store.dispatch('auth/updateUserPreferences', { sort: 'bogus' })
+    ).rejects.toBeTruthy()
+    expect(store.getters['auth/getUserPreference']('sort')).toBe('created')
+  })
+
+  test('preference writes are sent in order and superseded ones skipped', async () => {
+    store.dispatch('auth/forceSetUserData', {
+      ...fakeUserData,
+      user: { id: 256, preferences: { sort: 'created' } },
+    })
+    testApp.mock.onPatch('/user/preferences/').reply((config) => {
+      return [200, JSON.parse(config.data)]
+    })
+
+    const first = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_asc',
+    })
+    const second = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_desc',
+    })
+    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_desc')
+    await Promise.all([first, second])
+
+    // The first change was superseded before it was sent.
+    expect(testApp.mock.history.patch.map((r) => r.data)).toEqual([
+      JSON.stringify({ sort: 'name_desc' }),
+    ])
+    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_desc')
+  })
+
+  test('a superseded key does not drop the other keys of its change', async () => {
+    store.dispatch('auth/forceSetUserData', {
+      ...fakeUserData,
+      user: { id: 256, preferences: { sort: 'created', mode: 'expanded' } },
+    })
+    testApp.mock.onPatch('/user/preferences/').reply((config) => {
+      return [200, JSON.parse(config.data)]
+    })
+
+    const first = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_asc',
+      mode: 'compact',
+    })
+    const second = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_desc',
+    })
+    await Promise.all([first, second])
+
+    // Only the sort of the first change was superseded, its mode was not.
+    expect(testApp.mock.history.patch.map((r) => r.data)).toEqual([
+      JSON.stringify({ mode: 'compact' }),
+      JSON.stringify({ sort: 'name_desc' }),
+    ])
+    expect(store.getters['auth/getUserPreferences']).toStrictEqual({
+      sort: 'name_desc',
+      mode: 'compact',
+    })
+    expect(store.state.auth.confirmedPreferences).toStrictEqual({
+      sort: 'name_desc',
+      mode: 'compact',
+    })
+  })
+
+  test('a preference response after a logout is ignored', async () => {
+    store.dispatch('auth/forceSetUserData', {
+      ...fakeUserData,
+      user: { id: 256, preferences: { sort: 'created' } },
+    })
+    testApp.mock.onPatch('/user/preferences/').reply(200, { sort: 'name_asc' })
+
+    const promise = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_asc',
+    })
+    await store.dispatch('auth/forceLogoff')
+    await promise
+    expect(store.getters['auth/isAuthenticated']).toBe(false)
+    // The late response must not leak into the confirmed values that a next
+    // session, possibly of another user, rolls back to.
+    expect(store.state.auth.confirmedPreferences).toStrictEqual({})
   })
 
   test('can update a users additional data', () => {
