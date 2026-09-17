@@ -1,5 +1,8 @@
 from unittest.mock import patch
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -220,3 +223,33 @@ def test_trashing_the_buttons_own_table_sends_the_button_nowhere(
     TableHandler().delete_table(user, table)
 
     assert _button_messages(mock_broadcast_to_channel_group, button_field) == []
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_a_table_no_action_targets_stops_at_one_lookup(
+    mock_broadcast_to_channel_group, data_fixture, django_capture_on_commit_callbacks
+):
+    """
+    Every table and application created runs this check, so when no service
+    points at it the buttons and their actions are never looked at.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    # A button elsewhere, so there is something a careless lookup could join.
+    _button_writing_to(
+        data_fixture, user, data_fixture.create_database_table(database=database)
+    )
+
+    with django_capture_on_commit_callbacks() as callbacks:
+        TableHandler().create_table(user, database, name="New")
+    [check] = [c for c in callbacks if "_broadcast_dependent_buttons" in c.__qualname__]
+
+    with CaptureQueriesContext(connection) as captured:
+        check()
+
+    assert len(captured) == 1
+    assert "database_buttonfield" not in captured[0]["sql"]
+    assert "database_databaseworkflowaction" not in captured[0]["sql"]
+    mock_broadcast_to_channel_group.delay.assert_not_called()

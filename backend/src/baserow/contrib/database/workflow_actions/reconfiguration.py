@@ -88,6 +88,10 @@ def button_fields_depending_on(
     targets one of these tables or a table in one of these databases, so their
     `requires_reconfiguration` may have just changed. Buttons that are
     themselves in a trashed table or database are left out: nobody can see them.
+
+    Every table and application created runs this, and usually nothing points
+    at it, so the matching services are found first and the buttons only
+    looked up when there are some.
     """
 
     field_ids, table_ids, database_ids = (
@@ -95,18 +99,35 @@ def button_fields_depending_on(
         list(table_ids),
         list(database_ids),
     )
-    maps_a_field = Exists(
-        LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
-            service_id=OuterRef("pk"), field_id__in=field_ids
+    targets = Q()
+    if table_ids:
+        targets |= Q(table_id__in=table_ids)
+    if database_ids:
+        targets |= Q(table__database_id__in=database_ids)
+
+    lookups = []
+    if field_ids:
+        lookups.append(
+            LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+                field_id__in=field_ids
+            ).values_list("service_id", flat=True)
         )
-    )
-    targets = Q(table_id__in=table_ids) | Q(table__database_id__in=database_ids)
-    upserts = LocalBaserowUpsertRow.objects.filter(targets | maps_a_field).values("pk")
-    deletes = LocalBaserowDeleteRow.objects.filter(targets).values("pk")
+    if targets:
+        for service_model in [LocalBaserowUpsertRow, LocalBaserowDeleteRow]:
+            lookups.append(
+                service_model.objects.filter(targets).values_list("pk", flat=True)
+            )
+    if not lookups:
+        return ButtonField.objects.none()
+
+    service_ids = list(lookups[0].union(*lookups[1:]))
+    if not service_ids:
+        return ButtonField.objects.none()
+
     actions = DatabaseWorkflowAction.objects.filter(
-        Q(localbaserowcreaterowworkflowaction__service_id__in=upserts)
-        | Q(localbaserowupdaterowworkflowaction__service_id__in=upserts)
-        | Q(localbaserowdeleterowworkflowaction__service_id__in=deletes)
+        Q(localbaserowcreaterowworkflowaction__service_id__in=service_ids)
+        | Q(localbaserowupdaterowworkflowaction__service_id__in=service_ids)
+        | Q(localbaserowdeleterowworkflowaction__service_id__in=service_ids)
     )
 
     return ButtonField.objects.filter(
