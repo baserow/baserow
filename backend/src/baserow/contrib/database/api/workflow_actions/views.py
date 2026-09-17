@@ -606,7 +606,9 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
         started = perf_counter()
-        outcome, failed_position = DispatchOutcome.COMPLETED, None
+        # Starts as ERROR: anything that skips both the `return` below and the
+        # `except`, a worker timeout for instance, must not count as completed.
+        outcome, failed_position = DispatchOutcome.ERROR, None
         workflow_actions: List[DatabaseWorkflowAction] = []
         try:
             row = RowHandler().get_row(request.user, field.table, data["row_id"])
@@ -615,7 +617,9 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             # Read once for the budget, the permission checks and the run, so all
             # three describe the same click.
             workflow_actions = service.get_dispatch_snapshot(field)
-            return self._run_click(request, field, row, service, workflow_actions)
+            response = self._run_click(request, field, row, service, workflow_actions)
+            outcome = DispatchOutcome.COMPLETED
+            return response
         except Exception as exc:
             outcome, failed_position = _outcome_for(exc)
             raise

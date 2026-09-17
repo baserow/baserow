@@ -7,6 +7,7 @@ from django.urls import reverse
 
 import pytest
 from requests import exceptions as request_exceptions
+from rest_framework.exceptions import APIException
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
@@ -116,6 +117,7 @@ def test_each_server_action_sends_what_it_returned(data_fixture):
         assert call["result"] is not None
         assert call["duration_ms"] >= 0
         assert call["dispatch_context"].field == button_field
+        assert call["field"] == button_field
 
 
 @pytest.mark.django_db
@@ -495,3 +497,38 @@ def test_a_raising_receiver_never_leaks_its_exception_message(data_fixture, capl
     assert kwargs.get("exception") == "RuntimeError"
     for value in list(args) + list(kwargs.values()):
         assert "secret" not in str(value)
+
+
+class _PluginRefusal(APIException):
+    status_code = 403
+
+
+@pytest.mark.django_db
+def test_a_plugin_refusal_with_a_403_sends_denied(api_client, data_fixture, settings):
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    def refuse(sender, **kwargs):
+        raise _PluginRefusal()
+
+    button_field_before_dispatch.connect(refuse)
+    try:
+        with _received(button_field_dispatched) as calls:
+            response = _click(api_client, token, button_field, row.id)
+    finally:
+        button_field_before_dispatch.disconnect(refuse)
+
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert len(calls) == 1
+    assert calls[0]["outcome"] == DispatchOutcome.DENIED
+    assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
+
+    # The refusal must not have spent the rate limit's only slot.
+    with mock_advocate_request({"ok": True}):
+        second_response = _click(api_client, token, button_field, row.id)
+
+    assert second_response.status_code == HTTP_200_OK

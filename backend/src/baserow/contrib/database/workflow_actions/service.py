@@ -582,6 +582,7 @@ class DatabaseWorkflowActionService:
             self,
             workflow_action=workflow_action,
             dispatch_context=dispatch_context,
+            field=dispatch_context.field,
             position=position,
             result=result,
             exception=exception,
