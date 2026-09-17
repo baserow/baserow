@@ -20,6 +20,12 @@ from baserow.contrib.database.workflow_actions.models import (
 from baserow.contrib.database.workflow_actions.reconfiguration import (
     button_fields_depending_on,
 )
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
+)
+from baserow.contrib.database.workflow_actions.service import (
+    DatabaseWorkflowActionService,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.trash.handler import TrashHandler
@@ -193,6 +199,34 @@ def test_a_target_table_in_a_trashed_database_needs_reconfiguring(data_fixture, 
     assert _requires_reconfiguration(button_field) is True
 
     TrashHandler.restore_item(user, "application", other_database.id)
+
+    assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+def test_a_target_table_in_a_trashed_workspace_needs_reconfiguring(data_fixture, setup):
+    """An action can target a table of any workspace its editor is in."""
+
+    user, _, _, _, button_field = setup
+    other_workspace = data_fixture.create_workspace(user=user)
+    other_database = data_fixture.create_database_application(
+        user=user, workspace=other_workspace
+    )
+    target = data_fixture.create_database_table(user=user, database=other_database)
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("local_baserow_create_row"),
+        button_field,
+        service={"table_id": target.id},
+    )
+
+    assert _requires_reconfiguration(button_field) is False
+
+    CoreHandler().delete_workspace(user, other_workspace)
+
+    assert _requires_reconfiguration(button_field) is True
+
+    TrashHandler.restore_item(user, "workspace", other_workspace.id)
 
     assert _requires_reconfiguration(button_field) is False
 

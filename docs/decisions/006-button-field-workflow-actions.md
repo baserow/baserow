@@ -571,8 +571,8 @@ the natural place to narrow this further when it is wanted.
   restoring from trash heals it without reconfiguration. The state is
   `requires_reconfiguration` on the field: a row action with an enabled mapping on a
   trashed field (without an integration, which drops the mapping instead), no table, or
-  a table that is trashed or in a trashed database. The cell renders a disabled button
-  with a warning, and the editor names the action. An action whose integration is
+  a table that is trashed or in a trashed database or workspace. The cell renders a
+  disabled button with a warning, and the editor names the action. An action whose integration is
   trashed, or that has none while its service needs one, puts the button in the same
   state. The editor names a missing one, but not a trashed one: its integration list
   can't tell a trashed integration from one the user can't see.

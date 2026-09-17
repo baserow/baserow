@@ -147,6 +147,25 @@ def button_target_application_created(sender, application, **kwargs):
     _broadcast_dependent_buttons(database_ids=[application.id])
 
 
+@receiver(core_signals.workspace_deleted)
+def button_target_workspace_deleted(sender, workspace_id, **kwargs):
+    _broadcast_dependent_buttons(workspace_ids=[workspace_id])
+
+
+# Set on the restored workspace, which every `workspace_restored` it sends
+# shares, so the buttons go out once rather than once per member.
+WORKSPACE_RESTORE_SENT_ATTRIBUTE = "_dependent_buttons_broadcast"
+
+
+@receiver(core_signals.workspace_restored)
+def button_target_workspace_restored(sender, workspace_user, **kwargs):
+    workspace = workspace_user.workspace
+    if getattr(workspace, WORKSPACE_RESTORE_SENT_ATTRIBUTE, False):
+        return
+    setattr(workspace, WORKSPACE_RESTORE_SENT_ATTRIBUTE, True)
+    _broadcast_dependent_buttons(workspace_ids=[workspace.id])
+
+
 def _in_a_database(application: Application) -> bool:
     """Only a database's integrations can be used by a button."""
 
@@ -211,6 +230,7 @@ def button_dependency_permanently_deleted(sender, trash_item, **kwargs):
                 id__in=button_field_ids,
                 table__trashed=False,
                 table__database__trashed=False,
+                table__database__workspace__trashed=False,
             )
         )
 

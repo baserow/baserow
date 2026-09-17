@@ -511,3 +511,38 @@ def test_sending_the_buttons_does_not_query_per_button(
         return len(captured)
 
     assert broadcast_queries(3) == broadcast_queries(1)
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_trashing_and_restoring_the_target_workspace_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    button_table = data_fixture.create_database_table(user=user)
+    other_workspace = data_fixture.create_workspace(
+        users=[user, data_fixture.create_user()]
+    )
+    other_database = data_fixture.create_database_application(workspace=other_workspace)
+    target = data_fixture.create_database_table(database=other_database)
+    button_field = data_fixture.create_button_field(table=button_table, label="Go")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("local_baserow_create_row"),
+        button_field,
+        service={"table_id": target.id},
+    )
+    mock_broadcast_to_channel_group.reset_mock()
+
+    CoreHandler().delete_workspace(user, other_workspace)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_table.id}"
+    assert message["field"]["requires_reconfiguration"] is True
+
+    mock_broadcast_to_channel_group.reset_mock()
+    TrashHandler.restore_item(user, "workspace", other_workspace.id)
+
+    # Restoring tells each member of the workspace, but the button goes once.
+    [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert message["field"]["requires_reconfiguration"] is False

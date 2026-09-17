@@ -53,14 +53,16 @@ def _unusable_integration_by_action_model() -> dict[
 
 def _unusable_table() -> Q:
     """
-    A row service whose table is gone, trashed, or in a trashed database. The
-    dispatch refuses all three (`resolve_service_formulas`).
+    A row service whose table is gone, trashed, or in a trashed database or
+    workspace. The dispatch refuses all of them (`resolve_service_formulas`).
+    The workspace counts because an action can target a table in another one.
     """
 
     return (
         Q(table__isnull=True)
         | Q(table__trashed=True)
         | Q(table__database__trashed=True)
+        | Q(table__database__workspace__trashed=True)
     )
 
 
@@ -122,15 +124,16 @@ def button_fields_depending_on(
     link_row_table_ids: Iterable[int] = (),
     table_ids: Iterable[int] = (),
     database_ids: Iterable[int] = (),
+    workspace_ids: Iterable[int] = (),
     integration_ids: Iterable[int] = (),
 ) -> QuerySet[ButtonField]:
     """
     The button fields with a row action that maps one of these fields or a link
     field to one of `link_row_table_ids`, or targets one of these tables or a
-    table in one of these databases, or an action using one of these
-    integrations, so their `requires_reconfiguration` may have just changed.
-    Buttons that are themselves in a trashed table or database are left out:
-    nobody can see them.
+    table in one of these databases or workspaces, or an action using one of
+    these integrations, so their `requires_reconfiguration` may have just
+    changed. Buttons that are themselves in a trashed table, database or
+    workspace are left out: nobody can see them.
 
     Every table and application created runs this, and usually nothing points
     at it, so one query first checks whether any service does. The services
@@ -138,18 +141,19 @@ def button_fields_depending_on(
     automation services.
     """
 
-    field_ids, link_row_table_ids, table_ids, database_ids, integration_ids = (
-        list(field_ids),
-        list(link_row_table_ids),
-        list(table_ids),
-        list(database_ids),
-        list(integration_ids),
-    )
+    field_ids = list(field_ids)
+    link_row_table_ids = list(link_row_table_ids)
+    table_ids = list(table_ids)
+    database_ids = list(database_ids)
+    workspace_ids = list(workspace_ids)
+    integration_ids = list(integration_ids)
     targets = Q()
     if table_ids:
         targets |= Q(table_id__in=table_ids)
     if database_ids:
         targets |= Q(table__database_id__in=database_ids)
+    if workspace_ids:
+        targets |= Q(table__database__workspace_id__in=workspace_ids)
 
     mapped_fields = Q()
     if field_ids:
@@ -203,4 +207,5 @@ def button_fields_depending_on(
         workflow_actions__in=actions,
         table__trashed=False,
         table__database__trashed=False,
+        table__database__workspace__trashed=False,
     ).distinct()
