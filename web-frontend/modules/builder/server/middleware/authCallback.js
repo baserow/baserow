@@ -10,12 +10,12 @@ import {
   getCookieName,
   getTokenCookieOptions,
   userSourceCookieTokenName,
-} from '../../../core/utils/cookie'
-import { consumeUserSourceCallback } from '../../../core/utils/userSourceCallback'
+} from '@baserow/modules/core/utils/cookie'
+import { consumeUserSourceCallback } from '@baserow/modules/core/utils/userSourceCallback'
 import {
   getBuilderPreviewCookiePath,
   getBuilderPreviewUserSourceCookieName,
-} from '../../utils/preview'
+} from '@baserow/modules/builder/utils/preview'
 
 // Consume the backend callback before Nuxt renders the public page or its payload.
 export default defineEventHandler((event) => {
