@@ -107,9 +107,8 @@ export default {
       tableFields: {},
       // Only the server can tell, since it depends on what is in the trash.
       // Refreshed after every save, as the field response predates the
-      // actions it saved.
-      requiresReconfiguration:
-        this.defaultValues?.requires_reconfiguration === true,
+      // actions it saved. Null when the last refresh failed or none ran.
+      requiresReconfiguration: null,
     }
   },
   computed: {
@@ -523,27 +522,30 @@ export default {
     },
     /**
      * Asks the server whether the saved actions leave the button needing
-     * reconfiguration. On failure the flag stays as it was: the next broadcast
-     * or reload corrects it, and a toast here would bury the save's own result.
+     * reconfiguration. On failure the flag is unknown: the next broadcast or
+     * reload corrects it, and a toast here would bury the save's own result.
      */
     async refreshRequiresReconfiguration(fieldId) {
+      this.requiresReconfiguration = null
       try {
         const { data } = await FieldService(this.$client).get(fieldId)
         this.requiresReconfiguration = data?.requires_reconfiguration === true
       } catch {
-        // Kept as it was, see above.
+        // Left unknown, see above.
       }
     },
     /**
      * The field response carries `has_workflow_actions` and
      * `requires_reconfiguration` computed before these calls, so the store
-     * needs both flags as they ended up.
+     * needs both flags as they ended up. The reconfigure flag is left out when
+     * the refresh failed, so the store keeps what it has.
      */
     fieldValuesAfterSave() {
-      return {
-        has_workflow_actions: this.serverActions.length > 0,
-        requires_reconfiguration: this.requiresReconfiguration,
+      const values = { has_workflow_actions: this.serverActions.length > 0 }
+      if (this.requiresReconfiguration !== null) {
+        values.requires_reconfiguration = this.requiresReconfiguration
       }
+      return values
     },
   },
   validations() {

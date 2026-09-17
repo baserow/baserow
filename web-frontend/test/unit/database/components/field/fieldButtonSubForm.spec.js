@@ -1003,9 +1003,9 @@ describe('FieldButtonSubForm', () => {
       // calls, so the contexts patch the store from this instead. It has to
       // answer for what really persisted, in both directions.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      // Nothing has asked the server yet.
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
-        requires_reconfiguration: false,
       })
 
       wrapper.vm.serverActions = []
@@ -1050,7 +1050,9 @@ describe('FieldButtonSubForm', () => {
       })
     })
 
-    test('a failed field refresh keeps the reconfigure flag it had', async () => {
+    test('a failed field refresh leaves the reconfigure flag out', async () => {
+      // The store keeps what it has, which a broadcast may have updated since
+      // the editor opened.
       const wrapper = await mountForm({
         type: 'button',
         label: 'Go',
@@ -1064,9 +1066,29 @@ describe('FieldButtonSubForm', () => {
 
       await wrapper.vm.afterFieldSaved(7)
 
-      expect(wrapper.vm.fieldValuesAfterSave().requires_reconfiguration).toBe(
-        true
-      )
+      expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
+        has_workflow_actions: false,
+      })
+
+      // Only the last save counts: an earlier refresh that worked is stale.
+      wrapper.vm.$client.get
+        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValueOnce({
+          data: { id: 7, requires_reconfiguration: false },
+        })
+      await wrapper.vm.afterFieldSaved(7)
+      expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
+        has_workflow_actions: false,
+        requires_reconfiguration: false,
+      })
+
+      wrapper.vm.$client.get
+        .mockResolvedValueOnce({ data: [] })
+        .mockRejectedValueOnce(new Error('offline'))
+      await wrapper.vm.afterFieldSaved(7)
+      expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
+        has_workflow_actions: false,
+      })
     })
 
     test('the action editor stays out of the field payload', async () => {
