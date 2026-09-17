@@ -514,18 +514,24 @@ def test_a_hang_up_that_raises_does_not_stop_the_watchdog(settings):
     """
 
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
-    with local_server({"/broken": stall(), "/slow": header_trickle()}) as (base, _):
-        broken = send_http_request(
-            "GET", base + "/broken", deadline=time.monotonic() + 0.3
-        )
-        broken._request_deadline.hang_up = Mock(side_effect=Exception("boom"))
+    # Handed to the watchdog directly rather than sent, so no request has to
+    # finish before this deadline passes on a busy runner.
+    broken = _RequestDeadline(time.monotonic())
+    failed = threading.Event()
 
+    def hang_up():
+        failed.set()
+        raise Exception("boom")
+
+    broken.hang_up = hang_up
+    _watchdog.watch(broken)
+    assert failed.wait(5)
+
+    with local_server({"/slow": header_trickle()}) as (base, _):
         started = time.monotonic()
         with pytest.raises(request_exceptions.Timeout):
             send_http_request("GET", base + "/slow", deadline=started + 1)
         elapsed = time.monotonic() - started
-
-        broken.close()
 
     assert elapsed < 5
 
