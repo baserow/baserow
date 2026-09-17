@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import uuid
 
@@ -732,3 +733,122 @@ def test_a_service_left_unattached_is_found_in_two_queries(
         assert not UpdateDatabaseWorkflowActionActionType._service_is_needed(
             replaced_service_id, logged
         )
+
+
+@pytest.mark.parametrize(
+    "action_type,expected",
+    [
+        (
+            CreateDatabaseWorkflowActionActionType,
+            [
+                "database_id",
+                "table_id",
+                "field_id",
+                "workflow_action_id",
+                "workflow_action_type",
+            ],
+        ),
+        (
+            UpdateDatabaseWorkflowActionActionType,
+            [
+                "database_id",
+                "table_id",
+                "field_id",
+                "workflow_action_id",
+                "workflow_action_type",
+                "original_workflow_action_type",
+            ],
+        ),
+        (
+            DeleteDatabaseWorkflowActionActionType,
+            [
+                "database_id",
+                "table_id",
+                "field_id",
+                "workflow_action_id",
+                "workflow_action_type",
+            ],
+        ),
+        (
+            OrderDatabaseWorkflowActionsActionType,
+            ["database_id", "table_id", "field_id"],
+        ),
+    ],
+)
+def test_editor_actions_send_their_analytics_params(action_type, expected):
+    assert action_type.analytics_params == expected
+    param_names = {f.name for f in dataclasses.fields(action_type.Params)}
+    assert set(expected) <= param_names
+
+
+@pytest.fixture
+def done_params():
+    """The `action_params` of every editor action registration, by type."""
+
+    received = []
+
+    def receiver(sender, action_type, action_params, **kwargs):
+        received.append((action_type.type, action_params))
+
+    action_done.connect(receiver)
+    yield received
+    action_done.disconnect(receiver)
+
+
+@pytest.mark.django_db
+def test_an_update_records_the_type_before_and_after(data_fixture, done_params):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+
+    UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_delete_row"
+    )
+
+    params = [
+        p for t, p in done_params if t == UpdateDatabaseWorkflowActionActionType.type
+    ]
+    assert len(params) == 1
+    assert params[0]["workflow_action_type"] == "local_baserow_delete_row"
+    assert params[0]["original_workflow_action_type"] == "local_baserow_create_row"
+
+
+@pytest.mark.django_db
+def test_an_update_without_a_type_change_records_the_same_type(
+    data_fixture, done_params
+):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field, url=_url("'https://before'")
+    )
+
+    UpdateDatabaseWorkflowActionActionType.do(user, action, target="blank")
+
+    params = [
+        p for t, p in done_params if t == UpdateDatabaseWorkflowActionActionType.type
+    ]
+    assert params[0]["workflow_action_type"] == "open_url"
+    assert params[0]["original_workflow_action_type"] == "open_url"
+
+
+@pytest.mark.django_db
+def test_a_delete_records_the_type(data_fixture, done_params):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    DeleteDatabaseWorkflowActionActionType.do(user, action)
+
+    params = [
+        p for t, p in done_params if t == DeleteDatabaseWorkflowActionActionType.type
+    ]
+    assert params[0]["workflow_action_type"] == "open_url"
+
+
+def test_stored_update_and_delete_params_without_a_type_still_load():
+    UpdateDatabaseWorkflowActionActionType.Params(
+        1, "db", 2, "table", 3, "field", 4, {}, {}
+    )
+    DeleteDatabaseWorkflowActionActionType.Params(1, "db", 2, "table", 3, "field", 4)
