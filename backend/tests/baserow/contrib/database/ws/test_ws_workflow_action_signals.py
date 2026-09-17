@@ -346,16 +346,26 @@ def test_an_integration_outside_a_database_is_never_looked_up(
     builder = data_fixture.create_builder_application(user=user)
     integration_type = integration_type_registry.get("local_baserow")
 
-    with django_capture_on_commit_callbacks() as callbacks:
+    with (
+        patch(
+            "baserow.contrib.database.ws.workflow_actions.signals."
+            "button_fields_depending_on"
+        ) as lookup,
+        django_capture_on_commit_callbacks(execute=True) as callbacks,
+    ):
         integration = IntegrationService().create_integration(
             user, integration_type, builder
         )
         IntegrationService().delete_integration(user, integration)
         TrashHandler.restore_item(user, "integration", integration.id)
+        IntegrationService().delete_integration(user, integration)
+        TrashHandler.empty(user, builder.workspace_id, builder.id)
+        TrashHandler.permanently_delete_marked_trash()
 
     assert [
         c for c in callbacks if "_broadcast_dependent_buttons" in c.__qualname__
     ] == []
+    lookup.assert_not_called()
 
 
 @pytest.mark.django_db(transaction=True)

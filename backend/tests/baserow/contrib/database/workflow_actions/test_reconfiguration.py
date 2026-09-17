@@ -417,9 +417,38 @@ def test_the_realtime_lookup_keeps_the_services_in_a_subquery(data_fixture, setu
         assert list(button_fields_depending_on(table_ids=[table.id])) == [button_field]
 
     check, buttons = captured.captured_queries
-    # Asks whether there is one rather than reading them all.
+    # Asks whether there is one rather than reading them all, and a UNION
+    # without ALL would read them all to drop duplicates.
     assert check["sql"].endswith("LIMIT 1")
+    assert "UNION ALL" in check["sql"]
     assert "integrations_localbaserowupsertrow" in buttons["sql"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "lookup,service_table,action_count",
+    [
+        ("field_ids", "integrations_localbaserowtableservicefieldmapping", 2),
+        ("table_ids", "integrations_localbaserowupsertrow", 2),
+        ("table_ids", "integrations_localbaserowdeleterow", 1),
+    ],
+)
+def test_the_realtime_lookup_pairs_each_service_with_its_actions(
+    data_fixture, setup, lookup, service_table, action_count
+):
+    """
+    Mappings and upserts only back create and update row actions, and a delete
+    row service only a delete row action.
+    """
+
+    *_, table, name_field, _ = setup
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=name_field, value="'x'", enabled=True)
+    ids = {"field_ids": [name_field.id], "table_ids": [table.id]}[lookup]
+
+    sql = str(button_fields_depending_on(**{lookup: ids}).query)
+
+    assert sql.count(f'FROM "{service_table}"') == action_count
 
 
 @pytest.mark.django_db

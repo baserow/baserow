@@ -21,10 +21,10 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 
-ROW_ACTION_MODELS = [
+# The row actions backed by a `LocalBaserowUpsertRow`, the one that has mappings.
+UPSERT_ROW_ACTION_MODELS = [
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
-    LocalBaserowDeleteRowWorkflowAction,
 ]
 
 
@@ -68,7 +68,7 @@ def _unusable_table() -> Q:
 
 def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
     """
-    Whether the button field has a row action that is sure to fail at click
+    Whether the button field has an action that is sure to fail at click
     time because something it references is in the trash or gone (ADR 006
     section 8). Used both to annotate button fields in bulk and to answer for a
     single one, so the two can't drift apart.
@@ -173,14 +173,22 @@ def button_fields_depending_on(
                 LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
                     mapped_fields
                 ).values("service_id"),
-                ROW_ACTION_MODELS,
+                UPSERT_ROW_ACTION_MODELS,
             )
         )
     if targets:
-        for service_model in [LocalBaserowUpsertRow, LocalBaserowDeleteRow]:
-            lookups.append(
-                (service_model.objects.filter(targets).values("pk"), ROW_ACTION_MODELS)
+        lookups.append(
+            (
+                LocalBaserowUpsertRow.objects.filter(targets).values("pk"),
+                UPSERT_ROW_ACTION_MODELS,
             )
+        )
+        lookups.append(
+            (
+                LocalBaserowDeleteRow.objects.filter(targets).values("pk"),
+                [LocalBaserowDeleteRowWorkflowAction],
+            )
+        )
     if integration_ids:
         lookups.append(
             (
@@ -192,7 +200,7 @@ def button_fields_depending_on(
         return ButtonField.objects.none()
 
     services = [service_ids for service_ids, _ in lookups]
-    if not services[0].union(*services[1:]).exists():
+    if not services[0].union(*services[1:], all=True).exists():
         return ButtonField.objects.none()
 
     uses_a_service = Q()
