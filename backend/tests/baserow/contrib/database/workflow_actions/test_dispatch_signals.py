@@ -399,3 +399,65 @@ def test_a_refusing_receiver_leaves_no_lock_and_no_audit_entry(data_fixture):
     assert audited == []
     assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
     assert table.get_model().objects.count() == 1
+
+
+def _raise(sender, **kwargs):
+    raise RuntimeError("boom")
+
+
+@pytest.mark.django_db
+def test_a_raising_button_field_dispatched_receiver_does_not_break_the_click(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+
+    button_field_dispatched.connect(_raise)
+    try:
+        response = _click(api_client, token, button_field, row.id)
+    finally:
+        button_field_dispatched.disconnect(_raise)
+
+    assert response.status_code == HTTP_200_OK
+    assert table.get_model().objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_a_raising_workflow_action_dispatched_receiver_does_not_break_the_click(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table, "first")
+    _add_row_action(data_fixture, button_field, table, "second")
+
+    workflow_action_dispatched.connect(_raise)
+    try:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    finally:
+        workflow_action_dispatched.disconnect(_raise)
+
+    assert table.get_model().objects.count() == 3
+
+
+@pytest.mark.django_db
+def test_a_raising_button_field_dispatched_receiver_still_reports_a_failed_click(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    data_fixture.create_database_workflow_action(
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
+    )
+
+    button_field_dispatched.connect(_raise)
+    try:
+        response = _click(api_client, token, button_field, row.id)
+    finally:
+        button_field_dispatched.disconnect(_raise)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST

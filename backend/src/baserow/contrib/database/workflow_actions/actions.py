@@ -514,6 +514,9 @@ class DispatchButtonFieldActionType(ActionType):
         "field_id",
         "action_count",
     ]
+    # The click's event comes from `capture_button_field_dispatched`, which
+    # knows the outcome and sees refused clicks too.
+    capture_analytics_event = False
 
     @dataclasses.dataclass
     class Params:

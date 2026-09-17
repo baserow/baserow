@@ -80,6 +80,7 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     button_field_dispatched,
+    send_without_failing,
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.registries import action_type_registry
@@ -622,7 +623,8 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         finally:
             # Refused clicks leave no audit entry, so this is the only place
             # they are counted.
-            button_field_dispatched.send(
+            send_without_failing(
+                button_field_dispatched,
                 self.__class__,
                 user=request.user,
                 field=field,
