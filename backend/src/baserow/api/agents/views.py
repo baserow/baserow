@@ -1,6 +1,7 @@
 from django.db import transaction
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -33,6 +34,7 @@ from baserow.api.exceptions import (
 from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
+from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.core.agents.exceptions import AgentDoesNotExist, AgentRoleDoesNotExist
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.service import AgentService
@@ -54,9 +56,39 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
     }
 
     @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Selects which page of agents to return.",
+            ),
+            OpenApiParameter(
+                name="size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Sets the number of agents returned per page.",
+            ),
+            OpenApiParameter(
+                name="search",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filters agents by name.",
+            ),
+            OpenApiParameter(
+                name="sorts",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Orders agents by a comma-separated list of fields.",
+            ),
+        ],
         tags=["Agents"],
         description="Lists the agents in a workspace.",
-        responses={200: AgentSerializer(many=True)},
+        responses={
+            200: get_example_pagination_serializer_class(
+                AgentSerializer, serializer_name="AgentPagination"
+            )
+        },
     )
     @validate_query_parameters(AgentListParamsSerializer)
     @map_exceptions(

@@ -122,6 +122,39 @@ def test_nonmember_agent_mutations_return_user_not_in_workspace(
     ) == ["Writer"]
 
 
+def test_agent_list_openapi_schema_matches_paginated_response(api_client):
+    """The published list contract includes pagination, filters, and team summaries."""
+
+    schema = api_client.get(reverse("api:json_schema")).json()
+    operation = schema["paths"]["/api/agents/workspace/{workspace_id}/"]["get"]
+    assert {parameter["name"] for parameter in operation["parameters"]} == {
+        "workspace_id",
+        "page",
+        "size",
+        "search",
+        "sorts",
+    }
+
+    response_schema = operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]
+    components = schema["components"]["schemas"]
+    pagination = components[response_schema["$ref"].split("/")[-1]]
+    assert set(pagination["properties"]) == {
+        "count",
+        "next",
+        "previous",
+        "results",
+    }
+
+    agent_ref = pagination["properties"]["results"]["items"]["$ref"]
+    agent_schema = components[agent_ref.split("/")[-1]]
+    teams_schema = agent_schema["properties"]["teams"]
+    assert teams_schema["type"] == "array"
+    team_ref = teams_schema["items"]["$ref"]
+    assert set(components[team_ref.split("/")[-1]]["properties"]) == {"id", "name"}
+
+
 @pytest.mark.django_db
 def test_cannot_create_agent_when_feature_flag_is_disabled(
     data_fixture, api_client, settings
