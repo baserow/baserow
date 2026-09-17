@@ -1930,16 +1930,18 @@ class LocalBaserowUpsertRowServiceType(
             bulk_field_mappings = []
             field_mappings = values.get("field_mappings", [])
             # A mapping on a trashed field can't come back in the payload,
-            # since `get_field` refuses a trashed field, so replacing the whole
-            # list would lose it and restoring the field would no longer heal
-            # the action (ADR 006 section 8). Only the current table's are
+            # since the table's fields leave a trashed one out, so replacing the
+            # whole list would lose it and restoring the field would no longer
+            # heal the action (ADR 006 section 8). Only the current table's are
             # kept: a mapping left from a previous table goes with the rest.
-            kept_field_ids = set(
-                instance.field_mappings.filter(
+            kept_mappings = {
+                mapping.field_id: mapping
+                for mapping in instance.field_mappings.filter(
                     field__trashed=True, field__table_id=instance.table_id
-                ).values_list("field_id", flat=True)
-            )
-            instance.field_mappings.exclude(field_id__in=kept_field_ids).delete()
+                )
+            }
+            instance.field_mappings.exclude(field_id__in=list(kept_mappings)).delete()
+            updated_kept_mappings = []
             # Fetched in one query rather than one per mapping, and only from
             # the service's table.
             fields = {
@@ -1953,9 +1955,13 @@ class LocalBaserowUpsertRowServiceType(
             ):
                 fields = {}
             for field_mapping in field_mappings:
-                # Undo replays exported mappings, trashed ones included, and the
-                # mapping is already there.
-                if field_mapping.get("field_id") in kept_field_ids:
+                # Undo replays exported mappings, trashed ones included. The
+                # mapping is already there, so it only takes the replayed values.
+                kept_mapping = kept_mappings.get(field_mapping.get("field_id"))
+                if kept_mapping is not None:
+                    kept_mapping.enabled = field_mapping["enabled"]
+                    kept_mapping.value = field_mapping["value"]
+                    updated_kept_mappings.append(kept_mapping)
                     continue
                 if "field_id" not in field_mapping:
                     raise DRFValidationError("A field mapping must have a `field_id`.")
@@ -1975,6 +1981,9 @@ class LocalBaserowUpsertRowServiceType(
                 )
             LocalBaserowTableServiceFieldMapping.objects.bulk_create(
                 bulk_field_mappings
+            )
+            LocalBaserowTableServiceFieldMapping.objects_and_trash.bulk_update(
+                updated_kept_mappings, ["enabled", "value"]
             )
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:

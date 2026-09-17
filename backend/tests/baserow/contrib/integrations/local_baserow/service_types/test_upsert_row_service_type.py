@@ -1761,20 +1761,31 @@ def test_replacing_the_mappings_keeps_one_on_a_trashed_field(data_fixture):
 def test_a_payload_naming_a_trashed_field_does_not_duplicate_its_mapping(
     data_fixture,
 ):
-    """Undo replays the exported mappings, trashed ones included."""
+    """
+    Undo replays the exported mappings, trashed ones included, so the kept
+    mapping takes the replayed value and enabled flag.
+    """
 
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     doomed_field = data_fixture.create_text_field(table=table, name="Doomed")
     service = data_fixture.create_local_baserow_upsert_row_service(table=table)
-    service.field_mappings.create(field=doomed_field, value="'b'", enabled=True)
+    mapping = service.field_mappings.create(
+        field=doomed_field, value="'b'", enabled=True
+    )
     service_type = service.get_type()
     exported = service_type.export_prepared_values(service)["field_mappings"]
+    mapping.value = "'changed'"
+    mapping.enabled = False
+    mapping.save()
     FieldHandler().delete_field(user, doomed_field)
 
     ServiceHandler().update_service(service_type, service, field_mappings=exported)
 
-    assert service.field_mappings.filter(field=doomed_field).count() == 1
+    mappings = service.field_mappings.filter(field=doomed_field)
+    assert mappings.count() == 1
+    assert mappings[0].value["formula"] == "'b'"
+    assert mappings[0].enabled is True
 
 
 @pytest.mark.django_db
