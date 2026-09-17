@@ -865,3 +865,26 @@ def test_duplicate_page_with_invalid_workflow_action_event(data_fixture, event):
         page=page_clone
     ).values_list("event", flat=True)
     assert list(duplicated_events) == [event]
+
+
+@pytest.mark.django_db
+def test_duplicate_page_preserves_user_source_roles(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    source, _ = data_fixture.create_user_table_and_role(user, builder, "editor")
+    source.role_field = None
+    source.save()
+    default_role = source.get_type().get_user(source, email="foo@bar.com").role
+    page = data_fixture.create_builder_page(
+        builder=builder,
+        visibility=Page.VISIBILITY_TYPES.LOGGED_IN,
+        role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+        roles=[default_role, "editor"],
+    )
+
+    duplicate = PageHandler().duplicate_page(page)
+
+    # A page-only duplicate uses the same user sources, without an ID mapping.
+    assert duplicate.roles == [default_role, "editor"]
+    assert duplicate.visibility == page.visibility
+    assert duplicate.role_type == page.role_type
