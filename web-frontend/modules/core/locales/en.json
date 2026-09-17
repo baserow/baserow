@@ -1365,6 +1365,7 @@
     "general": "General",
     "mcpServerPlaceholder": "MCP server settings will be available here.",
     "name": "Name",
+    "invalidNameTitle": "Agent name not allowed",
     "lastActive": "Last active",
     "workspaceRole": "Workspace role"
   }

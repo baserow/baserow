@@ -218,6 +218,12 @@ describe('ManageAgentModal', () => {
       await wrapper.find('form').trigger('submit')
       await flushPromises()
       expect(handleError).toHaveBeenCalledOnce()
+      expect(handleError.mock.calls[0][1]).toBe('agent')
+      expect(handleError.mock.calls[0][2]).toBeNull()
+      expect(handleError.mock.calls[0][3].name.invalid_name).toEqual({
+        title: 'agents.invalidNameTitle',
+        message: 'error.nameContainsUrl',
+      })
       expect(wrapper.find('.name-input').element.value).toBe('Renamed')
       expect(wrapper.find('.success').exists()).toBe(false)
       await wrapper.find('form').trigger('submit')
