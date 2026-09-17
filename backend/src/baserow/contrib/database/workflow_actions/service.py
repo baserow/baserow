@@ -9,6 +9,7 @@ from django.core.cache import cache
 from django.db import transaction
 
 from loguru import logger
+from opentelemetry import trace
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.fields.models import ButtonField
@@ -66,6 +67,11 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
+from baserow.core.telemetry.utils import (
+    add_baserow_trace_attrs,
+    baserow_trace,
+    baserow_trace_phase,
+)
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 
@@ -93,6 +99,8 @@ DID_NOT_REACH_OUT_EXCEPTIONS = (
     # so nothing was sent even though the message names where it was going.
     AddressNotAllowedDispatchException,
 )
+
+tracer = trace.get_tracer(__name__)
 
 
 def reached_outside(exc: Exception) -> bool:
@@ -580,6 +588,7 @@ class DatabaseWorkflowActionService:
             duration_ms=(perf_counter() - started) * 1000,
         )
 
+    @baserow_trace(tracer)
     def dispatch_workflow_actions(
         self,
         user: AbstractUser,
@@ -630,6 +639,12 @@ class DatabaseWorkflowActionService:
 
         if workflow_actions is None:
             workflow_actions = self.get_dispatch_snapshot(field)
+
+        add_baserow_trace_attrs(
+            field_id=field.id,
+            workspace_id=field.table.database.workspace_id,
+            action_count=len(workflow_actions),
+        )
 
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
@@ -765,9 +780,19 @@ class DatabaseWorkflowActionService:
                     is_external = workflow_action.get_type().is_external
                     started = perf_counter()
                     try:
-                        result = self.handler.dispatch_workflow_action(
-                            workflow_action, dispatch_context
-                        )
+                        # A span per action, so the type and position of one
+                        # do not overwrite the last one's on the click's span.
+                        with baserow_trace_phase(
+                            tracer,
+                            "DatabaseWorkflowActionService.dispatch_workflow_action",
+                        ):
+                            add_baserow_trace_attrs(
+                                workflow_action_type=workflow_action.get_type().type,
+                                position=positions[workflow_action.id],
+                            )
+                            result = self.handler.dispatch_workflow_action(
+                                workflow_action, dispatch_context
+                            )
                     except Exception as exc:
                         # Before the failure is reshaped below, so a receiver
                         # sees what really went wrong.

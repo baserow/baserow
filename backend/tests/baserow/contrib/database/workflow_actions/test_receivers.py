@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from django.urls import reverse
 
@@ -16,6 +16,10 @@ from baserow.contrib.database.workflow_actions.receivers import (
 )
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
+)
+from baserow.contrib.database.workflow_actions.telemetry import (
+    record_button_field_dispatched,
+    record_workflow_action_dispatched,
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 
@@ -143,3 +147,106 @@ def test_the_audit_log_click_is_not_sent_to_posthog(mock_capture, data_fixture):
     assert "dispatch_button_field" not in [
         call.args[1] for call in mock_capture.call_args_list
     ]
+
+
+TELEMETRY = "baserow.contrib.database.workflow_actions.telemetry"
+
+
+@patch(f"{TELEMETRY}.button_field_dispatch_duration")
+@patch(f"{TELEMETRY}.button_field_dispatch_counter")
+def test_a_click_adds_to_the_click_metrics(counter, duration):
+    record_button_field_dispatched(
+        sender=None,
+        user=None,
+        field=None,
+        row_id=1,
+        workflow_actions=[],
+        outcome=DispatchOutcome.THROTTLED,
+        failed_position=None,
+        duration_ms=4.5,
+    )
+
+    counter.add.assert_called_once_with(1, {"outcome": "throttled"})
+    duration.record.assert_called_once_with(4.5, {"outcome": "throttled"})
+
+
+class _FakeType:
+    type = "http_request"
+
+
+class _FakeAction:
+    def get_type(self):
+        return _FakeType()
+
+
+class ConnectionRefused(Exception):
+    pass
+
+
+@patch(f"{TELEMETRY}.workflow_action_dispatch_duration")
+@patch(f"{TELEMETRY}.workflow_action_dispatch_counter")
+def test_an_action_adds_to_the_action_metrics(counter, duration):
+    record_workflow_action_dispatched(
+        sender=None,
+        workflow_action=_FakeAction(),
+        dispatch_context=None,
+        position=1,
+        result=object(),
+        exception=None,
+        duration_ms=10.0,
+    )
+    record_workflow_action_dispatched(
+        sender=None,
+        workflow_action=_FakeAction(),
+        dispatch_context=None,
+        position=2,
+        result=None,
+        exception=ConnectionRefused("https://secret.example/?key=1"),
+        duration_ms=20.0,
+    )
+
+    assert counter.add.call_args_list == [
+        call(1, {"action_type": "http_request", "result": "ok"}),
+        call(1, {"action_type": "http_request", "result": "ConnectionRefused"}),
+    ]
+    assert duration.record.call_args_list == [
+        call(10.0, {"action_type": "http_request", "result": "ok"}),
+        call(20.0, {"action_type": "http_request", "result": "ConnectionRefused"}),
+    ]
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.workflow_actions.receivers.capture_user_event")
+@patch(f"{TELEMETRY}.workflow_action_dispatch_counter")
+@patch(f"{TELEMETRY}.button_field_dispatch_counter")
+def test_the_metric_receivers_are_connected(
+    click_counter, action_counter, mock_capture, data_fixture
+):
+    from baserow.contrib.database.workflow_actions.signals import (
+        button_field_dispatched,
+        workflow_action_dispatched,
+    )
+
+    button_field = data_fixture.create_button_field()
+    button_field_dispatched.send(
+        None,
+        user=None,
+        field=button_field,
+        row_id=1,
+        workflow_actions=[],
+        outcome=DispatchOutcome.COMPLETED,
+        failed_position=None,
+        duration_ms=1.0,
+    )
+    workflow_action_dispatched.send(
+        None,
+        workflow_action=_FakeAction(),
+        dispatch_context=None,
+        position=1,
+        result=object(),
+        exception=None,
+        duration_ms=1.0,
+    )
+
+    click_counter.add.assert_called_once()
+    action_counter.add.assert_called_once()

@@ -7,6 +7,11 @@ from baserow.contrib.database.workflow_actions.models import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     button_field_dispatched,
+    workflow_action_dispatched,
+)
+from baserow.contrib.database.workflow_actions.telemetry import (
+    record_button_field_dispatched,
+    record_workflow_action_dispatched,
 )
 from baserow.core.models import TrashEntry
 from baserow.core.posthog import capture_user_event
@@ -87,3 +92,5 @@ def capture_button_field_dispatched(
 
 def connect_to_database_workflow_action_signals():
     button_field_dispatched.connect(capture_button_field_dispatched)
+    button_field_dispatched.connect(record_button_field_dispatched)
+    workflow_action_dispatched.connect(record_workflow_action_dispatched)
