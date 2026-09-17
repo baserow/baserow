@@ -649,8 +649,10 @@ describe('row actions writing to a trashed field', () => {
   )
 
   test('the trashed field copy says how to heal it', () => {
-    expect(en.databaseWorkflowActionType.writesToTrashedField).toContain(
-      'trash'
+    // Only restoring heals an open page: a permanent delete is cleaned up
+    // later without telling anyone.
+    expect(en.databaseWorkflowActionType.writesToTrashedField).toBe(
+      'This action writes to a field that is in the trash. Restore the field to run the action again.'
     )
   })
 
