@@ -656,7 +656,11 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             # Only `TextField` has a default value at the moment.
             field = field_object["field"]
             default_value = getattr(field, "text_default", None)
-            field_serializer = field_type.get_serializer(field, FieldSerializer)
+            # `data_schema` leaves out what a field type says isn't about the
+            # data, such as a button's action state.
+            field_serializer = field_type.get_serializer(
+                field, FieldSerializer, extra_params={"data_schema": True}
+            )
             properties[field.db_column] = {
                 "title": field.name,
                 "default": default_value,

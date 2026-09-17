@@ -2,6 +2,8 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from pytest_unordered import unordered
@@ -4784,3 +4786,40 @@ def test_grouped_aggregate_rows_rejects_multivalued_primary_row_grouping(
         ServiceImproperlyConfiguredDispatchException, match="multi-valued primary field"
     ):
         ServiceHandler().dispatch_service(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_sanitize_result_does_not_query_per_button_field(
+    data_fixture,
+):
+    """
+    Every allowed property rebuilds the table's properties, uncached, so a
+    button field's flags would cost queries each time.
+    """
+
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+
+    def sanitize_queries(button_count):
+        table = data_fixture.create_database_table()
+        field = data_fixture.create_number_field(table=table, name="Amount")
+        group_by_field = data_fixture.create_text_field(table=table, name="Category")
+        # Every field reads its constraints, so the field count stays the same.
+        for _ in range(3 - button_count):
+            data_fixture.create_text_field(table=table)
+        for _ in range(button_count):
+            data_fixture.create_button_field(table=table)
+        service = data_fixture.create_service(
+            LocalBaserowGroupedAggregateRows, table=table
+        )
+        allowed = [f"field_{group_by_field.id}", f"field_{field.id}_sum"]
+        result = {"has_next_page": False, "results": [{allowed[0]: "Fruit"}]}
+        # Only the properties are measured, not the table model they read.
+        table.get_model()
+
+        with CaptureQueriesContext(connection) as captured:
+            service_type.sanitize_result(service, result, allowed)
+        return len(captured)
+
+    sanitize_queries(1)
+
+    assert sanitize_queries(3) == sanitize_queries(1)

@@ -8235,6 +8235,27 @@ class ButtonFieldType(ReadOnlyFieldType):
     # The cell column is always null, so a type change has no data to back up.
     # The configuration it must keep rides along in `export_prepared_values`.
     field_data_is_derived_from_attrs = True
+    # They describe the button's actions rather than the table's data, and each
+    # costs a query, so a service's table schema leaves them out.
+    action_state_field_names = ["has_workflow_actions", "requires_reconfiguration"]
+
+    def get_field_names(self, request_serializer, extra_params, **kwargs):
+        names = super().get_field_names(request_serializer, extra_params, **kwargs)
+        if (extra_params or {}).get("data_schema"):
+            names = [n for n in names if n not in self.action_state_field_names]
+        return names
+
+    def get_field_overrides(self, request_serializer, extra_params, **kwargs):
+        overrides = super().get_field_overrides(
+            request_serializer, extra_params, **kwargs
+        )
+        if (extra_params or {}).get("data_schema"):
+            overrides = {
+                name: override
+                for name, override in overrides.items()
+                if name not in self.action_state_field_names
+            }
+        return overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
