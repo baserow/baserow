@@ -299,6 +299,10 @@ describe('ManageAgentModal', () => {
     await wrapper.find('.open').trigger('click')
     await wrapper.find('.name-input').setValue('First draft')
     await wrapper.find('form').trigger('submit')
+    expect(dispatch).toHaveBeenNthCalledWith(1, 'agent/create', {
+      workspaceId: 12,
+      values: { name: 'First draft', role_uid: 'MEMBER' },
+    })
     expect(hide).not.toHaveBeenCalled()
 
     await wrapper.find('.open').trigger('click')
@@ -310,6 +314,10 @@ describe('ManageAgentModal', () => {
     expect(wrapper.find('.name-input').element.value).toBe('New draft')
 
     await wrapper.find('form').trigger('submit')
+    expect(dispatch).toHaveBeenNthCalledWith(2, 'agent/create', {
+      workspaceId: 12,
+      values: { name: 'New draft', role_uid: 'MEMBER' },
+    })
     expect(hide).not.toHaveBeenCalled()
     resolveCreation({ id: 43 })
     await flushPromises()
