@@ -506,6 +506,26 @@ class DatabaseWorkflowActionService:
                 exception=type(exc).__name__,
             )
 
+    def _send_workflow_action_dispatched(self, **kwargs) -> None:
+        """
+        Tells receivers what one action did. A receiver that fails must not
+        fail the click: the action already ran, so its failure is logged and
+        the click carries on.
+
+        :param kwargs: The signal's keyword arguments: `workflow_action`,
+            `dispatch_context`, `position`, `result`, `exception`, `field`
+            and `duration_ms`.
+        """
+
+        for receiver, exception in workflow_action_dispatched.send_robust(
+            self, **kwargs
+        ):
+            if exception is not None:
+                logger.opt(exception=exception).error(
+                    "A workflow_action_dispatched receiver {receiver} failed.",
+                    receiver=getattr(receiver, "__qualname__", repr(receiver)),
+                )
+
     def get_dispatch_snapshot(self, field: ButtonField) -> List[DatabaseWorkflowAction]:
         """
         The actions a click is about to run, read once so what it is charged
@@ -754,14 +774,14 @@ class DatabaseWorkflowActionService:
                             workflow_action, dispatch_context
                         )
                     except Exception as exc:
-                        workflow_action_dispatched.send(
-                            self,
+                        self._send_workflow_action_dispatched(
                             workflow_action=workflow_action,
                             dispatch_context=dispatch_context,
                             position=positions[workflow_action.id],
                             result=None,
                             exception=exc,
                             duration_ms=(perf_counter() - started) * 1000,
+                            field=field,
                         )
                         if (
                             is_external
@@ -816,14 +836,14 @@ class DatabaseWorkflowActionService:
                                 positions[workflow_action.id],
                             ) from exc
                         raise
-                    workflow_action_dispatched.send(
-                        self,
+                    self._send_workflow_action_dispatched(
                         workflow_action=workflow_action,
                         dispatch_context=dispatch_context,
                         position=positions[workflow_action.id],
                         result=result,
                         exception=None,
                         duration_ms=(perf_counter() - started) * 1000,
+                        field=field,
                     )
                     if is_external and on_external_dispatch:
                         on_external_dispatch(workflow_action)

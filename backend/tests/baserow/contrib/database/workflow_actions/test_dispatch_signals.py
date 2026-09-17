@@ -71,6 +71,7 @@ def test_each_server_action_sends_dispatched_with_its_result(data_fixture):
     assert all(c["result"] is not None for c in recorder.calls)
     assert all(c["duration_ms"] >= 0 for c in recorder.calls)
     assert all(c["dispatch_context"] is not None for c in recorder.calls)
+    assert all(c["field"].id == button_field.id for c in recorder.calls)
 
 
 @pytest.mark.django_db
@@ -172,3 +173,26 @@ def test_a_refusing_before_dispatch_receiver_leaves_no_lock_and_no_action(
     assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
     assert table.get_model().objects.exclude(id=row.id).count() == 0
     assert not Action.objects.filter(type="dispatch_button_field").exists()
+
+
+@pytest.mark.django_db
+def test_a_failing_dispatched_receiver_does_not_fail_the_click(data_fixture):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _create_row_action(data_fixture, button_field, table, name_field, "a")
+
+    def fail(sender, **kwargs):
+        raise RuntimeError("bookkeeping receiver blew up")
+
+    workflow_action_dispatched.connect(fail)
+    try:
+        result = DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    finally:
+        workflow_action_dispatched.disconnect(fail)
+
+    assert [d.workflow_action.id for d in result.dispatched] == [action.id]
+    assert table.get_model().objects.exclude(id=row.id).count() == 1

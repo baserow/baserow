@@ -11,7 +11,9 @@ workflow_actions_reordered = Signal()
 button_field_before_dispatch = Signal()
 
 # Sent once per server-side action, on success with `result` and on failure
-# with `exception`, in both cases with `duration_ms`. Receivers must not read
-# the result's data or the exception's text: for an external action both can
-# name the address the request went to.
+# with `exception`, in both cases with `duration_ms` and the dispatched
+# `field`. Receivers must not read the result's data or the exception's text:
+# for an external action both can name the address the request went to. Sent
+# with `send_robust`: the action already ran, so a receiver that fails is
+# logged and does not fail the click.
 workflow_action_dispatched = Signal()
