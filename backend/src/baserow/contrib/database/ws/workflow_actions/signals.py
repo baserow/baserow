@@ -3,7 +3,7 @@ from operator import attrgetter
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.dispatch import receiver
 
 from baserow.contrib.database.fields import signals as field_signals
@@ -98,16 +98,20 @@ def _broadcast_buttons(button_fields: QuerySet[ButtonField]) -> None:
         )
 
 
-def _broadcast_dependent_buttons(**lookup) -> None:
+def _broadcast_dependent_buttons(exclude: Q | None = None, **lookup) -> None:
     """
     Sends out again every button whose `requires_reconfiguration` may have
     changed because something its actions reference was trashed or restored.
 
+    :param exclude: The buttons to leave out, as a filter on them.
     :param lookup: The `button_fields_depending_on` arguments.
     """
 
     def broadcast():
-        _broadcast_buttons(button_fields_depending_on(**lookup))
+        button_fields = button_fields_depending_on(**lookup)
+        if exclude is not None:
+            button_fields = button_fields.exclude(exclude)
+        _broadcast_buttons(button_fields)
 
     # Looked up on commit, so the trash state it reads is the committed one.
     transaction.on_commit(broadcast)
@@ -130,10 +134,11 @@ def button_target_table_deleted(sender, table_id, **kwargs):
     _broadcast_dependent_buttons(table_ids=[table_id], link_row_table_ids=[table_id])
 
 
-# Also sent when a table is restored from the trash.
+# Also sent when a table is restored from the trash, duplicated or imported. The
+# buttons inside it are loaded with it, and nobody has a copy open yet.
 @receiver(table_signals.table_created)
 def button_target_table_created(sender, table, **kwargs):
-    _broadcast_dependent_buttons(table_ids=[table.id])
+    _broadcast_dependent_buttons(table_ids=[table.id], exclude=Q(table_id=table.id))
 
 
 @receiver(core_signals.application_deleted)
@@ -141,10 +146,13 @@ def button_target_application_deleted(sender, application_id, **kwargs):
     _broadcast_dependent_buttons(database_ids=[application_id])
 
 
-# Also sent when an application is restored from the trash.
+# Also sent when an application is restored from the trash, duplicated or
+# installed from a template, so its own buttons are left out as for a table.
 @receiver(core_signals.application_created)
 def button_target_application_created(sender, application, **kwargs):
-    _broadcast_dependent_buttons(database_ids=[application.id])
+    _broadcast_dependent_buttons(
+        database_ids=[application.id], exclude=Q(table__database_id=application.id)
+    )
 
 
 @receiver(core_signals.workspace_deleted)

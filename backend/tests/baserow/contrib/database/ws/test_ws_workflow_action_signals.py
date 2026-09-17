@@ -6,6 +6,7 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.trash.trash_types import FieldTrashableItemType
 from baserow.contrib.database.workflow_actions.models import (
@@ -546,3 +547,68 @@ def test_trashing_and_restoring_the_target_workspace_updates_the_button(
     # Restoring tells each member of the workspace, but the button goes once.
     [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
     assert message["field"]["requires_reconfiguration"] is False
+
+
+def _self_targeting_button(data_fixture, user):
+    """A button whose create row action writes to its own table."""
+
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("local_baserow_create_row"),
+        button_field,
+        service={"table_id": table.id},
+    )
+    return button_field
+
+
+def _button_messages_in(mock_broadcast, tables):
+    """Every `field_updated` sent for a button in one of these tables."""
+
+    table_ids = {table.id for table in tables}
+    return [
+        (group, message)
+        for group, message in _field_messages(mock_broadcast)
+        for field in [message["field"], *message["related_fields"]]
+        if field["type"] == "button" and field["table_id"] in table_ids
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_duplicating_a_database_does_not_send_the_copied_buttons(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """Nobody has the copy open yet, and it is loaded with its buttons."""
+
+    user = data_fixture.create_user()
+    button_field = _self_targeting_button(data_fixture, user)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    copy = CoreHandler().duplicate_application(user, button_field.table.database)
+
+    [copied_table] = copy.table_set.all()
+    copied_button = ButtonField.objects.get(table=copied_table)
+    assert copied_button.workflow_actions.get().specific.service.specific.table_id == (
+        copied_table.id
+    )
+    assert _button_messages_in(mock_broadcast_to_channel_group, [copied_table]) == []
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_duplicating_a_table_does_not_send_the_copied_buttons(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    button_field = _self_targeting_button(data_fixture, user)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    copied_table = TableHandler().duplicate_table(user, button_field.table)
+
+    copied_button = ButtonField.objects.get(table=copied_table)
+    assert copied_button.workflow_actions.get().specific.service.specific.table_id == (
+        copied_table.id
+    )
+    assert _button_messages_in(mock_broadcast_to_channel_group, [copied_table]) == []
