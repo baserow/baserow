@@ -3,6 +3,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import RoleAssignmentModal from '@baserow_enterprise/components/member-roles/RoleAssignmentModal'
 import RoleSelector from '@baserow_enterprise/components/member-roles/RoleSelector'
 import SelectAgentsList from '@baserow_enterprise/components/rbac/SelectAgentsList'
+import SelectSubjectsListFooter from '@baserow_enterprise/components/rbac/SelectSubjectsListFooter'
 
 const SelectSubjectsListFooterStub = {
   name: 'SelectSubjectsListFooter',
@@ -26,6 +27,51 @@ const SelectSubjectsListFooterStub = {
 }
 
 describe('SelectAgentsList', () => {
+  test('uses the subject label and forwards the commercial information option', async () => {
+    const role = { uid: 'BUILDER' }
+    const RoleSelectorStub = {
+      props: ['showCommercialInfo'],
+      template: '<div class="role-selector">{{ showCommercialInfo }}</div>',
+    }
+    const wrapper = await mountSuspended(SelectSubjectsListFooter, {
+      props: {
+        count: 2,
+        subjectType: 'core.Agent',
+        scopeType: 'application',
+        showRoleSelector: true,
+        showCommercialInfo: false,
+      },
+      global: {
+        mocks: {
+          $registry: {
+            get: () => ({ getPluralTypeDisplayName: () => 'Agents' }),
+          },
+          $store: {
+            getters: { 'workspace/getSelected': { _: { roles: [] } } },
+          },
+          $t: (key, values) => `${key}:${values?.type || ''}`,
+        },
+        stubs: {
+          RoleSelector: RoleSelectorStub,
+          HelpIcon: true,
+          Button: {
+            emits: ['click'],
+            template: '<button @click="$emit(\'click\')"><slot /></button>',
+          },
+        },
+      },
+    })
+
+    expect(wrapper.find('.role-selector').text()).toBe('false')
+    expect(wrapper.find('button').text()).toBe(
+      'selectSubjectsListFooter.invite:agents'
+    )
+
+    await wrapper.setData({ roleSelected: role })
+    await wrapper.find('button').trigger('click')
+    expect(wrapper.emitted('invite')).toEqual([[role]])
+  })
+
   test('selects and invites agents as Agent subjects', async () => {
     const agents = [
       { id: 1, name: 'Row writer' },
