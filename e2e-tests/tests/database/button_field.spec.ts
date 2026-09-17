@@ -948,43 +948,48 @@ test.describe("Button field", () => {
   }) => {
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     await patchView(g.user, g.view, { public: true });
-
-    // A button's label and actions are only meaningful to whoever configures
-    // the field, and a public view has no one to configure it, so the field
-    // type sets `can_be_in_public_view = False`.
-    const anonContext = await browser.newContext();
     try {
-      const anonPage = await anonContext.newPage();
-      await anonPage.goto(
-        `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/public/grid/${g.view.slug}`,
+      // A button's label and actions are only meaningful to whoever configures
+      // the field, and a public view has no one to configure it, so the field
+      // type sets `can_be_in_public_view = False`.
+      const anonContext = await browser.newContext();
+      try {
+        const anonPage = await anonContext.newPage();
+        await anonPage.goto(
+          `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/public/grid/${g.view.slug}`,
+        );
+
+        // The grid really did load, so the absences below mean something.
+        await expect(anonPage.locator(".grid-view__left")).toContainText("Ada");
+        await expect(anonPage.locator(".grid-field-button")).toHaveCount(0);
+        for (const name of BUTTON_FIELD_NAMES) {
+          await expect(
+            anonPage.locator(".grid-view__description-name", { hasText: name }),
+          ).toHaveCount(0);
+        }
+      } finally {
+        await anonContext.close();
+      }
+
+      // The rendering is only half of it: an unauthenticated caller must not be
+      // able to read the fields out of the public API either.
+      const info: any = await getClient().get(
+        `database/views/${g.view.slug}/public/info/`,
+      );
+      const publicFieldIds = info.data.fields.map((field: any) => field.id);
+      const rows: any = await getClient().get(
+        `database/views/grid/${g.view.slug}/public/rows/`,
       );
 
-      // The grid really did load, so the absences below mean something.
-      await expect(anonPage.locator(".grid-view__left")).toContainText("Ada");
-      await expect(anonPage.locator(".grid-field-button")).toHaveCount(0);
       for (const name of BUTTON_FIELD_NAMES) {
-        await expect(
-          anonPage.locator(".grid-view__description-name", { hasText: name }),
-        ).toHaveCount(0);
+        const fieldId = g.fieldByName[name].id;
+        expect(publicFieldIds).not.toContain(fieldId);
+        expect(rows.data.results[0]).not.toHaveProperty(`field_${fieldId}`);
       }
     } finally {
-      await anonContext.close();
-    }
-
-    // The rendering is only half of it: an unauthenticated caller must not be
-    // able to read the fields out of the public API either.
-    const info: any = await getClient().get(
-      `database/views/${g.view.slug}/public/info/`,
-    );
-    const publicFieldIds = info.data.fields.map((field: any) => field.id);
-    const rows: any = await getClient().get(
-      `database/views/grid/${g.view.slug}/public/rows/`,
-    );
-
-    for (const name of BUTTON_FIELD_NAMES) {
-      const fieldId = g.fieldByName[name].id;
-      expect(publicFieldIds).not.toContain(fieldId);
-      expect(rows.data.results[0]).not.toHaveProperty(`field_${fieldId}`);
+      // A public view hides a field created in it until its editor closes, so
+      // a later test making a field in the UI would never see its column.
+      await patchView(g.user, g.view, { public: false });
     }
   });
 
