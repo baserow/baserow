@@ -3,7 +3,12 @@ from typing import Iterable
 from django.db.models import Exists, OuterRef, Q, QuerySet
 
 from baserow.contrib.database.fields.models import ButtonField
-from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
+from baserow.contrib.database.workflow_actions.models import (
+    DatabaseWorkflowAction,
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
+)
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowTableServiceFieldMapping,
@@ -24,33 +29,51 @@ def _unusable_table() -> Q:
     )
 
 
-def workflow_actions_requiring_reconfiguration() -> QuerySet[DatabaseWorkflowAction]:
+def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
     """
-    The row actions that are sure to fail at click time because something they
-    reference is in the trash or gone (ADR 006 section 8). Used both to
-    annotate button fields in bulk and to answer for a single one, so the two
-    can't drift apart.
+    Whether the button field has a row action that is sure to fail at click
+    time because something it references is in the trash or gone (ADR 006
+    section 8). Used both to annotate button fields in bulk and to answer for a
+    single one, so the two can't drift apart.
+
+    Each check starts from the button's own actions and looks up their services
+    by primary key: the service tables are shared with the builder and
+    automations, so anything uncorrelated would scan all of them.
 
     A mapping on a trashed field only counts without an integration: with one,
     the dispatch drops the mapping rather than failing.
+
+    :param field_ref: The button field's id, or `OuterRef("pk")` when
+        annotating a button field queryset.
     """
+
+    def has_broken_action(action_model, service_model, broken: Q) -> Exists:
+        broken_service = service_model.objects.filter(broken, pk=OuterRef("service_id"))
+        return Exists(
+            action_model.objects.filter(Exists(broken_service), field_id=field_ref)
+        )
 
     mapping_on_trashed_field = Exists(
         LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
             service_id=OuterRef("pk"), enabled=True, field__trashed=True
         )
     )
-    broken_upserts = LocalBaserowUpsertRow.objects.filter(
-        _unusable_table() | (Q(integration__isnull=True) & mapping_on_trashed_field)
-    ).values("pk")
-    broken_deletes = LocalBaserowDeleteRow.objects.filter(_unusable_table()).values(
-        "pk"
+    broken_upsert = _unusable_table() | (
+        Q(integration__isnull=True) & mapping_on_trashed_field
     )
 
-    return DatabaseWorkflowAction.objects.filter(
-        Q(localbaserowcreaterowworkflowaction__service_id__in=broken_upserts)
-        | Q(localbaserowupdaterowworkflowaction__service_id__in=broken_upserts)
-        | Q(localbaserowdeleterowworkflowaction__service_id__in=broken_deletes)
+    return (
+        has_broken_action(
+            LocalBaserowCreateRowWorkflowAction, LocalBaserowUpsertRow, broken_upsert
+        )
+        | has_broken_action(
+            LocalBaserowUpdateRowWorkflowAction, LocalBaserowUpsertRow, broken_upsert
+        )
+        | has_broken_action(
+            LocalBaserowDeleteRowWorkflowAction,
+            LocalBaserowDeleteRow,
+            _unusable_table(),
+        )
     )
 
 

@@ -1023,14 +1023,12 @@ class ButtonField(Field):
 
         # Imported here: the workflow action models import this module.
         from baserow.contrib.database.workflow_actions.reconfiguration import (
-            workflow_actions_requiring_reconfiguration,
+            requires_reconfiguration,
         )
 
-        return (
-            workflow_actions_requiring_reconfiguration()
-            .filter(field_id=self.id)
-            .exists()
-        )
+        return ButtonField.objects_and_trash.filter(
+            requires_reconfiguration(self.id), id=self.id
+        ).exists()
 
 
 class DuplicateFieldJob(

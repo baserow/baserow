@@ -234,3 +234,57 @@ def test_listing_actions_does_not_query_per_mapping(api_client, data_fixture):
 
     assert all("trashed" in m for m in payload[0]["service"]["field_mappings"])
     assert four_mapping_queries == one_mapping_queries
+
+
+def _upsert_row_scans(sql, params=None):
+    """
+    Plans `sql` with sequential scans discouraged, as they would be on tables
+    of real size, and returns every scan of an upsert row service in the plan.
+    """
+
+    def walk(node):
+        if node.get("Relation Name") == "integrations_localbaserowupsertrow":
+            yield node
+        for child in node.get("Plans", []):
+            yield from walk(child)
+
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL enable_seqscan = off")
+        cursor.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + sql, params)
+        plan = cursor.fetchone()[0]
+        cursor.execute("SET LOCAL enable_seqscan = on")
+    return list(walk(plan[0]["Plan"]))
+
+
+@pytest.mark.django_db
+def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
+    """
+    Upsert row services are shared with the builder and automations, so the
+    check must look up a button's own services rather than scan them all.
+    """
+
+    user, database, table, name_field, button_field = setup
+    _, service = _row_action(
+        data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, table
+    )
+    service.field_mappings.create(field=name_field, value="'x'", enabled=True)
+    for _ in range(20):
+        unrelated = data_fixture.create_local_baserow_upsert_row_service(table=table)
+        unrelated.field_mappings.create(field=name_field, value="'x'", enabled=True)
+
+    annotated = ButtonFieldType().enhance_field_queryset(
+        ButtonField.objects.filter(id=button_field.id), None
+    )
+    with CaptureQueriesContext(connection) as captured:
+        ButtonField.objects.get(id=button_field.id).requires_reconfiguration
+    fallback_sql = captured.captured_queries[-1]["sql"]
+
+    for scans in [
+        _upsert_row_scans(*annotated.query.sql_with_params()),
+        _upsert_row_scans(fallback_sql),
+    ]:
+        assert scans
+        for scan in scans:
+            assert "Index Cond" in scan, scan
+            rows_read = scan["Actual Rows"] + scan.get("Rows Removed by Filter", 0)
+            assert rows_read <= 1, scan

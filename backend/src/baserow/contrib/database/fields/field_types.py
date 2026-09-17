@@ -8217,7 +8217,7 @@ class ButtonFieldType(ReadOnlyFieldType):
         # Both flags are serialized for every button field, so without this a
         # table's field list costs queries per button.
         from baserow.contrib.database.workflow_actions.reconfiguration import (
-            workflow_actions_requiring_reconfiguration,
+            requires_reconfiguration,
         )
 
         return queryset.annotate(
@@ -8225,10 +8225,8 @@ class ButtonFieldType(ReadOnlyFieldType):
                 ButtonField.HAS_WORKFLOW_ACTIONS_ANNOTATION: Exists(
                     DatabaseWorkflowAction.objects.filter(field_id=OuterRef("pk"))
                 ),
-                ButtonField.REQUIRES_RECONFIGURATION_ANNOTATION: Exists(
-                    workflow_actions_requiring_reconfiguration().filter(
-                        field_id=OuterRef("pk")
-                    )
+                ButtonField.REQUIRES_RECONFIGURATION_ANNOTATION: (
+                    requires_reconfiguration(OuterRef("pk"))
                 ),
             }
         )
