@@ -1,5 +1,6 @@
 import json
 from dataclasses import fields as dataclass_fields
+from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional
 
 from django.conf import settings
@@ -35,6 +36,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_created,
+    workflow_action_dispatched,
     workflow_action_updated,
     workflow_actions_reordered,
 )
@@ -558,6 +560,25 @@ class DatabaseWorkflowActionService:
                 action_id=workflow_action.id,
             )
 
+    def _send_workflow_action_dispatched(
+        self,
+        workflow_action: DatabaseWorkflowAction,
+        dispatch_context: DatabaseDispatchContext,
+        position: int,
+        started: float,
+        result: Optional[DispatchResult] = None,
+        exception: Optional[Exception] = None,
+    ) -> None:
+        workflow_action_dispatched.send(
+            self,
+            workflow_action=workflow_action,
+            dispatch_context=dispatch_context,
+            position=position,
+            result=result,
+            exception=exception,
+            duration_ms=(perf_counter() - started) * 1000,
+        )
+
     def dispatch_workflow_actions(
         self,
         user: AbstractUser,
@@ -735,11 +756,21 @@ class DatabaseWorkflowActionService:
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
                     is_external = workflow_action.get_type().is_external
+                    started = perf_counter()
                     try:
                         result = self.handler.dispatch_workflow_action(
                             workflow_action, dispatch_context
                         )
                     except Exception as exc:
+                        # Before the failure is reshaped below, so a receiver
+                        # sees what really went wrong.
+                        self._send_workflow_action_dispatched(
+                            workflow_action,
+                            dispatch_context,
+                            positions[workflow_action.id],
+                            started,
+                            exception=exc,
+                        )
                         if (
                             is_external
                             and on_external_dispatch
@@ -793,6 +824,13 @@ class DatabaseWorkflowActionService:
                                 positions[workflow_action.id],
                             ) from exc
                         raise
+                    self._send_workflow_action_dispatched(
+                        workflow_action,
+                        dispatch_context,
+                        positions[workflow_action.id],
+                        started,
+                        result=result,
+                    )
                     if is_external and on_external_dispatch:
                         on_external_dispatch(workflow_action)
                     if may_configure:
