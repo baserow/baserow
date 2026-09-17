@@ -19,7 +19,10 @@
   }
 
   &--group,
-  &--sort,
+  &--sort {
+    width: 320px;
+  }
+
   &--search {
     width: 400px;
   }
