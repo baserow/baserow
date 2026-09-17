@@ -91,6 +91,8 @@ describe('GridViewFieldButtonField', () => {
     expect(button.attributes('disabled')).toBeDefined()
     expect(button.text()).toBe('Open')
     expect(wrapper.find('.iconoir-warning-triangle').exists()).toBe(true)
+    // Nothing in between, or the button's max width shrinks with the label.
+    expect(wrapper.find('.grid-field-button > button').exists()).toBe(true)
 
     await button.trigger('click')
 
