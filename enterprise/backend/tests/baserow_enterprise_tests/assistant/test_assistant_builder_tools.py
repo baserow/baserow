@@ -343,6 +343,18 @@ def test_data_source_validation_errors():
         )
 
 
+@pytest.mark.parametrize("row_id", [None, "", "  "])
+def test_update_row_action_requires_a_row_id(row_id):
+    with pytest.raises(ValueError, match="'row_id' is required"):
+        ActionCreate(
+            type="update_row",
+            element="btn",
+            table_id=1,
+            row_id=row_id,
+            field_values=[],
+        )
+
+
 # ===========================================================================
 # Element tools tests
 # ===========================================================================

@@ -53,6 +53,12 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.workflow_actions.actions import (
+    CreateDatabaseWorkflowActionActionType,
+    DeleteDatabaseWorkflowActionActionType,
+    OrderDatabaseWorkflowActionsActionType,
+    UpdateDatabaseWorkflowActionActionType,
+)
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
@@ -69,6 +75,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
@@ -138,9 +145,9 @@ class DatabaseWorkflowActionsView(APIView):
         workflow_action_type = database_workflow_action_type_registry.get(type_name)
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
-        workflow_action = DatabaseWorkflowActionService().create_workflow_action(
-            request.user, workflow_action_type, field, **data
-        )
+        workflow_action = action_type_registry.get(
+            CreateDatabaseWorkflowActionActionType.type
+        ).do(request.user, workflow_action_type, field, **data)
 
         serializer = database_workflow_action_type_registry.get_serializer(
             workflow_action,
@@ -243,11 +250,15 @@ class DatabaseWorkflowActionView(APIView):
     def delete(self, request, workflow_action_id: int):
         feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
 
-        workflow_action = DatabaseWorkflowActionHandler().get_workflow_action(
-            workflow_action_id
+        # Locked, so a second delete of the same action waits for the first and
+        # then finds no action, rather than trashing it twice.
+        workflow_action = (
+            DatabaseWorkflowActionHandler().get_workflow_action_for_update(
+                workflow_action_id
+            )
         )
 
-        DatabaseWorkflowActionService().delete_workflow_action(
+        action_type_registry.get(DeleteDatabaseWorkflowActionActionType.type).do(
             request.user, workflow_action
         )
 
@@ -327,11 +338,9 @@ class DatabaseWorkflowActionView(APIView):
             partial=True,
         )
 
-        workflow_action_updated = (
-            DatabaseWorkflowActionService().update_workflow_action(
-                request.user, workflow_action, **data
-            )
-        )
+        workflow_action_updated = action_type_registry.get(
+            UpdateDatabaseWorkflowActionActionType.type
+        ).do(request.user, workflow_action, **data)
 
         serializer = database_workflow_action_type_registry.get_serializer(
             workflow_action_updated,
@@ -385,7 +394,7 @@ class OrderDatabaseWorkflowActionsView(APIView):
 
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
-        DatabaseWorkflowActionService().order_workflow_actions(
+        action_type_registry.get(OrderDatabaseWorkflowActionsActionType.type).do(
             request.user, field, data["workflow_action_ids"]
         )
 

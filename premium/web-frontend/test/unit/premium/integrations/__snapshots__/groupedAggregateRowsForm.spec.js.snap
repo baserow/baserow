@@ -1,0 +1,306 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Grouped aggregate data source form > adding and editing series preserves all three data sources during save 1`] = `
+{
+  "aggregation_group_bys": [],
+  "aggregation_series": [
+    {
+      "aggregation_type": "average",
+      "field_id": 1,
+      "id": 30,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+    },
+  ],
+  "aggregation_sorts": [],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
+
+exports[`Grouped aggregate data source form > aggregation changes emit only valid sorts 1`] = `
+{
+  "aggregation_group_bys": [
+    {
+      "field_id": 3,
+    },
+  ],
+  "aggregation_series": [
+    {
+      "aggregation_type": "average",
+      "field_id": 1,
+      "id": 10,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+      "id": 11,
+    },
+  ],
+  "aggregation_sorts": [
+    {
+      "direction": "DESC",
+      "reference": "field_2_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "ASC",
+      "reference": "field_3",
+      "sort_on": "GROUP_BY",
+    },
+  ],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
+
+exports[`Grouped aggregate data source form > delete changes emit only valid sorts 1`] = `
+{
+  "aggregation_group_bys": [
+    {
+      "field_id": 3,
+    },
+  ],
+  "aggregation_series": [
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+      "id": 11,
+    },
+  ],
+  "aggregation_sorts": [
+    {
+      "direction": "DESC",
+      "reference": "field_2_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "ASC",
+      "reference": "field_3",
+      "sort_on": "GROUP_BY",
+    },
+  ],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
+
+exports[`Grouped aggregate data source form > field changes emit only valid sorts 1`] = `
+{
+  "aggregation_group_bys": [
+    {
+      "field_id": 3,
+    },
+  ],
+  "aggregation_series": [
+    {
+      "aggregation_type": "sum",
+      "field_id": 3,
+      "id": 10,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+      "id": 11,
+    },
+  ],
+  "aggregation_sorts": [
+    {
+      "direction": "DESC",
+      "reference": "field_2_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "ASC",
+      "reference": "field_3",
+      "sort_on": "GROUP_BY",
+    },
+  ],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
+
+exports[`Grouped aggregate data source form > group changes emit only valid sorts 1`] = `
+{
+  "aggregation_group_bys": [
+    {
+      "field_id": 2,
+    },
+  ],
+  "aggregation_series": [
+    {
+      "aggregation_type": "sum",
+      "field_id": 1,
+      "id": 10,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+      "id": 11,
+    },
+  ],
+  "aggregation_sorts": [
+    {
+      "direction": "ASC",
+      "reference": "field_1_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "DESC",
+      "reference": "field_2_sum",
+      "sort_on": "SERIES",
+    },
+  ],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
+
+exports[`Grouped aggregate data source form > row-id changes emit only valid sorts 1`] = `
+{
+  "aggregation_group_bys": [
+    {
+      "field_id": null,
+    },
+  ],
+  "aggregation_series": [
+    {
+      "aggregation_type": "sum",
+      "field_id": 1,
+      "id": 10,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+      "id": 11,
+    },
+  ],
+  "aggregation_sorts": [
+    {
+      "direction": "ASC",
+      "reference": "field_1_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "DESC",
+      "reference": "field_2_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "ASC",
+      "reference": "field_3",
+      "sort_on": "GROUP_BY",
+    },
+  ],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
+
+exports[`Grouped aggregate data source form > unchanged changes emit only valid sorts 1`] = `
+{
+  "aggregation_group_bys": [
+    {
+      "field_id": 3,
+    },
+  ],
+  "aggregation_series": [
+    {
+      "aggregation_type": "sum",
+      "field_id": 1,
+      "id": 10,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+      "id": 11,
+    },
+  ],
+  "aggregation_sorts": [
+    {
+      "direction": "ASC",
+      "reference": "field_1_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "DESC",
+      "reference": "field_2_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "ASC",
+      "reference": "field_3",
+      "sort_on": "GROUP_BY",
+    },
+  ],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;
+
+exports[`Grouped aggregate data source form > ungroup changes emit only valid sorts 1`] = `
+{
+  "aggregation_group_bys": [],
+  "aggregation_series": [
+    {
+      "aggregation_type": "sum",
+      "field_id": 1,
+      "id": 10,
+    },
+    {
+      "aggregation_type": "sum",
+      "field_id": 2,
+      "id": 11,
+    },
+  ],
+  "aggregation_sorts": [
+    {
+      "direction": "ASC",
+      "reference": "field_1_sum",
+      "sort_on": "SERIES",
+    },
+    {
+      "direction": "DESC",
+      "reference": "field_2_sum",
+      "sort_on": "SERIES",
+    },
+  ],
+  "filter_groups": [],
+  "filter_type": "AND",
+  "filters": [],
+  "integration_id": null,
+  "table_id": 1,
+  "view_id": null,
+}
+`;

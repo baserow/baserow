@@ -175,8 +175,10 @@ class EnterpriseDataSyncHandler:
 
             for periodic_data_sync in periodic_syncs_to_disable:
                 transaction.on_commit(
-                    lambda pds=periodic_data_sync: PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
-                        pds
+                    lambda pds=periodic_data_sync: (
+                        PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
+                            pds
+                        )
                     )
                 )
 
@@ -255,8 +257,10 @@ class EnterpriseDataSyncHandler:
                     periodic_data_sync.automatically_deactivated = True
                     periodic_data_sync.deactivation_reason = DEACTIVATION_REASON_FAILURE
                     transaction.on_commit(
-                        lambda: PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
-                            periodic_data_sync
+                        lambda: (
+                            PeriodicDataSyncDeactivatedNotificationType.notify_authorized_user(
+                                periodic_data_sync
+                            )
                         )
                     )
 

@@ -547,3 +547,87 @@ def test_dispatch_data_source_improperly_configured(api_client, data_fixture):
         response.json()["detail"] == "The data_source configuration is incorrect: "
         "No integration selected"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "mode,formula,expected_status",
+    [
+        ("raw", "20", HTTP_200_OK),
+        ("simple", "20", HTTP_200_OK),
+        ("advanced", "10 + 10", HTTP_200_OK),
+        ("advanced", "get('data_source.1')", HTTP_400_BAD_REQUEST),
+        ("advanced", "add(10)", HTTP_400_BAD_REQUEST),
+    ],
+)
+def test_update_dashboard_filter_formula(
+    api_client, data_fixture, mode, formula, expected_status
+):
+    """Validate, reload, and execute filters after switching to formula mode."""
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_number_field(table=table)
+    RowHandler().create_rows(
+        user, table, [{field.db_column: 10}, {field.db_column: 20}]
+    )
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_user=user, application=dashboard
+    )
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        integration=integration, table=table, field=field, aggregation_type="sum"
+    )
+    data_source = (
+        data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+            dashboard=dashboard, service=service
+        )
+    )
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    response = api_client.patch(
+        reverse(
+            "api:dashboard:data_sources:item", kwargs={"data_source_id": data_source.id}
+        ),
+        {
+            "filters": [
+                {
+                    "field": field.id,
+                    "type": "equal",
+                    "value": {"formula": formula, "mode": mode},
+                }
+            ]
+        },
+        format="json",
+        **headers,
+    )
+    assert response.status_code == expected_status, response.json()
+    if expected_status == HTTP_400_BAD_REQUEST:
+        assert (
+            response.json()["detail"]["value"][0]["code"] == "invalid_formula_argument"
+        )
+        assert not service.service_filters.exists()
+        return
+
+    saved_formula = response.json()["filters"][0]["value"]
+    assert saved_formula["formula"] == formula
+    assert saved_formula["mode"] == mode
+    response = api_client.get(
+        reverse(
+            "api:dashboard:data_sources:list", kwargs={"dashboard_id": dashboard.id}
+        ),
+        **headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[0]["filters"][0]["value"] == saved_formula
+    response = api_client.post(
+        reverse(
+            "api:dashboard:data_sources:dispatch",
+            kwargs={"data_source_id": data_source.id},
+        ),
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json() == {"result": "20"}

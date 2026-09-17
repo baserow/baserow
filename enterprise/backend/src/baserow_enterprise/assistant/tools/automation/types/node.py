@@ -315,7 +315,13 @@ class ActionNodeCreate(BaseModel):
     def _validate_required_for_type(self):
         required = self._REQUIRED_FIELDS.get(self.type)
         if required:
-            missing = [name for attr, name in required if getattr(self, attr) is None]
+            missing = [
+                name
+                for attr, name in required
+                if getattr(self, attr) is None
+                # A blank row ID is no row at all: the node would fail every run.
+                or (attr == "row_id" and not getattr(self, attr).strip())
+            ]
             if missing:
                 raise ValueError(f"{self.type} requires {', '.join(missing)}")
         return self

@@ -1,3 +1,4 @@
+import uuid
 from collections import defaultdict
 from unittest.mock import patch
 
@@ -10,8 +11,12 @@ from baserow.contrib.automation.nodes.node_types import CoreManualTriggerNodeTyp
 from baserow.contrib.automation.workflows.operations import (
     ReadAutomationWorkflowOperationType,
 )
+from baserow.contrib.database.action.scopes import TableActionScopeType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.workflow_actions.actions import (
+    UpdateDatabaseWorkflowActionActionType,
+)
 from baserow.contrib.database.workflow_actions.models import (
     CoreStartWorkflowWorkflowAction,
     DatabaseWorkflowAction,
@@ -20,6 +25,7 @@ from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
 from baserow.contrib.integrations.core.models import CoreStartWorkflowService
+from baserow.core.action.handler import ActionHandler
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
@@ -977,3 +983,56 @@ def test_a_mirror_dict_mapping_still_drops_a_colliding_workflow(data_fixture):
         )
 
     assert imported.service.specific.workflow_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_type_change_rechecks_the_workflow_it_brings_back(data_fixture):
+    """
+    The kept service is attached as it is, so the workflow is checked here as
+    an update setting it would check it.
+    """
+
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    field = _button(data_fixture, user, workspace)
+    workflow = _workflow(data_fixture, user, workspace)
+    action = _action_starting(data_fixture, field, workflow)
+    UpdateDatabaseWorkflowActionActionType.do(user, action, type="open_url")
+    scopes = [TableActionScopeType.value(field.table_id)]
+
+    with patch.object(
+        CoreHandler,
+        "check_permissions",
+        _denying(ReadAutomationWorkflowOperationType.type),
+    ):
+        [undone] = ActionHandler.undo(user, scopes, session_id)
+
+    assert undone.error is not None
+    assert DatabaseWorkflowAction.objects.get(id=action.id).get_type().type == (
+        "open_url"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_type_change_brings_back_a_workflow_the_user_can_read(
+    data_fixture,
+):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    field = _button(data_fixture, user, workspace)
+    workflow = _workflow(data_fixture, user, workspace)
+    action = _action_starting(data_fixture, field, workflow)
+    UpdateDatabaseWorkflowActionActionType.do(user, action, type="open_url")
+
+    [undone] = ActionHandler.undo(
+        user, [TableActionScopeType.value(field.table_id)], session_id
+    )
+
+    assert undone.error is None
+    restored = DatabaseWorkflowAction.objects.get(id=action.id).specific
+    assert isinstance(restored, CoreStartWorkflowWorkflowAction)
+    assert restored.service.specific.workflow_id == workflow.id

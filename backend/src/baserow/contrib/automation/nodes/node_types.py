@@ -63,6 +63,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.local_baserow.mixins import (
+    UpdateRowRequiresRowIdMixin,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
     LocalBaserowCreateRowsServiceType,
@@ -166,7 +169,9 @@ class LocalBaserowCreateRowsNodeType(AutomationNodeActionNodeType):
         return {"service": service}
 
 
-class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
+class LocalBaserowUpdateRowNodeType(
+    UpdateRowRequiresRowIdMixin, LocalBaserowUpsertRowNodeType
+):
     display_name = _("Local Baserow update row")
     type = "local_baserow_update_row"
     compat_type = "update_row"

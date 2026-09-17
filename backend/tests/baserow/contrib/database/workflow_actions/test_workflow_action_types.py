@@ -355,8 +355,10 @@ def test_editing_an_action_while_the_instance_cannot_send_keeps_the_pin(
     )
 
     settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
-    action = DatabaseWorkflowActionService().update_workflow_action(
-        user, action, service={"subject": "'Hello again'"}
+    action = (
+        DatabaseWorkflowActionService()
+        .update_workflow_action(user, action, service={"subject": "'Hello again'"})
+        .workflow_action
     )
 
     service = action.service.specific

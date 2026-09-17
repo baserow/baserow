@@ -93,6 +93,7 @@ class DatabaseWorkflowActionHandler(WorkflowActionHandler):
         self,
         workflow_action: DatabaseWorkflowAction,
         workflow_action_type: WorkflowActionType,
+        keep_old_service: bool = False,
         **prepared_values,
     ) -> DatabaseWorkflowAction:
         """
@@ -101,6 +102,8 @@ class DatabaseWorkflowActionHandler(WorkflowActionHandler):
 
         :param workflow_action: The action whose type changes.
         :param workflow_action_type: The type it becomes.
+        :param keep_old_service: Leaves the service the action had in place
+            rather than deleting it, so an undo can attach it again.
         :return: The action, now an instance of the new type's model.
         """
 
@@ -119,7 +122,7 @@ class DatabaseWorkflowActionHandler(WorkflowActionHandler):
 
         workflow_action.save()
 
-        if old_service is not None:
+        if old_service is not None and not keep_old_service:
             old_service = old_service.specific
             ServiceHandler().delete_service(old_service.get_type(), old_service)
 

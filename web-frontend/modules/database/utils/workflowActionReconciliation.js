@@ -41,6 +41,22 @@ export function referencedActionIdsInConfig(action) {
 }
 
 /**
+ * How many undo steps the calls for `plan` can register. Counts the most a save
+ * can send: an update that changes the type and its config is two calls, and an
+ * order call is counted whenever there is a list to order.
+ */
+export function countUndoSteps({ toCreate, toUpdate, toDelete, order }) {
+  const updates = toUpdate.reduce(
+    (count, { values }) =>
+      count + (values.type !== undefined && 'service' in values ? 2 : 1),
+    0
+  )
+  return (
+    toCreate.length + updates + toDelete.length + (order.length > 0 ? 1 : 0)
+  )
+}
+
+/**
  * Works out the API calls needed to make the server's action list match the
  * editor's local one. The editor buffers changes so that cancelling discards
  * them, which means the difference has to be computed at submit time.
@@ -100,4 +116,54 @@ export function reconcileWorkflowActions(serverActions, localActions) {
     .filter((id) => !keptIds.has(id))
 
   return { toCreate, toUpdate, toDelete, order }
+}
+
+/**
+ * Carries the editor's unsaved edits over onto a list that changed on the
+ * server since the editor read it, by an undo or a collaborator. Keeping the
+ * old buffer instead would make the next save put back whatever changed.
+ *
+ * An action the user did not touch follows the server: it takes the server's
+ * version, or goes when the server no longer has it. An action the user
+ * changed or added keeps the user's version. An action the server gained is
+ * added at its server position, and one the user removed stays removed.
+ *
+ * @param base The list the editor's buffer was taken from.
+ * @param fresh The list as the server has it now.
+ * @param local The editor's buffer.
+ * @returns The buffer to edit from here on.
+ */
+export function rebaseWorkflowActions(base, fresh, local) {
+  const baseById = new Map(base.map((a) => [a.id, a]))
+  const freshById = new Map(fresh.map((a) => [a.id, a]))
+
+  const result = []
+  local.forEach((action) => {
+    const baseAction = action.id == null ? undefined : baseById.get(action.id)
+    const touched =
+      baseAction === undefined ||
+      action.type !== baseAction.type ||
+      !_.isEqual(workflowActionConfig(action), workflowActionConfig(baseAction))
+    if (touched) {
+      result.push(action)
+    } else if (freshById.has(action.id)) {
+      result.push(_.cloneDeep(freshById.get(action.id)))
+    }
+  })
+
+  const localIds = new Set(local.map((a) => a.id).filter((id) => id != null))
+  fresh.forEach((action, index) => {
+    if (baseById.has(action.id) || localIds.has(action.id)) {
+      return
+    }
+    // After the nearest action before it on the server that is still listed.
+    const previous = fresh
+      .slice(0, index)
+      .reverse()
+      .find((candidate) => result.some((a) => a.id === candidate.id))
+    const at = previous ? result.findIndex((a) => a.id === previous.id) + 1 : 0
+    result.splice(at, 0, _.cloneDeep(action))
+  })
+
+  return result
 }

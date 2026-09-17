@@ -9,6 +9,9 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.database.workflow_actions.actions import (
+    UpdateDatabaseWorkflowActionActionType,
+)
 from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
@@ -20,6 +23,7 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.core.action.models import Action
 from baserow.core.services.models import Service
 
 
@@ -315,7 +319,12 @@ def test_update_workflow_action_type(api_client, data_fixture):
     assert updated.service.specific.get_type().type == "local_baserow_delete_row"
     assert updated.field_id == button_field.id
     assert updated.order == action.order
-    # The old service must be disposed of, not left orphaned.
+    # Kept for an undo to attach again, then disposed of with the undo step
+    # rather than left orphaned.
+    assert Service.objects.filter(id=old_service_id).exists()
+    UpdateDatabaseWorkflowActionActionType.clean_up_any_extra_action_data(
+        Action.objects.get(type=UpdateDatabaseWorkflowActionActionType.type)
+    )
     assert not Service.objects.filter(id=old_service_id).exists()
 
 
@@ -412,6 +421,27 @@ def test_delete_a_missing_workflow_action(api_client, data_fixture):
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_deleting_an_action_twice_answers_that_it_is_gone(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    url = reverse(
+        "api:database:workflow_actions:item",
+        kwargs={"workflow_action_id": action.id},
+    )
+
+    first = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    second = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert first.status_code == HTTP_204_NO_CONTENT
+    assert second.status_code == HTTP_404_NOT_FOUND
+    assert second.json()["error"] == "ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST"
 
 
 @pytest.mark.django_db
@@ -764,3 +794,65 @@ def test_clicking_a_button_carrying_a_deactivated_type_is_refused(
 
     assert response.status_code == HTTP_403_FORBIDDEN, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_every_configuration_endpoint_can_be_undone(api_client, data_fixture):
+    """Create, update, order and delete each register an undoable action."""
+
+    from baserow.core.action.models import Action
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    headers = {
+        "HTTP_AUTHORIZATION": f"JWT {token}",
+        "HTTP_CLIENTSESSIONID": "session-1",
+    }
+
+    created = api_client.post(
+        reverse(
+            "api:database:workflow_actions:list",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"type": "open_url"},
+        format="json",
+        **headers,
+    ).json()
+    api_client.patch(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": created["id"]},
+        ),
+        {"target": "blank"},
+        format="json",
+        **headers,
+    )
+    api_client.post(
+        reverse(
+            "api:database:workflow_actions:order",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"workflow_action_ids": [created["id"]]},
+        format="json",
+        **headers,
+    )
+    api_client.delete(
+        reverse(
+            "api:database:workflow_actions:item",
+            kwargs={"workflow_action_id": created["id"]},
+        ),
+        **headers,
+    )
+
+    assert list(
+        Action.objects.filter(session="session-1")
+        .order_by("id")
+        .values_list("type", flat=True)
+    ) == [
+        "create_database_workflow_action",
+        "update_database_workflow_action",
+        "order_database_workflow_actions",
+        "delete_database_workflow_action",
+    ]

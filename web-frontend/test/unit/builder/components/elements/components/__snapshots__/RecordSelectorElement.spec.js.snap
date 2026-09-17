@@ -352,3 +352,13 @@ exports[`RecordSelectorElement > resolves suffix formulas 1`] = `
   
 </div>
 `;
+
+exports[`RecordSelectorElement > selects imported records using _id 1`] = `"Imported record"`;
+
+exports[`RecordSelectorElement > selects imported records using id 1`] = `"Imported record"`;
+
+exports[`RecordSelectorElement > selects imported records using id precedence 1`] = `"Imported record"`;
+
+exports[`RecordSelectorElement > selects imported records using null id fallback 1`] = `"Imported record"`;
+
+exports[`RecordSelectorElement > selects imported records using zero id 1`] = `"Imported record"`;

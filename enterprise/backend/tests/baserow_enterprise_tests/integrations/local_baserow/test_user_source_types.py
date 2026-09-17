@@ -1671,7 +1671,7 @@ def test_prepare_values_role_field_id_raises_if_field_id_mismatch(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "field_creator,",
+    "field_creator",
     [
         "create_autonumber_field",
         "create_boolean_field",
@@ -1729,7 +1729,7 @@ def test_prepare_values_role_field_id_raises_if_field_type_wrong(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "field_creator,",
+    "field_creator",
     [
         "create_formula_field",
         "create_single_select_field",
@@ -1768,7 +1768,7 @@ def test_prepare_values_role_field_id_returns_values(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "field_creator,",
+    "field_creator",
     [
         "create_formula_field",
         "create_single_select_field",

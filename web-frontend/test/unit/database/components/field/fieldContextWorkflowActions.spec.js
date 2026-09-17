@@ -17,6 +17,8 @@ describe('field contexts keep has_workflow_actions in sync', () => {
   let reportedValuesAfterSave = null
   // Set by a test to make the stubbed form's action save fail.
   let actionSaveError = null
+  // The options each `afterFieldSaved` call was given.
+  let afterFieldSavedOptions = []
 
   const table = { id: 1 }
   const view = { id: 1, type: 'grid' }
@@ -37,7 +39,8 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       'database',
     ],
     methods: {
-      async afterFieldSaved() {
+      async afterFieldSaved(fieldId, options) {
+        afterFieldSavedOptions.push(options)
         if (actionSaveError !== null) {
           throw actionSaveError
         }
@@ -83,6 +86,7 @@ describe('field contexts keep has_workflow_actions in sync', () => {
     testApp = new TestApp()
     reportedValuesAfterSave = null
     actionSaveError = null
+    afterFieldSavedOptions = []
     client = testApp.getApp().$client
     vi.spyOn(client, 'get').mockResolvedValue({ data: [] })
     vi.spyOn(client, 'post').mockResolvedValue({ data: {} })
@@ -93,6 +97,65 @@ describe('field contexts keep has_workflow_actions in sync', () => {
   afterEach(async () => {
     await testApp.afterEach()
     vi.restoreAllMocks()
+  })
+
+  test('an update saves the field and its actions under one undo group', async () => {
+    // Undo works on the group, so a save that changed the label and an action
+    // is taken back by one undo rather than one per request.
+    const field = buttonField()
+    await testApp.store.dispatch('field/forceSetFields', { fields: [field] })
+    client.patch.mockResolvedValue({ data: buttonField() })
+
+    const wrapper = await mountContext(UpdateFieldContext, {
+      table,
+      field,
+      view,
+      allFieldsInTable,
+      database,
+    })
+    await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+
+    const patched = client.patch.mock.calls[0][2]
+    expect(patched.headers.ClientUndoRedoActionGroupId).toBeTruthy()
+    expect(afterFieldSavedOptions).toEqual([
+      { undoRedoActionGroupId: patched.headers.ClientUndoRedoActionGroupId },
+    ])
+  })
+
+  test('each update save gets an undo group of its own', async () => {
+    const field = buttonField()
+    await testApp.store.dispatch('field/forceSetFields', { fields: [field] })
+    client.patch.mockResolvedValue({ data: buttonField() })
+
+    const wrapper = await mountContext(UpdateFieldContext, {
+      table,
+      field,
+      view,
+      allFieldsInTable,
+      database,
+    })
+    await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+    await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Again' })
+
+    const [first, second] = afterFieldSavedOptions
+    expect(first.undoRedoActionGroupId).not.toBe(second.undoRedoActionGroupId)
+  })
+
+  test('a create saves the field and its actions under one undo group', async () => {
+    client.post.mockResolvedValue({ data: buttonField() })
+
+    const wrapper = await mountContext(CreateFieldContext, {
+      table,
+      view,
+      allFieldsInTable,
+      database,
+    })
+    await wrapper.vm.submit({ name: 'Go', type: 'button', label: 'Go' })
+
+    const created = client.post.mock.calls[0][2]
+    expect(afterFieldSavedOptions).toEqual([
+      { undoRedoActionGroupId: created.headers.ClientUndoRedoActionGroupId },
+    ])
   })
 
   test('a failed action save leaves the editor open on the edits', async () => {
@@ -332,6 +395,11 @@ describe('field contexts keep has_workflow_actions in sync', () => {
       expect(patched?.headers?.ClientUndoRedoActionGroupId).toBe(
         created.headers.ClientUndoRedoActionGroupId
       )
+      // The retried actions too, on the attempt that failed and on this one.
+      expect(afterFieldSavedOptions).toEqual([
+        { undoRedoActionGroupId: created.headers.ClientUndoRedoActionGroupId },
+        { undoRedoActionGroupId: created.headers.ClientUndoRedoActionGroupId },
+      ])
     })
 
     test('the retry lets the parent refresh its rows first', async () => {

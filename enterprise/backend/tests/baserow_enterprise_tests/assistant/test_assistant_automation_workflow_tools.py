@@ -352,6 +352,20 @@ def test_create_row_action_with_field_ids(data_fixture):
     assert action_node.service.specific.table_id == table.id
 
 
+@pytest.mark.parametrize("row_id", [None, "", "  "])
+def test_update_row_node_requires_a_row_id(row_id):
+    with pytest.raises(ValueError, match="update_row requires row_id"):
+        ActionNodeCreate(
+            type="update_row",
+            ref="action",
+            previous_node_ref="trigger",
+            label="Update Row Action",
+            table_id=1,
+            row_id=row_id,
+            values=[],
+        )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_update_row_action_with_row_id_and_field_ids(data_fixture):
     """Test ActionNodeCreate uses row_id parameter and field IDs in values."""

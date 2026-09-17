@@ -26,6 +26,9 @@ const mutations = {
     const index = page.dataSources.findIndex(
       (dataSource) => dataSource.id === dataSourceToUpdate.id
     )
+    if (index === -1) {
+      return
+    }
     page.dataSources.splice(index, 1, {
       ...page.dataSources[index],
       ...values,
@@ -35,6 +38,9 @@ const mutations = {
     const index = page.dataSources.findIndex(
       (dataSource) => dataSource.id === dataSourceToUpdate.id
     )
+    if (index === -1) {
+      return
+    }
     page.dataSources.splice(index, 1, {
       ...values,
     })

@@ -174,6 +174,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import grouper, list_to_comma_separated_string
@@ -3056,6 +3057,22 @@ class LinkRowFieldType(
             },
         )
 
+    def get_query_value_serializer(self, field: LinkRowField):
+        response_serializer = self.get_response_serializer_field(field)
+        related_model = field.link_row_table.get_model()
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            rows_by_id = {
+                row.id: row for row in related_model.objects.filter(id__in=value)
+            }
+            rows = [rows_by_id[row_id] for row_id in value if row_id in rows_by_id]
+            return response_serializer.to_representation(rows)
+
+        return serialize
+
     def get_serializer_help_text(self, instance):
         return (
             "This field accepts an `array` containing the ids or the names of the "
@@ -4884,6 +4901,18 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             }
         )
 
+    def get_query_value_serializer(self, field: SingleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            return response_serializer.to_representation(select_options.get(value))
+
+        return serialize
+
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
@@ -5087,6 +5116,23 @@ class MultipleSelectFieldType(
                 **kwargs,
             }
         )
+
+    def get_query_value_serializer(self, field: MultipleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            options = [
+                select_options[option_id]
+                for option_id in value
+                if option_id in select_options
+            ]
+            return response_serializer.to_representation(options)
+
+        return serialize
 
     def enhance_queryset(self, queryset, field, name, **kwargs):
         # It's important that this individual enhance_queryset method exists, even
@@ -7090,6 +7136,23 @@ class MultipleCollaboratorsFieldType(
             }
         )
 
+    def get_query_value_serializer(self, field: MultipleCollaboratorsField):
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            users_by_id = {
+                user.id: user for user in get_user_model().objects.filter(id__in=value)
+            }
+            users = [
+                users_by_id[user_id] for user_id in value if user_id in users_by_id
+            ]
+            return response_serializer.to_representation(users)
+
+        return serialize
+
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         return [{"id": u.id, "name": u.first_name} for u in value.all()]
 
@@ -8346,10 +8409,26 @@ class ButtonFieldType(ReadOnlyFieldType):
     def export_prepared_values(self, field: ButtonField) -> Dict[str, Any]:
         values = super().export_prepared_values(field)
         # A type change deletes the row the actions cascade off, so only this
-        # backup can bring them back.
+        # backup can bring them back. Trashed actions are kept too: undoing a
+        # save trashes the actions it created before it undoes the type change,
+        # and redo restores them from the trash. The backup is logged on the
+        # undo action and copied into the audit log, so whatever a service
+        # calls sensitive is left blank, as a workspace export leaves it. An
+        # email action's service calls its whole message sensitive, so it comes
+        # back empty.
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=True,
+        )
         values["workflow_actions"] = [
-            action.get_type().export_serialized(action)
-            for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
+            {
+                **action.get_type().export_serialized(action, import_export_config),
+                "trashed": action.trashed,
+            }
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(
+                field, base_queryset=DatabaseWorkflowAction.objects_and_trash
+            )
         ]
         return values
 
@@ -8372,7 +8451,10 @@ class ButtonFieldType(ReadOnlyFieldType):
         # `user` is checked against the restored actions (ADR 006 section 5),
         # so a credential or workflow they may not read is dropped.
         self._recreate_workflow_actions(
-            to_field, to_field_kwargs.get("workflow_actions") or [], user=user
+            to_field,
+            to_field_kwargs.get("workflow_actions") or [],
+            user=user,
+            restore=True,
         )
 
     def _recreate_workflow_actions(
@@ -8380,8 +8462,17 @@ class ButtonFieldType(ReadOnlyFieldType):
         field: ButtonField,
         serialized_actions: List[Dict[str, Any]],
         user: Optional[AbstractUser] = None,
+        restore: bool = False,
     ) -> None:
-        """Recreates the serialized actions on the field, in order."""
+        """
+        Recreates the serialized actions on the field, in order.
+
+        :param restore: Whether these are the field's own actions coming back
+            after a type change, rather than copies. Each keeps its id, so the
+            undo steps naming it still work, and a trashed one is trashed again.
+            Its entry went with it, and redoing the step that trashed it
+            restores it from a new one.
+        """
 
         if not serialized_actions:
             return
@@ -8407,13 +8498,20 @@ class ButtonFieldType(ReadOnlyFieldType):
         # which raises when no context is active.
         with deferred_callback_context():
             for serialized_action in serialized_actions:
+                trashed = restore and serialized_action.get("trashed", False)
                 action_type = database_workflow_action_type_registry.get(
                     serialized_action["type"]
                 )
-                action_type.import_serialized(
+                action = action_type.import_serialized(
                     field,
                     serialized_action,
                     id_mapping,
                     import_export_config=import_export_config,
                     copied_by=user,
+                    restored_workflow_action_id=(
+                        serialized_action.get("id") if restore else None
+                    ),
                 )
+                if trashed:
+                    database = field.table.database
+                    TrashHandler.trash(user, database.workspace, database, action)

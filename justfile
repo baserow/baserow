@@ -961,7 +961,7 @@ build target="" tag="latest" *ARGS:
             BUILD_ARGS+=("--build-arg" "BACKEND_IMAGE=baserow/backend:{{ tag }}")
             echo "Building web-frontend (prod)..."
             $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
-            BUILD_ARGS+=("--build-arg" "WEB_FRONTEND_IMAGE=baserow/web-frontend:{{ tag }}")
+            BUILD_ARGS+=("--build-arg" "WEBFRONTEND_IMAGE=baserow/web-frontend:{{ tag }}")
             echo "Building all-in-one..."
             NAME_ARG="baserow/baserow:{{ tag }}"
             $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod -t $NAME_ARG .
@@ -972,7 +972,7 @@ build target="" tag="latest" *ARGS:
             BUILD_ARGS+=("--build-arg" "BACKEND_IMAGE=baserow/backend:{{ tag }}")
             echo "Building web-frontend (prod)..."
             $BUILD_CMD "${BUILD_ARGS[@]}" -f web-frontend/Dockerfile --target prod -t baserow/web-frontend:{{ tag }} .
-            BUILD_ARGS+=("--build-arg" "WEB_FRONTEND_IMAGE=baserow/web-frontend:{{ tag }}")
+            BUILD_ARGS+=("--build-arg" "WEBFRONTEND_IMAGE=baserow/web-frontend:{{ tag }}")
             echo "Building all-in-one-lite (no postgres/redis)..."
             NAME_ARG="baserow/baserow:lite-{{ tag }}"
             $BUILD_CMD "${BUILD_ARGS[@]}" -f deploy/all-in-one/Dockerfile --target prod-lite -t $NAME_ARG .

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed new users getting an error page instead of the onboarding screen on their first SAML or OAuth2 SSO login.",
+    "issue_origin": "github",
+    "issue_number": 6043,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-14"
+}

@@ -50,6 +50,9 @@ describe('FieldButtonSubForm', () => {
   // Nested rather than a sibling describe, because these tests reuse the
   // `testApp`/`mountForm` set up above.
   describe('workflow actions', () => {
+    // The request config of a call sent outside any undo group.
+    const noGroup = { params: {} }
+
     beforeEach(() => {
       // Replace the real client methods with spies so requests never hit
       // the network, and so calls can be asserted on directly.
@@ -128,6 +131,137 @@ describe('FieldButtonSubForm', () => {
         data: { body: {} },
       })
       expect(wrapper.vm.localActions[1].type).toBe('local_baserow_create_row')
+    })
+
+    const url = (formula) => ({ mode: 'simple', version: '0.1', formula })
+
+    test('opening the field again shows the list an undo left', async () => {
+      // An undo changes the list while the editor is closed. Keeping the old
+      // buffer would show actions that no longer exist, and the next save
+      // would create them again.
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [
+          { id: 7, type: 'open_url', url: url('a'), target: 'self' },
+          { id: 8, type: 'open_url', url: url('b'), target: 'self' },
+        ],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('before'), target: 'self' }],
+      })
+      await wrapper.vm.onShow()
+
+      expect(wrapper.vm.localActions).toEqual([
+        { id: 7, type: 'open_url', url: url('before'), target: 'self' },
+      ])
+
+      await wrapper.vm.afterFieldSaved(5)
+      expect(client.post).not.toHaveBeenCalledWith(
+        'database/field/5/workflow_actions/',
+        expect.anything(),
+        expect.anything()
+      )
+      expect(client.patch).not.toHaveBeenCalled()
+      expect(client.delete).not.toHaveBeenCalled()
+    })
+
+    test('re-reading keeps an edited action rather than the undone list', async () => {
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('a'), target: 'self' }],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+      wrapper.vm.localActions = [
+        { id: 7, type: 'open_url', url: url('edited'), target: 'self' },
+      ]
+
+      client.get.mockResolvedValueOnce({ data: [] })
+      await wrapper.vm.onShow()
+
+      expect(wrapper.vm.localActions).toEqual([
+        { id: 7, type: 'open_url', url: url('edited'), target: 'self' },
+      ])
+    })
+
+    test('a card opened again shows the value an undo put back', async () => {
+      // Each action form copies its values once, when it is made, so swapping
+      // the list alone leaves the card showing, and saving, the undone value.
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('after'), target: 'self' }],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+      const card = () =>
+        wrapper.findComponent({ name: 'OpenUrlWorkflowActionForm' })
+      expect(card().vm.values.url.formula).toBe('after')
+
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('before'), target: 'self' }],
+      })
+      await wrapper.vm.onShow()
+      await flushPromises()
+
+      expect(card().vm.values.url.formula).toBe('before')
+    })
+
+    test('a card shows the saved value again after a cancel', async () => {
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('saved'), target: 'self' }],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+      const card = () =>
+        wrapper.findComponent({ name: 'OpenUrlWorkflowActionForm' })
+      card().vm.values.url = url('edited')
+
+      await wrapper.vm.reset()
+      await flushPromises()
+
+      expect(card().vm.values.url.formula).toBe('saved')
+    })
+
+    test('an undo under unsaved edits is not reverted by the next save', async () => {
+      const client = testApp.getApp().$client
+      client.get.mockResolvedValueOnce({
+        data: [
+          { id: 7, type: 'open_url', url: url('a'), target: 'self' },
+          { id: 9, type: 'open_url', url: url('added'), target: 'self' },
+        ],
+      })
+      const wrapper = await mountForm({ type: 'button', id: 5, label: 'Go' })
+      await flushPromises()
+      wrapper.vm.localActions = [
+        { id: 7, type: 'open_url', url: url('edited'), target: 'self' },
+        { id: 9, type: 'open_url', url: url('added'), target: 'self' },
+      ]
+
+      // The undo trashed action 9.
+      client.get.mockResolvedValueOnce({
+        data: [{ id: 7, type: 'open_url', url: url('a'), target: 'self' }],
+      })
+      await wrapper.vm.onShow()
+      await flushPromises()
+      client.get.mockResolvedValue({ data: [] })
+      await wrapper.vm.afterFieldSaved(5)
+
+      // The edit is saved, and action 9 is neither recreated nor deleted.
+      expect(client.patch).toHaveBeenCalledWith(
+        'database/workflow_action/7/',
+        { url: url('edited'), target: 'self' },
+        noGroup
+      )
+      expect(
+        client.post.mock.calls.filter(
+          ([path]) => path === 'database/field/5/workflow_actions/'
+        )
+      ).toEqual([])
+      expect(client.delete).not.toHaveBeenCalled()
     })
 
     test('a field that was never saved has nothing to re-read', async () => {
@@ -441,7 +575,8 @@ describe('FieldButtonSubForm', () => {
 
       expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/',
-        { type: 'local_baserow_create_row', service: { table_id: 3 } }
+        { type: 'local_baserow_create_row', service: { table_id: 3 } },
+        noGroup
       )
       expect(wrapper.vm.$client.patch).not.toHaveBeenCalled()
     })
@@ -496,7 +631,8 @@ describe('FieldButtonSubForm', () => {
           type: 'open_url',
           url: { formula: "'x'", mode: 'simple' },
           target: 'blank',
-        }
+        },
+        noGroup
       )
     })
 
@@ -505,8 +641,8 @@ describe('FieldButtonSubForm', () => {
       // the same action and the order call uses the id the editor holds.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
-        { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
         { id: 2, type: 'local_baserow_delete_row', service: {} },
+        { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
       ]
       wrapper.vm.localActions = [
         { id: 1, type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
@@ -521,11 +657,13 @@ describe('FieldButtonSubForm', () => {
 
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/1/',
-        { type: 'open_url', url: { formula: "'x'", mode: 'simple' } }
+        { type: 'open_url', url: { formula: "'x'", mode: 'simple' } },
+        noGroup
       )
       expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/order/',
-        { workflow_action_ids: [1, 2] }
+        { workflow_action_ids: [1, 2] },
+        noGroup
       )
     })
 
@@ -555,7 +693,8 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.patch).toHaveBeenCalledTimes(1)
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/1/',
-        { type: 'local_baserow_delete_row' }
+        { type: 'local_baserow_delete_row' },
+        noGroup
       )
     })
 
@@ -582,16 +721,17 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.patch.mock.calls).toEqual([
-        ['database/workflow_action/1/', { type: 'local_baserow_create_row' }],
+        [
+          'database/workflow_action/1/',
+          { type: 'local_baserow_create_row' },
+          noGroup,
+        ],
         [
           'database/workflow_action/1/',
           { service: { type: 'local_baserow_upsert_row', table_id: 3 } },
+          noGroup,
         ],
       ])
-      expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
-        'database/field/7/workflow_actions/order/',
-        { workflow_action_ids: [1] }
-      )
     })
 
     test('a type round trip sends no untyped service back', async () => {
@@ -655,7 +795,8 @@ describe('FieldButtonSubForm', () => {
 
       expect(wrapper.vm.$client.patch).toHaveBeenCalledWith(
         'database/workflow_action/1/',
-        { service: { type: 'local_baserow_upsert_row', table_id: 5 } }
+        { service: { type: 'local_baserow_upsert_row', table_id: 5 } },
+        noGroup
       )
     })
 
@@ -678,7 +819,7 @@ describe('FieldButtonSubForm', () => {
       expect(wrapper.vm.$client.delete).not.toHaveBeenCalled()
     })
 
-    test('saving deletes a removed action and orders the rest', async () => {
+    test('saving deletes a removed action and leaves the order alone', async () => {
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.serverActions = [
         { id: 1, type: 'local_baserow_create_row', service: {} },
@@ -691,12 +832,121 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.afterFieldSaved(7)
 
       expect(wrapper.vm.$client.delete).toHaveBeenCalledWith(
-        'database/workflow_action/1/'
+        'database/workflow_action/1/',
+        noGroup
       )
-      expect(wrapper.vm.$client.post).toHaveBeenCalledWith(
+      // The server already has [2], so an order call would only add an undo
+      // step to the save's group.
+      expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+    })
+
+    test('an action created last sends no order call', async () => {
+      const client = testApp.getApp().$client
+      client.post.mockResolvedValue({ data: { id: 3, type: 'open_url' } })
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [{ id: 1, type: 'open_url', url: 'a' }]
+      wrapper.vm.localActions = [
+        { id: 1, type: 'open_url', url: 'a' },
+        { [CLIENT_ID_KEY]: 'new', type: 'open_url', url: 'b' },
+      ]
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(client.post.mock.calls.map((call) => call[0])).toEqual([
+        'database/field/7/workflow_actions/',
+      ])
+    })
+
+    test('an action created above a saved one is ordered into place', async () => {
+      const client = testApp.getApp().$client
+      client.post.mockResolvedValue({ data: { id: 3, type: 'open_url' } })
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [{ id: 1, type: 'open_url', url: 'a' }]
+      wrapper.vm.localActions = [
+        { [CLIENT_ID_KEY]: 'new', type: 'open_url', url: 'b' },
+        { id: 1, type: 'open_url', url: 'a' },
+      ]
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(client.post).toHaveBeenCalledWith(
         'database/field/7/workflow_actions/order/',
-        { workflow_action_ids: [2] }
+        { workflow_action_ids: [3, 1] },
+        noGroup
       )
+    })
+
+    test('a save too big for one undo group is sent without one', async () => {
+      // One undo takes back only the newest 20 steps of a group, which would
+      // leave the field save applied.
+      const client = testApp.getApp().$client
+      let nextId = 100
+      client.post.mockImplementation(() =>
+        Promise.resolve({ data: { id: nextId++, type: 'open_url' } })
+      )
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = Array.from({ length: 20 }, (_, i) => ({
+        [CLIENT_ID_KEY]: `new-${i}`,
+        type: 'open_url',
+        url: `u${i}`,
+      }))
+
+      await wrapper.vm.afterFieldSaved(7, { undoRedoActionGroupId: 'group-1' })
+
+      expect(client.post).toHaveBeenCalledTimes(20)
+      client.post.mock.calls.forEach((call) => expect(call[2]).toEqual(noGroup))
+    })
+
+    test('a save that fits one undo group keeps it', async () => {
+      const client = testApp.getApp().$client
+      let nextId = 100
+      client.post.mockImplementation(() =>
+        Promise.resolve({ data: { id: nextId++, type: 'open_url' } })
+      )
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      // With the field save and the counted order call, 20 steps.
+      wrapper.vm.localActions = Array.from({ length: 18 }, (_, i) => ({
+        [CLIENT_ID_KEY]: `new-${i}`,
+        type: 'open_url',
+        url: `u${i}`,
+      }))
+
+      await wrapper.vm.afterFieldSaved(7, { undoRedoActionGroupId: 'group-1' })
+
+      client.post.mock.calls.forEach((call) =>
+        expect(call[2].headers.ClientUndoRedoActionGroupId).toBe('group-1')
+      )
+    })
+
+    test('every call a save makes carries the undo group it is given', async () => {
+      // One undo takes back the field and all of its actions only when every
+      // request of the save shares the group.
+      const client = testApp.getApp().$client
+      client.post.mockResolvedValue({ data: { id: 3, type: 'open_url' } })
+      client.patch.mockResolvedValue({ data: { id: 1 } })
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [
+        { id: 1, type: 'open_url', url: 'a' },
+        { id: 2, type: 'open_url', url: 'b' },
+      ]
+      wrapper.vm.localActions = [
+        { [CLIENT_ID_KEY]: 'new', type: 'open_url', url: 'c' },
+        { id: 1, type: 'open_url', url: 'changed' },
+      ]
+
+      await wrapper.vm.afterFieldSaved(7, { undoRedoActionGroupId: 'group-1' })
+
+      const groups = [
+        ...client.post.mock.calls,
+        ...client.patch.mock.calls,
+      ].map((call) => call[2].headers.ClientUndoRedoActionGroupId)
+      groups.push(
+        client.delete.mock.calls[0][1].headers.ClientUndoRedoActionGroupId
+      )
+      // A create, an order, an update and a delete.
+      expect(groups).toEqual(['group-1', 'group-1', 'group-1', 'group-1'])
     })
 
     test('editing an already-edited action accumulates both edits', async () => {

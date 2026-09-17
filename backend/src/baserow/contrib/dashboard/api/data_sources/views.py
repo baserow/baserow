@@ -18,6 +18,7 @@ from baserow.api.utils import (
     DiscriminatorCustomFieldsMappingSerializer,
 )
 from baserow.contrib.dashboard.api.errors import ERROR_DASHBOARD_DOES_NOT_EXIST
+from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.actions import (
     UpdateDashboardDataSourceActionType,
 )
@@ -183,6 +184,7 @@ class DashboardDataSourceView(APIView):
             service_type_registry,
             request.data,
             base_serializer_class=UpdateDashboardDataSourceSerializer,
+            serializer_class_context={"application_type": DashboardApplicationType},
             return_validated=True,
         )
 
@@ -245,8 +247,12 @@ class DispatchDashboardDataSourceView(APIView):
         Call the given data source related service dispatch method.
         """
 
-        dispatch_context = DashboardDispatchContext(request)
-        response = DashboardDataSourceService().dispatch_data_source(
+        data_source_service = DashboardDataSourceService()
+        data_source = data_source_service.handler.get_data_source(data_source_id)
+        dispatch_context = DashboardDispatchContext(
+            request, data_source.dashboard.workspace
+        )
+        response = data_source_service.dispatch_data_source(
             request.user, data_source_id, dispatch_context
         )
         return Response(response)

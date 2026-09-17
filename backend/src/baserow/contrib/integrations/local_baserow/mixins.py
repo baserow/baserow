@@ -36,6 +36,7 @@ from baserow.core.services.exceptions import (
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.types import (
+    DispatchResult,
     FormulaToResolve,
     ServiceDict,
     ServiceFilterDictSubClass,
@@ -46,10 +47,12 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
+    from baserow.contrib.automation.nodes.models import AutomationNode
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
     from baserow.contrib.integrations.local_baserow.models import (
         LocalBaserowTableService,
     )
+    from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class LocalBaserowTableServiceFilterableMixin:
@@ -266,9 +269,11 @@ class LocalBaserowTableServiceFilterableMixin:
             new_group = LocalBaserowTableServiceFilterGroup.objects.create(
                 service=service,
                 filter_type=filter_group["filter_type"],
-                parent_group_id=group_id_mapping.get(parent_group_id)
-                if parent_group_id is not None
-                else None,
+                parent_group_id=(
+                    group_id_mapping.get(parent_group_id)
+                    if parent_group_id is not None
+                    else None
+                ),
             )
             group_id_mapping[filter_group["id"]] = new_group.id
 
@@ -277,9 +282,11 @@ class LocalBaserowTableServiceFilterableMixin:
             [
                 LocalBaserowTableServiceFilter(
                     **{k: v for k, v in service_filter.items() if k != "group"},
-                    group_id=group_id_mapping.get(service_filter.get("group"))
-                    if service_filter.get("group") is not None
-                    else None,
+                    group_id=(
+                        group_id_mapping.get(service_filter.get("group"))
+                        if service_filter.get("group") is not None
+                        else None
+                    ),
                     order=index,
                     service=service,
                 )
@@ -575,6 +582,16 @@ class LocalBaserowTableServiceFilterableMixin:
         if prefetch_cache is not None:
             prefetch_cache.pop("service_filters", None)
             prefetch_cache.pop("service_filter_groups", None)
+
+    def after_create(self, instance: ServiceSubClass, values: Dict) -> None:
+        super().after_create(instance, values)
+
+        if "service_filters" in values or "service_filter_groups" in values:
+            self.update_service_filters(
+                instance,
+                values.get("service_filters"),
+                values.get("service_filter_groups"),
+            )
 
     def after_update(
         self,
@@ -1053,3 +1070,38 @@ class LocalBaserowTableServiceSpecificRowMixin:
         return super_formulas + [
             FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
         ]
+
+
+class UpdateRowRequiresRowIdMixin:
+    """
+    For an action or node type that updates a row through the upsert row
+    service. That service creates a row when its row ID formula is empty, so an
+    update type refuses to dispatch without one. List it before the action or
+    node type base, so that its `dispatch` runs first.
+    """
+
+    def raise_if_misconfigured(
+        self, instance: "WorkflowAction | AutomationNode"
+    ) -> None:
+        """
+        Refuses an update that names no row.
+
+        :param instance: The action or node whose service is checked.
+        :raises ServiceImproperlyConfiguredDispatchException: When the row ID
+            formula is empty.
+        """
+
+        super().raise_if_misconfigured(instance)
+
+        if not instance.service.specific.row_id["formula"].strip():
+            raise ServiceImproperlyConfiguredDispatchException(
+                "A row ID is required to update a row."
+            )
+
+    def dispatch(
+        self,
+        instance: "WorkflowAction | AutomationNode",
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        self.raise_if_misconfigured(instance)
+        return super().dispatch(instance, dispatch_context)

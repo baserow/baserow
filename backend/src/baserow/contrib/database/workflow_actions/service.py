@@ -1,6 +1,6 @@
 import json
 from dataclasses import fields as dataclass_fields
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -14,9 +14,6 @@ from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.fields.operations import (
     ReadFieldOperationType,
     UpdateFieldOperationType,
-)
-from baserow.contrib.database.workflow_actions.actions import (
-    DispatchButtonFieldActionType,
 )
 from baserow.contrib.database.workflow_actions.dispatch_context import (
     DatabaseDispatchContext,
@@ -38,15 +35,16 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_created,
-    workflow_action_deleted,
     workflow_action_updated,
     workflow_actions_reordered,
 )
 from baserow.contrib.database.workflow_actions.types import (
     DispatchedWorkflowAction,
+    UpdatedDatabaseWorkflowAction,
     WorkflowActionsDispatchResult,
 )
 from baserow.core.action.context import without_undo_redo_registration
+from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -65,6 +63,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 
 # What a failed external action tells the clicker. The service's own message
@@ -211,14 +210,34 @@ class DatabaseWorkflowActionService:
         return workflow_action
 
     def update_workflow_action(
-        self, user: AbstractUser, workflow_action: DatabaseWorkflowAction, **kwargs
-    ) -> DatabaseWorkflowAction:
+        self,
+        user: AbstractUser,
+        workflow_action: DatabaseWorkflowAction,
+        keep_replaced_service: bool = False,
+        **kwargs,
+    ) -> UpdatedDatabaseWorkflowAction:
+        """
+        Updates an action, swapping its type in place when `type` changes.
+
+        :param user: Who is updating the action.
+        :param workflow_action: The action to update.
+        :param keep_replaced_service: Whether a type change leaves the service
+            it replaces in place, for an undo to attach again, rather than
+            deleting it.
+        :return: The updated action with its values before and after.
+        """
+
         field = workflow_action.field
         CoreHandler().check_permissions(
             user,
             UpdateFieldOperationType.type,
             workspace=field.table.database.workspace,
             context=field,
+        )
+
+        # Read before `prepare_values` writes to the service.
+        original_values = workflow_action.get_type().export_prepared_values(
+            workflow_action
         )
 
         has_type_changed = (
@@ -236,7 +255,10 @@ class DatabaseWorkflowActionService:
                 {**kwargs, "field": field}, user
             )
             workflow_action = self.handler.change_workflow_action_type(
-                workflow_action, workflow_action_type, **prepared_values
+                workflow_action,
+                workflow_action_type,
+                keep_old_service=keep_replaced_service,
+                **prepared_values,
             )
         else:
             workflow_action_type = workflow_action.get_type()
@@ -246,6 +268,60 @@ class DatabaseWorkflowActionService:
             workflow_action = self.handler.update_workflow_action(
                 workflow_action, **prepared_values
             )
+
+        workflow_action_updated.send(self, workflow_action=workflow_action, user=user)
+
+        return UpdatedDatabaseWorkflowAction(
+            workflow_action,
+            original_values,
+            workflow_action.get_type().export_prepared_values(workflow_action),
+        )
+
+    def restore_workflow_action_type(
+        self,
+        user: AbstractUser,
+        workflow_action: DatabaseWorkflowAction,
+        values: Dict[str, Any],
+        service: Optional[Service],
+    ) -> DatabaseWorkflowAction:
+        """
+        Swaps an action back to a type it had, for an undo or a redo, with the
+        service it had then. The logged values leave out whatever the service
+        calls sensitive, so building a new service from them would blank those
+        fields. The service the action has now is kept for the opposite step.
+
+        :param user: Who is undoing or redoing.
+        :param workflow_action: The action to swap.
+        :param values: The action's logged values, `type` among them. The
+            service's own values are ignored in favour of `service`.
+        :param service: The service to attach, or None for a type without one.
+        :return: The action, now an instance of the restored type's model.
+        """
+
+        field = workflow_action.field
+        CoreHandler().check_permissions(
+            user,
+            UpdateFieldOperationType.type,
+            workspace=field.table.database.workspace,
+            context=field,
+        )
+
+        workflow_action_type = database_workflow_action_type_registry.get(
+            values["type"]
+        )
+        workflow_action_type.raise_if_deactivated(field.table.database.workspace)
+        config = {
+            key: value
+            for key, value in values.items()
+            if key not in ("type", "service")
+        }
+        if service is not None:
+            workflow_action_type.check_kept_service(service, user, field)
+            config["service"] = service
+
+        workflow_action = self.handler.change_workflow_action_type(
+            workflow_action, workflow_action_type, keep_old_service=True, **config
+        )
 
         workflow_action_updated.send(self, workflow_action=workflow_action, user=user)
 
@@ -262,12 +338,10 @@ class DatabaseWorkflowActionService:
             context=field,
         )
 
-        workflow_action_id = workflow_action.id
-        self.handler.delete_workflow_action(workflow_action)
-
-        workflow_action_deleted.send(
-            self, workflow_action_id=workflow_action_id, field=field, user=user
-        )
+        # Trashed rather than deleted, so an undo can bring it back with its
+        # service. The trash type sends `workflow_action_deleted`.
+        database = field.table.database
+        TrashHandler.trash(user, database.workspace, database, workflow_action)
 
     def order_workflow_actions(
         self, user: AbstractUser, field: ButtonField, order: List[int]
@@ -518,6 +592,11 @@ class DatabaseWorkflowActionService:
             actions for the caller to run itself, both in order.
         """
 
+        # Imported here: the action module reads this service.
+        from baserow.contrib.database.workflow_actions.actions import (
+            DispatchButtonFieldActionType,
+        )
+
         # Field scoped, so it also covers a button with no actions: without it
         # an outsider would get an empty result rather than a refusal.
         CoreHandler().check_permissions(
@@ -579,10 +658,23 @@ class DatabaseWorkflowActionService:
             for index, workflow_action in enumerate(workflow_actions, start=1)
         }
 
+        # Refused as a whole too, and for the same reason: an action whose saved
+        # configuration cannot run is known before the click starts, and the
+        # actions ahead of it would not be rolled back.
+        for workflow_action in server_actions:
+            try:
+                workflow_action.get_type().raise_if_misconfigured(workflow_action)
+            except ServiceImproperlyConfiguredDispatchException as exc:
+                raise WorkflowActionDispatchError(
+                    workflow_action.id, str(exc), positions[workflow_action.id]
+                ) from exc
+
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.
         if not server_actions:
-            DispatchButtonFieldActionType.do(user, field, row, len(workflow_actions))
+            action_type_registry.get(DispatchButtonFieldActionType.type).do(
+                user, field, row, len(workflow_actions)
+            )
             return WorkflowActionsDispatchResult(
                 client_actions=client_actions, positions=positions
             )
@@ -611,7 +703,9 @@ class DatabaseWorkflowActionService:
 
         try:
             # Inside the lock, so a click refused as already running leaves no entry.
-            DispatchButtonFieldActionType.do(user, field, row, len(workflow_actions))
+            action_type_registry.get(DispatchButtonFieldActionType.type).do(
+                user, field, row, len(workflow_actions)
+            )
 
             # Remembering a result edits the button's configuration, so it
             # follows the field's update permission rather than the lower bar

@@ -13,8 +13,8 @@ describe('ConfigureDataSyncHistory', () => {
     mockServer = testApp.mockServer
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const database = { id: 10, workspace: { id: 1 } }
@@ -176,5 +176,6 @@ describe('ConfigureDataSyncHistory', () => {
     await flushPromises()
     expect(wrapper.find('.alert').exists()).toBe(false)
     expect(wrapper.findAll('.data-sync-runs__item')).toHaveLength(1)
+    expect(wrapper.find('.paginator__content-input').element.value).toBe('2')
   })
 })

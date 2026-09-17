@@ -16,8 +16,14 @@
     </FormGroup>
     <!-- An edit made before the saved actions arrive would be lost to them. -->
     <div v-if="loadingActions" class="loading-spinner margin-top-2"></div>
+    <!--
+      Keyed, because each action's form copies its values once when it is
+      made. A list replaced from the server rebuilds them, or a card would keep
+      showing, and saving, what was there before.
+    -->
     <ButtonFieldActionList
       v-else
+      :key="actionListRevision"
       ref="actionList"
       :value="localActions"
       :database="database"
@@ -39,6 +45,8 @@ import WorkflowActionService from '@baserow/modules/database/services/workflowAc
 import FieldService from '@baserow/modules/database/services/field'
 import {
   CLIENT_ID_KEY,
+  countUndoSteps,
+  rebaseWorkflowActions,
   reconcileWorkflowActions,
   workflowActionConfig,
   workflowActionKey,
@@ -50,6 +58,13 @@ import {
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+import { MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP } from '@baserow/modules/database/utils/action'
+
+/** An action without the answer a click left on its service. */
+const withoutCapturedAnswers = (action) =>
+  action.service
+    ? { ...action, service: _.omit(action.service, ['sample_data', 'schema']) }
+    : action
 
 export default {
   name: 'FieldButtonSubForm',
@@ -82,6 +97,9 @@ export default {
       // cancelling discards the edits without ever calling the API.
       serverActions: [],
       localActions: [],
+      // Bumped when the buffer is replaced from the server, to rebuild the
+      // action forms.
+      actionListRevision: 0,
       loadingActions: false,
       // Target table fields, by table id, reported by the action forms that
       // fetched them. An action that has never been saved carries no service
@@ -201,6 +219,9 @@ export default {
       // The flag is keyed by a saved action's id, so it would outlive the
       // cancel and keep hiding that action's own error.
       this.$refs.actionList?.revealErrors()
+      // The action forms copy their values once, so a card would otherwise
+      // keep showing, and later send, the edit that was cancelled.
+      this.actionListRevision += 1
     },
     /**
      * Fetches the field's actions and resets both the server list and the
@@ -218,17 +239,18 @@ export default {
       }
     },
     /**
-     * Re-reads the field's actions. A click changes them: an external action
-     * remembers the answer it got. This sub-form is not remounted when the
-     * field is opened again, so without this the captured body stays missing
-     * until the page is reloaded.
+     * Re-reads the field's actions. They change while the editor is closed: a
+     * click makes an external action remember the answer it got, and an undo
+     * or a collaborator changes the list itself. This sub-form is not
+     * remounted when the field is opened again, so without this the editor
+     * shows the old list, and saving it would put back what was undone.
      *
-     * Only what a click captured is taken from the answer, so an edit made
-     * and then clicked away from survives: nothing listens for the context
-     * being hidden, so the buffered list is still here on the next open, and
-     * replacing it would drop that edit without a word. Skipped while the
-     * first read is still in flight, since `mounted` and the context's own
-     * `shown` both land on the first open.
+     * An edit made and then clicked away from survives: nothing listens for
+     * the context being hidden, so the buffered list is still here on the next
+     * open, and replacing it would drop that edit without a word. So a buffer
+     * without edits takes the server's list, and one with edits keeps them on
+     * top of it. Skipped while the first read is still in flight, since
+     * `mounted` and the context's own `shown` both land on the first open.
      */
     async onShow() {
       // The list is not remounted between opens, so reopening the editor is
@@ -246,11 +268,47 @@ export default {
         const { data } = await WorkflowActionService(this.$client).fetchAll(
           this.defaultValues.id
         )
+        const localActions = this.hasUnsavedEdits()
+          ? rebaseWorkflowActions(this.serverActions, data, this.localActions)
+          : clone(data)
         this.serverActions = data
+        // Compared without what a click captured, which the forms read live,
+        // so a click alone does not collapse the card being looked at.
+        if (
+          !_.isEqual(
+            localActions.map(withoutCapturedAnswers),
+            this.localActions.map(withoutCapturedAnswers)
+          )
+        ) {
+          this.localActions = localActions
+          this.actionListRevision += 1
+        }
         this.adoptCapturedAnswers(data)
       } catch (error) {
         notifyIf(error, 'field')
       }
+    },
+    /**
+     * Whether the buffered list differs from the one the server last reported.
+     * An action added without a type yet counts, although no save would send it.
+     */
+    hasUnsavedEdits() {
+      if (this.localActions.length !== this.serverActions.length) {
+        return true
+      }
+      const { toCreate, toUpdate, toDelete, order } = reconcileWorkflowActions(
+        this.serverActions,
+        this.localActions
+      )
+      return (
+        toCreate.length > 0 ||
+        toUpdate.length > 0 ||
+        toDelete.length > 0 ||
+        !_.isEqual(
+          order,
+          this.serverActions.map((action) => action.id)
+        )
+      )
     },
     /**
      * Copies what a click remembered onto the buffered actions, matched by id.
@@ -343,12 +401,24 @@ export default {
      * Diffs the buffered list against the server and issues the calls to
      * match: creates, updates, deletes, then order. Called by the field form
      * once the field is saved, since a new field has no id until then.
+     *
+     * `undoRedoActionGroupId` is the group the field save was sent under, so
+     * one undo takes back the field and its actions together. A save with more
+     * steps than a group can undo at once is sent without it.
      */
-    async afterFieldSaved(fieldId) {
-      const { toCreate, toUpdate, toDelete, order } = reconcileWorkflowActions(
+    async afterFieldSaved(fieldId, { undoRedoActionGroupId = null } = {}) {
+      const plan = reconcileWorkflowActions(
         this.serverActions,
         this.localActions
       )
+      const { toCreate, toUpdate, toDelete, order } = plan
+      // One undo takes back only the newest steps of a group, and the field
+      // save is the oldest. A save that would not fit is sent ungrouped, so
+      // each step undoes on its own rather than one undo leaving it half done.
+      const groupId =
+        1 + countUndoSteps(plan) <= MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP
+          ? undoRedoActionGroupId
+          : null
       const service = WorkflowActionService(this.$client)
       const createdIds = []
       const assignedIds = new Map()
@@ -365,7 +435,8 @@ export default {
         for (const action of toCreate) {
           const { data } = await service.create(
             fieldId,
-            this.resolveActionIds(this.createPayload(action), idMap)
+            this.resolveActionIds(this.createPayload(action), idMap),
+            groupId
           )
           createdIds.push(data.id)
           // Both ways of naming it are mapped: an unsaved action is referenced
@@ -396,20 +467,20 @@ export default {
           if (Object.keys(payload).length === 0) {
             continue
           }
-          const { data } = await service.update(id, payload)
+          const { data } = await service.update(id, payload, groupId)
           if (defersConfig) {
             const config = this.resolveActionIds(
               this.configPayload(values, data),
               idMap
             )
             if (Object.keys(config).length > 0) {
-              await service.update(data?.id ?? id, config)
+              await service.update(data?.id ?? id, config, groupId)
             }
           }
         }
 
         for (const id of toDelete) {
-          await service.delete(id)
+          await service.delete(id, groupId)
         }
 
         // `order` holds null for creates; fill them in as they were made.
@@ -418,8 +489,19 @@ export default {
           id === null ? created.shift() : id
         )
 
-        if (finalOrder.length > 0) {
-          await service.order(fieldId, finalOrder)
+        // Without an order call the server keeps what was there, less what
+        // was deleted, and appends each create. Sending that same order again
+        // would only add an undo step, and a group undoes a limited number.
+        const deleted = new Set(toDelete)
+        const orderWithoutCall = [
+          ...this.serverActions
+            .map((action) => action.id)
+            .filter((id) => !deleted.has(id)),
+          ...createdIds,
+        ]
+
+        if (finalOrder.length > 0 && !_.isEqual(finalOrder, orderWithoutCall)) {
+          await service.order(fieldId, finalOrder, groupId)
         }
       } catch (error) {
         failed = true

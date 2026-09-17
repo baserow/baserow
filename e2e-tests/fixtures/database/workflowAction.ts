@@ -65,24 +65,20 @@ export async function listWorkflowActions(
 }
 
 /**
- * A create or update row action on `table`. Leave `rowId` out to create a row;
- * pass `"get('row.id')"` to target the clicked row.
+ * A create or update row action on `table`. An update needs `rowId`, e.g.
+ * `"get('row.id')"` to target the clicked row; a create leaves it out.
  */
 export async function createRowAction(
   user: User,
   buttonField: Field,
   options: {
-    type?: "local_baserow_create_row" | "local_baserow_update_row";
+    type: "local_baserow_create_row" | "local_baserow_update_row";
     table: Table;
     rowId?: string;
     fieldMappings: FieldMapping[];
   },
 ): Promise<WorkflowAction> {
-  const action = await createWorkflowAction(
-    user,
-    buttonField,
-    options.type ?? "local_baserow_update_row",
-  );
+  const action = await createWorkflowAction(user, buttonField, options.type);
   return await updateWorkflowAction(user, action, {
     service: {
       type: "local_baserow_upsert_row",

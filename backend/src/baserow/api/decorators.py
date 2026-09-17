@@ -105,8 +105,8 @@ def map_exceptions(exceptions: ExceptionMappingType = None):
     # This is used to detect if `max_locks_per_transaction` has
     # been exceeded, and in which case we return a specific error.
     if OperationalError not in exceptions:
-        exceptions[OperationalError] = (
-            lambda e: ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED
+        exceptions[OperationalError] = lambda e: (
+            ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED
             if is_max_lock_exceeded_exception(e)
             else None
         )

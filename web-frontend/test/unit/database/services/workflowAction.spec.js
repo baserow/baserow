@@ -22,6 +22,8 @@ describe('workflowAction service', () => {
     )
   })
 
+  const group = { headers: { ClientUndoRedoActionGroupId: 'group-1' } }
+
   test('create sends the values it is given', () => {
     service.create(11, {
       type: 'local_baserow_create_row',
@@ -29,28 +31,46 @@ describe('workflowAction service', () => {
     })
     expect(client.post).toHaveBeenCalledWith(
       'database/field/11/workflow_actions/',
-      { type: 'local_baserow_create_row', service: { table_id: 3 } }
+      { type: 'local_baserow_create_row', service: { table_id: 3 } },
+      { params: {} }
     )
   })
 
   test('update targets the action', () => {
     service.update(22, { service: { table_id: 3 } })
-    expect(client.patch).toHaveBeenCalledWith('database/workflow_action/22/', {
-      service: { table_id: 3 },
-    })
+    expect(client.patch).toHaveBeenCalledWith(
+      'database/workflow_action/22/',
+      { service: { table_id: 3 } },
+      { params: {} }
+    )
   })
 
   test('delete targets the action', () => {
     service.delete(22)
-    expect(client.delete).toHaveBeenCalledWith('database/workflow_action/22/')
+    expect(client.delete).toHaveBeenCalledWith('database/workflow_action/22/', {
+      params: {},
+    })
   })
 
   test('order sends the id list', () => {
     service.order(11, [22, 21])
     expect(client.post).toHaveBeenCalledWith(
       'database/field/11/workflow_actions/order/',
-      { workflow_action_ids: [22, 21] }
+      { workflow_action_ids: [22, 21] },
+      { params: {} }
     )
+  })
+
+  test('every configuration call sends the undo group it is given', () => {
+    service.create(11, {}, 'group-1')
+    service.update(22, {}, 'group-1')
+    service.delete(22, 'group-1')
+    service.order(11, [22], 'group-1')
+
+    expect(client.post.mock.calls[0][2]).toMatchObject(group)
+    expect(client.patch.mock.calls[0][2]).toMatchObject(group)
+    expect(client.delete.mock.calls[0][1]).toMatchObject(group)
+    expect(client.post.mock.calls[1][2]).toMatchObject(group)
   })
 
   test('dispatch sends the row id', () => {

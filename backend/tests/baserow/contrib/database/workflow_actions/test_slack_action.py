@@ -903,3 +903,49 @@ def test_an_action_can_have_its_bot_cleared_without_reading_it(data_fixture):
 
     action.refresh_from_db()
     assert action.service.specific.integration_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_a_type_change_refuses_a_bot_the_user_can_no_longer_read(
+    data_fixture,
+):
+    """
+    The undo attaches the service the type change kept, bot included, so it is
+    checked the way an update setting that bot would be.
+    """
+
+    import uuid
+
+    from baserow.contrib.database.action.scopes import TableActionScopeType
+    from baserow.contrib.database.workflow_actions.actions import (
+        UpdateDatabaseWorkflowActionActionType,
+    )
+    from baserow.contrib.database.workflow_actions.models import OpenUrlWorkflowAction
+    from baserow.core.action.handler import ActionHandler
+    from baserow.core.action.models import Action
+
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    button_field = _button(data_fixture, user)
+    bot = _bot(data_fixture, button_field.table.database)
+    action = DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("slack_write_message"),
+        button_field,
+        service={"integration_id": bot.id, "channel": "general", "text": "'hi'"},
+    )
+    UpdateDatabaseWorkflowActionActionType.do(user, action, type="open_url")
+
+    with patch.object(
+        CoreHandler, "check_permissions", _denying(ReadIntegrationOperationType.type)
+    ):
+        ActionHandler.undo(
+            user, [TableActionScopeType.value(button_field.table_id)], session_id
+        )
+
+    assert Action.objects.get(type="update_database_workflow_action").error
+    assert isinstance(
+        DatabaseWorkflowAction.objects.get(id=action.id).specific,
+        OpenUrlWorkflowAction,
+    )

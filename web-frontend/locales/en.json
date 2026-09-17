@@ -359,6 +359,7 @@
     "row": "row",
     "rows": "rows",
     "view": "view",
+    "database_workflow_action": "button action",
     "automation_workflow": "automation workflow",
     "automation_node": "automation node",
     "builder_page": "builder page",

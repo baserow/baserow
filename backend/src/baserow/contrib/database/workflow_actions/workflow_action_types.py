@@ -32,6 +32,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.local_baserow.mixins import (
+    UpdateRowRequiresRowIdMixin,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
     LocalBaserowUpsertRowServiceType,
@@ -99,6 +102,24 @@ class DatabaseWorkflowServiceActionType(
     @property
     def allowed_fields(self) -> List[str]:
         return super().allowed_fields + ["service"]
+
+    def export_prepared_values(self, instance: WorkflowAction) -> Dict[str, Any]:
+        """
+        Nests the service's own values in place of the service. Whatever the
+        service type calls sensitive is left out: these values are stored on the
+        undo action and copied into the audit log, and an HTTP action keeps its
+        API keys in its headers. Undo leaves those fields as they are.
+        """
+
+        values = super().export_prepared_values(instance)
+        service = instance.service.specific
+        service_type = service.get_type()
+        values["service"] = {
+            key: value
+            for key, value in service_type.export_prepared_values(service).items()
+            if key not in service_type.sensitive_fields
+        }
+        return values
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         service_type = service_type_registry.get(self.service_type)
@@ -480,6 +501,22 @@ class DatabaseWorkflowServiceActionType(
 
         return integration
 
+    def check_kept_service(
+        self, service: Service, user: AbstractUser, field: "ButtonField"
+    ) -> None:
+        """
+        Checks a service an undo or redo attaches as it is, the way an update
+        setting the same values would, so it cannot give back access the user
+        has since lost.
+
+        :param service: The kept service about to be attached.
+        :param user: Who is undoing or redoing.
+        :param field: The button field the action belongs to.
+        """
+
+        if service.integration_id is not None:
+            self._check_integration(service.integration_id, user, field)
+
     def _reshapes_the_request(
         self, service: Service, prepared_service_values: Dict[str, Any]
     ) -> bool:
@@ -534,10 +571,11 @@ class DatabaseWorkflowServiceActionType(
                     queryset=specific_queryset(
                         Service.objects.all(),
                         per_content_type_queryset_hook=(
-                            lambda service,
-                            queryset: service_type_registry.get_by_model(
-                                service
-                            ).enhance_queryset(queryset)
+                            lambda service, queryset: (
+                                service_type_registry.get_by_model(
+                                    service
+                                ).enhance_queryset(queryset)
+                            )
                         ),
                     ),
                 )
@@ -581,7 +619,9 @@ class LocalBaserowCreateRowWorkflowActionType(DatabaseWorkflowServiceActionType)
     service_type = LocalBaserowUpsertRowServiceType.type
 
 
-class LocalBaserowUpdateRowWorkflowActionType(DatabaseWorkflowServiceActionType):
+class LocalBaserowUpdateRowWorkflowActionType(
+    UpdateRowRequiresRowIdMixin, DatabaseWorkflowServiceActionType
+):
     type = "local_baserow_update_row"
     model_class = LocalBaserowUpdateRowWorkflowAction
     service_type = LocalBaserowUpsertRowServiceType.type
@@ -749,6 +789,13 @@ class CoreStartWorkflowWorkflowActionType(DatabaseWorkflowServiceActionType):
                 service_values.pop("workflow_id"), user, field
             )
         return super().prepare_values(values, user, instance)
+
+    def check_kept_service(
+        self, service: Service, user: AbstractUser, field: "ButtonField"
+    ) -> None:
+        super().check_kept_service(service, user, field)
+        if service.workflow_id is not None:
+            self._check_workflow(service.workflow_id, user, field)
 
     def _check_workflow(
         self, workflow_id: int, user: AbstractUser, field: "ButtonField"

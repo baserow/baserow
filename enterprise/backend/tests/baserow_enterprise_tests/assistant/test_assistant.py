@@ -773,10 +773,8 @@ class TestAssistantStreaming:
             mock_result.all_messages_json.return_value = b"[]"
             yield AgentRunResultEvent(result=mock_result)
 
-        mock_run_stream_events.side_effect = (
-            lambda *args, **kwargs: _mock_run_stream_events_cm(
-                mock_stream_with_thinking(*args, **kwargs)
-            )
+        mock_run_stream_events.side_effect = lambda *args, **kwargs: (
+            _mock_run_stream_events_cm(mock_stream_with_thinking(*args, **kwargs))
         )
 
         ui_context = UIContext(

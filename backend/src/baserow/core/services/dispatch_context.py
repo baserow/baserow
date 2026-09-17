@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
@@ -7,6 +7,9 @@ from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
 from baserow.core.services.models import Service
 from baserow.core.services.types import RuntimeFormulaContextSubClass
 from baserow.core.services.utils import ServiceAdhocRefinements
+
+if TYPE_CHECKING:
+    from baserow.core.models import Workspace
 
 
 class DispatchContext(RuntimeFormulaContext, ABC):
@@ -17,6 +20,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         "force_outputs",
         "event_payload",
         "actor",
+        "workspace",
     ]
 
     """
@@ -28,6 +32,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
 
     def __init__(
         self,
+        workspace: Optional["Workspace"] = None,
         only_record_id=None,
         event_payload: Any = None,
         update_sample_data_for: Optional[List[Service]] = None,
@@ -48,6 +53,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
             outputs. Can be used to force a specific service to be dispatched.
         :param actor: The user this dispatch acts as, for services that have no
             integration to supply one.
+        :param workspace: The workspace this dispatch is running in.
         """
 
         self.cache = {}  # can be used by data providers to save queries
@@ -57,6 +63,7 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.force_outputs = force_outputs
         self.event_payload = event_payload
         self.actor = actor
+        self.workspace = workspace
         super().__init__()
 
     def range(self, service: Service) -> tuple[int, int | None]:

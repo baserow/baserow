@@ -42,6 +42,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.local_baserow.mixins import (
+    UpdateRowRequiresRowIdMixin,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
@@ -451,10 +454,11 @@ class BuilderWorkflowServiceActionType(
                     queryset=specific_queryset(
                         Service.objects.all(),
                         per_content_type_queryset_hook=(
-                            lambda service,
-                            queryset: service_type_registry.get_by_model(
-                                service
-                            ).enhance_queryset(queryset)
+                            lambda service, queryset: (
+                                service_type_registry.get_by_model(
+                                    service
+                                ).enhance_queryset(queryset)
+                            )
                         ),
                     ),
                 )
@@ -497,7 +501,9 @@ class LocalBaserowCreateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
         return {"service": service}
 
 
-class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
+class UpdateRowWorkflowActionType(
+    UpdateRowRequiresRowIdMixin, UpsertRowWorkflowActionType
+):
     type = "update_row"
     model_class = LocalBaserowUpdateRowWorkflowAction
 

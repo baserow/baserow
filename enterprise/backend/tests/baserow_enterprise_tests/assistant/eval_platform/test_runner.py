@@ -1351,9 +1351,11 @@ class TestResultsErrors:
         monkeypatch.setattr(
             runner.httpx,
             "post",
-            lambda *args, **kwargs: failed
-            if kwargs["json"]["variables"]["datasetId"] == "database-id"
-            else successful,
+            lambda *args, **kwargs: (
+                failed
+                if kwargs["json"]["variables"]["datasetId"] == "database-id"
+                else successful
+            ),
         )
 
         status, _headers, body = _call_wsgi(
