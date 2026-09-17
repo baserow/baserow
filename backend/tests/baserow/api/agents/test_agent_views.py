@@ -88,6 +88,41 @@ def test_member_can_list_but_cannot_mutate_agents(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("method", ["post", "patch", "delete"])
+def test_nonmember_agent_mutations_return_user_not_in_workspace(
+    data_fixture, api_client, method
+):
+    """All Agent mutations expose the standard workspace-membership API error."""
+
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    agent = Agent.objects.create(workspace=workspace, name="Writer")
+    _, token = data_fixture.create_user_and_token()
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    workspace_url = reverse(
+        "api:agents:workspace", kwargs={"workspace_id": workspace.id}
+    )
+    agent_url = reverse("api:agents:item", kwargs={"agent_id": agent.id})
+
+    if method == "post":
+        response = api_client.post(
+            workspace_url, {"name": "Denied"}, format="json", **headers
+        )
+    elif method == "patch":
+        response = api_client.patch(
+            agent_url, {"name": "Denied"}, format="json", **headers
+        )
+    else:
+        response = api_client.delete(agent_url, **headers)
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+    assert list(
+        Agent.objects.filter(workspace=workspace).values_list("name", flat=True)
+    ) == ["Writer"]
+
+
+@pytest.mark.django_db
 def test_cannot_create_agent_when_feature_flag_is_disabled(
     data_fixture, api_client, settings
 ):
