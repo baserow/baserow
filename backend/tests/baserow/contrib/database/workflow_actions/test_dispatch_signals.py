@@ -1,7 +1,18 @@
 from contextlib import contextmanager
+from unittest.mock import patch
+
+from django.core.cache import cache
+from django.urls import reverse
 
 import pytest
 from requests import exceptions as request_exceptions
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_403_FORBIDDEN,
+    HTTP_409_CONFLICT,
+    HTTP_429_TOO_MANY_REQUESTS,
+)
 
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
@@ -17,8 +28,11 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.contrib.database.workflow_actions.signals import (
+    button_field_dispatched,
     workflow_action_dispatched,
 )
+from baserow.contrib.database.workflow_actions.types import DispatchOutcome
+from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
 )
@@ -156,5 +170,157 @@ def test_a_button_with_only_client_actions_sends_nothing_per_action(data_fixture
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
+
+    assert calls == []
+
+
+def _click(api_client, token, button_field, row_id):
+    return api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row_id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+
+@pytest.mark.django_db
+def test_a_completed_click_sends_its_outcome(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    action = _add_row_action(data_fixture, button_field, table)
+
+    with _received(button_field_dispatched) as calls:
+        response = _click(api_client, token, button_field, row.id)
+
+    assert response.status_code == HTTP_200_OK
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["outcome"] == DispatchOutcome.COMPLETED
+    assert call["failed_position"] is None
+    assert call["duration_ms"] > 0
+    assert call["field"].id == button_field.id
+    assert call["row_id"] == row.id
+    assert call["user"] == user
+    assert [wa.id for wa in call["workflow_actions"]] == [action.id]
+
+
+@pytest.mark.django_db
+def test_a_failed_click_sends_the_failing_position(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    data_fixture.create_database_workflow_action(
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
+    )
+
+    with _received(button_field_dispatched) as calls:
+        response = _click(api_client, token, button_field, row.id)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert len(calls) == 1
+    assert calls[0]["outcome"] == DispatchOutcome.FAILED
+    assert calls[0]["failed_position"] == 2
+    assert len(calls[0]["workflow_actions"]) == 2
+
+
+@pytest.mark.django_db
+def test_a_throttled_click_sends_throttled(api_client, data_fixture, settings):
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    action = _add_http_action(data_fixture, button_field)
+
+    with _received(button_field_dispatched) as calls:
+        with mock_advocate_request({"ok": True}):
+            _click(api_client, token, button_field, row.id)
+            response = _click(api_client, token, button_field, row.id)
+
+    assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert [call["outcome"] for call in calls] == [
+        DispatchOutcome.COMPLETED,
+        DispatchOutcome.THROTTLED,
+    ]
+    # The snapshot is read before the budget, so the refusal still knows what
+    # the button carries.
+    assert [wa.id for wa in calls[1]["workflow_actions"]] == [action.id]
+
+
+@pytest.mark.django_db
+def test_a_click_on_a_running_sequence_sends_in_progress(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    cache.add(f"button_dispatch_{button_field.id}_{row.id}", True, timeout=30)
+
+    with _received(button_field_dispatched) as calls:
+        response = _click(api_client, token, button_field, row.id)
+
+    assert response.status_code == HTTP_409_CONFLICT
+    assert [call["outcome"] for call in calls] == [DispatchOutcome.IN_PROGRESS]
+
+
+@pytest.mark.django_db
+def test_a_click_on_a_deactivated_type_sends_deactivated(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    action = _add_row_action(data_fixture, button_field, table)
+
+    with patch.object(type(action.get_type()), "is_deactivated", return_value=True):
+        with _received(button_field_dispatched) as calls:
+            response = _click(api_client, token, button_field, row.id)
+
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert [call["outcome"] for call in calls] == [DispatchOutcome.DEACTIVATED]
+
+
+@pytest.mark.django_db
+def test_an_outsiders_click_sends_denied_without_a_snapshot(api_client, data_fixture):
+    owner = data_fixture.create_user()
+    _, outsider_token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, owner)
+    _add_row_action(data_fixture, button_field, table)
+
+    with _received(button_field_dispatched) as calls:
+        response = _click(api_client, outsider_token, button_field, row.id)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert len(calls) == 1
+    assert calls[0]["outcome"] == DispatchOutcome.DENIED
+    assert calls[0]["workflow_actions"] == []
+
+
+@pytest.mark.django_db
+def test_an_unexpected_failure_sends_error(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+
+    with patch.object(
+        DatabaseWorkflowActionService,
+        "dispatch_workflow_actions",
+        side_effect=RuntimeError("boom"),
+    ):
+        with _received(button_field_dispatched) as calls:
+            with pytest.raises(RuntimeError):
+                _click(api_client, token, button_field, row.id)
+
+    assert [call["outcome"] for call in calls] == [DispatchOutcome.ERROR]
+
+
+@pytest.mark.django_db
+def test_a_click_on_a_missing_field_sends_nothing(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    field_id = button_field.id
+    button_field.delete()
+    button_field.id = field_id
+
+    with _received(button_field_dispatched) as calls:
+        _click(api_client, token, button_field, row.id)
 
     assert calls == []
