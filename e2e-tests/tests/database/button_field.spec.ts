@@ -32,7 +32,6 @@ import {
   createRowAction,
   createDeleteRowAction,
   createOpenUrlAction,
-  createWorkflowAction,
   listWorkflowActions,
 } from "../../fixtures/database/workflowAction";
 import { listRows } from "../../fixtures/database/rows";
@@ -271,12 +270,17 @@ test.describe("Button field", () => {
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'kept'" }],
     });
 
-    // "Broken" has an action with no table, so dispatching it fails.
-    await createWorkflowAction(
-      g.user,
-      g.fieldByName["Broken"],
-      "local_baserow_create_row",
-    );
+    // "Broken" targets a row that can never exist, so the button stays
+    // clickable (a table is set, nothing maps a trashed field) but the
+    // dispatch itself fails.
+    await createRowAction(g.user, g.fieldByName["Broken"], {
+      type: "local_baserow_update_row",
+      table: g.table,
+      rowId: "'999999'",
+      fieldMappings: [
+        { field: g.fieldByName["Status"], value: "'unreachable'" },
+      ],
+    });
 
     // "BadLink" points at a field that does not exist, so the URL never
     // resolves in the browser.
@@ -495,12 +499,20 @@ test.describe("Button field", () => {
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'untouched'" }],
     });
 
-    // "BrokenChain" fails first and would navigate second, which is the
-    // combination the builder gets wrong.
-    const brokenCreate = await createWorkflowAction(
+    // "BrokenChain" targets a row that can never exist, so it stays
+    // clickable but fails at dispatch, and would navigate second, which is
+    // the combination the builder gets wrong.
+    const brokenCreate = await createRowAction(
       g.user,
       g.fieldByName["BrokenChain"],
-      "local_baserow_create_row",
+      {
+        type: "local_baserow_update_row",
+        table: g.table,
+        rowId: "'999999'",
+        fieldMappings: [
+          { field: g.fieldByName["Status"], value: "'unreachable'" },
+        ],
+      },
     );
     await createOpenUrlAction(g.user, g.fieldByName["BrokenChain"], {
       url: `concat('/never-',get('previous_action.${brokenCreate.id}.id'))`,
@@ -861,7 +873,7 @@ test.describe("Button field", () => {
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
 
-    // "Broken" has an action with no table selected, so the dispatch refuses
+    // "Broken" targets a row that does not exist, so the dispatch refuses
     // it and the error names the position the clicker can count in the editor.
     await grid.fieldCellAt(0, BROKEN_FIELD_INDEX).locator("button").click();
     await expect(page.locator(".toast__message")).toContainText("Action 1");
