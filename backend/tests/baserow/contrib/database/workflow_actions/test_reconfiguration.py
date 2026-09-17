@@ -14,8 +14,10 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
+    SlackWriteMessageWorkflowAction,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -42,6 +44,16 @@ def _row_action(data_fixture, model_class, button_field, table):
     )
     service = action.service.specific
     service.table = table
+    service.save()
+    return action, service
+
+
+def _slack_action(data_fixture, button_field, integration):
+    action = data_fixture.create_database_workflow_action(
+        SlackWriteMessageWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.integration = integration
     service.save()
     return action, service
 
@@ -182,6 +194,35 @@ def test_a_target_table_in_a_trashed_database_needs_reconfiguring(data_fixture, 
 
 
 @pytest.mark.django_db
+def test_a_trashed_integration_needs_reconfiguring_until_restored(data_fixture, setup):
+    """The dispatch refuses a service whose integration is in the trash."""
+
+    user, database, *_, button_field = setup
+    bot = data_fixture.create_slack_bot_integration(application=database, user=user)
+    _slack_action(data_fixture, button_field, bot)
+
+    assert _requires_reconfiguration(button_field) is False
+
+    IntegrationService().delete_integration(user, bot)
+
+    assert _requires_reconfiguration(button_field) is True
+
+    TrashHandler.restore_item(user, "integration", bot.id)
+
+    assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+def test_an_action_without_an_integration_does_not_need_reconfiguring(
+    data_fixture, setup
+):
+    *_, button_field = setup
+    _slack_action(data_fixture, button_field, None)
+
+    assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "model_class", [OpenUrlWorkflowAction, CoreHTTPRequestWorkflowAction]
 )
@@ -236,14 +277,21 @@ def test_listing_actions_does_not_query_per_mapping(api_client, data_fixture):
     assert four_mapping_queries == one_mapping_queries
 
 
-def _upsert_row_scans(sql, params=None):
+SERVICE_TABLES = {
+    "integrations_localbaserowupsertrow",
+    "core_service",
+    "core_integration",
+}
+
+
+def _service_scans(sql, params=None):
     """
     Plans `sql` with sequential scans discouraged, as they would be on tables
-    of real size, and returns every scan of an upsert row service in the plan.
+    of real size, and returns every scan of a service or integration in the plan.
     """
 
     def walk(node):
-        if node.get("Relation Name") == "integrations_localbaserowupsertrow":
+        if node.get("Relation Name") in SERVICE_TABLES:
             yield node
         for child in node.get("Plans", []):
             yield from walk(child)
@@ -259,8 +307,8 @@ def _upsert_row_scans(sql, params=None):
 @pytest.mark.django_db
 def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
     """
-    Upsert row services are shared with the builder and automations, so the
-    check must look up a button's own services rather than scan them all.
+    Services and integrations are shared with the builder and automations, so
+    the check must look up a button's own services rather than scan them all.
     """
 
     user, database, table, name_field, button_field = setup
@@ -268,9 +316,15 @@ def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
         data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, table
     )
     service.field_mappings.create(field=name_field, value="'x'", enabled=True)
+    _slack_action(
+        data_fixture,
+        button_field,
+        data_fixture.create_slack_bot_integration(application=database, user=user),
+    )
     for _ in range(20):
         unrelated = data_fixture.create_local_baserow_upsert_row_service(table=table)
         unrelated.field_mappings.create(field=name_field, value="'x'", enabled=True)
+        data_fixture.create_slack_write_message_service()
 
     annotated = ButtonFieldType().enhance_field_queryset(
         ButtonField.objects.filter(id=button_field.id), None
@@ -280,10 +334,10 @@ def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
     fallback_sql = captured.captured_queries[-1]["sql"]
 
     for scans in [
-        _upsert_row_scans(*annotated.query.sql_with_params()),
-        _upsert_row_scans(fallback_sql),
+        _service_scans(*annotated.query.sql_with_params()),
+        _service_scans(fallback_sql),
     ]:
-        assert scans
+        assert {scan["Relation Name"] for scan in scans} == SERVICE_TABLES
         for scan in scans:
             assert "Index Cond" in scan, scan
             rows_read = scan["Actual Rows"] + scan.get("Rows Removed by Filter", 0)

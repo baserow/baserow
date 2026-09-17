@@ -10,6 +10,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowCreateRowWorkflowAction,
     OpenUrlWorkflowAction,
+    SlackWriteMessageWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
@@ -18,6 +19,7 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -200,6 +202,50 @@ def test_trashing_and_restoring_the_target_database_updates_the_button(
 
     mock_broadcast_to_channel_group.reset_mock()
     TrashHandler.restore_item(user, "application", other_database.id)
+
+    [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert message["field"]["requires_reconfiguration"] is False
+
+
+def _button_sending_through(data_fixture, user, bot):
+    """A button whose Slack action posts through this bot."""
+
+    button_table = data_fixture.create_database_table(
+        user=user, database=bot.application
+    )
+    button_field = data_fixture.create_button_field(table=button_table, label="Go")
+    action = data_fixture.create_database_workflow_action(
+        SlackWriteMessageWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.integration = bot
+    service.save()
+    return button_field
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_trashing_and_restoring_an_integration_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    bot = data_fixture.create_slack_bot_integration(application=database, user=user)
+    button_field = _button_sending_through(data_fixture, user, bot)
+    other_bot = data_fixture.create_slack_bot_integration(
+        application=database, user=user
+    )
+    unrelated = _button_sending_through(data_fixture, user, other_bot)
+
+    IntegrationService().delete_integration(user, bot)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+    assert message["field"]["requires_reconfiguration"] is True
+    assert _button_messages(mock_broadcast_to_channel_group, unrelated) == []
+
+    mock_broadcast_to_channel_group.reset_mock()
+    TrashHandler.restore_item(user, "integration", bot.id)
 
     [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
     assert message["field"]["requires_reconfiguration"] is False

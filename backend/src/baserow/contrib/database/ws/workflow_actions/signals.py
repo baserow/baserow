@@ -11,6 +11,7 @@ from baserow.contrib.database.workflow_actions.reconfiguration import (
 )
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
 from baserow.core import signals as core_signals
+from baserow.core.integrations import signals as integration_signals
 from baserow.ws.registries import page_registry
 
 
@@ -113,3 +114,14 @@ def button_target_application_deleted(sender, application_id, **kwargs):
 @receiver(core_signals.application_created)
 def button_target_application_created(sender, application, **kwargs):
     _broadcast_dependent_buttons(database_ids=[application.id])
+
+
+@receiver(integration_signals.integration_deleted)
+def button_integration_deleted(sender, integration_id, **kwargs):
+    _broadcast_dependent_buttons(integration_ids=[integration_id])
+
+
+# Also sent when an integration is restored from the trash.
+@receiver(integration_signals.integration_created)
+def button_integration_created(sender, integration, **kwargs):
+    _broadcast_dependent_buttons(integration_ids=[integration.id])

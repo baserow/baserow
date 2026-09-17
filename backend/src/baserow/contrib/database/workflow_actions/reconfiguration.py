@@ -5,15 +5,39 @@ from django.db.models import Exists, OuterRef, Q, QuerySet
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
+    DatabaseWorkflowServiceAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
+)
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowTableServiceFieldMapping,
     LocalBaserowUpsertRow,
 )
+from baserow.core.services.models import Service
+
+ROW_ACTION_MODELS = [
+    LocalBaserowCreateRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
+    LocalBaserowDeleteRowWorkflowAction,
+]
+
+
+def _integration_action_models() -> list[type[DatabaseWorkflowServiceAction]]:
+    """
+    The action models that can carry an integration. Every other type has one
+    refused on save, import and click (ADR 006 section 5).
+    """
+
+    return [
+        action_type.model_class
+        for action_type in database_workflow_action_type_registry.get_all()
+        if action_type.allowed_integration_types
+    ]
 
 
 def _unusable_table() -> Q:
@@ -41,7 +65,8 @@ def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
     automations, so anything uncorrelated would scan all of them.
 
     A mapping on a trashed field only counts without an integration: with one,
-    the dispatch drops the mapping rather than failing.
+    the dispatch drops the mapping rather than failing. A trashed integration
+    always counts, as the dispatch refuses it.
 
     :param field_ref: The button field's id, or `OuterRef("pk")` when
         annotating a button field queryset.
@@ -62,7 +87,7 @@ def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
         Q(integration__isnull=True) & mapping_on_trashed_field
     )
 
-    return (
+    broken = (
         has_broken_action(
             LocalBaserowCreateRowWorkflowAction, LocalBaserowUpsertRow, broken_upsert
         )
@@ -75,6 +100,9 @@ def requires_reconfiguration(field_ref: int | OuterRef) -> Q:
             _unusable_table(),
         )
     )
+    for action_model in _integration_action_models():
+        broken |= has_broken_action(action_model, Service, Q(integration__trashed=True))
+    return broken
 
 
 def button_fields_depending_on(
@@ -82,10 +110,12 @@ def button_fields_depending_on(
     field_ids: Iterable[int] = (),
     table_ids: Iterable[int] = (),
     database_ids: Iterable[int] = (),
+    integration_ids: Iterable[int] = (),
 ) -> QuerySet[ButtonField]:
     """
     The button fields with a row action that maps one of these fields or
-    targets one of these tables or a table in one of these databases, so their
+    targets one of these tables or a table in one of these databases, or an
+    action using one of these integrations, so their
     `requires_reconfiguration` may have just changed. Buttons that are
     themselves in a trashed table or database are left out: nobody can see them.
 
@@ -94,10 +124,11 @@ def button_fields_depending_on(
     looked up when there are some.
     """
 
-    field_ids, table_ids, database_ids = (
+    field_ids, table_ids, database_ids, integration_ids = (
         list(field_ids),
         list(table_ids),
         list(database_ids),
+        list(integration_ids),
     )
     targets = Q()
     if table_ids:
@@ -117,6 +148,16 @@ def button_fields_depending_on(
             lookups.append(
                 service_model.objects.filter(targets).values_list("pk", flat=True)
             )
+    action_models = []
+    if field_ids or targets:
+        action_models += ROW_ACTION_MODELS
+    if integration_ids:
+        lookups.append(
+            Service.objects.filter(integration_id__in=integration_ids).values_list(
+                "pk", flat=True
+            )
+        )
+        action_models += _integration_action_models()
     if not lookups:
         return ButtonField.objects.none()
 
@@ -124,11 +165,12 @@ def button_fields_depending_on(
     if not service_ids:
         return ButtonField.objects.none()
 
-    actions = DatabaseWorkflowAction.objects.filter(
-        Q(localbaserowcreaterowworkflowaction__service_id__in=service_ids)
-        | Q(localbaserowupdaterowworkflowaction__service_id__in=service_ids)
-        | Q(localbaserowdeleterowworkflowaction__service_id__in=service_ids)
-    )
+    uses_a_service = Q()
+    for action_model in action_models:
+        uses_a_service |= Q(
+            **{f"{action_model._meta.model_name}__service_id__in": service_ids}
+        )
+    actions = DatabaseWorkflowAction.objects.filter(uses_a_service)
 
     return ButtonField.objects.filter(
         workflow_actions__in=actions,
