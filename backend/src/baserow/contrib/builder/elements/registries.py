@@ -675,7 +675,9 @@ class CollectionFieldType(
             "config": deserialized_config,
             "type": serialized_values["type"],
             "styles": serialized_values.get("styles", {}),
-            "name": serialized_values["name"],
+            # Exports made before the name became a formula, and the templates,
+            # hold plain string names: raw-mode formulas.
+            "name": BaserowFormulaObject.to_raw_formula(serialized_values["name"]),
         }
 
         return self.create_instance_from_serialized(deserialized_values)
@@ -725,8 +727,15 @@ class CollectionFieldType(
         """
         Generator that iterates over formula fields for CollectionField.
 
+        The name comes first: a header in formula mode must have its references
+        remapped on import and its properties extracted like any other formula.
         Some formula fields are in the config JSON field, e.g. page_parameters.
         """
+
+        new_name = yield BaserowFormulaObject.to_raw_formula(collection_field.name)
+        if new_name is not None:
+            collection_field.name = new_name
+            yield collection_field
 
         for formula_field in self.simple_formula_fields:
             formula = collection_field.config.get(formula_field, "")

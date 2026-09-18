@@ -32,6 +32,18 @@
   }
 }
 
+// The help text is rendered as paragraphs (plain or markdown) that would
+// otherwise take the body typography and alignment of the theme.
+.ab-file-input__help-text {
+  .ab-text {
+    font-size: inherit;
+    font-weight: inherit;
+    font-family: inherit;
+    color: inherit;
+    text-align: inherit;
+  }
+}
+
 .ab-file-input__input {
   position: absolute;
   width: 1px;

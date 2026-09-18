@@ -15,6 +15,7 @@
       <InjectedFormulaInput
         v-model="values.label"
         :placeholder="$t('generalForm.labelPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
     <FormGroup
@@ -99,18 +100,25 @@
           class="row margin-bottom-1"
         >
           <div class="col col-5">
-            <FormInput
+            <InjectedFormulaInput
               v-model="option.name"
+              allow-raw-values
+              :allowed-formats="allowedFormats"
               :placeholder="$t('choiceOptionSelector.namePlaceholder')"
             />
           </div>
           <div class="col col-5">
+            <!--
+            -- A null value means "the same as the name". The name is a formula
+            -- now, so it can't be echoed here: say it with the placeholder.
+            -->
             <FormInput
-              :value="option.value === null ? option.name : option.value"
-              :placeholder="$t('choiceOptionSelector.valuePlaceholder')"
-              :class="{
-                'choice-element__option-value--fake': option.value === null,
-              }"
+              :value="option.value ?? ''"
+              :placeholder="
+                option.value === null
+                  ? $t('choiceOptionSelector.valueSameAsName')
+                  : $t('choiceOptionSelector.valuePlaceholder')
+              "
               @input="option.value = $event"
             />
           </div>
@@ -145,6 +153,7 @@
         <InjectedFormulaInput
           v-model="values.formula_name"
           :placeholder="$t('choiceOptionSelector.namePlaceholder')"
+          :allowed-formats="allowedFormats"
         />
       </FormGroup>
       <FormGroup
@@ -168,6 +177,7 @@ import { CHOICE_OPTION_TYPES } from '@baserow/modules/builder/enums'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'ChoiceElementForm',
@@ -211,6 +221,8 @@ export default {
         formula_value: {},
         styles: {},
       },
+      // Option names, manual or from a formula, can render as markdown.
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
   computed: {
@@ -265,7 +277,13 @@ export default {
   },
   methods: {
     createOption() {
-      this.values.options.push({ name: '', value: null, id: uuid() })
+      // A new option starts with a raw-mode name: plain text, which the sigma
+      // toggle of the input turns into a formula when needed.
+      this.values.options.push({
+        name: { formula: '', mode: 'raw' },
+        value: null,
+        id: uuid(),
+      })
     },
     deleteOption({ id }) {
       this.values.options = this.values.options.filter(

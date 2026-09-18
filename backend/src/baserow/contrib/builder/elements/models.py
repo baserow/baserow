@@ -20,6 +20,7 @@ from baserow.core.constants import (
 )
 from baserow.core.formula.field import FormulaField, JSONFormulaField
 from baserow.core.formula.serializers import collect_json_formula_field_properties
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.graph.models import GraphPointMixin
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
@@ -465,9 +466,13 @@ class TextElement(Element):
         MARKDOWN = "markdown"
 
     value = FormulaField()
+    # TODO ZDM: remove this field in the next version. The format now lives on
+    #  the `value` (its `format` key); this column is only kept in sync with it
+    #  for the previous application version and for legacy API clients.
     format = models.CharField(
         choices=TEXT_FORMATS.choices,
-        help_text="The format of the text",
+        help_text="Deprecated, use the `format` of the value instead. "
+        "The format of the text.",
         max_length=10,
         default=TEXT_FORMATS.PLAIN,
     )
@@ -736,9 +741,10 @@ class ChoiceElementOption(models.Model):
             "value using the name field."
         ),
     )
-    name = models.TextField(
-        blank=True,
-        default="",
+    # The column held plain text before it became a formula: a stored plain
+    # string is that text, hence the raw legacy mode.
+    name = FormulaField(
+        legacy_text_mode=BASEROW_FORMULA_MODE_RAW,
         help_text="The display name of the option",
     )
     choice = models.ForeignKey(
@@ -773,8 +779,10 @@ class CollectionField(models.Model):
 
     uid = models.UUIDField(default=uuid.uuid4)
     order = models.PositiveIntegerField()
-    name = models.CharField(
-        max_length=225, help_text="The name of the field.", blank=True
+    # The column held plain text before it became a formula: a stored plain
+    # string is that text, hence the raw legacy mode.
+    name = FormulaField(
+        legacy_text_mode=BASEROW_FORMULA_MODE_RAW, help_text="The name of the field."
     )
 
     type = models.CharField(

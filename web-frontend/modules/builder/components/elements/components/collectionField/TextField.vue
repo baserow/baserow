@@ -1,5 +1,9 @@
 <template>
-  <span class="ab-text">{{ value }}</span>
+  <ABFormattedText
+    :value="value"
+    :format="field.value?.format"
+    profile="block"
+  />
 </template>
 
 <script>

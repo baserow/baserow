@@ -114,7 +114,7 @@
             toggle-on-click
           >
             <template #title>
-              <span v-if="field.name">{{ field.name }}</span>
+              <span v-if="field.name?.formula">{{ field.name.formula }}</span>
               <span v-else class="color-neutral">
                 ({{ $t('tableElementForm.noName') }})
               </span>
@@ -136,11 +136,12 @@
                 :label="$t('tableElementForm.name')"
                 :error-message="v$.values.fields.$each.$message[index]?.[0]"
               >
-                <FormInput
+                <InjectedFormulaInput
                   v-model="v$.values.fields.$model[index].name"
                   class="table-element-form__field-label"
-                >
-                </FormInput>
+                  allow-raw-values
+                  :allowed-formats="allowedFormats"
+                />
               </FormGroup>
 
               <FormGroup
@@ -259,7 +260,6 @@ import {
 } from '@baserow/modules/core/utils/string'
 import {
   required,
-  maxLength,
   integer,
   minValue,
   maxValue,
@@ -267,6 +267,7 @@ import {
 } from '@vuelidate/validators'
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 import DeviceSelector from '@baserow/modules/builder/components/page/header/DeviceSelector.vue'
 import { mapActions, mapGetters } from 'vuex'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
@@ -311,6 +312,8 @@ export default {
         orientation: {},
         button_load_more_label: {},
       },
+      // The header of a field can be rendered as plain text or as markdown.
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
   computed: {
@@ -345,11 +348,16 @@ export default {
       actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
     }),
     addField() {
+      // A new field starts with a raw-mode name: plain text, which the sigma
+      // toggle of the input turns into a formula when needed.
       this.v$.values.fields.$model.push({
-        name: getNextAvailableNameInSequence(
-          this.$t('tableElementForm.fieldDefaultName'),
-          this.v$.values.fields.$model.map(({ name }) => name)
-        ),
+        name: {
+          formula: getNextAvailableNameInSequence(
+            this.$t('tableElementForm.fieldDefaultName'),
+            this.v$.values.fields.$model.map(({ name }) => name?.formula)
+          ),
+          mode: 'raw',
+        },
         value: {},
         type: 'text',
         id: uuid(), // Temporary id
@@ -444,9 +452,10 @@ export default {
         fields: {
           $each: helpers.forEach({
             name: {
+              // The name is a formula object; the limit applies to its text.
               maxLength: helpers.withMessage(
                 this.$t('error.maxLength', { max: 255 }),
-                maxLength(225)
+                (name) => (name?.formula ?? '').length <= 225
               ),
             },
           }),

@@ -1,0 +1,9 @@
+// Inline text inherits the typography of what surrounds it (a header cell, a
+// label, a dropdown option), so it must not add a box of its own.
+.ab-formatted-text--inline {
+  display: inline;
+}
+
+.ab-formatted-text--block {
+  display: block;
+}

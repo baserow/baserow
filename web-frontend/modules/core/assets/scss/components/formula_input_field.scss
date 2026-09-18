@@ -68,6 +68,24 @@
   }
 }
 
+.formula-input-field__format {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.formula-input-field__format-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.formula-input-field__format-dropdown {
+  flex: 0 1 auto;
+  min-width: 140px;
+}
+
 .formula-input-field--focused {
   border-color: $palette-blue-500;
 

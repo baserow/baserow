@@ -9,6 +9,7 @@
       <InjectedFormulaInput
         v-model="values.label"
         :placeholder="$t('generalForm.labelPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
 
@@ -47,6 +48,7 @@ import elementForm from '@baserow/modules/builder/mixins/elementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 import RatingFormFields from '@baserow/modules/builder/components/elements/components/forms/RatingFormFields.vue'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'RatingInputElementForm',
@@ -64,6 +66,7 @@ export default {
         label: {},
       },
       allowedValues: ['value', 'required', 'label'],
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
 }
