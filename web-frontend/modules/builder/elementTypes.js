@@ -64,7 +64,7 @@ import {
   CollectionElementTypeMixin,
   MultiPageElementTypeMixin,
 } from '@baserow/modules/builder/elementTypeMixins'
-import { isNumeric, isValidEmail } from '@baserow/modules/core/utils/string'
+import { isValidEmail } from '@baserow/modules/core/utils/string'
 import { getBuilderBreakpoints } from '@baserow/modules/builder/utils/breakpoints'
 
 import {
@@ -1478,12 +1478,13 @@ export class InputTextElementType extends FormElementType {
   }
 
   isValid(element, value) {
-    if (!value && value !== 0) {
+    if (value === null || value === undefined || value === '') {
       return !element.required
     }
     switch (element.validation_type) {
       case 'integer':
-        return isNumeric(value)
+        // Failed parsing leaves raw text in form data for display.
+        return Number.isFinite(value)
       case 'email':
         return isValidEmail(value)
       default:
