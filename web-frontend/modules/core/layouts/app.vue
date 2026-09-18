@@ -5,7 +5,16 @@
 
     <div ref="app" class="layout">
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
+        <SidebarAllWorkspaces
+          v-if="sidebarType === 'all-workspaces'"
+          :workspaces="workspaces"
+          :selected-workspace="selectedWorkspace"
+          :collapsed="isCollapsed"
+          :width="col1Width"
+          @set-col1-width="col1Width = $event"
+        />
         <Sidebar
+          v-else
           :workspaces="workspaces"
           :selected-workspace="selectedWorkspace"
           :applications="applications"
@@ -21,14 +30,14 @@
         class="layout__col-2"
         :style="{
           left: col1Width + 'px',
-          right: col3Visible ? col3Width + 'px' : 0,
+          right: col3Shown ? col3Width + 'px' : 0,
         }"
       >
         <slot />
       </div>
 
       <div
-        v-if="col3Visible"
+        v-if="col3Shown"
         class="layout__col-3"
         :style="{ width: col3Width + 'px', right: 0 }"
       >
@@ -45,7 +54,7 @@
       />
 
       <HorizontalResize
-        v-if="col3Visible"
+        v-if="col3Shown"
         class="layout__resize"
         :width="col3Width"
         :style="{ right: col3Width - 3 + 'px' }"
@@ -72,6 +81,7 @@ import { useStore } from 'vuex'
 
 import Toasts from '@baserow/modules/core/components/toasts/Toasts.vue'
 import Sidebar from '@baserow/modules/core/components/sidebar/Sidebar.vue'
+import SidebarAllWorkspaces from '@baserow/modules/core/components/sidebar/SidebarAllWorkspaces.vue'
 import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar.vue'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize.vue'
 import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour.vue'
@@ -101,6 +111,17 @@ const isCollapsed = computed(() => col1Width.value < 170)
 
 const route = useRoute()
 const router = useRouter()
+
+// Pages can render an alternative sidebar via
+// `definePageMeta({ sidebarType: 'all-workspaces' })`.
+const sidebarType = computed(() => route.meta.sidebarType ?? 'workspace')
+
+// The right sidebar contains workspace specific components, like the assistant, so
+// it must not render on pages without a workspace context. The open state is kept,
+// so it shows again when navigating back to a workspace page.
+const col3Shown = computed(
+  () => col3Visible.value && sidebarType.value === 'workspace'
+)
 
 // Preserve authentication logic
 if (route.query.token) {
