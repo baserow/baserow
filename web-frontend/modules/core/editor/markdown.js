@@ -12,6 +12,12 @@ import {
   createRichTextContentExtensions,
   MARKDOWN_OPTIONS,
 } from '@baserow/modules/core/editor/richTextExtensions'
+import {
+  validateExternalImageProtocols,
+  preprocessRichTextImages,
+  replaceImagesWithPlaceholder,
+  stripUnresolvedImageRefs,
+} from '@baserow/modules/core/editor/richTextImageUtils'
 
 const previewMarkdownManager = new MarkdownManager({
   extensions: createRichTextContentExtensions({ enableImages: true }),
@@ -59,7 +65,17 @@ export const parseMarkdown = (
     loggedUserId = null,
   } = {}
 ) => {
+  // Unsafe-protocol images (javascript:, data:) become links; http/https pass.
+  let content = validateExternalImageProtocols(value || '')
+
   const md = new Markdown({ html: false })
+
+  if (enableImages) {
+    const { content: processed, nameMap } = preprocessRichTextImages(content)
+    content = stripUnresolvedImageRefs(processed)
+  } else {
+    content = replaceImagesWithPlaceholder(content)
+  }
 
   // task lists
   md.use(taskLists, { label: true, enabled: true })
@@ -100,10 +116,9 @@ export const parseMarkdown = (
 
   if (enableImages) {
     md.renderer.rules.image = function (tokens, idx, options, env, self) {
-      // Show only the first image in the preview.
       const style = tokens[idx].attrIndex('style')
       if (style < 0) {
-        tokens[idx].attrPush(['style', 'display: block;'])
+        tokens[idx].attrPush(['style', 'display: block; max-width: 100%;'])
       }
       return self.renderToken(tokens, idx, options)
     }
@@ -114,5 +129,5 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(prepareMarkdownForPreview(value || ''))
+  return md.render(prepareMarkdownForPreview(content))
 }

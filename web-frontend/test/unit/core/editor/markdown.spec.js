@@ -13,15 +13,19 @@ const paragraph = (text) => ({
   ...(text === undefined ? {} : { content: [{ type: 'text', text }] }),
 })
 
-function createEditor(content, { users = null } = {}) {
-  const extensions = createRichTextEditorExtensions()
+function createEditor(
+  content,
+  { users = null, enableImages = false, contentType = null } = {}
+) {
+  const extensions = createRichTextEditorExtensions({ enableImages })
   if (users !== null) {
     extensions.push(createMention({ users }))
   }
   return new Editor({
     extensions,
     content,
-    contentType: typeof content === 'string' ? 'markdown' : 'json',
+    contentType:
+      contentType ?? (typeof content === 'string' ? 'markdown' : 'json'),
   })
 }
 
@@ -262,10 +266,217 @@ describe('official TipTap Markdown integration', () => {
     expect(editor.getMarkdown()).toBe('first  \nsecond')
   })
 
+  test('preserves the marker style of a lettered ordered list', () => {
+    editor = createEditor(
+      '<ol type="a"><li><p>one</p></li><li><p>two</p></li></ol>',
+      { contentType: 'html' }
+    )
+
+    expect(editor.getJSON().content[0].attrs.type).toBe('a')
+    expect(editor.getMarkdown()).toBe('a. one\nb. two')
+  })
+
+  test('preserves the marker style of a roman ordered list', () => {
+    editor = createEditor(
+      '<ol type="I"><li><p>one</p></li><li><p>two</p></li></ol>',
+      { contentType: 'html' }
+    )
+
+    expect(editor.getMarkdown()).toBe('I. one\nII. two')
+  })
+
+  test('preserves the marker style of a lettered list with a start offset', () => {
+    editor = createEditor(
+      '<ol start="3" type="a"><li><p>one</p></li><li><p>two</p></li></ol>',
+      { contentType: 'html' }
+    )
+
+    expect(editor.getMarkdown()).toBe('c. one\nd. two')
+  })
+
   test('does not turn raw Markdown HTML into editor DOM', () => {
     editor = createEditor('<script>alert("unsafe")</script>')
 
     expect(editor.getHTML()).not.toContain('<script>')
+  })
+
+  test('preserves an image inside an ordered list item', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        {
+          type: 'orderedList',
+          attrs: { start: 1 },
+          content: [
+            {
+              type: 'listItem',
+              attrs: {},
+              content: [
+                paragraph(),
+                {
+                  type: 'image',
+                  attrs: {
+                    src: 'https://example.com/img.png',
+                    alt: 'photo',
+                    title: null,
+                    userFileName: 'abc123_def456.png',
+                    maxWidth: '100%',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
+
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+
+    const json = editor.getJSON()
+    const listItem = json.content[0].content[0]
+    const imageNode = listItem.content.find((n) => n.type === 'image')
+    expect(imageNode).toBeTruthy()
+    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
+    expect(imageNode.attrs.alt).toBe('photo')
+
+    const firstPara = listItem.content[0]
+    expect(firstPara.type).toBe('paragraph')
+    expect(firstPara.content).toBeUndefined()
+  })
+
+  test('does not show &nbsp; text in list items after round-trip', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        {
+          type: 'orderedList',
+          attrs: { start: 1 },
+          content: [
+            {
+              type: 'listItem',
+              attrs: {},
+              content: [
+                paragraph(),
+                {
+                  type: 'image',
+                  attrs: {
+                    src: 'https://example.com/img.png',
+                    alt: 'photo',
+                    title: null,
+                    userFileName: 'abc123_def456.png',
+                    maxWidth: '100%',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
+    const markdown = editor.getMarkdown()
+    expect(markdown).toContain('&nbsp;')
+
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+    const json = editor.getJSON()
+    const allText = JSON.stringify(json)
+    expect(allText).not.toContain('&nbsp;')
+    expect(allText).not.toContain('\\u00a0')
+  })
+
+  test('preserves an image inside a bullet list item', () => {
+    const document = {
+      type: 'doc',
+      content: [
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              attrs: {},
+              content: [
+                paragraph('some text'),
+                {
+                  type: 'image',
+                  attrs: {
+                    src: 'https://example.com/img.png',
+                    alt: 'photo',
+                    title: null,
+                    userFileName: 'abc123_def456.png',
+                    maxWidth: '100%',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const opts = { enableImages: true }
+    editor = createEditor(document, opts)
+
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+
+    const json = editor.getJSON()
+    const listItem = json.content[0].content[0]
+    const imageNode = listItem.content.find((n) => n.type === 'image')
+    expect(imageNode).toBeTruthy()
+    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
+  })
+
+  test('preserves image with userFileName through full app flow', () => {
+    const imageAttrs = {
+      src: 'https://example.com/img.png',
+      alt: 'photo',
+      title: null,
+      userFileName: 'abc123_def456.jpg',
+      maxWidth: '100%',
+    }
+    editor = createEditor(
+      {
+        type: 'doc',
+        content: [
+          {
+            type: 'orderedList',
+            attrs: { start: 1 },
+            content: [
+              {
+                type: 'listItem',
+                attrs: {},
+                content: [paragraph(), { type: 'image', attrs: imageAttrs }],
+              },
+            ],
+          },
+        ],
+      },
+      { enableImages: true }
+    )
+
+    const markdown = editor.getMarkdown()
+    expect(markdown).toContain('[abc123_def456.jpg]')
+    expect(markdown).toContain('https://example.com/img.png')
+    editor.destroy()
+
+    // The stored markdown (as returned by the backend with resolved URLs) is
+    // parsed directly, the image tokenizer stamps userFileName itself.
+    editor = new Editor({
+      extensions: createRichTextEditorExtensions({ enableImages: true }),
+      content: markdown,
+      contentType: 'markdown',
+    })
+
+    const json = editor.getJSON()
+    const listItem = json.content[0].content[0]
+    const imageNode = listItem.content.find((n) => n.type === 'image')
+    expect(imageNode).toBeTruthy()
+    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
+    expect(imageNode.attrs.userFileName).toBe('abc123_def456.jpg')
   })
 
   test('round-trips the existing supported Markdown syntax', () => {
@@ -410,5 +621,181 @@ describe('rich-text Markdown previews', () => {
     expect(clickable.querySelector('a').getAttribute('rel')).toBe(
       'noopener noreferrer nofollow'
     )
+  })
+})
+
+describe('parseMarkdown image handling', () => {
+  test('replaces images with placeholder when enableImages is false', () => {
+    const html = parseMarkdown(
+      'Hello ![img][abc123_def456.png](https://example.com/file.png)'
+    )
+
+    expect(html).not.toContain('<img')
+    expect(html).toContain('Hello')
+    expect(html).toContain('🖼 img')
+  })
+
+  test('renders images with inline URLs when enableImages is true', () => {
+    const html = parseMarkdown(
+      '![alt text][abc123_def456.png](https://example.com/user_files/abc123_def456.png)',
+      { enableImages: true }
+    )
+
+    expect(html).toContain('<img')
+    expect(html).toContain(
+      'src="https://example.com/user_files/abc123_def456.png"'
+    )
+  })
+
+  test('renders content without image refs unchanged', () => {
+    const html = parseMarkdown('Plain text without images', {
+      enableImages: true,
+    })
+
+    expect(html).not.toContain('<img')
+    expect(html).toContain('Plain text without images')
+  })
+
+  test('handles multiple images', () => {
+    const content = [
+      '![a][file1_hash1.png](https://cdn.example.com/file1.png)',
+      '',
+      '![b][file2_hash2.jpg](https://cdn.example.com/file2.jpg)',
+    ].join('\n')
+    const html = parseMarkdown(content, { enableImages: true })
+
+    expect(html).toContain('src="https://cdn.example.com/file1.png"')
+    expect(html).toContain('src="https://cdn.example.com/file2.jpg"')
+  })
+
+  test('applies max-width style to images', () => {
+    const html = parseMarkdown(
+      '![img][test_file.png](https://example.com/test.png)',
+      { enableImages: true }
+    )
+
+    expect(html).toContain('max-width: 100%')
+  })
+})
+
+describe('parseMarkdown external image handling', () => {
+  const parse = (markdown, enableImages) =>
+    new DOMParser().parseFromString(
+      parseMarkdown(markdown, { enableImages, openLinkOnClick: true }),
+      'text/html'
+    )
+
+  test('renders a plain https markdown image as img when enableImages=true', () => {
+    const document = parse(
+      'see ![photo](https://example.com/photo.png) here',
+      true
+    )
+
+    const img = document.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img.getAttribute('src')).toBe('https://example.com/photo.png')
+  })
+
+  test('renders a plain markdown image as placeholder when enableImages=false', () => {
+    const html = parseMarkdown(
+      'see ![photo](https://example.com/photo.png) here',
+      { enableImages: false }
+    )
+
+    expect(html).not.toContain('<img')
+    expect(html).toContain('🖼')
+  })
+
+  test.each([
+    ['![x](data:image/png;base64,AAAA)'],
+    ['![x](javascript:alert(1))'],
+  ])('never renders an img for %s', (markdown) => {
+    for (const enableImages of [true, false]) {
+      const html = parseMarkdown(markdown, {
+        enableImages,
+        openLinkOnClick: true,
+      })
+      expect(html).not.toContain('<img')
+      expect(html).toContain('x')
+    }
+  })
+
+  test('drops a javascript: href entirely when downgrading an image', () => {
+    const html = parseMarkdown('![x](javascript:alert(1))', {
+      enableImages: true,
+      openLinkOnClick: true,
+    })
+
+    expect(html).not.toMatch(/<(img|a)\b/)
+    expect(html).not.toContain('href=')
+  })
+
+  test('renders both Baserow image ref and external image as img', () => {
+    const document = parse(
+      [
+        '![photo][abc123_def456.png](https://example.com/user_files/abc123_def456.png)',
+        '',
+        '![ext](https://example.com/external.png)',
+      ].join('\n'),
+      true
+    )
+
+    const images = [...document.querySelectorAll('img')]
+    expect(images).toHaveLength(2)
+    expect(images[0].getAttribute('src')).toBe(
+      'https://example.com/user_files/abc123_def456.png'
+    )
+    expect(images[1].getAttribute('src')).toBe(
+      'https://example.com/external.png'
+    )
+  })
+
+  test('renders external image as img element', () => {
+    const document = parse('![photo](https://example.com/photo.png)', true)
+
+    const img = document.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img.getAttribute('src')).toBe('https://example.com/photo.png')
+  })
+
+  test('renders a Baserow ref with a path separator in the name as text', () => {
+    const html = parseMarkdown(
+      '![x][abc_def.png/../evil.png](https://evil.com/e.png)',
+      { enableImages: true }
+    )
+
+    expect(html).not.toContain('<img')
+  })
+})
+
+describe('external image round trips', () => {
+  let editor
+
+  afterEach(() => {
+    editor?.destroy()
+  })
+
+  // The backend accepts any http/https scheme case insensitively and allows an
+  // empty scheme (a relative URL), so all of these are valid stored values. The
+  // editor must not demote them to links when the cell is saved again.
+  test.each([
+    ['a relative path', '![logo](/media/logo.png)'],
+    ['an uppercase https scheme', '![logo](HTTPS://example.com/logo.png)'],
+    ['an uppercase http scheme', '![logo](HTTP://example.com/logo.png)'],
+    ['a lowercase https scheme', '![logo](https://example.com/logo.png)'],
+    ['a scheme relative path', '![logo](relative/path.png)'],
+  ])('keeps an image with %s on save', (_, markdown) => {
+    editor = createEditor(markdown, { enableImages: true })
+
+    const reopened = reopen(editor, { enableImages: true })
+    editor = reopened.editor
+
+    expect(reopened.markdown).toBe(markdown)
+  })
+
+  test('still downgrades an unsafe protocol to a link', () => {
+    editor = createEditor('![x](javascript:alert(1))', { enableImages: true })
+
+    expect(editor.getMarkdown()).not.toContain('![x]')
   })
 })

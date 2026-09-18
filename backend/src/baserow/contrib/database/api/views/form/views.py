@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.schemas import get_error_schema
 from baserow.api.user_files.errors import ERROR_FILE_SIZE_TOO_LARGE, ERROR_INVALID_FILE
 from baserow.api.user_files.serializers import UserFileSerializer
@@ -171,9 +172,17 @@ class SubmitFormViewView(APIView):
             validation_serializer, request.data, return_validated=True
         )
 
-        created_row = action_type_registry.get_by_type(SubmitFormActionType).do(
-            request.user, form, values, model, options
-        )
+        try:
+            created_row = action_type_registry.get_by_type(SubmitFormActionType).do(
+                request.user, form, values, model, options
+            )
+        except ValidationError as e:
+            # `prepare_value_for_db` runs inside the action, after `validate_data`,
+            # so a rich text image reference that fails validation would otherwise
+            # escape this `AllowAny` view as a 500. Converted here the same way the
+            # row endpoints do it, so the respondent gets an actionable 400.
+            raise RequestBodyValidationException(detail=e.message)
+
         form.row_id = created_row.id
         return Response(FormViewSubmittedSerializer(form).data)
 
