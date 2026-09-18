@@ -18,13 +18,14 @@ from baserow.core.cache import local_cache
 from baserow.core.generative_ai.generative_ai_model_types import (
     GoogleGenerativeAIModelType,
     GroqGenerativeAIModelType,
+    OllamaGenerativeAIModelType,
     OpenAIGenerativeAIModelType,
+    OpenRouterGenerativeAIModelType,
 )
 
 
 @pytest.mark.django_db
-def test_database_provider_is_ignored_while_feature_flag_is_disabled(settings):
-    settings.FEATURE_FLAGS = []
+def test_database_provider_takes_precedence_over_environment_settings(settings):
     settings.BASEROW_OPENAI_API_KEY = "environment-key"
     settings.BASEROW_OPENAI_MODELS = ["environment-model"]
     provider = AIProviderConfig.objects.create(
@@ -35,17 +36,16 @@ def test_database_provider_is_ignored_while_feature_flag_is_disabled(settings):
     )
 
     model_type = OpenAIGenerativeAIModelType()
-    assert model_type.get_api_key() == "environment-key"
-    assert model_type.get_enabled_models() == ["environment-model"]
+    assert model_type.get_api_key() == "database-key"
+    assert model_type.get_enabled_models() == ["database-model"]
 
 
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "model_type_class",
     [GoogleGenerativeAIModelType, GroqGenerativeAIModelType],
 )
-def test_google_and_groq_have_no_environment_fallbacks(settings, model_type_class):
-    settings.FEATURE_FLAGS = []
-
+def test_google_and_groq_have_no_environment_fallbacks(model_type_class):
     model_type = model_type_class()
 
     assert model_type.get_api_key() is None
@@ -53,8 +53,7 @@ def test_google_and_groq_have_no_environment_fallbacks(settings, model_type_clas
 
 
 @pytest.mark.django_db
-def test_database_provider_is_authoritative_when_enabled(settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_database_provider_disable_suppresses_environment_fallback(settings):
     settings.BASEROW_OPENAI_API_KEY = "environment-key"
     settings.BASEROW_OPENAI_MODELS = ["environment-model"]
     provider = AIProviderConfig.objects.create(
@@ -82,8 +81,7 @@ def test_database_provider_is_authoritative_when_enabled(settings):
 
 
 @pytest.mark.django_db
-def test_models_can_be_reserved_for_individual_ai_features(settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_models_can_be_reserved_for_individual_ai_features():
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="database-key"
     )
@@ -116,8 +114,7 @@ def test_models_can_be_reserved_for_individual_ai_features(settings):
 
 
 @pytest.mark.django_db
-def test_one_loaded_state_answers_every_question_without_more_queries(settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_one_loaded_state_answers_every_question_without_more_queries():
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="database-key"
     )
@@ -139,8 +136,7 @@ def test_one_loaded_state_answers_every_question_without_more_queries(settings):
 
 
 @pytest.mark.django_db
-def test_provider_state_reflects_handler_mutations(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_provider_state_reflects_handler_mutations(data_fixture):
     workspace = data_fixture.create_workspace()
 
     assert get_ai_provider_state(workspace).instance_providers == {}
@@ -187,10 +183,7 @@ def test_provider_state_reflects_handler_mutations(data_fixture, settings):
 
 
 @pytest.mark.django_db
-def test_instance_models_limit_workspace_and_automation_model_settings(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_instance_models_limit_workspace_and_automation_model_settings(data_fixture):
     provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="database-key"
     )
@@ -233,9 +226,8 @@ def test_instance_models_limit_workspace_and_automation_model_settings(
 
 @pytest.mark.django_db
 def test_incomplete_legacy_workspace_models_cannot_use_instance_credentials(
-    data_fixture, settings
+    data_fixture,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     workspace = data_fixture.create_workspace()
     workspace.generative_ai_models_settings = {
         "openai": {"models": ["expensive-workspace-model"]}
@@ -267,7 +259,6 @@ def test_incomplete_legacy_workspace_models_cannot_use_instance_credentials(
 
 @pytest.mark.django_db
 def test_environment_remains_fallback_when_database_provider_is_missing(settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     settings.BASEROW_OPENAI_API_KEY = "environment-key"
     settings.BASEROW_OPENAI_MODELS = ["environment-model"]
 
@@ -277,10 +268,67 @@ def test_environment_remains_fallback_when_database_provider_is_missing(settings
 
 
 @pytest.mark.django_db
-def test_workspace_models_override_matching_instance_models_and_inherit_the_rest(
-    data_fixture, settings
+@pytest.mark.parametrize("provider_type", ["ollama", "openrouter"])
+def test_environment_model_override_preserves_connection_settings(
+    provider_type, data_fixture, settings, django_assert_num_queries
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+    workspace = data_fixture.create_workspace()
+    state = get_ai_provider_state(workspace)
+    if provider_type == "ollama":
+        settings.BASEROW_OLLAMA_HOST = "http://localhost:11434/"
+        settings.BASEROW_OLLAMA_MODELS = ["environment-model"]
+        model_type = OllamaGenerativeAIModelType()
+        expected = {
+            "api_key": None,
+            "models": ["environment-model"],
+            "host": "http://localhost:11434/",
+        }
+    else:
+        settings.BASEROW_OPENROUTER_API_KEY = " environment-key "
+        settings.BASEROW_OPENROUTER_MODELS = ["environment-model"]
+        settings.BASEROW_OPENROUTER_ORGANIZATION = None
+        model_type = OpenRouterGenerativeAIModelType()
+        expected = {
+            "api_key": " environment-key ",
+            "models": ["environment-model"],
+            "organization": None,
+        }
+
+    with django_assert_num_queries(0):
+        assert (
+            model_type.get_model_settings_override(
+                "environment-model", workspace, state=state
+            )
+            == expected
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("workspace_owned", [False, True])
+def test_inactive_database_provider_prevents_environment_model_override(
+    workspace_owned, data_fixture, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["environment-model"]
+    workspace = data_fixture.create_workspace()
+    AIProviderConfig.objects.create(
+        workspace=workspace if workspace_owned else None,
+        provider_type="openai",
+        api_key="database-key",
+        is_active=False,
+    )
+    model_type = OpenAIGenerativeAIModelType()
+
+    assert model_type.get_enabled_models(workspace) == []
+    assert (
+        model_type.get_model_settings_override("environment-model", workspace) is None
+    )
+
+
+@pytest.mark.django_db
+def test_workspace_models_override_matching_instance_models_and_inherit_the_rest(
+    data_fixture,
+):
     workspace = data_fixture.create_workspace()
     instance_provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="instance-key"
@@ -328,8 +376,7 @@ def test_workspace_models_override_matching_instance_models_and_inherit_the_rest
 
 
 @pytest.mark.django_db
-def test_disabling_workspace_provider_reveals_inherited_models(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_disabling_workspace_provider_reveals_inherited_models(data_fixture):
     workspace = data_fixture.create_workspace()
     instance_provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="instance-key"
@@ -362,10 +409,7 @@ def test_disabling_workspace_provider_reveals_inherited_models(data_fixture, set
 
 
 @pytest.mark.django_db
-def test_disabled_workspace_model_suppresses_matching_inherited_model(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_disabled_workspace_model_suppresses_matching_inherited_model(data_fixture):
     workspace = data_fixture.create_workspace()
     instance_provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="instance-key"
@@ -393,7 +437,6 @@ def test_disabled_workspace_model_suppresses_matching_inherited_model(
 def test_disabled_inherited_provider_does_not_fall_back_to_environment(
     data_fixture, settings
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     settings.BASEROW_OPENAI_API_KEY = "environment-key"
     settings.BASEROW_OPENAI_MODELS = ["environment-model"]
     workspace = data_fixture.create_workspace()
@@ -416,7 +459,6 @@ def test_disabled_inherited_provider_does_not_fall_back_to_environment(
 
 @pytest.mark.django_db
 def test_single_scope_state_is_cached_for_the_local_request(data_fixture, settings):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     settings.BASEROW_USE_LOCAL_CACHE = True
     workspace = data_fixture.create_workspace()
     provider = AIProviderConfig.objects.create(

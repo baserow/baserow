@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { GenerativeAIModelType } from '@baserow/modules/core/generativeAIModelTypes'
-import GenerativeAIWorkspaceSettings from '@baserow/modules/core/components/workspace/GenerativeAIWorkspaceSettings'
 
 describe('Generative AI model types', () => {
   let testApp = null
@@ -53,25 +52,6 @@ describe('Generative AI model types', () => {
     expect(
       new ExtensionModelType({ app: testApp.getApp() }).isBuiltInProviderType()
     ).toBe(false)
-  })
-
-  test('keeps database-only providers out of legacy workspace settings', () => {
-    const registry = testApp.getRegistry()
-
-    const legacyModelTypes =
-      GenerativeAIWorkspaceSettings.computed.modelTypes.call({
-        $registry: registry,
-      })
-
-    expect(legacyModelTypes.map(([type]) => type)).toEqual([
-      'openai',
-      'anthropic',
-      'mistral',
-      'ollama',
-      'openrouter',
-    ])
-    expect(registry.exists('generativeAIModel', 'google')).toBe(true)
-    expect(registry.exists('generativeAIModel', 'groq')).toBe(true)
   })
 
   test('only treats self-contained integration connections as complete', () => {

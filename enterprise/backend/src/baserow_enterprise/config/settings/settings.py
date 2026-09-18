@@ -145,6 +145,8 @@ def setup(settings):
     )
 
     # AI Assistant settings
+    # Deprecated: select the Kuma model under AI providers > AI features. Keep this
+    # fallback for compatibility, including providers without a database equivalent.
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(
         "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL", ""
     )
@@ -159,7 +161,7 @@ def setup(settings):
         float(_temp_raw) if _temp_raw else None
     )
 
-    # Backward compatibility: bridge old UDSPY_LM_MODEL to the new setting.
+    # Both model selectors are deprecated; retain their existing fallback precedence.
     # Credential fallback (UDSPY_LM_API_KEY, UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL)
     # is handled at model-creation time in retrying_model._resolve_model().
     _udspy_model = os.getenv("UDSPY_LM_MODEL", "")

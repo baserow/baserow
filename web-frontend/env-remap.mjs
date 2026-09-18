@@ -79,8 +79,9 @@ for (const [legacyKey, nuxtKey] of Object.entries(envMapping)) {
   }
 }
 
-// Match the backend's deprecated UDSPY_LM_MODEL fallback while preferring the
-// current variable. A direct NUXT_PUBLIC_* override remains authoritative.
+// Both assistant model variables are deprecated; select a Kuma model in AI
+// providers instead. Preserve backend precedence: BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
+// before UDSPY_LM_MODEL. A direct NUXT_PUBLIC_* override remains authoritative.
 if (
   process.env.NUXT_PUBLIC_BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL === undefined
 ) {

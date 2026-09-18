@@ -46,9 +46,7 @@ def test_resolved_profile_loads_provider_state_once_and_is_query_free_afterward(
     data_fixture,
     django_assert_num_queries,
     mocker,
-    settings,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     workspace = data_fixture.create_workspace()
     provider = AIProviderHandler.create_provider(
         "openai",
@@ -82,9 +80,7 @@ def test_resolved_profile_loads_provider_state_once_and_is_query_free_afterward(
 @pytest.mark.django_db
 def test_resolved_profile_does_not_change_when_persisted_selection_changes(
     data_fixture,
-    settings,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     workspace = data_fixture.create_workspace()
     first_provider = AIProviderHandler.create_provider(
         "openai",

@@ -57,10 +57,10 @@ describe('RowEditFieldAI component', () => {
     expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
   })
 
-  test('Generate button is disabled when the selected model is unavailable', async () => {
+  test('Generate button is disabled when the selected model is ineligible for AI Fields', async () => {
     await testApp.getStore().dispatch('workspace/forceCreate', {
       ...workspace,
-      generative_ai_models_enabled: { openai: [] },
+      ai_features: { ai_fields: { models: {} } },
     })
 
     const wrapper = await mountComponent(aiField)

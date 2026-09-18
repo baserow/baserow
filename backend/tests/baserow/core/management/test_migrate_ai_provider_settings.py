@@ -219,9 +219,7 @@ def test_workspace_scope_previews_then_imports_idempotently_without_secrets(
 
 
 @pytest.mark.django_db
-def test_workspace_scope_migrates_every_current_legacy_provider_setting(
-    data_fixture, settings
-):
+def test_workspace_scope_migrates_every_current_legacy_provider_setting(data_fixture):
     legacy_settings = {
         "openai": {
             "api_key": "openai-key",
@@ -261,6 +259,17 @@ def test_workspace_scope_migrates_every_current_legacy_provider_setting(
         generative_ai_models_settings=legacy_settings
     )
 
+    # A direct upgrade preserves complete workspace connections before import.
+    for provider_type, legacy_values in legacy_settings.items():
+        model_type = generative_ai_model_type_registry.get(provider_type)
+        assert model_type.get_model_settings_override(
+            legacy_values["models"][0], workspace
+        ) == {
+            "api_key": legacy_values.get("api_key", ""),
+            "models": legacy_values["models"],
+            **expected_extra_settings[provider_type],
+        }
+
     call_command(
         "migrate_ai_provider_settings",
         "--scope",
@@ -272,7 +281,6 @@ def test_workspace_scope_migrates_every_current_legacy_provider_setting(
     assert AIProviderConfig.objects.filter(workspace=workspace).count() == len(
         legacy_settings
     )
-    settings.FEATURE_FLAGS = ["ai-providers"]
     for provider_type, legacy_values in legacy_settings.items():
         provider = AIProviderConfig.objects.get(
             workspace=workspace, provider_type=provider_type

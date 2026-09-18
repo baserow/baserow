@@ -239,6 +239,8 @@ x-backend-variables:
   OPENAI_API_KEY:
   GROQ_API_KEY:
   GOOGLE_API_KEY:
+  # Deprecated provider configuration; use Admin > AI providers.
+  # Kept for compatibility and migrate_ai_provider_settings imports.
   BASEROW_OPENAI_API_KEY:
   BASEROW_OPENAI_ORGANIZATION:
   BASEROW_OPENAI_MODELS:
@@ -252,7 +254,9 @@ x-backend-variables:
   BASEROW_MISTRAL_MODELS:
   BASEROW_OLLAMA_HOST:
   BASEROW_OLLAMA_MODELS:
+  # Supported AI Field runtime limit.
   BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS:
+  # Deprecated model selection; choose Kuma under AI providers > AI features.
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE:
   BASEROW_EMBEDDINGS_API_URL:
@@ -330,6 +334,7 @@ services:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES:
       BASEROW_ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE:
+      # Deprecated model selection; choose Kuma under AI providers > AI features.
       BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
     depends_on:
       - backend

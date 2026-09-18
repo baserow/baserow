@@ -59,7 +59,6 @@ const workspace = {
 }
 
 async function mountForm({
-  featureFlagEnabled = true,
   defaultValues = {},
   workspace: workspaceValue = workspace,
 } = {}) {
@@ -78,7 +77,6 @@ async function mountForm({
       },
       mocks: {
         $t: (key) => key,
-        $featureFlagIsEnabled: () => featureFlagEnabled,
         $store: {
           dispatch: vi.fn().mockResolvedValue(undefined),
           getters: {
@@ -181,24 +179,5 @@ describe('SelectAIModelForm', () => {
 
     expect(wrapper.vm.values.ai_generative_ai_type).toBe('openai')
     expect(wrapper.vm.values.ai_generative_ai_model).toBe('gpt-4')
-  })
-
-  test('does not retain an unavailable model when the flag is disabled', async () => {
-    const wrapper = await mountForm({
-      featureFlagEnabled: false,
-      defaultValues: {
-        ai_generative_ai_type: 'openai',
-        ai_generative_ai_model: 'retired-model',
-      },
-    })
-
-    const field = modelField(wrapper)
-    expect(field.findAll('option').map((option) => option.text())).toEqual([
-      'legacy-model',
-    ])
-    expect(field.attributes('data-error')).toBe('false')
-
-    wrapper.vm.touch()
-    expect(wrapper.vm.isFormValid()).toBe(false)
   })
 })
