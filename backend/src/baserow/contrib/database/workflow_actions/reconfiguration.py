@@ -60,6 +60,25 @@ def _unusable_integration_by_action_model() -> dict[
     return unusable
 
 
+def _blank_row_id() -> Q:
+    """
+    An update row service that names no row, which the dispatch refuses every
+    time (`UpdateRowRequiresRowIdMixin`). Matched on the column rather than on
+    the `BaserowFormulaObject` it reads back as: `FormulaField` is a text column
+    holding a serialized formula context, or a raw formula string until its row
+    is saved again.
+    """
+
+    return (
+        Q(row_id__isnull=True)
+        # A raw formula string with nothing in it.
+        | Q(row_id__regex=r"^\s*$")
+        # A formula context whose formula has nothing in it. Whitespace inside
+        # the string is JSON escaped, so it can't be confused for the quotes.
+        | Q(row_id__regex=r'"f":\s*"\s*"')
+    )
+
+
 def _unusable_table() -> Q:
     """
     A row service whose table is gone, trashed, or in a trashed database or
@@ -84,7 +103,8 @@ def _broken_services_by_action_model() -> dict[
 
     A mapping on a trashed field only counts without an integration: with one,
     the dispatch drops the mapping rather than failing. A trashed integration
-    always counts, and so does none on an action whose service needs one.
+    always counts, and so does none on an action whose service needs one, and
+    so does an update row left without a row id.
     """
 
     mapping_on_trashed_field = Exists(
@@ -100,6 +120,10 @@ def _broken_services_by_action_model() -> dict[
         action_model: [(LocalBaserowUpsertRow, broken_upsert)]
         for action_model in UPSERT_ROW_ACTION_MODELS
     }
+    # Only an update needs a row id; a create makes one.
+    broken[LocalBaserowUpdateRowWorkflowAction] = [
+        (LocalBaserowUpsertRow, broken_upsert | _blank_row_id())
+    ]
     broken[LocalBaserowDeleteRowWorkflowAction] = [
         (LocalBaserowDeleteRow, _unusable_table())
     ]

@@ -71,12 +71,19 @@ def _requires_reconfiguration(button_field):
     return annotated
 
 
-def _row_action(data_fixture, model_class, button_field, table):
+def _row_action(data_fixture, model_class, button_field, table, row_id="'1'"):
+    """
+    A row action on this table. An update is given a row id, since one without
+    fails every click and needs reconfiguring on its own.
+    """
+
     action = data_fixture.create_database_workflow_action(
         model_class, field=button_field
     )
     service = action.service.specific
     service.table = table
+    if model_class is LocalBaserowUpdateRowWorkflowAction:
+        service.row_id = row_id
     service.save()
     return action, service
 
@@ -133,6 +140,41 @@ def test_a_mapping_on_a_trashed_field_needs_reconfiguring_until_restored(
     assert _requires_reconfiguration(button_field) is True
 
     TrashHandler.restore_item(user, "field", name_field.id)
+
+    assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("row_id", ["", "   "])
+def test_an_update_row_without_a_row_id_needs_reconfiguring(
+    data_fixture, setup, row_id
+):
+    """Every click on it is refused (`UpdateRowRequiresRowIdMixin`), so it is
+    no different to the person clicking than a target in the trash."""
+
+    _, _, table, _, button_field = setup
+    _, service = _row_action(
+        data_fixture,
+        LocalBaserowUpdateRowWorkflowAction,
+        button_field,
+        table,
+        row_id=row_id,
+    )
+
+    assert _requires_reconfiguration(button_field) is True
+
+    service.row_id = "'1'"
+    service.save()
+
+    assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+def test_a_create_row_without_a_row_id_does_not_need_reconfiguring(data_fixture, setup):
+    """A create makes the row, so it never names one."""
+
+    _, _, table, _, button_field = setup
+    _row_action(data_fixture, LocalBaserowCreateRowWorkflowAction, button_field, table)
 
     assert _requires_reconfiguration(button_field) is False
 
