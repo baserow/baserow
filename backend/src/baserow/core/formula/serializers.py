@@ -1,4 +1,4 @@
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
@@ -17,9 +17,13 @@ from baserow.core.formula.parser.formula_validation_visitor import (
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_FORMATS,
     BASEROW_FORMULA_MODE_ADVANCED,
     BASEROW_FORMULA_MODE_RAW,
     BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaFormat,
+    BaserowFormulaMode,
     BaserowFormulaObject,
 )
 from baserow.core.registry import Registry
@@ -66,15 +70,47 @@ class BaserowFormulaObjectSerializer(serializers.Serializer):
             BASEROW_FORMULA_MODE_RAW,
         ],
     )
+    format = serializers.ChoiceField(
+        required=False,
+        default=BASEROW_FORMULA_FORMAT_PLAIN,
+        choices=BASEROW_FORMULA_FORMATS,
+        help_text="How the resolved value is rendered. Plain when omitted.",
+    )
 
 
 @extend_schema_field(OpenApiTypes.OBJECT)
 class FormulaSerializerField(serializers.JSONField):
     """
     This field can be used to store a formula in the database.
+
+    The value is a formula object with a `formula`, a `mode`, a `version` and an
+    optional `format`, which says how the surface showing the resolved value
+    renders it (plain text or Markdown). A field only accepts the formats listed
+    in its `allowed_formats`, plain alone by default. A plain format is never
+    kept on the object: a missing `format` means plain.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        allowed_formats: Optional[List[BaserowFormulaFormat]] = None,
+        legacy_text_mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
+        **kwargs,
+    ):
+        self.allowed_formats = list(allowed_formats or [BASEROW_FORMULA_FORMAT_PLAIN])
+        # The mode a bare string payload is read as, the counterpart of the model
+        # field's flag: simple for fields that always took formulas, raw for the
+        # fields that took plain text before they became formulas.
+        self.legacy_text_mode = legacy_text_mode
+        if len(self.allowed_formats) > 1:
+            # Only the fields that accept a format mention it in the API docs.
+            formats_help_text = (
+                f"Accepted `format` values: {', '.join(self.allowed_formats)}."
+            )
+            help_text = kwargs.get("help_text")
+            kwargs["help_text"] = (
+                f"{help_text} {formats_help_text}" if help_text else formats_help_text
+            )
         super().__init__(*args, **kwargs)
         self.required = False
         self.default = BaserowFormulaObject(
@@ -103,10 +139,23 @@ class FormulaSerializerField(serializers.JSONField):
             bfo_serializer = BaserowFormulaObjectSerializer(data=data)
             bfo_serializer.is_valid(raise_exception=True)
             data = bfo_serializer.validated_data
+            # The object serializer defaults a missing `format` to plain, so the
+            # key is always there. Check it against the formats this field
+            # accepts, then only keep it when it isn't plain: a missing key
+            # means plain, and the stored object stays minimal.
+            format = data.pop("format")
+            if format not in self.allowed_formats:
+                raise ValidationError(
+                    f"The format '{format}' is not allowed for this formula. "
+                    f"Allowed formats: {', '.join(self.allowed_formats)}.",
+                    code="invalid_format",
+                )
+            if format != BASEROW_FORMULA_FORMAT_PLAIN:
+                data["format"] = format
 
         # For compatibility reasons: if we receive a string, we will
-        # construct a BaserowFormulaObject with it, and assume the
-        # mode is 'simple', and the version is the initial version.
+        # construct a BaserowFormulaObject with it, in the field's legacy text
+        # mode (simple unless told otherwise), and the initial version.
         # TODO: we should infer the `mode` differently, once we know
         #   what an advanced/raw formula looks like. Or: just force the
         #   user to tell us?
@@ -114,7 +163,7 @@ class FormulaSerializerField(serializers.JSONField):
             data = BaserowFormulaObject(
                 formula=data,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
-                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                mode=self.legacy_text_mode,
             )
 
         if not data["formula"] or data["mode"] == BASEROW_FORMULA_MODE_RAW:

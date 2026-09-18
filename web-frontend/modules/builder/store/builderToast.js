@@ -30,8 +30,8 @@ export const actions = {
   infoNeutral({ dispatch }, { title, message }) {
     dispatch('add', { type: 'info-neutral', title, message })
   },
-  info({ dispatch }, { title, message }) {
-    dispatch('add', { type: 'info-primary', title, message })
+  info({ dispatch }, { title, message, ...rest }) {
+    dispatch('add', { type: 'info-primary', title, message, ...rest })
   },
   error({ dispatch }, { title, message, details }) {
     dispatch('add', { type: 'error', title, message, details })

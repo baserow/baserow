@@ -188,7 +188,7 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
         } else if (originalType === 'url') {
           return {
             link_name: { formula: valueFormula },
-            name: properties[field].title,
+            name: { formula: properties[field].title, mode: 'raw' },
             id: uuid(), // Temporary id
             navigate_to_page_id: null,
             navigate_to_url: { formula: valueFormula },
@@ -200,7 +200,7 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
         } else if (originalType === 'file') {
           return {
             id: uuid(),
-            name: properties[field].title,
+            name: { formula: properties[field].title, mode: 'raw' },
             type: 'image',
             src: { formula: `get('current_record.${field}.*.url')` },
             alt: { formula: `get('current_record.${field}.*.visible_name')` },
@@ -219,7 +219,7 @@ export class DataSourceLocalBaserowTableServiceType extends DataSourceServiceTyp
           valueFormula = `get('current_record.${field}.*.value')`
         }
         return {
-          name: properties[field].title,
+          name: { formula: properties[field].title, mode: 'raw' },
           type: outputType,
           value: { formula: valueFormula },
           id: uuid(), // Temporary id

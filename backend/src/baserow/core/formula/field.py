@@ -7,8 +7,11 @@ from django.db import connection, models
 
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_PLAIN,
     BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaFormat,
     BaserowFormulaMinified,
+    BaserowFormulaMode,
     FormulaFieldDatabaseValue,
     JSONFormulaFieldDatabaseValue,
     JSONFormulaFieldResult,
@@ -20,6 +23,30 @@ logger = logging.getLogger(__name__)
 BASEROW_FORMULA_VERSION_INITIAL = "0.1"
 
 
+def _minify(
+    formula: str,
+    mode: BaserowFormulaMode,
+    version: str,
+    format: Optional[BaserowFormulaFormat] = None,
+) -> BaserowFormulaMinified:
+    """
+    Builds the stored form of a formula object. The `fmt` key is only written
+    for a format other than plain: a stored formula without `fmt` is plain, and
+    `fmt: "plain"` is never written.
+
+    :param formula: The formula string.
+    :param mode: The formula mode.
+    :param version: The formula version.
+    :param format: The `format` of the formula object, if any.
+    :return: The minified formula.
+    """
+
+    minified = BaserowFormulaMinified(m=mode, v=version, f=formula)
+    if format and format != BASEROW_FORMULA_FORMAT_PLAIN:
+        minified["fmt"] = format
+    return minified
+
+
 class FormulaField(models.TextField):
     """
     A formula field which can contain:
@@ -28,19 +55,45 @@ class FormulaField(models.TextField):
         - E.g. 'get(\"data_source.123.field_123\")'
         - This can happen if a user fetches a row with one or more formula fields
           which were not yet migrated to the new formula context format.
+        - It is read as a formula in the `legacy_text_mode` of the field: simple
+          for the columns that always held formulas, raw for the columns that
+          held plain text before they became formula fields, so that their
+          legacy rows keep meaning that text.
     - A JSON-serialized formula context:
         - E.g. {"f":"get(\"data_source.123.field_123\")\","m": "simple","v":"0.1"}
         - This is the new format which contains the formula string, the mode (simple,
             advanced, raw) and the version of the formula context.
+        - It can also carry the `format` of the formula object as `fmt`, e.g.
+          `"fmt": "markdown"`. The key is absent when the format is plain.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        legacy_text_mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
+        **kwargs,
+    ):
+        # The mode a stored value which isn't a serialized formula context (a
+        # plain string) is read and written as, see the class docstring.
+        self.legacy_text_mode = legacy_text_mode
         super().__init__(*args, **kwargs)
         # For compat reasons, applied the parameters we used to receive.
         # These can be altered once we inherit from `JSONField`.
         self.default = ""
         self.null = True
         self.blank = True
+
+    def deconstruct(self):
+        """
+        Keeps a non-default `legacy_text_mode` in the migration state, so that
+        the historical models of a data migration read the legacy rows of the
+        column the same way the live model does.
+        """
+
+        name, path, args, kwargs = super().deconstruct()
+        if self.legacy_text_mode != BASEROW_FORMULA_MODE_SIMPLE:
+            kwargs["legacy_text_mode"] = self.legacy_text_mode
+        return name, path, args, kwargs
 
     def _deserialize_baserow_object(
         self, value: FormulaFieldDatabaseValue
@@ -66,6 +119,41 @@ class FormulaField(models.TextField):
         except (TypeError, json.JSONDecodeError):
             return None
 
+    def _minified_to_object(
+        self, minified: BaserowFormulaMinified
+    ) -> BaserowFormulaObject:
+        """
+        Expands a stored formula context into a `BaserowFormulaObject`, carrying
+        its `fmt` over as `format` when it has one. A null `f` is read as an
+        empty formula, since clients expect the formula to always be a string.
+
+        :param minified: The stored formula context.
+        :return: A `BaserowFormulaObject`.
+        """
+
+        return BaserowFormulaObject.create(
+            # Raw DB values can hold `"f": null`; clients expect a string.
+            formula=minified["f"] or "",
+            mode=minified["m"],
+            version=minified["v"],
+            format=minified.get("fmt"),
+        )
+
+    def _legacy_text_to_object(self, value: str) -> BaserowFormulaObject:
+        """
+        Wraps a stored plain string, one that isn't a serialized formula context,
+        in a `BaserowFormulaObject` in the `legacy_text_mode` of the field.
+
+        :param value: The stored string.
+        :return: A `BaserowFormulaObject`.
+        """
+
+        return BaserowFormulaObject(
+            formula=value,
+            mode=self.legacy_text_mode,
+            version=BASEROW_FORMULA_VERSION_INITIAL,
+        )
+
     def _transform_db_value_to_dict(
         self, value: FormulaFieldDatabaseValue
     ) -> BaserowFormulaObject:
@@ -89,20 +177,12 @@ class FormulaField(models.TextField):
             # We could encounter a serialized object...
             if context := self._deserialize_baserow_object(value):
                 # If we have, then we can parse it and return the `BaserowFormulaObject`
-                return BaserowFormulaObject(
-                    mode=context["m"],
-                    version=context["v"],
-                    # Raw DB values can hold `"f": null`; clients expect a string.
-                    formula=context["f"] or "",
-                )
+                return self._minified_to_object(context)
             elif isinstance(value, str):
-                # Otherwise, it's a raw formula string, which we can wrap in a
-                # `BaserowFormulaObject` and return.
-                return BaserowFormulaObject(
-                    formula=value,
-                    mode=BASEROW_FORMULA_MODE_SIMPLE,
-                    version=BASEROW_FORMULA_VERSION_INITIAL,
-                )
+                # Otherwise, it's a plain string (a legacy formula, or the legacy
+                # text of a column that became a formula field), which we can
+                # wrap in a `BaserowFormulaObject` and return.
+                return self._legacy_text_to_object(value)
             # It's a dictionary, so we can assume it's already a formula context.
             # We just wrap it in a `BaserowFormulaObject` for typing purposes.
             return BaserowFormulaObject(**value)
@@ -125,15 +205,9 @@ class FormulaField(models.TextField):
                 )
 
             if isinstance(value, str):
-                return BaserowFormulaObject(
-                    formula=value,
-                    mode=BASEROW_FORMULA_MODE_SIMPLE,
-                    version=BASEROW_FORMULA_VERSION_INITIAL,
-                )
+                return self._legacy_text_to_object(value)
 
-            return BaserowFormulaObject(
-                mode=value["m"], version=value["v"], formula=value["f"] or ""
-            )
+            return self._minified_to_object(value)
 
     def contribute_to_class(self, cls, name, **kwargs):
         """
@@ -205,34 +279,40 @@ class FormulaField(models.TextField):
         # We should always be receiving a string or dictionary here.
         if value is None:
             return json.dumps(
-                BaserowFormulaMinified(
-                    m=BASEROW_FORMULA_MODE_SIMPLE,
-                    v=BASEROW_FORMULA_VERSION_INITIAL,
-                    f="",
+                _minify(
+                    formula="",
+                    mode=BASEROW_FORMULA_MODE_SIMPLE,
+                    version=BASEROW_FORMULA_VERSION_INITIAL,
                 )
             )
 
         # v2/v2.1: if we've received a dictionary...
         if isinstance(value, dict):
-            # Ensure we have proper defaults for None values
-            mode = value.get("mode") or BASEROW_FORMULA_MODE_SIMPLE
-            version = value.get("version") or BASEROW_FORMULA_VERSION_INITIAL
-            formula = value.get("formula") or ""
+            # Ensure we have proper defaults for None values. The `format` is
+            # only stored (as `fmt`) when it isn't plain, see `_minify`.
+            minified = _minify(
+                formula=value.get("formula") or "",
+                mode=value.get("mode") or BASEROW_FORMULA_MODE_SIMPLE,
+                version=value.get("version") or BASEROW_FORMULA_VERSION_INITIAL,
+                format=value.get("format"),
+            )
 
             # v2: the column type is `text`, so we need to
             # serialize the object and store it in our text field.
             if self.db_type(connection) == "text":
-                return json.dumps(BaserowFormulaMinified(m=mode, v=version, f=formula))
+                return json.dumps(minified)
             # v2.1: the column type is `json`, so we can store a dict.
-            return BaserowFormulaMinified(m=mode, v=version, f=formula)
+            return minified
 
-        # In v1.x the frontend will keep sending a formula ,
-        # string so we need to convert it to the new format.
+        # In v1.x the frontend will keep sending a formula string, and fixtures
+        # or old callers can assign one, so we need to convert it to the new
+        # format. Like a stored plain string, it's read in the `legacy_text_mode`
+        # of the field.
         return json.dumps(
-            BaserowFormulaMinified(
-                f=str(value),
-                m=BASEROW_FORMULA_MODE_SIMPLE,
-                v=BASEROW_FORMULA_VERSION_INITIAL,
+            _minify(
+                formula=str(value),
+                mode=self.legacy_text_mode,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
             )
         )
 
@@ -292,6 +372,9 @@ class JSONFormulaField(models.JSONField):
         - We will receive a `BaserowFormulaObject` if we're being called via
           `to_python`.
 
+        Either object form can carry a format (`fmt` when minified, `format`
+        otherwise), which is only kept on the result when it isn't plain.
+
         :param value: The value from the database, either a string or dictionary.
         :return: A `BaserowFormulaObject`.
         """
@@ -307,10 +390,11 @@ class JSONFormulaField(models.JSONField):
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 formula=value or "",
             )
-        return BaserowFormulaObject(
+        return BaserowFormulaObject.create(
             mode=value.get("m", value.get("mode")),
             version=value.get("v", value.get("version")),
             formula=value.get("f", value.get("formula")) or "",
+            format=value.get("fmt", value.get("format")),
         )
 
     def _transform_db_properties(
@@ -416,7 +500,8 @@ class JSONFormulaField(models.JSONField):
         """
         Responsible for taking a `value`, which could be a string
         or dictionary, and transforming it into a `BaserowFormulaMinified`
-        for `get_prep_value` to persist in our database.
+        for `get_prep_value` to persist in our database. The `format` of the
+        object is stored as `fmt`, and only when it isn't plain.
 
         :param value: The value from the database, either a string or dictionary.
         :return: A `BaserowFormulaMinified`.
@@ -425,15 +510,16 @@ class JSONFormulaField(models.JSONField):
         # Coerce `None` values so that non-serializer write paths (direct ORM
         # saves, application import) can never persist a null formula.
         if not isinstance(value, dict):
-            return BaserowFormulaMinified(
-                m=BASEROW_FORMULA_MODE_SIMPLE,
-                v=BASEROW_FORMULA_VERSION_INITIAL,
-                f=value or "",
+            return _minify(
+                formula=value or "",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
             )
-        return BaserowFormulaMinified(
-            m=value.get("mode", BASEROW_FORMULA_MODE_SIMPLE),
-            v=value.get("version", BASEROW_FORMULA_VERSION_INITIAL),
-            f=value.get("formula") or "",
+        return _minify(
+            formula=value.get("formula") or "",
+            mode=value.get("mode", BASEROW_FORMULA_MODE_SIMPLE),
+            version=value.get("version", BASEROW_FORMULA_VERSION_INITIAL),
+            format=value.get("format"),
         )
 
     def get_prep_value(

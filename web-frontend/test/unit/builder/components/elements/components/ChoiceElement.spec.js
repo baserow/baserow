@@ -84,8 +84,8 @@ describe('ChoiceElement', () => {
       option_type: 'manual',
       show_as_dropdown: true,
       options: [
-        { value: '1', name: 'First' },
-        { value: '2', name: 'Second' },
+        { value: '1', name: { formula: 'First', mode: 'raw' } },
+        { value: '2', name: { formula: 'Second', mode: 'raw' } },
       ],
       page_id: 1,
     })
@@ -102,20 +102,20 @@ describe('ChoiceElement', () => {
       option_type: 'manual',
       show_as_dropdown: true,
       options: [
-        { value: '', name: 'Foo Name' },
-        { value: 'bar_name', name: 'Bar Name' },
-        { value: null, name: 'Baz Name' },
+        { value: '', name: { formula: 'Foo Name', mode: 'raw' } },
+        { value: 'bar_name', name: { formula: 'Bar Name', mode: 'raw' } },
+        { value: null, name: { formula: 'Baz Name', mode: 'raw' } },
       ],
       page_id: 1,
     })
 
     expect(wrapper.vm.optionsResolved).toEqual([
       // An empty string is a valid Value
-      { value: '', name: 'Foo Name' },
+      { value: '', name: 'Foo Name', nameFormat: 'plain' },
       // 'bar_name' is a valid Value
-      { value: 'bar_name', name: 'Bar Name' },
+      { value: 'bar_name', name: 'Bar Name', nameFormat: 'plain' },
       // null is replaced by the name, i.e. 'Baz Name'
-      { value: 'Baz Name', name: 'Baz Name' },
+      { value: 'Baz Name', name: 'Baz Name', nameFormat: 'plain' },
     ])
   })
 
@@ -128,8 +128,8 @@ describe('ChoiceElement', () => {
       option_type: 'manual',
       show_as_dropdown: false,
       options: [
-        { value: '1', name: 'First' },
-        { value: '2', name: 'Second' },
+        { value: '1', name: { formula: 'First', mode: 'raw' } },
+        { value: '2', name: { formula: 'Second', mode: 'raw' } },
       ],
       page_id: 1,
     })
@@ -146,8 +146,8 @@ describe('ChoiceElement', () => {
       option_type: 'manual',
       show_as_dropdown: false,
       options: [
-        { value: '1', name: 'First' },
-        { value: '2', name: 'Second' },
+        { value: '1', name: { formula: 'First', mode: 'raw' } },
+        { value: '2', name: { formula: 'Second', mode: 'raw' } },
       ],
       page_id: 1,
     })

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Literal, TypedDict, Union
+from typing import Any, Dict, List, Literal, NotRequired, Optional, TypedDict, Union
 
 from baserow.core.formula.exceptions import RuntimeFormulaRecursion
 
@@ -76,11 +76,25 @@ BASEROW_FORMULA_MODE_ADVANCED: Literal["advanced"] = "advanced"
 BASEROW_FORMULA_MODE_RAW: Literal["raw"] = "raw"
 BaserowFormulaMode = Literal["simple", "advanced", "raw"]
 
+# The formats a surface can render the resolved value of a formula in. Plain is
+# the implicit default: a formula object without a `format` key is plain, and
+# plain is never written to the object or to the database.
+BASEROW_FORMULA_FORMAT_PLAIN: Literal["plain"] = "plain"
+BASEROW_FORMULA_FORMAT_MARKDOWN: Literal["markdown"] = "markdown"
+BaserowFormulaFormat = Literal["plain", "markdown"]
+BASEROW_FORMULA_FORMATS = [
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+]
+
 
 class BaserowFormulaObject(TypedDict):
     formula: BaserowFormula
     mode: BaserowFormulaMode
     version: str
+    # How the surface showing the resolved value renders it. Only present when
+    # it isn't plain, see `create`.
+    format: NotRequired[BaserowFormulaFormat]
 
     @classmethod
     def create(
@@ -88,8 +102,16 @@ class BaserowFormulaObject(TypedDict):
         formula: str = "",
         mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
         version: str = "0.1",
+        format: Optional[BaserowFormulaFormat] = None,
     ) -> "BaserowFormulaObject":
-        return BaserowFormulaObject(formula=formula, mode=mode, version=version)
+        formula_object = BaserowFormulaObject(
+            formula=formula, mode=mode, version=version
+        )
+        # A missing `format` means plain, so the key is only set for the other
+        # formats. This keeps every plain object, old or new, identical.
+        if format and format != BASEROW_FORMULA_FORMAT_PLAIN:
+            formula_object["format"] = format
+        return formula_object
 
     @classmethod
     def to_formula(cls, value) -> "BaserowFormulaObject":
@@ -102,11 +124,32 @@ class BaserowFormulaObject(TypedDict):
         else:
             return cls.create(formula=value)
 
+    @classmethod
+    def to_raw_formula(cls, value) -> "BaserowFormulaObject":
+        """
+        Return a formula object even if it was a plain string, the string being
+        the text itself: a raw-mode formula. This is how the columns that held
+        plain text before they became formulas read their legacy values, and how
+        the old exports and the templates of those columns are imported.
+        """
+
+        if isinstance(value, dict):
+            return value
+        return cls.create(formula=value or "", mode=BASEROW_FORMULA_MODE_RAW)
+
 
 class BaserowFormulaMinified(TypedDict):
+    """
+    The stored form of a `BaserowFormulaObject`, e.g.
+    `{"f": "'**bold**'", "m": "simple", "v": "0.1", "fmt": "markdown"}`. The
+    `fmt` key is the `format` of the object and is absent when the format is
+    plain.
+    """
+
     v: str
     m: BaserowFormulaMode
     f: BaserowFormula
+    fmt: NotRequired[BaserowFormulaFormat]
 
 
 FormulaFieldDatabaseValue = Union[str, BaserowFormulaMinified]

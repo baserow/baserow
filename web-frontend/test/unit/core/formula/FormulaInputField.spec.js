@@ -336,7 +336,7 @@ describe('FormulaInputField mode changes', () => {
     expect(wrapper.emitted('input').at(-1)).toEqual(['secondary'])
   })
 
-  it('switches from raw mode to simple mode without changing the value', async () => {
+  it('keeps the raw text as a string literal when switching to simple mode', async () => {
     const wrapper = await mountField({
       value: "#acc'8f8",
       mode: 'raw',
@@ -344,8 +344,47 @@ describe('FormulaInputField mode changes', () => {
 
     await wrapper.find('.formula-input-field__mode-toggle').trigger('click')
 
+    // Passed through verbatim the text would be parsed as formula syntax and
+    // be invalid (`Price` is a bare function name), so it becomes a literal.
     expect(wrapper.emitted('update:mode').at(-1)).toEqual(['simple'])
-    expect(wrapper.emitted('input').at(-1)).toEqual(["#acc'8f8"])
+    expect(wrapper.emitted('input').at(-1)).toEqual(["'#acc\\'8f8'"])
+
+    // The parent reflects the change back, as v-model does.
+    await wrapper.setProps({ mode: 'simple', value: "'#acc\\'8f8'" })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.formula-input-field--formula-empty').exists()).toBe(
+      false
+    )
+    expect(wrapper.find('.formula-input-field--error').exists()).toBe(false)
+    expect(wrapper.vm.editor.getText()).toContain("#acc'8f8")
+  })
+
+  it('escapes backslashes before quotes when switching raw text to simple mode', async () => {
+    // A lone trailing backslash would otherwise escape the closing quote.
+    const wrapper = await mountField({
+      value: "a\\b'c\\",
+      mode: 'raw',
+    })
+
+    await wrapper.find('.formula-input-field__mode-toggle').trigger('click')
+
+    expect(wrapper.emitted('input').at(-1)).toEqual(["'a\\\\b\\'c\\\\'"])
+
+    await wrapper.setProps({ mode: 'simple', value: "'a\\\\b\\'c\\\\'" })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.formula-input-field--error').exists()).toBe(false)
+    expect(wrapper.vm.editor.getText()).toContain("a\\b'c\\")
+  })
+
+  it('switches an empty raw value to simple mode with an empty formula', async () => {
+    const wrapper = await mountField({ value: '', mode: 'raw' })
+
+    await wrapper.find('.formula-input-field__mode-toggle').trigger('click')
+
+    expect(wrapper.emitted('update:mode').at(-1)).toEqual(['simple'])
+    expect(wrapper.emitted('input').at(-1)).toEqual([''])
   })
 
   it('asks for confirmation before switching a populated simple formula to raw mode', async () => {

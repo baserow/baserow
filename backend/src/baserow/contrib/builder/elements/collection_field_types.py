@@ -13,7 +13,12 @@ from baserow.contrib.builder.workflow_actions.models import (
 )
 from baserow.core.constants import RatingStyleChoices
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
+)
 from baserow.core.registry import Instance
 
 
@@ -89,6 +94,10 @@ class TextCollectionFieldType(CollectionFieldType):
     def serializer_field_overrides(self):
         return {
             "value": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text="The formula for the text.",
                 required=False,
             ),
