@@ -88,13 +88,24 @@ class DatabaseWorkflowServiceActionType(
     # is dropped. Only read by a type that sets `captures_sample_data`.
     sample_data_shaping_fields: List[str] = []
 
-    serializer_field_names = ["service"]
+    serializer_field_names = ["service", "requires_reconfiguration"]
     serializer_field_overrides = {
         "service": DatabasePolymorphicServiceSerializer(
             help_text="The service which this workflow action is associated with."
-        )
+        ),
+        "requires_reconfiguration": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether a click on the action is sure to fail: it "
+            "points at a table, field or integration that is in the trash or "
+            "gone, or it updates a row without saying which. The button "
+            "field's own flag is whether any action has it.",
+        ),
     }
     request_serializer_field_names = ["service"]
+    request_serializer_field_overrides = {
+        "service": serializer_field_overrides["service"],
+    }
 
     class SerializedDict(DatabaseWorkflowActionDict):
         service: Dict

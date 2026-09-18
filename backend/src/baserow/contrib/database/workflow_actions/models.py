@@ -1,5 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.db.models import OuterRef
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.core.formula.field import FormulaField as CoreFormulaModelField
@@ -70,6 +71,25 @@ class DatabaseWorkflowServiceAction(DatabaseWorkflowAction):
         # the default reverse accessor would clash with theirs.
         related_name="%(app_label)s_%(class)s_set",
     )
+
+    # Set by `annotate_actions_requiring_reconfiguration` when a field's actions
+    # are listed, so the flag costs no query per action there.
+    REQUIRES_RECONFIGURATION_ANNOTATION = "requires_reconfiguration_annotated"
+
+    @property
+    def requires_reconfiguration(self) -> bool:
+        annotated = getattr(self, self.REQUIRES_RECONFIGURATION_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
+        # Imported here: the reconfiguration module imports this one.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            action_requires_reconfiguration,
+        )
+
+        return DatabaseWorkflowAction.objects.filter(
+            action_requires_reconfiguration(OuterRef("pk")), pk=self.pk
+        ).exists()
 
     class Meta:
         abstract = True

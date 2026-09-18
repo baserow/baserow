@@ -1,7 +1,9 @@
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
@@ -1299,3 +1301,43 @@ def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
     result = service_type.extract_properties(service, [])
 
     assert result == ["id", field_1.db_column, field_2.db_column]
+
+
+@pytest.mark.django_db
+def test_generating_a_schema_does_not_query_per_button_field(data_fixture):
+    """
+    A button's `has_workflow_actions` and `requires_reconfiguration` describe
+    its actions, not the table's data, and each would cost a query.
+    """
+
+    service_type = LocalBaserowListRowsUserServiceType()
+
+    def schema_queries(button_count):
+        table = data_fixture.create_database_table()
+        data_fixture.create_text_field(table=table, name="Name", primary=True)
+        # Every field reads its constraints, so the field count stays the same.
+        for _ in range(3 - button_count):
+            data_fixture.create_text_field(table=table)
+        for _ in range(button_count):
+            data_fixture.create_button_field(table=table)
+        service = data_fixture.create_local_baserow_list_rows_service(table=table)
+        # Only the schema is measured, not the table model it reads.
+        table.get_model()
+
+        with CaptureQueriesContext(connection) as captured:
+            schema = service_type.generate_schema(service)
+
+        buttons = [
+            prop["metadata"]
+            for prop in schema["items"]["properties"].values()
+            if prop.get("original_type") == "button"
+        ]
+        assert len(buttons) == button_count
+        for metadata in buttons:
+            assert "has_workflow_actions" not in metadata
+            assert "requires_reconfiguration" not in metadata
+        return len(captured)
+
+    schema_queries(1)
+
+    assert schema_queries(3) == schema_queries(1)

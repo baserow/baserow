@@ -190,6 +190,16 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
+  /**
+   * Only `has_workflow_actions` and `requires_reconfiguration` can have
+   * changed, and a cell renders the button from those alone, so the rows stay
+   * as they are. Deliberately not a `field_updated`: that one refetches the
+   * whole grid, and would throw away what someone is typing in a cell.
+   */
+  realtime.registerEvent('button_fields_updated', async ({ store }, data) => {
+    await store.dispatch('field/forceUpdateFields', { fields: data.fields })
+  })
+
   realtime.registerEvent('field_deleted', async ({ store, app }, data) => {
     const field = store.getters['field/get'](data.field_id)
     if (field !== undefined) {
