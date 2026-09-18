@@ -7,7 +7,13 @@ from django.dispatch import receiver
 from baserow.contrib.database.fields import signals as field_signals
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.workflow_actions import (
+    signals as workflow_action_signals,
+)
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
+from baserow.contrib.database.ws.workflow_actions.signals import (
+    button_fields_updated_message,
+)
 from baserow.core.db import specific_iterator
 from baserow.ws.registries import page_registry
 from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
@@ -114,3 +120,38 @@ def field_deleted(
             field_id=field_id,
         )
     )
+
+
+@receiver(workflow_action_signals.button_fields_updated)
+def button_fields_updated(sender, table_id, fields, user, **kwargs):
+    """
+    Mirrors the table page's `button_fields_updated` to the restricted views of
+    that table, since someone who reaches the table only through one is
+    subscribed to the view's page instead. Sent per view rather than per field:
+    which buttons a view hides is its own, and one message carries them all.
+    """
+
+    views = specific_iterator(
+        View.objects.filter(
+            table_id=table_id,
+            ownership_type=RestrictedViewOwnershipType.type,
+        )
+        .select_related("content_type")
+        .prefetch_related("table__field_set"),
+        per_content_type_queryset_hook=(
+            lambda model, queryset: view_type_registry.get_by_model(
+                model
+            ).enhance_queryset(queryset)
+        ),
+    )
+    view_page_type = page_registry.get("restricted_view")
+    for view in views:
+        hidden_ids = view_type_registry.get_by_model(view).get_hidden_fields(view)
+        visible = [field for field in fields if field.id not in hidden_ids]
+        if not visible:
+            continue
+        view_page_type.broadcast(
+            button_fields_updated_message(visible),
+            getattr(user, "web_socket_id", None),
+            restricted_view_id=view.id,
+        )

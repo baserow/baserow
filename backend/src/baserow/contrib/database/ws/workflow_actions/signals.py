@@ -1,5 +1,6 @@
 from itertools import groupby
 from operator import attrgetter
+from typing import Iterable
 
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
@@ -24,6 +25,33 @@ from baserow.core.trash import signals as trash_signals
 from baserow.ws.registries import page_registry
 
 
+def button_fields_updated_message(fields: Iterable[ButtonField]) -> dict:
+    """
+    The payload that carries these button fields out to a page. Only
+    `has_workflow_actions` and `requires_reconfiguration` can have changed, and
+    neither says anything about the rows, so this is a separate message from
+    `field_updated`: that one makes the client refetch the whole grid.
+
+    :param fields: The button fields to send, all in the same table.
+    """
+
+    return {
+        "type": "button_fields_updated",
+        "fields": RealtimeFieldMessages.serialize_fields_for_websockets(fields),
+    }
+
+
+@receiver(workflow_action_signals.button_fields_updated)
+def broadcast_button_fields_updated(sender, table_id, fields, user, **kwargs):
+    """Sends the button fields of a table to everyone looking at that table."""
+
+    page_registry.get("table").broadcast(
+        button_fields_updated_message(fields),
+        getattr(user, "web_socket_id", None),
+        table_id=table_id,
+    )
+
+
 def _broadcast_field(field: ButtonField, user: AbstractUser) -> None:
     """
     Sends the button field out again, so everyone else's copy of
@@ -35,14 +63,11 @@ def _broadcast_field(field: ButtonField, user: AbstractUser) -> None:
     :param user: The user who changed them, whose own session already knows.
     """
 
-    table_page_type = page_registry.get("table")
     transaction.on_commit(
-        # Built here rather than above: `has_workflow_actions` counts the
+        # Sent here rather than above: `has_workflow_actions` counts the
         # actions, and the change is only committed by the time this runs.
-        lambda: table_page_type.broadcast(
-            RealtimeFieldMessages.field_updated(field, []),
-            getattr(user, "web_socket_id", None),
-            table_id=field.table_id,
+        lambda: workflow_action_signals.button_fields_updated.send(
+            ButtonField, table_id=field.table_id, fields=[field], user=user
         )
     )
 
@@ -76,14 +101,12 @@ def _broadcast_buttons(button_fields: QuerySet[ButtonField]) -> None:
     No session is left out: whoever trashed the field may be looking at the
     button's table, and nothing updates their copy either.
 
-    Each table gets one message with its first button as `field` and the rest
-    as `related_fields`, as every `field_updated` refreshes the whole grid.
+    Each table gets one message with all of its buttons in it.
 
     :param button_fields: The buttons whose `requires_reconfiguration` may
         have changed.
     """
 
-    table_page_type = page_registry.get("table")
     buttons = ButtonFieldType().enhance_field_queryset_for_serialization(
         button_fields.select_related("table__database")
         .prefetch_related("field_constraints")
@@ -91,11 +114,8 @@ def _broadcast_buttons(button_fields: QuerySet[ButtonField]) -> None:
         None,
     )
     for table_id, in_table in groupby(buttons, key=attrgetter("table_id")):
-        first, *rest = in_table
-        table_page_type.broadcast(
-            RealtimeFieldMessages.field_updated(first, rest),
-            None,
-            table_id=table_id,
+        workflow_action_signals.button_fields_updated.send(
+            ButtonField, table_id=table_id, fields=list(in_table), user=None
         )
 
 
