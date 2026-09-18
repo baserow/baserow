@@ -11,7 +11,7 @@
       v-model="computedInputValue"
       :multiple="element.multiple"
       :help-text="resolvedHelpText"
-      :accept="allowedExtensions"
+      :accept="acceptedFileTypes"
       :preview="element.preview"
     />
   </ABFormGroup>
@@ -37,7 +37,7 @@ export default {
      * @property {boolean} required - Whether the input is required.
      * @property {boolean} preview - Whether the user want to show the preview.
      * @property {boolean} multiple - Whether the input supports multiple files.
-     * @property {Array} allowed_filetypes - List of allowed extensions.
+     * @property {Array} allowed_filetypes - Allowed extensions, MIME types, or media wildcards.
      */
     element: {
       type: Object,
@@ -62,14 +62,11 @@ export default {
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))
     },
-    allowedExtensions() {
+    acceptedFileTypes() {
       return this.element.allowed_filetypes
         .filter((v) => v)
         .map((value) => {
-          if (
-            value.startsWith('.') ||
-            ['image/*', 'video/*', 'audio/*'].includes(value)
-          ) {
+          if (value.startsWith('.') || value.includes('/')) {
             return value
           } else {
             return `.${value}`
