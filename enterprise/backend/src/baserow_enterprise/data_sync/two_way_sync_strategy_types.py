@@ -29,6 +29,14 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
     This strategy is perfect for systems where you can write to, but not receive
     real-time events. Because the source table will always be up to date, there will
     be no conflicts.
+
+    That last point holds except while a sync's fetch is in flight: the rows it read
+    predate any edit made after it started reading, even though that edit has already
+    been pushed to the source. The sync therefore compares each synced cell against
+    its own pre-fetch value and declines to write the cells that moved in the
+    meantime, leaving them to the next sync, which reads the source after the push.
+    Only two-way syncs are affected; one-way synced fields are read-only, so a user
+    cannot edit them at all.
     """
 
     type = "realtime_push"

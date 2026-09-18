@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Improved Jira data sync performance and stopped blocking the table while a sync fetches its source",
+    "issue_origin": "github",
+    "issue_number": 6110,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-17"
+}
