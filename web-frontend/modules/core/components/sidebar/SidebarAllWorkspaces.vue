@@ -91,10 +91,16 @@ export default {
         .map((plugin) => plugin.getImpersonateComponent())
         .filter((component) => component !== null)
     },
+    // Not `notification/anyOtherWorkspaceWithUnread`: that excludes the
+    // notification store's current workspace, which on this workspace agnostic
+    // page is stale from the last visited one and must count as well.
+    unreadNotificationsInAnyWorkspace() {
+      return this.workspaces.some((workspace) =>
+        this.$store.getters['notification/workspaceHasUnread'](workspace.id)
+      )
+    },
     ...mapGetters({
       name: 'auth/getName',
-      unreadNotificationsInAnyWorkspace:
-        'notification/anyOtherWorkspaceWithUnread',
     }),
   },
 }

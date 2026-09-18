@@ -3,11 +3,16 @@
     ref="context"
     :overflow-scroll="true"
     :max-height-if-outside-viewport="true"
+    @shown="fetchRolesAndPermissions"
   >
     <div class="context__menu-title">
       {{ application.name }} ({{ application.id }})
     </div>
-    <ul class="context__menu">
+    <div
+      v-if="workspace._.additionalLoading"
+      class="loading margin-left-2 margin-top-2 margin-bottom-2"
+    ></div>
+    <ul v-else class="context__menu">
       <li
         v-for="(component, index) in additionalContextComponents"
         :key="index"
@@ -171,6 +176,13 @@ export default {
     },
   },
   methods: {
+    // The items are permission gated and the granular workspace permissions
+    // are only fetched for the selected workspace, so they might still be
+    // missing when the context is opened from a workspace agnostic page.
+    async fetchRolesAndPermissions() {
+      await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
+      await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+    },
     setLoading(application, value) {
       this.$store.dispatch('application/setItemLoading', {
         application,
