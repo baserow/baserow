@@ -14,24 +14,27 @@
 }
 
 .service-form__context {
-  &--filter,
+  &--filter {
+    width: 660px;
+  }
+
   &--group,
   &--sort {
-    width: 660px;
-
-    .sortings__field {
-      flex: none;
-      flex-grow: 1;
-
-      .dropdown,
-      .dropdown__selected {
-        width: 100%;
-      }
-    }
+    width: 320px;
   }
 
   &--search {
     width: 400px;
+  }
+
+  .sortings__field {
+    flex: none;
+    flex-grow: 1;
+
+    .dropdown,
+    .dropdown__selected {
+      width: 100%;
+    }
   }
 
   .filters__none {

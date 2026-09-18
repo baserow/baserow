@@ -1,6 +1,8 @@
 {
   "dashboard": {
-    "descriptionPlaceholder": "Description"
+    "descriptionPlaceholder": "Description",
+    "addWidget": "Add widget",
+    "widgetsLoading": "Loading your dashboard..."
   },
   "dashboardHeader": {
     "doneEditing": "Done editing"

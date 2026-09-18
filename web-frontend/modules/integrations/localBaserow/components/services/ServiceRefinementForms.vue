@@ -348,11 +348,10 @@ export default {
       switch (contentType) {
         case 'search':
           return -400
-        case 'filter':
-          return -660
         case 'sort':
-          return -660
         case 'group':
+          return -320
+        case 'filter':
           return -660
         default:
           return 0

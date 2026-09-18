@@ -8,6 +8,7 @@
         v-for="widgetVariation in widgetVariations"
         :key="widgetVariation.name"
         :dashboard="dashboard"
+        :disabled="loading"
         :widget-type="widgetVariation.type"
         :variation="widgetVariation"
         @widget-variation-selected="widgetVariationSelected"
@@ -30,6 +31,11 @@ export default {
       type: Object,
       required: true,
     },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   emits: ['widget-variation-selected'],
   computed: {
@@ -44,6 +50,10 @@ export default {
   },
   methods: {
     widgetVariationSelected(widgetVariation) {
+      if (this.loading) {
+        return
+      }
+
       this.$emit('widget-variation-selected', widgetVariation)
       this.hide()
     },

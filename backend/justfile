@@ -414,10 +414,8 @@ ci-test *ARGS: _check-dev
     mkdir -p reports/
     cd ..
     COVERAGE_FILE=backend/reports/.coverage.$GROUP \
-        {{ uv_run }} coverage run \
-        --rcfile=backend/.coveragerc \
-        --concurrency=multiprocessing \
-        -m pytest -vv \
+        {{ uv_run }} pytest -vv \
+        --cov --cov-config=backend/.coveragerc --cov-report= \
         -n auto \
         --durations-path=backend/.test_durations \
         --splits $SPLITS \
@@ -495,10 +493,8 @@ ci-test-python: _check-dev
     mkdir -p reports/
     cd "{{ justfile_directory() }}/.."
     COVERAGE_FILE=backend/reports/.coverage.{{ pytest_split_group }} \
-        {{ uv_run }} coverage run \
-        --rcfile=backend/.coveragerc \
-        --concurrency=multiprocessing \
-        -m pytest -vv \
+        {{ uv_run }} pytest -vv \
+        --cov --cov-config=backend/.coveragerc --cov-report= \
         -n auto \
         --durations-path=backend/.test_durations \
         --splits {{ pytest_splits }} \
