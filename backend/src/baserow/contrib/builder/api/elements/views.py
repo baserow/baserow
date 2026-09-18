@@ -67,6 +67,7 @@ from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist, PageNotInBuilder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.service import PageService
+from baserow.contrib.builder.pages.signals import page_loaded
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.graph.exceptions import (
     GraphPointNotFoundInGraph,
@@ -135,6 +136,8 @@ class ElementsView(APIView):
             for element in elements
         ]
         response = Response(data)
+
+        page_loaded.send(sender=self, page=page, user=request.user)
 
         # A small, page-scoped delta (a handful of graph entries) — kept in a header
         # so the list response body stays a bare array. Tiny by construction, so it
