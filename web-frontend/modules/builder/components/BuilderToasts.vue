@@ -8,8 +8,20 @@
       close-button
       @close="closeToast(toast)"
     >
-      <template #title>{{ toast.title }}</template>
-      <div>{{ toast.message }}</div>
+      <template #title>
+        <ABFormattedText
+          v-if="toast.title"
+          :value="toast.title"
+          :format="toast.titleFormat"
+          profile="inline"
+        />
+      </template>
+      <ABFormattedText
+        v-if="toast.message"
+        :value="toast.message"
+        :format="toast.messageFormat"
+        profile="block"
+      />
       <details v-if="toast.details" class="ab-toast__details">
         <summary class="ab-toast__details-summary">
           {{ $t('builderToast.details') }}

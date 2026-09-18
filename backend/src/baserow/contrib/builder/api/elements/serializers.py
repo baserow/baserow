@@ -21,6 +21,7 @@ from baserow.contrib.builder.elements.models import (
     LinkElement,
     MenuItemElement,
     NavigationElementMixin,
+    TextElement,
 )
 from baserow.contrib.builder.elements.registries import (
     collection_field_type_registry,
@@ -32,7 +33,11 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_MODE_RAW,
+)
 from baserow.core.graph.types import GraphPointPosition
 
 
@@ -309,6 +314,15 @@ class CollectionFieldSerializer(serializers.ModelSerializer):
 
     default_allowed_fields = ["name", "type", "id", "uid", "styles"]
 
+    # Declared explicitly: the model serializer would otherwise map the
+    # text-backed `FormulaField` to a plain `CharField`. A bare string is read
+    # as raw text, like the model field does, so that clients from before the
+    # name became a formula keep working.
+    name = FormulaSerializerField(
+        allowed_formats=[BASEROW_FORMULA_FORMAT_PLAIN, BASEROW_FORMULA_FORMAT_MARKDOWN],
+        legacy_text_mode=BASEROW_FORMULA_MODE_RAW,
+        help_text=CollectionField._meta.get_field("name").help_text,
+    )
     config = serializers.DictField(
         required=False,
         help_text=CollectionField._meta.get_field("config").help_text,
@@ -399,6 +413,13 @@ class UpdateCollectionFieldSerializer(serializers.ModelSerializer):
 
 
 class ChoiceOptionSerializer(serializers.ModelSerializer):
+    # Declared explicitly for the same reasons as `CollectionFieldSerializer.name`.
+    name = FormulaSerializerField(
+        allowed_formats=[BASEROW_FORMULA_FORMAT_PLAIN, BASEROW_FORMULA_FORMAT_MARKDOWN],
+        legacy_text_mode=BASEROW_FORMULA_MODE_RAW,
+        help_text=ChoiceElementOption._meta.get_field("name").help_text,
+    )
+
     class Meta:
         model = ChoiceElementOption
         fields = ["id", "value", "name"]
@@ -551,3 +572,22 @@ class CollectionFieldOptionalFormulaSerializerField(FormulaSerializerField):
             data["mode"] = BASEROW_FORMULA_MODE_RAW
 
         return data
+
+
+class TextElementValueSerializerField(FormulaSerializerField):
+    """
+    The `value` of a Text element. Rows written before the format lived on the
+    value only carry it in the deprecated `format` column, so that column is
+    mirrored into the value when the value has no format of its own. Writes go
+    the other way, see `TextElementType.prepare_value_for_db`.
+    """
+
+    def get_attribute(self, instance):
+        value = super().get_attribute(instance)
+        if (
+            isinstance(value, dict)
+            and "format" not in value
+            and getattr(instance, "format", None) == TextElement.TEXT_FORMATS.MARKDOWN
+        ):
+            return {**value, "format": BASEROW_FORMULA_FORMAT_MARKDOWN}
+        return value

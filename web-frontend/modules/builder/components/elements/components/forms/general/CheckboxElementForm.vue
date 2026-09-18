@@ -16,6 +16,7 @@
       <InjectedFormulaInput
         v-model="values.label"
         :placeholder="$t('generalForm.labelPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
 
@@ -44,6 +45,7 @@
 import formElementForm from '@baserow/modules/builder/mixins/formElementForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput.vue'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'CheckboxElementForm',
@@ -58,6 +60,7 @@ export default {
         required: false,
         styles: {},
       },
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
 }

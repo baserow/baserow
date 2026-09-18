@@ -101,6 +101,8 @@ from baserow.core.formula import (
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormula,
     BaserowFormulaObject,
@@ -109,6 +111,7 @@ from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_numeric,
+    ensure_string,
     ensure_string_or_integer,
 )
 from baserow.core.registry import Instance, T
@@ -608,6 +611,10 @@ class RecordSelectorElementType(
                 required=False,
             ),
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=RecordSelectorElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -918,18 +925,98 @@ class TextElementType(ElementType):
             "format": TextElement.TEXT_FORMATS.PLAIN,
         }
 
+    @staticmethod
+    def _with_format(value: Any, format: str) -> BaserowFormulaObject:
+        """
+        Returns a copy of the given formula (object or bare string) carrying the
+        given format, the key being absent when the format is plain.
+        """
+
+        value = dict(BaserowFormulaObject.to_formula(value))
+        if format == BASEROW_FORMULA_FORMAT_MARKDOWN:
+            value["format"] = BASEROW_FORMULA_FORMAT_MARKDOWN
+        else:
+            value.pop("format", None)
+        return value
+
+    def prepare_value_for_db(
+        self, values: Dict, instance: Optional[TextElement] = None
+    ) -> Dict:
+        """
+        Keeps the deprecated `format` column in sync with the `format` of the
+        `value`, so that the previous application version and legacy API clients
+        keep working during this release:
+
+        - When `value` is given, it is the source of truth: its `format`, or its
+          absence meaning plain, is copied into the column.
+        - When only `format` is given, by a legacy client, it is applied to the
+          `value` of the element.
+        """
+
+        if "value" in values:
+            value = values["value"]
+            values["format"] = (
+                value.get("format", BASEROW_FORMULA_FORMAT_PLAIN)
+                if isinstance(value, dict)
+                else BASEROW_FORMULA_FORMAT_PLAIN
+            )
+        elif "format" in values:
+            current_value = (
+                instance.value if instance else BaserowFormulaObject.create()
+            )
+            values["value"] = self._with_format(current_value, values["format"])
+
+        return super().prepare_value_for_db(values, instance)
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> TextElement:
+        # Exports made before the format lived on the value only carry it in
+        # the deprecated `format` column, and their `value` can even be a bare
+        # formula string. Move the format onto the value; the column itself is
+        # imported as it is, so both stay in sync.
+        if serialized_values.get("format") == TextElement.TEXT_FORMATS.MARKDOWN:
+            value = serialized_values.get("value")
+            if isinstance(value, str) or (
+                isinstance(value, dict) and "format" not in value
+            ):
+                serialized_values["value"] = self._with_format(
+                    value, BASEROW_FORMULA_FORMAT_MARKDOWN
+                )
+
+        return super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
     @property
     def serializer_field_overrides(self):
+        from baserow.contrib.builder.api.elements.serializers import (
+            TextElementValueSerializerField,
+        )
         from baserow.contrib.builder.api.theme.serializers import (
             DynamicConfigBlockSerializer,
         )
         from baserow.contrib.builder.theme.theme_config_block_types import (
             TypographyThemeConfigBlockType,
         )
-        from baserow.core.formula.serializers import FormulaSerializerField
 
         return {
-            "value": FormulaSerializerField(
+            "value": TextElementValueSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text="The value of the element. Must be a formula.",
             ),
             "format": serializers.ChoiceField(
@@ -1517,7 +1604,11 @@ class RatingInputElementType(InputElementType):
 
         return super().serializer_field_overrides | {
             "label": FormulaSerializerField(
-                help_text=RatingInputElement._meta.get_field("label").help_text
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
+                help_text=RatingInputElement._meta.get_field("label").help_text,
             ),
             "required": serializers.BooleanField(
                 help_text=RatingInputElement._meta.get_field("required").help_text,
@@ -1597,6 +1688,10 @@ class InputTextElementType(InputElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=InputTextElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -1762,6 +1857,10 @@ class CheckboxElementType(InputElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=CheckboxElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -1882,6 +1981,10 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=ChoiceElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -1918,6 +2021,10 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
                 help_text=ChoiceElement._meta.get_field("formula_value").help_text,
             ),
             "formula_name": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=ChoiceElement._meta.get_field("formula_name").help_text,
             ),
             "styles": DynamicConfigBlockSerializer(
@@ -2012,7 +2119,27 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         }
 
     def deserialize_option(self, value: Dict):
-        return ChoiceElementOption(**value)
+        # Exports made before the name became a formula, and the templates,
+        # hold plain string names: raw-mode formulas.
+        name = BaserowFormulaObject.to_raw_formula(value.get("name"))
+        return ChoiceElementOption(**{**value, "name": name})
+
+    def formula_generator(
+        self, element: ChoiceElement
+    ) -> Generator[str | Instance, str, None]:
+        """
+        The option names are formulas too: a name in formula mode must have its
+        references remapped on import and its properties extracted like any
+        other formula. A raw name passes through both untouched.
+        """
+
+        yield from super().formula_generator(element)
+
+        for option in element.choiceelementoption_set.all():
+            new_name = yield BaserowFormulaObject.to_raw_formula(option.name)
+            if new_name is not None:
+                option.name = new_name
+                yield option
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
@@ -2082,12 +2209,23 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         :return: The value if it is valid for this element.
         """
 
-        options_tuple = set(
-            element.choiceelementoption_set.values_list("value", "name")
-        )
-        options = [
-            value if value is not None else name for (value, name) in options_tuple
-        ]
+        options = []
+        for option in element.choiceelementoption_set.all():
+            if option.value is not None:
+                options.append(option.value)
+            else:
+                # A blank value means "the same as the name": the name is a
+                # formula, so resolve it the way the frontend does. A raw name,
+                # the default, resolves to its own text.
+                options.append(
+                    ensure_string(
+                        resolve_formula(
+                            option.name,
+                            formula_runtime_function_registry,
+                            dispatch_context,
+                        )
+                    )
+                )
 
         if element.option_type == ChoiceElement.OPTION_TYPE.FORMULAS:
             options = ensure_array(
@@ -2235,6 +2373,10 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=DateTimePickerElement._meta.get_field("label").help_text,
             ),
             "required": serializers.BooleanField(

@@ -655,7 +655,7 @@ describe('elementTypes tests', () => {
       const elementType = new ChoiceElementType()
       const element = {
         required: true,
-        options: [{ id: 1, value: 'uk', name: 'UK' }],
+        options: [{ id: 1, value: 'uk', name: { formula: 'UK', mode: 'raw' } }],
       }
       expect(elementType.isValid(element, '', {})).toBe(false)
     })
@@ -665,8 +665,8 @@ describe('elementTypes tests', () => {
         required: true,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
-          { id: 1, value: '', name: 'Blank' },
-          { id: 2, value: 'uk', name: 'UK' },
+          { id: 1, value: '', name: { formula: 'Blank', mode: 'raw' } },
+          { id: 2, value: 'uk', name: { formula: 'UK', mode: 'raw' } },
         ],
       }
       expect(elementType.isValid(element, '', {})).toBe(true)
@@ -676,7 +676,7 @@ describe('elementTypes tests', () => {
       const element = {
         required: true,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
-        options: [{ id: 1, value: 'uk', name: 'UK' }],
+        options: [{ id: 1, value: 'uk', name: { formula: 'UK', mode: 'raw' } }],
       }
       expect(elementType.isValid(element, 'uk', {})).toBe(true)
     })
@@ -685,7 +685,7 @@ describe('elementTypes tests', () => {
       const element = {
         required: false,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
-        options: [{ id: 1, value: 'uk', name: 'UK' }],
+        options: [{ id: 1, value: 'uk', name: { formula: 'UK', mode: 'raw' } }],
       }
       expect(elementType.isValid(element, '', {})).toBe(true)
     })
@@ -694,7 +694,7 @@ describe('elementTypes tests', () => {
       const element = {
         required: false,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
-        options: [{ id: 1, value: 'uk', name: 'UK' }],
+        options: [{ id: 1, value: 'uk', name: { formula: 'UK', mode: 'raw' } }],
       }
       expect(elementType.isValid(element, 'uk', {})).toBe(true)
     })
@@ -1103,15 +1103,19 @@ describe('elementTypes tests', () => {
         required: true,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
-          { id: 1, value: '', name: 'Foo Name' },
-          { id: 2, value: 'bar_name', name: 'Bar Name' },
+          { id: 1, value: '', name: { formula: 'Foo Name', mode: 'raw' } },
+          {
+            id: 2,
+            value: 'bar_name',
+            name: { formula: 'Bar Name', mode: 'raw' },
+          },
         ],
       }
 
       // When the Value is non-null, we expect them to be returned verbatim.
       expect(elementType.getOptionsResolved(element)).toEqual([
-        { name: 'Foo Name', value: '' },
-        { name: 'Bar Name', value: 'bar_name' },
+        { id: 1, name: 'Foo Name', nameFormat: 'plain', value: '' },
+        { id: 2, name: 'Bar Name', nameFormat: 'plain', value: 'bar_name' },
       ])
     })
 
@@ -1121,16 +1125,20 @@ describe('elementTypes tests', () => {
         required: true,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
-          { id: 1, value: null, name: 'Foo Name' },
-          { id: 2, value: 'bar_name', name: 'Bar Name' },
+          { id: 1, value: null, name: { formula: 'Foo Name', mode: 'raw' } },
+          {
+            id: 2,
+            value: 'bar_name',
+            name: { formula: 'Bar Name', mode: 'raw' },
+          },
         ],
       }
 
       // When Value is null, we assume the user wants it to be the same as
       // the Name. Thus, we return 'Foo Name' instead of null.
       expect(elementType.getOptionsResolved(element)).toEqual([
-        { name: 'Foo Name', value: 'Foo Name' },
-        { name: 'Bar Name', value: 'bar_name' },
+        { id: 1, name: 'Foo Name', nameFormat: 'plain', value: 'Foo Name' },
+        { id: 2, name: 'Bar Name', nameFormat: 'plain', value: 'bar_name' },
       ])
     })
 
@@ -1140,16 +1148,20 @@ describe('elementTypes tests', () => {
         required: true,
         option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
-          { id: 1, value: '', name: 'Foo Name' },
-          { id: 2, value: 'bar_name', name: 'Bar Name' },
+          { id: 1, value: '', name: { formula: 'Foo Name', mode: 'raw' } },
+          {
+            id: 2,
+            value: 'bar_name',
+            name: { formula: 'Bar Name', mode: 'raw' },
+          },
         ],
       }
 
       // Since an empty string is a valid Value, if the user has explicitly
       // declared it, we should return an empty string.
       expect(elementType.getOptionsResolved(element)).toEqual([
-        { name: 'Foo Name', value: '' },
-        { name: 'Bar Name', value: 'bar_name' },
+        { id: 1, name: 'Foo Name', nameFormat: 'plain', value: '' },
+        { id: 2, name: 'Bar Name', nameFormat: 'plain', value: 'bar_name' },
       ])
     })
   })
@@ -1279,8 +1291,8 @@ describe('elementTypes tests', () => {
       const element = {
         option_type: CHOICE_OPTION_TYPES.MANUAL,
         options: [
-          { id: 1, name: '', value: null },
-          { id: 2, name: 'Blank value', value: '' },
+          { id: 1, name: { formula: '', mode: 'raw' }, value: null },
+          { id: 2, name: { formula: 'Blank value', mode: 'raw' }, value: '' },
         ],
       }
 
@@ -1288,12 +1300,12 @@ describe('elementTypes tests', () => {
         'elementType.errorOptionNameMissing'
       )
 
-      element.options[0].name = '   '
+      element.options[0].name = { formula: '   ', mode: 'raw' }
       expect(elementType.getErrorMessage(element, {})).toBe(
         'elementType.errorOptionNameMissing'
       )
 
-      element.options[0].name = 'Named option'
+      element.options[0].name = { formula: 'Named option', mode: 'raw' }
       expect(elementType.getErrorMessage(element, {})).toBeNull()
     })
   })

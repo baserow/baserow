@@ -510,3 +510,16 @@ export const buildFormulaFunctionNodes = (app) => {
   }
   return nodes
 }
+
+/**
+ * Wraps plain text in a single-quoted formula string literal.
+ *
+ * Backslashes are escaped before quotes. The order matters: a lone trailing
+ * backslash would otherwise escape the closing quote and produce an
+ * unterminated, invalid literal (e.g. `\` -> `'\'`).
+ *
+ * @param {string} text the text to quote.
+ * @returns {string} the literal, e.g. `it's` -> `'it\'s'`.
+ */
+export const toFormulaStringLiteral = (text) =>
+  `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`

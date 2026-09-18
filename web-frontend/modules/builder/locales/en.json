@@ -250,10 +250,7 @@
   "textElementForm": {
     "textTitle": "Text",
     "textPlaceholder": "Enter text...",
-    "textError": "The value is invalid.",
-    "textFormatTypeLabel": "Format",
-    "textFormatTypePlain": "Plain text",
-    "textFormatTypeMarkdown": "Markdown"
+    "textError": "The value is invalid."
   },
   "orientations": {
     "label": "Orientation",
@@ -951,6 +948,7 @@
     "label": "Options",
     "value": "Option values",
     "valuePlaceholder": "Enter value",
+    "valueSameAsName": "Same as the name",
     "name": "Option names",
     "namePlaceholder": "Enter name",
     "addOption": "add option",

@@ -22,6 +22,7 @@ import {
   ensureDate,
   ensureDateTime,
 } from '@baserow/modules/core/utils/validator'
+import { BASEROW_FORMULA_FORMAT_PLAIN } from '@baserow/modules/core/formula/constants'
 import {
   CHOICE_OPTION_TYPES,
   IMAGE_SOURCE_TYPES,
@@ -442,6 +443,11 @@ export class ElementType extends Registerable {
   onElementEvent(event, params) {}
 
   resolveFormula(formula, applicationContext) {
+    // A raw formula is its own text and needs no context to resolve.
+    if (formula?.mode === 'raw') {
+      return formula.formula
+    }
+
     const formulaFunctions = {
       get: (name) => {
         return this.app.$registry.get('runtimeFormulaFunction', name)
@@ -1307,7 +1313,9 @@ export class TableElementType extends CollectionElementTypeMixin(ElementType) {
           return new EventType({
             app: this.app,
             namePrefix: uid,
-            labelSuffix: `- ${name}`,
+            // The name is a formula object: its text for a raw name, its
+            // source for a formula.
+            labelSuffix: `- ${name?.formula ?? ''}`,
             applicationContextAdditions: { allowSameElement: true },
           })
         })
@@ -1912,10 +1920,18 @@ export class ChoiceElementType extends FormElementType {
   getOptionsResolved(element, applicationContext) {
     switch (element.option_type) {
       case CHOICE_OPTION_TYPES.MANUAL:
-        return element.options.map(({ name, value }) => ({
-          name,
-          value: value === null ? name : value,
-        }))
+        return element.options.map(({ id, name, value }) => {
+          // The name is a formula: its own text when raw (the default),
+          // otherwise resolved like any other formula. Its format is kept so
+          // the element can render it.
+          const resolvedName = this.resolveOptionName(name, applicationContext)
+          return {
+            id,
+            name: resolvedName,
+            nameFormat: name?.format || BASEROW_FORMULA_FORMAT_PLAIN,
+            value: value === null ? resolvedName : value,
+          }
+        })
       case CHOICE_OPTION_TYPES.FORMULAS: {
         const formulaValues = ensureArray(
           this.resolveFormula(element.formula_value, applicationContext)
@@ -1923,16 +1939,31 @@ export class ChoiceElementType extends FormElementType {
         const formulaNames = ensureArray(
           this.resolveFormula(element.formula_name, applicationContext)
         )
+        const nameFormat =
+          element.formula_name?.format || BASEROW_FORMULA_FORMAT_PLAIN
         return formulaValues.map((value, index) => ({
           id: index,
           value: ensureStringOrInteger(value),
           name: ensureString(
             index < formulaValues.length ? formulaNames[index] : value
           ),
+          nameFormat,
         }))
       }
       default:
         return []
+    }
+  }
+
+  /**
+   * Resolves the name formula of a manual option to its text. An option whose
+   * name can't be resolved has no name.
+   */
+  resolveOptionName(name, applicationContext) {
+    try {
+      return ensureString(this.resolveFormula(name, applicationContext))
+    } catch {
+      return ''
     }
   }
 
@@ -2010,7 +2041,9 @@ export class ChoiceElementType extends FormElementType {
       if (element.options.length === 0) {
         return this.app.$i18n.t('elementType.errorOptionsMissing')
       }
-      if (element.options.some(({ name }) => !ensureString(name).trim())) {
+      if (
+        element.options.some(({ name }) => !ensureString(name?.formula).trim())
+      ) {
         return this.app.$i18n.t('elementType.errorOptionNameMissing')
       }
     } else if (element.option_type === CHOICE_OPTION_TYPES.FORMULAS) {
