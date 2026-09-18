@@ -17,6 +17,7 @@
       :roles="roles"
       :allow-removing-role="allowRemovingRole"
       :workspace="workspace"
+      :show-commercial-info="showCommercialInfo"
       role-value-column="uid"
       @update-role="roleUpdated"
       @delete="$emit('delete')"
@@ -55,6 +56,10 @@ export default {
     workspace: {
       type: Object,
       required: true,
+    },
+    showCommercialInfo: {
+      type: Boolean,
+      default: true,
     },
   },
   computed: {

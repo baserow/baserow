@@ -133,7 +133,10 @@ const loadWorkspaceMembers = async () => {
     const { data } = await WorkspaceService($client).fetchAllUsers(
       props.automation.workspace.id
     )
-    workspaceMembers.value = data
+    workspaceMembers.value = data.map((member) => ({
+      ...member,
+      subject_type: 'auth.User',
+    }))
   } catch (error) {
     notifyIf(error, 'workspace')
   } finally {

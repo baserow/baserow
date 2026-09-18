@@ -11,6 +11,7 @@ from rest_framework.status import (
 )
 
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent
 from baserow_enterprise.field_permissions.handler import FieldPermissionsHandler
 from baserow_enterprise.field_permissions.models import FieldPermissions
 from baserow_enterprise.field_permissions.permission_manager import (
@@ -389,7 +390,9 @@ def test_can_configure_specific_field_permission_users_and_teams(
     url = reverse(
         "api:enterprise:field_permissions:item", kwargs={"field_id": field.id}
     )
+    agent = Agent.objects.create(workspace=workspace, name="Field agent")
     subjects = [
+        {"subject_id": agent.id, "subject_type": "core.Agent"},
         {"subject_id": user.id, "subject_type": "auth.User"},
         {
             "subject_id": team.id,
@@ -410,6 +413,7 @@ def test_can_configure_specific_field_permission_users_and_teams(
         (subject["subject_type"], subject["subject_id"])
         for subject in rsp.json()["subjects"]
     } == {
+        ("core.Agent", agent.id),
         ("auth.User", user.id),
         ("baserow_enterprise.Team", team.id),
     }
@@ -422,7 +426,7 @@ def test_can_configure_specific_field_permission_users_and_teams(
 
     rsp = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
     assert rsp.status_code == HTTP_200_OK
-    assert len(rsp.json()["subjects"]) == 2
+    assert len(rsp.json()["subjects"]) == 3
 
     # Updating another CUSTOM setting without sending subjects preserves the list.
     rsp = api_client.patch(
@@ -433,7 +437,7 @@ def test_can_configure_specific_field_permission_users_and_teams(
     )
     assert rsp.status_code == HTTP_200_OK
     assert rsp.json()["allow_in_forms"] is True
-    assert len(rsp.json()["subjects"]) == 2
+    assert len(rsp.json()["subjects"]) == 3
 
     # Removing the requester from the explicit list immediately removes their write
     # permission, even though they remain an Admin in the workspace.
@@ -441,7 +445,7 @@ def test_can_configure_specific_field_permission_users_and_teams(
         url,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
-        data={"role": "CUSTOM", "subjects": [subjects[1]]},
+        data={"role": "CUSTOM", "subjects": [subjects[2]]},
     )
     assert rsp.status_code == HTTP_200_OK
     assert rsp.json()["can_write_values"] is False
@@ -492,6 +496,11 @@ def test_can_search_paginated_field_permission_subject_options(
         kwargs={"field_id": field.id},
     )
 
+    agent = Agent.objects.create(workspace=workspace, name="Person agent")
+    Agent.objects.create(workspace=workspace, name="Person deleted", trashed=True)
+    Agent.objects.create(
+        workspace=enterprise_data_fixture.create_workspace(), name="Person outsider"
+    )
     first_page = api_client.get(
         url,
         {"search": "person", "page": 1, "size": 2},
@@ -505,10 +514,11 @@ def test_can_search_paginated_field_permission_subject_options(
 
     assert first_page.status_code == HTTP_200_OK
     assert second_page.status_code == HTTP_200_OK
-    assert first_page.json()["count"] == 3
+    assert first_page.json()["count"] == 4
     assert len(first_page.json()["results"]) == 2
     options = first_page.json()["results"] + second_page.json()["results"]
     assert {(option["subject_type"], option["subject_id"]) for option in options} == {
+        ("core.Agent", agent.id),
         ("auth.User", first_user.id),
         ("auth.User", second_user.id),
         ("baserow_enterprise.Team", team.id),
@@ -519,7 +529,9 @@ def test_can_search_paginated_field_permission_subject_options(
         if option["subject_type"] == "baserow_enterprise.Team"
     )
     assert team_option["subject_count"] == 2
-    assert all(option["subject_id"] != outsider.id for option in options)
+    assert ("auth.User", outsider.id) not in {
+        (option["subject_type"], option["subject_id"]) for option in options
+    }
 
     response = api_client.get(
         url,
@@ -527,6 +539,7 @@ def test_can_search_paginated_field_permission_subject_options(
             "search": "person",
             "exclude_user_ids": str(first_user.id),
             "exclude_team_ids": str(team.id),
+            "exclude_agent_ids": str(agent.id),
         },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -573,6 +586,25 @@ def test_cannot_add_invalid_specific_field_permission_subjects(
     assert rsp.status_code == HTTP_404_NOT_FOUND
     assert not FieldPermissions.objects.filter(field=field).exists()
     assert FieldPermissionsHandler._get_field_permission_subjects(field) == []
+
+    for agent in [
+        Agent.objects.create(
+            workspace=enterprise_data_fixture.create_workspace(), name="Outside"
+        ),
+        Agent.objects.create(
+            workspace=database.workspace, name="Deleted", trashed=True
+        ),
+    ]:
+        rsp = api_client.patch(
+            url,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+            data={
+                "role": "CUSTOM",
+                "subjects": [{"subject_id": agent.id, "subject_type": "core.Agent"}],
+            },
+        )
+        assert rsp.status_code == HTTP_404_NOT_FOUND
 
     duplicate = {"subject_id": user.id, "subject_type": "auth.User"}
     rsp = api_client.patch(

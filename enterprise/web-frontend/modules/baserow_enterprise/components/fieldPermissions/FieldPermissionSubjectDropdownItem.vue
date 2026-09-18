@@ -28,7 +28,9 @@
             v-else
             class="field-permission-subjects__team-icon field-permission-subjects__team-icon--dropdown"
           >
-            <i class="iconoir-group"></i>
+            <i
+              :class="$registry.get('subject', result.subjectType).iconClass"
+            ></i>
           </span>
           <span class="field-permission-subjects__details">
             <span class="field-permission-subjects__label">

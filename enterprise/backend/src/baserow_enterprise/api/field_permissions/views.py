@@ -194,7 +194,7 @@ class FieldPermissionSubjectOptionsView(APIView):
         tags=["Field permissions"],
         operation_id="list_field_permission_subject_options",
         description=(
-            "Searches users and teams that can be selected for a field-specific "
+            "Searches users, agents, and teams that can be selected for a field-specific "
             "permission. Results are paginated and exclude the requested subjects."
             "\n\nThis is an **enterprise** feature."
         ),
@@ -214,12 +214,12 @@ class FieldPermissionSubjectOptionsView(APIView):
     )
     @validate_query_parameters(FieldPermissionSubjectOptionsRequestSerializer)
     def get(self, request, field_id, query_params) -> Response:
-        """Return paginated users and teams selectable for a field permission.
+        """Return paginated users, agents, and teams selectable for a field permission.
 
         :param request: The authenticated API request.
         :param field_id: The field whose permission subjects are being selected.
         :param query_params: The validated pagination, search, and exclusion filters.
-        :return: A paginated response containing selectable users and teams.
+        :return: A paginated response containing selectable users, agents, and teams.
         """
 
         field = FieldHandler().get_field(field_id)
@@ -239,6 +239,7 @@ class FieldPermissionSubjectOptionsView(APIView):
             search=query_params.get("search") or "",
             exclude_user_ids=query_params["exclude_user_ids"],
             exclude_team_ids=query_params["exclude_team_ids"],
+            exclude_agent_ids=query_params["exclude_agent_ids"],
         )
 
         paginator = PageNumberPagination(limit_page_size=100)

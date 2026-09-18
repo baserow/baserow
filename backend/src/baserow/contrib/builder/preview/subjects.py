@@ -13,7 +13,10 @@ class BuilderPreviewActorSubjectType(SubjectType):
     model_class = BuilderPreviewActor
 
     def are_in_workspace(
-        self, subjects: List[Subject], workspace: Workspace
+        self,
+        subjects: List[Subject],
+        workspace: Workspace,
+        include_trash: bool = False,
     ) -> List[bool]:
         return [subject.workspace_id == workspace.id for subject in subjects]
 

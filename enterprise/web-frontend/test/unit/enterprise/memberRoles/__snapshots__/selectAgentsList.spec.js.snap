@@ -1,0 +1,76 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SelectAgentsList > passes the commercial information option to the role context 1`] = `
+"<div><a>Builder <i class="iconoir-nav-arrow-down"></i></a>
+  <div subject="[object Object]" roles="[object Object]" allow-removing-role="false" workspace="[object Object]" role-value-column="uid">
+    <!--v-if-->
+  </div>
+</div>"
+`;
+
+exports[`SelectAgentsList > selects and invites agents as Agent subjects 1`] = `
+"<div class="select-members-list">
+  <div>
+    <div class="form-input form-input--large">
+      <!--v-if-->
+      <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="selectAgentsList.searchPlaceholder" autocomplete="">
+        <!--v-if-->
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+    <div class="margin-top-2">selectAgentsList.selectedAmountLabel - 0</div>
+  </div>
+  <ul class="list margin-top-2 select-members-list__items">
+    <li class="list__item">
+      <div class="list__left-side"><label class="checkbox"><input id="checkboxv-0-0-0" class="checkbox__native" type="checkbox">
+          <div class="checkbox__button"><svg class="checkbox__tick" xmlns="http://www.w3.org/2000/svg" width="9" height="8" viewBox="0 0 9 8" fill="none" style="display: none;">
+              <g clip-path="url(#clipv-0-0-0)">
+                <path d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              </g>
+              <defs>
+                <clipPath id="clipv-0-0-0">
+                  <rect width="8" height="8" fill="white" transform="translate(0.5)"></rect>
+                </clipPath>
+              </defs>
+            </svg><svg class="checkbox__tick-indeterminate" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none" style="display: none;">
+              <path d="M1.5 4L6.5 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg></div>
+          <!--v-if-->
+        </label>
+        <div class="avatar avatar--rounded avatar--medium avatar--purple margin-left-1">
+          <!--v-if-->
+          <!--v-if--><span class="avatar__initials">RW</span>
+        </div><span class="margin-left-1 select-members-list__user-name">Row writer</span>
+      </div>
+      <!--v-if-->
+    </li>
+    <li class="list__item">
+      <div class="list__left-side"><label class="checkbox"><input id="checkboxv-0-0-1" class="checkbox__native" type="checkbox">
+          <div class="checkbox__button"><svg class="checkbox__tick" xmlns="http://www.w3.org/2000/svg" width="9" height="8" viewBox="0 0 9 8" fill="none" style="display: none;">
+              <g clip-path="url(#clipv-0-0-1)">
+                <path d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+              </g>
+              <defs>
+                <clipPath id="clipv-0-0-1">
+                  <rect width="8" height="8" fill="white" transform="translate(0.5)"></rect>
+                </clipPath>
+              </defs>
+            </svg><svg class="checkbox__tick-indeterminate" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8" fill="none" style="display: none;">
+              <path d="M1.5 4L6.5 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg></div>
+          <!--v-if-->
+        </label>
+        <div class="avatar avatar--rounded avatar--medium avatar--purple margin-left-1">
+          <!--v-if-->
+          <!--v-if--><span class="avatar__initials">R</span>
+        </div><span class="margin-left-1 select-members-list__user-name">Reviewer</span>
+      </div>
+      <!--v-if-->
+    </li>
+  </ul>
+  <div class="margin-top-1" scope-type="application" show-role-selector="true">
+    <!--v-if--><button class="invite-agents">core.Agent:0</button>
+  </div>
+</div>"
+`;

@@ -14,6 +14,7 @@
       class="subject-sample-field-list__avatar"
       rounded
       size="large"
+      :color="getSubjectType(sample.subject_type).avatarColor"
       :initials="nameAbbreviation(sample.subject_label)"
     ></Avatar>
 
@@ -43,6 +44,9 @@ export default {
   },
   methods: {
     nameAbbreviation,
+    getSubjectType(type) {
+      return this.$registry.get('subject', type)
+    },
   },
 }
 </script>
