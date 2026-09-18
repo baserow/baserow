@@ -53,6 +53,21 @@ if [ "${E2E_SLACK_STUB:-}" = "yes" ]; then
         wiremock/wiremock:3.13.1 >/dev/null
     started_containers+=(e2e-local-slack-stub)
 fi
+# The concurrency tests hold a request on a barrier stub. Like the local HTTP
+# stub, the dev backend only reaches it with
+# BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true; without that the two tests
+# are skipped.
+if [ -z "${E2E_BARRIER_STUB_URL:-}" ] && [ "${BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS:-}" = "true" ]; then
+    BARRIER_PORT="${E2E_BARRIER_STUB_PORT:-8102}"
+    docker rm -f e2e-local-barrier >/dev/null 2>&1 || true
+    docker run -d --name e2e-local-barrier \
+        -p "${BARRIER_PORT}:8080" \
+        -v "$(cd "$(dirname "$0")" && pwd)/stubs/barrier:/stub:ro" \
+        node:24.18.0-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd \
+        node /stub/server.mjs >/dev/null
+    started_containers+=(e2e-local-barrier)
+    export E2E_BARRIER_STUB_URL="http://localhost:${BARRIER_PORT}"
+fi
 # The dev stack's MailHog, which the dev environment already runs. Its API port
 # is BASEROW_MAILHOG_WEB_PORT: 8025 for the default instance, 8035 and 8045 for
 # the alternates in .env.local-dev.example. Export that variable, or

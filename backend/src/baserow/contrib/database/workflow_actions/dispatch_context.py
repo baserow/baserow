@@ -29,6 +29,11 @@ class DatabaseDispatchContext(DispatchContext):
 
     own_properties = ["field", "row", "actor"]
 
+    # A click dispatches its actions directly, with no transaction of its
+    # own already open, so an external one sends after the savepoint that
+    # protects formula resolution and any row writes rather than inside it.
+    sends_external_calls_outside_transaction = True
+
     def __init__(
         self,
         actor: Optional[AbstractUser] = None,

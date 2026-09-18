@@ -3,6 +3,7 @@ import io
 import json
 import re
 import socket
+import time
 import uuid
 from datetime import datetime
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
@@ -61,8 +62,8 @@ from baserow.contrib.integrations.core.models import (
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import (
-    get_http_request_function,
     read_response_within_limit,
+    send_http_request,
 )
 from baserow.core.datetime import get_timezones
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -113,6 +114,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
     type = "http_request"
     model_class = CoreHTTPRequestService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
 
     # Where a credential on a request can sit. This service has no integration,
     # so there is nowhere else for one to be kept, and which header or field
@@ -455,7 +457,10 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         )
 
     def max_dispatch_seconds(self, service: CoreHTTPRequestService) -> int:
-        return service.timeout or 0
+        # `send_http_request` hangs up at the deadline. Doubled as headroom for
+        # the hang-up's own scheduling and an address lookup, which no timeout
+        # covers.
+        return (service.timeout or 0) * 2
 
     def get_schema_name(self, service: CoreHTTPRequestService) -> str:
         return f"HTTPRequest{service.id}Schema"
@@ -658,18 +663,21 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             q.key: resolved_values[f"param_{q.id}"] for q in service.query_params.all()
         }
 
+        # One deadline for the whole exchange, every redirect and every body
+        # included. Requests' own timeout starts again on every hop and every
+        # byte, so on its own it does not bound a click, or the lock that
+        # guards its row.
+        deadline = time.monotonic() + service.timeout
         try:
-            response = get_http_request_function()(
+            response = send_http_request(
                 method=service.http_method,
                 url=resolved_values["url"],
                 headers=headers,
                 params=query_params,
-                timeout=service.timeout,
-                # `read_response_within_limit` pulls the body in, in chunks.
-                stream=True,
+                deadline=deadline,
                 **body_dict,
             )
-            read_response_within_limit(response, service.timeout)
+            read_response_within_limit(response, service.timeout, deadline=deadline)
 
         except ServiceImproperlyConfiguredDispatchException:
             # Too big. The message names no address, so it travels as it is
@@ -734,6 +742,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     type = "smtp_email"
     model_class = CoreSMTPEmailService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
     integration_type = SMTPIntegrationType.type
 
     allowed_fields = [

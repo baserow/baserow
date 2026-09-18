@@ -24,12 +24,13 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.contrib.integrations.core.constants import SMTP_EMAIL_TIMEOUT
 
+SEND_HTTP_REQUEST = "baserow.contrib.integrations.core.service_types.send_http_request"
+
 
 @contextmanager
 def mock_advocate_request(body=None, status_code=200, raise_exception=None):
     """
-    Answers the outbound call the HTTP service makes, the way the service's own
-    tests do, so nothing here reaches the network.
+    Answers the service's outbound call, so nothing here reaches the network.
     """
 
     mock_response = Mock()
@@ -38,12 +39,14 @@ def mock_advocate_request(body=None, status_code=200, raise_exception=None):
     mock_response.headers = {"Content-Type": "application/json"}
     mock_response.status_code = status_code
     # The service streams the body in so it can stop an endpoint that
-    # sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter(
-        [str(mock_response.text or "").encode()]
-    )
+    # sends more than this installation accepts. `send_http_request` answers
+    # with this same mock for every action that dispatches while the context
+    # manager is open, so exhausting the real chunk still leaves later reads
+    # an end-of-body marker rather than raising.
+    chunks = iter([str(mock_response.text or "").encode(), b""])
+    mock_response.raw.read1.side_effect = lambda *args, **kwargs: next(chunks, b"")
 
-    with patch("advocate.request") as mock_request:
+    with patch(SEND_HTTP_REQUEST) as mock_request:
 
         def side_effect(*args, **kwargs):
             if raise_exception is not None:
@@ -833,3 +836,19 @@ def test_a_mail_server_that_refuses_the_message_is_still_reported(
             )
 
     assert raised.value.message == "TLS not supported by server"
+
+
+@pytest.mark.django_db
+def test_the_lock_outlives_one_request_at_its_longest(data_fixture):
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    action = _http_action(data_fixture, button_field)
+    service = action.service.specific
+    service.timeout = 120
+    service.save()
+
+    ttl = DatabaseWorkflowActionService()._lock_ttl_for([action], [service])
+
+    # Twice the budget of one request, which is twice its timeout.
+    assert ttl == 480

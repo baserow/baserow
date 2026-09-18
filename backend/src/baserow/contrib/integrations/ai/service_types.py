@@ -39,6 +39,7 @@ class AIAgentServiceType(ServiceType):
     model_class = AIAgentService
     integration_type = AIIntegrationType.type
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
     returns_list = False
 
     allowed_fields = [
