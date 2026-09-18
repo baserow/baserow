@@ -311,6 +311,52 @@ def test_get_roles_per_scope_for_workspaces_equals_per_workspace(
 
 
 @pytest.mark.django_db
+def test_get_roles_per_scope_for_workspaces_reuses_results_cached_per_workspace(
+    data_fixture, enterprise_data_fixture
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+
+    workspaces = _create_workspaces_with_roles(
+        data_fixture, enterprise_data_fixture, user, admin
+    )
+    member_workspaces = list(
+        CoreHandler()
+        .get_enhanced_workspace_queryset()
+        .filter(id__in=[w.id for w in workspaces["member_workspaces"]])
+        .order_by("id")
+    )
+
+    handler = RoleAssignmentHandler()
+    local_cache.clear()
+
+    # A workspace resolved through the single workspace path earlier in the
+    # request, like a permission check does, must be reused by the batch so its
+    # role and membership data isn't fetched again.
+    first_workspace, *_ = member_workspaces
+    primed = handler.get_roles_per_scope(first_workspace, user)
+
+    batched = handler.get_roles_per_scope_for_workspaces(member_workspaces, user)
+    assert batched[first_workspace.id] is primed
+
+    # With every workspace already resolved earlier in the request, the batch
+    # doesn't execute a single query.
+    with CaptureQueriesContext(connection) as captured:
+        batched_again = handler.get_roles_per_scope_for_workspaces(
+            member_workspaces, user
+        )
+    assert len(captured.captured_queries) == 0
+    assert batched_again.keys() == batched.keys()
+
+    # A single workspace call delegates to `get_roles_per_scope`, so it also reuses
+    # the cached result without any query.
+    with CaptureQueriesContext(connection) as captured_single:
+        single = handler.get_roles_per_scope_for_workspaces([first_workspace], user)
+    assert len(captured_single.captured_queries) == 0
+    assert single[first_workspace.id] is primed
+
+
+@pytest.mark.django_db
 def test_role_assignment_changes_are_reflected_immediately(
     api_client, data_fixture, enterprise_data_fixture
 ):

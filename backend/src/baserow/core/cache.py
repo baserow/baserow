@@ -73,6 +73,22 @@ class LocalCache:
 
         return cached[key]
 
+    def get_if_cached(self, key: str, default: T = None) -> T:
+        """
+        Returns the value cached for the key without computing or storing anything,
+        unlike `get`, which stores the default on a miss. The default is returned when
+        the key isn't cached or the cache is disabled.
+
+        :param key: The key to look up.
+        :param default: The value to return on a cache miss.
+        :return: The cached value or the default.
+        """
+
+        if not settings.BASEROW_USE_LOCAL_CACHE or not hasattr(self._local, "cache"):
+            return default
+
+        return self._local.cache.get(key, default)
+
     def delete(self, key: str):
         """
         Delete a value from the cache. If the key does not exist, no action is taken.

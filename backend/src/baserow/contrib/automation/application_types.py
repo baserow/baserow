@@ -257,8 +257,8 @@ class AutomationApplicationType(ApplicationType):
 
         base_queryset = Automation.objects.filter(id=automation.id)
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, automation.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [automation.workspace]
             ).first()
             return instance and list(instance.workflows.all()) or []
         else:

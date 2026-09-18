@@ -1,7 +1,10 @@
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 from rest_framework import serializers
 from rest_framework.fields import empty
+
+if TYPE_CHECKING:
+    from baserow.core.registry import Instance
 
 
 class BasePolymorphicSerializer(serializers.Serializer):
@@ -146,13 +149,18 @@ class BasePolymorphicSerializer(serializers.Serializer):
         # exception, which views map to their specific API errors.
         return self.registry.get(type_name)
 
-    def _get_response_serializer_for_type(self, instance_type):
+    def _get_response_serializer_for_type(
+        self, instance_type: "Instance"
+    ) -> serializers.Serializer:
         """
         Returns the response serializer for the given type. Generating the serializer
         class and building its fields is expensive, so the serializer is created once
         per type and reused for every instance serialized through this serializer,
         for example when it's used with `many=True`. It's memoized on `self` because
         the serializer depends on the context of this instance.
+
+        :param instance_type: The registry instance type to get the serializer for.
+        :return: The reusable serializer instance for the type.
         """
 
         try:

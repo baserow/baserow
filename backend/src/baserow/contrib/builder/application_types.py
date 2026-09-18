@@ -601,8 +601,8 @@ class BuilderApplicationType(ApplicationType):
 
         base_queryset = Builder.objects.filter(id=builder.id)
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, builder.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [builder.workspace]
             ).first()
             return instance and instance.pages or []
         else:

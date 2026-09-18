@@ -631,74 +631,25 @@ class ApplicationType(
 
         return queryset
 
-    def enhance_and_filter_queryset(
-        self,
-        queryset: QuerySet["Application"],
-        user: "AbstractUser",
-        workspace: "Workspace",
-    ) -> QuerySet["Application"]:
-        """
-        Same as `enhance_queryset` but also filters the queryset based on the user's
-        permissions. This is the single workspace variant of
-        `enhance_and_filter_queryset_for_workspaces`, which is the method
-        application types should override.
-
-        :param queryset: The queryset to enhance and filter.
-        :param user: The user that is trying to access the queryset.
-        :param workspace: The workspace that the queryset is related to.
-        :return: The enhanced and filtered queryset.
-        """
-
-        if (
-            type(self).enhance_and_filter_queryset_for_workspaces
-            is not ApplicationType.enhance_and_filter_queryset_for_workspaces
-        ):
-            return self.enhance_and_filter_queryset_for_workspaces(
-                queryset, user, [workspace]
-            )
-
-        # Without a multi workspace override there is nothing to delegate to. Returning
-        # the queryset directly also keeps an application type that only overrides this
-        # method and calls super() working without recursing back into it via the multi
-        # workspace fallback.
-        return queryset
-
     def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet["Application"],
         user: "AbstractUser",
         workspaces: List["Workspace"],
-    ) -> Union[QuerySet["Application"], List["Application"]]:
+    ) -> QuerySet["Application"]:
         """
-        Multi workspace version of `enhance_and_filter_queryset`, called when
-        applications of multiple workspaces are listed in one pass so the enhancement
-        can batch its nested permission filtering across all the workspaces at once.
+        Same as `enhance_queryset` but also filters the queryset based on the user's
+        permissions. The queryset can hold the applications of several workspaces so
+        the nested permission filtering can be batched across all of them at once.
 
         :param queryset: The queryset to enhance and filter, containing applications of
             all the given workspaces.
         :param user: The user that is trying to access the queryset.
         :param workspaces: The workspaces the queryset is related to.
-        :return: The enhanced and filtered queryset, or a list of applications when the
-            per workspace fallback was used.
+        :return: The enhanced and filtered queryset.
         """
 
-        if (
-            type(self).enhance_and_filter_queryset
-            is ApplicationType.enhance_and_filter_queryset
-        ):
-            return queryset
-
-        # An application type that only overrides the single workspace
-        # `enhance_and_filter_queryset` keeps working through this per workspace
-        # fallback, only without the performance benefit of batching.
-        applications = []
-        for workspace in workspaces:
-            applications.extend(
-                self.enhance_and_filter_queryset(
-                    queryset.filter(workspace=workspace), user, workspace
-                )
-            )
-        return applications
+        return queryset
 
     def get_application_urls(self, application: "Application") -> list[str]:
         """

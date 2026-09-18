@@ -1235,8 +1235,8 @@ class DatabaseApplicationType(ApplicationType):
         base_queryset = Database.objects.filter(id=database.id)
 
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, database.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [database.workspace]
             ).first()
             return instance and instance.tables or []
         else:

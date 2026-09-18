@@ -48,6 +48,9 @@ from .types import NewRoleAssignment
 User = get_user_model()
 ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
 
+# Sentinel distinguishing a request local cache miss from a cached falsy value.
+_UNCACHED = object()
+
 
 def roles_per_scope_cache_key(
     subject_type_name: str, actor_id: int, workspace_id: int, include_trash: bool
@@ -649,8 +652,10 @@ class RoleAssignmentHandler:
         most one workspace user query for the workspaces that don't have their members
         prefetched.
 
-        The per workspace results are primed into the same request local cache keys
-        `get_roles_per_scope` reads from, so later single workspace calls in the same
+        The result is memoized per workspace in the same request local cache keys
+        `get_roles_per_scope` reads from and primes, so a workspace already resolved
+        earlier in the request, for example by a permission check, doesn't fetch its
+        role and membership data again, and later single workspace calls in the same
         request are free.
 
         :param workspaces: The workspaces to get the roles per scope for.
@@ -664,18 +669,39 @@ class RoleAssignmentHandler:
 
         actor_subject_type = subject_type_registry.get_by_model(actor)
 
-        # The whole batch is memoized per request because it's called once per filtered
-        # operation with the same workspaces.
-        workspace_ids_key = "_".join(
-            str(workspace.id) for workspace in sorted(workspaces, key=lambda w: w.id)
-        )
-        return local_cache.get(
-            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_get_roles_per_scope_for_workspaces_"
-            f"{actor_subject_type.type}_{actor.id}_{workspace_ids_key}_{include_trash}",
-            lambda: self._get_roles_per_scope_for_workspaces(
-                workspaces, actor, actor_subject_type, include_trash
-            ),
-        )
+        if len(workspaces) == 1:
+            # Delegate to the single workspace resolution so the role assignment and
+            # membership rows a permission check cached earlier in the request, via
+            # `get_roles_per_scope_for_actors`, are reused instead of fetched again.
+            workspace = workspaces[0]
+            return {
+                workspace.id: self.get_roles_per_scope(
+                    workspace, actor, include_trash=include_trash
+                )
+            }
+
+        result = {}
+        missing_workspaces = []
+        for workspace in workspaces:
+            cached = local_cache.get_if_cached(
+                roles_per_scope_cache_key(
+                    actor_subject_type.type, actor.id, workspace.id, include_trash
+                ),
+                _UNCACHED,
+            )
+            if cached is _UNCACHED:
+                missing_workspaces.append(workspace)
+            else:
+                result[workspace.id] = cached
+
+        if missing_workspaces:
+            result.update(
+                self._get_roles_per_scope_for_workspaces(
+                    missing_workspaces, actor, actor_subject_type, include_trash
+                )
+            )
+
+        return result
 
     def _get_roles_per_scope_for_workspaces(
         self,
@@ -685,8 +711,9 @@ class RoleAssignmentHandler:
         include_trash: bool,
     ) -> Dict[int, List[Tuple[ScopeObject, List[Role]]]]:
         """
-        Computes the result of `get_roles_per_scope_for_workspaces`, which memoizes it
-        per request. See that method for the parameter and return value documentation.
+        Computes the result of `get_roles_per_scope_for_workspaces` for the workspaces
+        that had no cached result yet. See that method for the parameter and return
+        value documentation.
         """
 
         content_types = ContentType.objects.get_for_models(
