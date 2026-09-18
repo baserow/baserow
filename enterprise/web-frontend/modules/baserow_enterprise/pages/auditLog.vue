@@ -34,15 +34,13 @@
           class="audit-log__filters"
           :class="{ 'audit-log__filters--workspace': workspaceId }"
         >
-          <FilterWrapper :name="$t('auditLog.filterUserTitle')">
-            <PaginatedDropdown
-              ref="userFilter"
-              :value="filters.user_id"
-              :fetch-page="fetchUsers"
-              :empty-item-display-name="$t('auditLog.allUsers')"
-              :not-selected-text="$t('auditLog.allUsers')"
-              @input="filterUser"
-            ></PaginatedDropdown>
+          <FilterWrapper :name="$t('auditLog.filterActorTitle')">
+            <AuditLogActorDropdown
+              ref="actorFilter"
+              :value="selectedActor"
+              :fetch-page="fetchActors"
+              @input="filterActor"
+            />
           </FilterWrapper>
           <FilterWrapper
             v-if="!workspaceId"
@@ -117,6 +115,9 @@ import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdow
 import DateFilter from '@baserow_enterprise/components/crudTable/filters/DateFilter'
 import FilterWrapper from '@baserow_enterprise/components/crudTable/filters/FilterWrapper'
 import AuditLogExportModal from '@baserow_enterprise/components/admin/modals/AuditLogExportModal'
+import AuditLogActorField from '@baserow_enterprise/components/auditLog/AuditLogActorField'
+import AuditLogActorTypeField from '@baserow_enterprise/components/auditLog/AuditLogActorTypeField'
+import AuditLogActorDropdown from '@baserow_enterprise/components/auditLog/AuditLogActorDropdown'
 
 // Services & utilities
 import AuditLogService from '@baserow_enterprise/services/auditLog'
@@ -204,7 +205,7 @@ if (workspaceId) {
 
 // Template refs
 const exportModal = ref(null)
-const userFilter = ref(null)
+const actorFilter = ref(null)
 const workspaceFilter = ref(null)
 const typeFilter = ref(null)
 const fromTimestampFilter = ref(null)
@@ -220,12 +221,22 @@ const columns = [
   new CrudTableColumn(
     'user',
     () => $t('auditLog.user'),
-    SimpleField,
+    AuditLogActorField,
     false,
     false,
     false,
     {},
     '15'
+  ),
+  new CrudTableColumn(
+    'actor_type',
+    () => $t('auditLog.actorType'),
+    AuditLogActorTypeField,
+    false,
+    false,
+    false,
+    {},
+    '10'
   ),
 ]
 
@@ -263,7 +274,7 @@ columns.push(
     false,
     false,
     {},
-    '40'
+    '30'
   ),
   new CrudTableColumn(
     'timestamp',
@@ -310,6 +321,13 @@ const selectedWorkspaceId = computed(() => {
   return selected?.id || null
 })
 
+const selectedActor = computed(() => {
+  if (!filters.value.actor_id || !filters.value.actor_type) {
+    return null
+  }
+  return { id: filters.value.actor_id, type: filters.value.actor_type }
+})
+
 // Watch
 watch(selectedWorkspaceId, (newValue, oldValue) => {
   if (newValue !== oldValue && workspaceId) {
@@ -332,7 +350,7 @@ function setFilter(key, value) {
 }
 
 function clearFilters() {
-  userFilter.value?.clear()
+  actorFilter.value?.clear()
   workspaceFilter.value?.clear()
   typeFilter.value?.clear()
   fromTimestampFilter.value?.clear()
@@ -340,12 +358,15 @@ function clearFilters() {
   filters.value = initFilters(workspaceId)
 }
 
-function filterUser(userId) {
-  setFilter('user_id', userId)
+function filterActor(actor) {
+  const nextFilters = _.omit(filters.value, ['actor_id', 'actor_type'])
+  filters.value = actor
+    ? { ...nextFilters, actor_id: actor.id, actor_type: actor.type }
+    : nextFilters
 }
 
-function fetchUsers(page, search) {
-  return service.fetchUsers(page, search, workspaceId)
+function fetchActors(page) {
+  return service.fetchActors(page, workspaceId)
 }
 
 function filterWorkspace(wsId) {

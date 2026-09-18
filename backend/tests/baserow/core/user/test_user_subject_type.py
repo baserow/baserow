@@ -20,6 +20,7 @@ def test_user_subject_type_is_in_workspace(data_fixture):
 
     fake_user = FakeUser(9999999)
 
+    assert UserSubjectType().is_interactive_user
     assert UserSubjectType().is_in_workspace(user_not_in_workspace, workspace) is False
     assert UserSubjectType().is_in_workspace(user_in_workspace, workspace) is True
     assert UserSubjectType().is_in_workspace(fake_user, workspace) is False

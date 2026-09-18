@@ -1,11 +1,13 @@
 import {
   AgentSubjectType,
+  AnonymousUserSubjectType,
   UserSubjectType,
 } from '@baserow/modules/core/subjectTypes'
 
 const names = {
   'subjectType.user': 'User',
   'subjectType.users': 'Users',
+  'subjectType.anonymousUser': 'Anonymous user',
   'subjectType.agent': 'Agent',
   'subjectType.agents': 'Agents',
 }
@@ -21,6 +23,7 @@ const context = {
 describe('SubjectType', () => {
   test.each([
     [new UserSubjectType(context), 'User'],
+    [new AnonymousUserSubjectType(context), 'Anonymous user'],
     [new AgentSubjectType(context), 'Agent'],
   ])('resolves its frontend display name', (subjectType, expected) => {
     expect(subjectType.getTypeDisplayName()).toBe(expected)
@@ -28,6 +31,7 @@ describe('SubjectType', () => {
 
   test.each([
     [new UserSubjectType(context), 'Users'],
+    [new AnonymousUserSubjectType(context), 'Anonymous user'],
     [new AgentSubjectType(context), 'Agents'],
   ])('resolves its plural frontend display name', (subjectType, expected) => {
     expect(subjectType.getPluralTypeDisplayName()).toBe(expected)
@@ -35,6 +39,7 @@ describe('SubjectType', () => {
 
   test.each([
     [new UserSubjectType(context), 'blue'],
+    [new AnonymousUserSubjectType(context), 'blue'],
     [new AgentSubjectType(context), 'purple'],
   ])('provides its avatar color', (subjectType, expected) => {
     expect(subjectType.avatarColor).toBe(expected)
@@ -43,6 +48,7 @@ describe('SubjectType', () => {
   test.each([
     [new UserSubjectType(context), { id: 1, user_id: 2 }, 2],
     [new UserSubjectType(context), { id: 1 }, 1],
+    [new AnonymousUserSubjectType(context), { id: 1 }, 1],
     [new AgentSubjectType(context), { id: 1 }, 1],
   ])('resolves a subject id', (subjectType, subject, expected) => {
     expect(subjectType.getId(subject)).toBe(expected)

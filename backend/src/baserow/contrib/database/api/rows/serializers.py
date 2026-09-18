@@ -612,13 +612,20 @@ class GetRowAdjacentSerializer(
 
 class RowHistoryUserSerializer(serializers.Serializer):
     id = serializers.IntegerField(
-        source="user_id",
+        source="actor_id",
+        allow_null=True,
         help_text="The id of the user.",
     )
     name = serializers.CharField(
-        source="user_name",
+        source="actor_name",
         help_text="The first name of the user.",
     )
+
+
+class RowHistoryActorSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="actor_id", allow_null=True)
+    type = serializers.CharField(source="actor_type")
+    name = serializers.CharField(source="actor_name")
 
 
 class RowHistorySerializer(serializers.ModelSerializer):
@@ -627,7 +634,11 @@ class RowHistorySerializer(serializers.ModelSerializer):
         help_text="The timestamp of the action that was performed.",
     )
     user = RowHistoryUserSerializer(
-        source="*", help_text="The user that performed the action."
+        source="*",
+        help_text="Deprecated. Use actor instead.",
+    )
+    actor = RowHistoryActorSerializer(
+        source="*", help_text="The actor that performed the action."
     )
     before = serializers.JSONField(
         source="before_values",
@@ -645,6 +656,7 @@ class RowHistorySerializer(serializers.ModelSerializer):
             "action_type",
             "action_command_type",
             "user",
+            "actor",
             "timestamp",
             "before",
             "after",
