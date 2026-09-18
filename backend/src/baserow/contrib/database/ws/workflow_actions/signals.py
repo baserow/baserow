@@ -228,9 +228,19 @@ def button_integration_created(sender, integration, **kwargs):
 # permanent deletion can change a button's reconfigure state. A table takes the
 # link fields to it in other tables with it, and their mappings. A service
 # left without a table still counts, as it did while the table was trashed.
+#
+# An application and a workspace are here because they can be deleted without
+# ever being trashed, and so without the `application_deleted` or
+# `workspace_deleted` that would have flagged the buttons pointing into them:
+# `delete_expired_users` purges a workspace whose last admin left, the admin
+# panel deletes one outright, and a snapshot's application is dropped when it
+# expires. A table can only get here from the trash, where it was already
+# counted.
 PERMANENT_DELETION_LOOKUPS = {
     "field": "field_ids",
     "table": "link_row_table_ids",
+    "application": "database_ids",
+    "workspace": "workspace_ids",
     "integration": "integration_ids",
 }
 
@@ -247,6 +257,8 @@ def button_dependency_before_permanently_deleted(
     if lookup is None:
         return
     if sender == "integration" and not _in_a_database(trash_item.application):
+        return
+    if sender == "application" and not _in_a_database(trash_item):
         return
     ids = [trash_item_id]
     if sender == "field":

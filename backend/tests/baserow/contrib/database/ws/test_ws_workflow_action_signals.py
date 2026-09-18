@@ -373,6 +373,58 @@ def test_permanently_deleting_an_integration_leaves_the_button_needing_one(
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_purging_a_workspace_that_was_never_trashed_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """`delete_expired_users` and the admin panel delete a workspace outright,
+    without the `workspace_deleted` that would have flagged the buttons
+    pointing into it."""
+
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    target = data_fixture.create_database_table(user=other_user)
+    button_table = data_fixture.create_database_table(user=user)
+    button_field = _button_writing_to(
+        data_fixture, other_user, target, button_table=button_table
+    )
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with transaction.atomic():
+        TrashHandler.permanently_delete(target.database.workspace)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_table.id}"
+    assert message["fields"][0]["requires_reconfiguration"] is True
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_purging_a_database_that_was_never_trashed_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """A snapshot's application is dropped the same way when it expires."""
+
+    user = data_fixture.create_user()
+    button_table = data_fixture.create_database_table(user=user)
+    other_database = data_fixture.create_database_application(
+        user=user, workspace=button_table.database.workspace
+    )
+    target = data_fixture.create_database_table(user=user, database=other_database)
+    button_field = _button_writing_to(
+        data_fixture, user, target, button_table=button_table
+    )
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with transaction.atomic():
+        TrashHandler.permanently_delete(other_database)
+
+    [(group, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_table.id}"
+    assert message["fields"][0]["requires_reconfiguration"] is True
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
 def test_a_permanent_deletion_that_rolls_back_sends_nothing(
     mock_broadcast_to_channel_group, data_fixture
 ):
