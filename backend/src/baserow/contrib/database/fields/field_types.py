@@ -8216,8 +8216,9 @@ class ButtonFieldType(ReadOnlyFieldType):
         "requires_reconfiguration": serializers.BooleanField(
             required=False,
             read_only=True,
-            help_text="Whether an action writes to a field or table that is in "
-            "the trash or gone, so a click is sure to fail. The client renders "
+            help_text="Whether a click is sure to fail, because an action "
+            "points at a table, field or integration that is in the trash or "
+            "gone, or updates a row without saying which. The client renders "
             "a disabled button with a warning instead.",
         ),
     }

@@ -96,9 +96,10 @@ class DatabaseWorkflowServiceActionType(
         "requires_reconfiguration": serializers.BooleanField(
             required=False,
             read_only=True,
-            help_text="Whether the action points at a table, field or "
-            "integration that is in the trash or gone, so a click is sure to "
-            "fail. The button field's own flag is whether any action has it.",
+            help_text="Whether a click on the action is sure to fail: it "
+            "points at a table, field or integration that is in the trash or "
+            "gone, or it updates a row without saying which. The button "
+            "field's own flag is whether any action has it.",
         ),
     }
     request_serializer_field_names = ["service"]
