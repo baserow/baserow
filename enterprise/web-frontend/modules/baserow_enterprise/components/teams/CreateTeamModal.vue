@@ -7,16 +7,18 @@
       ref="manageForm"
       :workspace="workspace"
       :loading="loading"
-      :invited-user-subjects="invitedUserSubjects"
+      :invited-subjects="invitedSubjects"
       @submitted="createTeam"
       @remove-subject="removeSubject"
-      @invite="$refs.memberAssignmentModal.show()"
+      @invite="showSubjectAssignmentModal"
     >
     </ManageTeamForm>
     <MemberAssignmentModal
       ref="memberAssignmentModal"
-      :members="uninvitedUserSubjects"
-      @select="storeSelectedUsers"
+      :members="uninvitedSubjects"
+      :title="$t('manageTeamForm.accessModalTitle')"
+      :description="$t('manageTeamForm.accessModalDescription')"
+      @select="storeSelectedSubjects"
     />
   </Modal>
 </template>
@@ -28,6 +30,12 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
+import AgentService from '@baserow/modules/core/services/agent'
+import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
+import {
+  getTeamSubjectKey,
+  makeTeamSubject,
+} from '@baserow_enterprise/utils/teamSubjects'
 
 export default {
   name: 'CreateTeamModal',
@@ -43,16 +51,41 @@ export default {
   data() {
     return {
       loading: false,
-      invitedUserSubjects: [],
+      invitedSubjects: [],
+      agents: [],
     }
   },
   computed: {
-    uninvitedUserSubjects() {
-      // Pluck out the user IDs in the objects of the `selections` array.
-      const invitedSubjectIds = this.invitedUserSubjects.map((subj) => subj.id)
-      // Return an array of workspace users who aren't already invited.
-      return this.workspace.users.filter(
-        (user) => !invitedSubjectIds.includes(user.id)
+    canListAgents() {
+      return (
+        this.$featureFlagIsEnabled(FF_AGENTS) &&
+        this.$hasPermission(
+          'workspace.list_agents',
+          this.workspace,
+          this.workspace.id
+        )
+      )
+    },
+    availableSubjects() {
+      const userSubjectType = this.$registry.get('subject', 'auth.User')
+      const agentSubjectType = this.$registry.get('subject', 'core.Agent')
+      return [
+        ...this.workspace.users.map((member) =>
+          makeTeamSubject(member, userSubjectType)
+        ),
+        ...this.agents.map((agent) =>
+          makeTeamSubject(
+            agent,
+            agentSubjectType,
+            this.$t('manageTeamForm.agentLabel')
+          )
+        ),
+      ]
+    },
+    uninvitedSubjects() {
+      const invitedSubjectKeys = this.invitedSubjects.map(getTeamSubjectKey)
+      return this.availableSubjects.filter(
+        (subject) => !invitedSubjectKeys.includes(getTeamSubjectKey(subject))
       )
     },
   },
@@ -60,17 +93,28 @@ export default {
     show(...args) {
       this.hideError()
       // Reset the array of invited subjects.
-      this.invitedUserSubjects = []
+      this.invitedSubjects = []
       modal.methods.show.bind(this)(...args)
     },
     removeSubject(removal) {
       // Remove them as an invited subject.
-      this.invitedUserSubjects = this.invitedUserSubjects.filter(
-        (subj) => subj.user_id !== removal.user_id
+      const removalKey = getTeamSubjectKey(removal)
+      this.invitedSubjects = this.invitedSubjects.filter(
+        (subject) => getTeamSubjectKey(subject) !== removalKey
       )
     },
-    storeSelectedUsers(selections) {
-      this.invitedUserSubjects = this.invitedUserSubjects.concat(selections)
+    storeSelectedSubjects(selections) {
+      this.invitedSubjects = this.invitedSubjects.concat(selections)
+    },
+    async showSubjectAssignmentModal() {
+      this.agents = []
+      if (this.canListAgents) {
+        const { data } = await AgentService(this.$client).list(
+          this.workspace.id
+        )
+        this.agents = data.results || data
+      }
+      this.$refs.memberAssignmentModal.show()
     },
     async createTeam(values) {
       this.loading = true

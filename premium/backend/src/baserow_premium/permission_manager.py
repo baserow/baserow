@@ -67,7 +67,6 @@ from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import PermissionManagerType, object_scope_type_registry
-from baserow.core.subjects import UserSubjectType
 from baserow.core.types import Actor, PermissionCheck
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
@@ -84,7 +83,11 @@ if TYPE_CHECKING:
 
 class ViewOwnershipPermissionManagerType(PermissionManagerType):
     type = "view_ownership"
-    supported_actor_types = [UserSubjectType.type]
+
+    def actor_is_supported(self, actor: Actor) -> bool:
+        """Apply user-only personal-view ownership rules to every actor type."""
+
+        return True
 
     def __init__(self):
         # Background: Baserow can be configured using
@@ -212,16 +215,26 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             ):
                 continue
 
-            premium = local_cache.get(
-                f"has_premium_permission_{actor.id}_{workspace.id}",
-                partial(LicenseHandler.user_has_feature, PREMIUM, actor, workspace),
-            )
-
             view_scope_type = object_scope_type_registry.get("database_view")
             view = object_scope_type_registry.get_parent(
                 context, at_scope_type=view_scope_type
             )
 
+            # Personal views are owned by users. Other subject types can never own
+            # one, even when their integer ID matches the owner's user ID.
+            if (
+                not isinstance(actor, User)
+                and view.ownership_type == OWNERSHIP_TYPE_PERSONAL
+            ):
+                result_by_check[check] = PermissionDenied(
+                    "Only users can access personal views"
+                )
+                continue
+
+            premium = local_cache.get(
+                f"has_premium_permission_{actor.id}_{workspace.id}",
+                partial(LicenseHandler.user_has_feature, PREMIUM, actor, workspace),
+            )
             if premium:
                 if view.ownership_type == OWNERSHIP_TYPE_PERSONAL:
                     if view.owned_by_id != actor.id:
@@ -294,6 +307,8 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
         """
 
         if not isinstance(actor, User):
+            if operation_name == ListViewsOperationType.type and workspace:
+                return queryset.exclude(ownership_type=OWNERSHIP_TYPE_PERSONAL)
             return queryset
 
         if operation_name != ListViewsOperationType.type:

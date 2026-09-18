@@ -254,7 +254,7 @@ export default {
       default: null,
     },
   },
-  emits: ['row-context', 'rows-update'],
+  emits: ['row-context', 'rows-update', 'total-count-update'],
   data() {
     return {
       loading: true,
@@ -381,6 +381,7 @@ export default {
         if (this.service.options.isPaginated) {
           this.page = page
           this.totalPages = Math.max(Math.ceil(data.count / 100), 1)
+          this.$emit('total-count-update', data.count)
         }
 
         this.rows = _.isArray(data) ? data : data.results

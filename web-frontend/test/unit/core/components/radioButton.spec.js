@@ -3,6 +3,12 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import RadioButton from '@baserow/modules/core/components/RadioButton'
 
 describe('RadioButton.vue', () => {
+  test('renders a non-submit button', async () => {
+    const wrapper = await mountSuspended(RadioButton)
+
+    expect(wrapper.find('button').attributes('type')).toBe('button')
+  })
+
   it('renders the button', async () => {
     const wrapper = await mountSuspended(RadioButton)
 
@@ -34,5 +40,21 @@ describe('RadioButton.vue', () => {
     await wrapper.findComponent({ name: 'Button' }).trigger('click')
 
     expect(onClick).toHaveBeenCalled()
+  })
+
+  it('can emit a deselected value when the active button is clicked', async () => {
+    const wrapper = await mountSuspended(RadioButton, {
+      props: {
+        modelValue: true,
+        value: true,
+        allowDeselect: true,
+        deselectedValue: false,
+      },
+    })
+
+    await wrapper.findComponent({ name: 'Button' }).trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+    expect(wrapper.emitted('input')).toEqual([[false]])
   })
 })
