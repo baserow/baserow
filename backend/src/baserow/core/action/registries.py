@@ -159,6 +159,9 @@ class ActionType(
     type: str = NotImplemented
     description: ActionTypeDescription = ActionTypeDescription()
     analytics_params = []
+    # False for action types whose PostHog event is sent from somewhere that
+    # knows more than the action does.
+    capture_analytics_event: bool = True
 
     @dataclasses.dataclass
     class Params:

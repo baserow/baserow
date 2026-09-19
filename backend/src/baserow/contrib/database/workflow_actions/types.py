@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from baserow.core.services.types import DispatchResult
@@ -10,6 +11,18 @@ if TYPE_CHECKING:
 
 class DatabaseWorkflowActionDict(WorkflowActionDict):
     field_id: int
+
+
+class DispatchOutcome(StrEnum):
+    """What became of a button click, as analytics and metrics report it."""
+
+    COMPLETED = "completed"
+    FAILED = "failed"
+    THROTTLED = "throttled"
+    IN_PROGRESS = "in_progress"
+    DEACTIVATED = "deactivated"
+    DENIED = "denied"
+    ERROR = "error"
 
 
 @dataclass

@@ -1,5 +1,6 @@
 import json
 from dataclasses import fields as dataclass_fields
+from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional
 
 from django.conf import settings
@@ -8,6 +9,7 @@ from django.core.cache import cache
 from django.db import transaction
 
 from loguru import logger
+from opentelemetry import trace
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.fields.models import ButtonField
@@ -34,7 +36,9 @@ from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
 from baserow.contrib.database.workflow_actions.signals import (
+    button_field_before_dispatch,
     workflow_action_created,
+    workflow_action_dispatched,
     workflow_action_updated,
     workflow_actions_reordered,
 )
@@ -63,6 +67,11 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
+from baserow.core.telemetry.utils import (
+    add_baserow_trace_attrs,
+    baserow_trace,
+    baserow_trace_phase,
+)
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 
@@ -90,6 +99,8 @@ DID_NOT_REACH_OUT_EXCEPTIONS = (
     # so nothing was sent even though the message names where it was going.
     AddressNotAllowedDispatchException,
 )
+
+tracer = trace.get_tracer(__name__)
 
 
 def reached_outside(exc: Exception) -> bool:
@@ -558,6 +569,29 @@ class DatabaseWorkflowActionService:
                 action_id=workflow_action.id,
             )
 
+    def _send_workflow_action_dispatched(
+        self,
+        workflow_action: DatabaseWorkflowAction,
+        dispatch_context: DatabaseDispatchContext,
+        position: int,
+        started: float,
+        result: Optional[DispatchResult] = None,
+        exception: Optional[Exception] = None,
+    ) -> None:
+        workflow_action_dispatched.send_robust(
+            self,
+            workflow_action=workflow_action,
+            dispatch_context=dispatch_context,
+            field=dispatch_context.field,
+            position=position,
+            result=result,
+            exception=exception,
+            duration_ms=(perf_counter() - started) * 1000,
+        )
+
+    # An external action's exception message can name the address it reached
+    # (with its query string), so this span never records it.
+    @baserow_trace(tracer, record_exception=False)
     def dispatch_workflow_actions(
         self,
         user: AbstractUser,
@@ -608,6 +642,12 @@ class DatabaseWorkflowActionService:
 
         if workflow_actions is None:
             workflow_actions = self.get_dispatch_snapshot(field)
+
+        add_baserow_trace_attrs(
+            field_id=field.id,
+            workspace_id=field.table.database.workspace_id,
+            action_count=len(workflow_actions),
+        )
 
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
@@ -679,6 +719,12 @@ class DatabaseWorkflowActionService:
                 client_actions=client_actions, positions=positions
             )
 
+        # After the checks above, so a plugin's refusal, a quota for instance,
+        # only ever reaches someone who may click.
+        button_field_before_dispatch.send(
+            self, user=user, field=field, workflow_actions=server_actions
+        )
+
         # Taken only when the key is absent, so a double click cannot run the
         # sequence twice, and released by a script that checks ownership first,
         # so a click whose TTL ran out cannot drop a later click's lock. Keyed
@@ -735,11 +781,34 @@ class DatabaseWorkflowActionService:
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
                     is_external = workflow_action.get_type().is_external
+                    started = perf_counter()
                     try:
-                        result = self.handler.dispatch_workflow_action(
-                            workflow_action, dispatch_context
-                        )
+                        # A span per action, so the type and position of one
+                        # do not overwrite the last one's on the click's span.
+                        # `record_exception=False`: the action's own failure
+                        # can name the address it reached.
+                        with baserow_trace_phase(
+                            tracer,
+                            "DatabaseWorkflowActionService.dispatch_workflow_action",
+                            record_exception=False,
+                        ):
+                            add_baserow_trace_attrs(
+                                workflow_action_type=workflow_action.get_type().type,
+                                position=positions[workflow_action.id],
+                            )
+                            result = self.handler.dispatch_workflow_action(
+                                workflow_action, dispatch_context
+                            )
                     except Exception as exc:
+                        # Before the failure is reshaped below, so a receiver
+                        # sees what really went wrong.
+                        self._send_workflow_action_dispatched(
+                            workflow_action,
+                            dispatch_context,
+                            positions[workflow_action.id],
+                            started,
+                            exception=exc,
+                        )
                         if (
                             is_external
                             and on_external_dispatch
@@ -793,6 +862,13 @@ class DatabaseWorkflowActionService:
                                 positions[workflow_action.id],
                             ) from exc
                         raise
+                    self._send_workflow_action_dispatched(
+                        workflow_action,
+                        dispatch_context,
+                        positions[workflow_action.id],
+                        started,
+                        result=result,
+                    )
                     if is_external and on_external_dispatch:
                         on_external_dispatch(workflow_action)
                     if may_configure:

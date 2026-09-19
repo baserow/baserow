@@ -114,7 +114,10 @@ def capture_event_action_done(
 ):
     # Only capture do commands for now because the undo might make it more difficult
     # to do analytics on the data.
-    if action_command_type == ActionCommandType.DO:
+    if (
+        action_command_type == ActionCommandType.DO
+        and action_type.capture_analytics_event
+    ):
         action_params_copy = deepcopy(action_params)
         properties = {
             key: action_params_copy.get(key, None)

@@ -98,6 +98,13 @@ class CreateDatabaseWorkflowActionActionType(UndoableActionType):
         ),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = [
+        "database_id",
+        "table_id",
+        "field_id",
+        "workflow_action_id",
+        "workflow_action_type",
+    ]
 
     @dataclass
     class Params:
@@ -178,6 +185,14 @@ class UpdateDatabaseWorkflowActionActionType(
         ),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = [
+        "database_id",
+        "table_id",
+        "field_id",
+        "workflow_action_id",
+        "workflow_action_type",
+        "original_workflow_action_type",
+    ]
 
     @dataclass
     class Params:
@@ -192,6 +207,9 @@ class UpdateDatabaseWorkflowActionActionType(
         new_values: Dict[str, Any]
         original_service_id: Optional[int] = None
         new_service_id: Optional[int] = None
+        # For analytics. Default None so actions stored before them still load.
+        workflow_action_type: Optional[str] = None
+        original_workflow_action_type: Optional[str] = None
 
     @classmethod
     def do(
@@ -225,6 +243,8 @@ class UpdateDatabaseWorkflowActionActionType(
                 if type_changed
                 else None
             ),
+            updated.new_values["type"],
+            updated.original_values["type"],
         )
         if updated.original_values == updated.new_values:
             # Only sensitive fields changed, which an undo leaves as they are,
@@ -367,6 +387,13 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
         ),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = [
+        "database_id",
+        "table_id",
+        "field_id",
+        "workflow_action_id",
+        "workflow_action_type",
+    ]
 
     @dataclass
     class Params:
@@ -382,6 +409,8 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
         original_workflow_action_ids: List[int] = dataclasses.field(
             default_factory=list
         )
+        # For analytics. Default None so actions stored before it still load.
+        workflow_action_type: Optional[str] = None
 
     @classmethod
     def do(cls, user: AbstractUser, workflow_action: DatabaseWorkflowAction) -> None:
@@ -397,6 +426,7 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
             field.name,
             workflow_action.id,
             _workflow_action_ids(field),
+            workflow_action.get_type().type,
         )
 
         DatabaseWorkflowActionService().delete_workflow_action(user, workflow_action)
@@ -439,6 +469,7 @@ class OrderDatabaseWorkflowActionsActionType(UndoableActionType):
         _('Actions ordered on button field "%(field_name)s" (%(field_id)s)'),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = ["database_id", "table_id", "field_id"]
 
     @dataclass
     class Params:
@@ -514,6 +545,9 @@ class DispatchButtonFieldActionType(ActionType):
         "field_id",
         "action_count",
     ]
+    # The click's event comes from `capture_button_field_dispatched`, which
+    # knows the outcome and sees refused clicks too.
+    capture_analytics_event = False
 
     @dataclasses.dataclass
     class Params:
