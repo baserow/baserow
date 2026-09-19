@@ -998,6 +998,41 @@ INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = str_to_bool(
     os.getenv("BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS", "true")
 )
 
+# The domain used to generate inbound email addresses for email triggers, e.g.
+# "inbound.baserow.io" results in addresses like "{token}@inbound.baserow.io".
+# When empty, the email trigger feature is not configured on this instance.
+INBOUND_EMAIL_DOMAIN = os.getenv("BASEROW_INBOUND_EMAIL_DOMAIN", "")
+# The shared secret the inbound mail server must send in the Authorization
+# header when delivering inbound email webhooks to this instance. When empty,
+# the inbound email webhook endpoint rejects all requests.
+INBOUND_EMAIL_WEBHOOK_SECRET = os.getenv("BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET", "")
+# The password the backend authenticates with when deleting handed-over messages
+# through the bundled mail server's web API. Empty means the webhook secret is
+# used (see `inbound_email_receiver.py`), so one secret configures the whole
+# feature; set it to keep the secret that travels in every webhook request out
+# of the receiver's credentials.
+INBOUND_EMAIL_RECEIVER_PASSWORD = os.getenv(
+    "BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD", ""
+)
+# The largest raw email, in MB, the bundled inbound mail server accepts. The
+# limit itself is enforced by the mail server (see generate-mox-config.sh); it
+# is mirrored here so it can be shown next to the trigger's address.
+INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB = int(
+    os.getenv("BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB") or 25
+)
+# Where the backend reaches the bundled inbound mail server's web API. Mox keeps
+# every accepted message on disk and has no retention setting, so a periodic
+# task deletes the messages it has already handed over through this API. Empty
+# disables the sweep (see `inbound_email_receiver.py`).
+INBOUND_EMAIL_RECEIVER_URL = os.getenv("BASEROW_INBOUND_EMAIL_RECEIVER_URL", "").rstrip(
+    "/"
+)
+# How often, in minutes, that sweep runs. At least one: a zero interval would
+# have Celery beat schedule the task continuously.
+INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES = max(
+    1, int(os.getenv("BASEROW_INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES") or 60)
+)
+
 AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
 )

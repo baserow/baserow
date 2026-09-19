@@ -25,6 +25,7 @@ from baserow.contrib.automation.nodes.models import (
     CoreGotoActionNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
+    CoreInboundEmailTriggerNode,
     CoreIteratorActionNode,
     CoreManualTriggerNode,
     CorePeriodicTriggerNode,
@@ -50,12 +51,16 @@ from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
+from baserow.contrib.integrations.core.inbound_email import (
+    is_inbound_email_configured,
+)
 from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.contrib.integrations.core.service_types import (
     CoreCSVFileReaderServiceType,
     CoreGotoServiceType,
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
+    CoreInboundEmailTriggerServiceType,
     CoreIteratorServiceType,
     CoreManualTriggerServiceType,
     CorePeriodicServiceType,
@@ -761,6 +766,19 @@ class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
+
+
+class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
+    display_name = _("Email trigger")
+    type = "email_trigger"
+    model_class = CoreInboundEmailTriggerNode
+    service_type = CoreInboundEmailTriggerServiceType.type
+
+    def is_deactivated(self, workspace) -> bool:
+        # Instance-wide (the workspace is irrelevant): the trigger is withheld
+        # until the domain, the webhook secret and the receiver URL are all
+        # configured. See `is_inbound_email_configured` for why each matters.
+        return not is_inbound_email_configured()
 
 
 class CoreManualTriggerNodeType(AutomationNodeTriggerType):

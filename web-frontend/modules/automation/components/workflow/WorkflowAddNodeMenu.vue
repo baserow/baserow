@@ -87,6 +87,7 @@ export default {
         .getOrderedList('node')
         .filter(
           (nodeType) =>
+            nodeType.isEnabled() &&
             this.node?.type !== nodeType.type &&
             (this.editingTriggerNode
               ? nodeType.isTrigger

@@ -175,6 +175,11 @@ gunicorn-wsgi       : Same as gunicorn but runs a wsgi server which does not sup
 celery-worker       : Start the celery worker queue which runs important async tasks
 celery-exportworker : Start the celery worker queue which runs slower async tasks
 celery-beat         : Start the celery beat service used to schedule periodic jobs
+email-receiver      : Start the mox mail server which receives inbound email for
+                      the "Start workflow by email" automation trigger and forwards
+                      it to the backend. Must run as root (mox drops privileges
+                      itself). Idles until BASEROW_INBOUND_EMAIL_DOMAIN and
+                      BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET are both set.
 
 HEALTHCHECK COMMANDS (exit with non zero when unhealthy, zero when healthy)
 backend-healthcheck             : Checks the gunicorn/django-dev service health
@@ -413,6 +418,59 @@ case "$1" in
     ;;
     celery-flower)
       exec celery -A baserow flower "$@"
+    ;;
+    email-receiver)
+      # Runs the mox mail server as the inbound SMTP receiver for the "Start
+      # workflow by email" automation trigger. Mox must be started as root; it
+      # binds its sockets and then drops privileges itself to the user
+      # configured by the generated config (default uid 9999).
+      export OTEL_SERVICE_NAME="email-receiver"
+      if [[ -z "${BASEROW_INBOUND_EMAIL_DOMAIN:-}" || -z "${BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:-}" ]]; then
+        echo "Inbound email is not configured. Set BASEROW_INBOUND_EMAIL_DOMAIN" \
+          "and BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET to enable the \"Start" \
+          "workflow by email\" automation trigger. Idling until then."
+        exec tail -f /dev/null
+      fi
+      /baserow/backend/docker/generate-mox-config.sh
+      MOX_DATA_DIR="${BASEROW_INBOUND_EMAIL_DATA_DIR:-/baserow/data/mox}"
+      # Mox "fixes" the ownership and mode of its working directory on start.
+      # Run it from its own data directory so that never touches the backend
+      # code directory, which is a bind-mounted checkout in the dev stack.
+      cd "$MOX_DATA_DIR"
+      /usr/local/bin/mox -config "$MOX_DATA_DIR/config/mox.conf" serve &
+      mox_pid=$!
+      # A trapped signal interrupts the `wait` below straight away, so wait for
+      # mox inside the trap as well. Otherwise this script, and with it tini as
+      # PID 1, exits while mox is still shutting down and the kernel SIGKILLs it.
+      trap 'kill -TERM "$mox_pid" 2>/dev/null; wait "$mox_pid"' TERM INT
+
+      # The backend's periodic sweep deletes handed-over messages through mox's
+      # web API, authenticating as the inbound account with
+      # BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD (the webhook secret by default).
+      # A password can only be set through the running server's control
+      # socket, so wait for it and (re)apply the password on every start.
+      for _ in $(seq 1 60); do
+        [ -S "$MOX_DATA_DIR/data/ctl" ] && break
+        sleep 0.5
+      done
+      if printf '%s' "${BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD:-$BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET}" \
+        | /usr/local/bin/mox -config "$MOX_DATA_DIR/config/mox.conf" setaccountpassword inbound; then
+        echo "Inbound account web API password applied."
+      else
+        echo "WARNING: could not set the inbound account's web API password;" \
+          "the backend's periodic message sweep will fail until this is fixed." >&2
+      fi
+
+      wait "$mox_pid" || mox_status=$?
+      exit "${mox_status:-0}"
+    ;;
+    email-receiver-healthcheck)
+      echo "Running email receiver healthcheck..."
+      if [[ -z "${BASEROW_INBOUND_EMAIL_DOMAIN:-}" || -z "${BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:-}" ]]; then
+        # Inbound email is disabled and the service is idling on purpose.
+        exit 0
+      fi
+      exec bash -c "exec 3<>'/dev/tcp/127.0.0.1/${BASEROW_INBOUND_EMAIL_SMTP_PORT:-25}'"
     ;;
     watch-py)
         # Ensure we watch all possible python source code locations for changes.

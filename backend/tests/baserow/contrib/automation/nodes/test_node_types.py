@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+from django.test import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 
@@ -805,3 +806,61 @@ def test_automation_node_type_has_display_name(node_type):
     assert node_type.display_name != _("Unnamed element"), (
         f"{type(node_type).__name__}.display_name is still the default 'Unnamed element'"
     )
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "INBOUND_EMAIL_DOMAIN",
+        "INBOUND_EMAIL_WEBHOOK_SECRET",
+        "INBOUND_EMAIL_RECEIVER_URL",
+    ],
+)
+def test_inbound_email_trigger_deactivated_when_any_setting_is_missing(missing):
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+
+    values = {
+        "INBOUND_EMAIL_DOMAIN": "inbound.example.com",
+        "INBOUND_EMAIL_WEBHOOK_SECRET": "s",
+        # Without the receiver URL the sweep cannot delete handed-over messages
+        # and the mail server's disk would grow forever, so the trigger stays off.
+        "INBOUND_EMAIL_RECEIVER_URL": "http://email-receiver:8880",
+        missing: "",
+    }
+    node_type = automation_node_type_registry.get("email_trigger")
+    with override_settings(**values):
+        assert node_type.is_deactivated(None) is True
+
+
+@override_settings(
+    INBOUND_EMAIL_DOMAIN="inbound.example.com",
+    INBOUND_EMAIL_WEBHOOK_SECRET="s",
+    INBOUND_EMAIL_RECEIVER_URL="http://email-receiver:8880",
+)
+def test_inbound_email_trigger_active_when_configured():
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+
+    node_type = automation_node_type_registry.get("email_trigger")
+    assert node_type.is_deactivated(None) is False
+
+
+@pytest.mark.django_db
+@override_settings(INBOUND_EMAIL_DOMAIN="", INBOUND_EMAIL_WEBHOOK_SECRET="")
+def test_create_inbound_email_trigger_blocked_when_unconfigured(data_fixture):
+    from rest_framework.exceptions import PermissionDenied
+
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.automation.nodes.service import AutomationNodeService
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    node_type = automation_node_type_registry.get("email_trigger")
+    with pytest.raises(PermissionDenied):
+        AutomationNodeService().create_node(user, node_type, workflow)
