@@ -49,6 +49,26 @@
       />
     </div>
 
+    <div v-if="showFormatPicker" class="formula-input-field__format">
+      <span class="formula-input-field__format-label">
+        {{ $t('formulaInputField.formatLabel') }}
+      </span>
+      <Dropdown
+        class="formula-input-field__format-dropdown"
+        :value="format"
+        :show-search="false"
+        :disabled="disabled"
+        @input="$emit('update:format', $event)"
+      >
+        <DropdownItem
+          v-for="option in formatOptions"
+          :key="option.value"
+          :name="option.name"
+          :value="option.value"
+        />
+      </Dropdown>
+    </div>
+
     <FormulaInputErrorContext
       v-if="!isRawMode"
       :visible="showErrorContext"
@@ -127,9 +147,17 @@ import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipT
 import { mergeAttributes } from '@tiptap/core'
 import FormulaInputErrorContext from '~/modules/core/components/formula/FormulaInputErrorContext'
 import FormulaInputExplorerContext from '@baserow/modules/core/components/formula/FormulaInputExplorerContext'
-import { isFormulaValid } from '@baserow/modules/core/formula'
+import {
+  isFormulaValid,
+  toFormulaStringLiteral,
+} from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
-import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
+import {
+  BASEROW_FORMULA_FORMAT_MARKDOWN,
+  BASEROW_FORMULA_FORMAT_PLAIN,
+  BASEROW_FORMULA_FORMATS,
+  BASEROW_FORMULA_MODES,
+} from '@baserow/modules/core/formula/constants'
 import FormInput from '@baserow/modules/core/components/FormInput'
 import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
 import { ensureString } from '@baserow/modules/core/utils/validator'
@@ -183,6 +211,11 @@ export function disambiguateMinusOperator(formula) {
   }
 
   return result
+}
+
+const FORMAT_LABEL_KEYS = {
+  [BASEROW_FORMULA_FORMAT_PLAIN]: 'formulaInputField.formatPlain',
+  [BASEROW_FORMULA_FORMAT_MARKDOWN]: 'formulaInputField.formatMarkdown',
 }
 
 export default {
@@ -273,13 +306,33 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * How the surface showing the resolved formula renders it (plain text or
+     * markdown). It doesn't affect the formula itself, which is why it also
+     * applies in raw mode.
+     */
+    format: {
+      type: String,
+      required: false,
+      default: BASEROW_FORMULA_FORMAT_PLAIN,
+      validator: (value) => BASEROW_FORMULA_FORMATS.includes(value),
+    },
+    /**
+     * The formats the surface using this input can render. The format picker
+     * is only shown when there is more than one to choose from.
+     */
+    allowedFormats: {
+      type: Array,
+      required: false,
+      default: () => [BASEROW_FORMULA_FORMAT_PLAIN],
+    },
     validationContext: {
       type: Object,
       required: false,
       default: () => ({}),
     },
   },
-  emits: ['input', 'update:mode', 'update:invalid', 'blur'],
+  emits: ['input', 'update:mode', 'update:format', 'update:invalid', 'blur'],
   data() {
     return {
       editor: null,
@@ -305,6 +358,15 @@ export default {
       return this.isRawMode
         ? this.$t('formulaInputField.useFormulaMode')
         : this.$t('formulaInputField.useRawMode')
+    },
+    showFormatPicker() {
+      return this.allowedFormats.length > 1 && !this.readOnly
+    },
+    formatOptions() {
+      return this.allowedFormats.map((format) => ({
+        value: format,
+        name: this.$t(FORMAT_LABEL_KEYS[format] || format),
+      }))
     },
     isFormulaEmpty() {
       if (!this.editor) return true
@@ -674,7 +736,12 @@ export default {
     },
     changeRawMode() {
       const newMode = this.isRawMode ? 'simple' : 'raw'
-      const newFormula = this.isRawMode ? ensureString(this.value) : ''
+      // Raw text is not formula syntax, so it carries over as a string
+      // literal (`Price` -> `'Price'`); passed through verbatim it would be
+      // parsed as a function name and rejected. The other direction clears
+      // the formula, after confirmation when it isn't empty.
+      const rawText = this.isRawMode ? ensureString(this.value) : ''
+      const newFormula = rawText ? toFormulaStringLiteral(rawText) : ''
 
       this.isHandlingModeChange = true
       this.$emit('update:mode', newMode)

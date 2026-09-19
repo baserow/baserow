@@ -941,7 +941,10 @@
     "invalidFormulaTitle": "Invalid formula",
     "invalidSyntax": "Not a valid expert formula, please check the syntax.",
     "useFormulaMode": "Use formula mode",
-    "useRawMode": "Use raw mode"
+    "useRawMode": "Use raw mode",
+    "formatLabel": "Format",
+    "formatPlain": "Plain text",
+    "formatMarkdown": "Markdown"
   },
   "formulaInputErrorContext": {
     "viewFullError": "View full error"

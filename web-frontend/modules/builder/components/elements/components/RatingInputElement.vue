@@ -1,6 +1,7 @@
 <template>
   <ABFormGroup
     :label="labelResolved"
+    :label-format="element.label?.format"
     :required="element.required"
     :error-message="displayFormDataError ? $t('error.requiredField') : ''"
   >

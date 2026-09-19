@@ -9,8 +9,11 @@ describe('TextElement', () => {
     const element = {
       id: 1,
       type: 'text',
-      value: { mode: 'raw', formula: '# Heading\n\n`inline code`' },
-      format: 'markdown',
+      value: {
+        mode: 'raw',
+        formula: '# Heading\n\n`inline code`',
+        format: 'markdown',
+      },
       styles: {},
     }
 

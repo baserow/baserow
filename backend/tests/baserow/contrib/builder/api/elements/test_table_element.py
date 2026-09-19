@@ -8,7 +8,10 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from baserow.contrib.builder.elements.models import LinkElement, NavigationElementMixin
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BASEROW_FORMULA_MODE_SIMPLE,
+)
 
 
 @pytest.mark.django_db
@@ -94,7 +97,12 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
         for f in response.json()["fields"]
     ] == [
         {
-            "name": "Name",
+            # A plain string name is returned as a raw-mode formula.
+            "name": BaserowFormulaObject(
+                formula="Name",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_RAW,
+            ),
             "type": "text",
             "value": BaserowFormulaObject(
                 formula="get('data_source.123')",
@@ -105,7 +113,11 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "styles": {},
         },
         {
-            "name": "Color",
+            "name": BaserowFormulaObject(
+                formula="Color",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_RAW,
+            ),
             "type": "link",
             "navigate_to_page_id": None,
             "navigation_type": NavigationElementMixin.NAVIGATION_TYPES.PAGE,
@@ -127,7 +139,11 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "uid": uuids[1],
         },
         {
-            "name": "Question",
+            "name": BaserowFormulaObject(
+                formula="Question",
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+                mode=BASEROW_FORMULA_MODE_RAW,
+            ),
             "type": "text",
             "value": BaserowFormulaObject(
                 formula="get('data_source.126')",

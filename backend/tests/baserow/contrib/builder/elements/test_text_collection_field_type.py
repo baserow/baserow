@@ -46,7 +46,9 @@ def test_serializer_field_overrides_returns_expected_value():
     assert type(field) is FormulaSerializerField
     assert isinstance(field.default, dict)
     assert field.required is False
-    assert field.help_text == "The formula for the text."
+    assert field.help_text == (
+        "The formula for the text. Accepted `format` values: plain, markdown."
+    )
 
 
 @patch(f"{MODULE_PATH}.CollectionFieldType.deserialize_property")
