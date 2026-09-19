@@ -6,13 +6,14 @@ import socket
 import uuid
 from datetime import datetime
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives, get_connection
-from django.db import router
+from django.db import IntegrityError, router, transaction
 from django.db.models import Q, QuerySet
 from django.urls import path
 from django.utils import timezone
@@ -36,6 +37,7 @@ from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_MINUTE,
     PERIODIC_TIMEZONE_DEFAULT,
+    RESPONSE_BODY_TYPE,
     SMTP_EMAIL_TIMEOUT,
 )
 from baserow.contrib.integrations.core.exceptions import (
@@ -51,6 +53,8 @@ from baserow.contrib.integrations.core.models import (
     CoreIteratorService,
     CoreManualTriggerService,
     CorePeriodicService,
+    CoreResponseHeader,
+    CoreResponseService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
@@ -66,12 +70,16 @@ from baserow.contrib.integrations.utils import (
 )
 from baserow.core.datetime import get_timezones
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
+)
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_email,
     ensure_file,
+    ensure_integer,
     ensure_string,
 )
 from baserow.core.registries import ImportExportConfig
@@ -95,11 +103,30 @@ from baserow.core.services.registries import (
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
+if TYPE_CHECKING:
+    from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+
 # Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
 # The captured name is checked against the runtime function registry so that
 # literal text like `foo(` (which isn't a real function) doesn't match. Function
 # names are case-insensitive, so the name is lowercased before the lookup.
 RE_FORMULA_FUNCTION = re.compile(r"\b([a-zA-Z_]+)\s*\(")
+
+
+def ensure_http_status_code(value: Any) -> int:
+    status_code = ensure_integer(value)
+    if not 100 <= status_code <= 599:
+        raise ValidationError("The value must be between 100 and 599.")
+    return status_code
+
+
+def ensure_http_header_value(value: Any) -> str:
+    value = ensure_string(value)
+    if "\r" in value or "\n" in value:
+        raise ValidationError(
+            "Header values cannot contain carriage returns or newlines."
+        )
+    return value
 
 
 class CoreServiceType(ServiceType):
@@ -508,6 +535,12 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     sample_data.get("data", {}).get("headers", {})
                 )
                 schema = schema_builder.to_schema()
+                for key, property_schema in schema.get("properties", {}).items():
+                    if key != key.lower():
+                        property_schema["deprecated"] = True
+                        property_schema["description"] = (
+                            f"Deprecated: use the lowercase `{key.lower()}` key instead."
+                        )
 
             properties.update(
                 **{
@@ -516,13 +549,31 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                         "properties": {
                             "Content-Type": {
                                 "type": "string",
+                                "description": "Deprecated: use the lowercase "
+                                "`content-type` key instead.",
+                                "deprecated": True,
+                            },
+                            "content-type": {
+                                "type": "string",
                                 "description": "The MIME type of the response body",
                             },
                             "Content-Length": {
                                 "type": "number",
+                                "description": "Deprecated: use the lowercase "
+                                "`content-length` key instead.",
+                                "deprecated": True,
+                            },
+                            "content-length": {
+                                "type": "number",
                                 "description": "The length of the response body in octets (8-bit bytes)",
                             },
                             "ETag": {
+                                "type": "string",
+                                "description": "Deprecated: use the lowercase `etag` key "
+                                "instead.",
+                                "deprecated": True,
+                            },
+                            "etag": {
                                 "type": "string",
                                 "description": "An identifier for a specific version of "
                                 "a resource",
@@ -711,8 +762,11 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             # Otherwise, fall back to text
             response_body = response.text
 
-        # Extract the response headers
-        response_headers = {key: value for key, value in response.headers.items()}
+        # Preserve the original keys for existing formulas and add normalized
+        # aliases so new formulas don't depend on the server's casing.
+        response_headers = dict(response.headers.items())
+        for key, value in tuple(response_headers.items()):
+            response_headers.setdefault(key.lower(), value)
 
         data = {
             "raw_body": ensure_string(response_body, allow_empty=True),
@@ -1982,18 +2036,320 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         }
 
 
+class CoreResponseServiceType(CoreServiceType):
+    type = "response"
+    model_class = CoreResponseService
+    dispatch_types = [DispatchTypes.ACTION]
+
+    allowed_fields = [
+        "status_code",
+        "body_type",
+        "body",
+    ]
+
+    serializer_field_names = [
+        "status_code",
+        "body_type",
+        "body",
+        "headers",
+    ]
+
+    request_serializer_field_names = [
+        "status_code",
+        "body_type",
+        "body",
+        "headers",
+    ]
+
+    class SerializedDict(ServiceDict):
+        status_code: BaserowFormulaObject
+        body_type: str
+        body: BaserowFormulaObject
+        headers: List[Dict[str, str | BaserowFormulaObject]]
+
+    simple_formula_fields = ["status_code", "body"]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.integrations.core.api.serializers import (
+            CoreResponseHeaderSerializer,
+        )
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        status_code_field = FormulaSerializerField(
+            required=False,
+            help_text=CoreResponseService._meta.get_field("status_code").help_text,
+        )
+        status_code_field.default = BaserowFormulaObject.create(
+            "204", mode=BASEROW_FORMULA_MODE_RAW
+        )
+
+        return {
+            "status_code": status_code_field,
+            "body_type": serializers.ChoiceField(
+                choices=RESPONSE_BODY_TYPE.choices,
+                required=False,
+                default=RESPONSE_BODY_TYPE.EMPTY,
+                help_text=CoreResponseService._meta.get_field("body_type").help_text,
+            ),
+            "body": FormulaSerializerField(
+                required=False,
+                default="",
+                help_text=CoreResponseService._meta.get_field("body").help_text,
+            ),
+            "headers": CoreResponseHeaderSerializer(
+                many=True,
+                required=False,
+                help_text="The headers for the response.",
+            ),
+        }
+
+    def after_create(
+        self,
+        instance: CoreResponseService,
+        values: Dict,
+    ):
+        if "headers" in values:
+            instance.headers.all().delete()
+            CoreResponseHeader.objects.bulk_create(
+                [
+                    CoreResponseHeader(
+                        service=instance,
+                        key=header["key"],
+                        value=header["value"],
+                    )
+                    for header in values["headers"]
+                ]
+            )
+
+    def after_update(
+        self,
+        instance,
+        values,
+        changes: Dict[str, Tuple],
+    ):
+        return self.after_create(instance, values)
+
+    def formula_generator(
+        self, service: CoreResponseService
+    ) -> Generator[str | Instance, str, None]:
+        yield from super().formula_generator(service)
+
+        for header in service.headers.all():
+            new_formula = yield BaserowFormulaObject.to_formula(header.value)
+            if new_formula is not None:
+                header.value = new_formula
+                yield header
+
+    def serialize_property(
+        self,
+        service: CoreResponseService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        if prop_name == "headers":
+            return [
+                {
+                    "key": header.key,
+                    "value": header.value,
+                }
+                for header in service.headers.all()
+            ]
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        headers = serialized_values.pop("headers", [])
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        CoreResponseHeader.objects.bulk_create(
+            [
+                CoreResponseHeader(
+                    **header,
+                    service=service,
+                )
+                for header in headers
+            ]
+        )
+
+        return service
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("headers")
+
+    def formulas_to_resolve(
+        self, service: CoreResponseService
+    ) -> list[FormulaToResolve]:
+        formulas = []
+
+        formulas.append(
+            FormulaToResolve(
+                "status_code",
+                service.status_code,
+                ensure_http_status_code,
+                "'status_code' property",
+            )
+        )
+
+        if service.body_type != RESPONSE_BODY_TYPE.EMPTY:
+            formulas.append(
+                FormulaToResolve(
+                    "body",
+                    service.body,
+                    lambda value: value,
+                    "'body' property",
+                )
+            )
+
+        formulas.extend(
+            FormulaToResolve(
+                f"header_{header.id}",
+                header.value,
+                ensure_http_header_value,
+                f"'{header.key}' header",
+            )
+            for header in service.headers.all()
+        )
+
+        return formulas
+
+    def _normalize_response_body(
+        self,
+        body_type: str,
+        resolved_values: Dict[str, Any],
+    ) -> Any:
+        if body_type == RESPONSE_BODY_TYPE.EMPTY:
+            return None
+        if body_type == RESPONSE_BODY_TYPE.TEXT:
+            return ensure_string(resolved_values.get("body"), allow_empty=True)
+        return resolved_values.get("body")
+
+    def dispatch_data(
+        self,
+        service: CoreResponseService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        from baserow.contrib.automation.history.models import (
+            AutomationWorkflowHistoryResponse,
+        )
+
+        workflow_history = getattr(dispatch_context, "history", None)
+        if workflow_history is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "Response services can only be dispatched from automation workflows."
+            )
+
+        source_node = getattr(service, "automation_workflow_node", None)
+        headers = {
+            header.key: resolved_values[f"header_{header.id}"]
+            for header in service.headers.all()
+            if header.key
+        }
+        body = self._normalize_response_body(service.body_type, resolved_values)
+        status_code = resolved_values["status_code"]
+
+        try:
+            with transaction.atomic():
+                AutomationWorkflowHistoryResponse.objects.create(
+                    workflow_history=workflow_history,
+                    status_code=status_code,
+                    headers=headers,
+                    body=body,
+                    body_type=service.body_type,
+                    source_node=source_node,
+                    is_default=False,
+                )
+                created = True
+        except IntegrityError:
+            created = False
+
+        return {
+            "data": {
+                "response_written": created,
+                "ignored": not created,
+                "status_code": status_code,
+                "body_type": service.body_type,
+            }
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data["data"])
+
+
 class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerService
 
-    allowed_fields = ["exclude_get", "is_public"]
-    serializer_field_names = ["uid", "exclude_get", "is_public"]
-    request_serializer_field_names = ["exclude_get"]
+    allowed_fields = [
+        "exclude_get",
+        "is_public",
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    serializer_field_names = [
+        "uid",
+        "exclude_get",
+        "is_public",
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    request_serializer_field_names = [
+        "exclude_get",
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
 
     class SerializedDict(ServiceDict):
         uid: str
         exclude_get: bool
         is_public: bool
+        wait_for_response: bool
+        response_timeout_seconds: int
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "response_timeout_seconds": serializers.IntegerField(
+                required=False,
+                min_value=1,
+                max_value=settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                default=10,
+                help_text=CoreHTTPTriggerService._meta.get_field(
+                    "response_timeout_seconds"
+                ).help_text,
+            ),
+            "wait_for_response": serializers.BooleanField(
+                required=False,
+                default=False,
+                help_text=CoreHTTPTriggerService._meta.get_field(
+                    "wait_for_response"
+                ).help_text,
+            ),
+        }
 
     def get_api_urls(self) -> List[path]:
         return [
@@ -2031,7 +2387,7 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
 
     def process_webhook_request(
         self, webhook_uid: uuid.uuid4, request_data: Dict[str, Any], simulate: bool
-    ) -> None:
+    ) -> tuple[CoreHTTPTriggerService, Optional["AutomationWorkflowHistory"]]:
         """
         Finds a CoreHTTPTriggerService instance by its webhook UUID and calls
         the on_event handler to process it.
@@ -2064,7 +2420,10 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         if request_data["method"] == "GET" and service.exclude_get:
             raise CoreHTTPTriggerServiceMethodNotAllowed()
 
-        self.on_event([service], request_data)
+        with transaction.atomic():
+            histories = self.on_event([service], request_data)
+        history = histories[0] if histories else None
+        return service, history
 
     def generate_schema(
         self,
@@ -2184,8 +2543,43 @@ class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "manual"
     model_class = CoreManualTriggerService
 
+    allowed_fields = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    serializer_field_names = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+    request_serializer_field_names = [
+        "wait_for_response",
+        "response_timeout_seconds",
+    ]
+
     class SerializedDict(ServiceDict):
-        pass
+        wait_for_response: bool
+        response_timeout_seconds: int
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "response_timeout_seconds": serializers.IntegerField(
+                required=False,
+                min_value=1,
+                max_value=settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                default=10,
+                help_text=CoreManualTriggerService._meta.get_field(
+                    "response_timeout_seconds"
+                ).help_text,
+            ),
+            "wait_for_response": serializers.BooleanField(
+                required=False,
+                default=False,
+                help_text=CoreManualTriggerService._meta.get_field(
+                    "wait_for_response"
+                ).help_text,
+            ),
+        }
 
     def can_be_immediately_dispatched(self, service: CoreManualTriggerService):
         return True
@@ -2533,6 +2927,46 @@ class CoreStartWorkflowServiceType(CoreServiceType):
     class SerializedDict(ServiceDict):
         workflow_id: int
 
+    def get_schema_name(self, service: CoreStartWorkflowService) -> str:
+        return f"StartWorkflow{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreStartWorkflowService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        properties = {
+            "status_code": {
+                "type": "integer",
+                "title": "Status code",
+            },
+            "headers": {
+                "type": "object",
+                "title": "Headers",
+                "additionalProperties": {"type": "string"},
+            },
+            "body": {
+                "title": "Body",
+            },
+            "body_type": {
+                "type": "string",
+                "title": "Body type",
+                "enum": list(RESPONSE_BODY_TYPE.values),
+            },
+        }
+        if allowed_fields is not None:
+            properties = {
+                name: schema
+                for name, schema in properties.items()
+                if name in allowed_fields
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -2598,6 +3032,8 @@ class CoreStartWorkflowServiceType(CoreServiceType):
                 "The workflow to start is not configured."
             )
 
+        from baserow.contrib.automation.history.constants import HistoryStatusChoices
+        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
         from baserow.contrib.automation.workflows.constants import WorkflowState
         from baserow.contrib.automation.workflows.handler import (
             AutomationWorkflowHandler,
@@ -2621,15 +3057,116 @@ class CoreStartWorkflowServiceType(CoreServiceType):
                 self.TRIGGER_NOT_ON_DEMAND_ERROR
             )
 
-        # Only a button click has an actor here; a nested start-workflow node
-        # and the builder action do not, so their runs record nobody.
-        AutomationWorkflowHandler().async_start_workflow(
-            published_workflow, triggered_by=dispatch_context.actor
+        workflow_handler = AutomationWorkflowHandler()
+        history_handler = AutomationHistoryHandler()
+        trigger_service = published_workflow.get_trigger().service.specific
+        should_wait = bool(getattr(trigger_service, "wait_for_response", False))
+        response_timeout_seconds = getattr(
+            trigger_service, "response_timeout_seconds", 10
         )
+        if should_wait:
+            history = workflow_handler.async_start_workflow(
+                published_workflow,
+                triggered_by=dispatch_context.actor,
+                defer_scheduling=True,
+            )
+            if history is None:
+                return None
+            if history.status != HistoryStatusChoices.STARTED:
+                workflow_response = history_handler.get_workflow_history_response(
+                    history
+                ) or history_handler.ensure_default_response(history)
+                return {
+                    "status_code": workflow_response.status_code,
+                    "headers": workflow_response.headers,
+                    "body": workflow_response.body,
+                    "body_type": workflow_response.body_type,
+                }
+            return {
+                "_deferred_workflow_id": published_workflow.id,
+                "_deferred_history_id": history.id,
+                "_deferred_timeout_seconds": response_timeout_seconds,
+            }
+        else:
+            workflow_handler.async_start_workflow(
+                published_workflow, triggered_by=dispatch_context.actor
+            )
+
         return None
 
     def dispatch_transform(
         self,
         data: Any,
     ) -> DispatchResult:
+        if data and "_deferred_workflow_id" in data:
+            return DispatchResult(
+                data=None,
+                deferred_workflow_id=data["_deferred_workflow_id"],
+                deferred_history_id=data["_deferred_history_id"],
+                deferred_timeout_seconds=data["_deferred_timeout_seconds"],
+            )
         return DispatchResult(data=data)
+
+    def after_dispatch(
+        self,
+        service: CoreStartWorkflowService,
+        dispatch_result: DispatchResult,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        if (
+            dispatch_result.deferred_history_id is None
+            or getattr(dispatch_context, "history", None) is not None
+        ):
+            return dispatch_result
+
+        from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+        from baserow.contrib.automation.workflows.tasks import (
+            start_workflow_celery_task,
+        )
+
+        start_workflow_celery_task.delay(
+            dispatch_result.deferred_workflow_id,
+            dispatch_result.deferred_history_id,
+        )
+        history_handler = AutomationHistoryHandler()
+        history = history_handler.get_workflow_history(
+            dispatch_result.deferred_history_id
+        )
+        workflow_response = history_handler.wait_for_workflow_response(
+            history,
+            dispatch_result.deferred_timeout_seconds,
+        )
+        if workflow_response is None:
+            return DispatchResult(
+                data={
+                    "status_code": 504,
+                    "headers": {},
+                    "body": None,
+                    "body_type": RESPONSE_BODY_TYPE.EMPTY,
+                }
+            )
+        return DispatchResult(
+            data={
+                "status_code": workflow_response.status_code,
+                "headers": workflow_response.headers,
+                "body": workflow_response.body,
+                "body_type": workflow_response.body_type,
+            }
+        )
+
+    def requires_autocommit(self, service: CoreStartWorkflowService) -> bool:
+        if service.workflow_id is None:
+            return False
+
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(
+            service.workflow
+        )
+        if published_workflow is None:
+            return False
+
+        trigger_service = published_workflow.get_trigger().service.specific
+        return bool(getattr(trigger_service, "wait_for_response", False))

@@ -18,6 +18,12 @@ class BODY_TYPE(models.TextChoices):
     NONE = "none", "None"
 
 
+class RESPONSE_BODY_TYPE(models.TextChoices):
+    EMPTY = "empty", "Empty"
+    JSON = "json", "JSON"
+    TEXT = "text", "Text"
+
+
 class CSV_FILE_READER_INPUT_TYPE(models.TextChoices):
     FILE = "file", "File"
     CONTENT = "content", "Content"

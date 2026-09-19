@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, Type, Union
 from django.conf import settings
 from django.core.cache import cache
 from django.core.files.storage import Storage
+from django.db import transaction
 from django.db.models import QuerySet
 from django.utils import timezone
 
@@ -43,6 +44,7 @@ from baserow.contrib.automation.nodes.signals import (
 )
 from baserow.contrib.automation.nodes.tasks import (
     dispatch_node_celery_task,
+    resume_deferred_node_celery_task,
 )
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.core.cache import local_cache
@@ -54,6 +56,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
+from baserow.core.services.types import DispatchResult
 from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
@@ -415,6 +418,10 @@ class AutomationNodeHandler:
         node_history.workflow_history.message = error
         node_history.workflow_history.status = HistoryStatusChoices.ERROR
         node_history.workflow_history.save()
+        if node_history.workflow_history.simulate_until_node_id is None:
+            AutomationHistoryHandler().ensure_default_response(
+                node_history.workflow_history
+            )
 
         node_history.completed_on = now
         node_history.message = error
@@ -627,6 +634,108 @@ class AutomationNodeHandler:
         # simulated node.
         if self._handle_simulation_notify(simulate_until_node, node):
             return None
+
+        if dispatch_result.deferred_history_id is not None:
+            from baserow.contrib.automation.workflows.tasks import (
+                start_workflow_celery_task,
+            )
+
+            deferred_history = history_handler.get_workflow_history(
+                dispatch_result.deferred_history_id
+            )
+            transaction.on_commit(
+                lambda: start_workflow_celery_task.delay(
+                    deferred_history.workflow_id,
+                    deferred_history.id,
+                )
+            )
+            timeout_seconds = dispatch_result.deferred_timeout_seconds or 30
+            deadline = timezone.now().timestamp() + timeout_seconds
+            return resume_deferred_node_celery_task.si(
+                node_history.id,
+                deferred_history.id,
+                iteration_path,
+                deadline,
+                current_iterations,
+            )
+
+        return self._complete_node_dispatch(
+            node,
+            node_history,
+            dispatch_context,
+            iteration_path,
+            dispatch_result,
+            current_iterations,
+        )
+
+    def complete_deferred_node(
+        self,
+        node_history_id: int,
+        deferred_history_id: int,
+        iteration_path: str,
+        timed_out: bool = False,
+        current_iterations: Optional[Dict[int, int]] = None,
+    ) -> Optional[Signature]:
+        """Completes a parent node after a response, completion, or timeout."""
+
+        history_handler = AutomationHistoryHandler()
+        node_history = AutomationNodeHistory.objects.select_related(
+            "node__workflow", "workflow_history"
+        ).get(id=node_history_id)
+        deferred_history = history_handler.get_workflow_history(deferred_history_id)
+        workflow_response = history_handler.get_workflow_history_response(
+            deferred_history
+        )
+        if workflow_response is None and not timed_out:
+            workflow_response = history_handler.ensure_default_response(
+                deferred_history
+            )
+        dispatch_context = AutomationDispatchContext(
+            node_history.node.workflow,
+            node_history.workflow_history,
+            event_payload=node_history.workflow_history.event_payload,
+            current_iterations=current_iterations,
+        )
+        response_data = (
+            {
+                "status_code": workflow_response.status_code,
+                "headers": workflow_response.headers,
+                "body": workflow_response.body,
+                "body_type": workflow_response.body_type,
+            }
+            if workflow_response is not None
+            else {
+                "status_code": 504,
+                "headers": {},
+                "body": None,
+                "body_type": "empty",
+            }
+        )
+        dispatch_result = DispatchResult(data=response_data)
+        return self._complete_node_dispatch(
+            node_history.node,
+            node_history,
+            dispatch_context,
+            iteration_path,
+            dispatch_result,
+            current_iterations,
+        )
+
+    def _complete_node_dispatch(
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        dispatch_context: AutomationDispatchContext,
+        iteration_path: str,
+        dispatch_result: DispatchResult,
+        current_iterations: Optional[Dict[int, int]],
+    ) -> Optional[Signature]:
+        """Persists a node result and returns the canvas for its next nodes."""
+
+        history_handler = AutomationHistoryHandler()
+        node_type: Type[AutomationNodeActionNodeType] = node.get_type()
+        history_id = node_history.workflow_history_id
+        simulate_until_node = dispatch_context.simulate_until_node
 
         # Mark the node history as completed, so that post-dispatch hooks
         # can accurately rely on the completed_on field.
