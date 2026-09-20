@@ -15,6 +15,7 @@ button_field_before_dispatch = Signal()
 # with `exception`, in both cases with `duration_ms` and the dispatched
 # `field`. Receivers must not read the result's data or the exception's text,
 # which for an external action name the address, and must not write to
-# `result` or `dispatch_context`, which later actions read. The action already
-# ran, so a receiver that fails is logged and does not fail the click.
+# `result` or `dispatch_context`, which later actions read. A receiver handles
+# its own failures: the action already ran, so one that raises is logged and
+# does not fail the click, but it does stop the receivers behind it.
 workflow_action_dispatched = Signal()
