@@ -508,23 +508,27 @@ class DatabaseWorkflowActionService:
 
     def _send_workflow_action_dispatched(self, **kwargs) -> None:
         """
-        Tells receivers what one action did. A receiver that fails must not
-        fail the click: the action already ran, so its failure is logged and
-        the click carries on.
+        Tells receivers what one action did. The action already ran, so a
+        receiver that fails must not fail the click.
+
+        `send_robust` covers a receiver that raises, except that its own log
+        reads `receiver.__qualname__`, which a callable object has not, so
+        the send is wrapped too. Only the failure's class is logged: the
+        frames hold the result and the address it went to.
 
         :param kwargs: The signal's keyword arguments: `workflow_action`,
             `dispatch_context`, `position`, `result`, `exception`, `field`
             and `duration_ms`.
         """
 
-        for receiver, exception in workflow_action_dispatched.send_robust(
-            self, **kwargs
-        ):
-            if exception is not None:
-                logger.opt(exception=exception).error(
-                    "A workflow_action_dispatched receiver {receiver} failed.",
-                    receiver=getattr(receiver, "__qualname__", repr(receiver)),
-                )
+        try:
+            workflow_action_dispatched.send_robust(self, **kwargs)
+        except Exception as exc:
+            logger.error(
+                "A workflow_action_dispatched receiver failed with "
+                "{exception}, and the receivers behind it did not run.",
+                exception=type(exc).__name__,
+            )
 
     def get_dispatch_snapshot(self, field: ButtonField) -> List[DatabaseWorkflowAction]:
         """
@@ -687,8 +691,10 @@ class DatabaseWorkflowActionService:
         # click. Not sent for a frontend-only button: there is nothing to
         # meter.
         if server_actions:
+            # A copy: a receiver that filtered the list in place would
+            # change what the click then runs.
             button_field_before_dispatch.send(
-                self, user=user, field=field, workflow_actions=server_actions
+                self, user=user, field=field, workflow_actions=tuple(server_actions)
             )
 
         # Refused as a whole too, and for the same reason: an action whose saved

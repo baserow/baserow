@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.core.cache import cache
 
 import pytest
@@ -173,6 +175,114 @@ def test_a_refusing_before_dispatch_receiver_leaves_no_lock_and_no_action(
     assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
     assert table.get_model().objects.exclude(id=row.id).count() == 0
     assert not Action.objects.filter(type="dispatch_button_field").exists()
+
+
+@pytest.mark.django_db
+def test_a_failing_callable_object_receiver_does_not_fail_the_click(data_fixture):
+    # `send_robust` logs a failing receiver first, and that log reads
+    # `__qualname__`, which an instance has not.
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _create_row_action(data_fixture, button_field, table, name_field, "a")
+
+    class _Failing:
+        def __call__(self, sender, **kwargs):
+            raise RuntimeError("bookkeeping receiver blew up")
+
+    failing = _Failing()
+    workflow_action_dispatched.connect(failing)
+    try:
+        result = DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    finally:
+        workflow_action_dispatched.disconnect(failing)
+
+    assert [d.workflow_action.id for d in result.dispatched] == [action.id]
+    assert table.get_model().objects.exclude(id=row.id).count() == 1
+
+
+@pytest.mark.django_db
+def test_a_receiver_that_returns_a_value_is_not_reported_as_failed(data_fixture):
+    # `send_robust` answers with what each receiver returned, and only
+    # substitutes the exception for the ones that raised.
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "a")
+
+    def charge(sender, **kwargs):
+        return {"units": 1}
+
+    workflow_action_dispatched.connect(charge)
+    try:
+        with patch(
+            "baserow.contrib.database.workflow_actions.service.logger"
+        ) as mock_logger:
+            DatabaseWorkflowActionService().dispatch_workflow_actions(
+                user, button_field, row
+            )
+    finally:
+        workflow_action_dispatched.disconnect(charge)
+
+    # `opt` too: a `logger.opt(...)` report never reaches `error` on the mock.
+    mock_logger.error.assert_not_called()
+    mock_logger.opt.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_a_failing_receiver_on_the_first_action_leaves_the_rest_running(data_fixture):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    first = _create_row_action(data_fixture, button_field, table, name_field, "a")
+    second = _create_row_action(data_fixture, button_field, table, name_field, "b")
+
+    def fail_on_the_first(sender, workflow_action, **kwargs):
+        if workflow_action.id == first.id:
+            raise RuntimeError("bookkeeping receiver blew up")
+
+    workflow_action_dispatched.connect(fail_on_the_first)
+    try:
+        result = DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    finally:
+        workflow_action_dispatched.disconnect(fail_on_the_first)
+
+    assert [d.workflow_action.id for d in result.dispatched] == [first.id, second.id]
+    assert table.get_model().objects.exclude(id=row.id).count() == 2
+
+
+@pytest.mark.django_db
+def test_the_actions_a_before_dispatch_receiver_sees_cannot_change_the_click(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    action = _create_row_action(data_fixture, button_field, table, name_field, "a")
+
+    def empty_them(sender, workflow_actions, **kwargs):
+        # On a list this would send the click down the frontend-only branch.
+        with pytest.raises(TypeError):
+            workflow_actions[:] = []
+
+    button_field_before_dispatch.connect(empty_them)
+    try:
+        result = DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    finally:
+        button_field_before_dispatch.disconnect(empty_them)
+
+    assert [d.workflow_action.id for d in result.dispatched] == [action.id]
+    assert table.get_model().objects.exclude(id=row.id).count() == 1
 
 
 @pytest.mark.django_db
