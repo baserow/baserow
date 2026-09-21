@@ -76,6 +76,19 @@ class UserSubjectType(SubjectType):
         Check whether the given subjects ar member of the given workspace.
         """
 
+        prefetched = getattr(workspace, "_prefetched_objects_cache", {})
+        if not include_trash and "workspaceuser_set" in prefetched:
+            user_ids_in_workspace = {
+                workspace_user.user_id
+                for workspace_user in workspace.workspaceuser_set.all()
+            }
+            return [
+                subject.id in user_ids_in_workspace
+                and subject.is_active
+                and not subject.profile.to_be_deleted
+                for subject in subjects
+            ]
+
         workspace_user_manager = (
             WorkspaceUser.objects_and_trash if include_trash else WorkspaceUser.objects
         )
