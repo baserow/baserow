@@ -2075,6 +2075,52 @@ class TestFinalAnswerValidation:
             validate_final_answer(ctx, claim)
 
     @pytest.mark.parametrize(
+        "answer",
+        [
+            "Deleted rows go to the trash and can be restored within the 3-day retention period.",
+            "Updated fields are saved automatically.",
+            "Created rows can be filtered by their author.",
+            "Use a restricted view with this filter:\n```\nCreated by = Current user\n```\n"
+            "This shows each user only the rows they created.",
+            "Use this filter:\n~~~text\nCreated by = Current user\n~~~",
+        ],
+    )
+    def test_documentation_descriptions_and_code_examples_are_not_completion_claims(
+        self, answer
+    ):
+        ctx = MagicMock()
+        ctx.messages = []
+
+        assert validate_final_answer(ctx, answer) == answer
+
+        for claim in (
+            "I've created the requested view.",
+            "The table was created.",
+            "I deleted your rows.",
+        ):
+            with pytest.raises(ModelRetry, match="without a verified"):
+                validate_final_answer(ctx, answer + "\n" + claim)
+
+    @pytest.mark.parametrize(
+        "claim",
+        [
+            "I deleted the selected rows.",
+            "The selected rows were deleted.",
+            "Deleted rows.",
+            "Deleted the selected rows.",
+            "Created Orders.",
+            "Done — deleted the selected rows.",
+        ],
+    )
+    def test_explanations_do_not_hide_actual_completion_claims(self, claim):
+        ctx = MagicMock()
+        ctx.messages = []
+        answer = "Deleted rows go to the trash.\n" + claim
+
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, answer)
+
+    @pytest.mark.parametrize(
         "claim",
         [
             "I've created the text field 'Notes'.",
