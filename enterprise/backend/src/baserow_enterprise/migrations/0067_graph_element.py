@@ -8,7 +8,7 @@ import baserow.core.formula.field
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0065_remove_text_format_fields"),
+        ("baserow_enterprise", "0066_teamsubject_team_created_index"),
         ("builder", "0070_corecsvfilereaderworkflowaction"),
     ]
 
