@@ -567,6 +567,25 @@ describe('FieldButtonSubForm', () => {
       expect(list.vm.pristineActions).toEqual({ 91: true })
     })
 
+    test('the open card stays open once a save gives its action an id', async () => {
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.localActions = [
+        { [CLIENT_ID_KEY]: 'first', type: 'open_url', url: { formula: "'a'" } },
+      ]
+      await wrapper.vm.$nextTick()
+      const list = wrapper.findComponent(ButtonFieldActionList)
+      list.vm.expandedActions = { first: true }
+
+      const saved = { id: 91, type: 'open_url', url: { formula: "'a'" } }
+      wrapper.vm.$client.post.mockResolvedValueOnce({ data: saved })
+      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [saved] })
+
+      await wrapper.vm.afterFieldSaved(7)
+      await wrapper.vm.$nextTick()
+
+      expect(list.vm.isExpanded(wrapper.vm.localActions[0])).toBe(true)
+    })
+
     test('saving creates a new action with its config in one call', async () => {
       // One call, so a failure cannot leave an action behind with none of the
       // config the user filled in.

@@ -520,6 +520,13 @@ export default {
         }
         try {
           await this.fetchWorkflowActions(fieldId, { keepEdits: failed })
+          // The fetched list keys a created action by its id, so the card
+          // that was open would close while the context is still on screen.
+          if (!failed && assignedIds.size > 0) {
+            this.$refs.actionList?.remapActionKeys(
+              Object.fromEntries(assignedIds)
+            )
+          }
         } catch (refreshError) {
           notifyIf(refreshError, 'field')
         }
