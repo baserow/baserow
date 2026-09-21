@@ -35,16 +35,50 @@ describe('Agent store', () => {
 
   test('fetching a page merges its agents into the store', async () => {
     const commit = vi.fn()
+    const state = makeState()
     const args = ['/agents/workspace/42/', 1, false, [], {}, {}]
 
     const response = await actions.fetchPage.call(
       { $client: {} },
-      { commit },
-      { args }
+      { commit, state },
+      { args, workspaceId: 42 }
     )
 
     expect(service.fetch).toHaveBeenCalledWith(...args)
     expect(commit).toHaveBeenCalledWith('MERGE_ITEMS', response.data.results)
+  })
+
+  test('a stale page cannot overwrite a newer real-time update', async () => {
+    const state = makeState()
+    const commit = (type, payload) => mutations[type](state, payload)
+    let resolveFetch
+    service.fetch.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFetch = resolve
+      })
+    )
+
+    const fetch = actions.fetchPage.call(
+      { $client: {} },
+      { commit, state },
+      { args: [], workspaceId: 42 }
+    )
+    mutations.UPSERT_ITEM(state, {
+      id: 1,
+      workspace_id: 42,
+      name: 'Real-time agent',
+    })
+    resolveFetch({
+      data: {
+        count: 1,
+        results: [{ id: 1, workspace_id: 42, name: 'Stale agent' }],
+      },
+    })
+    await fetch
+
+    expect(state.items).toEqual([
+      { id: 1, workspace_id: 42, name: 'Real-time agent' },
+    ])
   })
 
   test('real-time mutations update agents and advance the workspace revision', () => {

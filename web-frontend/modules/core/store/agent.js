@@ -33,9 +33,12 @@ export const mutations = {
 }
 
 export const actions = {
-  async fetchPage({ commit }, { args }) {
+  async fetchPage({ commit, state }, { args, workspaceId }) {
+    const revision = state.revisions[workspaceId] || 0
     const response = await AgentService(this.$client).fetch(...args)
-    commit('MERGE_ITEMS', response.data.results)
+    if ((state.revisions[workspaceId] || 0) === revision) {
+      commit('MERGE_ITEMS', response.data.results)
+    }
     return response
   },
   async fetchAll({ commit }, workspaceId) {

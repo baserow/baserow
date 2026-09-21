@@ -93,7 +93,10 @@ export default {
       const service = AgentService(this.$client)
       service.options.urlParams = { workspaceId: this.workspace.id }
       service.fetch = (...args) =>
-        this.$store.dispatch('agent/fetchPage', { args })
+        this.$store.dispatch('agent/fetchPage', {
+          args,
+          workspaceId: this.workspace.id,
+        })
       return service
     },
     agentsRevision() {
