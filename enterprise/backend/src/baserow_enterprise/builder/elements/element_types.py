@@ -428,9 +428,6 @@ class GraphElementType(ElementType):
             ),
         }
 
-    def enhance_queryset(self, queryset: QuerySet[Element]) -> QuerySet[Element]:
-        return super().enhance_queryset(queryset)
-
     def is_deactivated(self, workspace) -> bool:
         return not LicenseHandler.workspace_has_feature(
             BUILDER_GRAPH_ELEMENT, workspace
