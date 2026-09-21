@@ -82,6 +82,20 @@ class UserSubjectType(SubjectType):
                 workspace_user.user_id
                 for workspace_user in workspace.workspaceuser_set.all()
             }
+            missing_subjects = [
+                subject
+                for subject in subjects
+                if subject.id not in user_ids_in_workspace
+            ]
+            if missing_subjects:
+                user_ids_in_workspace.update(
+                    WorkspaceUser.objects.filter(
+                        user__in=missing_subjects,
+                        workspace=workspace,
+                        user__profile__to_be_deleted=False,
+                        user__is_active=True,
+                    ).values_list("user_id", flat=True)
+                )
             return [
                 subject.id in user_ids_in_workspace
                 and subject.is_active

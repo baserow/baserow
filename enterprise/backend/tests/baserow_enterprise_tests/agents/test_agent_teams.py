@@ -184,7 +184,7 @@ def test_agent_without_team_has_no_permissions(data_fixture, role_uid):
 
     assert roles_per_scope[0] == (
         workspace,
-        [role_handler.get_role_by_uid(role_uid)],
+        [role_handler.get_role_by_uid("NO_ACCESS")],
     )
     assert not CoreHandler().check_permissions(
         agent,
