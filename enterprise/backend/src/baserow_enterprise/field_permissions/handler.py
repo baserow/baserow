@@ -167,8 +167,8 @@ class FieldPermissionsHandler:
             )
 
     @classmethod
-    def _get_field_permission_subjects(cls, field: Field) -> list[RoleAssignment]:
-        """Return the marker assignments selecting editors for a field.
+    def _get_all_field_permission_subjects(cls, field: Field) -> list[RoleAssignment]:
+        """Return all persisted marker assignments selecting editors for a field.
 
         Field subclasses use multi-table inheritance, so assignments are always
         scoped to the base :class:`Field` content type.
@@ -188,6 +188,50 @@ class FieldPermissionsHandler:
             .select_related("role", "subject_type")
             .prefetch_related("subject")
             .order_by("subject_type_id", "subject_id")
+        )
+
+    @classmethod
+    def _filter_active_field_permission_subjects(
+        cls,
+        field: Field,
+        assignments: list[RoleAssignment],
+    ) -> list[RoleAssignment]:
+        """Return assignments whose subjects are currently in the field workspace."""
+
+        assignments_by_type = defaultdict(list)
+        for assignment in assignments:
+            if assignment.subject is not None:
+                assignments_by_type[assignment.subject_type_id].append(assignment)
+
+        active_assignment_ids = set()
+        workspace = field.table.database.workspace
+        for assignments_for_type in assignments_by_type.values():
+            subject_type = subject_type_registry.get_for_class(
+                assignments_for_type[0].subject_type.model_class()
+            )
+            subjects = [assignment.subject for assignment in assignments_for_type]
+            active_assignment_ids.update(
+                assignment.id
+                for assignment, is_active in zip(
+                    assignments_for_type,
+                    subject_type.are_in_workspace(subjects, workspace),
+                    strict=True,
+                )
+                if is_active
+            )
+
+        return [
+            assignment
+            for assignment in assignments
+            if assignment.id in active_assignment_ids
+        ]
+
+    @classmethod
+    def _get_field_permission_subjects(cls, field: Field) -> list[RoleAssignment]:
+        """Return currently selectable marker assignments for a field."""
+
+        return cls._filter_active_field_permission_subjects(
+            field, cls._get_all_field_permission_subjects(field)
         )
 
     @classmethod
@@ -280,7 +324,33 @@ class FieldPermissionsHandler:
             field_assignments.delete()
             return []
 
-        subjects = cls._resolve_subjects(workspace, subject_identifiers)
+        existing = cls._get_all_field_permission_subjects(field)
+        active_existing = cls._filter_active_field_permission_subjects(field, existing)
+        active_existing_keys = {
+            (assignment.subject_type_id, assignment.subject_id)
+            for assignment in active_existing
+        }
+        hidden_existing_keys = {
+            (assignment.subject_type_id, assignment.subject_id)
+            for assignment in existing
+            if (assignment.subject_type_id, assignment.subject_id)
+            not in active_existing_keys
+        }
+
+        identifiers_to_resolve = []
+        for identifier in subject_identifiers:
+            subject_type_name = identifier["subject_type"]
+            if subject_type_name not in cls.allowed_subject_types:
+                raise SubjectUnsupported()
+            subject_type = subject_type_registry.get(subject_type_name)
+            identifier_key = (
+                ContentType.objects.get_for_model(subject_type.model_class).id,
+                identifier["subject_id"],
+            )
+            if identifier_key not in hidden_existing_keys:
+                identifiers_to_resolve.append(identifier)
+
+        subjects = cls._resolve_subjects(workspace, identifiers_to_resolve)
         content_types = ContentType.objects.get_for_models(
             *{type(subject) for subject in subjects}
         )
@@ -288,7 +358,6 @@ class FieldPermissionsHandler:
             (content_types[type(subject)].id, subject.id): subject
             for subject in subjects
         }
-        existing = list(field_assignments)
         existing_keys = {
             (assignment.subject_type_id, assignment.subject_id): assignment
             for assignment in existing
@@ -297,7 +366,7 @@ class FieldPermissionsHandler:
         assignment_ids_to_delete = [
             assignment.id
             for key, assignment in existing_keys.items()
-            if key not in desired
+            if key not in desired and key not in hidden_existing_keys
         ]
         if assignment_ids_to_delete:
             RoleAssignment.objects.filter(id__in=assignment_ids_to_delete).delete()

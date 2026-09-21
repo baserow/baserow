@@ -18,6 +18,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
+from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.field_permissions.handler import (
     FieldPermissionRead,
     FieldPermissionsHandler,
@@ -348,6 +349,56 @@ def test_sync_empty_field_permission_subjects_uses_single_delete_query(
         subjects = FieldPermissionsHandler._sync_field_permission_subjects(field, [])
 
     assert subjects == []
+
+
+@pytest.mark.django_db
+def test_trashed_custom_field_subject_is_hidden_preserved_and_restored(
+    enterprise_data_fixture, synced_roles
+):
+    """Editing custom permissions preserves a trashed subject's marker assignment."""
+
+    admin = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=admin)
+    workspace = database.workspace
+    table = enterprise_data_fixture.create_database_table(database=database)
+    field = enterprise_data_fixture.create_text_field(table=table)
+    selected_agent = Agent.objects.create(workspace=workspace, name="Selected")
+    active_agent = Agent.objects.create(workspace=workspace, name="Active")
+    selected_identifier = {
+        "subject_id": selected_agent.id,
+        "subject_type": "core.Agent",
+    }
+    active_identifier = {
+        "subject_id": active_agent.id,
+        "subject_type": "core.Agent",
+    }
+
+    FieldPermissionsHandler._sync_field_permission_subjects(
+        field, [selected_identifier, active_identifier]
+    )
+    TrashHandler.trash(admin, workspace, None, selected_agent)
+
+    assert [
+        assignment.subject_id
+        for assignment in FieldPermissionsHandler._get_field_permission_subjects(field)
+    ] == [active_agent.id]
+
+    FieldPermissionsHandler._sync_field_permission_subjects(field, [active_identifier])
+    assignments = FieldPermissionsHandler._get_all_field_permission_subjects(field)
+    assert {assignment.subject_id for assignment in assignments} == {
+        selected_agent.id,
+        active_agent.id,
+    }
+
+    FieldPermissionsHandler._sync_field_permission_subjects(
+        field, [selected_identifier, active_identifier]
+    )
+    TrashHandler.restore_item(admin, "agent", selected_agent.id)
+
+    assert {
+        assignment.subject_id
+        for assignment in FieldPermissionsHandler._get_field_permission_subjects(field)
+    } == {selected_agent.id, active_agent.id}
 
 
 @pytest.mark.django_db
