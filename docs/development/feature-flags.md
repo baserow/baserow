@@ -8,8 +8,6 @@ and/or released.
 Add/remove features flags to the list below:
 
 - `agents` — workspace Agent management and Agent creation.
-- `ai-providers` — AI provider management for the instance admin area and for
-  workspace settings.
 
 ## Enabling feature flags
 

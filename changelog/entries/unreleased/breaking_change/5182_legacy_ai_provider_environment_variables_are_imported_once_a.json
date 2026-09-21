@@ -6,7 +6,7 @@
     "domain": "core",
     "bullet_points": [
         "Rotate credentials in Admin \u2192 AI providers; the `BASEROW_*` variables no longer take effect.",
-        "Imported credentials are stored in the database, so they appear in database dumps.",
+        "Imported credentials are stored in the database rather than the environment; exports still exclude them.",
         "A workspace with a credential but no models now has no models available.",
         "A workspace with models but no credential now uses the instance model list.",
         "A workspace with a credential but no endpoint uses the provider's default endpoint.",
