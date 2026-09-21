@@ -252,6 +252,24 @@ class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
     model_class = CoreStartWorkflowActionNode
     service_type = CoreStartWorkflowServiceType.type
 
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CoreStartWorkflowActionNode] = None,
+    ) -> Dict[str, Any]:
+        service_values = values.get("service") or {}
+        if service_values.get("workflow_id") is not None:
+            workflow = instance.workflow if instance else values.get("workflow")
+            # Resolved here rather than by the service type, whose lookup
+            # accepts any workflow the user can read, in any workspace.
+            service_values["workflow"] = self.get_service_type().get_workflow_to_start(
+                user,
+                service_values.pop("workflow_id"),
+                workflow.automation.workspace_id,
+            )
+        return super().prepare_values(values, user, instance)
+
 
 class AIAgentActionNodeType(AutomationNodeActionNodeType):
     display_name = _("AI agent")

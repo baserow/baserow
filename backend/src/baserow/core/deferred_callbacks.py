@@ -25,6 +25,17 @@ def _get_callbacks() -> Optional[Deque[Callable[[], None]]]:
     return getattr(_state, "callbacks", None)
 
 
+def is_deferred_callback_context_active() -> bool:
+    """
+    Whether a `deferred_callback_context()` is open, so work can be registered
+    to run when it exits. Work that only makes sense once an import of several
+    applications is complete asks this, and runs right away when a single copy
+    is imported outside any context.
+    """
+
+    return _get_callbacks() is not None
+
+
 def register_deferred_callback(callback: Callable[[], None]) -> None:
     """
     Registers a callback to run when the active callback context exits.

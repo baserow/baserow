@@ -160,10 +160,14 @@ class BuilderWorkflowActionService:
 
         workflow_action_type.raise_if_deactivated(page.builder.workspace)
 
-        prepared_values = workflow_action_type.prepare_values(kwargs, user)
+        # The type reads the page to know which workspace what the action
+        # refers to may come from.
+        prepared_values = workflow_action_type.prepare_values(
+            {**kwargs, "page": page}, user
+        )
 
         new_workflow_action = self.handler.create_workflow_action(
-            workflow_action_type, page=page, **prepared_values
+            workflow_action_type, **{**prepared_values, "page": page}
         )
 
         workflow_action_created.send(
@@ -223,7 +227,9 @@ class BuilderWorkflowActionService:
             # add `page`, `element`, `order` & `event` data from the *previous*
             # workflow action as 1) they'll be the same and 2) they aren't present
             # in the payload.
-            prepared_values = workflow_action_type.prepare_values(kwargs, user)
+            prepared_values = workflow_action_type.prepare_values(
+                {**kwargs, "page": workflow_action.page}, user
+            )
             prepared_values["page"] = workflow_action.page
             prepared_values["element"] = workflow_action.element
             prepared_values["order"] = workflow_action.order

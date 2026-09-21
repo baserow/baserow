@@ -477,6 +477,7 @@ class BuilderApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 progress.create_child_builder(represents_progress=page_progress),
+                import_export_config=import_export_config,
             )
 
         if serialized_favicon_file := serialized_values.pop("favicon_file", None):

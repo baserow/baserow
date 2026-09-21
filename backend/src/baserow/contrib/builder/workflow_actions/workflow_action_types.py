@@ -378,6 +378,7 @@ class BuilderWorkflowServiceActionType(
                 cache=cache,
                 files_zip=files_zip,
                 import_formula=import_formula,
+                import_export_config=kwargs.get("import_export_config"),
             )
         return super().deserialize_property(
             prop_name,
@@ -562,6 +563,24 @@ class CoreStartWorkflowActionType(BuilderWorkflowServiceActionType):
     type = "start_workflow"
     model_class = CoreStartWorkflowWorkflowAction
     service_type = CoreStartWorkflowServiceType.type
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: CoreStartWorkflowWorkflowAction = None,
+    ) -> Dict[str, Any]:
+        service_values = values.get("service") or {}
+        if service_values.get("workflow_id") is not None:
+            page = values.get("page") or (instance.page if instance else None)
+            # Resolved here rather than by the service type, whose lookup
+            # accepts any workflow the user can read, in any workspace.
+            service_values["workflow"] = service_type_registry.get(
+                self.service_type
+            ).get_workflow_to_start(
+                user, service_values.pop("workflow_id"), page.builder.workspace_id
+            )
+        return super().prepare_values(values, user, instance)
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_core_start_workflow_service()

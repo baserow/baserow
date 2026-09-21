@@ -7,7 +7,7 @@ import time
 import uuid
 from datetime import datetime
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -65,6 +65,11 @@ from baserow.contrib.integrations.utils import (
     send_http_request,
 )
 from baserow.core.datetime import get_timezones
+from baserow.core.deferred_callbacks import (
+    is_deferred_callback_context_active,
+    register_deferred_callback,
+)
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
@@ -94,6 +99,9 @@ from baserow.core.services.registries import (
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
+
+if TYPE_CHECKING:
+    from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 # Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
 # The captured name is checked against the runtime function registry so that
@@ -2552,10 +2560,197 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         id_mapping: Dict[str, Dict[int, int]],
         **kwargs,
     ) -> Any:
+        # For callers asking what the mapping makes of an id. The import itself
+        # never writes this value: `import_serialized` decides the workflow.
         if prop_name == "workflow_id" and value is not None:
             return id_mapping.get("automation_workflows", {}).get(value, value)
 
         return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
+
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        import_formula: Callable[[str, Dict[str, Any]], str] = None,
+        **kwargs,
+    ) -> CoreStartWorkflowService:
+        """
+        Imports the service without a workflow, then decides the workflow once
+        the import can name every workflow it created.
+
+        The workflow can live in another application of the same import: a
+        builder action starts an automation's workflow, and a workflow can
+        start one of another automation. Applications are imported one after
+        the other, so at this point `id_mapping["automation_workflows"]` may
+        not hold the id yet. An import of several applications runs inside a
+        `deferred_callback_context()`, and the decision waits for it to exit,
+        by which point every application exists. A copy that stays inside the
+        instance, such as a duplicate or a publication, opens no context and
+        decides right away: nothing later in that copy can add the mapping.
+        """
+
+        exported_workflow_id = serialized_values.get("workflow_id")
+        service = super().import_serialized(
+            parent,
+            {**serialized_values, "workflow_id": None},
+            id_mapping,
+            import_formula=import_formula,
+            **kwargs,
+        )
+        if exported_workflow_id is None:
+            return service
+
+        import_export_config = kwargs.get("import_export_config")
+
+        def decide_workflow():
+            service.workflow_id = self.import_workflow_id(
+                exported_workflow_id, id_mapping, import_export_config
+            )
+            service.save(update_fields=["workflow"])
+
+        if is_deferred_callback_context_active():
+            register_deferred_callback(decide_workflow)
+        else:
+            decide_workflow()
+
+        return service
+
+    def import_workflow_id(
+        self,
+        exported_workflow_id: Any,
+        id_mapping: Dict[str, Any],
+        import_export_config: Optional[ImportExportConfig],
+    ) -> Optional[int]:
+        """
+        The workflow an imported service may start, or None when it may not
+        start the one the export named.
+
+        Ids are one global sequence, so an export written on another
+        installation can name an id this installation happens to own. The
+        reference is kept only when this import remapped it, or when the data
+        never left the instance: a duplicate, a snapshot, a publication. A file
+        import and a template install keep neither. A kept workflow must still
+        exist, be readable by whoever asked for the copy, belong to the
+        workspace imported into when the import names one, and have a trigger
+        that starts on demand.
+
+        :param exported_workflow_id: What the export named, which is whatever
+            was in the file.
+        :param id_mapping: What this import has remapped so far.
+        :param import_export_config: What kind of import this is.
+        :return: The id to write, or None.
+        """
+
+        from baserow.contrib.automation.workflows.exceptions import (
+            AutomationWorkflowDoesNotExist,
+        )
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
+        # Nothing coerces this the way the endpoint's serializer does, so a
+        # hand-edited export could key the mapping with a list, or slip a
+        # `True` through, which hashes equal to 1.
+        if isinstance(exported_workflow_id, bool) or not isinstance(
+            exported_workflow_id, int
+        ):
+            return None
+
+        workflow_mapping = id_mapping.get("automation_workflows", {})
+        # `.keys()`, not `in`: a `MirrorDict` answers `in` for every key, and
+        # the key view only for what this import actually remapped.
+        if exported_workflow_id in workflow_mapping.keys():
+            workflow_id = workflow_mapping[exported_workflow_id]
+        elif (
+            import_export_config is not None
+            and not import_export_config.is_template
+            and (
+                import_export_config.is_duplicate or import_export_config.is_publishing
+            )
+        ):
+            workflow_id = exported_workflow_id
+        else:
+            return None
+
+        copied_by = import_export_config.copied_by if import_export_config else None
+        try:
+            if copied_by is None:
+                workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+            else:
+                workflow = AutomationWorkflowService().get_workflow(
+                    copied_by, workflow_id
+                )
+        except (AutomationWorkflowDoesNotExist, PermissionException):
+            return None
+
+        reason = self.unusable_workflow_reason(
+            workflow, id_mapping.get("import_workspace_id")
+        )
+        return None if reason is not None else workflow.id
+
+    def unusable_workflow_reason(
+        self, workflow: "AutomationWorkflow", workspace_id: Optional[int]
+    ) -> Optional[str]:
+        """
+        The rule save and import both read: the workflow belongs to the
+        workspace the service is configured in, and its trigger can start on
+        demand.
+
+        :param workflow: The workflow the caller named.
+        :param workspace_id: The workspace the service belongs to, or None when
+            the caller cannot name one, which skips that half of the rule.
+        :return: The refusal, or None when the workflow may be started.
+        """
+
+        if (
+            workspace_id is not None
+            and workflow.automation.workspace_id != workspace_id
+        ):
+            return self.WORKFLOW_DOES_NOT_EXIST_ERROR.format(workflow_id=workflow.id)
+        if not workflow.can_be_immediately_dispatched():
+            return self.TRIGGER_NOT_ON_DEMAND_ERROR
+        return None
+
+    def get_workflow_to_start(
+        self, user: AbstractUser, workflow_id: int, workspace_id: Optional[int] = None
+    ) -> "AutomationWorkflow":
+        """
+        Resolves the workflow a service may start. Permission is checked before
+        anything about the workflow is inspected, and refused the way a missing
+        one is, so a refusal never says whether a workflow exists or what kind
+        of trigger it has.
+
+        :param user: Who is configuring the service.
+        :param workflow_id: The workflow they want to start.
+        :param workspace_id: The workspace the service belongs to. The hosts of
+            the service pass it, as a user is often in more than one workspace.
+        :raises serializers.ValidationError: When the workflow does not exist
+            in that workspace or cannot be started on demand.
+        :return: The workflow.
+        """
+
+        from baserow.contrib.automation.workflows.exceptions import (
+            AutomationWorkflowDoesNotExist,
+        )
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
+        try:
+            workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
+        except (AutomationWorkflowDoesNotExist, PermissionException) as exc:
+            raise serializers.ValidationError(
+                self.WORKFLOW_DOES_NOT_EXIST_ERROR.format(workflow_id=workflow_id)
+            ) from exc
+
+        reason = self.unusable_workflow_reason(workflow, workspace_id)
+        if reason is not None:
+            raise serializers.ValidationError(reason)
+        return workflow
 
     def prepare_values(
         self,
@@ -2572,24 +2767,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
             values["workflow"] = None
             return values
 
-        from baserow.contrib.automation.workflows.exceptions import (
-            AutomationWorkflowDoesNotExist,
-        )
-        from baserow.contrib.automation.workflows.service import (
-            AutomationWorkflowService,
-        )
-
-        try:
-            workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
-        except AutomationWorkflowDoesNotExist as exc:
-            raise serializers.ValidationError(
-                self.WORKFLOW_DOES_NOT_EXIST_ERROR.format(workflow_id=workflow_id)
-            ) from exc
-
-        if not workflow.can_be_immediately_dispatched():
-            raise serializers.ValidationError(self.TRIGGER_NOT_ON_DEMAND_ERROR)
-
-        values["workflow"] = workflow
+        values["workflow"] = self.get_workflow_to_start(user, workflow_id)
         return values
 
     def export_prepared_values(self, instance: CoreStartWorkflowService):
@@ -2605,15 +2783,29 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Any:
+        from baserow.contrib.automation.workflows.constants import WorkflowState
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
         if service.workflow_id is None:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The workflow to start is not configured."
             )
 
-        from baserow.contrib.automation.workflows.constants import WorkflowState
-        from baserow.contrib.automation.workflows.handler import (
-            AutomationWorkflowHandler,
-        )
+        # A user can be in more than one workspace, and an import can bind
+        # a service to a workflow elsewhere, so the run checks what save
+        # checks: the workflow belongs to the workspace the service runs in.
+        workspace = dispatch_context.workspace
+        if (
+            workspace is None
+            or service.workflow.automation.workspace_id != workspace.id
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                self.WORKFLOW_DOES_NOT_EXIST_ERROR.format(
+                    workflow_id=service.workflow_id
+                )
+            )
 
         published_workflow = AutomationWorkflowHandler().get_published_workflow(
             service.workflow

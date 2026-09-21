@@ -57,6 +57,9 @@ class DatabaseDispatchContext(DispatchContext):
         self.field = field
         self.row = row
 
+        # The workspace the click happens in, so a service can refuse to reach
+        # into another one.
+        kwargs.setdefault("workspace", field.table.database.workspace)
         super().__init__(actor=actor, **kwargs)
 
         # Holds the row read for the action that is running. It has to be made
