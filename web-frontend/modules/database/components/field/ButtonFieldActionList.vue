@@ -448,10 +448,19 @@ export default {
           return a
         }
         const changed = { ...a, ...values }
-        // The server's verdict describes the action as it was read, and the
-        // editor has just changed it. Dropped here as `onActionTypeChanged`
-        // drops it by rebuilding, so a fix stops warning before it is saved.
-        delete changed.requires_reconfiguration
+        // The server's verdict describes the action as it was read. Dropped
+        // here as `onActionTypeChanged` drops it by rebuilding, so a fix stops
+        // warning before it is saved. Kept while the integration and the table
+        // stay as they were: a trashed integration is missing from the list,
+        // so the verdict is the only thing that says so.
+        const integrationId = a.service?.integration_id
+        const keepsVerdict =
+          integrationId != null &&
+          changed.service?.integration_id === integrationId &&
+          changed.service?.table_id === a.service?.table_id
+        if (!keepsVerdict) {
+          delete changed.requires_reconfiguration
+        }
         return changed
       })
       this.$emit('input', newList)

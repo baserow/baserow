@@ -267,6 +267,44 @@ describe('ButtonFieldActionList', () => {
     ])
   })
 
+  test('editing an action around its integration keeps the verdict', async () => {
+    // A trashed integration is missing from the list, so nothing else in the
+    // editor says the action still fails.
+    const wrapper = await mountList([
+      {
+        id: 1,
+        type: 'slack_write_message',
+        service: { integration_id: 5, text: "'a'" },
+        requires_reconfiguration: true,
+      },
+    ])
+
+    await wrapper.vm.onActionValuesChanged(0, {
+      service: { integration_id: 5, text: "'b'" },
+    })
+
+    expect(lastEmitted(wrapper)[0].requires_reconfiguration).toBe(true)
+  })
+
+  test('picking another integration drops the verdict', async () => {
+    const wrapper = await mountList([
+      {
+        id: 1,
+        type: 'slack_write_message',
+        service: { integration_id: 5 },
+        requires_reconfiguration: true,
+      },
+    ])
+
+    await wrapper.vm.onActionValuesChanged(0, {
+      service: { integration_id: 6 },
+    })
+
+    expect(lastEmitted(wrapper)[0]).not.toHaveProperty(
+      'requires_reconfiguration'
+    )
+  })
+
   test('an action nobody edited keeps the verdict', async () => {
     const wrapper = await mountList([
       {
