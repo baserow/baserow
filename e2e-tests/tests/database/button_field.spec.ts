@@ -915,10 +915,10 @@ test.describe("Button field", () => {
     ).toHaveText("No row ID selected");
 
     await grid.goTo(g.database, g.table);
-    await grid.fieldCellAt(0, ROWLESS_FIELD_INDEX).locator("button").click();
-    await expect(page.locator(".toast__message")).toContainText(
-      "A row ID is required to update a row.",
-    );
+    // The server flags it too, so the cell never offers the click.
+    await expect(
+      grid.fieldCellAt(0, ROWLESS_FIELD_INDEX).locator("button"),
+    ).toBeDisabled();
 
     const rows = await listRows(g.user, g.table);
     expect(rows.map((row) => [row.Name, row.Status])).toEqual([
