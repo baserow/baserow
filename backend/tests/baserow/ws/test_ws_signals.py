@@ -7,6 +7,7 @@ import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.core.agents.service import AgentService
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.service import AIProviderService
 from baserow.core.handler import CoreHandler
@@ -19,6 +20,93 @@ from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.handler import UserHandler
 from baserow.core.utils import generate_hash
 from baserow.test_utils.helpers import AnyInt
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_permitted_users")
+@pytest.mark.websockets
+def test_agent_crud_events(mock_broadcast_to_permitted_users, data_fixture):
+    """Agent events preserve their payload and use workspace list permission."""
+
+    user = data_fixture.create_user()
+    user.web_socket_id = "test"
+    workspace = data_fixture.create_workspace(user=user)
+
+    agent = AgentService().create_agent(user, workspace, name="Writer")
+
+    args = mock_broadcast_to_permitted_users.delay.call_args[0]
+    assert args[:4] == (
+        workspace.id,
+        "workspace.list_agents",
+        "workspace",
+        workspace.id,
+    )
+    assert args[4]["type"] == "agent_created"
+    assert args[4]["workspace_id"] == workspace.id
+    assert args[4]["agent"]["id"] == agent.id
+    assert args[4]["agent"]["name"] == "Writer"
+    assert args[5] == "test"
+
+    mock_broadcast_to_permitted_users.reset_mock()
+    AgentService().update_agent(user, agent, name="Editor")
+
+    args = mock_broadcast_to_permitted_users.delay.call_args[0]
+    assert args[:4] == (
+        workspace.id,
+        "workspace.list_agents",
+        "workspace",
+        workspace.id,
+    )
+    assert args[4]["type"] == "agent_updated"
+    assert args[4]["workspace_id"] == workspace.id
+    assert args[4]["agent"]["id"] == agent.id
+    assert args[4]["agent"]["name"] == "Editor"
+    assert args[5] == "test"
+
+    mock_broadcast_to_permitted_users.reset_mock()
+    AgentService().delete_agent(user, agent)
+
+    args = mock_broadcast_to_permitted_users.delay.call_args[0]
+    assert args == (
+        workspace.id,
+        "workspace.list_agents",
+        "workspace",
+        workspace.id,
+        {
+            "type": "agent_deleted",
+            "workspace_id": workspace.id,
+            "agent_id": agent.id,
+        },
+        "test",
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_permitted_users")
+@pytest.mark.websockets
+def test_agent_restore_emits_created_event(
+    mock_broadcast_to_permitted_users, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = AgentService().create_agent(user, workspace, name="Writer")
+    AgentService().delete_agent(user, agent)
+    mock_broadcast_to_permitted_users.reset_mock()
+
+    TrashHandler.restore_item(user, "agent", agent.id)
+
+    args = mock_broadcast_to_permitted_users.delay.call_args[0]
+    assert args[:4] == (
+        workspace.id,
+        "workspace.list_agents",
+        "workspace",
+        workspace.id,
+    )
+    assert args[4]["type"] == "agent_created"
+    assert args[4]["workspace_id"] == workspace.id
+    assert args[4]["agent"]["id"] == agent.id
+    assert args[4]["agent"]["name"] == "Writer"
+    assert args[5] is None
 
 
 @pytest.mark.django_db(transaction=True)

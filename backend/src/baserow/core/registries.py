@@ -1355,20 +1355,112 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     can execute an operation.
     """
 
-    def is_in_workspace(self, subject: Subject, workspace: "Workspace") -> bool:
+    display_name_field: Optional[str] = None
+    lookup_fields = ("id", "pk")
+
+    def supports_lookup_field(self, field_name: str) -> bool:
+        """Return whether this subject type supports lookup by the given field."""
+
+        return field_name in self.lookup_fields
+
+    # Types opting in own workspace role persistence outside RoleAssignment and
+    # must implement get_workspace_subjects, get_workspace_role_uids, and
+    # set_workspace_role_uid. Other types keep using RoleAssignment records.
+    has_direct_workspace_roles: bool = False
+
+    def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
+        """Return the subjects whose direct roles belong to a workspace.
+
+        :param workspace: The workspace that the returned subjects must belong to.
+        :param include_trash: Whether trashed subjects or memberships can be returned.
+        :return: The workspace subjects to include in direct-role listings.
+        """
+        raise NotImplementedError()
+
+    def set_workspace_role_uid(
+        self,
+        subject: Subject,
+        workspace: "Workspace",
+        role_uid: str,
+        send_signals: bool = True,
+    ):
+        """Persist a subject's direct role in a workspace.
+
+        :param subject: The subject whose direct role must be changed.
+        :param workspace: The workspace in which to change the role.
+        :param role_uid: The UID of the direct role to persist.
+        :param send_signals: Whether to emit the subject and permission update signals.
+        :return: The implementation-specific result of persisting the role.
+        """
+        raise NotImplementedError()
+
+    def get_workspace_role_uids(
+        self,
+        subjects: List[Subject],
+        workspace: "Workspace",
+        include_trash: bool = False,
+    ) -> Optional[Dict[int, str]]:
+        """Return direct workspace role UIDs for a batch of subjects.
+
+        Only roles belonging to ``workspace`` may be returned. The mapping must be
+        keyed by subject ID and can omit subjects that have no matching direct role.
+
+        :param subjects: The subjects whose direct roles should be fetched together.
+        :param workspace: The workspace to restrict the role lookup to.
+        :param include_trash: Whether trashed subjects or memberships can be used.
+        :return: A subject-ID-to-role-UID mapping, or ``None`` when direct workspace
+            roles are unsupported by this subject type.
+        """
+
+        return None
+
+    def is_workspace_role_fallback(self, role_uid: str) -> bool:
+        """Return whether a direct role should defer to inherited roles.
+
+        :param role_uid: The direct workspace role UID to inspect.
+        :return: Whether permission managers should use inherited roles instead.
+        """
+
+        return False
+
+    def are_workspace_roles_available(
+        self, subjects: List[Subject], workspace: "Workspace"
+    ) -> List[bool]:
+        """Return whether each subject's direct workspace role is available.
+
+        :param subjects: The subjects whose roles should be checked together.
+        :param workspace: The workspace in which role availability must be checked.
+        :return: Availability flags in the same order as ``subjects``.
+        """
+
+        return [True] * len(subjects)
+
+    def is_in_workspace(
+        self,
+        subject: Subject,
+        workspace: "Workspace",
+        include_trash: bool = False,
+    ) -> bool:
         """
         This function checks if a subject belongs to a workspace
+        :param include_trash: Whether trashed workspace memberships should count.
         :return: If the subject belongs to the workspace
         """
 
-        return self.are_in_workspace([subject], workspace)[0]
+        return self.are_in_workspace([subject], workspace, include_trash=include_trash)[
+            0
+        ]
 
     @abc.abstractmethod
     def are_in_workspace(
-        self, subjects: List[Subject], workspace: "Workspace"
+        self,
+        subjects: List[Subject],
+        workspace: "Workspace",
+        include_trash: bool = False,
     ) -> List[bool]:
         """
         This function checks if the subjects belongs to a workspace
+        :param include_trash: Whether trashed workspace memberships should count.
         :return: a list of bool. For each index whether the user at the same index
             belongs to the workspace or not
         """

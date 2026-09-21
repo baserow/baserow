@@ -16,6 +16,7 @@
   </a>
   <button
     v-else
+    :type="buttonType"
     class="button"
     :class="classes"
     :disabled="disabled || loading"
@@ -66,6 +67,17 @@ export default {
         return ['primary', 'secondary', 'danger', 'upload', 'ghost'].includes(
           value
         )
+      },
+    },
+    /**
+     * The native type attribute when rendering a button element.
+     */
+    buttonType: {
+      required: false,
+      type: String,
+      default: null,
+      validator(value) {
+        return ['button', 'submit', 'reset'].includes(value)
       },
     },
     /**

@@ -1,15 +1,18 @@
 from collections import defaultdict
 from typing import Any, Dict, List, NewType, Optional, Union, cast
 
-from django.contrib.auth.models import AbstractUser, User
+from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
-from django.db import DatabaseError, IntegrityError
+from django.db import DatabaseError, IntegrityError, connection
 from django.db.models import Count, OuterRef, QuerySet, Subquery
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
-from baserow.contrib.database.tokens.models import Token
+from baserow.core.agents.subjects import AgentSubjectType
+from baserow.core.mixins import TrashableModelMixin
 from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
@@ -38,12 +41,22 @@ from ..features import TEAMS
 TeamForUpdate = NewType("TeamForUpdate", Team)
 TeamSubjectForUpdate = NewType("TeamSubjectForUpdate", TeamSubject)
 
-SUBJECT_TYPE_USER = "auth.User"
-SUBJECT_TYPE_TOKEN = "database.Token"  # nosec
-SUPPORTED_SUBJECT_TYPES = {SUBJECT_TYPE_USER: User}
+SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type, AgentSubjectType.type)
 
 
 class TeamHandler:
+    def get_team_subjects_queryset(self) -> QuerySet:
+        """Hide trashed subjects while retaining memberships for their restoration."""
+        queryset = TeamSubject.objects.all()
+        for subject_type in subject_type_registry.get_all():
+            if issubclass(subject_type.model_class, TrashableModelMixin):
+                # IDs can overlap across subject types, so filter by both fields.
+                queryset = queryset.exclude(
+                    subject_type=subject_type.get_content_type(),
+                    subject_id__in=subject_type.model_class.trash.values("id"),
+                )
+        return queryset
+
     def get_teams_queryset(self) -> QuerySet:
         """
         Responsible for returning a `Team` queryset with an annotated
@@ -53,7 +66,8 @@ class TeamHandler:
         """
 
         subj_count = (
-            TeamSubject.objects.filter(team_id=OuterRef("id"))
+            self.get_team_subjects_queryset()
+            .filter(team_id=OuterRef("id"))
             .order_by()
             .values("team_id")
             .annotate(count=Count("*"))
@@ -84,31 +98,84 @@ class TeamHandler:
         Needs to narrowed down further to select a specific ID or Group.
         """
 
-        subject_sample_sql = """
+        subject_label_cases = []
+        subject_joins = []
+        case_params = []
+        join_params = []
+        quote_name = connection.ops.quote_name
+
+        # Each supported subject type has its own database table. Build one
+        # conditional label case and one matching join for each of those tables.
+        for index, subject_type_name in enumerate(SUPPORTED_SUBJECT_TYPES):
+            table_alias = f"team_subject_{index}"
+            subject_type = subject_type_registry.get(subject_type_name)
+            model_class = subject_type.model_class
+            model_meta = model_class._meta
+
+            display_name_field = subject_type.display_name_field
+            if display_name_field is None:
+                raise TeamSubjectTypeUnsupported(
+                    f"The subject type {subject_type_name} has no display name field."
+                )
+
+            label_column = model_meta.get_field(display_name_field).column
+            type_condition = "ct.app_label = %s AND ct.model = %s"
+            type_params = [model_meta.app_label, model_meta.model_name]
+
+            # Select the label from the table matching the subject's content type.
+            subject_label_cases.append(
+                f"WHEN ({type_condition}) THEN {table_alias}.{quote_name(label_column)}"
+            )
+            case_params.extend(type_params)
+
+            # Restrict the join by content type because subject IDs can overlap
+            # between the different subject tables.
+            subject_joins.append(
+                f"LEFT OUTER JOIN {quote_name(model_meta.db_table)} {table_alias} "
+                f"ON ({table_alias}.id = sub.subject_id AND {type_condition})"
+            )
+            join_params.extend(type_params)
+
+        # Use the same visibility rules for samples, counts, and member lists.
+        # Filter before LIMIT so hidden subjects don't consume sample slots.
+        visible_subjects_sql, visible_subjects_params = (
+            self.get_team_subjects_queryset()
+            .order_by()
+            .values("id")
+            .query.sql_with_params()
+        )
+        # Placeholder order follows CASE, JOIN, visibility filter, then LIMIT.
+        subject_sample_params = [
+            *case_params,
+            *join_params,
+            *visible_subjects_params,
+            subject_sample_size,
+        ]
+
+        subject_sample_sql = f"""
             SELECT COALESCE(json_agg(sub), '[]') FROM (
                 SELECT
                     sub.id AS team_subject_id,
                     sub.subject_id,
                     CONCAT(ct.app_label, '.', INITCAP(ct.model)) AS subject_type,
                     CASE
-                        WHEN (ct.app_label = 'auth' AND ct.model = 'user')
-                            THEN auth_user.first_name
+                        {" ".join(subject_label_cases)}
                     END AS subject_label
                 FROM baserow_enterprise_teamsubject sub
                 INNER JOIN django_content_type ct ON (ct.id = sub.subject_type_id)
-                LEFT OUTER JOIN auth_user ON (
-                    auth_user.id = sub.subject_id AND
-                    ct.app_label = 'auth' AND
-                    ct.model = 'user'
-                )
+                {" ".join(subject_joins)}
                 WHERE sub.team_id = baserow_enterprise_team.id
+                    AND sub.id IN ({visible_subjects_sql})
                 ORDER BY sub.created_on DESC
                 LIMIT %s
             ) sub
-        """
+        """  # noqa: S608
 
         return self.get_teams_queryset().annotate(
-            subject_sample=RawSQL(subject_sample_sql, [subject_sample_size]),  # nosec
+            subject_sample=RawSQL(  # nosec
+                subject_sample_sql,
+                subject_sample_params,
+            ),
         )
 
     def list_teams_in_workspace(
@@ -215,15 +282,16 @@ class TeamHandler:
         # 4. Remove any existing subjects we don't want anymore.
         with atomic_if_not_already():
             # Build a default dict of existing subjects in the team. The key is the
-            # `TeamSubject.subject_type_natural_key`, the value contains the list of
-            # `subject_id` of that `subject_type`. We'll use this to determine if there
-            # are subjects to add, or remove.
-            existing_subjects = defaultdict(list)
-            existing_subject_qs = team.subjects.select_related("subject_type").all()
+            # `TeamSubject.subject_type_natural_key`, then the `subject_id`. Keep
+            # every membership ID so removing a subject also removes duplicates.
+            existing_subjects = defaultdict(lambda: defaultdict(list))
+            # Trashed subjects are absent from the edit form. Preserve their
+            # memberships so saving visible members does not break restoration.
+            existing_subject_qs = self.list_subjects_in_team(team.id)
             for existing_subject in existing_subject_qs:
-                existing_subjects[existing_subject.subject_type_natural_key].append(
-                    existing_subject.id
-                )
+                existing_subjects[existing_subject.subject_type_natural_key][
+                    existing_subject.subject_id
+                ].append(existing_subject.id)
 
             try:
                 team.name = name
@@ -241,7 +309,7 @@ class TeamHandler:
                     self.create_subject(user, {"id": subject_id}, subject_type, team)
 
             # Determine if any existing subjects need to be removed.
-            for existing_type, existing_type_ids in existing_subjects.items():
+            for existing_type, existing_subject_ids in existing_subjects.items():
                 # Find all the subjects in `subjects` which
                 # have the `subject_type` we're looping over.
                 payload_subjects_for_type = filter(
@@ -255,10 +323,11 @@ class TeamHandler:
                 # Find the difference between `existing_type_ids`
                 # and `payload_subject_ids_for_type`
                 removed_subjects = list(
-                    set(existing_type_ids) - set(payload_subject_ids_for_type)
+                    set(existing_subject_ids) - set(payload_subject_ids_for_type)
                 )
                 for removed_subject_id in removed_subjects:
-                    self.delete_subject_by_id(user, removed_subject_id, team)
+                    for membership_id in existing_subject_ids[removed_subject_id]:
+                        self.delete_subject_by_id(user, membership_id, team)
 
             # If we've been given a `default_role`, assign it to the team.
             RoleAssignmentHandler().assign_role(team, team.workspace, default_role)
@@ -306,10 +375,10 @@ class TeamHandler:
         return team
 
     def get_teamsubject_subject_qs(self, subject, base_queryset=None) -> QuerySet:
-        """ """
+        """Return visible memberships belonging to a subject."""
 
         if base_queryset is None:
-            base_queryset = TeamSubject.objects
+            base_queryset = self.get_team_subjects_queryset()
 
         return base_queryset.filter(
             subject_id=subject.id,
@@ -325,7 +394,7 @@ class TeamHandler:
         """
 
         if base_queryset is None:
-            base_queryset = TeamSubject.objects
+            base_queryset = self.get_team_subjects_queryset()
 
         try:
             subject = base_queryset.select_related("subject_type").get(
@@ -350,7 +419,7 @@ class TeamHandler:
     ) -> List[TeamSubject]:
         """ """
 
-        # The list which will store our `User` or `Token` subjects.
+        # The list which will store our subject model instances.
         subject_models = []
 
         # A default dict which stores the unique ID we want to
@@ -369,7 +438,7 @@ class TeamHandler:
             subject_ids_of_type = []
 
             # Find the model class for this `subject_type`.
-            model_class = SUPPORTED_SUBJECT_TYPES[unique_subject_type]
+            model_class = subject_type_registry.get(unique_subject_type).model_class
 
             # Find the subjects we've been given for this `subject_type`...
             subjects_of_type = filter(
@@ -449,17 +518,19 @@ class TeamHandler:
                 f"The subject type {subject_natural_key} is unsupported."
             )
 
-        # We only support creating a subject via an ID/PK or
-        # in the case of a user, its email.
-        permitted_lookups = ["id", "pk", "email"]
-        unexpected_lookups = list(set(subject_lookup.keys()) - set(permitted_lookups))
+        subject_type = subject_type_registry.get(subject_natural_key)
+        unexpected_lookups = [
+            lookup
+            for lookup in subject_lookup
+            if not subject_type.supports_lookup_field(lookup)
+        ]
         if unexpected_lookups:
             raise TeamSubjectBadRequest(
                 f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
             )
 
         # Get the model for this `subject_natural_key`.
-        model_class = SUPPORTED_SUBJECT_TYPES[subject_natural_key]
+        model_class = subject_type.model_class
 
         try:
             subject = model_class.objects.get(**subject_lookup)
@@ -469,15 +540,8 @@ class TeamHandler:
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
-        # Verify that the subject belongs to the workspace the team belongs to.
-        if isinstance(subject, User):
-            if not team.workspace.users.filter(
-                workspaceuser__user_id=subject.id
-            ).exists():
-                raise TeamSubjectNotInGroup()
-        elif isinstance(subject, Token):
-            if subject.workspace_id != team.workspace_id:
-                raise TeamSubjectNotInGroup()
+        if not subject_type.is_in_workspace(subject, team.workspace):
+            raise TeamSubjectNotInGroup()
 
         signal = team_subject_created
         create_kwargs = {"team": team, "subject": subject}
@@ -495,17 +559,24 @@ class TeamHandler:
         Returns a list of subjects in a given workspace.
         """
 
-        return TeamSubject.objects.select_related("subject_type").filter(team=team_id)
+        return (
+            self.get_team_subjects_queryset()
+            .select_related("subject_type")
+            .filter(team=team_id)
+        )
 
     def get_subject_for_update(
         self, subject_id: int, team: Team
     ) -> TeamSubjectForUpdate:
+        """Lock a visible membership before modifying it."""
         return cast(
             TeamSubjectForUpdate,
             self.get_subject(
                 subject_id,
                 team,
-                base_queryset=TeamSubject.objects.select_for_update(of=("self",)),
+                base_queryset=self.get_team_subjects_queryset().select_for_update(
+                    of=("self",)
+                ),
             ),
         )
 

@@ -1,5 +1,6 @@
 import json
 from dataclasses import fields as dataclass_fields
+from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional
 
 from django.conf import settings
@@ -38,7 +39,9 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_created,
+    workflow_action_dispatched,
     workflow_action_updated,
+    workflow_actions_before_dispatch,
     workflow_actions_reordered,
 )
 from baserow.contrib.database.workflow_actions.types import (
@@ -512,6 +515,65 @@ class DatabaseWorkflowActionService:
                 exception=type(exc).__name__,
             )
 
+    def _send_workflow_action_dispatched(
+        self,
+        workflow_action: DatabaseWorkflowAction,
+        dispatch_context: DatabaseDispatchContext,
+        position: int,
+        result: Optional[DispatchResult],
+        duration_ms: float,
+    ) -> None:
+        """
+        Tells receivers what one action did. The action already ran, so a
+        receiver that fails must not fail the click. Called outside the
+        dispatch's `except`, or a receiver's failure would chain the dispatch
+        failure, whose text can name the address, into Django's log of it.
+
+        `send_robust` covers a receiver that raises, except that its own log
+        reads `receiver.__qualname__`, which a callable object has not, so
+        the send is wrapped too. Only the failure's class is logged: the
+        frames hold the result and the address it went to.
+
+        :param workflow_action: The action that was dispatched.
+        :param dispatch_context: The click's dispatch context.
+        :param position: The action's position in the button's actions.
+        :param result: What the action returned, or None when it failed.
+        :param duration_ms: How long the dispatch ran.
+        """
+
+        try:
+            responses = workflow_action_dispatched.send_robust(
+                self,
+                workflow_action=workflow_action,
+                dispatch_context=dispatch_context,
+                position=position,
+                succeeded=result is not None,
+                result=result,
+                duration_ms=duration_ms,
+            )
+        except Exception as exc:
+            logger.error(
+                "A workflow_action_dispatched receiver failed for workflow action "
+                "{action_id} of button field {field_id} with {exception}, and the "
+                "receivers behind it did not run.",
+                action_id=workflow_action.id,
+                field_id=dispatch_context.field.id,
+                exception=type(exc).__name__,
+            )
+            return
+
+        # Django's own log of these names neither the action nor the field.
+        for _, response in responses:
+            if isinstance(response, Exception):
+                logger.error(
+                    "A workflow_action_dispatched receiver failed for workflow "
+                    "action {action_id} of button field {field_id} with "
+                    "{exception}.",
+                    action_id=workflow_action.id,
+                    field_id=dispatch_context.field.id,
+                    exception=type(response).__name__,
+                )
+
     def get_dispatch_snapshot(self, field: ButtonField) -> List[DatabaseWorkflowAction]:
         """
         The actions a click is about to run, read once so what it is charged
@@ -705,6 +767,15 @@ class DatabaseWorkflowActionService:
             raise WorkflowActionDispatchInProgress()
 
         try:
+            # With the lock held, so a receiver only sees a click that goes on
+            # to run, and before the audit entry, so a receiver that refuses
+            # the click (SaaS quota) leaves nothing behind. A copy: a receiver
+            # that filtered the list in place would change what the click
+            # then runs.
+            workflow_actions_before_dispatch.send(
+                self, user=user, field=field, workflow_actions=tuple(server_actions)
+            )
+
             # Inside the lock, so a click refused as already running leaves no entry.
             action_type_registry.get(DispatchButtonFieldActionType.type).do(
                 user, field, row, len(workflow_actions)
@@ -738,11 +809,22 @@ class DatabaseWorkflowActionService:
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
                     is_external = workflow_action.get_type().is_external
+                    started = perf_counter()
+                    exc = result = None
                     try:
                         result = self.handler.dispatch_workflow_action(
                             workflow_action, dispatch_context
                         )
-                    except Exception as exc:
+                    except Exception as dispatch_exc:
+                        exc = dispatch_exc
+                    self._send_workflow_action_dispatched(
+                        workflow_action=workflow_action,
+                        dispatch_context=dispatch_context,
+                        position=positions[workflow_action.id],
+                        result=result,
+                        duration_ms=(perf_counter() - started) * 1000,
+                    )
+                    if exc is not None:
                         if (
                             is_external
                             and on_external_dispatch
@@ -771,7 +853,7 @@ class DatabaseWorkflowActionService:
                                 exception=type(exc).__name__,
                             )
                         else:
-                            logger.exception(
+                            logger.opt(exception=exc).error(
                                 "Workflow action {action_id} of button field "
                                 "{field_id} failed while dispatching.",
                                 action_id=workflow_action.id,
@@ -803,7 +885,7 @@ class DatabaseWorkflowActionService:
                                     for done in dispatched
                                 ],
                             ) from exc
-                        raise
+                        raise exc
                     if is_external and on_external_dispatch:
                         on_external_dispatch(workflow_action)
                     if may_configure:
