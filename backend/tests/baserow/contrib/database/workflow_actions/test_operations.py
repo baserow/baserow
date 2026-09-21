@@ -1,10 +1,7 @@
-from baserow.contrib.database.workflow_actions.object_scopes import (
-    DatabaseWorkflowActionObjectScopeType,
-)
 from baserow.contrib.database.workflow_actions.operations import (
     DispatchDatabaseWorkflowActionOperationType,
 )
-from baserow.core.registries import object_scope_type_registry, operation_type_registry
+from baserow.core.registries import operation_type_registry
 
 
 def test_the_dispatch_operation_is_registered():
@@ -12,13 +9,8 @@ def test_the_dispatch_operation_is_registered():
         DispatchDatabaseWorkflowActionOperationType.type
     )
 
-    assert operation.context_scope_name == "database_workflow_action"
-
-
-def test_the_object_scope_is_registered():
-    scope = object_scope_type_registry.get("database_workflow_action")
-
-    assert isinstance(scope, DatabaseWorkflowActionObjectScopeType)
+    # The field, since that is all a grid cell has to ask the question with.
+    assert operation.context_scope_name == "database_field"
 
 
 def test_editors_may_dispatch_but_commenters_may_not():

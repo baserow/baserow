@@ -6,7 +6,7 @@
       v-tooltip="
         requiresReconfiguration
           ? $t('buttonField.requiresReconfiguration')
-          : null
+          : disabledReason
       "
       class="grid-field-button"
     >
@@ -20,7 +20,7 @@
         {{ field.label }}
       </Button>
       <Button
-        v-else-if="hasWorkflowActions"
+        v-else-if="canClick"
         size="tiny"
         type="secondary"
         :loading="dispatching"

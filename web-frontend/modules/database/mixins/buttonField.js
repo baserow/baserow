@@ -9,6 +9,8 @@ import { clone } from '@baserow/modules/core/utils/object'
 // click guard with it.
 const dispatchesInFlight = reactive(new Set())
 
+const DISPATCH_OPERATION = 'database.table.field.workflow_action.dispatch'
+
 /**
  * Dispatches a cell's actions on click and runs the ones the backend hands
  * back. Falls back to the field store where the render context provides no
@@ -25,6 +27,41 @@ export default {
      */
     requiresReconfiguration() {
       return this.field.requires_reconfiguration === true
+    },
+    /**
+     * Not every place that renders a button is handed the workspace, so it is
+     * found through the field's table when it is not.
+     */
+    fieldWorkspaceId() {
+      if (this.workspaceId != null) {
+        return this.workspaceId
+      }
+      const database = this.$store.getters['application/getAll'].find(
+        (application) =>
+          application.tables?.some((table) => table.id === this.field.table_id)
+      )
+      return database?.workspace?.id ?? null
+    },
+    /**
+     * Whether this user may click at all, which is a lower bar than editing
+     * the row and a higher one than reading it. The backend refuses the click
+     * either way, so this only stops the button offering one.
+     */
+    canDispatch() {
+      return this.$hasPermission(
+        DISPATCH_OPERATION,
+        this.field,
+        this.fieldWorkspaceId
+      )
+    },
+    canClick() {
+      return this.hasWorkflowActions && this.canDispatch
+    },
+    /** A disabled button fires no mouse events, so its wrapper shows this. */
+    disabledReason() {
+      return this.hasWorkflowActions && !this.canDispatch
+        ? this.$t('buttonField.noPermission')
+        : null
     },
     dispatchKey() {
       return `${this.field.id}:${this.row.id}`

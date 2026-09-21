@@ -14,7 +14,7 @@
       </Button>
     </span>
     <span
-      v-else-if="hasWorkflowActions"
+      v-else-if="canClick"
       v-tooltip="
         rowIsCreated ? null : $t('rowEditFieldButtonField.createRowBefore')
       "
@@ -30,9 +30,11 @@
         {{ field.label }}
       </Button>
     </span>
-    <Button v-else size="tiny" type="secondary" disabled>
-      {{ field.label }}
-    </Button>
+    <span v-else v-tooltip="disabledReason">
+      <Button size="tiny" type="secondary" disabled>
+        {{ field.label }}
+      </Button>
+    </span>
   </div>
 </template>
 

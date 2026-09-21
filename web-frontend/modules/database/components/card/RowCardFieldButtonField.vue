@@ -17,7 +17,7 @@
       </Button>
     </span>
     <Button
-      v-else-if="hasWorkflowActions"
+      v-else-if="canClick"
       size="tiny"
       type="secondary"
       :loading="dispatching"
@@ -27,9 +27,17 @@
     >
       {{ field.label }}
     </Button>
-    <Button v-else size="tiny" type="secondary" disabled>
-      {{ field.label }}
-    </Button>
+    <!-- A card takes the pointer away from everything inside it, so the
+         wrapper asks for it back while it has a reason to show. -->
+    <span
+      v-else
+      v-tooltip="disabledReason"
+      :class="{ 'forced-pointer-events-auto': disabledReason }"
+    >
+      <Button size="tiny" type="secondary" disabled>
+        {{ field.label }}
+      </Button>
+    </span>
   </div>
 </template>
 
@@ -43,6 +51,7 @@ export default {
     row: { type: Object, required: true },
     field: { type: Object, required: true },
     value: { type: null, default: null },
+    workspaceId: { type: Number, required: false, default: null },
   },
   height: 26,
 }

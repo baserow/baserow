@@ -1864,7 +1864,7 @@ def test_dispatching_a_button_field_needs_at_least_the_editor_role(
 ):
     """Checking `default_roles` alone passes even when RBAC cannot resolve the
     scope, and this operation's parent chain is a long one: workspace ->
-    database -> table -> field -> workflow action."""
+    database -> table -> field."""
 
     from baserow.contrib.database.table.handler import TableHandler
     from baserow.contrib.database.workflow_actions.models import (
@@ -1910,6 +1910,54 @@ def test_dispatching_a_button_field_needs_at_least_the_editor_role(
 
     created = table.get_model().objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "Ada"
+
+
+@pytest.mark.django_db
+def test_a_table_editor_is_told_which_buttons_they_may_click(
+    data_fixture, enterprise_data_fixture
+):
+    """The browser disables a button its user may not click, and all a cell has
+    to ask with is the field. So the permissions it is sent have to name the
+    fields, not the actions behind them."""
+
+    from baserow.contrib.database.workflow_actions.models import (
+        LocalBaserowCreateRowWorkflowAction,
+    )
+    from baserow.contrib.database.workflow_actions.operations import (
+        DispatchDatabaseWorkflowActionOperationType,
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    admin = data_fixture.create_user()
+    clicker = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[clicker])
+    database = data_fixture.create_database_application(user=admin, workspace=workspace)
+    editable = data_fixture.create_database_table(user=admin, database=database)
+    read_only = data_fixture.create_database_table(user=admin, database=database)
+    data_fixture.create_text_field(table=editable)
+    clickable = data_fixture.create_button_field(table=editable, label="Go")
+    unclickable = data_fixture.create_button_field(table=read_only, label="Go")
+    for field in (clickable, unclickable):
+        data_fixture.create_database_workflow_action(
+            LocalBaserowCreateRowWorkflowAction, field=field
+        )
+
+    role_handler = RoleAssignmentHandler()
+    role_handler.assign_role(clicker, workspace, role=Role.objects.get(uid="VIEWER"))
+    role_handler.assign_role(
+        clicker, workspace, role=Role.objects.get(uid="EDITOR"), scope=editable
+    )
+
+    policy = RolePermissionManagerType().get_permissions_object(
+        clicker, workspace=workspace
+    )[DispatchDatabaseWorkflowActionOperationType.type]
+
+    assert policy["default"] is False
+    # Compared whole: an action's id can happen to equal a field's.
+    assert set(policy["exceptions"]) == set(
+        editable.field_set.values_list("id", flat=True)
+    )
+    assert unclickable.id not in policy["exceptions"]
 
 
 @pytest.fixture

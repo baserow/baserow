@@ -67,7 +67,6 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.types import PermissionCheck
 
 # What a failed external action tells the clicker. The service's own message
 # names the URL it could not reach, which is where an API key would be.
@@ -622,20 +621,14 @@ class DatabaseWorkflowActionService:
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
 
-        # Checked over every action, frontend-only included, so a click is
-        # refused as a whole (ADR 006 section 7), and before the lock is taken,
-        # so a refused user never holds it.
-        CoreHandler().check_multiple_permissions(
-            [
-                PermissionCheck(
-                    user,
-                    DispatchDatabaseWorkflowActionOperationType.type,
-                    workflow_action,
-                )
-                for workflow_action in workflow_actions
-            ],
+        # Asked of the field, so it covers every action, frontend-only
+        # included, and a click is refused as a whole (ADR 006 section 7).
+        # Before the lock is taken, so a refused user never holds it.
+        CoreHandler().check_permissions(
+            user,
+            DispatchDatabaseWorkflowActionOperationType.type,
             workspace=field.table.database.workspace,
-            raise_exception=True,
+            context=field,
         )
 
         # Refused as a whole: a sequence that cannot finish should not start.

@@ -6,7 +6,7 @@
       v-tooltip="
         requiresReconfiguration
           ? $t('buttonField.requiresReconfiguration')
-          : null
+          : disabledReason
       "
       class="grid-field-button"
     >
@@ -20,7 +20,7 @@
         {{ field.label }}
       </Button>
       <Button
-        v-else-if="hasWorkflowActions"
+        v-else-if="canClick"
         type="secondary"
         size="tiny"
         :loading="dispatching"
@@ -45,6 +45,7 @@ export default {
     row: { type: Object, required: true },
     field: { type: Object, required: true },
     value: { type: null, default: null },
+    workspaceId: { type: Number, required: false, default: null },
   },
 }
 </script>

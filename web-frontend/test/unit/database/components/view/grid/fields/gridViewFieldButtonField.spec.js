@@ -34,8 +34,9 @@ describe('GridViewFieldButtonField', () => {
     target: 'blank',
   }
 
-  const mountCell = async (props = {}, responseData = {}) => {
+  const mountCell = async (props = {}, responseData = {}, options = {}) => {
     const wrapper = await testApp.mount(GridViewFieldButtonField, {
+      ...options,
       propsData: {
         field,
         value: null,
@@ -78,6 +79,27 @@ describe('GridViewFieldButtonField', () => {
     const wrapper = await mountCell({ selected: true })
 
     expect(wrapper.find('.grid-view__cell').classes()).toContain('active')
+  })
+
+  test('a user who may not click gets a disabled button', async () => {
+    const hasPermission = vi.fn().mockReturnValue(false)
+    const wrapper = await mountCell(
+      { workspaceId: 9 },
+      {},
+      { global: { mocks: { $hasPermission: hasPermission } } }
+    )
+
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+    // Asked of the field, which is all a cell has, in the field's workspace.
+    expect(hasPermission).toHaveBeenCalledWith(
+      'database.table.field.workflow_action.dispatch',
+      field,
+      9
+    )
+
+    await wrapper.find('button').trigger('click')
+
+    expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
   })
 
   test('a field without actions renders a disabled button and no link', async () => {
