@@ -568,7 +568,7 @@ class TestRunExperimentForFullDataset:
         assert call_kwargs["experiment_name"] == "exp-name"
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 2,
+            "harness_version": 3,
             "runner_run_id": "local-run",
             "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
@@ -611,7 +611,7 @@ class TestRunExperimentForFullDataset:
         call_kwargs = client.experiments.run_experiment_calls[0]
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 2,
+            "harness_version": 3,
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
@@ -1062,7 +1062,7 @@ class TestRunExperimentForCaseSubset:
         assert create_kwargs["repetitions"] == 1
         assert create_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 2,
+            "harness_version": 3,
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",

@@ -15,6 +15,7 @@ from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.core.exceptions import PermissionException
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.builder.themes import (
     THEME_CATALOG,
@@ -22,6 +23,7 @@ from baserow_enterprise.assistant.tools.builder.themes import (
     apply_theme,
 )
 from baserow_enterprise.assistant.tools.shared import (
+    permission_denied_result,
     raise_if_permission_denied,
     require_payload,
 )
@@ -938,8 +940,12 @@ def move_elements(
                     "place_in_container": element.place_in_container,
                 }
             )
+        except PermissionException:
+            errors.append(
+                f"Permission denied for element {element_move.element_id}; it was not moved. "
+                "Do not retry the denied operation."
+            )
         except Exception as exc:
-            raise_if_permission_denied(exc)
             errors.append(f"element {element_move.element_id}: {exc}")
 
     result: dict[str, Any] = {"moved_elements": moved}
@@ -1403,24 +1409,38 @@ def setup_page(
     all_errors: list[str] = []
 
     # Phase 1: Data sources
-    created_ds, ds_errors = _setup_data_sources(
-        user, page, data_sources or [], ds_ref_to_id, integration, tool_helpers
-    )
+    try:
+        created_ds, ds_errors = _setup_data_sources(
+            user, page, data_sources or [], ds_ref_to_id, integration, tool_helpers
+        )
+    except PermissionException:
+        return {
+            **result,
+            "errors": all_errors,
+            **permission_denied_result("setup_page"),
+        }
     all_errors.extend(ds_errors)
     _track_data_source_refs(tool_helpers, page_id, ds_ref_to_id)
     if created_ds:
         result["created_data_sources"] = created_ds
 
     # Phase 2: Elements
-    created_el, el_errors = _setup_elements(
-        user,
-        page,
-        elements or [],
-        el_ref_to_id,
-        ds_ref_to_id,
-        shared_page_refs,
-        tool_helpers,
-    )
+    try:
+        created_el, el_errors = _setup_elements(
+            user,
+            page,
+            elements or [],
+            el_ref_to_id,
+            ds_ref_to_id,
+            shared_page_refs,
+            tool_helpers,
+        )
+    except PermissionException:
+        return {
+            **result,
+            "errors": all_errors,
+            **permission_denied_result("setup_page"),
+        }
     all_errors.extend(el_errors)
     _track_element_refs(tool_helpers, page_id, el_ref_to_id)
     _track_element_refs(
@@ -1432,15 +1452,22 @@ def setup_page(
         result["created_elements"] = created_el
 
     # Phase 3: Actions
-    created_actions, action_errors = _setup_actions(
-        user,
-        page,
-        actions or [],
-        el_ref_to_id,
-        ds_ref_to_id,
-        integration,
-        tool_helpers,
-    )
+    try:
+        created_actions, action_errors = _setup_actions(
+            user,
+            page,
+            actions or [],
+            el_ref_to_id,
+            ds_ref_to_id,
+            integration,
+            tool_helpers,
+        )
+    except PermissionException:
+        return {
+            **result,
+            "errors": all_errors,
+            **permission_denied_result("setup_page"),
+        }
     all_errors.extend(action_errors)
     if created_actions:
         result["created_actions"] = created_actions

@@ -8,7 +8,14 @@ the RunContext + FunctionToolset pattern.
 import pytest
 from pydantic_ai import ModelRetry
 
+from baserow.contrib.builder.elements.models import ButtonElement, HeadingElement
+from baserow.contrib.builder.elements.operations import UpdateElementOperationType
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.operations import (
+    CreateBuilderWorkflowActionOperationType,
+)
 from baserow.core.exceptions import PermissionDenied
+from baserow_enterprise.assistant.tools.builder.agents import update_element_formulas
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_actions,
     create_collection_elements,
@@ -37,6 +44,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     DataSourceSort,
     DataSourceUpdate,
     DisplayElementCreate,
+    ElementItemCreate,
     ElementStyleUpdate,
     ElementUpdate,
     FormElementCreate,
@@ -59,6 +67,8 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     needs_formula,
     wrap_static_string,
 )
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import Role
 
 from .utils import create_fake_tool_helpers, make_test_ctx
 
@@ -419,6 +429,102 @@ def test_create_heading_element(data_fixture):
     assert len(result["created_elements"]) == 1
     assert result["created_elements"][0]["type"] == "heading"
     assert result["created_elements"][0]["ref"] == "h1"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_created_elements_are_reported_when_formula_update_is_denied(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles, monkeypatch
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    builder = data_fixture.create_builder_application(user=owner, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    role = Role.objects.create(
+        name="Create elements without updates", workspace=workspace
+    )
+    role.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=UpdateElementOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=role, scope=builder.application_ptr
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.get_formula_generator",
+        lambda *args: lambda *args: {"value": "'Welcome'"},
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",
+        update_element_formulas,
+    )
+
+    result = create_display_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(
+                ref="heading", type="heading", value="$formula: the welcome text"
+            )
+        ],
+        thought="Create the heading",
+    )
+
+    element = HeadingElement.objects.get(page=page)
+    assert [item["id"] for item in result["created_elements"]] == [element.id]
+    assert element.value["formula"] != "'Welcome'"
+    assert result["errors"] == [
+        "Permission denied while configuring element 'heading'. "
+        "The element was created, but its formulas were not applied. "
+        "Do not retry the denied operation."
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_page_reports_elements_when_action_phase_is_denied(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    builder = data_fixture.create_builder_application(user=owner, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    role = Role.objects.create(
+        name="Create elements without actions", workspace=workspace
+    )
+    role.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=CreateBuilderWorkflowActionOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=role, scope=builder.application_ptr
+    )
+    ctx = make_test_ctx(user, workspace)
+
+    result = setup_page(
+        ctx,
+        page_id=page.id,
+        data_sources=[],
+        elements=[ElementItemCreate(ref="button", type="button", value="Notify")],
+        actions=[ActionCreate(type="notification", element="button", title="Done")],
+        thought="Set up the notification page",
+    )
+
+    element = ButtonElement.objects.get(page=page)
+    assert [item["id"] for item in result["created_elements"]] == [element.id]
+    assert not BuilderWorkflowAction.objects.filter(page=page).exists()
+    assert result["error"] == "setup_page stopped because permission was denied."
+    assert "Earlier changes may have been applied" in result["next_steps"]
 
 
 @pytest.mark.django_db(transaction=True)

@@ -37,6 +37,7 @@ from baserow_enterprise.assistant.tools.automation import agents as automation_a
 from baserow_enterprise.assistant.tools.builder import agents as builder_agents
 from baserow_enterprise.assistant.tools.database import agents as database_agents
 from baserow_enterprise.assistant.tools.database.agents import formula_generation_agent
+from baserow_enterprise.assistant.tools.routing import is_mode_redirect
 from baserow_enterprise.assistant.tools.search_user_docs.tools import search_docs_agent
 
 # Prompts bound into Agent singletons at import time: swapped via Agent.override.
@@ -173,8 +174,8 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
 
     Inspects the pydantic-ai message history for ``RetryPromptPart`` entries,
     which indicate the LLM sent invalid arguments that failed pydantic
-    validation.  "Unknown tool name" retries are excluded — the LLM explored a
-    non-existent tool and recovered on its own, which is acceptable.
+    validation. Unknown-tool exploration and mode-switch redirects are excluded;
+    the latter are required routing steps, not failed tool executions.
 
     Returns ``(error_count, hint)`` suitable for a ``CheckResult`` hint.
     """
@@ -188,7 +189,7 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
             for part in msg.parts:
                 if isinstance(part, RetryPromptPart):
                     content = str(part.content)
-                    if "Unknown tool name" in content:
+                    if "Unknown tool name" in content or is_mode_redirect(content):
                         continue
                     retry_errors.append(
                         {

@@ -24,6 +24,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.run import AgentRunResultEvent
+from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_KUMA,
@@ -40,6 +41,7 @@ from baserow_enterprise.assistant.action_memory import (
 from baserow_enterprise.assistant.agents import (
     dynamic_license_tier,
     dynamic_verified_tool_outcomes,
+    main_agent,
 )
 from baserow_enterprise.assistant.assistant import (
     Assistant,
@@ -738,8 +740,9 @@ class TestCompactMessageHistory:
         assert len(outcomes) == 1
         assert outcomes[0]["tool"] == "create_workflows"
         assert outcomes[0]["_truncated"] is True
-        assert evidence[0].changed is True
-        assert evidence[0].completed is True
+        assert outcomes[0]["changed"] is True
+        assert outcomes[0]["completed"] is True
+        assert evidence == []
         assert (
             len(json.dumps(outcomes, separators=(",", ":")))
             <= MAX_VERIFIED_TOOL_OUTCOMES_CHARS
@@ -787,8 +790,9 @@ class TestCompactMessageHistory:
         evidence = get_mutation_evidence(compacted)
 
         assert outcomes[0]["_truncated"] is True
-        assert evidence[0].changed is True
-        assert evidence[0].completed is False
+        assert outcomes[0]["changed"] is True
+        assert outcomes[0]["completed"] is False
+        assert evidence == []
 
     def test_identical_reused_retry_keeps_created_outcome(self):
         arguments = {"builders": [{"name": "Restaurant", "type": "database"}]}
@@ -1155,6 +1159,14 @@ class TestAssistantMessagePersistence:
             chat=chat, role=AssistantChatMessage.Role.AI
         ).count()
         assert ai_messages == 1
+        saved_message = AssistantChatMessage.objects.get(
+            chat=chat, role=AssistantChatMessage.Role.AI
+        )
+        assert assistant._telemetry.trace_id
+        assert saved_message.prediction.prediction == {
+            "answer": "Based on docs",
+            "posthog_trace_id": assistant._telemetry.trace_id,
+        }
         assert_model_scope_closed(scoped_assistant_model)
 
     @patch("baserow_enterprise.assistant.agents.title_agent.run")
@@ -1865,6 +1877,110 @@ class TestResolveAssistantModel:
 
 
 class TestFinalAnswerValidation:
+    @pytest.mark.parametrize(
+        "compact, intervening_turns", [(False, 0), (True, 0), (True, 15)]
+    )
+    @pytest.mark.parametrize(
+        "current_tool, current_result",
+        [
+            (None, None),
+            ("update_builder", {"id": 3, "name": "Storefront", "changed": False}),
+            ("update_builder", {"error": "Permission denied"}),
+            (
+                "create_builders",
+                {"created_builders": [], "reused_builders": [{"id": 3}]},
+            ),
+        ],
+    )
+    def test_prior_success_cannot_ground_current_turn(
+        self, compact, intervening_turns, current_tool, current_result
+    ):
+        messages = [
+            ModelRequest(parts=[UserPromptPart(content="Create the Orders table.")]),
+            *_mutation_messages(
+                "create_tables",
+                {"database_id": 1, "tables": [{"name": "Orders"}]},
+                {"created_tables": [{"id": 2, "name": "Orders"}]},
+                "prior-table",
+            ),
+            ModelResponse(parts=[TextPart(content="Created the Orders table.")]),
+        ]
+        for _ in range(intervening_turns):
+            messages.extend(
+                [
+                    ModelRequest(parts=[UserPromptPart(content="Thanks.")]),
+                    ModelResponse(parts=[TextPart(content="You're welcome.")]),
+                ]
+            )
+        if compact:
+            messages = ModelMessagesTypeAdapter.validate_json(
+                ModelMessagesTypeAdapter.dump_json(compact_message_history(messages))
+            )
+            assert get_verified_tool_outcomes(messages)[0]["completed"] is True
+        messages.append(
+            ModelRequest(
+                parts=[UserPromptPart(content="Update the Storefront application.")]
+            )
+        )
+        if current_tool:
+            messages.extend(
+                _mutation_messages(current_tool, {}, current_result, "current")
+            )
+        ctx = MagicMock()
+        ctx.messages = messages
+
+        with pytest.raises(ModelRetry, match="result in this turn"):
+            validate_final_answer(ctx, "I've updated the Storefront application.")
+
+        recap = "The Orders table already exists from our earlier work."
+        assert validate_final_answer(ctx, recap) == recap
+
+    def test_agent_retries_unrelated_prior_success_and_accepts_current_change(self):
+        history = compact_message_history(
+            [
+                ModelRequest(
+                    parts=[UserPromptPart(content="Create the Orders table.")]
+                ),
+                *_mutation_messages(
+                    "create_tables",
+                    {"database_id": 1, "tables": [{"name": "Orders"}]},
+                    {"created_tables": [{"id": 2, "name": "Orders"}]},
+                    "prior-table",
+                ),
+                ModelResponse(parts=[TextPart(content="Created the Orders table.")]),
+            ]
+        )
+        claim = "I've created the Customer Portal application."
+        model_calls = []
+        mutations = []
+
+        def create_builders():
+            mutations.append("Customer Portal")
+            return {"created_builders": [{"id": 3, "name": "Customer Portal"}]}
+
+        def model(messages, info):
+            model_calls.append(messages)
+            if len(model_calls) == 2:
+                return ModelResponse(parts=[ToolCallPart("create_builders", {})])
+            return ModelResponse(parts=[TextPart(content=claim)])
+
+        deps = AssistantDeps(
+            user=MagicMock(),
+            workspace=MagicMock(),
+            tool_helpers=MagicMock(request_context={}),
+        )
+        result = main_agent.run_sync(
+            "Create the Customer Portal application.",
+            deps=deps,
+            model=FunctionModel(model),
+            message_history=history,
+            toolsets=[FunctionToolset(tools=[create_builders])],
+        )
+
+        assert len(model_calls) == 3
+        assert mutations == ["Customer Portal"]
+        assert result.output == claim
+
     def test_tool_call_printed_as_text_is_sent_back(self):
         payload = '{"name": "create_rows_in_table_9", "arguments": {"rows": []}}'
         with pytest.raises(ModelRetry):
@@ -2129,7 +2245,15 @@ class TestFinalAnswerValidation:
         with pytest.raises(ModelRetry, match="without a verified"):
             validate_final_answer(ctx, "I've updated the Status field successfully.")
 
-    def test_partial_language_is_scoped_to_its_clause(self):
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            "I created the Process Orders workflow with errors.",
+            "I created the Process Orders workflow, but the action failed.",
+            "I created the Process Orders workflow. The action could not be configured.",
+        ],
+    )
+    def test_partial_success_can_be_acknowledged_in_a_separate_sentence(self, answer):
         ctx = MagicMock()
         ctx.messages = _mutation_messages(
             "create_workflows",
@@ -2141,13 +2265,16 @@ class TestFinalAnswerValidation:
             "partial-workflow",
         )
 
-        with pytest.raises(ModelRetry, match="without a verified"):
-            validate_final_answer(
-                ctx, "I created the Process Orders workflow without errors."
-            )
+        for unqualified in (
+            "I created the Process Orders workflow successfully.",
+            "I created the Process Orders workflow without errors.",
+            "I created the Process Orders workflow with no errors.",
+            "I created the Process Orders workflow without errors. The action failed.",
+        ):
+            with pytest.raises(ModelRetry, match="without a verified"):
+                validate_final_answer(ctx, unqualified)
 
-        partial = "I created the Process Orders workflow with errors."
-        assert validate_final_answer(ctx, partial) == partial
+        assert validate_final_answer(ctx, answer) == answer
 
     def test_table_notes_mark_the_result_as_partial(self):
         ctx = MagicMock()

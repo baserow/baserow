@@ -66,7 +66,8 @@ from baserow_enterprise.assistant.tools.search_user_docs.handler import (
 
 UI_CASE_PREFIX = "ui:"
 # Version 1 recorded production settings without applying them to the agent.
-HARNESS_VERSION = 2
+# Version 3 excludes required mode redirects from the tool-error budget.
+HARNESS_VERSION = 3
 
 _PROMPT_INPUT_KEYS = ("prompt", "question", "input", "message")
 

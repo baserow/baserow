@@ -136,22 +136,26 @@ def _defers_action_without_blocker(answer: str) -> bool:
 
 def _completion_claims(answer: str) -> list[_CompletionClaim]:
     claims = []
+    # Partial results are often explained in a separate clause or sentence.
+    acknowledges_errors = bool(
+        _FAILED_WORK_PATTERN.search(_NO_ERROR_PATTERN.sub("", answer))
+    )
     for clause in _CLAUSE_BOUNDARY.split(answer):
         clause = clause.strip()
         if clause and _claims_completed_change(clause):
             claims.append(
-                _CompletionClaim(allow_partial=_clause_allows_partial(clause))
+                _CompletionClaim(
+                    allow_partial=acknowledges_errors
+                    and not _NO_ERROR_PATTERN.search(clause)
+                )
             )
     return claims
 
 
-def _clause_allows_partial(clause: str) -> bool:
-    return bool(_FAILED_WORK_PATTERN.search(_NO_ERROR_PATTERN.sub("", clause)))
-
-
 def _evidence_supports(evidence: MutationEvidence, claim: _CompletionClaim) -> bool:
     # Verb-class matching produced false retries on truthful answers; any
-    # successful mutation grounds the claim, so only tool-free claims retry.
+    # successful current-turn mutation satisfies this check. It does not prove
+    # that every requested resource or part of the task is complete.
     return evidence.changed if claim.allow_partial else evidence.completed
 
 
@@ -200,8 +204,9 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
     if claims and not grounded:
         raise ModelRetry(
             "You claimed a change succeeded without a verified successful tool "
-            "result. Execute the required tool first, or accurately say what is "
-            "still pending and why."
+            "result in this turn. Execute the required tool first, or accurately "
+            "say what is still pending and why. Describe earlier work as already "
+            "existing rather than claiming a new change."
         )
     # A pending ask_user question is the one legitimate handoff.
     asked = ctx is not None and isinstance(ctx.deps.pending_question, str)

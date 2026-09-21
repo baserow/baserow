@@ -22,6 +22,7 @@ from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.signals import workflow_action_updated
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.utils import to_path
 from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
@@ -419,6 +420,12 @@ def update_element_formulas(
                             exc,
                         )
                         errors.append(f"Formula generation failed for '{ref}': {exc}")
+        except PermissionException:
+            errors.append(
+                f"Permission denied while configuring element '{ref}'. "
+                "The element was created, but its formulas were not applied. "
+                "Do not retry the denied operation."
+            )
         finally:
             if pushed:
                 context.pop_current_record_context()
@@ -476,8 +483,13 @@ def update_data_source_formulas(
                             f"Formula generation failed for data source "
                             f"'{ds_create.name}': {exc}"
                         )
+        except PermissionException:
+            errors.append(
+                f"Permission denied while configuring data source '{ds_create.name}'. "
+                "It was created, but its formulas were not applied. "
+                "Do not retry the denied operation."
+            )
         except Exception as exc:
-            raise_if_permission_denied(exc)
             logger.error(
                 "Error processing data source {} for formulas: {}", orm_ds.id, exc
             )
@@ -706,8 +718,13 @@ def update_workflow_action_formulas(
                         errors.append(
                             f"Formula generation failed for action on '{ref}': {exc}"
                         )
+        except PermissionException:
+            errors.append(
+                f"Permission denied while configuring action on '{action_create.element}'. "
+                "The action was created, but its formulas were not applied. "
+                "Do not retry the denied operation."
+            )
         except Exception as exc:
-            raise_if_permission_denied(exc)
             logger.error(
                 "Error processing action {} for formulas: {}", orm_action.id, exc
             )
