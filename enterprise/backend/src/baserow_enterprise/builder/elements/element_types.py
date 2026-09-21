@@ -1,7 +1,6 @@
 import mimetypes
 from typing import Any, Dict, List, Optional
 
-from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -48,7 +47,7 @@ class GraphElementSeriesSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         missing_fields = {
-            field_name: [_("This field is required.")]
+            field_name: ["This field is required."]
             for field_name in ("label", "values")
             if field_name not in attrs
         }

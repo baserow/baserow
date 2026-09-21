@@ -20,6 +20,7 @@ from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow_enterprise.builder.elements.element_types import (
     AuthFormElementType,
     FileInputElementType,
+    GraphElementSeriesSerializer,
     GraphElementType,
 )
 
@@ -217,6 +218,18 @@ def test_graph_element_update_rejects_incomplete_series(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+def test_graph_element_series_reports_required_formula_fields():
+    serializer = GraphElementSeriesSerializer(
+        data={"uid": "61b8a893-d454-47e4-9924-8d8da62a8bd9"}, partial=True
+    )
+
+    assert not serializer.is_valid()
+    assert serializer.errors == {
+        "label": ["This field is required."],
+        "values": ["This field is required."],
+    }
 
 
 @pytest.mark.django_db
