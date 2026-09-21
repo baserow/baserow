@@ -7,6 +7,9 @@ from baserow.contrib.database.views.models import GridViewFieldOptions
 from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowCreateRowWorkflowAction,
 )
+from baserow.contrib.database.ws.workflow_actions.signals import (
+    button_fields_updated_message,
+)
 from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
 
 
@@ -88,3 +91,33 @@ def test_a_button_hidden_in_a_restricted_view_is_left_out(
         _restricted_view_messages(mock_broadcast_to_channel_group, restricted_view.id)
         == []
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_the_buttons_are_serialized_once_for_every_restricted_view(
+    mock_broadcast_to_channel_group, enterprise_data_fixture
+):
+    """Serializing a button runs its own queries, which would otherwise repeat
+    for every view."""
+
+    user, mapped, button_field, restricted_view = _setup(enterprise_data_fixture)
+    other_view = enterprise_data_fixture.create_grid_view(
+        user,
+        table=button_field.table,
+        ownership_type=RestrictedViewOwnershipType.type,
+        public=False,
+    )
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with patch(
+        "baserow_enterprise.ws.restricted_view.fields.signals"
+        ".button_fields_updated_message",
+        wraps=button_fields_updated_message,
+    ) as message:
+        FieldHandler().delete_field(user, mapped)
+
+    assert message.call_count == 1
+    for view in (restricted_view, other_view):
+        [sent] = _restricted_view_messages(mock_broadcast_to_channel_group, view.id)
+        assert [field["id"] for field in sent["fields"]] == [button_field.id]

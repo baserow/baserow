@@ -129,29 +129,38 @@ def button_fields_updated(sender, table_id, fields, user, **kwargs):
     that table, since someone who reaches the table only through one is
     subscribed to the view's page instead. Sent per view rather than per field:
     which buttons a view hides is its own, and one message carries them all.
+    The fields are serialized once for all the views.
     """
 
-    views = specific_iterator(
-        View.objects.filter(
-            table_id=table_id,
-            ownership_type=RestrictedViewOwnershipType.type,
+    views = list(
+        specific_iterator(
+            View.objects.filter(
+                table_id=table_id,
+                ownership_type=RestrictedViewOwnershipType.type,
+            )
+            .select_related("content_type")
+            .prefetch_related("table__field_set"),
+            per_content_type_queryset_hook=(
+                lambda model, queryset: view_type_registry.get_by_model(
+                    model
+                ).enhance_queryset(queryset)
+            ),
         )
-        .select_related("content_type")
-        .prefetch_related("table__field_set"),
-        per_content_type_queryset_hook=(
-            lambda model, queryset: view_type_registry.get_by_model(
-                model
-            ).enhance_queryset(queryset)
-        ),
     )
+    if not views:
+        return
+
+    message = button_fields_updated_message(fields)
     view_page_type = page_registry.get("restricted_view")
     for view in views:
         hidden_ids = view_type_registry.get_by_model(view).get_hidden_fields(view)
-        visible = [field for field in fields if field.id not in hidden_ids]
+        visible = [
+            field for field in message["fields"] if field["id"] not in hidden_ids
+        ]
         if not visible:
             continue
         view_page_type.broadcast(
-            button_fields_updated_message(visible),
+            {**message, "fields": visible},
             getattr(user, "web_socket_id", None),
             restricted_view_id=view.id,
         )
