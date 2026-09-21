@@ -606,12 +606,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if service.table_id is None:
             return None
 
-        properties = global_cache.get(
-            f"table_{service.table_id}__service_schema",
-            default=lambda: self._get_table_properties(service),
-            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
-            timeout=SCHEMA_CACHE_TTL,
-        )
+        properties = self.get_table_properties(service)
 
         # When a schema is being generated, we will exclude properties that the
         # Application creator did not actively configure. A configured property
@@ -626,6 +621,32 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             }
 
         return self.get_schema_for_return_type(service, properties)
+
+    def get_table_properties(
+        self, service: ServiceSubClass
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Returns the properties of the service's table, cached globally per table.
+
+        Building the properties serializes every field of the table, which costs a
+        query per field, so anything that needs them more than once per request
+        must go through this method rather than `_get_table_properties`. The cache
+        entry is invalidated through `table_{table_id}__service_invalidate_key`
+        whenever the table or its fields change.
+
+        :param service: A `LocalBaserowTableService` subclass.
+        :return: A schema dictionary, or None if no `Table` has been applied.
+        """
+
+        if service.table_id is None:
+            return None
+
+        return global_cache.get(
+            f"table_{service.table_id}__service_schema",
+            default=lambda: self._get_table_properties(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
+            timeout=SCHEMA_CACHE_TTL,
+        )
 
     def _get_table_properties(
         self, service: ServiceSubClass
@@ -3090,12 +3111,7 @@ class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
 
         # Reuse the cached, fully-built table properties and then narrow them down
         # to just the row `id` and the watched fields.
-        properties = global_cache.get(
-            f"table_{service.table_id}__service_schema",
-            default=lambda: self._get_table_properties(service),
-            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
-            timeout=SCHEMA_CACHE_TTL,
-        )
+        properties = self.get_table_properties(service)
 
         watched_field_keys = {"id", *(f"field_{field_id}" for field_id in field_ids)}
         properties = {

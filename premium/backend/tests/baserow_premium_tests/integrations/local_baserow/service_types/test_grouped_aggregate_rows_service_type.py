@@ -4823,3 +4823,72 @@ def test_grouped_aggregate_rows_sanitize_result_does_not_query_per_button_field(
     sanitize_queries(1)
 
     assert sanitize_queries(3) == sanitize_queries(1)
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_dispatch_query_count_is_constant_with_buckets(
+    data_fixture, mocker
+):
+    """
+    Converting result keys to human readable names used to rebuild the full table
+    schema, at one field constraints query per table field, for every result row
+    and key. The dispatch query count must not grow with the number of groups, and
+    the table properties must be built at most once per dispatch.
+    """
+
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    number_field = data_fixture.create_number_field(table=table)
+    text_field = data_fixture.create_text_field(table=table)
+    for _ in range(5):
+        data_fixture.create_text_field(table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=number_field, aggregation_type="max", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=text_field, order=1
+    )
+
+    def create_groups(start, count):
+        RowHandler().create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{number_field.id}": index,
+                    f"field_{text_field.id}": f"Group {index}",
+                }
+                for index in range(start, start + count)
+            ],
+        )
+
+    def dispatch():
+        with CaptureQueriesContext(connection) as context:
+            result = ServiceHandler().dispatch_service(service, FakeDispatchContext())
+        return len(context.captured_queries), result.data["results"]
+
+    table_properties_spy = mocker.spy(
+        LocalBaserowGroupedAggregateRowsUserServiceType, "_get_table_properties"
+    )
+
+    create_groups(0, 2)
+    # Warm the global table schema cache so both measurements compare like for like.
+    dispatch()
+    queries_two_groups, results = dispatch()
+    assert len(results) == 2
+
+    create_groups(2, 4)
+    queries_six_groups, results = dispatch()
+    assert len(results) == 6
+
+    assert queries_six_groups == queries_two_groups
+    assert table_properties_spy.call_count <= 1
