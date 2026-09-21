@@ -89,6 +89,8 @@ def test_a_failure_keeps_the_completed_actions_and_skips_the_rest(data_fixture):
     assert exc.value.workflow_action_id == broken.id
     # Second of the three, counted the way the editor lists them.
     assert exc.value.position == 2
+    assert exc.value.completed == (1,)
+    assert str(exc.value).startswith("Action 1 ran before action 2 failed: ")
 
     created = [
         getattr(r, f"field_{name_field.id}")
@@ -168,7 +170,9 @@ def test_an_update_row_action_without_a_row_id_refuses_the_click_up_front(
 
     assert exc.value.position == 2
     assert exc.value.message == "A row ID is required to update a row."
-    # The create row action ahead of it never ran.
+    # The create row action ahead of it never ran, and the message says so by
+    # not counting it.
+    assert str(exc.value) == "Action 2 failed: A row ID is required to update a row."
     assert list(table.get_model().objects.values_list("id", flat=True)) == [row.id]
 
 
@@ -187,6 +191,17 @@ def test_an_update_row_action_for_row_zero_creates_nothing(data_fixture):
 
     assert exc.value.message == "The row with id 0 does not exist."
     assert list(table.get_model().objects.values_list("id", flat=True)) == [row.id]
+
+
+def test_the_dispatch_error_names_the_actions_that_ran():
+    # An open URL action holds a position without running on the server, so
+    # the ones that ran are named rather than counted.
+    assert str(WorkflowActionDispatchError(9, "No table selected", 4, [1, 3])) == (
+        "Actions 1 and 3 ran before action 4 failed: No table selected"
+    )
+    assert str(WorkflowActionDispatchError(9, "No table selected", 5, [1, 2, 4])) == (
+        "Actions 1, 2 and 4 ran before action 5 failed: No table selected"
+    )
 
 
 @pytest.mark.django_db

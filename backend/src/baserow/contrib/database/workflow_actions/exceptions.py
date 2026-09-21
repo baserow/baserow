@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 
 class WorkflowActionNotInField(Exception):
@@ -36,6 +36,7 @@ class WorkflowActionDispatchError(Exception):
         workflow_action_id: int,
         message: str,
         position: int,
+        completed: Sequence[int] = (),
         *args,
         **kwargs,
     ):
@@ -44,11 +45,21 @@ class WorkflowActionDispatchError(Exception):
         # in the editor. The id means nothing to them.
         self.position = position
         self.message = message
-        super().__init__(
-            f"Action {position} failed: {message}",
-            *args,
-            **kwargs,
-        )
+        # The positions of the actions that ran before this one. They are not
+        # rolled back, so the clicker is told rather than left to assume
+        # nothing happened. Named rather than counted: a frontend-only action
+        # holds a position without running here, so a count would not say
+        # which ones ran.
+        self.completed = tuple(completed)
+        super().__init__(self.detail, *args, **kwargs)
+
+    @property
+    def detail(self) -> str:
+        if not self.completed:
+            return f"Action {self.position} failed: {self.message}"
+        *first, last = (str(position) for position in self.completed)
+        ran = f"Actions {', '.join(first)} and {last}" if first else f"Action {last}"
+        return f"{ran} ran before action {self.position} failed: {self.message}"
 
 
 class WorkflowActionInvalidIntegration(Exception):

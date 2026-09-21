@@ -303,8 +303,11 @@ def test_a_failed_action_returns_the_dispatch_error(api_client, data_fixture):
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
-    # Named by its place in the list, which the clicker can count in the editor.
-    assert response.json()["detail"] == "Action 2 failed: No table selected"
+    # Named by its place in the list, which the clicker can count in the editor,
+    # after what already ran, since that is not rolled back.
+    assert response.json()["detail"] == (
+        "Action 1 ran before action 2 failed: No table selected"
+    )
     # The action before the broken one already ran, and stays (ADR 006 section 3).
     created = table.get_model().objects.exclude(id=row.id).get()
     assert getattr(created, f"field_{name_field.id}") == "Ada"
@@ -558,7 +561,7 @@ def test_a_reference_to_a_deleted_field_fails_the_click(api_client, data_fixture
 
     assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
-    assert "Action 2 failed" in response.json()["detail"]
+    assert "action 2 failed" in response.json()["detail"]
     # The chain stopped rather than copying the value of the field that shares
     # the deleted one's token.
     names = [

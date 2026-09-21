@@ -795,12 +795,20 @@ class DatabaseWorkflowActionService:
                                 workflow_action.id,
                                 EXTERNAL_DISPATCH_FAILED_MESSAGE,
                                 positions[workflow_action.id],
+                                completed=[
+                                    positions[done.workflow_action.id]
+                                    for done in dispatched
+                                ],
                             ) from exc
                         if isinstance(exc, USER_FACING_DISPATCH_EXCEPTIONS):
                             raise WorkflowActionDispatchError(
                                 workflow_action.id,
                                 str(exc),
                                 positions[workflow_action.id],
+                                completed=[
+                                    positions[done.workflow_action.id]
+                                    for done in dispatched
+                                ],
                             ) from exc
                         raise
                     if is_external and on_external_dispatch:
