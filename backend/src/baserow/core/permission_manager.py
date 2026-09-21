@@ -54,8 +54,8 @@ from .registries import (
     WORKSPACE_FILTER_ALLOW_ALL,
     WORKSPACE_FILTER_DENY_ALL,
     PermissionManagerType,
+    subject_type_registry,
 )
-from .registries import PermissionManagerType, subject_type_registry
 from .subjects import AnonymousUserSubjectType, UserSubjectType
 
 User = get_user_model()
