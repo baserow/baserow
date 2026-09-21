@@ -27,6 +27,7 @@
       ref="actionList"
       :value="localActions"
       :database="database"
+      :table-fields="tableFields"
       @input="localActions = $event"
     />
   </div>
@@ -42,6 +43,7 @@ import fieldSubForm from '@baserow/modules/database/mixins/fieldSubForm'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
+import FieldService from '@baserow/modules/database/services/field'
 import {
   CLIENT_ID_KEY,
   countUndoSteps,
@@ -56,7 +58,10 @@ import {
 } from '@baserow/modules/database/utils/workflowActionFormulas'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { FIELDS_UNAVAILABLE } from '@baserow/modules/database/utils/buttonField'
+import {
+  FIELDS_UNAVAILABLE,
+  TABLE_MISSING,
+} from '@baserow/modules/database/utils/buttonField'
 import { MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP } from '@baserow/modules/database/utils/action'
 
 /** An action without the answer a click left on its service. */
@@ -104,6 +109,10 @@ export default {
       // fetched them. An action that has never been saved carries no service
       // schema, so this is the only description of what it will return.
       tableFields: {},
+      // Only the server can tell, since it depends on what is in the trash.
+      // Refreshed after every save, as the field response predates the
+      // actions it saved. Null when the last refresh failed or none ran.
+      requiresReconfiguration: null,
     }
   },
   computed: {
@@ -153,10 +162,12 @@ export default {
     },
     registerTableFields(tableId, fields) {
       // Two actions can point at the same table, and a fetch that failed for
-      // one of them says nothing about the fields the other already has.
+      // one of them says nothing about the fields the other already has, or
+      // about a table the other found missing.
+      const known = this.tableFields[tableId]
       if (
         fields === FIELDS_UNAVAILABLE &&
-        Array.isArray(this.tableFields[tableId])
+        (Array.isArray(known) || known === TABLE_MISSING)
       ) {
         return
       }
@@ -512,14 +523,35 @@ export default {
         } catch (refreshError) {
           notifyIf(refreshError, 'field')
         }
+        await this.refreshRequiresReconfiguration(fieldId)
       }
     },
     /**
-     * The field response carries a `has_workflow_actions` computed before the
-     * actions were saved, so the store needs the flag as it ended up.
+     * Asks the server whether the saved actions leave the button needing
+     * reconfiguration. On failure the flag is unknown: the next broadcast or
+     * reload corrects it, and a toast here would bury the save's own result.
+     */
+    async refreshRequiresReconfiguration(fieldId) {
+      this.requiresReconfiguration = null
+      try {
+        const { data } = await FieldService(this.$client).get(fieldId)
+        this.requiresReconfiguration = data?.requires_reconfiguration === true
+      } catch {
+        // Left unknown, see above.
+      }
+    },
+    /**
+     * The field response carries `has_workflow_actions` and
+     * `requires_reconfiguration` computed before these calls, so the store
+     * needs both flags as they ended up. The reconfigure flag is left out when
+     * the refresh failed, so the store keeps what it has.
      */
     fieldValuesAfterSave() {
-      return { has_workflow_actions: this.serverActions.length > 0 }
+      const values = { has_workflow_actions: this.serverActions.length > 0 }
+      if (this.requiresReconfiguration !== null) {
+        values.requires_reconfiguration = this.requiresReconfiguration
+      }
+      return values
     },
   },
   validations() {

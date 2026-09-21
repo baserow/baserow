@@ -429,6 +429,18 @@ class FieldType(
 
         return queryset
 
+    def enhance_field_queryset_for_serialization(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        """
+        Like `enhance_field_queryset`, for fields fetched to be serialized to a
+        client. Unlike it, not applied when a table's model is generated, whose
+        field instances are cached until the table's own schema changes. Use it
+        for values that depend on other tables and must be read fresh.
+        """
+
+        return self.enhance_field_queryset(queryset, field)
+
     def enhance_queryset_in_bulk(
         self, queryset: QuerySet, field_objects: List[dict], **kwargs
     ) -> QuerySet:

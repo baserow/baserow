@@ -35,7 +35,9 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
         return ctx.getText()
 
     def visitBrackets(self, ctx: BaserowFormula.BracketsContext):
-        return ctx.expr().accept(self)
+        # Keep the parentheses, otherwise the operator precedence of the
+        # re-serialized formula changes: `(a - b) / b` would become `a - b / b`.
+        return f"({ctx.expr().accept(self)})"
 
     def process_string(self, ctx):
         ctx.getText()

@@ -190,6 +190,7 @@ To stop receiving updates related to a page you are subscribed to, you will need
 * `field_updated`
 * `field_deleted`
 * `field_restored`
+* `button_fields_updated`
 * `rows_created`
 * `rows_updated`
 * `rows_deleted`

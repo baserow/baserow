@@ -21,6 +21,7 @@ from baserow.contrib.automation.workflows.operations import (
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
+    automation_workflow_dispatch_cancellation_requested,
     automation_workflow_dispatch_done,
     automation_workflow_dispatch_started,
     automation_workflow_published,
@@ -145,6 +146,29 @@ def workflow_dispatch_started(sender, workflow_history, **kwargs):
                 "history_id": workflow_history.id,
             },
             None,
+        )
+    )
+
+
+@receiver(automation_workflow_dispatch_cancellation_requested)
+def workflow_dispatch_cancellation_requested(
+    sender, workflow_history, user: AbstractUser, **kwargs
+):
+    workflow = workflow_history.original_workflow
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            ReadAutomationWorkflowOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_workflow_dispatch_cancellation_requested",
+                "workflow_id": workflow.id,
+                "history_id": workflow_history.id,
+            },
+            # The requester's own client already refetches the history after
+            # the request succeeds.
+            getattr(user, "web_socket_id", None),
         )
     )
 

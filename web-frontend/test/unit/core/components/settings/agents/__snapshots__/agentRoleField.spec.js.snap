@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AgentRoleField > shows the current role as editable when agent updates are permitted 1`] = `"<div><a class="member-role-field__link"><span>Member</span><i class="iconoir-nav-arrow-down"></i></a><button class="change-role" roles="[object Object],[object Object]" workspace="[object Object]" role-value-column="role_uid" show-commercial-info="false"></button></div>"`;
+
+exports[`AgentRoleField > shows the current role as read-only without agent update permission 1`] = `
+"<div><span>Member</span>
+  <!--v-if-->
+</div>"
+`;

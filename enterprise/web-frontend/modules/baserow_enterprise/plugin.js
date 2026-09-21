@@ -26,6 +26,9 @@ import {
   SamlAuthProviderType,
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
+import { EnterpriseTeamsAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
+import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
+import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
   AdvancedLicenseType,
@@ -42,6 +45,7 @@ import {
 import {
   AuthFormElementType,
   FileInputElementType,
+  GraphElementType,
 } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
@@ -76,6 +80,7 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
+  BuilderGraphElementPaidFeature,
   CodeRunnerPaidFeature,
   CoBrandingPaidFeature,
   DataScannerPaidFeature,
@@ -166,6 +171,15 @@ export default defineNuxtPlugin({
       'workspaceSettingsPage',
       new TeamsWorkspaceSettingsPageType(context)
     )
+    $registry.register(
+      'agentExtension',
+      new EnterpriseTeamsAgentExtensionType(context)
+    )
+    $registry.register(
+      'agentSettings',
+      new EnterpriseTeamsAgentSettingsType(context)
+    )
+    $registry.register('subject', new TeamSubjectType(context))
 
     $registry.register('job', new AuditLogExportJobType(context))
     $registry.register('job', new DataScanResultExportJobType(context))
@@ -215,6 +229,7 @@ export default defineNuxtPlugin({
 
     $registry.register('element', new AuthFormElementType(context))
     $registry.register('element', new FileInputElementType(context))
+    $registry.register('element', new GraphElementType(context))
 
     $registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
     $registry.register('dataSync', new PostgreSQLDataSyncType(context))
@@ -271,6 +286,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'paidFeature',
       new BuilderFileInputElementPaidFeature(context)
+    )
+    $registry.register(
+      'paidFeature',
+      new BuilderGraphElementPaidFeature(context)
     )
     $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
     $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))

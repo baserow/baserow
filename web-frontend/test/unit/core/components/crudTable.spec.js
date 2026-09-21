@@ -26,8 +26,8 @@ describe('CrudTable component', () => {
     }
   }
 
-  function aPage(rows) {
-    return { data: { count: rows.length, results: rows } }
+  function aPage(rows, count = rows.length) {
+    return { data: { count, results: rows } }
   }
 
   async function mountCrudTable(service, props = {}) {
@@ -113,16 +113,17 @@ describe('CrudTable component', () => {
       .mockImplementationOnce(
         () => new Promise((resolve) => (resolveFirst = resolve))
       )
-      .mockResolvedValueOnce(aPage([{ id: 2, name: 'Newer row' }]))
+      .mockResolvedValueOnce(aPage([{ id: 2, name: 'Newer row' }], 200))
     const crudTable = await mountCrudTable(aService(fetch))
 
     crudTable.vm.setSearch('newer')
     await flushPromises()
     expect(crudTable.find('tbody').text()).toContain('Newer row')
 
-    resolveFirst(aPage([{ id: 1, name: 'Stale row' }]))
+    resolveFirst(aPage([{ id: 1, name: 'Stale row' }], 100))
     await flushPromises()
     expect(crudTable.find('tbody').text()).toContain('Newer row')
     expect(crudTable.find('tbody').text()).not.toContain('Stale row')
+    expect(crudTable.emitted('total-count-update')).toEqual([[200]])
   })
 })

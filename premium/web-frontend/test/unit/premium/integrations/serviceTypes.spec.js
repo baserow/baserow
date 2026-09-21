@@ -14,6 +14,8 @@ describe('Premium integrations service types', () => {
     expect(serviceType.supportsPagination).toBe(false)
     expect(serviceType.getIdProperty()).toBe('id')
     expect(serviceType.parseRecordId('Selected')).toBe('Selected')
+    expect(serviceType.parseRecordId('')).toBeNull()
+    expect(serviceType.parseRecordId('0')).toBe('0')
     expect(serviceType.getRecordNameFromId({}, 'Selected')).toBe('Selected')
     expect(serviceType.formComponent).toBeDefined()
     expect(serviceType.integrationType.getType()).toBe('local_baserow')
@@ -331,6 +333,32 @@ describe('Premium integrations service types', () => {
     })
     expect(error).toBeTruthy()
   })
+
+  test.each(['aggregation_series', 'aggregation_group_bys'])(
+    'LocalBaserowGroupedAggregateRowsServiceType reports a trashed field in %s',
+    (configurationKey) => {
+      const serviceType = useNuxtApp().$registry.get(
+        'service',
+        'local_baserow_grouped_aggregate_rows'
+      )
+      const service = {
+        table_id: 1,
+        aggregation_series: [
+          { field_id: 1, aggregation_type: 'sum', trashed: false },
+        ],
+        aggregation_group_bys: [],
+        filters: [],
+      }
+      service[configurationKey][0] = {
+        ...service[configurationKey][0],
+        trashed: true,
+      }
+
+      expect(serviceType.getErrorMessage({ service })).toBe(
+        'serviceType.errorTrashedAggregationField'
+      )
+    }
+  )
 
   test('LocalBaserowGroupedAggregateRowsServiceType resets configuration on table change', () => {
     const testApp = useNuxtApp()

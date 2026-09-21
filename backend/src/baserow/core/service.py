@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
@@ -19,12 +19,12 @@ class CoreService:
     def __init__(self):
         self.handler = CoreHandler()
 
-    def _enhance_and_filter_application_queryset(
-        self, user: AbstractUser, workspace: Workspace
+    def _enhance_and_filter_application_queryset_for_workspaces(
+        self, user: AbstractUser, workspaces: List[Workspace]
     ):
         return lambda model, queryset: application_type_registry.get_by_model(
             model
-        ).enhance_and_filter_queryset(queryset, user, workspace)
+        ).enhance_and_filter_queryset_for_workspaces(queryset, user, workspaces)
 
     def list_workspaces(self, user: AbstractUser) -> QuerySet[Workspace]:
         """
@@ -79,22 +79,54 @@ class CoreService:
         :return: A list of applications
         """
 
-        application_qs = self.handler.list_applications_in_workspace(
-            workspace, base_queryset
+        return self.list_applications_in_workspaces(
+            user, [workspace], specific=specific, base_queryset=base_queryset
         )
 
-        application_qs = self.handler.filter_queryset(
+    def list_applications_in_workspaces(
+        self,
+        user: AbstractUser,
+        workspaces: List[Workspace],
+        specific: bool = True,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> QuerySet[Application]:
+        """
+        Get a list of all the applications in multiple workspaces in a single pass.
+        Contrary to calling `list_applications_in_workspace` per workspace, the
+        permission filtering and the queryset enhancements are batched across all the
+        workspaces, keeping the number of queries independent of the number of
+        workspaces.
+
+        :param user: The user trying to access the applications.
+        :param workspaces: The workspaces where the applications must be listed,
+            ordered by id. To keep the number of queries independent of the number of
+            workspaces, the workspace instances should come from
+            `CoreHandler.get_enhanced_workspace_queryset` so their memberships and
+            templates are prefetched.
+        :param specific: If True the specific applications will be returned instead of
+            the base applications.
+        :param base_queryset: The base queryset from where to select the applications.
+        :return: A queryset of applications ordered by workspace id, then order and id.
+        """
+
+        application_qs = self.handler.list_applications_in_workspaces(
+            workspaces, base_queryset
+        )
+
+        application_qs = self.handler.filter_queryset_for_workspaces(
             user,
             ListApplicationsWorkspaceOperationType.type,
             application_qs,
-            workspace=workspace,
+            workspaces,
         )
 
         if specific:
             application_qs = self.handler.filter_specific_applications(
                 application_qs,
-                per_content_type_queryset_hook=self._enhance_and_filter_application_queryset(
-                    user, workspace
+                per_content_type_queryset_hook=(
+                    self._enhance_and_filter_application_queryset_for_workspaces(
+                        user, workspaces
+                    )
                 ),
             )
 
@@ -136,8 +168,10 @@ class CoreService:
         if specific:
             application = specific_iterator(
                 [application],
-                per_content_type_queryset_hook=self._enhance_and_filter_application_queryset(
-                    user, application.workspace
+                per_content_type_queryset_hook=(
+                    self._enhance_and_filter_application_queryset_for_workspaces(
+                        user, [application.workspace]
+                    )
                 ),
                 base_model=Application,
             )[0]

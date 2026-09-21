@@ -393,7 +393,8 @@
     "localBaserowGroupedAggregateRows": "Group and summarize rows",
     "localBaserowGroupedAggregateRowsDescription": "Group rows from a Baserow table and calculate summaries.",
     "errorNoAggregationSeriesDefined": "No summary series defined.",
-    "errorIncompleteAggregationSeries": "One or more summary series are incomplete."
+    "errorIncompleteAggregationSeries": "One or more summary series are incomplete.",
+    "errorTrashedAggregationField": "At least one configured field has been trashed."
   },
   "aggregationSeriesForm": {
     "aggregationFieldLabel": "Field",

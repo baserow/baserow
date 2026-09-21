@@ -86,6 +86,13 @@ class ServiceType(
     # Does this service return a list of record?
     returns_list = False
 
+    # Whether dispatching this service sends to an endpoint it is configured
+    # with, such as HTTP, email, Slack or an AI provider. A file reader that
+    # downloads something it is not itself configured with is not one of
+    # these. Such a dispatch sends outside the savepoint when no transaction
+    # is already open, so a slow endpoint does not hold one.
+    is_external = False
+
     # What parent object is responsible for dispatching this `ServiceType`?
     # It could be via a `DataSource`, in which case `DATA` should be
     # chosen, or via a `WorkflowAction`, in which case `ACTION`
@@ -407,6 +414,21 @@ class ServiceType(
         :return: The service `dispatch_data` result if any.
         """
 
+    def _dispatch_and_transform(
+        self,
+        service: ServiceSubClass,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """
+        Runs `dispatch_data` and `dispatch_transform` together. `dispatch`
+        calls this from either side of its savepoint, so the pairing is
+        written once rather than once per side.
+        """
+
+        data = self.dispatch_data(service, resolved_values, dispatch_context)
+        return self.dispatch_transform(data)
+
     def dispatch(
         self,
         service: ServiceSubClass,
@@ -433,19 +455,37 @@ class ServiceType(
         ):
             return DispatchResult(**sample_data)
 
+        # Formula resolution always runs inside this savepoint. `dispatch_data`
+        # and `dispatch_transform` run inside it too, unless the service is
+        # external and the dispatch context says its caller sends outside a
+        # transaction, in which case they run after the savepoint instead. A
+        # database error inside must not break the caller's transaction
+        # (#5621), so only this savepoint rolls back and the caller (and the
+        # sample data error save below) can still issue queries. An external
+        # call that runs outside must not hold a transaction open for its
+        # network wait; a context whose caller already wraps dispatch in a
+        # transaction of its own opts out, since leaving the savepoint there
+        # gains nothing. Sending outside commits formula resolution before the
+        # request goes out, so it relies on the data providers of such a
+        # context only reading: one that wrote would keep its writes when the
+        # request fails.
+        sends_outside = (
+            self.is_external
+            and dispatch_context.sends_external_calls_outside_transaction
+        )
         try:
-            # Wrap the dispatch in a savepoint so that, if any of these
-            # operations raise a database error, only this savepoint is rolled
-            # back. This keeps the surrounding transaction usable, so the
-            # caller (and the sample data error save below) can still issue
-            # queries instead of crashing with a `TransactionManagementError`
-            # on a broken transaction.
             with transaction.atomic():
                 resolved_values = self.resolve_service_formulas(
                     service, dispatch_context
                 )
-                data = self.dispatch_data(service, resolved_values, dispatch_context)
-                serialized_data = self.dispatch_transform(data)
+                if not sends_outside:
+                    serialized_data = self._dispatch_and_transform(
+                        service, resolved_values, dispatch_context
+                    )
+            if sends_outside:
+                serialized_data = self._dispatch_and_transform(
+                    service, resolved_values, dispatch_context
+                )
         except Exception as e:
             if dispatch_context.use_sample_data and (
                 dispatch_context.update_sample_data_for is None
@@ -674,6 +714,10 @@ class TriggerServiceTypeMixin(ABC):
         """
         Whether this trigger can be dispatched immediately without waiting for an
         external event.
+
+        The given service can be a base `Service` instance instead of the
+        specific one, so implementations must not rely on fields of the specific
+        model and should ideally return a constant.
         """
 
         return False

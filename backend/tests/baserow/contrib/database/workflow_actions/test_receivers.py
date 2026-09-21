@@ -179,10 +179,6 @@ class _FakeAction:
         return _FakeType()
 
 
-class ConnectionRefused(Exception):
-    pass
-
-
 @patch(f"{TELEMETRY}.workflow_action_dispatch_duration")
 @patch(f"{TELEMETRY}.workflow_action_dispatch_counter")
 def test_an_action_adds_to_the_action_metrics(counter, duration):
@@ -191,8 +187,8 @@ def test_an_action_adds_to_the_action_metrics(counter, duration):
         workflow_action=_FakeAction(),
         dispatch_context=None,
         position=1,
+        succeeded=True,
         result=object(),
-        exception=None,
         duration_ms=10.0,
     )
     record_workflow_action_dispatched(
@@ -200,18 +196,18 @@ def test_an_action_adds_to_the_action_metrics(counter, duration):
         workflow_action=_FakeAction(),
         dispatch_context=None,
         position=2,
+        succeeded=False,
         result=None,
-        exception=ConnectionRefused("https://secret.example/?key=1"),
         duration_ms=20.0,
     )
 
     assert counter.add.call_args_list == [
         call(1, {"action_type": "http_request", "result": "ok"}),
-        call(1, {"action_type": "http_request", "result": "ConnectionRefused"}),
+        call(1, {"action_type": "http_request", "result": "failed"}),
     ]
     assert duration.record.call_args_list == [
         call(10.0, {"action_type": "http_request", "result": "ok"}),
-        call(20.0, {"action_type": "http_request", "result": "ConnectionRefused"}),
+        call(20.0, {"action_type": "http_request", "result": "failed"}),
     ]
 
 
@@ -243,8 +239,8 @@ def test_the_metric_receivers_are_connected(
         workflow_action=_FakeAction(),
         dispatch_context=None,
         position=1,
+        succeeded=True,
         result=object(),
-        exception=None,
         duration_ms=1.0,
     )
 

@@ -568,7 +568,22 @@ the natural place to narrow this further when it is wanted.
   away from a button takes its trashed actions' trash entries with it.
 - **Deleting or trashing a target table or field.** Services keep the dangling reference
   and the button enters the reconfigure state rather than failing only at click time;
-  restoring from trash heals it without reconfiguration.
+  restoring from trash heals it without reconfiguration. The state is
+  `requires_reconfiguration` on the field: a row action with an enabled mapping on a
+  trashed field (without an integration, which drops the mapping instead), no table, or
+  a table that is trashed or in a trashed database or workspace. The cell renders a
+  disabled button with a warning. An action whose integration is trashed, or that has
+  none while its service needs one, puts the button in the same state, and so does an
+  update row action left without a row id, which the dispatch refuses on every click.
+  Each action carries its own `requires_reconfiguration`, and the field's flag is
+  whether any action has it, so the editor names every action behind the state,
+  including a trashed table or integration it can't see in its own lists. Not every
+  cause is healed by a restore: the ones the editor can see and fix, the missing row id
+  and a target it can point elsewhere, are healed by saving the action again.
+  The editor sends an action's mappings on trashed fields back unchanged, so saving
+  keeps them and undo restores exactly what was saved. Permanently deleting the
+  field removes its mapping, which ends the state and updates open grids, and the click
+  then writes the row without that value.
 - **Field type conversion.** Converting away deletes actions and services, and undoing
   the conversion recreates them from the copy the field update logged (see Undo/redo);
   converting into a button starts empty.

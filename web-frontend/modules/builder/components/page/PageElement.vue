@@ -154,7 +154,7 @@ export default {
                 this.element.style_background_color,
                 this.colorVariables
               )
-            : 'none',
+            : 'transparent',
         '--element-background-image':
           this.element.style_background_file !== null
             ? `url(${this.element.style_background_file.url})`

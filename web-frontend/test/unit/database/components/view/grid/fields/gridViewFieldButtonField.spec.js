@@ -82,6 +82,23 @@ describe('GridViewFieldButtonField', () => {
     expect(wrapper.find('button').text()).toBe('Open')
   })
 
+  test('a field that needs reconfiguring renders a disabled button with a warning', async () => {
+    const wrapper = await mountCell({
+      field: { ...field, requires_reconfiguration: true },
+    })
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.text()).toBe('Open')
+    expect(wrapper.find('.iconoir-warning-triangle').exists()).toBe(true)
+    // Nothing in between, or the button's max width shrinks with the label.
+    expect(wrapper.find('.grid-field-button > button').exists()).toBe(true)
+
+    await button.trigger('click')
+
+    expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+  })
+
   test('runs the returned client actions after the response', async () => {
     const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
     const wrapper = await mountCell({}, { client_actions: [openUrlAction] })

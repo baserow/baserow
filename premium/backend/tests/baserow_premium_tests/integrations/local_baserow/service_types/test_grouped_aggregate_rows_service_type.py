@@ -2,6 +2,8 @@ from decimal import Decimal
 from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from pytest_unordered import unordered
@@ -24,6 +26,10 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_premium.api.integrations.local_baserow.serializers import (
+    LocalBaserowTableServiceAggregationGroupBySerializer,
+    LocalBaserowTableServiceAggregationSeriesSerializer,
+)
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
@@ -4784,3 +4790,142 @@ def test_grouped_aggregate_rows_rejects_multivalued_primary_row_grouping(
         ServiceImproperlyConfiguredDispatchException, match="multi-valued primary field"
     ):
         ServiceHandler().dispatch_service(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_sanitize_result_does_not_query_per_button_field(
+    data_fixture,
+):
+    """
+    Every allowed property rebuilds the table's properties, uncached, so a
+    button field's flags would cost queries each time.
+    """
+
+    service_type = service_type_registry.get("local_baserow_grouped_aggregate_rows")
+
+    def sanitize_queries(button_count):
+        table = data_fixture.create_database_table()
+        field = data_fixture.create_number_field(table=table, name="Amount")
+        group_by_field = data_fixture.create_text_field(table=table, name="Category")
+        # Every field reads its constraints, so the field count stays the same.
+        for _ in range(3 - button_count):
+            data_fixture.create_text_field(table=table)
+        for _ in range(button_count):
+            data_fixture.create_button_field(table=table)
+        service = data_fixture.create_service(
+            LocalBaserowGroupedAggregateRows, table=table
+        )
+        allowed = [f"field_{group_by_field.id}", f"field_{field.id}_sum"]
+        result = {"has_next_page": False, "results": [{allowed[0]: "Fruit"}]}
+        # Only the properties are measured, not the table model they read.
+        table.get_model()
+
+        with CaptureQueriesContext(connection) as captured:
+            service_type.sanitize_result(service, result, allowed)
+        return len(captured)
+
+    sanitize_queries(1)
+
+    assert sanitize_queries(3) == sanitize_queries(1)
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_dispatch_query_count_is_constant_with_buckets(
+    data_fixture, mocker
+):
+    """
+    Converting result keys to human readable names used to rebuild the full table
+    schema, at one field constraints query per table field, for every result row
+    and key. The dispatch query count must not grow with the number of groups, and
+    the table properties must be built at most once per dispatch.
+    """
+
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    number_field = data_fixture.create_number_field(table=table)
+    text_field = data_fixture.create_text_field(table=table)
+    for _ in range(5):
+        data_fixture.create_text_field(table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=number_field, aggregation_type="max", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=text_field, order=1
+    )
+
+    def create_groups(start, count):
+        RowHandler().create_rows(
+            user,
+            table,
+            rows_values=[
+                {
+                    f"field_{number_field.id}": index,
+                    f"field_{text_field.id}": f"Group {index}",
+                }
+                for index in range(start, start + count)
+            ],
+        )
+
+    def dispatch():
+        with CaptureQueriesContext(connection) as context:
+            result = ServiceHandler().dispatch_service(service, FakeDispatchContext())
+        return len(context.captured_queries), result.data["results"]
+
+    table_properties_spy = mocker.spy(
+        LocalBaserowGroupedAggregateRowsUserServiceType, "_get_table_properties"
+    )
+
+    create_groups(0, 2)
+    # Warm the global table schema cache so both measurements compare like for like.
+    dispatch()
+    queries_two_groups, results = dispatch()
+    assert len(results) == 2
+
+    create_groups(2, 4)
+    queries_six_groups, results = dispatch()
+    assert len(results) == 6
+
+    assert queries_six_groups == queries_two_groups
+    assert table_properties_spy.call_count <= 1
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_serializes_trashed_configured_fields(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table, trashed=True)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+    )
+    series = LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="max", order=1
+    )
+    group_by = LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field, order=1
+    )
+    primary_group_by = LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None, order=2
+    )
+
+    assert LocalBaserowTableServiceAggregationSeriesSerializer(series).data["trashed"]
+    assert LocalBaserowTableServiceAggregationGroupBySerializer(group_by).data[
+        "trashed"
+    ]
+    assert not LocalBaserowTableServiceAggregationGroupBySerializer(
+        primary_group_by
+    ).data["trashed"]

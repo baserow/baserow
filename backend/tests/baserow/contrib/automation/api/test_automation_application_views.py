@@ -3,6 +3,8 @@ from django.shortcuts import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK
 
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+
 
 @pytest.mark.django_db
 def test_get_automation_application(api_client, data_fixture):
@@ -114,3 +116,42 @@ def test_list_automation_applications(api_client, data_fixture):
             ],
         }
     ]
+
+
+@pytest.mark.django_db
+def test_list_automation_applications_serializes_published_workflow_data(
+    api_client, data_fixture
+):
+    """
+    The list endpoint serializes the published workflow data from the queryset
+    annotations, which must equal what the single workflow endpoint serializes
+    via `get_published_workflow`.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="test"
+    )
+    published_workflow = AutomationWorkflowHandler().publish(workflow)
+
+    response = api_client.get(
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    listed_workflow = response.json()[0]["workflows"][0]
+
+    assert listed_workflow["published_on"] == str(published_workflow.created_on)
+    assert listed_workflow["state"] == published_workflow.state
+
+    single_response = api_client.get(
+        reverse("api:automation:workflows:item", kwargs={"workflow_id": workflow.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert single_response.status_code == HTTP_200_OK
+    single_workflow = single_response.json()
+
+    assert listed_workflow["published_on"] == single_workflow["published_on"]
+    assert listed_workflow["state"] == single_workflow["state"]

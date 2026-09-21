@@ -1401,7 +1401,7 @@ exports[`ViewFilterForm match snapshots > rating filter 1`] = `
               </a>
               <div
                 class="dropdown__items dropdown__items--fixed"
-                style="left: 0px; top: 0px; bottom: auto;"
+                style="left: 0px; min-width: 0px; top: 0px; bottom: auto; max-height: calc(100vh - 20px);"
               >
                 <div
                   class="select__search"

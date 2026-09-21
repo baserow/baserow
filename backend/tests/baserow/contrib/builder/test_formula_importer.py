@@ -30,6 +30,16 @@ FORMULAS = [
         "output": "concat(get('test_provider.1.10'),'bar')",
         "output2": "concat(get('test_provider.10.42'),'bar')",
     },
+    # Parentheses must survive the import, otherwise the operator precedence
+    # of the formula changes.
+    {"input": "(1 + 2) * 3", "output": "(1 + 2) * 3"},
+    {"input": "1 + (2 * 3)", "output": "1 + (2 * 3)"},
+    {"input": "((1))", "output": "((1))"},
+    {
+        "input": "round(((get('test_provider.1.10') - 1) / 2) * 100,0)",
+        "output": "round(((get('test_provider.1.10') - 1) / 2) * 100,0)",
+        "output2": "round(((get('test_provider.10.42') - 1) / 2) * 100,0)",
+    },
 ]
 
 

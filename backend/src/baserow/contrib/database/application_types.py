@@ -1196,11 +1196,11 @@ class DatabaseApplicationType(ApplicationType):
             "table_set__data_sync__synced_properties",
         )
 
-    def enhance_and_filter_queryset(
+    def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet[Database],
         user: AbstractUser,
-        workspace: Workspace,
+        workspaces: List[Workspace],
     ) -> QuerySet[Database]:
         tables_qs = Table.objects.select_related(
             "database__workspace", "data_sync"
@@ -1208,11 +1208,11 @@ class DatabaseApplicationType(ApplicationType):
         return queryset.prefetch_related(
             Prefetch(
                 "table_set",
-                queryset=CoreHandler().filter_queryset(
+                queryset=CoreHandler().filter_queryset_for_workspaces(
                     user,
                     ListTablesDatabaseTableOperationType.type,
                     tables_qs,
-                    workspace=workspace,
+                    workspaces,
                 ),
                 to_attr="tables",
             ),
@@ -1235,8 +1235,8 @@ class DatabaseApplicationType(ApplicationType):
         base_queryset = Database.objects.filter(id=database.id)
 
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, database.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [database.workspace]
             ).first()
             return instance and instance.tables or []
         else:

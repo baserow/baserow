@@ -243,6 +243,86 @@ describe('ButtonFieldActionList', () => {
     ])
   })
 
+  test("editing an action drops the server's reconfigure verdict", async () => {
+    // It describes the action as it was read. `onActionTypeChanged` already
+    // drops it by rebuilding the action, so a retarget has to drop it too or
+    // the warning stays up until the save lands.
+    const wrapper = await mountList([
+      {
+        id: 1,
+        type: 'local_baserow_create_row',
+        service: { table_id: 3 },
+        requires_reconfiguration: true,
+      },
+    ])
+
+    await wrapper.vm.onActionValuesChanged(0, { service: { table_id: 9 } })
+
+    expect(lastEmitted(wrapper)).toEqual([
+      {
+        id: 1,
+        type: 'local_baserow_create_row',
+        service: { table_id: 9 },
+      },
+    ])
+  })
+
+  test('editing an action around its integration keeps the verdict', async () => {
+    // A trashed integration is missing from the list, so nothing else in the
+    // editor says the action still fails.
+    const wrapper = await mountList([
+      {
+        id: 1,
+        type: 'slack_write_message',
+        service: { integration_id: 5, text: "'a'" },
+        requires_reconfiguration: true,
+      },
+    ])
+
+    await wrapper.vm.onActionValuesChanged(0, {
+      service: { integration_id: 5, text: "'b'" },
+    })
+
+    expect(lastEmitted(wrapper)[0].requires_reconfiguration).toBe(true)
+  })
+
+  test('picking another integration drops the verdict', async () => {
+    const wrapper = await mountList([
+      {
+        id: 1,
+        type: 'slack_write_message',
+        service: { integration_id: 5 },
+        requires_reconfiguration: true,
+      },
+    ])
+
+    await wrapper.vm.onActionValuesChanged(0, {
+      service: { integration_id: 6 },
+    })
+
+    expect(lastEmitted(wrapper)[0]).not.toHaveProperty(
+      'requires_reconfiguration'
+    )
+  })
+
+  test('an action nobody edited keeps the verdict', async () => {
+    const wrapper = await mountList([
+      {
+        id: 1,
+        type: 'local_baserow_create_row',
+        service: { table_id: 3 },
+        requires_reconfiguration: true,
+      },
+      { id: 2, type: 'open_url' },
+    ])
+
+    await wrapper.vm.onActionValuesChanged(1, {
+      url: { formula: "'x'", mode: 'simple' },
+    })
+
+    expect(lastEmitted(wrapper)[0].requires_reconfiguration).toBe(true)
+  })
+
   test('removing an action emits a shorter list', async () => {
     const wrapper = await mountList([
       { id: 1, type: 'local_baserow_create_row', service: {} },
@@ -407,6 +487,17 @@ describe('ButtonFieldActionList', () => {
       expect(en.buttonFieldActionList.misconfigured).toBe(
         'At least one action is misconfigured'
       )
+    })
+
+    test('an action the server says needs reconfiguring is marked', async () => {
+      const wrapper = await mountList([
+        CREATE({ requires_reconfiguration: true }),
+        OPEN_URL(),
+      ])
+
+      expect(errors(wrapper)).toEqual([
+        'databaseWorkflowActionType.requiresReconfiguration',
+      ])
     })
 
     test('a url action with no url is marked', async () => {

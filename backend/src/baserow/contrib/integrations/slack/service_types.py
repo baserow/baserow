@@ -1,3 +1,4 @@
+import time
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
@@ -10,10 +11,7 @@ from rest_framework import serializers
 from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.integrations.slack.integration_types import SlackBotIntegrationType
 from baserow.contrib.integrations.slack.models import SlackWriteMessageService
-from baserow.contrib.integrations.utils import (
-    get_http_request_function,
-    read_response_within_limit,
-)
+from baserow.contrib.integrations.utils import send_http_request
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.validator import ensure_string
 from baserow.core.services.dispatch_context import DispatchContext
@@ -29,14 +27,12 @@ from baserow.core.services.types import DispatchResult, FormulaToResolve, Servic
 
 SLACK_REQUEST_TIMEOUT_SECONDS = 10
 
-# The timeout is per socket operation: connect, headers, body.
-SLACK_REQUEST_SOCKET_OPERATIONS = 3
-
 
 class SlackWriteMessageServiceType(ServiceType):
     type = "slack_write_message"
     model_class = SlackWriteMessageService
     dispatch_types = [DispatchTypes.ACTION]
+    is_external = True
     integration_type = SlackBotIntegrationType.type
 
     allowed_fields = ["integration_id", "channel", "text"]
@@ -124,8 +120,14 @@ class SlackWriteMessageServiceType(ServiceType):
                 "paste one into this bot, before this action can post."
             )
 
+        # One deadline for the whole exchange, the body included, so a slow
+        # endpoint cannot hold the click, or the lock that guards its row.
+        deadline = (
+            time.monotonic()
+            + SLACK_REQUEST_TIMEOUT_SECONDS * dispatch_context.external_request_timeouts
+        )
         try:
-            response = get_http_request_function()(
+            response = send_http_request(
                 method="POST",
                 url=f"{settings.INTEGRATIONS_SLACK_API_URL}/chat.postMessage",
                 headers={"Authorization": f"Bearer {token}"},
@@ -136,13 +138,12 @@ class SlackWriteMessageServiceType(ServiceType):
                     "channel": f"#{service.channel}",
                     "text": resolved_values["text"],
                 },
-                timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
-                # Each hop would get a fresh timeout, outliving the row lock.
+                deadline=deadline,
+                operation_timeout=SLACK_REQUEST_TIMEOUT_SECONDS,
+                # `chat.postMessage` answers directly, so the token is only
+                # sent to the address that was configured.
                 allow_redirects=False,
-                # Read in chunks below, under a size and a time limit.
-                stream=True,
             )
-            read_response_within_limit(response, SLACK_REQUEST_TIMEOUT_SECONDS)
         except ResponseTooLargeDispatchException:
             # Names no address, so it travels as it is.
             raise
@@ -218,7 +219,12 @@ class SlackWriteMessageServiceType(ServiceType):
         return DispatchResult(data=data)
 
     def max_dispatch_seconds(self, service: SlackWriteMessageService) -> int:
-        return SLACK_REQUEST_TIMEOUT_SECONDS * SLACK_REQUEST_SOCKET_OPERATIONS
+        # For a click, whose request gets one timeout in all. The watchdog
+        # hangs up at the deadline; should the hang-up land late, a read
+        # already waiting still stops within `operation_timeout`, the whole
+        # timeout at most, so doubling covers it, and an address lookup,
+        # which no timeout bounds.
+        return SLACK_REQUEST_TIMEOUT_SECONDS * 2
 
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).select_related("integration")

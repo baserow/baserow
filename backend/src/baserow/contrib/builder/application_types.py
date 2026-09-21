@@ -565,21 +565,21 @@ class BuilderApplicationType(ApplicationType):
         enhanced_queryset = self._get_base_enhanced_queryset(queryset)
         return enhanced_queryset.prefetch_related("page_set")
 
-    def enhance_and_filter_queryset(
+    def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet[Builder],
         user: AbstractUser,
-        workspace: Workspace,
+        workspaces: List[Workspace],
     ) -> QuerySet[Builder]:
         enhanced_queryset = self._get_base_enhanced_queryset(queryset)
         return enhanced_queryset.prefetch_related(
             Prefetch(
                 "page_set",
-                queryset=CoreHandler().filter_queryset(
+                queryset=CoreHandler().filter_queryset_for_workspaces(
                     user,
                     ListPagesBuilderOperationType.type,
                     Page.objects.select_related("builder__workspace").all(),
-                    workspace=workspace,
+                    workspaces,
                 ),
                 to_attr="pages",
             ),
@@ -601,8 +601,8 @@ class BuilderApplicationType(ApplicationType):
 
         base_queryset = Builder.objects.filter(id=builder.id)
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, builder.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [builder.workspace]
             ).first()
             return instance and instance.pages or []
         else:

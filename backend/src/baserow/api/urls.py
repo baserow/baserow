@@ -11,6 +11,7 @@ from baserow.core.services.registries import service_type_registry
 
 from .abuse_reports import urls as abuse_reports_urls
 from .admin import urls as admin_urls
+from .agents import urls as agents_urls
 from .ai_provider import urls as ai_provider_urls
 from .applications import urls as application_urls
 from .auth_provider import urls as auth_provider_urls
@@ -44,6 +45,7 @@ urlpatterns = (
         ),
         path("settings/", include(settings_urls, namespace="settings")),
         path("abuse-reports/", include(abuse_reports_urls, namespace="abuse_reports")),
+        path("agents/", include(agents_urls, namespace="agents")),
         path("auth-provider/", include(auth_provider_urls, namespace="auth_provider")),
         path("two-factor-auth/", include(two_factor_urls, namespace="two_factor_auth")),
         path("user/", include(user_urls, namespace="user")),

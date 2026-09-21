@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
@@ -45,8 +44,45 @@ from .constants import (
 )
 from .types import NewRoleAssignment
 
-User = get_user_model()
 ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
+
+# Sentinel distinguishing a request local cache miss from a cached falsy value.
+_UNCACHED = object()
+
+
+def roles_per_scope_cache_key(
+    subject_type_name: str, actor_id: int, workspace_id: int, include_trash: bool
+) -> str:
+    """
+    The request local cache key of the resolved `get_roles_per_scope` result. Shared
+    between the single workspace and the multi workspace resolution so one can prime the
+    cache of the other.
+
+    :param subject_type_name: The type name of the actor's subject type.
+    :param actor_id: The id of the actor the roles are resolved for.
+    :param workspace_id: The id of the workspace the roles are resolved in.
+    :param include_trash: Whether the roles were resolved including trash.
+    :return: The cache key.
+    """
+
+    return (
+        f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_get_roles_per_scope_"
+        f"{subject_type_name}_{actor_id}_{workspace_id}_{include_trash}"
+    )
+
+
+def team_subjects_cache_key(subject_type_name: str, actor_ids: List[int]) -> str:
+    """
+    The request local cache key of the team subjects of the given actors. Workspace
+    independent, so it's shared across all workspaces in a request.
+
+    :param subject_type_name: The type name of the actors' subject type.
+    :param actor_ids: The ids of the actors the team subjects belong to.
+    :return: The cache key.
+    """
+
+    joined_actor_ids = "_".join(str(actor_id) for actor_id in actor_ids)
+    return f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{subject_type_name}_{joined_actor_ids}"
 
 
 def _clear_role_assignments_from_local_cache():
@@ -96,7 +132,64 @@ class RoleAssignmentHandler:
                     Q.AND,
                 )
 
-        return RoleAssignment.objects.filter(id_filters)
+        return RoleAssignment.objects.filter(id_filters).exclude(
+            self._direct_workspace_roles_q()
+        )
+
+    def _direct_workspace_roles_q(self):
+        """Match workspace records whose role is owned by the subject type."""
+
+        # Older data may contain duplicate workspace assignments. Ignore these on
+        # reads so a stale grant cannot become effective when the direct role changes.
+        return Q(
+            subject_type__in=[
+                subject_type.get_content_type()
+                for subject_type in subject_type_registry.get_all()
+                if subject_type.has_direct_workspace_roles
+            ],
+            scope_type=ContentType.objects.get_for_model(Workspace),
+        )
+
+    def _get_direct_workspace_role_assignments(
+        self, subject_type, workspace, subjects=None, include_trash=False
+    ):
+        """Represent canonical subject roles using the role assignment interface."""
+
+        if subjects is None:
+            subjects = subject_type.get_workspace_subjects(workspace, include_trash)
+        subjects = list(subjects)
+        role_uids = subject_type.get_workspace_role_uids(
+            subjects, workspace, include_trash=include_trash
+        )
+        # Return unsaved RoleAssignment instances to preserve the caller interface
+        # without creating a second source of truth for these workspace roles.
+        return [
+            RoleAssignment(
+                subject=subject,
+                role=self.get_role_by_uid(role_uids[subject.id], use_fallback=True),
+                workspace=workspace,
+                scope=workspace,
+            )
+            for subject in subjects
+            if subject.id in role_uids
+        ]
+
+    def _set_direct_workspace_role(
+        self, subject, workspace, role_uid, send_signals=True
+    ):
+        """Delegate canonical storage and remove obsolete workspace assignments."""
+
+        subject_type = subject_type_registry.get_by_model(subject)
+        subject_type.set_workspace_role_uid(
+            subject, workspace, role_uid, send_signals=send_signals
+        )
+        RoleAssignment.objects.filter(
+            subject_type=subject_type.get_content_type(),
+            subject_id=subject.id,
+            workspace=workspace,
+            scope_type=ContentType.objects.get_for_model(Workspace),
+            scope_id=workspace.id,
+        ).delete()
 
     @classmethod
     def _get_role_caches(cls):
@@ -152,7 +245,7 @@ class RoleAssignmentHandler:
 
     def get_current_role_assignment(
         self,
-        subject: Union[AbstractUser, Team],
+        subject: Subject,
         workspace: Workspace,
         scope: Optional[ScopeObject] = None,
     ) -> Union[RoleAssignment, None]:
@@ -188,8 +281,6 @@ class RoleAssignmentHandler:
             scope each of the given tuples.
         """
 
-        user_subject_type = subject_type_registry.get(UserSubjectType.type)
-
         # Workspace all scopes and subjects to get their content_type
         scope_types = set([Workspace])
         subject_types = set()
@@ -202,19 +293,15 @@ class RoleAssignmentHandler:
             *scope_types,
         )
 
-        # Generate the query to get all the current role assignments for the given
-        # tuples
-        # Exception for user subject for workspace scope as we read the permission
-        # from the workspace_users object
-        subject_scope_q = Q()
-        user_subject_with_workspace_scope_by_id = dict()
+        # Query stored assignments for the requested subject/scope pairs, and
+        # batch direct workspace role reads by subject type. Start with an empty
+        # match so direct-only requests don't fetch every assignment in the workspace.
+        subject_scope_q = Q(pk__in=[])
+        direct_subjects_by_type = defaultdict(list)
         for subject, scope in for_subject_scope:
-            if (
-                isinstance(subject, user_subject_type.model_class)
-                and scope == workspace
-            ):
-                # Exception for users with workspace scope
-                user_subject_with_workspace_scope_by_id[subject.id] = subject
+            subject_type = subject_type_registry.get_by_model(subject)
+            if scope == workspace and subject_type.has_direct_workspace_roles:
+                direct_subjects_by_type[subject_type].append(subject)
             else:
                 subject_scope_q |= Q(
                     subject_type=content_types[type(subject)],
@@ -237,41 +324,17 @@ class RoleAssignmentHandler:
             for ra in role_assignments
         }
 
-        # If we are get the role of a user at a workspace scope level,
-        # we get it from the role uid in the `.permissions` property of the
-        # `WorkspaceUser` object instead to remain compatible with other permission
-        # managers. This makes it easy to switch from one permission manager to
-        # another without losing nor duplicating information
-        if user_subject_with_workspace_scope_by_id:
-            for user_id, permissions in (
-                CoreHandler()
-                .get_workspace_users(
-                    workspace,
-                    user_subject_with_workspace_scope_by_id.values(),
-                    include_trash=include_trash,
-                )
-                .values_list("user_id", "permissions")
+        for subject_type, subjects in direct_subjects_by_type.items():
+            for assignment in self._get_direct_workspace_role_assignments(
+                subject_type, workspace, subjects, include_trash=include_trash
             ):
-                role = self.get_role_by_uid(permissions, use_fallback=True)
                 key = (
-                    user_subject_type.get_content_type(),
-                    user_id,
-                    content_types[Workspace],
-                    workspace.id,
+                    assignment.subject_type,
+                    assignment.subject_id,
+                    assignment.scope_type,
+                    assignment.scope_id,
                 )
-                subject = user_subject_with_workspace_scope_by_id[user_id]
-                # We need to fake a RoleAssignment instance here to keep the same
-                # return interface
-                fake_role_assignment = RoleAssignment(
-                    subject=subject,
-                    subject_id=subject.id,
-                    subject_type=content_types[type(subject)],
-                    role=role,
-                    workspace=workspace,
-                    scope=workspace,
-                    scope_type=content_types[Workspace],
-                )
-                role_assignments_by_user_id_scope_id[key] = fake_role_assignment
+                role_assignments_by_user_id_scope_id[key] = assignment
 
         # Dispatch each role assignments to the (subject, scope) tuple it belongs to
         # if there is one for this tuple otherwise None which means no previous
@@ -295,7 +358,7 @@ class RoleAssignmentHandler:
         return roles_by_user_scope
 
     def get_roles_per_scope(
-        self, workspace: Workspace, actor: AbstractUser, include_trash=False
+        self, workspace: Workspace, actor: Subject, include_trash=False
     ) -> List[Tuple[ScopeObject, List[Role]]]:
         """
         Returns the RoleAssignments for the given actor in the given workspace. The
@@ -312,9 +375,6 @@ class RoleAssignmentHandler:
         """
 
         actor_subject_type = subject_type_registry.get_by_model(actor)
-        actor_cache_key = (
-            f"{actor_subject_type.type}_{actor.id}_{workspace.id}_{include_trash}"
-        )
 
         def _get_roles_per_scope():
             return self.get_roles_per_scope_for_actors(
@@ -322,7 +382,9 @@ class RoleAssignmentHandler:
             )[actor]
 
         return local_cache.get(
-            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_get_roles_per_scope_{actor_cache_key}",
+            roles_per_scope_cache_key(
+                actor_subject_type.type, actor.id, workspace.id, include_trash
+            ),
             _get_roles_per_scope,
         )
 
@@ -345,8 +407,15 @@ class RoleAssignmentHandler:
             the object hierarchy, the earlier the tuple is in the list.
         """
 
+        priority_subject_types = [
+            subject_type_registry.get(subject_name)
+            for subject_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY
+        ]
         content_types = ContentType.objects.get_for_models(
-            actor_subject_type.model_class, Team, Workspace
+            actor_subject_type.model_class,
+            Team,
+            Workspace,
+            *[subject_type.model_class for subject_type in priority_subject_types],
         )
 
         actor_by_id = {a.id: a for a in actors}
@@ -370,7 +439,7 @@ class RoleAssignmentHandler:
             return users_teams_qs.values_list("team_id", "subject_id")
 
         teams_subjects = local_cache.get(
-            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{actors_cache_key}",
+            team_subjects_cache_key(actor_subject_type.type, [a.id for a in actors]),
             _get_teams_subjects,
         )
 
@@ -405,12 +474,7 @@ class RoleAssignmentHandler:
                 subject_type=content_types[subject_type.model_class],
                 then=Value(order),
             )
-            for order, subject_type in enumerate(
-                [
-                    subject_type_registry.get(subject_name)
-                    for subject_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY
-                ]
-            )
+            for order, subject_type in enumerate(priority_subject_types)
         ]
 
         # Final query
@@ -420,6 +484,7 @@ class RoleAssignmentHandler:
                     workspace=workspace,
                 )
                 .filter(subjects_q)
+                .exclude(self._direct_workspace_roles_q())
                 .exclude(
                     role__uid__in=[
                         NO_ROLE_LOW_PRIORITY_ROLE_UID,
@@ -500,43 +565,29 @@ class RoleAssignmentHandler:
                     ):
                         roles_by_scope[actor_id][scope_param].append(role)
 
-        # For user actor, we need to get the workspace level role by reading the
-        # WorkspaceUser permissions property
-        if actor_subject_type.type == UserSubjectType.type:
-            # Get all workspace users at once
-            actor_ids_set = {a.id for a in actors}
-
-            def _get_user_permissions_by_id():
-                if include_trash:
-                    wp_users = WorkspaceUser.objects_and_trash.filter(
-                        workspace_id=workspace.id, user_id__in=actor_ids_set
-                    )
-                else:
-                    wp_users = workspace.workspaceuser_set.all()
-                return {
-                    wu.user_id: wu.permissions
-                    for wu in wp_users
-                    if wu.user_id in actor_ids_set
-                }
-
-            user_permissions_by_id = local_cache.get(
-                f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{workspace.id}_{actors_cache_key}_{include_trash}",
-                _get_user_permissions_by_id,
-            )
-
+        workspace_roles_by_actor_id = local_cache.get(
+            f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{workspace.id}_{actors_cache_key}_{include_trash}",
+            lambda: actor_subject_type.get_workspace_role_uids(
+                actors, workspace, include_trash=include_trash
+            ),
+        )
+        if workspace_roles_by_actor_id is not None:
             for actor in actors:
                 workspace_level_role = self.get_role_by_uid(
-                    user_permissions_by_id.get(actor.id, NO_ACCESS_ROLE_UID),
+                    workspace_roles_by_actor_id.get(actor.id, NO_ACCESS_ROLE_UID),
                     use_fallback=True,
                 )
-                if workspace_level_role.uid == NO_ROLE_LOW_PRIORITY_ROLE_UID:
-                    # Low priority role -> Use team role or NO_ACCESS if no team role
-                    if not roles_by_scope[actor.id].get(workspace_scope_param):
+                inherited_workspace_roles = roles_by_scope[actor.id].get(
+                    workspace_scope_param
+                )
+                if actor_subject_type.is_workspace_role_fallback(
+                    workspace_level_role.uid
+                ):
+                    if not inherited_workspace_roles:
                         roles_by_scope[actor.id][workspace_scope_param] = [
                             self.get_role_by_uid(NO_ACCESS_ROLE_UID)
                         ]
                 else:
-                    # Otherwise user role wins
                     roles_by_scope[actor.id][workspace_scope_param] = [
                         workspace_level_role
                     ]
@@ -560,6 +611,324 @@ class RoleAssignmentHandler:
                 roles_per_scope_per_user[actor].append((scope_cache[key], value))
 
         return roles_per_scope_per_user
+
+    def _get_role_assignment_rows_per_workspace(
+        self, workspaces: List[Workspace], subjects_q: Q
+    ) -> Dict[int, List[Tuple[int, int, int, int, int, int]]]:
+        """
+        Returns, for every given workspace, its role assignment rows matching the given
+        subject filter (excluding the internal roles) as plain tuples `(id,
+        subject_type_id, subject_id, role_id, scope_type_id, scope_id)`, fetched with a
+        single query for all the workspaces.
+
+        :param workspaces: The workspaces to get the role assignment rows for.
+        :param subjects_q: The filter selecting the subjects the rows must belong to.
+        :return: A dict mapping every workspace id to its rows.
+        """
+
+        rows_per_workspace = {workspace.id: [] for workspace in workspaces}
+        rows = (
+            RoleAssignment.objects.filter(workspace__in=workspaces)
+            .filter(subjects_q)
+            .exclude(
+                role__uid__in=[
+                    NO_ROLE_LOW_PRIORITY_ROLE_UID,
+                    *INTERNAL_ROLE_UIDS,
+                ]
+            )
+            .values_list(
+                "workspace_id",
+                "id",
+                "subject_type_id",
+                "subject_id",
+                "role_id",
+                "scope_type_id",
+                "scope_id",
+            )
+        )
+        for workspace_id, *row in rows:
+            rows_per_workspace[workspace_id].append(tuple(row))
+
+        return rows_per_workspace
+
+    def get_roles_per_scope_for_workspaces(
+        self,
+        workspaces: List[Workspace],
+        actor: AbstractUser,
+        include_trash=False,
+    ) -> Dict[int, List[Tuple[ScopeObject, List[Role]]]]:
+        """
+        Multi workspace version of `get_roles_per_scope` for a single actor. It computes
+        the same result as calling `get_roles_per_scope(workspace, actor)` per
+        workspace, but with a number of queries that is independent of the number of
+        workspaces: one role assignment query, one team subject query, one scope
+        hydration query per distinct scope content type across all the workspaces and at
+        most one workspace user query for the workspaces that don't have their members
+        prefetched.
+
+        The result is memoized per workspace in the same request local cache keys
+        `get_roles_per_scope` reads from and primes, so a workspace already resolved
+        earlier in the request, for example by a permission check, doesn't fetch its
+        role and membership data again, and later single workspace calls in the same
+        request are free.
+
+        :param workspaces: The workspaces to get the roles per scope for.
+        :param actor: The actor for whom we want the roles.
+        :param include_trash: If true, the trashed workspace users are taken into
+            account for the workspace level role.
+        :return: A dict mapping every workspace id to a list of (scope, roles) tuples,
+            ordered from the highest scope in the object hierarchy (the workspace itself
+            first) to the lowest.
+        """
+
+        actor_subject_type = subject_type_registry.get_by_model(actor)
+
+        if len(workspaces) == 1:
+            # Delegate to the single workspace resolution so the role assignment and
+            # membership rows a permission check cached earlier in the request, via
+            # `get_roles_per_scope_for_actors`, are reused instead of fetched again.
+            workspace = workspaces[0]
+            return {
+                workspace.id: self.get_roles_per_scope(
+                    workspace, actor, include_trash=include_trash
+                )
+            }
+
+        result = {}
+        missing_workspaces = []
+        for workspace in workspaces:
+            cached = local_cache.get_if_cached(
+                roles_per_scope_cache_key(
+                    actor_subject_type.type, actor.id, workspace.id, include_trash
+                ),
+                _UNCACHED,
+            )
+            if cached is _UNCACHED:
+                missing_workspaces.append(workspace)
+            else:
+                result[workspace.id] = cached
+
+        if missing_workspaces:
+            result.update(
+                self._get_roles_per_scope_for_workspaces(
+                    missing_workspaces, actor, actor_subject_type, include_trash
+                )
+            )
+
+        return result
+
+    def _get_roles_per_scope_for_workspaces(
+        self,
+        workspaces: List[Workspace],
+        actor: AbstractUser,
+        actor_subject_type: SubjectType,
+        include_trash: bool,
+    ) -> Dict[int, List[Tuple[ScopeObject, List[Role]]]]:
+        """
+        Computes the result of `get_roles_per_scope_for_workspaces` for the workspaces
+        that had no cached result yet. See that method for the parameter and return
+        value documentation.
+        """
+
+        content_types = ContentType.objects.get_for_models(
+            actor_subject_type.model_class, Team, Workspace
+        )
+        actor_content_type = content_types[actor_subject_type.model_class]
+        team_content_type = content_types[Team]
+        workspace_content_type = content_types[Workspace]
+
+        def _get_teams_subjects():
+            return TeamSubject.objects.filter(
+                subject_type=actor_content_type,
+                subject_id__in=[actor.id],
+            ).values_list("team_id", "subject_id")
+
+        # Same cache key as `get_roles_per_scope_for_actors` with a single actor so
+        # both paths share the request local team subject cache.
+        teams_subjects = local_cache.get(
+            team_subjects_cache_key(actor_subject_type.type, [actor.id]),
+            _get_teams_subjects,
+        )
+        actor_team_ids = {team_id for team_id, _ in teams_subjects}
+
+        subjects_q = Q(subject_type=actor_content_type, subject_id=actor.id) | Q(
+            subject_type=team_content_type, subject_id__in=actor_team_ids
+        )
+        rows_per_workspace = self._get_role_assignment_rows_per_workspace(
+            workspaces, subjects_q
+        )
+
+        # The equivalents, computed in Python from registry data, of the
+        # `scope_type_order` and `role_priority` annotations used by
+        # `get_roles_per_scope_for_actors`.
+        scope_level_by_content_type_id = {
+            ContentType.objects.get_for_model(scope_type.model_class).id: (
+                scope_type.level
+            )
+            for scope_type in [
+                object_scope_type_registry.get(name)
+                for name in ROLE_ASSIGNABLE_OBJECT_MAP
+            ]
+            if scope_type.type != CoreObjectScopeType.type
+        }
+        role_priority_by_content_type_id = {
+            ContentType.objects.get_for_model(subject_type.model_class).id: order
+            for order, subject_type in enumerate(
+                [
+                    subject_type_registry.get(subject_name)
+                    for subject_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY
+                ]
+            )
+        }
+
+        user_permissions_per_workspace = self._get_user_permissions_per_workspace(
+            workspaces, actor, include_trash
+        )
+
+        scopes_to_query = defaultdict(set)
+        roles_by_scope_per_workspace = {}
+
+        for workspace in workspaces:
+            workspace_scope_param = (workspace_content_type.id, workspace.id)
+
+            # Order the rows exactly like the single workspace query does.
+            relevant_rows = []
+            for row in rows_per_workspace[workspace.id]:
+                (
+                    row_id,
+                    subject_type_id,
+                    subject_id,
+                    role_id,
+                    scope_type_id,
+                    scope_id,
+                ) = row
+                role_priority = role_priority_by_content_type_id.get(subject_type_id, 0)
+                scope_type_order = scope_level_by_content_type_id.get(scope_type_id, 0)
+                relevant_rows.append(
+                    (scope_type_order, scope_id, role_priority, subject_id, row_id, row)
+                )
+            relevant_rows.sort()
+
+            # The workspace entry must be first to keep the result ordered from the
+            # highest scope to the lowest.
+            roles_by_scope = {workspace_scope_param: []}
+            priorities_by_scope = {}
+
+            for _, _, role_priority, _, _, row in relevant_rows:
+                _, _, _, role_id, scope_type_id, scope_id = row
+                scope_param = (scope_type_id, scope_id)
+                role = self.get_role_by_id(role_id)
+
+                scopes_to_query[scope_type_id].add(scope_id)
+
+                if not roles_by_scope.get(scope_param, []):
+                    roles_by_scope[scope_param] = [role]
+                    priorities_by_scope[scope_param] = role_priority
+                elif (
+                    priorities_by_scope[scope_param] == role_priority
+                    and role not in roles_by_scope[scope_param]
+                ):
+                    roles_by_scope[scope_param].append(role)
+
+            if actor_subject_type.type == UserSubjectType.type:
+                permissions = user_permissions_per_workspace.get(workspace.id)
+                workspace_level_role = self.get_role_by_uid(
+                    permissions if permissions is not None else NO_ACCESS_ROLE_UID,
+                    use_fallback=True,
+                )
+                if workspace_level_role.uid == NO_ROLE_LOW_PRIORITY_ROLE_UID:
+                    # Low priority role -> use the team role or NO_ACCESS if no team
+                    # role.
+                    if not roles_by_scope.get(workspace_scope_param):
+                        roles_by_scope[workspace_scope_param] = [
+                            self.get_role_by_uid(NO_ACCESS_ROLE_UID)
+                        ]
+                else:
+                    roles_by_scope[workspace_scope_param] = [workspace_level_role]
+
+            roles_by_scope_per_workspace[workspace.id] = roles_by_scope
+
+        # Hydrate all the scopes of all the workspaces at once, one query per distinct
+        # scope content type.
+        scope_cache = {}
+        for content_type_id, content_ids in scopes_to_query.items():
+            for scope in self.get_scopes(content_type_id, content_ids):
+                scope_cache[(content_type_id, scope.id)] = scope
+
+        result = {}
+        for workspace in workspaces:
+            workspace_scope_param = (workspace_content_type.id, workspace.id)
+            scope_cache[workspace_scope_param] = workspace
+
+            roles_per_scope = []
+            for key, value in roles_by_scope_per_workspace[workspace.id].items():
+                # Scopes missing from the cache belong to snapshotted applications
+                # that aren't accessible to the user, so they can safely be
+                # ignored, like `get_roles_per_scope_for_actors` does.
+                if key not in scope_cache:
+                    continue
+                roles_per_scope.append((scope_cache[key], value))
+
+            # Prime the request local cache `get_roles_per_scope` reads from. If it
+            # was already computed earlier in the request, the existing value wins to
+            # stay consistent.
+            result[workspace.id] = local_cache.get(
+                roles_per_scope_cache_key(
+                    actor_subject_type.type, actor.id, workspace.id, include_trash
+                ),
+                roles_per_scope,
+            )
+
+        return result
+
+    def _get_user_permissions_per_workspace(
+        self,
+        workspaces: List[Workspace],
+        actor: AbstractUser,
+        include_trash: bool,
+    ) -> Dict[int, str]:
+        """
+        Returns the `WorkspaceUser.permissions` value of the actor per workspace id,
+        reading from the prefetched `workspaceuser_set` when available so no query is
+        needed on the listing path.
+
+        :param workspaces: The workspaces to get the permissions value in.
+        :param actor: The user to get the permissions value for.
+        :param include_trash: If true, the trashed workspace users are taken into
+            account.
+        :return: A dict mapping the workspace id to the permissions value for every
+            workspace the actor is a member of.
+        """
+
+        if include_trash:
+            workspace_users = WorkspaceUser.objects_and_trash.filter(
+                workspace__in=workspaces, user_id=actor.id
+            )
+            return {wu.workspace_id: wu.permissions for wu in workspace_users}
+
+        permissions_per_workspace = {}
+        workspaces_to_query = []
+        for workspace in workspaces:
+            prefetched = getattr(workspace, "_prefetched_objects_cache", {})
+            if "workspaceuser_set" in prefetched:
+                for workspace_user in workspace.workspaceuser_set.all():
+                    if workspace_user.user_id == actor.id:
+                        permissions_per_workspace[workspace.id] = (
+                            workspace_user.permissions
+                        )
+            else:
+                workspaces_to_query.append(workspace)
+
+        if workspaces_to_query:
+            workspace_users = WorkspaceUser.objects.filter(
+                workspace__in=workspaces_to_query, user_id=actor.id
+            )
+            for workspace_user in workspace_users:
+                permissions_per_workspace[workspace_user.workspace_id] = (
+                    workspace_user.permissions
+                )
+
+        return permissions_per_workspace
 
     def get_computed_roles(
         self, roles_per_scopes, context: Any, cache: Optional[Dict] = None
@@ -636,27 +1005,13 @@ class RoleAssignmentHandler:
 
         content_types = ContentType.objects.get_for_models(scope, subject)
 
-        # Workspace level permissions are not stored as RoleAssignment records but
-        # in the WorkspaceUser.permissions property.
-        if RoleAssignmentHandler.is_workspace_level_assignment(
-            workspace, scope, subject
-        ):
-            workspace_user = workspace.get_workspace_user(subject)
-            new_permissions = "MEMBER" if role.uid == "BUILDER" else role.uid
-            CoreHandler().force_update_workspace_user(
-                None, workspace_user, permissions=new_permissions
-            )
-
-            # We need to fake a RoleAssignment instance here to keep the same
-            # return interface
+        # Some subject types own workspace role storage to stay compatible with
+        # other permission managers. Let the subject type persist those roles.
+        if self.is_workspace_level_assignment(workspace, scope, subject):
+            self._set_direct_workspace_role(subject, workspace, role.uid, send_signals)
+            # Keep the same return interface without saving a duplicate assignment.
             return RoleAssignment(
-                subject=subject,
-                subject_id=subject.id,
-                subject_type=content_types[subject],
-                role=role,
-                workspace=workspace,
-                scope=scope,
-                scope_type=content_types[scope],
+                subject=subject, role=role, workspace=workspace, scope=scope
             )
 
         role_assignment, created = RoleAssignment.objects.update_or_create(
@@ -682,9 +1037,7 @@ class RoleAssignmentHandler:
         return role_assignment
 
     @clear_roles_from_local_cache()
-    def remove_role(
-        self, subject: Union[AbstractUser, Team], workspace: Workspace, scope=None
-    ):
+    def remove_role(self, subject: Subject, workspace: Workspace, scope=None):
         """
         Remove the role of a subject in the context of the given workspace over a
         specified scope.
@@ -698,14 +1051,8 @@ class RoleAssignmentHandler:
         if scope is None:
             scope = workspace
 
-        if RoleAssignmentHandler.is_workspace_level_assignment(
-            workspace, scope, subject
-        ):
-            workspace_user = workspace.get_workspace_user(subject)
-            new_permissions = NO_ACCESS_ROLE_UID
-            CoreHandler().force_update_workspace_user(
-                None, workspace_user, permissions=new_permissions
-            )
+        if self.is_workspace_level_assignment(workspace, scope, subject):
+            self._set_direct_workspace_role(subject, workspace, NO_ACCESS_ROLE_UID)
             return
 
         content_types = ContentType.objects.get_for_models(scope, subject)
@@ -781,6 +1128,9 @@ class RoleAssignmentHandler:
         unique_scopes_by_type = defaultdict(set)
         unique_subjects_by_type = defaultdict(set)
         for subject, _, scope in new_role_assignments:
+            subject_type = subject_type_registry.get_by_model(subject)
+            unique_subjects_by_type[subject_type].add(subject)
+
             scope_type = object_scope_type_registry.get_by_model(scope)
             if scope not in unique_scopes_by_type[scope_type]:
                 permission_to_check.append(
@@ -791,8 +1141,6 @@ class RoleAssignmentHandler:
                     )
                 )
                 unique_scopes_by_type[scope_type].add(scope)
-                subject_type = subject_type_registry.get_by_model(subject)
-                unique_subjects_by_type[subject_type].add(subject)
 
         # Check if all subjects are in the workspace
         for subject_type, subjects in unique_subjects_by_type.items():
@@ -850,40 +1198,23 @@ class RoleAssignmentHandler:
         :param scope: The scope used for filtering role assignments
         """
 
-        if isinstance(scope, Workspace) and scope.id == workspace.id:
-            workspace_users = WorkspaceUser.objects.filter(workspace=workspace)
-
-            role_assignments = []
-
-            for workspace_user in workspace_users:
-                role_uid = workspace_user.permissions
-                role = self.get_role_by_uid(role_uid, use_fallback=True)
-                subject = workspace_user.user
-
-                content_types = ContentType.objects.get_for_models(scope, subject)
-
-                # We need to fake a RoleAssignment instance here to keep the same
-                # return interface
-                role_assignments.append(
-                    RoleAssignment(
-                        subject=subject,
-                        subject_id=subject.id,
-                        subject_type=content_types[subject],
-                        role=role,
-                        workspace=workspace,
-                        scope=scope,
-                        scope_type=content_types[scope],
-                    )
-                )
-            return role_assignments
-        else:
-            qs = self._get_role_assignments_for_valid_subjects_qs()
-            role_assignments = qs.filter(
+        role_assignments = list(
+            self._get_role_assignments_for_valid_subjects_qs().filter(
                 workspace=workspace,
                 scope_id=scope.id,
                 scope_type=ContentType.objects.get_for_model(scope),
             )
-            return list(role_assignments)
+        )
+        # Include both record-backed roles and roles owned by subject types.
+        if scope == workspace:
+            for subject_type in subject_type_registry.get_all():
+                if subject_type.has_direct_workspace_roles:
+                    role_assignments.extend(
+                        self._get_direct_workspace_role_assignments(
+                            subject_type, workspace
+                        )
+                    )
+        return role_assignments
 
     @classmethod
     def is_workspace_level_assignment(
@@ -892,5 +1223,5 @@ class RoleAssignmentHandler:
         return (
             scope == workspace
             and scope.id == workspace.id
-            and isinstance(subject, User)
+            and subject_type_registry.get_by_model(subject).has_direct_workspace_roles
         )

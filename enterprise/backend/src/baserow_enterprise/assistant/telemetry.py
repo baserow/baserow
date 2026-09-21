@@ -37,6 +37,8 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import StrEnum
+from typing import Callable
 from uuid import uuid4
 
 from loguru import logger
@@ -546,6 +548,21 @@ def _add_phoenix_processors(
 # ---------------------------------------------------------------------------
 
 
+class AssistantTraceOutcome(StrEnum):
+    """How one assistant run ended, recorded on every ``$ai_trace`` event."""
+
+    ANSWERED = "answered"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+    INTERRUPTED = "interrupted"
+    NO_ANSWER = "no_answer"
+
+
+_FAILED_OUTCOMES = frozenset(
+    {AssistantTraceOutcome.ERROR, AssistantTraceOutcome.NO_ANSWER}
+)
+
+
 class PosthogTracingCallback:
     """Per-request trace lifecycle. Creates the ``$ai_trace`` event and
     publishes ``_TraceContext`` for the span exporter."""
@@ -561,11 +578,21 @@ class PosthogTracingCallback:
         self.trace_outputs = None
 
     @contextmanager
-    def trace(self, chat: AssistantChat, human_message: str):
+    def trace(
+        self,
+        chat: AssistantChat,
+        human_message: str,
+        cancelled_by_user: Callable[[], bool] | None = None,
+    ):
         """Context manager that scopes a single assistant execution.
 
         Publishes ``_trace_ctx`` so ``PosthogSpanExporter`` can attach trace
         metadata to child ``$ai_generation`` / ``$ai_span`` events.
+
+        :param chat: The chat whose message this execution answers.
+        :param human_message: The user message that started this execution.
+        :param cancelled_by_user: Predicate telling whether the user asked to
+            stop, used to tell a deliberate cancel apart from a dropped run.
         """
 
         self.chat = chat
@@ -589,23 +616,25 @@ class PosthogTracingCallback:
         )
         tools_token = _tool_calls.set([])
 
-        exception = None
+        exception: Exception | None = None
+        interruption: BaseException | None = None
         try:
             yield self
         except Exception as exc:
             exception = exc
+            raise
+        except BaseException as exc:
+            interruption = exc
             raise
         finally:
             tool_call_names = _tool_calls.get([])
             _trace_ctx.reset(token)
             _tool_calls.reset(tools_token)
 
-            output_state = self.trace_outputs if exception is None else str(exception)
-            if tool_call_names:
-                if output_state is None:
-                    output_state = {}
-                if isinstance(output_state, dict):
-                    output_state["tool_calls"] = tool_call_names
+            outcome = self._resolve_outcome(exception, interruption, cancelled_by_user)
+            output_state = self._build_output_state(outcome, exception)
+            if tool_call_names and isinstance(output_state, dict):
+                output_state["tool_calls"] = tool_call_names
 
             self._capture_event(
                 "$ai_trace",
@@ -615,9 +644,10 @@ class PosthogTracingCallback:
                     "$ai_span_name": f"{self.user_id}: {human_message[:20]}",
                     "$ai_span_id": self.span_id,
                     "$ai_latency": (_utc_now() - start_time).total_seconds(),
-                    "$ai_is_error": exception is not None,
+                    "$ai_is_error": outcome in _FAILED_OUTCOMES,
                     "$ai_input_state": {"user_message": human_message},
                     "$ai_output_state": output_state,
+                    "assistant_outcome": outcome.value,
                 },
             )
 
@@ -625,6 +655,48 @@ class PosthogTracingCallback:
                 get_posthog_client().flush()
             except Exception:
                 pass
+
+    def _resolve_outcome(
+        self,
+        exception: Exception | None,
+        interruption: BaseException | None,
+        cancelled_by_user: Callable[[], bool] | None,
+    ) -> AssistantTraceOutcome:
+        """Classify how a single assistant execution ended.
+
+        :param exception: The error raised inside the traced block, if any.
+        :param interruption: The ``BaseException`` that unwound the traced
+            block, if any.
+        :param cancelled_by_user: Predicate telling whether the user asked to
+            stop.
+        :return: The outcome to record on the ``$ai_trace`` event.
+        """
+
+        if exception is not None:
+            return AssistantTraceOutcome.ERROR
+        if interruption is not None:
+            if cancelled_by_user is not None and cancelled_by_user():
+                return AssistantTraceOutcome.CANCELLED
+            return AssistantTraceOutcome.INTERRUPTED
+        if self.trace_outputs is None:
+            return AssistantTraceOutcome.NO_ANSWER
+        return AssistantTraceOutcome.ANSWERED
+
+    def _build_output_state(
+        self, outcome: AssistantTraceOutcome, exception: Exception | None
+    ) -> dict | str:
+        """Render the ``$ai_output_state`` payload for *outcome*.
+
+        :param outcome: The classified outcome of the execution.
+        :param exception: The error raised inside the traced block, if any.
+        :return: The answer, the error message, or the terminal status.
+        """
+
+        if outcome is AssistantTraceOutcome.ERROR:
+            return str(exception)
+        if outcome is AssistantTraceOutcome.ANSWERED:
+            return self.trace_outputs
+        return {"status": outcome.value}
 
     def set_trace_output(self, output: str):
         """Record the agent's final answer for the ``$ai_trace`` event."""

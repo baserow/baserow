@@ -33,12 +33,11 @@ def record_button_field_dispatched(sender, outcome, duration_ms, **kwargs):
 
 
 def record_workflow_action_dispatched(
-    sender, workflow_action, exception, duration_ms, **kwargs
+    sender, workflow_action, succeeded, duration_ms, **kwargs
 ):
-    # The class only. An external action's message names its address.
     attributes = {
         "action_type": workflow_action.get_type().type,
-        "result": "ok" if exception is None else type(exception).__name__,
+        "result": "ok" if succeeded else "failed",
     }
     workflow_action_dispatch_counter.add(1, attributes)
     workflow_action_dispatch_duration.record(duration_ms, attributes)

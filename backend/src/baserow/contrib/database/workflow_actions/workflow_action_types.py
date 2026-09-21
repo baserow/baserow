@@ -88,16 +88,34 @@ class DatabaseWorkflowServiceActionType(
     # is dropped. Only read by a type that sets `captures_sample_data`.
     sample_data_shaping_fields: List[str] = []
 
-    serializer_field_names = ["service"]
+    serializer_field_names = ["service", "requires_reconfiguration"]
     serializer_field_overrides = {
         "service": DatabasePolymorphicServiceSerializer(
             help_text="The service which this workflow action is associated with."
-        )
+        ),
+        "requires_reconfiguration": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether a click on the action is sure to fail: it "
+            "points at a table, field or integration that is in the trash or "
+            "gone, or it updates a row without saying which. The button "
+            "field's own flag is whether any action has it.",
+        ),
     }
     request_serializer_field_names = ["service"]
+    request_serializer_field_overrides = {
+        "service": serializer_field_overrides["service"],
+    }
 
     class SerializedDict(DatabaseWorkflowActionDict):
         service: Dict
+
+    @property
+    def is_external(self) -> bool:
+        # The service the action dispatches through already says whether it
+        # reaches outside Baserow, so this reads that flag rather than
+        # keeping a second one that could drift from it.
+        return service_type_registry.get(self.service_type).is_external
 
     @property
     def allowed_fields(self) -> List[str]:
@@ -640,7 +658,6 @@ class CoreHTTPRequestWorkflowActionType(DatabaseWorkflowServiceActionType):
 
     # What an endpoint answers with is unknowable until it has answered once.
     captures_sample_data = True
-    is_external = True
 
     # Everything that decides which request goes out. `timeout` is left out:
     # it changes how long the answer may take, not what is in it.
@@ -678,7 +695,6 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
     type = "smtp_email"
     model_class = CoreSMTPEmailWorkflowAction
     service_type = CoreSMTPEmailServiceType.type
-    is_external = True
 
     def prepare_values(
         self,
@@ -752,7 +768,6 @@ class SlackWriteMessageWorkflowActionType(DatabaseWorkflowServiceActionType):
     type = "slack_write_message"
     model_class = SlackWriteMessageWorkflowAction
     service_type = SlackWriteMessageServiceType.type
-    is_external = True
     allowed_integration_types = [SlackBotIntegrationType.type]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:

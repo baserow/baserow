@@ -72,6 +72,13 @@ export async function deleteField(user: User, field: Field): Promise<void> {
   await getClient(user).delete(`database/fields/${field.id}/`);
 }
 
+export async function restoreField(user: User, field: Field): Promise<void> {
+  await getClient(user).patch("trash/restore/", {
+    trash_item_type: "field",
+    trash_item_id: field.id,
+  });
+}
+
 export async function getFieldsForTable(
   user: User,
   table: Table,

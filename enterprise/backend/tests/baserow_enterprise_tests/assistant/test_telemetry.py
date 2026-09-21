@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sys
 from unittest.mock import MagicMock, patch
@@ -9,6 +10,7 @@ import pytest
 from baserow_enterprise.assistant import telemetry
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.telemetry import (
+    AssistantTraceOutcome,
     PosthogSpanProcessor,
     PosthogTracingCallback,
     _pydantic_messages_to_posthog,
@@ -40,10 +42,11 @@ class TestPosthogTracingCallback:
 
         callback = PosthogTracingCallback()
 
-        with callback.trace(assistant_chat_fixture, "Hello"):
+        with callback.trace(assistant_chat_fixture, "Hello") as tracer:
             assert callback.trace_id is not None
             assert callback.span_id is not None
             assert callback.user_id == str(assistant_chat_fixture.user_id)
+            tracer.set_trace_output("Hi there")
 
         # Verify trace event captured
         mock_posthog.capture.assert_called_once()
@@ -64,7 +67,8 @@ class TestPosthogTracingCallback:
         assert props["$ai_latency"] >= 0
         assert props["$ai_is_error"] is False
         assert props["$ai_input_state"] == {"user_message": "Hello"}
-        assert props["$ai_output_state"] is None
+        assert props["$ai_output_state"] == {"answer": "Hi there"}
+        assert props["assistant_outcome"] == AssistantTraceOutcome.ANSWERED
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_context_manager_exception(
@@ -85,7 +89,10 @@ class TestPosthogTracingCallback:
         call_args = mock_posthog.capture.call_args
         assert call_args is not None
         assert call_args.kwargs["event"] == "$ai_trace"
-        assert call_args.kwargs["properties"]["$ai_is_error"] is True
+        props = call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is True
+        assert props["$ai_output_state"] == "Test error"
+        assert props["assistant_outcome"] == AssistantTraceOutcome.ERROR
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_with_output(self, mock_get_client, assistant_chat_fixture):
@@ -102,6 +109,118 @@ class TestPosthogTracingCallback:
         call_args = mock_posthog.capture.call_args
         props = call_args.kwargs["properties"]
         assert props["$ai_output_state"] == {"answer": "The answer is 42"}
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_merges_tool_calls_into_the_answer(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """Tool names recorded during the run are merged into the output."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with callback.trace(assistant_chat_fixture, "Hello") as tracer:
+            _tool_calls.get().append("list_tables")
+            _tool_calls.get().append("create_rows")
+            tracer.set_trace_output("Done")
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_output_state"] == {
+            "answer": "Done",
+            "tool_calls": ["list_tables", "create_rows"],
+        }
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_exception_keeps_the_message_without_tool_calls(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """The error path stays a plain string, so no tool names are merged."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with pytest.raises(ValueError):
+            with callback.trace(assistant_chat_fixture, "Hello"):
+                _tool_calls.get().append("list_tables")
+                raise ValueError("Boom")
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_output_state"] == "Boom"
+        assert props["assistant_outcome"] == AssistantTraceOutcome.ERROR
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_without_answer_is_an_error(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """A run that ends normally without an answer is a silent failure."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with callback.trace(assistant_chat_fixture, "Hello"):
+            _tool_calls.get().append("create_rows")
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is True
+        assert props["assistant_outcome"] == AssistantTraceOutcome.NO_ANSWER
+        assert props["$ai_output_state"] == {
+            "status": "no_answer",
+            "tool_calls": ["create_rows"],
+        }
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_cancelled_by_user_is_not_an_error(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """Pressing stop is a legitimate no-answer run, not a failure."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with pytest.raises(asyncio.CancelledError):
+            with callback.trace(
+                assistant_chat_fixture, "Hello", cancelled_by_user=lambda: True
+            ):
+                _tool_calls.get().append("list_tables")
+                raise asyncio.CancelledError()
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is False
+        assert props["assistant_outcome"] == AssistantTraceOutcome.CANCELLED
+        assert props["$ai_output_state"] == {
+            "status": "cancelled",
+            "tool_calls": ["list_tables"],
+        }
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_trace_interrupted_without_user_cancel(
+        self, mock_get_client, assistant_chat_fixture
+    ):
+        """A dropped run is reported apart from a deliberate cancel."""
+
+        mock_posthog = MagicMock()
+        mock_get_client.return_value = mock_posthog
+
+        callback = PosthogTracingCallback()
+
+        with pytest.raises(asyncio.CancelledError):
+            with callback.trace(
+                assistant_chat_fixture, "Hello", cancelled_by_user=lambda: False
+            ):
+                raise asyncio.CancelledError()
+
+        props = mock_posthog.capture.call_args.kwargs["properties"]
+        assert props["$ai_is_error"] is False
+        assert props["assistant_outcome"] == AssistantTraceOutcome.INTERRUPTED
+        assert props["$ai_output_state"] == {"status": "interrupted"}
 
     @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
     def test_trace_sets_and_clears_context_var(

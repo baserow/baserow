@@ -214,7 +214,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         self,
         service: LocalBaserowGroupedAggregateRows,
     ) -> dict | None:
-        table_properties = self._get_table_properties(service)
+        table_properties = self.get_table_properties(service)
         if table_properties is None:
             return None
 
@@ -335,6 +335,33 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
 
         return [human_name, *rest]
 
+    @staticmethod
+    def _get_property_human_name(property_name: str, property_schema: dict) -> str:
+        if property_name == GROUPED_AGGREGATE_ROW_ID:
+            return property_name
+
+        metadata = property_schema.get("metadata", {})
+        return (
+            metadata.get("result_name")
+            or metadata.get("display_name")
+            or property_schema.get("title")
+            or property_name
+        )
+
+    def _get_result_property_human_names(self, service: Service) -> dict[str, str]:
+        """
+        Maps every technical result property key of the service to the human
+        readable name used in dispatch results. Callers converting many rows or
+        keys must build this map once instead of resolving names one by one, as
+        each resolution walks the full result schema.
+        """
+
+        result_properties = self._get_result_properties(service) or {}
+        return {
+            key: self._get_property_human_name(key, property_schema)
+            for key, property_schema in result_properties.items()
+        }
+
     def _get_result_property_human_name(self, service: Service, property_name: str):
         if property_name == GROUPED_AGGREGATE_ROW_ID:
             return property_name
@@ -344,26 +371,21 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         if property_schema is None:
             return property_name
 
-        return (
-            property_schema.get("metadata", {}).get("result_name")
-            or property_schema.get("metadata", {}).get("display_name")
-            or property_schema.get("title")
-            or property_name
-        )
+        return self._get_property_human_name(property_name, property_schema)
 
     def _convert_result_property_names_to_human_names(
-        self, service: Service, result: dict
+        self,
+        service: Service,
+        result: dict,
+        human_names: dict[str, str] | None = None,
     ):
-        return {
-            self._get_result_property_human_name(service, key): value
-            for key, value in result.items()
-        }
+        if human_names is None:
+            human_names = self._get_result_property_human_names(service)
+        return {human_names.get(key, key): value for key, value in result.items()}
 
     def _convert_allowed_field_names(self, service, allowed_fields):
-        return [
-            self._get_result_property_human_name(service, field)
-            for field in allowed_fields
-        ]
+        human_names = self._get_result_property_human_names(service)
+        return [human_names.get(field, field) for field in allowed_fields]
 
     def enhance_queryset(self, queryset):
         return (
@@ -1047,6 +1069,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             for field in group_by_fields
         }
 
+        # Resolved once: both helpers query the group by relation and the name
+        # lookups below run for every result bucket.
+        name_property = self.get_name_property(service)
+        name_field_object = self._get_name_field_object(service)
+
         def process_individual_result(result: dict, overflow=False):
             """Finalize aggregates and assign readable group labels before deduplication."""
 
@@ -1060,13 +1087,12 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 )
             if "total" in result:
                 del result["total"]
-            name_property = self.get_name_property(service)
             if overflow:
                 name = "OTHER_VALUES"
             elif name_property:
                 name = self._get_human_readable_result_value(
                     result.get(name_property),
-                    self._get_name_field_object(service),
+                    name_field_object,
                     model,
                 )
             else:
@@ -1147,8 +1173,11 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 if result[GROUPED_AGGREGATE_ROW_ID] == current_record_id
             ]
 
+        human_names = self._get_result_property_human_names(service)
         results = [
-            self._convert_result_property_names_to_human_names(service, result)
+            self._convert_result_property_names_to_human_names(
+                service, result, human_names
+            )
             for result in results
         ]
 

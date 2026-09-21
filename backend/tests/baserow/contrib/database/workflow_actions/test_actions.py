@@ -175,6 +175,51 @@ def test_undoing_a_type_change_swaps_the_type_and_its_service_back(data_fixture)
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_undo_and_redo_replay_mappings_on_a_field_trashed_since(data_fixture):
+    """
+    The user maps F and saves, then F is trashed. Undo removes F's mapping and
+    redo brings it back, both while F is in the trash.
+    """
+
+    user, session_id, table, button_field = _setup(data_fixture)
+    field_x = data_fixture.create_text_field(table=table, name="X")
+    field_f = data_fixture.create_text_field(table=table, name="F")
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.table = table
+    service.save()
+    service.field_mappings.create(field=field_x, value="'x'", enabled=True)
+
+    UpdateDatabaseWorkflowActionActionType.do(
+        user,
+        action,
+        service={
+            "field_mappings": [
+                {"field_id": field_x.id, "enabled": True, "value": "'x'"},
+                {"field_id": field_f.id, "enabled": True, "value": "'f'"},
+            ]
+        },
+    )
+    TrashHandler.trash(user, table.database.workspace, table.database, field_f)
+
+    def mapped_field_ids():
+        return set(
+            service.field_mappings(manager="objects_and_trash").values_list(
+                "field_id", flat=True
+            )
+        )
+
+    ActionHandler.undo(user, _scope(table), session_id)
+    assert mapped_field_ids() == {field_x.id}
+
+    ActionHandler.redo(user, _scope(table), session_id)
+    assert mapped_field_ids() == {field_x.id, field_f.id}
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_an_http_actions_headers_never_reach_the_action_log(data_fixture):
     """
     An HTTP action keeps its API keys in its headers, and the logged values are

@@ -1,3 +1,8 @@
+import EnterpriseFeaturesObject from '@baserow_enterprise/features'
+import ABChart from '@baserow_enterprise/builder/components/elements/ABChart'
+import GraphElement from '@baserow_enterprise/builder/components/elements/GraphElement'
+import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
+
 describe('Enterprise builder element types', () => {
   describe('Auth form error message', () => {
     const getAuthFormErrorMessage = (
@@ -162,6 +167,173 @@ describe('Enterprise builder element types', () => {
     expect(elementType.getDeactivatedClickModal({ workspace: undefined })).toBe(
       null
     )
+  })
+
+  test('graph element is an advanced paid feature', () => {
+    const testApp = useNuxtApp()
+
+    for (const licenseType of [
+      testApp.$registry.get('license', 'advanced'),
+      testApp.$registry.get('license', 'enterprise_without_support'),
+      testApp.$registry.get('license', 'enterprise'),
+    ]) {
+      expect(licenseType.getFeatures()).toContain(
+        EnterpriseFeaturesObject.BUILDER_GRAPH_ELEMENT
+      )
+    }
+
+    expect(
+      testApp.$registry.get('paidFeature', 'builder_graph_element').getPlan()
+    ).toBe('Advanced')
+  })
+
+  test('graph element defaults use formula series', () => {
+    const testApp = useNuxtApp()
+    const elementType = testApp.$registry.get('element', 'graph')
+
+    expect(elementType.getDefaultValues({}, {})).toStrictEqual({
+      labels: "'label 1,label 2,label 3'",
+      series: [
+        {
+          uid: expect.any(String),
+          label: "'Series 1'",
+          values: "'10,20,30'",
+          color: 'primary',
+          chart_type: 'BAR',
+        },
+      ],
+    })
+  })
+
+  test('graph element form uses generic series headers', () => {
+    expect(
+      GraphElementForm.methods.getSeriesTitle.call(
+        {
+          $t(key, values) {
+            return `${key} ${values.number}`
+          },
+        },
+        1
+      )
+    ).toBe('graphElementForm.series 2')
+  })
+
+  test('graph element form accepts theme overrides', () => {
+    const data = GraphElementForm.data()
+
+    expect(data.allowedValues).toContain('styles')
+    expect(data.values.styles).toStrictEqual({})
+  })
+
+  test('graph chart reads its visual theme from computed styles', () => {
+    const chartElement = {}
+    const axisColorElement = {}
+    const chart = {
+      $refs: { chart: chartElement, axisColor: axisColorElement },
+      themeValues: ABChart.data().themeValues,
+    }
+    const originalGetComputedStyle = globalThis.getComputedStyle
+    globalThis.getComputedStyle = vi.fn((element) =>
+      element === axisColorElement
+        ? { color: 'rgb(217, 219, 222)' }
+        : { color: 'rgb(32, 33, 40)', fontSize: '14px' }
+    )
+
+    try {
+      ABChart.methods.updateThemeColors.call(chart)
+    } finally {
+      globalThis.getComputedStyle = originalGetComputedStyle
+    }
+
+    expect(chart.themeValues).toStrictEqual({
+      axis: 'rgb(217, 219, 222)',
+      label: 'rgb(32, 33, 40)',
+      fontSize: 14,
+    })
+  })
+
+  test('graph chart preserves blank values as gaps while retaining zeroes', () => {
+    const context = {
+      element: {
+        labels: ['Blank', 'Undefined', 'Empty', 'Zero', 'String zero'],
+        series: [
+          {
+            values: [null, undefined, '', 0, '0', '2', 'invalid'],
+            label: 'Series',
+            color: null,
+            chart_type: 'LINE',
+          },
+        ],
+      },
+      colorVariables: {},
+      resolveFormula: (value) => value,
+      convertChartJsType: GraphElement.methods.convertChartJsType,
+      $t: (key) => key,
+    }
+
+    const chartData = GraphElement.computed.chartData.call(context)
+
+    expect(chartData.datasets[0].data).toStrictEqual([
+      null,
+      null,
+      null,
+      0,
+      0,
+      2,
+      null,
+    ])
+  })
+
+  test('graph element form keeps series identity after delete, undo, and reorder', () => {
+    const originalSeries = [
+      {
+        uid: 'first',
+        label: "'First'",
+        values: "'1'",
+        color: 'primary',
+        chart_type: 'BAR',
+      },
+      {
+        uid: 'second',
+        label: "'Second'",
+        values: "'2'",
+        color: 'warning',
+        chart_type: 'LINE',
+      },
+      {
+        uid: 'third',
+        label: "'Third'",
+        values: "'3'",
+        color: 'error',
+        chart_type: 'BAR',
+      },
+    ]
+    const form = {
+      values: {
+        series: [...originalSeries],
+      },
+    }
+
+    GraphElementForm.methods.removeSeries.call(form, 1)
+    GraphElementForm.methods.removeSeries.call(form, 1)
+    form.values.series = [...originalSeries]
+    GraphElementForm.methods.orderSeries.call(form, [
+      undefined,
+      'third',
+      'second',
+      'first',
+    ])
+
+    expect(form.values.series.map(({ uid }) => uid)).toStrictEqual([
+      'third',
+      'second',
+      'first',
+    ])
+    expect(form.values.series.map(({ label }) => label)).toStrictEqual([
+      "'Third'",
+      "'Second'",
+      "'First'",
+    ])
   })
 })
 

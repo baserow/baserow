@@ -57,7 +57,11 @@ class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
     def ready(self):
+        from baserow.core.agents.registries import agent_extension_type_registry
         from baserow.core.jobs.registries import job_type_registry
+        from baserow_enterprise.agents.agent_extension_types import (
+            EnterpriseAgentExtensionType,
+        )
         from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
         from baserow_enterprise.audit_log.operations import (
             ListWorkspaceAuditLogEntriesOperationType,
@@ -68,6 +72,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         job_type_registry.register(AuditLogExportJobType())
         job_type_registry.register(DataScanResultExportJobType())
+        agent_extension_type_registry.register(EnterpriseAgentExtensionType())
 
         from baserow.api.user.registries import member_data_registry
         from baserow.core.action.registries import (
@@ -281,10 +286,12 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
             FileInputElementType,
+            GraphElementType,
         )
 
         element_type_registry.register(AuthFormElementType())
         element_type_registry.register(FileInputElementType())
+        element_type_registry.register(GraphElementType())
 
         from baserow.contrib.database.data_sync.registries import (
             two_way_sync_strategy_type_registry,
@@ -343,7 +350,6 @@ class BaserowEnterpriseConfig(AppConfig):
             sender=self,
             dispatch_uid="sync_default_roles_after_migrate",
         )
-
         # Make sure that the assistant knowledge base is up to date after running the
         # migrations.
         if not settings.TESTS:
