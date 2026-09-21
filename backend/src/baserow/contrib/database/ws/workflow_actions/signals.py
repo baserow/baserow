@@ -234,14 +234,24 @@ def button_integration_created(sender, integration, **kwargs):
 # `workspace_deleted` that would have flagged the buttons pointing into them:
 # `delete_expired_users` purges a workspace whose last admin left, the admin
 # panel deletes one outright, and a snapshot's application is dropped when it
-# expires. A table can only get here from the trash, where it was already
-# counted.
+# expires. Deleting a database deletes its tables without trashing them too,
+# which the application entry covers. `permanently_empty_database` does the
+# same to the tables alone, and the buttons targeting them are only flagged
+# once they are fetched again.
 PERMANENT_DELETION_LOOKUPS = {
     "field": "field_ids",
     "table": "link_row_table_ids",
     "application": "database_ids",
     "workspace": "workspace_ids",
     "integration": "integration_ids",
+}
+
+# The buttons deleted along with each container, which nobody needs to hear
+# about.
+PERMANENT_DELETION_EXCLUDES = {
+    "table": lambda item_id: Q(table_id=item_id),
+    "application": lambda item_id: Q(table__database_id=item_id),
+    "workspace": lambda item_id: Q(table__database__workspace_id=item_id),
 }
 
 # Set on the item being deleted, which both signals are sent with, so nothing
@@ -272,11 +282,15 @@ def button_dependency_before_permanently_deleted(
                 field
             )
         ]
+    button_fields = button_fields_depending_on(**{lookup: ids})
+    exclude = PERMANENT_DELETION_EXCLUDES.get(sender)
+    if exclude is not None:
+        button_fields = button_fields.exclude(exclude(trash_item_id))
     # Now, while the mapping, the link field or the integration reference exists.
     setattr(
         trash_item,
         DEPENDENT_BUTTONS_ATTRIBUTE,
-        list(button_fields_depending_on(**{lookup: ids}).values_list("id", flat=True)),
+        list(button_fields.values_list("id", flat=True)),
     )
 
 
@@ -286,17 +300,28 @@ def button_dependency_permanently_deleted(sender, trash_item, **kwargs):
     if not button_field_ids:
         return
 
+    # Purging a workspace or a database also purges each of its tables, and
+    # both can collect the same button. One broadcast waiting for the commit
+    # takes them all. A rollback drops it from this list along with its ids.
+    waiting = transaction.get_connection().run_on_commit
+    for _, callback, _ in waiting:
+        pending = getattr(callback, "purged_button_field_ids", None)
+        if pending is not None:
+            pending.update(button_field_ids)
+            return
+
     def broadcast():
         # Fetched again, so the flag is read after the deletion.
         _broadcast_buttons(
             ButtonField.objects.filter(
-                id__in=button_field_ids,
+                id__in=broadcast.purged_button_field_ids,
                 table__trashed=False,
                 table__database__trashed=False,
                 table__database__workspace__trashed=False,
             )
         )
 
+    broadcast.purged_button_field_ids = set(button_field_ids)
     # Registered after the deletion rather than before: outside an atomic block
     # this runs straight away. Inside one, a rollback drops it.
     transaction.on_commit(broadcast)

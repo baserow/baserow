@@ -817,3 +817,41 @@ def test_a_workspace_restored_for_each_member_sends_the_buttons_once(
             workspace_restored.send(None, workspace_user=workspace_user, user=None)
 
     assert len(_button_messages(mock_broadcast_to_channel_group, button_field)) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_purging_a_workspace_collects_only_the_buttons_outside_it_once(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """Its own buttons are deleted with it, and each of its tables is purged
+    too, so a button mapping a link to one of them is found twice."""
+
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    target = data_fixture.create_database_table(user=other_user)
+    linked = data_fixture.create_database_table(
+        user=other_user, database=target.database
+    )
+    link = data_fixture.create_link_row_field(
+        user=other_user, table=target, link_row_table=linked
+    )
+    button_table = data_fixture.create_database_table(user=user)
+    outside = _button_writing_to(
+        data_fixture, other_user, target, mapped_field=link, button_table=button_table
+    )
+    inside = _self_targeting_button(data_fixture, other_user)
+    inside.table.database.workspace_id = target.database.workspace_id
+    inside.table.database.save()
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with transaction.atomic():
+        TrashHandler.permanently_delete(target.database.workspace)
+        pending = [
+            ids
+            for _, callback, _ in connection.run_on_commit
+            if (ids := getattr(callback, "purged_button_field_ids", None)) is not None
+        ]
+
+    assert pending == [{outside.id}]
+    assert len(_button_messages(mock_broadcast_to_channel_group, outside)) == 1
