@@ -33,7 +33,7 @@ _UNAVAILABLE_TOOL_PATTERNS = (
     ),
 )
 _CHANGE_VERBS = r"(?:created|updated|deleted|added|configured|set up|applied|completed)"
-_COMPLETED_CHANGE_PATTERNS = (
+_EXPLICIT_COMPLETED_CHANGE_PATTERNS = (
     re.compile(
         rf"\bI(?:'ve| have)?\s+(?:successfully\s+)?{_CHANGE_VERBS}\b",
         re.IGNORECASE,
@@ -44,11 +44,19 @@ _COMPLETED_CHANGE_PATTERNS = (
         rf"{_CHANGE_VERBS}\b",
         re.IGNORECASE,
     ),
-    re.compile(
-        rf"^\s*(?:done\b[\s:—-]*)?(?:successfully\s+)?{_CHANGE_VERBS}\b|"
-        r"^\s*done\s*[.!]?\s*$",
-        re.IGNORECASE,
-    ),
+)
+_BARE_COMPLETED_CHANGE_PATTERN = re.compile(
+    rf"^\s*(?:done\b[\s:—-]*)?(?:successfully\s+)?{_CHANGE_VERBS}\b|"
+    r"^\s*done\s*[.!]?\s*$",
+    re.IGNORECASE,
+)
+_DESCRIPTIVE_CHANGE_SUBJECT_PATTERN = re.compile(
+    rf"^\s*{_CHANGE_VERBS}\s+\w+\s+(?:is|are|can|may|go|goes)\b",
+    re.IGNORECASE,
+)
+_FENCED_CODE_PATTERN = re.compile(
+    r"^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$",
+    re.MULTILINE | re.DOTALL,
 )
 _CLAUSE_BOUNDARY = re.compile(
     r"[.!?;\n]+|\b(?:although|but|however|though|while|yet)\b", re.IGNORECASE
@@ -119,7 +127,14 @@ def _explains_unconfigured_documentation_search(
 
 
 def _claims_completed_change(answer: str) -> bool:
-    return any(pattern.search(answer) for pattern in _COMPLETED_CHANGE_PATTERNS)
+    if any(pattern.search(answer) for pattern in _EXPLICIT_COMPLETED_CHANGE_PATTERNS):
+        return True
+    # "Deleted rows go to the trash" describes a category of rows; the
+    # participle is part of the subject, not a claim that this agent deleted it.
+    return bool(
+        _BARE_COMPLETED_CHANGE_PATTERN.search(answer)
+        and not _DESCRIPTIVE_CHANGE_SUBJECT_PATTERN.search(answer)
+    )
 
 
 def _defers_action_without_blocker(answer: str) -> bool:
@@ -135,6 +150,9 @@ def _defers_action_without_blocker(answer: str) -> bool:
 
 
 def _completion_claims(answer: str) -> list[_CompletionClaim]:
+    # Examples such as a fenced "Created by = Current user" filter are not
+    # claims about actions. Other guards still inspect the original answer.
+    answer = _FENCED_CODE_PATTERN.sub("", answer)
     claims = []
     # Partial results are often explained in a separate clause or sentence.
     acknowledges_errors = bool(
