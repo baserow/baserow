@@ -1,0 +1,223 @@
+import pytest
+
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_FEATURE_AI_AGENT,
+    AI_PROVIDER_FEATURE_AI_FIELDS,
+    AI_PROVIDER_FEATURE_KUMA,
+)
+from baserow.core.ai_provider.legacy_import import (
+    apply_import_plan,
+    plan_instance_import,
+    plan_workspace_import,
+    suppress_inherited_instance_providers,
+)
+from baserow.core.ai_provider.models import (
+    AIProviderConfig,
+    AIProviderModel,
+    AIProviderWorkspaceOverride,
+)
+from baserow.core.ai_provider.resolution import clear_ai_provider_state_cache
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.models import Workspace
+
+FEATURE_TYPES = [AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT]
+
+LEGACY_SHAPES = [
+    {"api_key": "key", "models": ["gpt-5.4"]},
+    {"api_key": "key", "models": "gpt-5.4,gpt-5.4-mini"},
+    {"api_key": "key", "models": ["gpt-5.4"], "organization": "org-1"},
+    {"api_key": "key", "models": []},
+    {"api_key": "key"},
+    {"models": ["gpt-5.4"]},
+    {"api_key": "   ", "models": ["gpt-5.4"]},
+    {"api_key": "", "models": []},
+    {"api_key": "key", "models": ["gpt-5.4"], "unsupported_key": "value"},
+    [],
+    "nonsense",
+]
+
+
+def _import_everything():
+    apply_import_plan(
+        plan_instance_import(AIProviderConfig, AIProviderModel),
+        AIProviderConfig,
+        AIProviderModel,
+    )
+    imported_workspace_providers = apply_import_plan(
+        plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace),
+        AIProviderConfig,
+        AIProviderModel,
+    )
+    suppress_inherited_instance_providers(
+        imported_workspace_providers, AIProviderConfig, AIProviderWorkspaceOverride
+    )
+    clear_ai_provider_state_cache()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("legacy_values", LEGACY_SHAPES)
+def test_import_covers_exactly_what_the_resolver_reads(data_fixture, legacy_values):
+    """
+    The import and the resolver must agree on which legacy settings are complete.
+
+    If the import were stricter, a workspace would keep resolving from legacy JSON
+    while an imported instance provider narrowed its model list.
+    """
+
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={"openai": legacy_values}
+    )
+    model_type = generative_ai_model_type_registry.get("openai")
+
+    resolver_reads_legacy = (
+        model_type._get_complete_legacy_workspace_settings(workspace) is not None
+    )
+    plan = plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace)
+    import_plans_it = any(
+        planned.workspace_id == workspace.id and planned.provider_type == "openai"
+        for planned in plan.planned
+    )
+
+    assert import_plans_it == resolver_reads_legacy
+
+
+@pytest.mark.django_db
+def test_availability_is_unchanged_by_the_import(data_fixture, settings):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4", "gpt-5.4-mini"]
+    settings.BASEROW_OPENAI_ORGANIZATION = "environment-org"
+
+    with_legacy = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "workspace-key", "models": ["gpt-5.4-mini"]}
+        }
+    )
+    without_legacy = data_fixture.create_workspace()
+    model_type = generative_ai_model_type_registry.get("openai")
+
+    def availability():
+        clear_ai_provider_state_cache()
+        return {
+            (workspace.id, feature_type): model_type.get_enabled_models_for_feature(
+                feature_type, workspace=workspace
+            )
+            for workspace in (with_legacy, without_legacy)
+            for feature_type in FEATURE_TYPES
+        }
+
+    before = availability()
+    _import_everything()
+    after = availability()
+
+    assert after == before
+    assert before[(with_legacy.id, AI_PROVIDER_FEATURE_AI_FIELDS)] == ["gpt-5.4-mini"]
+    assert before[(without_legacy.id, AI_PROVIDER_FEATURE_AI_FIELDS)] == [
+        "gpt-5.4",
+        "gpt-5.4-mini",
+    ]
+
+
+@pytest.mark.django_db
+def test_import_leaves_kuma_without_eligible_models(data_fixture, settings):
+    """Kuma eligibility is an explicit choice, so imported models never carry it."""
+
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+    workspace = data_fixture.create_workspace()
+    model_type = generative_ai_model_type_registry.get("openai")
+
+    _import_everything()
+
+    assert (
+        model_type.get_enabled_models_for_feature(
+            AI_PROVIDER_FEATURE_KUMA, workspace=workspace
+        )
+        == []
+    )
+
+
+@pytest.mark.django_db
+def test_import_is_idempotent_and_preserves_existing_providers(data_fixture, settings):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "workspace-key", "models": ["gpt-5.4-mini"]}
+        }
+    )
+
+    _import_everything()
+    _import_everything()
+
+    assert AIProviderConfig.objects.count() == 2
+    instance_provider = AIProviderConfig.objects.get(workspace__isnull=True)
+    assert instance_provider.api_key == "environment-key"
+    workspace_provider = AIProviderConfig.objects.get(workspace=workspace)
+    assert workspace_provider.api_key == "workspace-key"
+    assert list(
+        workspace_provider.models.values_list("model_identifier", "feature_types")
+    ) == [
+        ("gpt-5.4-mini", [AI_PROVIDER_FEATURE_AI_FIELDS, AI_PROVIDER_FEATURE_AI_AGENT])
+    ]
+    workspace.refresh_from_db()
+    assert workspace.generative_ai_models_settings["openai"]["api_key"] == (
+        "workspace-key"
+    )
+
+
+# Shapes observed in production: a credential without models, and models without a
+# credential. Both resolve differently than they did before the flag was removed; the
+# import must at least not move them again.
+PARTIAL_LEGACY_SHAPES = [
+    {"api_key": "workspace-key", "models": []},
+    {"models": ["gpt-4"]},
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("legacy_values", PARTIAL_LEGACY_SHAPES)
+def test_partial_legacy_settings_survive_the_import(
+    data_fixture, settings, legacy_values
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4", "gpt-5.4-mini"]
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={"openai": legacy_values}
+    )
+    model_type = generative_ai_model_type_registry.get("openai")
+
+    def availability():
+        clear_ai_provider_state_cache()
+        return model_type.get_enabled_models_for_feature(
+            AI_PROVIDER_FEATURE_AI_FIELDS, workspace=workspace
+        )
+
+    before = availability()
+    _import_everything()
+
+    assert availability() == before
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "legacy_values",
+    [
+        {"api_key": "k" * 600, "models": ["gpt-4o"]},
+        {"api_key": "k", "models": ["m" * 400]},
+    ],
+)
+def test_oversized_legacy_settings_are_skipped_not_fatal(data_fixture, legacy_values):
+    """A value too long for its column must not abort the whole upgrade."""
+
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={"openai": legacy_values}
+    )
+
+    plan = plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace)
+    assert plan.planned == []
+    assert [s.workspace_id for s in plan.skipped] == [workspace.id]
+    assert "longer than" in plan.skipped[0].reason
+
+    _import_everything()
+
+    assert not AIProviderConfig.objects.filter(workspace=workspace).exists()

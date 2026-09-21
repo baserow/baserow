@@ -234,3 +234,46 @@ def test_0120_makes_existing_ai_provider_models_available_to_ai_agents_and_rever
         database_default_id = cursor.fetchone()[0]
     database_default_model = RolledBackAIProviderModel.objects.get(id=database_default_id)
     assert database_default_model.feature_types == ["ai_fields"]
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0121_imports_legacy_ai_provider_settings(
+    migrator, teardown_table_metadata, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+
+    old_state = migrator.migrate([("core", "0120_add_ai_agent_provider_model_feature")])
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    workspace = Workspace.objects.create(
+        name="with legacy settings",
+        generative_ai_models_settings={
+            "openai": {"api_key": "workspace-key", "models": ["gpt-5.4-mini"]}
+        },
+    )
+    Workspace.objects.create(name="without legacy settings")
+
+    new_state = migrator.migrate(
+        [("core", "0121_import_legacy_ai_provider_settings")]
+    )
+    AIProviderConfig = new_state.apps.get_model("core", "AIProviderConfig")
+    AIProviderWorkspaceOverride = new_state.apps.get_model(
+        "core", "AIProviderWorkspaceOverride"
+    )
+
+    instance_provider = AIProviderConfig.objects.get(workspace__isnull=True)
+    assert instance_provider.api_key == "environment-key"
+    assert list(instance_provider.models.values_list("model_identifier", flat=True)) == [
+        "gpt-5.4"
+    ]
+    assert instance_provider.models.get().feature_types == ["ai_fields", "ai_agent"]
+
+    workspace_provider = AIProviderConfig.objects.get(workspace_id=workspace.id)
+    assert workspace_provider.api_key == "workspace-key"
+    assert AIProviderConfig.objects.count() == 2
+
+    # The workspace defined its own connection, so it must not start inheriting the
+    # instance models the import just created.
+    override = AIProviderWorkspaceOverride.objects.get()
+    assert override.workspace_id == workspace.id
+    assert override.provider_config_id == instance_provider.id

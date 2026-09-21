@@ -2,19 +2,22 @@ from typing import Any
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Count
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_TYPES,
     PROVIDER_ENVIRONMENT_SETTINGS,
 )
-from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
-from baserow.core.ai_provider.handler import AIProviderHandler
-from baserow.core.ai_provider.models import AIProviderConfig
-from baserow.core.ai_provider.provider_types import (
-    get_environment_provider_values,
-    get_legacy_workspace_provider_values,
-    validate_provider_settings,
+from baserow.core.ai_provider.legacy_import import (
+    SKIPPED_EXISTING,
+    ImportPlan,
+    PlannedProvider,
+    SkippedProvider,
+    apply_import_plan,
+    plan_instance_import,
+    plan_workspace_import,
 )
+from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.models import Workspace
 
 INSTANCE_SCOPE = "instance"
@@ -48,11 +51,14 @@ class Command(BaseCommand):
         scope = options["scope"]
         should_apply = options["apply"]
         if scope == INSTANCE_SCOPE:
-            planned, skipped_count = self._plan_instance_import()
+            plan = plan_instance_import(AIProviderConfig, AIProviderModel)
         else:
-            planned, skipped_count = self._plan_workspace_import()
+            plan = plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace)
 
-        if scope == INSTANCE_SCOPE and not planned and not skipped_count:
+        self._report_plan(plan)
+        skipped_count = len(plan.skipped)
+
+        if scope == INSTANCE_SCOPE and not plan.planned and not skipped_count:
             self._report_unconfigured_instance_settings()
             if not should_apply:
                 return
@@ -60,7 +66,7 @@ class Command(BaseCommand):
         if not should_apply:
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Preview complete for the {scope} scope: {len(planned)} "
+                    f"Preview complete for the {scope} scope: {len(plan.planned)} "
                     f"provider(s) to import, {skipped_count} left unchanged. No "
                     "changes were written; re-run with "
                     f"--scope {scope} --apply to import missing providers."
@@ -68,26 +74,10 @@ class Command(BaseCommand):
             )
             return
 
-        imported_count = 0
         with transaction.atomic():
-            for values in planned:
-                workspace = values["workspace"]
-                if AIProviderConfig.objects.filter(
-                    workspace=workspace,
-                    provider_type=values["provider_type"],
-                ).exists():
-                    continue
-                AIProviderHandler.create_provider(
-                    workspace=workspace,
-                    provider_type=values["provider_type"],
-                    api_key=values["api_key"],
-                    extra_settings=values["extra_settings"],
-                    models_data=[
-                        {"model_identifier": identifier}
-                        for identifier in values["models"]
-                    ],
-                )
-                imported_count += 1
+            imported_count = len(
+                apply_import_plan(plan, AIProviderConfig, AIProviderModel)
+            )
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -95,177 +85,73 @@ class Command(BaseCommand):
             )
         )
 
-    def _plan_instance_import(self) -> tuple[list[dict[str, Any]], int]:
-        existing_by_type = {
-            provider.provider_type: provider
-            for provider in AIProviderConfig.objects.filter(
-                workspace__isnull=True
-            ).prefetch_related("models")
-        }
-        planned = []
-        skipped_count = 0
-        for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
-            values = get_environment_provider_values(provider_type)
-            provider_name = AI_PROVIDER_TYPES[provider_type]["name"]
-            if not values["configured"]:
-                continue
-            try:
-                validate_provider_settings(
-                    provider_type,
-                    values["api_key"],
-                    values["extra_settings"],
-                    values["models"],
-                    require_credentials=True,
-                )
-            except InvalidAIProviderSettings as exc:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"{provider_name}: skipping, its environment settings are "
-                        f"incomplete ({exc})."
-                    )
-                )
-                skipped_count += 1
-                continue
-            if provider_type in existing_by_type:
-                skipped_count += 1
-                differences = self._describe_existing_configuration(
-                    existing_by_type[provider_type], values, "environment"
-                )
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"{provider_name}: keeping existing database configuration "
-                        f"({differences})."
-                    )
-                )
-                continue
-            planned.append({**values, "workspace": None})
-            self.stdout.write(
-                f"{provider_name}: import {len(values['models'])} model(s); "
-                f"credential set: {'yes' if values['api_key'] else 'no'}."
+    def _report_plan(self, plan: ImportPlan) -> None:
+        inheriting_types = set(
+            AIProviderConfig.objects.filter(
+                workspace__isnull=True,
+                provider_type__in={
+                    provider.provider_type
+                    for provider in plan.planned
+                    if provider.workspace_id is not None
+                },
+            ).values_list("provider_type", flat=True)
+        )
+        inherited_by_counts = dict(
+            AIProviderConfig.objects.filter(
+                workspace__isnull=False,
+                provider_type__in={
+                    provider.provider_type
+                    for provider in plan.planned
+                    if provider.workspace_id is None
+                },
             )
-        return planned, skipped_count
-
-    def _plan_workspace_import(self) -> tuple[list[dict[str, Any]], int]:
-        existing = {
-            (provider.workspace_id, provider.provider_type): provider
-            for provider in AIProviderConfig.objects.filter(
-                workspace__isnull=False
-            ).prefetch_related("models")
-        }
-        planned = []
-        skipped_count = 0
-
-        for workspace in Workspace.objects.only(
-            "id", "name", "generative_ai_models_settings"
-        ).iterator():
-            legacy_settings = workspace.generative_ai_models_settings or {}
-            for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
-                if provider_type not in legacy_settings:
-                    continue
-                raw_values = legacy_settings[provider_type]
-                if isinstance(raw_values, dict):
-                    if not any(raw_values.values()):
-                        continue
-                elif not raw_values:
-                    continue
-
-                provider_name = AI_PROVIDER_TYPES[provider_type]["name"]
-                prefix = f"Workspace {workspace.id} ({workspace.name}), {provider_name}"
-                try:
-                    values = get_legacy_workspace_provider_values(
-                        provider_type, raw_values
-                    )
-                except InvalidAIProviderSettings as exc:
-                    skipped_count += 1
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"{prefix}: skipping incomplete legacy settings ({exc})."
-                        )
-                    )
-                    continue
-
-                existing_provider = existing.get((workspace.id, provider_type))
-                if existing_provider is not None:
-                    skipped_count += 1
-                    differences = self._describe_existing_configuration(
-                        existing_provider, values, "legacy settings"
-                    )
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"{prefix}: keeping existing database configuration "
-                            f"({differences})."
-                        )
-                    )
-                    continue
-
-                planned.append({**values, "workspace": workspace})
+            .values_list("provider_type")
+            .annotate(Count("id"))
+        )
+        for provider in plan.planned:
+            self.stdout.write(
+                f"{self._prefix(provider)}: import {len(provider.models)} model(s); "
+                f"credential set: {'yes' if provider.api_key else 'no'}."
+            )
+            workspaces_that_will_inherit = inherited_by_counts.get(
+                provider.provider_type, 0
+            )
+            if provider.workspace_id is None and workspaces_that_will_inherit:
                 self.stdout.write(
-                    f"{prefix}: import {len(values['models'])} model(s); credential "
-                    f"set: {'yes' if values['api_key'] else 'no'}."
+                    self.style.WARNING(
+                        f"{self._prefix(provider)}: {workspaces_that_will_inherit} "
+                        "workspace(s) with their own provider of this type will now "
+                        "also inherit this one. Disable the inherited provider for "
+                        "each of them to match what the upgrade migration does."
+                    )
                 )
-
-        return planned, skipped_count
+            if provider.provider_type in inheriting_types:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"{self._prefix(provider)}: this workspace will also inherit "
+                        "the instance provider of the same type, which its legacy "
+                        "settings replaced. The upgrade opts imported workspaces out "
+                        "automatically; disable the inherited provider for this "
+                        "workspace under its AI providers settings to match."
+                    )
+                )
+        for skipped in plan.skipped:
+            if skipped.kind == SKIPPED_EXISTING:
+                message = f"keeping existing database configuration ({skipped.reason})."
+            elif skipped.workspace_id is None:
+                message = f"skipping, {skipped.reason}."
+            else:
+                message = f"skipping {skipped.reason}."
+            self.stdout.write(self.style.WARNING(f"{self._prefix(skipped)}: {message}"))
 
     @staticmethod
-    def _describe_existing_configuration(
-        provider: AIProviderConfig,
-        incoming: dict[str, Any],
-        incoming_label: str,
-    ) -> str:
-        """Describe a skipped import without printing credential or setting values."""
-
-        differences = []
-        if provider.api_key != incoming["api_key"]:
-            differences.append("credential differs")
-
-        database_settings = provider.extra_settings or {}
-        incoming_settings = incoming["extra_settings"] or {}
-        settings_only_in_incoming = sorted(incoming_settings.keys() - database_settings)
-        settings_only_in_database = sorted(database_settings.keys() - incoming_settings)
-        changed_settings = sorted(
-            key
-            for key in incoming_settings.keys() & database_settings
-            if incoming_settings[key] != database_settings[key]
+    def _prefix(entry: PlannedProvider | SkippedProvider) -> str:
+        provider_name = AI_PROVIDER_TYPES[entry.provider_type]["name"]
+        if entry.workspace_id is None:
+            return provider_name
+        return (
+            f"Workspace {entry.workspace_id} ({entry.workspace_name}), {provider_name}"
         )
-        if settings_only_in_incoming:
-            differences.append(
-                f"settings only in {incoming_label}: "
-                f"{', '.join(settings_only_in_incoming)}"
-            )
-        if settings_only_in_database:
-            differences.append(
-                f"settings only in database: {', '.join(settings_only_in_database)}"
-            )
-        if changed_settings:
-            differences.append(
-                f"settings with different values: {', '.join(changed_settings)}"
-            )
-
-        database_models = {model.model_identifier for model in provider.models.all()}
-        incoming_models = set(incoming["models"])
-        models_only_in_incoming = sorted(incoming_models - database_models)
-        models_only_in_database = sorted(database_models - incoming_models)
-        disabled_database_models = sorted(
-            model.model_identifier
-            for model in provider.models.all()
-            if not model.is_enabled and model.model_identifier in incoming_models
-        )
-        if models_only_in_incoming:
-            differences.append(
-                f"models only in {incoming_label}: {', '.join(models_only_in_incoming)}"
-            )
-        if models_only_in_database:
-            differences.append(
-                f"models only in database: {', '.join(models_only_in_database)}"
-            )
-        if disabled_database_models:
-            differences.append(
-                f"models disabled in database: {', '.join(disabled_database_models)}"
-            )
-        if not provider.is_active:
-            differences.append("database provider is disabled")
-
-        return "; ".join(differences) or f"matches {incoming_label}"
 
     def _report_unconfigured_instance_settings(self) -> None:
         self.stdout.write(

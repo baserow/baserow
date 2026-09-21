@@ -16,6 +16,8 @@ def log_ai_provider_env_deprecations() -> None:
     Called during Django startup for servers, workers, and management commands.
     Only variable names are logged; checking the environment requires no database
     access or provider connections and leaves compatibility fallbacks unchanged.
+    The notice cannot say whether a given variable is still in use, because that
+    depends on provider rows this must not query during startup.
 
     :returns: None.
     """
@@ -35,10 +37,14 @@ def log_ai_provider_env_deprecations() -> None:
     if configured_provider_variables:
         logger.warning(
             "Deprecated AI provider environment variables are configured: {}. "
-            "Manage providers and models under Admin > AI providers, or preview "
-            "their import with migrate_ai_provider_settings --scope instance. "
-            "Verify the imported configuration before removing these variables. "
-            "Environment fallback remains supported for compatibility.",
+            "Upgrading imports them once into Admin > AI providers, which then "
+            "takes precedence: editing these variables afterwards has no effect "
+            "on a provider type configured there. Manage those providers in the "
+            "admin instead, and verify the imported configuration before removing "
+            "these variables. A provider type with no configuration there still "
+            "falls back to its environment settings, and "
+            "migrate_ai_provider_settings --scope instance imports one that the "
+            "upgrade could not.",
             ", ".join(configured_provider_variables),
         )
 
@@ -58,8 +64,9 @@ def log_ai_provider_env_deprecations() -> None:
                 "Deprecated Kuma environment variables are "
                 "configured: {}. Configure and test a provider and model under "
                 "Admin > AI providers, then select it for Kuma under AI features. "
-                "The import command does not migrate Kuma selectors or SDK "
-                "credentials. Keep the environment fallback until a supported "
+                "The automatic import does not migrate Kuma selectors or SDK "
+                "credentials, and imported models are not Kuma-eligible until you "
+                "mark them. Keep the environment fallback until a supported "
                 "replacement is configured and verified.",
                 ", ".join(configured_kuma_variables),
             )
