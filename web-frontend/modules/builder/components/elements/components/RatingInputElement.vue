@@ -10,7 +10,7 @@
       :custom-color="resolveColor(element.color, colorVariables)"
       :rating-style="element.rating_style || 'star'"
       show-unselected
-      @update="inputValue = $event"
+      @update="onRatingChange"
     />
   </ABFormGroup>
 </template>
@@ -45,6 +45,12 @@ export default {
   },
   validations() {
     return this.rules
+  },
+  methods: {
+    onRatingChange(value) {
+      this.inputValue = value
+      this.handleFormElementChange()
+    },
   },
 }
 </script>

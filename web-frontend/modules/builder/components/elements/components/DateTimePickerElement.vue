@@ -13,6 +13,7 @@
       :include-time="element.include_time"
       :calendar-style="getStyleOverride('input')"
       :clock-style="getStyleOverride('input')"
+      @update:model-value="handleFormElementChange"
     ></ABDateTimePicker>
   </ABFormGroup>
 </template>
