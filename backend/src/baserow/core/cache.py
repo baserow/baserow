@@ -19,7 +19,7 @@ T = TypeVar("T")
 
 # This var is to invalidate global cache when we can't bump the Baserow version for
 # some reason.
-GLOBAL_CACHE_VERSION = 2
+GLOBAL_CACHE_VERSION = 3
 
 
 class LocalCache:
