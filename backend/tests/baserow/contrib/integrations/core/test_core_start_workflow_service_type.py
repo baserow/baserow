@@ -166,7 +166,7 @@ def test_start_workflow_service_waits_for_response_node(data_fixture):
     AutomationWorkflowHandler().publish(workflow)
     service = data_fixture.create_core_start_workflow_service(workflow=workflow)
 
-    result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
+    result = ServiceHandler().dispatch_service(service, fake_dispatch_context(workflow))
 
     assert result.data == {
         "status_code": 201,
@@ -196,8 +196,12 @@ def test_start_workflow_automation_node_waits_for_response_node(data_fixture):
     )
     AutomationWorkflowHandler().publish(child_workflow)
 
+    # In the child's automation: a workflow may only start one of its own
+    # workspace.
     parent_workflow = data_fixture.create_automation_workflow(
-        user=user, trigger_type=CoreManualTriggerNodeType.type
+        user=user,
+        automation=child_workflow.automation,
+        trigger_type=CoreManualTriggerNodeType.type,
     )
     data_fixture.create_automation_node(
         workflow=parent_workflow,
@@ -261,7 +265,9 @@ def test_start_workflow_service_does_not_wait_when_manual_trigger_disables_it(
         "baserow.contrib.automation.workflows.handler."
         "AutomationWorkflowHandler.async_start_workflow"
     ) as async_start_workflow:
-        result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
+        result = ServiceHandler().dispatch_service(
+            service, fake_dispatch_context(workflow)
+        )
 
     async_start_workflow.assert_called_once_with(published_workflow, triggered_by=None)
     assert result.data is None
@@ -283,7 +289,7 @@ def test_start_workflow_service_waits_for_completion_without_response_node(
     AutomationWorkflowHandler().publish(workflow)
     service = data_fixture.create_core_start_workflow_service(workflow=workflow)
 
-    result = ServiceHandler().dispatch_service(service, fake_dispatch_context())
+    result = ServiceHandler().dispatch_service(service, fake_dispatch_context(workflow))
 
     assert result.data == {
         "status_code": 204,
@@ -702,6 +708,31 @@ def test_start_workflow_service_import_keeps_a_duplicated_workflow_mapping(
 
     assert duplicated.workflow_id == workflow.id
     assert from_file.workflow_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("named", [[12], {"id": 12}, True, "12abc"])
+def test_start_workflow_service_import_survives_a_workflow_id_that_is_not_one(
+    data_fixture, named
+):
+    """
+    Nothing coerces a hand-edited export, so a list would key the mapping and
+    fail the whole import job with a `TypeError`, and a `True` would hash
+    equal to 1.
+    """
+
+    service = data_fixture.create_core_start_workflow_service(workflow=None)
+    service_type = CoreStartWorkflowServiceType()
+    exported = {**service_type.export_serialized(service), "workflow_id": named}
+
+    imported_service = service_type.import_serialized(
+        None,
+        exported,
+        {"automation_workflows": MirrorDict()},
+        import_export_config=_copy_config(is_duplicate=True),
+    )
+
+    assert imported_service.workflow_id is None
 
 
 @pytest.mark.django_db

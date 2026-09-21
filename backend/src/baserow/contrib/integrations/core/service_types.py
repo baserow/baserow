@@ -3317,7 +3317,7 @@ class CoreStartWorkflowServiceType(CoreServiceType):
 
     def import_workflow_id(
         self,
-        exported_workflow_id: int,
+        exported_workflow_id: Any,
         id_mapping: Dict[str, Any],
         import_export_config: Optional[ImportExportConfig],
     ) -> Optional[int]:
@@ -3334,7 +3334,8 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         workspace imported into when the import names one, and have a trigger
         that starts on demand.
 
-        :param exported_workflow_id: What the export named.
+        :param exported_workflow_id: What the export named, which is whatever
+            was in the file.
         :param id_mapping: What this import has remapped so far.
         :param import_export_config: What kind of import this is.
         :return: The id to write, or None.
@@ -3349,6 +3350,14 @@ class CoreStartWorkflowServiceType(CoreServiceType):
         from baserow.contrib.automation.workflows.service import (
             AutomationWorkflowService,
         )
+
+        # Nothing coerces this the way the endpoint's serializer does, so a
+        # hand-edited export could key the mapping with a list, or slip a
+        # `True` through, which hashes equal to 1.
+        if isinstance(exported_workflow_id, bool) or not isinstance(
+            exported_workflow_id, int
+        ):
+            return None
 
         workflow_mapping = id_mapping.get("automation_workflows", {})
         # `.keys()`, not `in`: a `MirrorDict` answers `in` for every key, and
