@@ -536,11 +536,11 @@ SERVICE_TABLES = {
 }
 
 
-def _fill_service_tables(application, table, count=1000):
+def _fill_service_tables(application, table, count=10000):
     """
     Adds `count` unrelated integrations, services and upsert row services, as
-    the builder and automations would. On a few dozen rows the planner may
-    rightly hash a whole table rather than look up one row.
+    the builder and automations would. On a few thousand rows the planner may
+    rightly hash a whole table rather than look up one row per action.
     """
 
     with connection.cursor() as cursor:
@@ -573,8 +573,10 @@ def _service_scans(sql, params=None):
     """
     Plans `sql` with sequential scans discouraged, as they would be on tables
     of real size, and returns every scan of a service or integration in the plan.
-    The tables are analyzed first, so the plan does not depend on whether
-    autovacuum happened to analyze them during an earlier test.
+    The tables are analyzed first and the costs pinned to Postgres' defaults, so
+    the plan depends neither on whether autovacuum analyzed them during an
+    earlier test nor on how the database was started: the dev database lowers
+    `random_page_cost`, which makes an index lookup look cheaper than on CI.
     """
 
     def walk(node):
@@ -586,10 +588,14 @@ def _service_scans(sql, params=None):
     with connection.cursor() as cursor:
         for service_table in sorted(SERVICE_TABLES):
             cursor.execute(f"ANALYZE {service_table}")
+        cursor.execute("SET LOCAL random_page_cost = 4")
+        cursor.execute("SET LOCAL work_mem = '4MB'")
         cursor.execute("SET LOCAL enable_seqscan = off")
         cursor.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + sql, params)
         plan = cursor.fetchone()[0]
         cursor.execute("SET LOCAL enable_seqscan = on")
+        cursor.execute("RESET random_page_cost")
+        cursor.execute("RESET work_mem")
     return list(walk(plan[0]["Plan"]))
 
 
