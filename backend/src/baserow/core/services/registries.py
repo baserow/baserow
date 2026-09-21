@@ -451,7 +451,10 @@ class ServiceType(
         # call that runs outside must not hold a transaction open for its
         # network wait; a context whose caller already wraps dispatch in a
         # transaction of its own opts out, since leaving the savepoint there
-        # gains nothing.
+        # gains nothing. Sending outside commits formula resolution before the
+        # request goes out, so it relies on the data providers of such a
+        # context only reading: one that wrote would keep its writes when the
+        # request fails.
         sends_outside = (
             self.is_external
             and dispatch_context.sends_external_calls_outside_transaction
