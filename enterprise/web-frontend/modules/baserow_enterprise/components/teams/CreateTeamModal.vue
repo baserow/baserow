@@ -108,13 +108,18 @@ export default {
     },
     async showSubjectAssignmentModal() {
       this.agents = []
-      if (this.canListAgents) {
-        const { data } = await AgentService(this.$client).list(
-          this.workspace.id
-        )
-        this.agents = data.results || data
+      try {
+        if (this.canListAgents) {
+          const { data } = await AgentService(this.$client).list(
+            this.workspace.id
+          )
+          this.agents = data.results || data
+        }
+      } catch (error) {
+        this.handleError(error, 'team')
+      } finally {
+        this.$refs.memberAssignmentModal.show()
       }
-      this.$refs.memberAssignmentModal.show()
     },
     async createTeam(values) {
       this.loading = true
