@@ -34,6 +34,7 @@ from baserow_premium.license.handler import LicenseHandler
 
 
 class GraphElementSeriesSerializer(serializers.Serializer):
+    uid = serializers.UUIDField(format="hex_verbose")
     label = FormulaSerializerField(required=False)
     values = FormulaSerializerField(required=False)
     color = serializers.CharField(
@@ -53,6 +54,7 @@ class GraphElementSeriesSerializer(serializers.Serializer):
         }
         if missing_fields:
             raise serializers.ValidationError(missing_fields)
+        attrs["uid"] = str(attrs["uid"])
         return attrs
 
 
@@ -455,6 +457,7 @@ class GraphElementType(ElementType):
             ),
             "series": [
                 {
+                    "uid": "61b8a893-d454-47e4-9924-8d8da62a8bd9",
                     "label": BaserowFormulaObject(
                         formula="'Count'",
                         mode=BASEROW_FORMULA_MODE_SIMPLE,

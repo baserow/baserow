@@ -43,9 +43,9 @@
       <div>
         <SidebarExpandable
           v-for="(series, index) in values.series"
-          :key="seriesIds[index]"
+          :key="series.uid"
           v-sortable="{
-            id: seriesIds[index],
+            id: series.uid,
             update: orderSeries,
             handle: '[data-sortable-handle]',
           }"
@@ -149,37 +149,25 @@ export default {
         series: [],
         styles: {},
       },
-      seriesIds: [],
     }
   },
   mounted() {
     if (this.values.series.length === 0) {
       this.addSeries()
-    } else {
-      this.syncSeriesIds()
     }
   },
   methods: {
-    syncSeriesIds() {
-      while (this.seriesIds.length < this.values.series.length) {
-        this.seriesIds.push(uuid())
-      }
-      if (this.seriesIds.length > this.values.series.length) {
-        this.seriesIds = this.seriesIds.slice(0, this.values.series.length)
-      }
-    },
     addSeries() {
       this.values.series.push({
+        uid: uuid(),
         label: '',
         values: '',
         color: 'primary',
         chart_type: 'BAR',
       })
-      this.seriesIds.push(uuid())
     },
     removeSeries(index) {
       this.values.series.splice(index, 1)
-      this.seriesIds.splice(index, 1)
     },
     updateSeries(index, key, value) {
       this.values.series.splice(index, 1, {
@@ -192,10 +180,7 @@ export default {
     },
     orderSeries(newOrder) {
       const seriesById = Object.fromEntries(
-        this.values.series.map((series, index) => [
-          this.seriesIds[index],
-          series,
-        ])
+        this.values.series.map((series) => [series.uid, series])
       )
       const orderedSeriesIds = newOrder.filter(
         (seriesId) => seriesById[seriesId]
@@ -203,7 +188,6 @@ export default {
       this.values.series = orderedSeriesIds.map(
         (seriesId) => seriesById[seriesId]
       )
-      this.seriesIds = orderedSeriesIds
     },
   },
 }

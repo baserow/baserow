@@ -95,6 +95,7 @@ def test_graph_element_import_export_formula_data_sources(
         labels=f"get('data_source.{data_source_1.id}.field_1')",
         series=[
             {
+                "uid": "61b8a893-d454-47e4-9924-8d8da62a8bd9",
                 "label": f"get('data_source.{data_source_1.id}.field_2')",
                 "values": f"get('data_source.{data_source_1.id}.field_3')",
                 "color": "#2e90fa",
@@ -124,6 +125,42 @@ def test_graph_element_import_export_formula_data_sources(
     )
     assert exported_element.series[0]["color"] == "#2e90fa"
     assert exported_element.series[0]["chart_type"] == "BAR"
+    assert exported_element.series[0]["uid"] == "61b8a893-d454-47e4-9924-8d8da62a8bd9"
+
+
+@pytest.mark.django_db
+def test_graph_element_update_preserves_series_uid(
+    api_client, enterprise_data_fixture, enable_enterprise
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    page = enterprise_data_fixture.create_builder_page(user=user)
+    graph = enterprise_data_fixture.create_builder_element(
+        GraphElementType,
+        page=page,
+    )
+    series_uid = "61b8a893-d454-47e4-9924-8d8da62a8bd9"
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": graph.id})
+    response = api_client.patch(
+        url,
+        {
+            "series": [
+                {
+                    "uid": series_uid,
+                    "label": "'Count'",
+                    "values": "to_array('1,2')",
+                    "color": "primary",
+                    "chart_type": "BAR",
+                }
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    graph.refresh_from_db()
+    assert graph.series[0]["uid"] == series_uid
 
 
 @pytest.mark.django_db

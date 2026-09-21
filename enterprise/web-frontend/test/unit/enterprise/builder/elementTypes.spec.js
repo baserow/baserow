@@ -193,6 +193,7 @@ describe('Enterprise builder element types', () => {
       labels: "'label 1,label 2,label 3'",
       series: [
         {
+          uid: expect.any(String),
           label: "'Series 1'",
           values: "'10,20,30'",
           color: 'primary',
@@ -222,43 +223,56 @@ describe('Enterprise builder element types', () => {
     expect(data.values.styles).toStrictEqual({})
   })
 
-  test('graph element form ignores non-series ids when ordering series', () => {
-    const form = {
-      values: {
-        series: [
-          {
-            label: "'First'",
-            values: "'1'",
-            color: 'primary',
-            chart_type: 'BAR',
-          },
-          {
-            label: "'Second'",
-            values: "'2'",
-            color: 'warning',
-            chart_type: 'LINE',
-          },
-        ],
-      },
-      seriesIds: ['first', 'second'],
-    }
-
-    GraphElementForm.methods.orderSeries.call(form, [
-      undefined,
-      'second',
-      'first',
-    ])
-
-    expect(form.values.series).toStrictEqual([
+  test('graph element form keeps series identity after delete, undo, and reorder', () => {
+    const originalSeries = [
       {
+        uid: 'first',
+        label: "'First'",
+        values: "'1'",
+        color: 'primary',
+        chart_type: 'BAR',
+      },
+      {
+        uid: 'second',
         label: "'Second'",
         values: "'2'",
         color: 'warning',
         chart_type: 'LINE',
       },
-      { label: "'First'", values: "'1'", color: 'primary', chart_type: 'BAR' },
+      {
+        uid: 'third',
+        label: "'Third'",
+        values: "'3'",
+        color: 'error',
+        chart_type: 'BAR',
+      },
+    ]
+    const form = {
+      values: {
+        series: [...originalSeries],
+      },
+    }
+
+    GraphElementForm.methods.removeSeries.call(form, 1)
+    GraphElementForm.methods.removeSeries.call(form, 1)
+    form.values.series = [...originalSeries]
+    GraphElementForm.methods.orderSeries.call(form, [
+      undefined,
+      'third',
+      'second',
+      'first',
     ])
-    expect(form.seriesIds).toStrictEqual(['second', 'first'])
+
+    expect(form.values.series.map(({ uid }) => uid)).toStrictEqual([
+      'third',
+      'second',
+      'first',
+    ])
+    expect(form.values.series.map(({ label }) => label)).toStrictEqual([
+      "'Third'",
+      "'Second'",
+      "'First'",
+    ])
   })
 })
 

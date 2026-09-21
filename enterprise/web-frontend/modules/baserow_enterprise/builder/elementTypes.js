@@ -319,6 +319,7 @@ export class GraphElementType extends ElementType {
       labels: "'label 1,label 2,label 3'",
       series: [
         {
+          uid: uuid(),
           label: "'Series 1'",
           values: "'10,20,30'",
           color: 'primary',
