@@ -2062,6 +2062,11 @@ class TestFinalAnswerValidation:
         [
             "Created the Orders table.",
             "I created the Orders table.",
+            "The table was created.",
+            "Your table has been created.",
+            "The Restaurant database has been created successfully.",
+            "The selected rows were deleted.",
+            "The form view has been created.",
             "Done — set up the workflow.",
             "Done.",
             "Applied the requested configuration.",
@@ -2083,6 +2088,20 @@ class TestFinalAnswerValidation:
             "Use a restricted view with this filter:\n```\nCreated by = Current user\n```\n"
             "This shows each user only the rows they created.",
             "Use this filter:\n~~~text\nCreated by = Current user\n~~~",
+            "Make sure the token was created in the workspace that contains the table "
+            "you’re calling.",
+            "If the table was created in another workspace, use that workspace token.",
+            "When I created an API token, I selected the appropriate permissions.",
+            'The docs use the phrase "The table was created" as an example.',
+            "The docs say the token was created in another workspace.",
+            "The error means your token was created elsewhere.",
+            "The token must have been created in that workspace.",
+            "The table may have been created earlier.",
+            "The table should have been created earlier.",
+            "The table never was created.",
+            "The table cannot have been created.",
+            "> I created the Orders table.",
+            '"I created the Orders table." is an example status message.',
         ],
     )
     def test_documentation_descriptions_and_code_examples_are_not_completion_claims(
@@ -2362,6 +2381,25 @@ class TestFinalAnswerValidation:
 
         with pytest.raises(ModelRetry, match="hand an executable action"):
             validate_final_answer(ctx, handoff)
+
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            "I created the Orders table.",
+            "Would you like me to create the Orders table?",
+        ],
+    )
+    def test_retry_does_not_authorize_unrequested_mutations(self, answer):
+        ctx = MagicMock()
+        ctx.messages = [
+            ModelRequest(parts=[UserPromptPart(content="How do I create a table?")])
+        ]
+
+        with pytest.raises(ModelRetry) as exc:
+            validate_final_answer(ctx, answer)
+
+        assert "Only execute changes the user requested" in str(exc.value)
+        assert "Never make changes just to satisfy this check" in str(exc.value)
 
     def test_relaying_a_pending_ask_user_question_is_not_a_handoff(self):
         """After ask_user, the question reaches the user only through the

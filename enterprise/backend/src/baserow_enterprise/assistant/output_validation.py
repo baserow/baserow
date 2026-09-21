@@ -33,13 +33,22 @@ _UNAVAILABLE_TOOL_PATTERNS = (
     ),
 )
 _CHANGE_VERBS = r"(?:created|updated|deleted|added|configured|set up|applied|completed)"
+# Deliberately recognize direct assertions with simple, one/two-word subjects.
+# An arbitrary subject span also captures instructions and nested reports such as
+# "Make sure the token was created" or "The docs say the table was created".
+# Complex or indirect assertions remain outside this heuristic's coverage.
+_SIMPLE_PASSIVE_SUBJECT = (
+    r"(?:[\w-]+\s+)?"
+    r"(?!(?:can|could|may|might|must|shall|should|will|would|cannot|not|never)\b)"
+    r"[\w-]+"
+)
 _EXPLICIT_COMPLETED_CHANGE_PATTERNS = (
     re.compile(
-        rf"\bI(?:'ve| have)?\s+(?:successfully\s+)?{_CHANGE_VERBS}\b",
+        rf"^\s*I(?:'ve| have)?\s+(?:successfully\s+)?{_CHANGE_VERBS}\b",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"\b(?:the|your)\s+.{{0,80}}\s+"
+        rf"^\s*(?:the|your)\s+{_SIMPLE_PASSIVE_SUBJECT}\s+"
         rf"(?:(?:has|have) been|was|were)\s+(?:successfully\s+)?"
         rf"{_CHANGE_VERBS}\b",
         re.IGNORECASE,
@@ -222,9 +231,12 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
     if claims and not grounded:
         raise ModelRetry(
             "You claimed a change succeeded without a verified successful tool "
-            "result in this turn. Execute the required tool first, or accurately "
-            "say what is still pending and why. Describe earlier work as already "
-            "existing rather than claiming a new change."
+            "result in this turn. Correct unsupported completion claims and "
+            "accurately report any pending work or error. For documentation "
+            "questions, explain the behavior without implying you performed it. "
+            "Describe earlier work as already existing rather than claiming a "
+            "new change. Only execute changes the user requested. Never make "
+            "changes just to satisfy this check."
         )
     # A pending ask_user question is the one legitimate handoff.
     asked = ctx is not None and isinstance(ctx.deps.pending_question, str)
@@ -232,8 +244,11 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
     if not claims and not asked and _defers_action_without_blocker(answer):
         raise ModelRetry(
             "Do not hand an executable action back to the user by saying you are "
-            "ready or asking whether to proceed. Execute it now. Ask only when "
-            "required input is missing, or report the exact tool error or supported "
-            "limitation that blocks it."
+            "ready or asking whether to proceed. Complete requested work, ask "
+            "when required input is missing, or report the exact tool error or "
+            "supported limitation that blocks it. For documentation questions, "
+            "explain optional actions without performing them. Only execute "
+            "changes the user requested. Never make changes just to satisfy "
+            "this check."
         )
     return answer
