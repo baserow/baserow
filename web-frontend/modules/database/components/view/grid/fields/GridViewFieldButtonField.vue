@@ -1,5 +1,5 @@
 <template>
-  <div ref="cell" class="grid-view__cell">
+  <div ref="cell" class="grid-view__cell active">
     <!-- A disabled button fires no mouse events, so the tooltip sits on the
          wrapper. -->
     <div

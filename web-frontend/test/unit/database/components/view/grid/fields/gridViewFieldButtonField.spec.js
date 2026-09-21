@@ -72,6 +72,14 @@ describe('GridViewFieldButtonField', () => {
     )
   })
 
+  test('the selected cell is outlined like every other field', async () => {
+    // The grid only mounts this component for the selected cell, and the
+    // outline comes from the `active` class.
+    const wrapper = await mountCell({ selected: true })
+
+    expect(wrapper.find('.grid-view__cell').classes()).toContain('active')
+  })
+
   test('a field without actions renders a disabled button and no link', async () => {
     const wrapper = await mountCell({
       field: { ...field, has_workflow_actions: false },
