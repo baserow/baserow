@@ -1,6 +1,7 @@
 from time import perf_counter
 from typing import Dict, List, Optional, Tuple
 
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
@@ -426,7 +427,7 @@ def _outcome_for(exc: Exception) -> Tuple[DispatchOutcome, Optional[int]]:
         return DispatchOutcome.DEACTIVATED, None
     # A 403 from outside core is a plugin refusing the click, a SaaS quota for
     # instance, which core has no error code for.
-    if isinstance(exc, PermissionException) or (
+    if isinstance(exc, (PermissionException, DjangoPermissionDenied)) or (
         isinstance(exc, APIException) and exc.status_code == 403
     ):
         return DispatchOutcome.DENIED, None

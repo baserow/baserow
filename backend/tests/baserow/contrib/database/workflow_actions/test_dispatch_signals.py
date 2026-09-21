@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
 from django.core.cache import cache
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.urls import reverse
 
 import pytest
@@ -753,3 +754,25 @@ def test_a_plugin_refusal_with_a_403_sends_denied(api_client, data_fixture, sett
         second_response = _click(api_client, token, button_field, row.id)
 
     assert second_response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_a_plugin_refusal_with_djangos_permission_denied_sends_denied(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+
+    def refuse(sender, **kwargs):
+        raise DjangoPermissionDenied()
+
+    workflow_actions_before_dispatch.connect(refuse)
+    try:
+        with _received(button_field_dispatched) as calls:
+            response = _click(api_client, token, button_field, row.id)
+    finally:
+        workflow_actions_before_dispatch.disconnect(refuse)
+
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert [call["outcome"] for call in calls] == [DispatchOutcome.DENIED]
