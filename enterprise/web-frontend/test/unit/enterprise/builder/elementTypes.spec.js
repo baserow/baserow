@@ -1,5 +1,6 @@
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 import ABChart from '@baserow_enterprise/builder/components/elements/ABChart'
+import GraphElement from '@baserow_enterprise/builder/components/elements/GraphElement'
 import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
 
 describe('Enterprise builder element types', () => {
@@ -249,6 +250,38 @@ describe('Enterprise builder element types', () => {
       label: 'rgb(32, 33, 40)',
       fontSize: 14,
     })
+  })
+
+  test('graph chart preserves blank values as gaps while retaining zeroes', () => {
+    const context = {
+      element: {
+        labels: ['Blank', 'Undefined', 'Empty', 'Zero', 'String zero'],
+        series: [
+          {
+            values: [null, undefined, '', 0, '0', '2', 'invalid'],
+            label: 'Series',
+            color: null,
+            chart_type: 'LINE',
+          },
+        ],
+      },
+      colorVariables: {},
+      resolveFormula: (value) => value,
+      convertChartJsType: GraphElement.methods.convertChartJsType,
+      $t: (key) => key,
+    }
+
+    const chartData = GraphElement.computed.chartData.call(context)
+
+    expect(chartData.datasets[0].data).toStrictEqual([
+      null,
+      null,
+      null,
+      0,
+      0,
+      2,
+      null,
+    ])
   })
 
   test('graph element form keeps series identity after delete, undo, and reorder', () => {

@@ -63,6 +63,9 @@ export default {
             : colors[index % colors.length]
           const data = ensureArray(this.resolveFormula(series.values)).map(
             (value) => {
+              if (value === null || value === undefined || value === '') {
+                return null
+              }
               const numberValue = Number(value)
               return Number.isFinite(numberValue) ? numberValue : null
             }
