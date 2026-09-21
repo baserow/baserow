@@ -19,7 +19,7 @@ from baserow.contrib.database.fields.exceptions import (
     ReservedBaserowFieldNameException,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.fields.models import Field, SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import (
@@ -788,6 +788,14 @@ class TableHandler:
         all_table_dependency_field_ids = {
             field_id: field_id for field_id in all_table_dependency_field_ids
         }
+        # The same applies to the select options of those fields, because filters
+        # on lookup fields can reference them.
+        all_table_dependency_select_option_ids = SelectOption.objects.filter(
+            field_id__in=all_table_dependency_field_ids.keys()
+        ).values_list("id", flat=True)
+        all_table_dependency_select_option_ids = {
+            option_id: option_id for option_id in all_table_dependency_select_option_ids
+        }
 
         # It can happen that a field has a reference to another view. We would
         # therefore need to construct a mapping that contains all the existing views,
@@ -812,7 +820,7 @@ class TableHandler:
             "database_view_decorations": {},
             # We have to create the `database_field_select_options` because that's
             # otherwise not created later on.
-            "database_field_select_options": {},
+            "database_field_select_options": all_table_dependency_select_option_ids,
         }
 
         link_fields_to_import_to_existing_tables = (

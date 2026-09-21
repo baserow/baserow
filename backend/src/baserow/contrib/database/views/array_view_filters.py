@@ -4,7 +4,10 @@ from datetime import date, datetime, timedelta
 
 from django.db.models import Q
 
-from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+from baserow.contrib.database.fields.field_filters import (
+    OptionallyAnnotatedQ,
+    map_ids_from_csv_string,
+)
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support.base import (
     HasAllValuesEqualFilterSupport,
@@ -135,6 +138,22 @@ class HasValueEqualViewFilterType(ComparisonHasValueFilter):
     ) -> OptionallyAnnotatedQ:
         field_type: HasValueEqualFilterSupport = field_type_registry.get_by_model(field)
         return field_type.get_in_array_is_query(field_name, value, model_field, field)
+
+    is_select_option_array = staticmethod(
+        FormulaFieldType.compatible_with_formula_types(
+            FormulaFieldType.array_of(BaserowFormulaSingleSelectType.type),
+            FormulaFieldType.array_of(BaserowFormulaMultipleSelectType.type),
+        )
+    )
+
+    def set_import_serialized_value(self, value, id_mapping, field=None):
+        # When the array contains select options, the value is a list of option ids
+        # that must be mapped to the newly created options, just like the filters
+        # of the single and multiple select field types do.
+        if field is not None and self.is_select_option_array(field):
+            select_option_map = id_mapping["database_field_select_options"]
+            return ",".join(map_ids_from_csv_string(value or "", select_option_map))
+        return super().set_import_serialized_value(value, id_mapping, field)
 
 
 class HasNotValueEqualViewFilterType(

@@ -502,6 +502,17 @@ class ViewType(
 
         id_mapping["database_views"][view_id] = view.id
 
+        # Filters and decorations can only map their values if they know the
+        # field they apply to. The model is cached, so this is free for later views.
+        fields_by_id = (
+            {
+                field_id: field_object["field"]
+                for field_id, field_object in table.get_model()._field_objects.items()
+            }
+            if filters or decorations
+            else {}
+        )
+
         if self.can_filter:
             for filter_group in filter_groups:
                 filter_group_copy = filter_group.copy()
@@ -527,7 +538,9 @@ class ViewType(
                 ]
                 view_filter_copy["value"] = (
                     view_filter_type.set_import_serialized_value(
-                        view_filter_copy["value"], id_mapping
+                        view_filter_copy["value"],
+                        id_mapping,
+                        fields_by_id.get(view_filter_copy["field_id"]),
                     )
                 )
                 if view_filter.get("group", None):
@@ -582,7 +595,7 @@ class ViewType(
                     else:
                         view_decoration_copy = (
                             value_provider_type.set_import_serialized_value(
-                                view_decoration_copy, id_mapping
+                                view_decoration_copy, id_mapping, fields_by_id
                             )
                         )
 
@@ -1223,7 +1236,12 @@ class ViewFilterType(Instance):
             return ""
         return value
 
-    def set_import_serialized_value(self, value: str | None, id_mapping: dict) -> str:
+    def set_import_serialized_value(
+        self,
+        value: str | None,
+        id_mapping: dict,
+        field: Optional["Field"] = None,
+    ) -> str:
         """
         This method is called before a field is imported. It can optionally be
         modified. If the value for example points to a field or select option id, it
@@ -1232,6 +1250,9 @@ class ViewFilterType(Instance):
         :param value: The original exported value.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
+        :param field: The newly created specific field the filter applies to, if
+            known. Filter types that are compatible with multiple field types can use
+            it to decide how the value must be imported.
         :return: The new value that will be imported.
         """
 
@@ -1448,7 +1469,10 @@ class DecoratorValueProviderType(CustomFieldsInstanceMixin, Instance):
         """
 
     def set_import_serialized_value(
-        self, value: Dict[str, Any], id_mapping: Dict[str, Dict[int, Any]]
+        self,
+        value: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, Any]],
+        fields_by_id: Optional[Dict[int, "Field"]] = None,
     ) -> Dict[str, Any]:
         """
         This method is called before a decorator is imported. It can optionally be
@@ -1459,6 +1483,8 @@ class DecoratorValueProviderType(CustomFieldsInstanceMixin, Instance):
         :param value: The original exported value.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
+        :param fields_by_id: The newly created specific fields of the table keyed by
+            id, if known.
         :return: The new value that will be imported.
         """
 
