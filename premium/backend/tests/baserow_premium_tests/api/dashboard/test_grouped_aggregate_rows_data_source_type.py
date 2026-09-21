@@ -82,17 +82,21 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
     assert response.status_code == HTTP_200_OK
     assert len(response_json) == 2
     assert response_json[0] == {
-        "aggregation_group_bys": [{"field_id": field_3.id, "order": 1}],
+        "aggregation_group_bys": [
+            {"field_id": field_3.id, "order": 1, "trashed": False}
+        ],
         "aggregation_series": [
             {
                 "aggregation_type": "sum",
                 "field_id": field.id,
                 "id": AnyInt(),
+                "trashed": False,
             },
             {
                 "aggregation_type": "sum",
                 "field_id": field_2.id,
                 "id": AnyInt(),
+                "trashed": False,
             },
         ],
         "context_data": {
@@ -219,15 +223,17 @@ def test_grouped_aggregate_rows_update_data_source(api_client, premium_data_fixt
             "aggregation_type": "sum",
             "field_id": field.id,
             "id": AnyInt(),
+            "trashed": False,
         },
         {
             "aggregation_type": "sum",
             "field_id": field_2.id,
             "id": AnyInt(),
+            "trashed": False,
         },
     ]
     assert response_json["aggregation_group_bys"] == [
-        {"field_id": field_3.id, "order": 0}
+        {"field_id": field_3.id, "order": 0, "trashed": False}
     ]
     assert response_json["aggregation_sorts"] == [
         {

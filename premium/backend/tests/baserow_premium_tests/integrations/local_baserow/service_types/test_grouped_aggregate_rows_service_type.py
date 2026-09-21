@@ -26,6 +26,10 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_premium.api.integrations.local_baserow.serializers import (
+    LocalBaserowTableServiceAggregationGroupBySerializer,
+    LocalBaserowTableServiceAggregationSeriesSerializer,
+)
 from baserow_premium.integrations.local_baserow.models import (
     LocalBaserowGroupedAggregateRows,
     LocalBaserowTableServiceAggregationGroupBy,
@@ -4892,3 +4896,36 @@ def test_grouped_aggregate_rows_dispatch_query_count_is_constant_with_buckets(
 
     assert queries_six_groups == queries_two_groups
     assert table_properties_spy.call_count <= 1
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_serializes_trashed_configured_fields(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_number_field(table=table, trashed=True)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+    )
+    series = LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="max", order=1
+    )
+    group_by = LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=field, order=1
+    )
+    primary_group_by = LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=None, order=2
+    )
+
+    assert LocalBaserowTableServiceAggregationSeriesSerializer(series).data["trashed"]
+    assert LocalBaserowTableServiceAggregationGroupBySerializer(group_by).data[
+        "trashed"
+    ]
+    assert not LocalBaserowTableServiceAggregationGroupBySerializer(
+        primary_group_by
+    ).data["trashed"]

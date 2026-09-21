@@ -149,6 +149,13 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
       if (incompleteSeries) {
         return this.app.$i18n.t('serviceType.errorIncompleteAggregationSeries')
       }
+      const configuredFieldsInError = [
+        ...service.aggregation_series,
+        ...(service.aggregation_group_bys || []),
+      ].some((item) => item.trashed)
+      if (configuredFieldsInError) {
+        return this.app.$i18n.t('serviceType.errorTrashedAggregationField')
+      }
       const filtersInError = service.filters?.some((filter) => filter.trashed)
       if (filtersInError) {
         return this.app.$i18n.t('serviceType.errorFilterInError')
