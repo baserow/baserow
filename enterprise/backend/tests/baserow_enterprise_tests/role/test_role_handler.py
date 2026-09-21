@@ -615,6 +615,33 @@ def test_assign_role_batch_subject_not_in_workspace(data_fixture):
 
 
 @pytest.mark.django_db
+def test_assign_role_batch_checks_every_subject_sharing_scope(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    other_workspace = data_fixture.create_workspace()
+    local_agent = Agent.objects.create(
+        workspace=workspace, name="Local", role_uid="VIEWER"
+    )
+    foreign_agent = Agent.objects.create(
+        workspace=other_workspace, name="Foreign", role_uid="VIEWER"
+    )
+    admin_role = Role.objects.get(uid="ADMIN")
+
+    values = [
+        NewRoleAssignment(local_agent, admin_role, workspace),
+        NewRoleAssignment(foreign_agent, admin_role, workspace),
+    ]
+
+    with pytest.raises(SubjectNotExist):
+        RoleAssignmentHandler().assign_role_batch_for_user(user, workspace, values)
+
+    local_agent.refresh_from_db()
+    foreign_agent.refresh_from_db()
+    assert local_agent.role_uid == "VIEWER"
+    assert foreign_agent.role_uid == "VIEWER"
+
+
+@pytest.mark.django_db
 @pytest.mark.disabled_in_ci
 # You must add --run-disabled-in-ci -s to pytest to run this test, you can do this in
 # intellij by editing the run config for this test and adding --run-disabled-in-ci -s

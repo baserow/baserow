@@ -1125,6 +1125,9 @@ class RoleAssignmentHandler:
         unique_scopes_by_type = defaultdict(set)
         unique_subjects_by_type = defaultdict(set)
         for subject, _, scope in new_role_assignments:
+            subject_type = subject_type_registry.get_by_model(subject)
+            unique_subjects_by_type[subject_type].add(subject)
+
             scope_type = object_scope_type_registry.get_by_model(scope)
             if scope not in unique_scopes_by_type[scope_type]:
                 permission_to_check.append(
@@ -1135,8 +1138,6 @@ class RoleAssignmentHandler:
                     )
                 )
                 unique_scopes_by_type[scope_type].add(scope)
-                subject_type = subject_type_registry.get_by_model(subject)
-                unique_subjects_by_type[subject_type].add(subject)
 
         # Check if all subjects are in the workspace
         for subject_type, subjects in unique_subjects_by_type.items():
