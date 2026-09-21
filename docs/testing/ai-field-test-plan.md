@@ -11,7 +11,6 @@ Verify: the model appears in the AI field creation form. For compatibility cover
 also test an installation without database providers using the deprecated environment
 variables documented in
 [Generative AI configuration](../installation/configuration.md#generative-ai-configuration).
-See the [rollout test plan](ai-provider-rollout-test-plan.md) for import transitions.
 
 ### 2. Workspace-level configuration
 

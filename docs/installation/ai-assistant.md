@@ -42,16 +42,13 @@ is allowed and the Kuma selection follows the model to its new identifier. A con
 gone keeps showing its saved provider and model, marked unavailable, so it can be
 found and repointed.
 
-For an existing installation, see the
-[AI provider upgrade and import instructions](ai-providers.md).
-Legacy provider settings remain supported during upgrades without imports, subject
-to the compatibility checks in that guide. Existing publication snapshots and
-explicit integration overrides require separate review before they can use centrally
-managed credentials. Republishing a site or workflow also deploys its current draft
-changes.
+For an existing installation, see [AI providers](ai-providers.md). Upgrading imports
+legacy provider settings automatically. Applications published before the upgrade keep
+the settings copied into them at publish time, and explicit integration overrides keep
+their own credentials; both need separate review before they can use centrally managed
+credentials. Republishing a site or workflow also deploys its current draft changes.
 
-The `migrate_ai_provider_settings` command imports legacy AI provider configuration;
-it does not import the deprecated Kuma model selector or the provider-native
+The import does not cover the deprecated Kuma model selector or the provider-native
 credentials used by Kuma. The assistant therefore stays on its legacy fallback until
 an administrator configures the same provider connection in the database, marks and
 tests a model for Kuma, and explicitly selects it. A database selection is

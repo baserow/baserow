@@ -197,11 +197,12 @@ or generate AI Field values.
 
 The `BASEROW_*` provider connection and model-list variables, and the Helm
 `global.baserow.assistantLLMModel` setting, are **deprecated**. Their compatibility
-behavior is retained. Use the
-[AI provider import procedure](ai-providers.md#importing-legacy-settings) to preview
-and import existing environment and workspace settings from the backend container.
-Review conflicts before applying; repeated imports do not synchronize existing
-database providers.
+behavior is retained. Upgrading imports them into **Admin → AI providers**, which
+then takes precedence over the variables. See
+[AI providers](ai-providers.md#environment-variables).
+
+The migrate job must carry the same AI variables as the backend, or nothing is
+imported. It shares the backend config map and secret by default.
 
 Kuma's environment model and provider-native credentials are not imported. Configure
 and test its connection and model, then explicitly select that model under

@@ -735,27 +735,25 @@ Do not delete provider rows in a live installation to test fallback behavior.
 
 ---
 
-## 11. Transition from legacy settings to database providers
+## 11. Legacy environment settings alongside database providers
 
-Rehearse on a disposable installation using the
-[upgrade and import sequence](../installation/ai-providers.md#upgrading-an-existing-installation)
-and the [release rollout plan](ai-provider-rollout-test-plan.md). Start on the exact
-previous image with working instance environment settings, a different workspace
-connection, and inherited **AI prompt** consumers in both Automation and Application
-Builder. Include an existing live publication. Repeat the upgrade with database
-providers and scoped feature settings already configured.
+Rehearse on a disposable installation, following
+[AI providers](../installation/ai-providers.md). Start with working instance
+environment settings, a different workspace connection, and inherited **AI prompt**
+consumers in both Automation and Application Builder. Include an existing live
+publication. Repeat with database providers and scoped feature settings already
+configured.
 
 Verify:
 
-- The candidate works without imports or republishing for supported legacy settings,
-  subject to the explicit-override compatibility rules in 6.5. Reconcile conflicting
-  database and legacy configuration and incomplete workspace settings before
-  accepting a change in resolution.
 - Migration `core.0120` adds `ai_agent` once to existing provider models, including
   models with an empty feature list, preserving other features and enabled states.
-- Instance and workspace import previews do not write. Applying each scope creates
-  missing providers with `ai_fields` and `ai_agent` eligibility; repeating the import
-  leaves existing configurations unchanged.
+- Migration `core.0121` imports legacy instance and workspace settings into providers
+  with `ai_fields` and `ai_agent` eligibility, leaves existing providers unchanged,
+  skips settings it cannot store, and switches each imported workspace off the
+  instance provider of the same type. Re-running it imports nothing further.
+- Settings the import skips keep resolving through the legacy compatibility path,
+  subject to the explicit-override rules in 6.5.
 - After deploying the candidate, importing, and reloading editors, saved selections
   resolve with their expected instance or workspace credentials. An enabled workspace
   model overrides a matching instance model; other instance models remain inherited.

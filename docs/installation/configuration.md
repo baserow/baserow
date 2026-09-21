@@ -203,10 +203,11 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 
 Configure providers and models under **Admin → AI providers** or workspace
 **Settings → AI providers**. The provider connection and model-list variables below
-are **deprecated** and retained for compatibility. Import existing instance settings
-with `migrate_ai_provider_settings --scope instance`; preview first, then apply.
-See [AI provider management](ai-providers.md#importing-legacy-settings) for commands,
-precedence, and upgrade checks. No removal date is set.
+are **deprecated** and retained for compatibility. Upgrading imports them into
+**Admin → AI providers**, which then takes precedence: editing a variable afterwards
+has no effect on a provider type configured there. See
+[AI providers](ai-providers.md#environment-variables) for the precedence rules. No
+removal date is set.
 
 Kuma's deprecated environment model selector requires a separate manual model
 selection; see the [AI assistant guide](ai-assistant.md). Provider-native SDK

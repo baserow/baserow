@@ -58,7 +58,7 @@ Baserow by following one the guides below:
   Configure request, endpoint, and per-user metrics boards and investigate retained
   traces.
 * [Manage AI providers](installation/ai-providers.md): Configure providers and models,
-  import legacy settings, and prepare an upgrade or rollback.
+  and how instance and workspace settings combine.
 * [Setup AI-assistant](installation/ai-assistant.md): A quick guide on how to setup the
   AI-assistant.
 

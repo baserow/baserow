@@ -104,11 +104,14 @@ available features, and run **Test model**. Choose Kuma's default under
 **AI features**; AI Fields and AI Agent actions keep their own model selections.
 
 The provider connection/model environment variables and
-`global.baserow.assistantLLMModel` are **deprecated** and remain supported for
-existing installations. Use the [AI provider import guide](/docs/installation/ai-providers.md#importing-legacy-settings)
-to migrate provider settings. Kuma's model selection and native credentials require
-separate configuration; the importer does not migrate them. Keep existing settings
-until the replacement connection is verified, including the rollback window.
+`global.baserow.assistantLLMModel` are **deprecated**. Upgrading imports them into
+**Admin > AI providers**, which then takes precedence: editing a variable afterwards
+has no effect on a provider type configured there. See
+[AI providers](/docs/installation/ai-providers.md#environment-variables). The migrate
+job must carry the same AI variables as the backend, which it does by default through
+the shared backend config map and secret. Kuma's model selection and native
+credentials are not imported and require separate configuration. Keep existing
+settings until the imported configuration is verified, including the rollback window.
 Providers without an equivalent database configuration can continue using the
 compatibility fallback described in the [AI assistant guide](/docs/installation/ai-assistant.md).
 
