@@ -9,13 +9,14 @@ from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace
+from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.object_scopes import CoreObjectScopeType
 from baserow.core.registries import (
     SubjectType,
     object_scope_type_registry,
     subject_type_registry,
 )
+from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck, ScopeObject, Subject
 from baserow_enterprise.exceptions import (
     ScopeNotExist,
