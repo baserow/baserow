@@ -4,6 +4,7 @@
 
 .ab-chart {
   color: var(--body-text-color, $palette-neutral-900);
+  font-size: var(--body-font-size, 12px);
   height: 100%;
 }
 

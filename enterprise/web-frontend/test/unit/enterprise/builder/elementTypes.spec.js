@@ -1,4 +1,5 @@
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
+import ABChart from '@baserow_enterprise/builder/components/elements/ABChart'
 import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
 
 describe('Enterprise builder element types', () => {
@@ -221,6 +222,33 @@ describe('Enterprise builder element types', () => {
 
     expect(data.allowedValues).toContain('styles')
     expect(data.values.styles).toStrictEqual({})
+  })
+
+  test('graph chart reads its visual theme from computed styles', () => {
+    const chartElement = {}
+    const axisColorElement = {}
+    const chart = {
+      $refs: { chart: chartElement, axisColor: axisColorElement },
+      themeValues: ABChart.data().themeValues,
+    }
+    const originalGetComputedStyle = globalThis.getComputedStyle
+    globalThis.getComputedStyle = vi.fn((element) =>
+      element === axisColorElement
+        ? { color: 'rgb(217, 219, 222)' }
+        : { color: 'rgb(32, 33, 40)', fontSize: '14px' }
+    )
+
+    try {
+      ABChart.methods.updateThemeColors.call(chart)
+    } finally {
+      globalThis.getComputedStyle = originalGetComputedStyle
+    }
+
+    expect(chart.themeValues).toStrictEqual({
+      axis: 'rgb(217, 219, 222)',
+      label: 'rgb(32, 33, 40)',
+      fontSize: 14,
+    })
   })
 
   test('graph element form keeps series identity after delete, undo, and reorder', () => {

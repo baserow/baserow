@@ -24,11 +24,7 @@ export default {
   },
   data() {
     return {
-      themeValues: {
-        axis: '#d9dbde',
-        label: '#202128',
-        fontSize: 12,
-      },
+      themeValues: {},
     }
   },
   computed: {
@@ -78,17 +74,10 @@ export default {
 
       const styles = getComputedStyle(this.$refs.chart)
       const axisColorStyles = getComputedStyle(this.$refs.axisColor)
-      const axis = axisColorStyles.color
-      const label = styles.getPropertyValue('--body-text-color').trim()
-      const fontSize = Number.parseFloat(
-        styles.getPropertyValue('--body-font-size')
-      )
       const nextThemeValues = {
-        axis: axis || this.themeValues.axis,
-        label: label || this.themeValues.label,
-        fontSize: Number.isFinite(fontSize)
-          ? fontSize
-          : this.themeValues.fontSize,
+        axis: axisColorStyles.color,
+        label: styles.color,
+        fontSize: Number.parseFloat(styles.fontSize),
       }
 
       if (
