@@ -1,5 +1,6 @@
 import json
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -162,6 +163,30 @@ def test_graph_element_update_preserves_series_uid(
     assert response.status_code == HTTP_200_OK
     graph.refresh_from_db()
     assert graph.series[0]["uid"] == series_uid
+
+
+@pytest.mark.django_db
+def test_graph_element_update_generates_missing_series_uid(
+    api_client, enterprise_data_fixture, enable_enterprise
+):
+    """Ensure older clients can omit a series UID without causing a server error."""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    page = enterprise_data_fixture.create_builder_page(user=user)
+    graph = enterprise_data_fixture.create_builder_element(GraphElementType, page=page)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": graph.id})
+    response = api_client.patch(
+        url,
+        {"series": [{"label": "'Count'", "values": "to_array('1,2')"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    graph.refresh_from_db()
+    assert graph.series[0]["uid"] == response.json()["series"][0]["uid"]
+    assert UUID(graph.series[0]["uid"])
 
 
 @pytest.mark.django_db

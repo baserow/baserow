@@ -1,4 +1,5 @@
 import mimetypes
+import uuid
 from typing import Any, Dict, List, Optional
 
 from django.utils.translation import gettext_lazy as _
@@ -53,6 +54,7 @@ class GraphElementSeriesSerializer(serializers.Serializer):
         }
         if missing_fields:
             raise serializers.ValidationError(missing_fields)
+        attrs.setdefault("uid", uuid.uuid4())
         attrs["uid"] = str(attrs["uid"])
         return attrs
 
