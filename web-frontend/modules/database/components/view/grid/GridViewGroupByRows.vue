@@ -19,10 +19,10 @@
       <div
         v-else-if="item.type === 'row' && shouldRenderRows"
         class="grid-view__group-by-rows-row"
-        :class="rowClass(item.row)"
+        :class="rowClass(item)"
         :style="{
           top: item.y + 'px',
-          left: (leftOffset || 0) + 'px',
+          left: (leftOffset || 0) + groupColumnsWidth + 'px',
         }"
       >
         <GridViewRow
@@ -67,10 +67,15 @@
         />
       </div>
       <div
-        v-else-if="item.type === 'placeholder' && shouldRenderRows"
+        v-else-if="
+          (item.type === 'placeholder' ||
+            item.type === 'groupRangePlaceholder') &&
+          shouldRenderRows
+        "
         class="grid-view__group-by-rows-placeholder"
         :style="{
           top: item.y + 'px',
+          left: groupColumnsWidth + 'px',
           height: item.height + 'px',
           width: sectionWidth + 'px',
         }"
@@ -88,6 +93,7 @@
         class="grid-view__row grid-view__group-by-rows-add"
         :style="{
           top: item.y + 'px',
+          left: groupColumnsWidth + 'px',
           height: item.height + 'px',
           width: sectionWidth + 'px',
         }"
@@ -152,6 +158,7 @@ export default {
     allFieldsInTable: { type: Array, required: true },
     decorationsByPlace: { type: Object, required: true },
     leftOffset: { type: Number, default: 0 },
+    groupColumnsWidth: { type: Number, default: 0 },
     view: { type: Object, required: true },
     includeRowDetails: { type: Boolean, default: false },
     readOnly: { type: Boolean, required: true },
@@ -248,10 +255,11 @@ export default {
     },
   },
   methods: {
-    rowClass(row) {
+    rowClass(item) {
       return {
-        'grid-view__group-by-rows-row--warning': this.isWarningRow(row),
-        'grid-view__group-by-rows-row--selected': row._.selected,
+        'grid-view__group-by-rows-row--warning': this.isWarningRow(item.row),
+        'grid-view__group-by-rows-row--selected': item.row._.selected,
+        'grid-view__group-by-rows-row--group-end': item.groupEnd,
       }
     },
     addRow(event, path) {
@@ -295,6 +303,12 @@ export default {
       }
       if (item.type === 'groupSkeleton') {
         return `skeleton-${item.y}`
+      }
+      if (item.type === 'groupSpan') {
+        return `span-${item.depth}-${pathKey(item.path, this.groupByFields)}`
+      }
+      if (item.type === 'groupRangePlaceholder') {
+        return `range-${item.y}`
       }
       return `placeholder-${item.globalRowOffset}`
     },

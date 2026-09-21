@@ -63,8 +63,9 @@ def _answer_requests(raise_exception=None):
     response.text = '{"ok": true}'
     response.headers = {"Content-Type": "application/json"}
     response.status_code = 200
-    response.iter_content.return_value = iter([response.text.encode()])
-    with patch("advocate.request") as mock_request:
+    with patch(
+        "baserow.contrib.integrations.core.service_types.send_http_request"
+    ) as mock_request:
         if raise_exception is not None:
             mock_request.side_effect = raise_exception
         else:

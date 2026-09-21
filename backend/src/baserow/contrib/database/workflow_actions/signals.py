@@ -21,3 +21,9 @@ workflow_actions_before_dispatch = Signal()
 # is logged and does not fail the click, but a callable object that raises also
 # stops the receivers behind it.
 workflow_action_dispatched = Signal()
+
+# Sent with the button fields of one table whose `has_workflow_actions` or
+# `requires_reconfiguration` may have changed, so every page showing them can
+# send them out. Kept apart from `field_updated`, which makes the client
+# refetch the whole grid.
+button_fields_updated = Signal()

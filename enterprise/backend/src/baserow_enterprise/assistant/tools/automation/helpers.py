@@ -265,13 +265,20 @@ def update_node(
     node_type = node.service.get_type().type if node.service else None
     service_dict = node_update.to_update_service_dict(node_type) if node_type else None
     if service_dict is not None:
+        if (
+            node_type == "local_baserow_upsert_row"
+            and "table_id" in service_dict
+            and service_dict["table_id"] != node.service.specific.table_id
+        ):
+            # Mappings from the previous table cannot be dispatched on the new one.
+            service_dict["field_mappings"] = []
         kwargs["service"] = service_dict
 
-    if kwargs:
-        tool_helpers.update_status(
-            _("Updating node '%(label)s'..." % {"label": node.label})
-        )
-        AutomationNodeService().update_node(user, node.id, **kwargs)
+    tool_helpers.update_status(
+        _("Updating node '%(label)s'..." % {"label": node.label})
+    )
+    # Deferred row values still need update permission and test-clone invalidation.
+    AutomationNodeService().update_node(user, node.id, **kwargs)
 
     return AutomationNodeService().get_node(user, node_update.node_id)
 

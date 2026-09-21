@@ -30,6 +30,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     ButtonStyleOverride,
     CollectionElementCreate,
     DataSourceCreate,
+    DataSourceItem,
     DataSourceSort,
     DataSourceUpdate,
     DisplayElementCreate,
@@ -345,7 +346,7 @@ def test_data_source_validation_errors():
 
 @pytest.mark.parametrize("row_id", [None, "", "  "])
 def test_update_row_action_requires_a_row_id(row_id):
-    with pytest.raises(ValueError, match="'row_id' is required"):
+    with pytest.raises(ValueError, match="Missing: row_id"):
         ActionCreate(
             type="update_row",
             element="btn",
@@ -531,6 +532,31 @@ def test_list_elements(data_fixture):
     result = list_elements(ctx, page_id=page.id, thought="test")
 
     assert result["elements"] == []
+
+
+@pytest.mark.django_db
+def test_list_elements_on_populated_page(data_fixture):
+    # Regression: from_orm must only read attributes that survived b70bc968d.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    data_fixture.create_builder_heading_element(page=page)
+    data_fixture.create_builder_form_container_element(page=page)
+    data_fixture.create_builder_table_element(page=page)
+    data_fixture.create_builder_column_element(page=page)
+
+    ctx = make_test_ctx(user, workspace)
+    result = list_elements(ctx, page_id=page.id, thought="test")
+
+    assert {el["type"] for el in result["elements"]} == {
+        "heading",
+        "form_container",
+        "table",
+        "column",
+    }
+    assert all(el["id"] for el in result["elements"])
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2633,3 +2659,18 @@ def test_setup_user_source_existing_table_creates_password_field(data_fixture):
     password_fields = [f for f in table_fields if isinstance(f, PasswordField)]
     assert len(password_fields) == 1
     assert password_fields[0].name == "Password"
+
+
+def test_data_source_type_folds_registered_name():
+    ds = DataSourceCreate(
+        ref="d", name="Products", type="local_baserow_list_rows", table_id=1
+    )
+    assert ds.type == "list_rows"
+
+
+def test_data_source_dedup_matches_the_registered_type():
+    ds = DataSourceCreate(ref="d", name="Products", type="list_rows", table_id=5)
+    existing = DataSourceItem(
+        id=1, name="Existing", type="local_baserow_list_rows", table_id=5
+    )
+    assert ds.matches_existing(existing)

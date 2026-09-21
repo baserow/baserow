@@ -601,6 +601,7 @@
     "viewSettingsRowHeightSize": "row height",
     "viewSettingsFrozenColumnCount": "frozen columns",
     "viewSettingsRowIdentifierType": "row identifier",
+    "viewSettingsGroupByLayout": "group layout",
     "filters": "Filters",
     "sorts": "Sorts",
     "groupBys": "Groups",
@@ -643,6 +644,9 @@
     "maxGroupBysReached": "You can group by up to {count} fields.",
     "collapseAllGroups": "Collapse all",
     "expandAllGroups": "Expand all",
+    "layout": "Group layout",
+    "layoutSection": "Sections",
+    "layoutColumn": "Columns",
     "hiddenFieldWarning": "One or more group bys reference hidden fields that won't be visible to editors and lower roles."
   },
   "viewGroupBy": {
@@ -1320,6 +1324,9 @@
     "noUrl": "Enter a URL to open.",
     "staleReference": "This action uses a result from an action that no longer runs before it.",
     "unreadableReference": "This action uses a result from an action that no longer returns one.",
+    "writesToTrashedField": "This action writes to a field that is in the trash. Restore the field to run the action again.",
+    "tableTrashed": "This action uses a table that is in the trash or no longer exists. Restore the table or pick another one.",
+    "requiresReconfiguration": "This action points at a table, field or integration that is in the trash or gone.",
     "noInstanceSmtp": "This Baserow instance has no SMTP server configured, so a button cannot send email.",
     "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email.",
     "slackOk": "OK",
@@ -1355,7 +1362,8 @@
     "dispatchErrorTitle": "Could not run the actions",
     "dispatchErrorMessage": "Something went wrong while running the button's actions. Please try again.",
     "rateLimitedTitle": "Too many clicks",
-    "rateLimitedMessage": "This button has been clicked too often. Wait a moment and try again."
+    "rateLimitedMessage": "This button has been clicked too often. Wait a moment and try again.",
+    "requiresReconfiguration": "This button needs to be reconfigured before it can be clicked."
   },
   "rowEditFieldButtonField": {
     "createRowBefore": "The actions can be run after the row has been created."

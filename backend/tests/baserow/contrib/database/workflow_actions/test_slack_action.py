@@ -1,4 +1,3 @@
-import json
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -97,9 +96,6 @@ def _slack_answer(**overrides):
     }
     response = Mock()
     response.json.return_value = body
-    # The service streams the body in, so it can stop an endpoint that sends
-    # more than this installation accepts.
-    response.iter_content.return_value = iter([json.dumps(body).encode()])
     return Mock(return_value=response)
 
 
@@ -238,8 +234,8 @@ def test_a_click_posts_the_resolved_text_through_the_bot(data_fixture):
     slack = _slack_answer()
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=slack,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=slack,
     ):
         result = DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
@@ -290,8 +286,8 @@ def test_a_later_action_can_write_the_message_timestamp(data_fixture):
     row = table.get_model().objects.create()
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=_slack_answer(),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=_slack_answer(),
     ):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
@@ -318,8 +314,8 @@ def test_a_slack_refusal_reaches_the_clicker_without_the_token(data_fixture):
     slack = _slack_answer(ok=False, error="not_in_channel")
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=slack,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=slack,
     ):
         with pytest.raises(Exception) as raised:
             DatabaseWorkflowActionService().dispatch_workflow_actions(
@@ -773,8 +769,8 @@ def test_a_click_does_not_read_the_field_again_for_every_action(data_fixture):
     row = table.get_model().objects.create()
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=_slack_answer(),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=_slack_answer(),
     ):
         with CaptureQueriesContext(connection) as queries:
             DatabaseWorkflowActionService().dispatch_workflow_actions(
@@ -856,8 +852,8 @@ def test_a_click_reads_the_bot_once_however_many_actions_share_it(data_fixture):
     row = table.get_model().objects.create()
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=_slack_answer(),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=_slack_answer(),
     ):
         with CaptureQueriesContext(connection) as queries:
             DatabaseWorkflowActionService().dispatch_workflow_actions(

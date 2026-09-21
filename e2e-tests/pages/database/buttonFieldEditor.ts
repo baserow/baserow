@@ -41,8 +41,14 @@ export async function openFieldEditor(page: Page, name: string) {
   await expect(page.locator(".button-field-action-list")).toBeVisible();
 }
 
+/**
+ * Saves the open editor and waits for it to close. The field update and each
+ * action call go out one after another, and the editor only closes once all
+ * of them are done, so navigating away any earlier can cancel part of the save.
+ */
 export async function saveField(page: Page) {
   await page.locator(".field-context button", { hasText: "Save" }).click();
+  await expect(page.locator(".button-field-action-list")).toBeHidden();
 }
 
 /** The data explorer that opens under a formula input. */

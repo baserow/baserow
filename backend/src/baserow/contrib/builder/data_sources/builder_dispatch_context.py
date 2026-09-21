@@ -42,6 +42,10 @@ class BuilderDispatchContext(DispatchContext):
         "workspace",
     ]
 
+    # The answer and the body have always had a whole timeout each here, so
+    # an external request keeps both until #6117 settles a stricter one.
+    external_request_timeouts = 2
+
     def __init__(
         self,
         request: HttpRequest,

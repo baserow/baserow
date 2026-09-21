@@ -861,7 +861,6 @@ def cleanup_old_realtime_events(self):
     from baserow.ws.realtime_events import (
         REALTIME_EVENTS_CLEANUP_BUDGET_SECONDS,
         REALTIME_EVENTS_CLEANUP_LOCK_SECONDS,
-        REALTIME_EVENTS_RETENTION,
         RealtimeEventHandler,
     )
     from baserow.ws.telemetry import record_realtime_cleanup_skipped
@@ -882,7 +881,7 @@ def cleanup_old_realtime_events(self):
         return
     try:
         return RealtimeEventHandler.cleanup_old_realtime_events(
-            REALTIME_EVENTS_RETENTION, deadline=deadline
+            RealtimeEventHandler.get_replay_retention(), deadline=deadline
         )
     finally:
         try:

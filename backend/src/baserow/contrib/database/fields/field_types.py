@@ -8196,6 +8196,7 @@ class ButtonFieldType(ReadOnlyFieldType):
     serializer_field_names = [
         "label",
         "has_workflow_actions",
+        "requires_reconfiguration",
     ]
     serializer_field_overrides = {
         "label": serializers.CharField(
@@ -8212,6 +8213,14 @@ class ButtonFieldType(ReadOnlyFieldType):
             "uses this to decide whether a cell renders a button that dispatches "
             "actions or an inert one.",
         ),
+        "requires_reconfiguration": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether a click is sure to fail, because an action "
+            "points at a table, field or integration that is in the trash or "
+            "gone, or updates a row without saying which. The client renders "
+            "a disabled button with a warning instead.",
+        ),
     }
     api_exceptions_map = {
         ButtonFieldLabelNotProvided: ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
@@ -8227,6 +8236,27 @@ class ButtonFieldType(ReadOnlyFieldType):
     # The cell column is always null, so a type change has no data to back up.
     # The configuration it must keep rides along in `export_prepared_values`.
     field_data_is_derived_from_attrs = True
+    # They describe the button's actions rather than the table's data, and each
+    # costs a query, so a service's table schema leaves them out.
+    action_state_field_names = ["has_workflow_actions", "requires_reconfiguration"]
+
+    def get_field_names(self, request_serializer, extra_params, **kwargs):
+        names = super().get_field_names(request_serializer, extra_params, **kwargs)
+        if (extra_params or {}).get("data_schema"):
+            names = [n for n in names if n not in self.action_state_field_names]
+        return names
+
+    def get_field_overrides(self, request_serializer, extra_params, **kwargs):
+        overrides = super().get_field_overrides(
+            request_serializer, extra_params, **kwargs
+        )
+        if (extra_params or {}).get("data_schema"):
+            overrides = {
+                name: override
+                for name, override in overrides.items()
+                if name not in self.action_state_field_names
+            }
+        return overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
@@ -8266,16 +8296,26 @@ class ButtonFieldType(ReadOnlyFieldType):
                 "The label of a button field can't be empty."
             )
 
-    def enhance_field_queryset(
+    def enhance_field_queryset_for_serialization(
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
-        # `has_workflow_actions` is serialized for every button field, so
-        # without this a table's field list costs one query per button.
+        # Both flags are serialized for every button field, so without this a
+        # table's field list costs queries per button. Not in
+        # `enhance_field_queryset`: they depend on other tables, so the cached
+        # table model would serve them stale.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            requires_reconfiguration,
+        )
+
+        queryset = super().enhance_field_queryset_for_serialization(queryset, field)
         return queryset.annotate(
             **{
                 ButtonField.HAS_WORKFLOW_ACTIONS_ANNOTATION: Exists(
                     DatabaseWorkflowAction.objects.filter(field_id=OuterRef("pk"))
-                )
+                ),
+                ButtonField.REQUIRES_RECONFIGURATION_ANNOTATION: (
+                    requires_reconfiguration(OuterRef("pk"))
+                ),
             }
         )
 

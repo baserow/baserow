@@ -26,10 +26,21 @@ def _install_realtime_targets(django_db_setup, django_db_blocker):
         migration.forwards(None, editor)
 
 
+@pytest.fixture(scope="session")
+def _install_realtime_history(_install_realtime_targets, django_db_blocker):
+    migration = import_module("baserow.ws.migrations.0003_realtime_event_history")
+    with django_db_blocker.unblock(), connection.schema_editor(atomic=False) as editor:
+        migration.forwards(None, editor)
+
+
 @pytest.fixture
-def _django_db_helper(_install_realtime_targets, _django_db_helper):
-    # Wrapping pytest-django's helper does not request a DB for non-DB tests.
-    return _django_db_helper
+def _django_db_helper(_install_realtime_history, _django_db_helper):
+    # Initialize known history inside pytest-django's per-test transaction.
+    from baserow.ws.models import RealtimeEventHistoryState
+
+    RealtimeEventHistoryState.objects.update_or_create(
+        pk=1, defaults={"floor": 0, "compacted_event_id": 0}
+    )
 
 
 @pytest.fixture(autouse=True)

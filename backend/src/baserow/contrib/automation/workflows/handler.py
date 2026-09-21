@@ -119,6 +119,18 @@ class AutomationWorkflowHandler:
         except AutomationWorkflow.DoesNotExist:
             raise AutomationWorkflowDoesNotExist()
 
+    def _get_published_workflow_cache_key(self, workflow_id: int) -> str:
+        return f"wa_published_workflow_{workflow_id}"
+
+    def _get_published_workflows_queryset(self) -> QuerySet[AutomationWorkflow]:
+        """
+        The workflows that count as a published version of another workflow.
+
+        :return: The queryset of published workflows.
+        """
+
+        return AutomationWorkflow.objects.exclude(state=WorkflowState.TEST_CLONE)
+
     def get_published_workflow(
         self, workflow: AutomationWorkflow, with_cache: bool = True
     ) -> Optional[AutomationWorkflow]:
@@ -137,7 +149,7 @@ class AutomationWorkflowHandler:
             workflow: AutomationWorkflow,
         ) -> Optional[AutomationWorkflow]:
             latest_published = (
-                AutomationWorkflow.objects.exclude(state=WorkflowState.TEST_CLONE)
+                self._get_published_workflows_queryset()
                 .filter(automation__published_from=workflow)
                 .order_by("-automation__id")
                 .first()
@@ -146,16 +158,43 @@ class AutomationWorkflowHandler:
 
         if with_cache:
             return local_cache.get(
-                f"wa_published_workflow_{workflow.id}",
+                self._get_published_workflow_cache_key(workflow.id),
                 lambda: _get_published_workflow(workflow),
             )
 
         return _get_published_workflow(workflow)
 
+    def annotate_published_workflow_data(
+        self, queryset: QuerySet[AutomationWorkflow]
+    ) -> QuerySet[AutomationWorkflow]:
+        """
+        Annotates every workflow in the queryset with the `created_on` and `state` of
+        its latest published workflow, selected exactly like `get_published_workflow`
+        does, so that serializing many workflows doesn't execute a query per workflow.
+
+        :param queryset: The workflow queryset to annotate.
+        :return: The annotated queryset.
+        """
+
+        published_workflows = (
+            self._get_published_workflows_queryset()
+            .filter(automation__published_from=OuterRef("pk"))
+            .order_by("-automation__id")
+        )
+
+        return queryset.annotate(
+            published_workflow_created_on=Subquery(
+                published_workflows.values("created_on")[:1]
+            ),
+            published_workflow_state=Subquery(published_workflows.values("state")[:1]),
+        )
+
     def _invalidate_workflow_caches(self, workflow: AutomationWorkflow) -> None:
         original_workflow = workflow.get_original()
 
-        global_cache.invalidate(f"wa_published_workflow_{original_workflow.id}")
+        global_cache.invalidate(
+            self._get_published_workflow_cache_key(original_workflow.id)
+        )
         global_cache.invalidate(
             self._get_workflow_history_rate_limit_cache_key(original_workflow)
         )
@@ -1019,19 +1058,42 @@ class AutomationWorkflowHandler:
         )
 
         error = "This workflow took too long and was timed out."
-
-        workflow_history_ids = list(
-            AutomationWorkflowHistory.objects.filter(
-                status=HistoryStatusChoices.STARTED,
-                started_on__lt=max_history_date,
-            ).values_list("id", flat=True)
+        cancelled_error = (
+            "Cancellation was requested and the run was force-stopped after timing out."
         )
 
+        timed_out_histories = AutomationWorkflowHistory.objects.filter(
+            status=HistoryStatusChoices.STARTED,
+            started_on__lt=max_history_date,
+        )
+
+        # The ids are snapshotted so the node histories below are resolved for
+        # exactly the runs handled by this sweep. Every write stays guarded on
+        # the run still being `STARTED`, so a run resolved between this read and
+        # the write (dispatch-done handler, runner-side cancellation) is left
+        # alone rather than rewritten as timed out.
+        workflow_history_ids = list(timed_out_histories.values_list("id", flat=True))
         if not workflow_history_ids:
             return
 
-        AutomationWorkflowHistory.objects.filter(
+        # A run whose cancellation was requested but never noticed by the runner
+        # (hung node, dead worker) resolves as cancelled rather than as a generic
+        # timeout error, which is what the requester was waiting for. The flag is
+        # re-read at update time instead of taken from the snapshot, so a request
+        # that lands after the read is honoured. One that lands between the two
+        # updates matches neither and is picked up as cancelled by the next sweep.
+        timed_out_histories.filter(
             id__in=workflow_history_ids,
+            cancellation_requested_on__isnull=False,
+        ).update(
+            status=HistoryStatusChoices.CANCELLED,
+            message=cancelled_error,
+            completed_on=now,
+        )
+
+        timed_out_histories.filter(
+            id__in=workflow_history_ids,
+            cancellation_requested_on__isnull=True,
         ).update(
             status=HistoryStatusChoices.ERROR,
             message=error,

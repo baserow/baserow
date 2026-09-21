@@ -324,7 +324,9 @@ async def test_replay_executor_releases_capacity_if_cancelled_before_start(
 async def test_missing_replay_cursor_does_not_need_a_database_or_pool():
     with patch.object(replay, "_get_executor") as executor:
         result = await replay.get_replay_events_result(1, [], NO_REPLAY_AVAILABLE, None)
-        assert result == ReplayEventsResult(True, NO_REPLAY_AVAILABLE, [])
+        assert result == ReplayEventsResult(
+            True, NO_REPLAY_AVAILABLE, [], refresh_reason="missing_cursor"
+        )
         executor.assert_not_called()
 
 

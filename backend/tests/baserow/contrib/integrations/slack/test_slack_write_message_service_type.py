@@ -1,7 +1,7 @@
 import json
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 from django.test import override_settings
 from django.utils import timezone
@@ -68,17 +68,16 @@ def test_dispatch_slack_write_message_basic(data_fixture):
         "ts": "1503435956.000247",
         "message": {"text": "Hello from Baserow!", "username": "baserow_bot"},
     }
-    # The service streams the body in, so it can stop an endpoint
-    # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
 
     mock_request = Mock(return_value=mock_response)
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=mock_request,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=mock_request,
     ):
+        started = time.monotonic()
         dispatch_data = service_type.dispatch(service, dispatch_context)
+        finished = time.monotonic()
 
         mock_request.assert_called_once_with(
             method="POST",
@@ -88,10 +87,14 @@ def test_dispatch_slack_write_message_basic(data_fixture):
                 "channel": "#general",
                 "text": "Hello from Baserow!",
             },
-            timeout=10,
+            deadline=ANY,
+            operation_timeout=10,
             allow_redirects=False,
-            stream=True,
         )
+
+    # Ten seconds for the whole request.
+    deadline = mock_request.call_args.kwargs["deadline"]
+    assert started + 10 <= deadline <= finished + 10
 
     # Unwrapped like the HTTP and email services, so `ok`, `channel` and
     # `ts` sit where the schema says a later step can read them.
@@ -146,16 +149,13 @@ def test_dispatch_slack_write_message_api_errors(
         "ok": False,
         "error": error_code,
     }
-    # The service streams the body in, so it can stop an endpoint
-    # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
 
     mock_request = Mock(return_value=mock_response)
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
         with patch(
-            "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-            return_value=mock_request,
+            "baserow.contrib.integrations.slack.service_types.send_http_request",
+            new=mock_request,
         ):
             service_type.dispatch(service, dispatch_context)
 
@@ -211,14 +211,11 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
         "channel": "C123456",
         "ts": "1503435956.000247",
     }
-    # The service streams the body in, so it can stop an endpoint
-    # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
     mock_request = Mock(return_value=mock_response)
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=mock_request,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=mock_request,
     ):
         service_type.dispatch(service, dispatch_context)
 
@@ -230,9 +227,9 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
                 "channel": "#general",
                 "text": "User John has joined!",
             },
-            timeout=10,
+            deadline=ANY,
+            operation_timeout=10,
             allow_redirects=False,
-            stream=True,
         )
 
 
@@ -439,15 +436,13 @@ def test_slack_write_message_generate_schema_respects_allowed_fields(data_fixtur
 @pytest.mark.django_db
 def test_slack_write_message_waits_as_long_as_its_whole_request(data_fixture):
     """
-    A lock held over the dispatch has to outlive the request, and the timeout
-    Requests applies is per socket operation rather than for the call as a
-    whole: connecting, waiting for the headers and pulling the body each get
-    the full ten seconds.
+    A lock held over the dispatch has to outlive the request, which is hung up
+    at its ten second deadline, with room left for the hang-up itself.
     """
 
     service = data_fixture.create_slack_write_message_service()
 
-    assert service.get_type().max_dispatch_seconds(service) == 30
+    assert service.get_type().max_dispatch_seconds(service) == 20
 
 
 @pytest.mark.django_db
@@ -463,12 +458,11 @@ def test_slack_write_message_keeps_the_message_out_of_the_url(data_fixture):
     )
     mock_response = Mock()
     mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.0"}
-    mock_response.iter_content.return_value = iter([b"{}"])
     mock_request = Mock(return_value=mock_response)
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=mock_request,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=mock_request,
     ):
         service.get_type().dispatch(service, FakeDispatchContext())
 
@@ -481,9 +475,8 @@ def test_slack_write_message_keeps_the_message_out_of_the_url(data_fixture):
 @pytest.mark.django_db
 def test_slack_write_message_does_not_follow_redirects(data_fixture):
     """
-    `chat.postMessage` answers directly. Following redirects would let a
-    configured endpoint spend a fresh timeout on every hop and outlive the
-    lock that guards the row.
+    `chat.postMessage` answers directly. Not following a redirect keeps the bot
+    token going only to the address that was configured.
     """
 
     service = data_fixture.create_slack_write_message_service(
@@ -491,12 +484,11 @@ def test_slack_write_message_does_not_follow_redirects(data_fixture):
     )
     mock_response = Mock()
     mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.0"}
-    mock_response.iter_content.return_value = iter([b"{}"])
     mock_request = Mock(return_value=mock_response)
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=mock_request,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=mock_request,
     ):
         service.get_type().dispatch(service, FakeDispatchContext())
 
@@ -520,14 +512,11 @@ def test_slack_write_message_posts_to_the_configured_api(data_fixture):
     )
     mock_response = Mock()
     mock_response.json.return_value = {"ok": True, "channel": "C1", "ts": "1.2"}
-    # The service streams the body in, so it can stop an endpoint
-    # that sends more than this installation accepts.
-    mock_response.iter_content.return_value = iter([b"{}"])
     mock_request = Mock(return_value=mock_response)
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=mock_request,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=mock_request,
     ):
         service.get_type().dispatch(service, FakeDispatchContext())
 
@@ -553,13 +542,10 @@ def test_slack_write_message_refusal_without_an_error_code(data_fixture):
     )
     answered = Mock()
     answered.json.return_value = {"message": "forbidden"}
-    # The service streams the body in, so it can stop an endpoint
-    # that sends more than this installation accepts.
-    answered.iter_content.return_value = iter([b"{}"])
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=Mock(return_value=answered),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=Mock(return_value=answered),
     ):
         with pytest.raises(ServiceImproperlyConfiguredDispatchException) as raised:
             service.get_type().dispatch(service, FakeDispatchContext())
@@ -600,8 +586,8 @@ def test_slack_write_message_refused_address_is_not_charged(data_fixture):
     refuses = Mock(side_effect=UnacceptableAddressException("10.0.0.5"))
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=refuses,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=refuses,
     ):
         with pytest.raises(AddressNotAllowedDispatchException):
             service.get_type().dispatch(service, FakeDispatchContext())
@@ -623,8 +609,8 @@ def test_slack_write_message_without_a_token_is_not_sent(data_fixture):
     sends = Mock()
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=sends,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=sends,
     ):
         with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
             service.get_type().dispatch(service, FakeDispatchContext())
@@ -649,8 +635,8 @@ def test_slack_write_message_with_an_integration_of_another_type(data_fixture):
     sends = Mock()
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=sends,
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=sends,
     ):
         with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
             service.get_type().dispatch(service, FakeDispatchContext())
@@ -678,13 +664,10 @@ def test_slack_write_message_answer_that_is_not_an_object(data_fixture, body):
     )
     answered = Mock()
     answered.json.return_value = body
-    # The service streams the body in, so it can stop an endpoint
-    # that sends more than this installation accepts.
-    answered.iter_content.return_value = iter([b"{}"])
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=Mock(return_value=answered),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=Mock(return_value=answered),
     ):
         with pytest.raises(ServiceImproperlyConfiguredDispatchException) as raised:
             service.get_type().dispatch(service, FakeDispatchContext())
@@ -704,26 +687,8 @@ def test_slack_write_message_does_not_log_what_the_request_carried():
     assert "logger.exception(" not in source
 
 
-def _streamed(body, chunks=None):
-    """A response the service can pull in the way it pulls a real one."""
-
-    answered = Mock()
-    answered.json.return_value = body
-    answered.iter_content.return_value = iter(
-        chunks if chunks is not None else [json.dumps(body).encode()]
-    )
-    return answered
-
-
 @pytest.mark.django_db
-def test_slack_write_message_refuses_an_answer_past_the_ceiling(data_fixture, settings):
-    """
-    The endpoint is configurable, so its answer is not bounded by Slack's own
-    limits. Buffering it whole and measuring afterwards spends the memory
-    first.
-    """
-
-    settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024
+def test_slack_write_message_refuses_an_answer_past_the_ceiling(data_fixture):
     service = data_fixture.create_slack_write_message_service(
         integration=data_fixture.create_integration(
             SlackBotIntegration, token="xoxb-test"
@@ -731,24 +696,17 @@ def test_slack_write_message_refuses_an_answer_past_the_ceiling(data_fixture, se
         channel="general",
         text="'hi'",
     )
-    flood = _streamed({"ok": True}, chunks=iter([b"x" * 512] * 10))
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=Mock(return_value=flood),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        side_effect=ResponseTooLargeDispatchException("Too large."),
     ):
         with pytest.raises(ResponseTooLargeDispatchException):
             service.get_type().dispatch(service, FakeDispatchContext())
 
 
 @pytest.mark.django_db
-def test_slack_write_message_hangs_up_on_a_body_that_drips(data_fixture):
-    """
-    The request timeout restarts on every byte, so a server sending one every
-    few seconds would hold the dispatch open past the lock that guards the
-    row. The deadline is wall clock.
-    """
-
+def test_slack_write_message_past_its_deadline_is_a_timeout(data_fixture):
     service = data_fixture.create_slack_write_message_service(
         integration=data_fixture.create_integration(
             SlackBotIntegration, token="xoxb-test"
@@ -757,26 +715,21 @@ def test_slack_write_message_hangs_up_on_a_body_that_drips(data_fixture):
         text="'hi'",
     )
 
-    def drip():
-        yield b"{"
-        # Past the service's own deadline, without ever going quiet.
-        with patch("time.monotonic", return_value=time.monotonic() + 3600):
-            yield b'"ok": true}'
-
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=Mock(return_value=_streamed({"ok": True}, chunks=drip())),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        side_effect=request_exceptions.Timeout("The request did not finish."),
     ):
-        with pytest.raises(UnexpectedDispatchException):
+        with pytest.raises(UnexpectedDispatchException) as raised:
             service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert "Timeout" in str(raised.value)
 
 
 @pytest.mark.django_db
 def test_slack_write_message_answers_where_its_schema_says_it_does(data_fixture):
     """
-    The schema is what the data explorer offers a later step, so a path it
-    names has to resolve against what a dispatch actually returns. These two
-    disagreed until the schema described the wrapper the dispatch answers with.
+    The schema is what the data explorer offers a later step, so every path it
+    names has to resolve against what a dispatch actually returns.
     """
 
     user = data_fixture.create_user()
@@ -801,11 +754,10 @@ def test_slack_write_message_answers_where_its_schema_says_it_does(data_fixture)
         "channel": "C123456",
         "ts": "1503435956.000247",
     }
-    mock_response.iter_content.return_value = iter([b"{}"])
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=Mock(return_value=mock_response),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=Mock(return_value=mock_response),
     ):
         result = service_type.dispatch(service, FakeDispatchContext())
 
@@ -868,8 +820,8 @@ def test_slack_write_message_failure_does_not_repeat_the_request(data_fixture):
     )
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=Mock(side_effect=failure),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=Mock(side_effect=failure),
     ):
         with pytest.raises(UnexpectedDispatchException) as raised:
             service.get_type().dispatch(service, FakeDispatchContext())
@@ -890,12 +842,11 @@ def test_slack_write_message_answer_that_is_not_json(data_fixture):
         channel="general", text="'Hello'"
     )
     response = Mock()
-    response.iter_content.return_value = iter([b"<html>Moved</html>"])
     response.json.side_effect = ValueError("Expecting value: line 1 column 1")
 
     with patch(
-        "baserow.contrib.integrations.slack.service_types.get_http_request_function",
-        return_value=Mock(return_value=response),
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=Mock(return_value=response),
     ):
         with pytest.raises(RemoteRefusedDispatchException) as raised:
             service.get_type().dispatch(service, FakeDispatchContext())

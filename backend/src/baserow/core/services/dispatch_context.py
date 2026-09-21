@@ -30,6 +30,21 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     """
     only_record_id = None
 
+    # Whether this context's caller dispatches outside of the savepoint the
+    # dispatch itself opens. An external service then sends its request after
+    # that savepoint closes, rather than inside it, so a slow endpoint holds
+    # no connection open for its wait; if the caller already had a
+    # transaction open of its own, it stays open regardless. False by
+    # default: builder, automation and dashboard dispatch inside a
+    # transaction of their own, where leaving the savepoint gains nothing.
+    sends_external_calls_outside_transaction = False
+
+    # How many of its timeouts an external request may take in all, from
+    # connecting to the last byte of the body. Builder and automation set two:
+    # they have always given the answer and the body a whole timeout each, and
+    # endpoints that use both keep working.
+    external_request_timeouts = 1
+
     def __init__(
         self,
         workspace: Optional["Workspace"] = None,

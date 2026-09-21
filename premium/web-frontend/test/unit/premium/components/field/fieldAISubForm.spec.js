@@ -87,7 +87,7 @@ describe('FieldAISubForm component', () => {
     expect(wrapper.vm.isFormValid()).toBe(true)
   })
 
-  test('a disabled model is removed before it can be selected', async () => {
+  test('a disabled model stays visible but cannot be selected', async () => {
     const wrapper = await mountComponent(
       {
         formula: "'hello'",
@@ -100,10 +100,15 @@ describe('FieldAISubForm component', () => {
       }
     )
 
-    const optionNames = wrapper
-      .findAll('.select__item-name-text')
-      .map((item) => item.text())
-    expect(optionNames).not.toContain('disabled-model')
+    const disabledOption = wrapper
+      .findAll('.select__item')
+      .find(
+        (option) =>
+          option.find('.select__item-name-text').text() === 'disabled-model'
+      )
+    expect(disabledOption).toBeTruthy()
+    expect(disabledOption.classes()).toContain('disabled')
+
     wrapper.vm.submit()
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('submitted')).toBeUndefined()

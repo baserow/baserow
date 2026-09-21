@@ -117,3 +117,24 @@ describe('database realtime AI provider updates', () => {
     expect(store.dispatch).not.toHaveBeenCalled()
   })
 })
+
+describe('database realtime button field updates', () => {
+  test('updates the buttons in place without refreshing the grid', async () => {
+    const handlers = getHandlers()
+    const store = { dispatch: vi.fn().mockResolvedValue() }
+    const app = { $bus: { $emit: vi.fn() } }
+    const fields = [
+      { id: 1, type: 'button', requires_reconfiguration: true },
+      { id: 2, type: 'button', requires_reconfiguration: true },
+    ]
+
+    await handlers.button_fields_updated({ store, app }, { fields })
+
+    expect(store.dispatch).toHaveBeenCalledWith('field/forceUpdateFields', {
+      fields,
+    })
+    // A `table-refresh` would refetch every row for a boolean, and throw away
+    // what someone is typing in a cell.
+    expect(app.$bus.$emit).not.toHaveBeenCalled()
+  })
+})

@@ -530,6 +530,18 @@ class AutomationNodeHandler:
             logger.error(str(e))
             return None
 
+        if workflow_history.status == HistoryStatusChoices.CANCELLED:
+            # The run was already finalized, e.g. by an earlier dispatch of
+            # this run or by the timeout sweep.
+            return None
+
+        if (
+            workflow_history.cancellation_requested_on is not None
+            and workflow_history.status == HistoryStatusChoices.STARTED
+        ):
+            history_handler.finalize_workflow_history_cancellation(workflow_history)
+            return None
+
         error = (
             "Node with ID {} was not found. The node was likely "
             "deleted before the task was executed."

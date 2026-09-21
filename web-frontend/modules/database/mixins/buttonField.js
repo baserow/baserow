@@ -19,6 +19,13 @@ export default {
     hasWorkflowActions() {
       return this.field.has_workflow_actions === true
     },
+    /**
+     * An action writes to a field or table that is in the trash or gone, so
+     * the click is sure to fail. Worked out server side, where the trash is.
+     */
+    requiresReconfiguration() {
+      return this.field.requires_reconfiguration === true
+    },
     dispatchKey() {
       return `${this.field.id}:${this.row.id}`
     },

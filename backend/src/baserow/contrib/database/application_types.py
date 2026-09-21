@@ -234,7 +234,8 @@ class DatabaseApplicationType(ApplicationType):
                     rule_type,
                 ) in field_rules_handler.applicable_rules_with_types:
                     exported_field_rule = field_rules_handler.export_rule(rule)
-                    serialized_field_rules.append(exported_field_rule)
+                    if exported_field_rule is not None:
+                        serialized_field_rules.append(exported_field_rule)
 
             structure = DatabaseExportSerializedStructure.table(
                 id=table.id,
@@ -770,6 +771,10 @@ class DatabaseApplicationType(ApplicationType):
             field_rules_handler = FieldRuleHandler(table)
             serialized_rules = serialized_table["field_rules"]
             for serialized_rule in serialized_rules:
+                # exports made before #6095 may contain null entries for rules
+                # that were active but invalid at export time.
+                if not serialized_rule:
+                    continue
                 field_rules_handler.import_rule(
                     serialized_rule, id_mapping["database_fields"]
                 )
@@ -1191,11 +1196,11 @@ class DatabaseApplicationType(ApplicationType):
             "table_set__data_sync__synced_properties",
         )
 
-    def enhance_and_filter_queryset(
+    def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet[Database],
         user: AbstractUser,
-        workspace: Workspace,
+        workspaces: List[Workspace],
     ) -> QuerySet[Database]:
         tables_qs = Table.objects.select_related(
             "database__workspace", "data_sync"
@@ -1203,11 +1208,11 @@ class DatabaseApplicationType(ApplicationType):
         return queryset.prefetch_related(
             Prefetch(
                 "table_set",
-                queryset=CoreHandler().filter_queryset(
+                queryset=CoreHandler().filter_queryset_for_workspaces(
                     user,
                     ListTablesDatabaseTableOperationType.type,
                     tables_qs,
-                    workspace=workspace,
+                    workspaces,
                 ),
                 to_attr="tables",
             ),
@@ -1230,8 +1235,8 @@ class DatabaseApplicationType(ApplicationType):
         base_queryset = Database.objects.filter(id=database.id)
 
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, database.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [database.workspace]
             ).first()
             return instance and instance.tables or []
         else:

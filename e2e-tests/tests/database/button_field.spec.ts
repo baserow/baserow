@@ -32,7 +32,6 @@ import {
   createRowAction,
   createDeleteRowAction,
   createOpenUrlAction,
-  createWorkflowAction,
   listWorkflowActions,
 } from "../../fixtures/database/workflowAction";
 import { listRows } from "../../fixtures/database/rows";
@@ -274,12 +273,17 @@ test.describe("Button field", () => {
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'kept'" }],
     });
 
-    // "Broken" has an action with no table, so dispatching it fails.
-    await createWorkflowAction(
-      g.user,
-      g.fieldByName["Broken"],
-      "local_baserow_create_row",
-    );
+    // "Broken" targets a row that can never exist, so the button stays
+    // clickable (a table is set, nothing maps a trashed field) but the
+    // dispatch itself fails.
+    await createRowAction(g.user, g.fieldByName["Broken"], {
+      type: "local_baserow_update_row",
+      table: g.table,
+      rowId: "'999999'",
+      fieldMappings: [
+        { field: g.fieldByName["Status"], value: "'unreachable'" },
+      ],
+    });
 
     // "BadLink" points at a field that does not exist, so the URL never
     // resolves in the browser.
@@ -506,12 +510,20 @@ test.describe("Button field", () => {
       fieldMappings: [{ field: g.fieldByName["Status"], value: "'untouched'" }],
     });
 
-    // "BrokenChain" fails first and would navigate second, which is the
-    // combination the builder gets wrong.
-    const brokenCreate = await createWorkflowAction(
+    // "BrokenChain" targets a row that can never exist, so it stays
+    // clickable but fails at dispatch, and would navigate second, which is
+    // the combination the builder gets wrong.
+    const brokenCreate = await createRowAction(
       g.user,
       g.fieldByName["BrokenChain"],
-      "local_baserow_create_row",
+      {
+        type: "local_baserow_update_row",
+        table: g.table,
+        rowId: "'999999'",
+        fieldMappings: [
+          { field: g.fieldByName["Status"], value: "'unreachable'" },
+        ],
+      },
     );
     await createOpenUrlAction(g.user, g.fieldByName["BrokenChain"], {
       url: `concat('/never-',get('previous_action.${brokenCreate.id}.id'))`,
@@ -872,7 +884,7 @@ test.describe("Button field", () => {
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
 
-    // "Broken" has an action with no table selected, so the dispatch refuses
+    // "Broken" targets a row that does not exist, so the dispatch refuses
     // it and the error names the position the clicker can count in the editor.
     await grid.fieldCellAt(0, BROKEN_FIELD_INDEX).locator("button").click();
     await expect(page.locator(".toast__message")).toContainText("Action 1");
@@ -903,10 +915,10 @@ test.describe("Button field", () => {
     ).toHaveText("No row ID selected");
 
     await grid.goTo(g.database, g.table);
-    await grid.fieldCellAt(0, ROWLESS_FIELD_INDEX).locator("button").click();
-    await expect(page.locator(".toast__message")).toContainText(
-      "A row ID is required to update a row.",
-    );
+    // The server flags it too, so the cell never offers the click.
+    await expect(
+      grid.fieldCellAt(0, ROWLESS_FIELD_INDEX).locator("button"),
+    ).toBeDisabled();
 
     const rows = await listRows(g.user, g.table);
     expect(rows.map((row) => [row.Name, row.Status])).toEqual([
@@ -936,43 +948,48 @@ test.describe("Button field", () => {
   }) => {
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     await patchView(g.user, g.view, { public: true });
-
-    // A button's label and actions are only meaningful to whoever configures
-    // the field, and a public view has no one to configure it, so the field
-    // type sets `can_be_in_public_view = False`.
-    const anonContext = await browser.newContext();
     try {
-      const anonPage = await anonContext.newPage();
-      await anonPage.goto(
-        `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/public/grid/${g.view.slug}`,
+      // A button's label and actions are only meaningful to whoever configures
+      // the field, and a public view has no one to configure it, so the field
+      // type sets `can_be_in_public_view = False`.
+      const anonContext = await browser.newContext();
+      try {
+        const anonPage = await anonContext.newPage();
+        await anonPage.goto(
+          `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/public/grid/${g.view.slug}`,
+        );
+
+        // The grid really did load, so the absences below mean something.
+        await expect(anonPage.locator(".grid-view__left")).toContainText("Ada");
+        await expect(anonPage.locator(".grid-field-button")).toHaveCount(0);
+        for (const name of BUTTON_FIELD_NAMES) {
+          await expect(
+            anonPage.locator(".grid-view__description-name", { hasText: name }),
+          ).toHaveCount(0);
+        }
+      } finally {
+        await anonContext.close();
+      }
+
+      // The rendering is only half of it: an unauthenticated caller must not be
+      // able to read the fields out of the public API either.
+      const info: any = await getClient().get(
+        `database/views/${g.view.slug}/public/info/`,
+      );
+      const publicFieldIds = info.data.fields.map((field: any) => field.id);
+      const rows: any = await getClient().get(
+        `database/views/grid/${g.view.slug}/public/rows/`,
       );
 
-      // The grid really did load, so the absences below mean something.
-      await expect(anonPage.locator(".grid-view__left")).toContainText("Ada");
-      await expect(anonPage.locator(".grid-field-button")).toHaveCount(0);
       for (const name of BUTTON_FIELD_NAMES) {
-        await expect(
-          anonPage.locator(".grid-view__description-name", { hasText: name }),
-        ).toHaveCount(0);
+        const fieldId = g.fieldByName[name].id;
+        expect(publicFieldIds).not.toContain(fieldId);
+        expect(rows.data.results[0]).not.toHaveProperty(`field_${fieldId}`);
       }
     } finally {
-      await anonContext.close();
-    }
-
-    // The rendering is only half of it: an unauthenticated caller must not be
-    // able to read the fields out of the public API either.
-    const info: any = await getClient().get(
-      `database/views/${g.view.slug}/public/info/`,
-    );
-    const publicFieldIds = info.data.fields.map((field: any) => field.id);
-    const rows: any = await getClient().get(
-      `database/views/grid/${g.view.slug}/public/rows/`,
-    );
-
-    for (const name of BUTTON_FIELD_NAMES) {
-      const fieldId = g.fieldByName[name].id;
-      expect(publicFieldIds).not.toContain(fieldId);
-      expect(rows.data.results[0]).not.toHaveProperty(`field_${fieldId}`);
+      // A public view hides a field created in it until its editor closes, so
+      // a later test making a field in the UI would never see its column.
+      await patchView(g.user, g.view, { public: false });
     }
   });
 

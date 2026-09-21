@@ -160,7 +160,7 @@ for the execution and recovery model.
 | `baserow.websocket_sync_queue_duration` / `baserow.websocket_sync_execution_duration` | Milliseconds before the executor starts work versus milliseconds on its thread, including database connection cleanup. |
 | `baserow.websocket_sync_pending` / `baserow.websocket_sync_executing` | Awaiting callers, including queued and running calls, versus work actually executing. Executing work can outlive a cancelled caller. |
 | `baserow.websocket_event_loop_lag` | Scheduling delay in milliseconds, sampled once per second while WebSocket applications are active. |
-| `baserow.websocket_replay_requests` | Decisions by `baseline`, `replayed`, `refresh`, `overloaded`, `deadline_exceeded`, `query_timeout`, `database_error`, `cancelled`, or `error`. |
+| `baserow.websocket_replay_requests` | Decisions by `baseline`, `replayed`, `refresh`, `overloaded`, `deadline_exceeded`, `query_timeout`, `database_error`, `cancelled`, or `error`. Refresh `reason` distinguishes `missing_cursor`, `unknown_history`, `cursor_ahead`, `expired_payload`, and `event_limit`; other outcomes use `none`. |
 | `baserow.websocket_replay_duration` / `baserow.websocket_replay_events` | Caller wait in milliseconds and number of events returned by a completed decision. |
 | `baserow.websocket_replay_inflight` / `baserow.websocket_replay_capacity` | Occupied slots and initialized replay pool capacity, including work still running after cancellation or a deadline. |
 | `baserow.websocket_replay_queued` / `baserow.websocket_replay_queue_capacity` / `baserow.websocket_replay_queue_duration` | Waiting requests, admission queue capacity, and wait in milliseconds, including cancelled/expired waits. Admission precedes the separate synchronous executor queue measurement. |
@@ -168,7 +168,7 @@ for the execution and recovery model.
 | `baserow.realtime_recording_events` | Attempted recording envelopes by `destination=users/page` and handler `outcome=success/error`. A successful handler does not guarantee an enclosing transaction committed. |
 | `baserow.realtime_recording_batch_size` / `baserow.realtime_recording_duration` | Envelopes per attempted batch and handler duration in milliseconds, including adaptation and database work. |
 | `baserow.realtime_cleanup_deleted` / `baserow.realtime_cleanup_batch_size` | Deleted events and rows per successfully committed cleanup batch. |
-| `baserow.realtime_cleanup_batch_duration` | Batch duration in milliseconds, including commit. Failed batches have `outcome=error` and contribute no deleted rows. |
+| `baserow.realtime_cleanup_batch_duration` | Batch duration in milliseconds, including expired-history summary updates and commit. Failed batches have `outcome=error` and contribute no deleted rows. |
 | `baserow.realtime_cleanup_run_deleted` / `baserow.realtime_cleanup_run_duration` | Committed progress and run duration in milliseconds, by outcome. Earlier commits still count if a later batch fails. |
 | `baserow.realtime_cleanup_skipped` | Scheduled attempts skipped for `reason=overlap` (another task owns the lease) or `reason=lock_error` (lease acquisition failed). |
 
@@ -217,14 +217,25 @@ has exhausted memory.
 Compare recording rate with committed cleanup deletions over time. A cleanup run
 ending with `budget` retained its earlier commits but exhausted its time allowance;
 `success` can still leave locked rows for the next run. Repeated overlap or lock
-errors explain runs that never reached the database. Track oldest event age,
+errors explain runs that never reached the database. Track oldest full-event age,
+event-table size, history-summary count and size,
 `pg_stat_user_tables` live/dead tuple estimates and vacuum/analyze timestamps, and
 database I/O alongside these metrics. Deletion and vacuum make space reusable;
 they do not normally reduce allocated table files. Replay refresh fallbacks also
 create HTTP reads, so include that traffic when assessing capacity.
+
+Cleanup deletes expired business payloads while preserving routing summaries for
+exact audiences. Summaries have no fixed size bound: distinct audiences can
+accumulate, although new ignored sockets alone do not create additional rows.
+Measure summary growth alongside recent event volume and cleanup progress.
 
 For users-channel replay, compare rows and heap blocks visited with events actually
 returned. Recipient selection should use `target_user_ids` and `all_users`, with
 `ws_realtime_targets_idx` and `ws_realtime_all_users_idx` available to the planner.
 There is no full-payload GIN index. Include recipient-trigger work in recording
 measurements; smaller indexes do not by themselves guarantee faster inserts.
+
+Refresh reasons separate storage coverage from event volume: `expired_payload`
+means relevant missed history was compacted or falls outside the replay window;
+`unknown_history` means the cursor predates the known history boundary after
+activation or reset; `event_limit` means too many replayable changes remain.

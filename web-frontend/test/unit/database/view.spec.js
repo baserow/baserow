@@ -328,7 +328,12 @@ describe('View Tests', () => {
 
     // The Default view is the Grid view and it should be set (appended) in the cookie
     await nextTick()
-    const cookieValue = decodeDefaultViewIdPerTable(cookie.value)
+    // With experimental.cookieStore the ref above is only refreshed by an async event.
+    const readCookie = () =>
+      decodeDefaultViewIdPerTable(
+        useCookie(DEFAULT_VIEW_ID_COOKIE_NAME, { path: '/' }).value
+      )
+    const cookieValue = readCookie()
     expect(cookieValue.length).toBeGreaterThan(0)
 
     const defaultViewIdObject = cookieValue[cookieValue.length - 1]
@@ -341,7 +346,7 @@ describe('View Tests', () => {
     )
 
     // Ensure that the first element is removed from the cookie array
-    const updatedCookieValue = decodeDefaultViewIdPerTable(cookie.value)
+    const updatedCookieValue = readCookie()
     expect(updatedCookieValue).not.toContainEqual(randomData[0])
     expect(updatedCookieValue.length).toBeLessThan(originalDataLength)
   })

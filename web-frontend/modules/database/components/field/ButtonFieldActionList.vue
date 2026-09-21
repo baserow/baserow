@@ -159,6 +159,12 @@ export default {
       type: Object,
       required: true,
     },
+    // Target table fields by table id, as the action forms fetched them.
+    tableFields: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
   },
   emits: ['input'],
   data() {
@@ -216,6 +222,8 @@ export default {
         // Where an action's credential lives, so a type can say when it is
         // not usable.
         database: this.liveDatabase,
+        // Whether an action's target table was found at all.
+        tableFields: this.tableFields,
       }
       return Object.fromEntries(
         this.value.map((action) => [
@@ -435,9 +443,26 @@ export default {
       if (_.isEqual(values, _.pick(action, Object.keys(values)))) {
         return
       }
-      const newList = this.value.map((a, i) =>
-        i === index ? { ...a, ...values } : a
-      )
+      const newList = this.value.map((a, i) => {
+        if (i !== index) {
+          return a
+        }
+        const changed = { ...a, ...values }
+        // The server's verdict describes the action as it was read. Dropped
+        // here as `onActionTypeChanged` drops it by rebuilding, so a fix stops
+        // warning before it is saved. Kept while the integration and the table
+        // stay as they were: a trashed integration is missing from the list,
+        // so the verdict is the only thing that says so.
+        const integrationId = a.service?.integration_id
+        const keepsVerdict =
+          integrationId != null &&
+          changed.service?.integration_id === integrationId &&
+          changed.service?.table_id === a.service?.table_id
+        if (!keepsVerdict) {
+          delete changed.requires_reconfiguration
+        }
+        return changed
+      })
       this.$emit('input', newList)
     },
     onSortableUpdate(newOrder) {

@@ -240,6 +240,29 @@ class AIProviderService:
         cls._send_updated(user, workspace, True, provider_type, {model_identifier})
 
     @classmethod
+    def get_model_usage(
+        cls,
+        user: AbstractUser,
+        model_id: int,
+        workspace_id: int | None = None,
+    ) -> dict[str, int]:
+        """
+        Report what still depends on a model before an admin changes it.
+
+        Default-model features are not reported: their selection already refuses
+        the change with ERROR_AI_PROVIDER_MODEL_IN_USE, which names them.
+
+        :param user: The user asking for the counts.
+        :param model_id: The model about to be disabled, deleted or narrowed.
+        :param workspace_id: The workspace scope, or None for the instance scope.
+        :return: The per-consumer-feature counts to warn about.
+        """
+
+        workspace = cls._check_permissions(user, workspace_id)
+        model = AIProviderHandler.get_model(model_id, workspace=workspace)
+        return AIProviderHandler.get_model_usage(model)
+
+    @classmethod
     def test_models(
         cls,
         user: AbstractUser,

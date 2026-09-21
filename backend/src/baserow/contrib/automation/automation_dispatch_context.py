@@ -14,6 +14,10 @@ from baserow.core.services.dispatch_context import DispatchContext
 class AutomationDispatchContext(DispatchContext):
     own_properties = ["workflow", "event_payload", "history"]
 
+    # The answer and the body have always had a whole timeout each here, so
+    # an external request keeps both until #6117 settles a stricter one.
+    external_request_timeouts = 2
+
     def __init__(
         self,
         workflow: AutomationWorkflow,

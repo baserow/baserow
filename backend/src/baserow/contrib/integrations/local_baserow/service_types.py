@@ -16,7 +16,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import FieldDoesNotExist as DjangoFieldDoesNotExist
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 from django.dispatch import Signal
 from django.utils.translation import gettext as _
 
@@ -31,7 +31,6 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.exceptions import (
     FieldDataConstraintException,
-    FieldDoesNotExist,
     IncompatibleField,
 )
 from baserow.contrib.database.fields.field_types import (
@@ -657,7 +656,11 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             # Only `TextField` has a default value at the moment.
             field = field_object["field"]
             default_value = getattr(field, "text_default", None)
-            field_serializer = field_type.get_serializer(field, FieldSerializer)
+            # `data_schema` leaves out what a field type says isn't about the
+            # data, such as a button's action state.
+            field_serializer = field_type.get_serializer(
+                field, FieldSerializer, extra_params={"data_schema": True}
+            )
             properties[field.db_column] = {
                 "title": field.name,
                 "default": default_value,
@@ -1929,22 +1932,49 @@ class LocalBaserowUpsertRowServiceType(
 
         if "field_mappings" in values and instance.table_id:
             bulk_field_mappings = []
-            # Bulk delete the existing field mappings on the service.
-            # We'll bulk create the mappings in the values `field_mappings`.
-            instance.field_mappings.all().delete()
-            # The queryset we'll use to narrow down the `get_field` query,
-            # this ensures we find the field within the service's table.
-            base_field_qs = instance.table.field_set.all()
             field_mappings = values.get("field_mappings", [])
+            # The payload replaces the list. The editor sends mappings on
+            # trashed fields back and undo replays them, so a trashed field of
+            # the service's table is accepted (ADR 006 section 8).
+            instance.field_mappings.all().delete()
+            field_ids = {m["field_id"] for m in field_mappings if "field_id" in m}
+            # Fetched in one query rather than one per mapping, and only from
+            # the service's table.
+            fields = {
+                field.id: field
+                for field in Field.objects_and_trash.filter(
+                    table_id=instance.table_id, id__in=field_ids
+                )
+            }
+            if fields and TrashHandler.item_has_a_trashed_parent(
+                instance.table, check_item_also=True
+            ):
+                fields = {}
+            # An open editor or an undo can still send a field deleted from the
+            # trash since. Its mapping is dropped, but a field that still exists
+            # in the workspace is refused. A field of another workspace is
+            # dropped too, so the response doesn't reveal that it exists.
+            not_found = field_ids - fields.keys()
+            still_exist = (
+                set(
+                    Field.objects_and_trash.filter(
+                        id__in=not_found,
+                        table__database__workspace_id=instance.table.database.workspace_id,
+                    ).values_list("id", flat=True)
+                )
+                if not_found
+                else set()
+            )
             for field_mapping in field_mappings:
-                try:
-                    field = FieldHandler().get_field(
-                        field_mapping["field_id"], base_queryset=base_field_qs
-                    )
-                except KeyError:
+                if "field_id" not in field_mapping:
                     raise DRFValidationError("A field mapping must have a `field_id`.")
-                except FieldDoesNotExist as exc:
-                    raise DRFValidationError(str(exc))
+                field = fields.get(field_mapping["field_id"])
+                if field is None:
+                    if field_mapping["field_id"] not in still_exist:
+                        continue
+                    raise DRFValidationError(
+                        f"The field with id {field_mapping['field_id']} does not exist."
+                    )
 
                 bulk_field_mappings.append(
                     LocalBaserowTableServiceFieldMapping(
@@ -2137,7 +2167,19 @@ class LocalBaserowUpsertRowServiceType(
         return service
 
     def enhance_queryset(self, queryset):
-        return super().enhance_queryset(queryset).prefetch_related("field_mappings")
+        # Every serialized mapping reads its field for `trashed`.
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related(
+                Prefetch(
+                    "field_mappings",
+                    queryset=LocalBaserowTableServiceFieldMapping.objects_and_trash.select_related(
+                        "field"
+                    ),
+                )
+            )
+        )
 
     def formulas_to_resolve(
         self, service: LocalBaserowUpsertRow

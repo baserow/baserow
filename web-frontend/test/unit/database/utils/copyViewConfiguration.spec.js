@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { expect } from 'vitest'
 
@@ -12,6 +14,26 @@ import {
   SortsCopyOptionType,
   ViewSettingsCopyOptionType,
 } from '@baserow/modules/database/copyViewConfigurationOptionTypes'
+
+// Read rather than imported: the i18n loader turns an imported locale file
+// into compiled message ASTs, which the copy below can't be read off of.
+const en = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'modules/database/locales/en.json'),
+    'utf8'
+  )
+)
+
+const translate = (key, params = {}) => {
+  const translation = key
+    .split('.')
+    .reduce((value, segment) => value[segment], en)
+  return Object.entries(params).reduce(
+    (value, [name, replacement]) =>
+      value.replace(`{${name}}`, String(replacement)),
+    translation
+  )
+}
 
 describe('getEnabledCopyOptionKeys', () => {
   let testApp = null
@@ -142,6 +164,19 @@ describe('getEnabledCopyOptionKeys', () => {
         option.getType()
       )
     ).not.toContain('field_widths')
+  })
+
+  test('grid view settings label includes the group layout setting', () => {
+    const viewSettingsOption = new ViewSettingsCopyOptionType({
+      app: {
+        $registry: testApp.getRegistry(),
+        $i18n: { t: translate },
+      },
+    })
+
+    expect(viewSettingsOption.getName(view('grid'))).toBe(
+      'Settings (row height, frozen columns, row identifier, group layout)'
+    )
   })
 })
 
