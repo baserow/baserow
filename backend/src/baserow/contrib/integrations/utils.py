@@ -1,3 +1,4 @@
+import contextlib
 import contextvars
 import heapq
 import itertools
@@ -16,10 +17,25 @@ from requests import exceptions as request_exceptions
 from requests.adapters import HTTPAdapter
 from urllib3.connection import HTTPConnection, HTTPSConnection
 from urllib3.connectionpool import HTTPConnectionPool, HTTPSConnectionPool
-from urllib3.exceptions import DecodeError, ProtocolError, ReadTimeoutError, SSLError
+from urllib3.exceptions import (
+    ConnectTimeoutError,
+    DecodeError,
+    LocationParseError,
+    NameResolutionError,
+    NewConnectionError,
+    ProtocolError,
+    ReadTimeoutError,
+    SSLError,
+)
+from urllib3.util.connection import _set_socket_options, allowed_gai_family
+from urllib3.util.timeout import _DEFAULT_TIMEOUT
 
 import advocate
-from advocate.connection import ValidatingHTTPConnection, ValidatingHTTPSConnection
+from advocate.connection import (
+    ValidatingHTTPConnection,
+    ValidatingHTTPSConnection,
+    attempt_timeout,
+)
 from advocate.connectionpool import (
     ValidatingHTTPConnectionPool,
     ValidatingHTTPSConnectionPool,
@@ -27,9 +43,7 @@ from advocate.connectionpool import (
 from baserow.core.services.exceptions import ResponseTooLargeDispatchException
 
 
-def read_response_within_limit(
-    response, timeout: int, deadline: Optional[float] = None
-) -> None:
+def _read_body(response, request_deadline: "_RequestDeadline") -> None:
     """
     Pulls the body in with a ceiling on its size and a deadline on how long it
     may take, and hangs up on an endpoint that goes past either.
@@ -43,44 +57,13 @@ def read_response_within_limit(
     row.
 
     :param response: The streamed response.
-    :param timeout: How long the whole body may take to arrive, in seconds,
-        counted from now. Ignored when `deadline` is given.
-    :param deadline: The `time.monotonic()` value the body must have arrived
-        by, when the caller's budget started earlier than the body did.
+    :param request_deadline: The request the response belongs to: the body
+        must have arrived by its deadline, and its watchdog may hang up mid
+        read.
     :raises ResponseTooLargeDispatchException: When the body is larger than the
         ceiling.
     :raises requests.exceptions.Timeout: When it takes longer than the
-        deadline, or a single read times out, which the caller answers the same
-        way as any other timeout.
-    """
-
-    # Only a response from `send_http_request` carries one.
-    request_deadline = getattr(response, "_request_deadline", None)
-    if not isinstance(request_deadline, _RequestDeadline):
-        request_deadline = None
-
-    try:
-        # Already read under the same limits by the redirect hook in
-        # `send_http_request`, when a redirect ends up being the final
-        # response. Reading again would find the socket empty and overwrite
-        # that body.
-        if response._content_consumed and isinstance(response._content, bytes):
-            return
-        if deadline is None:
-            deadline = time.monotonic() + timeout
-        _read_body(response, deadline, request_deadline)
-    finally:
-        # The request is over once its body is, so the watchdog lets go of it
-        # here rather than at its deadline.
-        if request_deadline is not None:
-            request_deadline.finish()
-
-
-def _read_body(response, deadline: float, request_deadline) -> None:
-    """
-    The loop behind `read_response_within_limit`, which the redirect hook in
-    `send_http_request` also uses for a redirect's body, where the request is
-    not over yet.
+        deadline, or a single read times out.
     """
 
     # Read whatever the ceiling is set to. Returning early with the ceiling
@@ -92,9 +75,10 @@ def _read_body(response, deadline: float, request_deadline) -> None:
 
     content = bytearray()
 
+    deadline = request_deadline.deadline
+
     def timed_out():
-        hung_up = request_deadline is not None and request_deadline.hung_up
-        return hung_up or time.monotonic() > deadline
+        return request_deadline.hung_up or time.monotonic() > deadline
 
     try:
         while True:
@@ -213,11 +197,12 @@ class _RequestDeadline:
                 return
             self.hung_up = True
             for watched in self._sockets:
-                try:
+                # Neither may raise out of the loop, or the sockets after this
+                # one would be left open.
+                with contextlib.suppress(OSError):
                     watched.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
-                watched.close()
+                with contextlib.suppress(OSError):
+                    watched.close()
             self._sockets.clear()
 
     def finish(self) -> None:
@@ -226,7 +211,10 @@ class _RequestDeadline:
                 return
             self._finished = True
             for watched in self._sockets:
-                watched.close()
+                # Runs in `send_http_request`'s `finally`, where raising would
+                # replace the response or the error the caller should see.
+                with contextlib.suppress(OSError):
+                    watched.close()
             self._sockets.clear()
         _watchdog.forget(self)
 
@@ -324,52 +312,114 @@ _current_request_deadline = contextvars.ContextVar(
 )
 
 
-def _bound_connect_to_deadline(event: str, args: tuple) -> None:
+def _create_connection(
+    address: tuple,
+    timeout,
+    deadline: Optional[float],
+    source_address=None,
+    socket_options=None,
+) -> socket.socket:
     """
-    An audit hook that gives every connect attempt of a request only the time
-    left until its deadline. urllib3 and advocate try each address a host
-    resolves to in turn, all with the timeout the hop started with, and the
-    watchdog only sees a socket once it is connected, so a host with several
-    addresses that never answer would otherwise take one timeout per address.
+    urllib3's `create_connection`, except that every attempt, across every
+    address the host resolves to, only gets the time left until `deadline`.
+    urllib3 hands each attempt the timeout the hop started with, so a host
+    with several addresses that never answer would take one timeout per
+    address. advocate's `validating_create_connection` does the same for the
+    connections it validates.
     """
 
-    if event != "socket.connect":
-        return
-    request_deadline = _current_request_deadline.get()
-    if request_deadline is None:
-        return
-    remaining = request_deadline.deadline - time.monotonic()
-    if remaining <= 0:
-        # Raised from inside `connect`, so the address loop reports it the
-        # same as an attempt that timed out.
-        raise TimeoutError("The request did not finish in time.")
-    sock = args[0]
-    timeout = sock.gettimeout()
-    if timeout is None or timeout > remaining:
-        sock.settimeout(remaining)
-
-
-# An audit hook cannot be removed, and runs for every audited event in the
-# process, so it returns on the first comparison for anything but a connect.
-sys.addaudithook(_bound_connect_to_deadline)
+    host, port = address
+    if host.startswith("["):
+        host = host.strip("[]")
+    try:
+        host.encode("idna")
+    except UnicodeError:
+        raise LocationParseError(f"'{host}', label empty or too long") from None
+    err = None
+    for af, socktype, proto, _, sa in socket.getaddrinfo(
+        host, port, allowed_gai_family(), socket.SOCK_STREAM
+    ):
+        sock = None
+        try:
+            sock = socket.socket(af, socktype, proto)
+            _set_socket_options(sock, socket_options)
+            if deadline is not None:
+                sock.settimeout(attempt_timeout(timeout, deadline))
+            elif timeout is not _DEFAULT_TIMEOUT:
+                sock.settimeout(timeout)
+            if source_address:
+                sock.bind(source_address)
+            sock.connect(sa)
+            # Breaks the reference cycle through the traceback, as urllib3
+            # does.
+            err = None
+            return sock
+        except OSError as e:
+            err = e
+            if sock is not None:
+                sock.close()
+    if err is not None:
+        try:
+            raise err
+        finally:
+            err = None
+    raise OSError("getaddrinfo returns an empty list")
 
 
 class _WatchedConnectionMixin:
+    # Read by the connect loop, which cannot see the request itself.
+    connect_deadline = None
+
     def _new_conn(self):
+        request_deadline = _current_request_deadline.get()
+        if request_deadline is not None:
+            self.connect_deadline = request_deadline.deadline
         # The plain TCP socket, before any TLS handshake or tunnel, so the
         # watchdog can hang up on those too.
         sock = super()._new_conn()
-        request_deadline = _current_request_deadline.get()
         if request_deadline is not None:
             request_deadline.watch(sock)
         return sock
 
 
-class _WatchedHTTPConnection(_WatchedConnectionMixin, HTTPConnection):
+class _DeadlineConnectMixin:
+    """
+    urllib3's `_new_conn` with `_create_connection` in place of urllib3's
+    own, for the connections advocate does not validate.
+    """
+
+    def _new_conn(self):
+        try:
+            sock = _create_connection(
+                (self._dns_host, self.port),
+                self.timeout,
+                self.connect_deadline,
+                source_address=self.source_address,
+                socket_options=self.socket_options,
+            )
+        except socket.gaierror as e:
+            raise NameResolutionError(self.host, self, e) from e
+        except TimeoutError as e:
+            raise ConnectTimeoutError(
+                self, f"Connection to {self.host} timed out."
+            ) from e
+        except OSError as e:
+            raise NewConnectionError(
+                self, f"Failed to establish a new connection: {e}"
+            ) from e
+        sys.audit("http.client.connect", self, self.host, self.port)
+        return sock
+
+
+class _WatchedHTTPConnection(
+    _WatchedConnectionMixin, _DeadlineConnectMixin, HTTPConnection
+):
     pass
 
 
-class _WatchedHTTPSConnection(_WatchedConnectionMixin, HTTPSConnection):
+class _WatchedHTTPSConnection(
+    _WatchedConnectionMixin, _DeadlineConnectMixin, HTTPSConnection
+):
     pass
 
 
@@ -417,6 +467,7 @@ class _DeadlineMixin:
     """
 
     request_deadline: _RequestDeadline
+    operation_timeout: Optional[float] = None
     watched_pool_classes: dict
 
     def __init__(self, *args, **kwargs):
@@ -432,8 +483,14 @@ class _DeadlineMixin:
         if remaining <= 0:
             raise request_exceptions.Timeout("The request did not finish in time.")
         # `resolve_redirects` calls `send` again for every hop, so each one
-        # gets what is left rather than the whole budget.
-        kwargs["timeout"] = remaining
+        # gets what is left rather than the whole budget. No single socket
+        # operation waits longer than `operation_timeout`, however much of
+        # the budget is left, so waiting for the answer cannot use up the
+        # time the body was given.
+        timeout = remaining
+        if self.operation_timeout is not None:
+            timeout = min(timeout, self.operation_timeout)
+        kwargs["timeout"] = timeout
         try:
             response = super().send(request, **kwargs)
         except request_exceptions.ConnectionError as e:
@@ -490,30 +547,31 @@ class _DeadlineAdvocateSession(_DeadlineMixin, advocate.Session):
 
 
 def send_http_request(
-    method: str, url: str, deadline: float, **kwargs
+    method: str,
+    url: str,
+    deadline: float,
+    operation_timeout: Optional[float] = None,
+    **kwargs,
 ) -> requests.Response:
     """
-    Sends a request that is over by `deadline`, redirects included, and returns
-    the final response with its body still unread.
-
-    The body is left for `read_response_within_limit`, which the caller hands
-    the same deadline, so the whole exchange shares one budget. Until then the
-    watchdog stays armed, and it hangs up the response at the deadline even if
-    the body is never read.
+    Sends a request and reads its body, both over by `deadline`, redirects
+    included, and returns the final response with its body in.
 
     :param method: The HTTP method.
     :param url: Where to send it.
     :param deadline: The `time.monotonic()` value the request must be over by.
+    :param operation_timeout: The longest a single connect or read may wait,
+        when that is shorter than what is left until `deadline`.
     :param kwargs: Anything else `requests.Session.request` accepts, except
         `timeout`, `stream` and `hooks`, which this function sets itself and
         must not be passed in.
-    :return: The final response, streamed.
+    :return: The final response, its body already read.
     :raises requests.exceptions.Timeout: When the deadline passes.
     :raises requests.exceptions.TooManyRedirects: Past `MAX_REDIRECTS`.
     :raises UnacceptableAddressException: When a hop resolves to an address
         this installation does not allow.
-    :raises ResponseTooLargeDispatchException: When a redirect's own body,
-        read while following it, is larger than this installation accepts.
+    :raises ResponseTooLargeDispatchException: When a body, the final one or a
+        redirect's, is larger than this installation accepts.
     """
 
     session_class = (
@@ -528,7 +586,7 @@ def send_http_request(
         # deadline and no size ceiling. Hooks run first, so reading it here
         # puts it under both.
         if response.is_redirect:
-            _read_body(response, deadline, request_deadline)
+            _read_body(response, request_deadline)
 
     _watchdog.watch(request_deadline)
     token = _current_request_deadline.set(request_deadline)
@@ -538,6 +596,7 @@ def send_http_request(
         # streaming from.
         with session_class() as session:
             session.request_deadline = request_deadline
+            session.operation_timeout = operation_timeout
             session.max_redirects = MAX_REDIRECTS
             response = session.request(
                 method=method,
@@ -546,12 +605,12 @@ def send_http_request(
                 hooks={"response": [read_redirect_body]},
                 **kwargs,
             )
-    except BaseException:
-        request_deadline.finish()
-        raise
+        # A redirect that ends up the final response was already read by the
+        # hook; reading again would find the socket empty.
+        if not response._content_consumed:
+            _read_body(response, request_deadline)
     finally:
         _current_request_deadline.reset(token)
+        request_deadline.finish()
 
-    # `read_response_within_limit` finishes the request once the body is in.
-    response._request_deadline = request_deadline
     return response

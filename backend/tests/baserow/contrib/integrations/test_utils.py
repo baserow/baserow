@@ -4,6 +4,7 @@ import ipaddress
 import json
 import os
 import secrets
+import signal
 import socket
 import threading
 import time
@@ -14,7 +15,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 import requests
-import urllib3.util.connection
 from loguru import logger
 from requests import exceptions as request_exceptions
 from urllib3.exceptions import SSLError
@@ -25,17 +25,19 @@ except ImportError:
     zstd = None
 
 import advocate
+import baserow.contrib.integrations.utils as utils_module
 from advocate import AddrValidator
 from advocate.connection import UnacceptableAddressException
 from baserow.contrib.integrations.utils import (
     DEADLINE_WATCHDOG_THREAD_NAME,
     MAX_REDIRECTS,
     _pending_deadlines,
+    _read_body,
     _RequestDeadline,
     _watchdog,
-    read_response_within_limit,
     send_http_request,
 )
+from baserow.core.services.exceptions import ResponseTooLargeDispatchException
 
 
 class _QuietServer(ThreadingHTTPServer):
@@ -196,33 +198,17 @@ def header_trickle(length=50, delay=0.2):
     return handle
 
 
-@contextmanager
-def unanswered_address():
+class _Unanswered(socket.socket):
     """
-    Yields the host and port of a listener whose queue is full, so a connect to
-    it waits out its whole timeout, the same as one to an address that drops
-    packets.
+    A socket whose connect waits out whatever timeout it was given and then
+    times out, the same as one to an address that drops packets. Patched in
+    rather than made with a full listen queue, which some kernels answer with
+    a reset instead.
     """
 
-    listener = socket.socket()
-    listener.bind(("127.0.0.1", 0))
-    listener.listen(0)
-    address = listener.getsockname()
-    queued = []
-    try:
-        while True:
-            client = socket.socket()
-            queued.append(client)
-            client.settimeout(0.1)
-            try:
-                client.connect(address)
-            except TimeoutError:
-                break
-        yield address
-    finally:
-        for client in queued:
-            client.close()
-        listener.close()
+    def connect(self, address):
+        time.sleep(self.gettimeout() or 5)
+        raise TimeoutError("timed out")
 
 
 def test_a_body_that_trickles_is_hung_up_on_at_the_deadline(settings):
@@ -231,12 +217,12 @@ def test_a_body_that_trickles_is_hung_up_on_at_the_deadline(settings):
     once it is complete, ten seconds later.
     """
 
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
     settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
     with local_server({"/": trickle(length=100)}) as (base, _):
-        response = requests.get(base + "/", stream=True, timeout=5)
         started = time.monotonic()
         with pytest.raises(request_exceptions.Timeout):
-            read_response_within_limit(response, 1)
+            send_http_request("GET", base + "/", deadline=started + 1)
         elapsed = time.monotonic() - started
 
     assert elapsed < 5
@@ -248,20 +234,53 @@ def test_a_body_that_stops_arriving_is_reported_as_a_timeout(settings):
     not as urllib3's own error or a `ConnectionError`.
     """
 
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
     settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
     with local_server({"/": stall()}) as (base, _):
-        response = requests.get(base + "/", stream=True, timeout=0.5)
+        started = time.monotonic()
         with pytest.raises(request_exceptions.Timeout):
-            read_response_within_limit(response, 5)
+            send_http_request(
+                "GET", base + "/", deadline=started + 5, operation_timeout=0.5
+            )
+        elapsed = time.monotonic() - started
+
+    # The read timed out on its own, well before the watchdog's deadline.
+    assert elapsed < 2
+
+
+def test_a_body_bigger_than_the_ceiling_is_refused(settings):
+    """
+    The body is read in chunks so an endpoint cannot decide how much memory
+    this worker spends.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024
+    with local_server({"/": answer(b"x" * 5000)}) as (base, _):
+        with pytest.raises(ResponseTooLargeDispatchException):
+            send_http_request("GET", base + "/", deadline=time.monotonic() + 5)
+
+
+def test_a_compressed_body_is_measured_unpacked(settings):
+    """
+    A small compressed answer that unpacks into a large one is refused too.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024
+    route = answer(gzip.compress(b"x" * 5000), headers={"Content-Encoding": "gzip"})
+    with local_server({"/": route}) as (base, _):
+        with pytest.raises(ResponseTooLargeDispatchException):
+            send_http_request("GET", base + "/", deadline=time.monotonic() + 5)
 
 
 def test_a_compressed_body_is_read_decoded(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
     settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
     body = json.dumps({"title": "x" * 5000}).encode()
     route = answer(gzip.compress(body), headers={"Content-Encoding": "gzip"})
     with local_server({"/": route}) as (base, _):
-        response = requests.get(base + "/", stream=True, timeout=5)
-        read_response_within_limit(response, 5)
+        response = send_http_request("GET", base + "/", deadline=time.monotonic() + 5)
 
     assert response.json() == {"title": "x" * 5000}
 
@@ -286,18 +305,17 @@ def test_a_compressed_body_cut_off_at_the_deadline_is_a_timeout(
         started = time.monotonic()
         deadline = started + 1
         with pytest.raises(request_exceptions.Timeout):
-            response = send_http_request("GET", base + "/", deadline=deadline)
-            read_response_within_limit(response, 1, deadline=deadline)
+            send_http_request("GET", base + "/", deadline=deadline)
         elapsed = time.monotonic() - started
 
     assert elapsed < 5
 
 
 def test_a_chunked_body_is_read_whole(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
     settings.INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES = 1024 * 1024
     with local_server({"/": chunked([b'{"a": ', b"1}"])}) as (base, _):
-        response = requests.get(base + "/", stream=True, timeout=5)
-        read_response_within_limit(response, 5)
+        response = send_http_request("GET", base + "/", deadline=time.monotonic() + 5)
 
     assert response.json() == {"a": 1}
 
@@ -312,8 +330,9 @@ def test_a_broken_tls_read_is_reported_as_an_ssl_error():
     response.raw = Mock()
     response.raw.read1.side_effect = SSLError("bad record mac")
 
+    deadline = time.monotonic() + 5
     with pytest.raises(request_exceptions.SSLError):
-        read_response_within_limit(response, 5)
+        _read_body(response, _RequestDeadline(deadline))
 
 
 def test_a_broken_tls_read_past_the_deadline_is_reported_as_a_timeout():
@@ -321,8 +340,9 @@ def test_a_broken_tls_read_past_the_deadline_is_reported_as_a_timeout():
     response.raw = Mock()
     response.raw.read1.side_effect = SSLError("bad record mac")
 
+    deadline = time.monotonic() - 1
     with pytest.raises(request_exceptions.Timeout):
-        read_response_within_limit(response, 0, deadline=time.monotonic() - 1)
+        _read_body(response, _RequestDeadline(deadline))
 
 
 def test_a_redirect_chain_is_given_up_on_at_the_deadline(settings):
@@ -384,7 +404,6 @@ def test_a_redirect_is_followed_the_way_requests_follows_it(settings):
         response = send_http_request(
             "POST", base + "/start", deadline=time.monotonic() + 5, data={"a": "b"}
         )
-        read_response_within_limit(response, 5)
 
     assert response.json() == {"ok": True}
     # A 302 after a POST is followed with a GET, as Requests does.
@@ -397,7 +416,6 @@ def test_a_redirect_with_no_location_to_follow_keeps_its_body(settings):
     with local_server({"/": route}) as (base, _):
         deadline = time.monotonic() + 5
         response = send_http_request("GET", base + "/", deadline=deadline)
-        read_response_within_limit(response, 5, deadline=deadline)
 
     assert response.status_code == 302
     assert response.json() == {"moved": True}
@@ -414,7 +432,6 @@ def test_a_redirect_that_is_not_followed_keeps_its_body(settings):
         response = send_http_request(
             "GET", base + "/start", deadline=deadline, allow_redirects=False
         )
-        read_response_within_limit(response, 5, deadline=deadline)
 
     assert response.status_code == 302
     assert response.json() == {"moved": True}
@@ -441,7 +458,6 @@ def test_a_redirect_to_the_same_host_reuses_the_connection(settings):
     with local_server(routes) as (base, seen):
         deadline = time.monotonic() + 5
         response = send_http_request("GET", base + "/a", deadline=deadline)
-        read_response_within_limit(response, 5, deadline=deadline)
 
     assert seen == [("GET", "/a"), ("GET", "/b")]
     assert len(ports) == 2
@@ -456,7 +472,6 @@ def test_a_read_response_is_freed_without_the_cycle_collector(settings):
         try:
             deadline = time.monotonic() + 5
             response = send_http_request("GET", base + "/", deadline=deadline)
-            read_response_within_limit(response, 5, deadline=deadline)
             assert response.json() == {"ok": True}
             freed = weakref.ref(response)
             del response
@@ -601,7 +616,8 @@ def test_a_failed_hang_up_does_not_log_the_address(settings):
             pass
 
         def close(self):
-            raise OSError("boom")
+            # Not an `OSError`, which the hang-up shrugs off per socket.
+            raise RuntimeError("boom")
 
     written = []
     sink_id = logger.add(written.append, level="DEBUG", diagnose=True, backtrace=True)
@@ -624,9 +640,104 @@ def test_a_failed_hang_up_does_not_log_the_address(settings):
         logger.remove(sink_id)
 
     logged = "".join(written)
-    assert "OSError" in logged
+    assert "RuntimeError" in logged
     assert "raddr" not in logged
     assert port not in logged
+
+
+def test_a_socket_that_fails_to_close_does_not_stop_the_hang_up():
+    """
+    The sockets after one that fails to close are still shut down, rather than
+    left open for as long as the server likes.
+    """
+
+    failing = Mock(spec=socket.socket)
+    failing.close.side_effect = OSError("boom")
+    after = Mock(spec=socket.socket)
+    request_deadline = _RequestDeadline(time.monotonic())
+    request_deadline._sockets.extend([failing, after])
+
+    request_deadline.hang_up()
+
+    after.shutdown.assert_called_once_with(socket.SHUT_RDWR)
+    after.close.assert_called_once_with()
+    assert request_deadline._sockets == []
+
+
+def _hung_up_in_a_forked_child(base):
+    """
+    Runs in a forked child: sends a request whose headers never finish and
+    exits 0 only if the child's own watchdog hung it up at its deadline.
+    """
+
+    try:
+        # Keeps Requests off the macOS system proxy settings, which crash a
+        # forked child. Linux reads them from the environment anyway.
+        os.environ["no_proxy"] = "*"
+        if _pending_deadlines():
+            # The parent's requests are not the child's to hang up.
+            os._exit(1)
+        started = time.monotonic()
+        try:
+            send_http_request("GET", base + "/slow", deadline=started + 1)
+        except request_exceptions.Timeout:
+            pass
+        else:
+            os._exit(2)
+        watchdogs = [
+            thread
+            for thread in threading.enumerate()
+            if thread.name == DEADLINE_WATCHDOG_THREAD_NAME
+        ]
+        os._exit(0 if time.monotonic() - started < 5 and len(watchdogs) == 1 else 3)
+    except BaseException:
+        os._exit(4)
+
+
+def test_a_forked_child_enforces_deadlines_with_its_own_watchdog(settings):
+    """
+    A Celery prefork worker is forked from a parent whose watchdog thread does
+    not exist in the child, and whose watchdog lock another thread may hold at
+    that moment. Unless the child starts over, every deadline in the worker
+    goes unenforced, or the first request there blocks for good.
+    """
+
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    parents = _RequestDeadline(time.monotonic() + 60)
+    _watchdog.watch(parents)
+    holding, release = threading.Event(), threading.Event()
+
+    def hold_the_watchdog_lock():
+        with _watchdog._condition:
+            holding.set()
+            release.wait(10)
+
+    holder = threading.Thread(target=hold_the_watchdog_lock)
+    try:
+        with local_server({"/slow": header_trickle()}) as (base, _):
+            holder.start()
+            assert holding.wait(5)
+            pid = os.fork()
+            if pid == 0:
+                _hung_up_in_a_forked_child(base)
+            release.set()
+
+            for _ in range(150):
+                finished, status = os.waitpid(pid, os.WNOHANG)
+                if finished:
+                    break
+                time.sleep(0.1)
+            else:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
+                pytest.fail("The forked child's request never finished.")
+    finally:
+        release.set()
+        if holder.ident is not None:
+            holder.join()
+        parents.finish()
+
+    assert os.waitstatus_to_exitcode(status) == 0
 
 
 def test_the_watchdog_does_not_outlive_a_finished_request(settings):
@@ -635,9 +746,7 @@ def test_the_watchdog_does_not_outlive_a_finished_request(settings):
         deadlines = []
         for _ in range(2):
             deadline = time.monotonic() + 5
-            response = send_http_request("GET", base + "/", deadline=deadline)
-            assert deadline in _pending_deadlines()
-            read_response_within_limit(response, 5, deadline=deadline)
+            send_http_request("GET", base + "/", deadline=deadline)
             deadlines.append(deadline)
 
     assert not set(deadlines) & set(_pending_deadlines())
@@ -659,53 +768,60 @@ def test_every_address_of_a_host_shares_the_deadline(settings, allow_private_add
     """
 
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = allow_private_address
-    with unanswered_address() as (host, port):
-        records = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
-        validator = AddrValidator(
-            ip_whitelist={ipaddress.ip_network("127.0.0.1/32")},
-            port_whitelist={port},
-            autodetect_local_addresses=False,
-        )
-        with (
-            patch("socket.getaddrinfo", return_value=records * 4),
-            patch.object(advocate.Session, "DEFAULT_VALIDATOR", validator),
-        ):
-            started = time.monotonic()
-            with pytest.raises(request_exceptions.Timeout):
-                send_http_request(
-                    "GET", f"http://unanswered.example:{port}/", deadline=started + 1
-                )
-            elapsed = time.monotonic() - started
+    port = 9
+    records = socket.getaddrinfo("127.0.0.1", port, socket.AF_INET, socket.SOCK_STREAM)
+    validator = AddrValidator(
+        ip_whitelist={ipaddress.ip_network("127.0.0.1/32")},
+        port_whitelist={port},
+        autodetect_local_addresses=False,
+    )
+    with (
+        patch("socket.getaddrinfo", return_value=records * 4),
+        patch("socket.socket", _Unanswered),
+        patch.object(advocate.Session, "DEFAULT_VALIDATOR", validator),
+    ):
+        started = time.monotonic()
+        with pytest.raises(request_exceptions.Timeout):
+            send_http_request(
+                "GET",
+                f"http://unanswered.example:{port}/",
+                deadline=started + 1,
+                operation_timeout=5,
+            )
+        elapsed = time.monotonic() - started
 
     assert elapsed < 2.5
 
 
 def test_a_connection_that_opens_after_the_deadline_is_hung_up_on(settings):
     """
-    Standing in for a slow DNS lookup or a slow handshake: the deadline passes
-    while the connection is still being made, so the watchdog's one pass over
-    already-open connections never saw it. The connection itself has to catch
-    up once it finishes connecting, or the header trickle below would hold the
-    request open indefinitely.
+    The deadline passes between the connect and the watchdog seeing the
+    socket, so its one pass over open connections never saw it. The connection
+    itself has to catch up, or the header trickle below would hold the request
+    open indefinitely.
     """
 
     settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
-    real_create_connection = urllib3.util.connection.create_connection
+    real_create_connection = utils_module._create_connection
+    connected = []
 
     def slow_create_connection(*args, **kwargs):
+        # Connected in time, but handed back only once the deadline passed.
+        sock = real_create_connection(*args, **kwargs)
         time.sleep(1.2)
-        return real_create_connection(*args, **kwargs)
+        connected.append(sock)
+        return sock
 
     with local_server({"/": header_trickle()}) as (base, _):
-        with patch(
-            "urllib3.util.connection.create_connection",
-            side_effect=slow_create_connection,
+        with patch.object(
+            utils_module, "_create_connection", side_effect=slow_create_connection
         ):
             started = time.monotonic()
             with pytest.raises(request_exceptions.Timeout):
                 send_http_request("GET", base + "/", deadline=started + 1)
             elapsed = time.monotonic() - started
 
+    assert len(connected) == 1
     assert elapsed < 5
 
 

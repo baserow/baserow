@@ -586,8 +586,6 @@ def test_a_click_slack_refused_after_answering_still_spends_it(
 
     refusal = Mock()
     refusal.json.return_value = {"ok": False, "error": "not_in_channel"}
-    # The service streams the body in.
-    refusal.raw.read1.side_effect = [b'{"ok": false}', b""]
     posted = Mock(return_value=refusal)
 
     with patch(

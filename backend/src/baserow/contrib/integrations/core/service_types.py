@@ -62,7 +62,6 @@ from baserow.contrib.integrations.core.models import (
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import (
-    read_response_within_limit,
     send_http_request,
 )
 from baserow.core.datetime import get_timezones
@@ -457,9 +456,11 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         )
 
     def max_dispatch_seconds(self, service: CoreHTTPRequestService) -> int:
-        # `send_http_request` hangs up at the deadline. Doubled as headroom for
-        # the hang-up's own scheduling and an address lookup, which no timeout
-        # covers.
+        # For a click, whose request gets one timeout in all. The watchdog
+        # hangs up at the deadline; should the hang-up land late, a read
+        # already waiting still stops within `operation_timeout`, the whole
+        # timeout at most, so doubling covers it, and an address lookup,
+        # which no timeout bounds.
         return (service.timeout or 0) * 2
 
     def get_schema_name(self, service: CoreHTTPRequestService) -> str:
@@ -667,7 +668,10 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         # included. Requests' own timeout starts again on every hop and every
         # byte, so on its own it does not bound a click, or the lock that
         # guards its row.
-        deadline = time.monotonic() + service.timeout
+        deadline = (
+            time.monotonic()
+            + service.timeout * dispatch_context.external_request_timeouts
+        )
         try:
             response = send_http_request(
                 method=service.http_method,
@@ -675,10 +679,9 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 headers=headers,
                 params=query_params,
                 deadline=deadline,
+                operation_timeout=service.timeout,
                 **body_dict,
             )
-            read_response_within_limit(response, service.timeout, deadline=deadline)
-
         except ServiceImproperlyConfiguredDispatchException:
             # Too big. The message names no address, so it travels as it is
             # rather than as an unknown error.

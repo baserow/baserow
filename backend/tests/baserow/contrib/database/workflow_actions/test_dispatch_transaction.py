@@ -1,3 +1,4 @@
+import time
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -5,6 +6,15 @@ from django.db import connection, transaction
 
 import pytest
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
+from baserow.contrib.builder.data_sources.builder_dispatch_context import (
+    BuilderDispatchContext,
+)
+from baserow.contrib.database.workflow_actions.dispatch_context import (
+    DatabaseDispatchContext,
+)
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
@@ -143,12 +153,14 @@ def test_inside_a_callers_transaction_the_request_keeps_its_savepoint(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_database_error_in_an_outbound_dispatch_leaves_the_callers_transaction_usable(
+def test_an_error_inside_the_savepoint_leaves_the_callers_transaction_usable(
     data_fixture,
 ):
     """
-    The guarantee the savepoint was added for (#5621), for a service that
-    reaches outside.
+    The guarantee the savepoint was added for (#5621), for an external service
+    whose context keeps it inside the savepoint, as builder and automation do.
+    A context that sends outside, such as a click, has no transaction of the
+    caller's to keep usable.
     """
 
     service = data_fixture.create_core_http_request_service(
@@ -185,3 +197,43 @@ def test_only_services_that_reach_outside_are_external():
         "slack_write_message",
         "ai_agent",
     }
+
+
+@pytest.mark.parametrize(
+    "context_class,timeouts",
+    [
+        (DatabaseDispatchContext, 1),
+        (BuilderDispatchContext, 2),
+        (AutomationDispatchContext, 2),
+    ],
+)
+def test_only_builder_and_automation_give_a_request_two_timeouts(
+    context_class, timeouts
+):
+    """
+    A click holds its row's lock while the request runs, so it gets exactly
+    the timeout it is configured with.
+    """
+
+    assert context_class.external_request_timeouts == timeouts
+
+
+@pytest.mark.django_db
+def test_a_click_gives_its_request_exactly_its_timeout(data_fixture):
+    user = data_fixture.create_user()
+    table, _ = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    service = _http_action(data_fixture, button_field).service.specific
+    service.timeout = 15
+    service.save()
+
+    before = time.monotonic()
+    with mock_advocate_request({"ok": True}) as request:
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+    after = time.monotonic()
+
+    deadline = request.call_args.kwargs["deadline"]
+    assert before + 15 <= deadline <= after + 15

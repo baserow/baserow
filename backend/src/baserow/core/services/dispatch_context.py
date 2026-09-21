@@ -35,6 +35,12 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     # transaction of their own, where leaving the savepoint gains nothing.
     sends_external_calls_outside_transaction = False
 
+    # How many of its timeouts an external request may take in all, from
+    # connecting to the last byte of the body. Builder and automation set two:
+    # they have always given the answer and the body a whole timeout each, and
+    # endpoints that use both keep working.
+    external_request_timeouts = 1
+
     def __init__(
         self,
         only_record_id=None,

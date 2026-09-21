@@ -1,4 +1,3 @@
-import json
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -97,13 +96,6 @@ def _slack_answer(**overrides):
     }
     response = Mock()
     response.json.return_value = body
-    # The service streams the body in, so it can stop an endpoint that sends
-    # more than this installation accepts. Every action that shares this
-    # answer dispatches against the same mock response, so exhausting the
-    # real chunk still leaves later reads an end-of-body marker rather than
-    # raising.
-    chunks = iter([json.dumps(body).encode(), b""])
-    response.raw.read1.side_effect = lambda *args, **kwargs: next(chunks, b"")
     return Mock(return_value=response)
 
 
