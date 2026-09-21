@@ -93,8 +93,7 @@ export default {
     },
     ...mapGetters({
       name: 'auth/getName',
-      unreadNotificationsInAnyWorkspace:
-        'notification/anyOtherWorkspaceWithUnread',
+      unreadNotificationsInAnyWorkspace: 'notification/anyWorkspaceWithUnread',
     }),
   },
 }

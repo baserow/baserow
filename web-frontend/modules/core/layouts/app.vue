@@ -131,7 +131,7 @@ if (route.query.token) {
 }
 
 function openWorkspaceSearch() {
-  if (selectedWorkspace.value && workspaceSearchModal.value) {
+  if (selectedWorkspace.value?.id && workspaceSearchModal.value) {
     workspaceSearchModal.value.show()
   }
 }

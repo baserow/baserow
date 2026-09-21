@@ -269,7 +269,12 @@ export default {
       })
       await pageFinished(this.nuxtApp)
       await nextTick()
-      this.hide()
+      // The navigation can replace the sidebar, and with it this context, for example
+      // when selecting a workspace from the all workspaces homepage. It's then already
+      // unmounted and doesn't have to be hidden anymore.
+      if (this.$refs.context) {
+        this.hide()
+      }
     },
   },
 }
