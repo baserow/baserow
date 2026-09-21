@@ -511,8 +511,7 @@ def test_dynamic_row_tool_returns_permission_denied_result(data_fixture, monkeyp
     result = create_tool.function(**arguments)
 
     assert result["error"] == (
-        f"create_rows_in_table_{table.id} was not executed because permission "
-        "was denied."
+        f"create_rows_in_table_{table.id} stopped because permission was denied."
     )
     assert "Do not retry or claim" in result["next_steps"]
 

@@ -29,6 +29,7 @@ from baserow.contrib.database.views.actions import (
     UpdateViewFieldOptionsActionType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AssistantDeps
@@ -410,27 +411,35 @@ def _create_table_fields(
     created_tables: list[Table],
     tool_helpers: "ToolHelpers",
     formula_fixer,
-) -> list[str]:
-    """Create non-primary fields for each table; return collected notes/errors."""
+) -> tuple[list[str], bool]:
+    """Return field-creation notes and whether permission stopped setup."""
     notes: list[str] = []
     for table, created_table in zip(tables, created_tables):
         tool_helpers.raise_if_cancelled()
-        with transaction.atomic():
-            _, field_errors, formula_errors = helpers.create_fields(
-                user,
-                created_table,
-                _non_primary_fields(table),
-                tool_helpers,
-                formula_fixer=formula_fixer,
-            )
-            notes.extend(field_errors)
-            for error in formula_errors:
-                notes.append(
-                    f"Invalid formula for field '{error['field_name']}' "
-                    f"in table_{created_table.id}: {error['error']}. "
-                    f"Use generate_formula to fix it."
+        try:
+            with transaction.atomic():
+                _, field_errors, formula_errors = helpers.create_fields(
+                    user,
+                    created_table,
+                    _non_primary_fields(table),
+                    tool_helpers,
+                    formula_fixer=formula_fixer,
                 )
-    return notes
+        except PermissionException:
+            notes.append(
+                f"Permission denied while creating fields in table_{created_table.id}. "
+                "The tables were created, but further field setup stopped. "
+                "Do not retry the denied operation."
+            )
+            return notes, True
+        notes.extend(field_errors)
+        for error in formula_errors:
+            notes.append(
+                f"Invalid formula for field '{error['field_name']}' "
+                f"in table_{created_table.id}: {error['error']}. "
+                f"Use generate_formula to fix it."
+            )
+    return notes, False
 
 
 def _create_new_tables(
@@ -439,15 +448,15 @@ def _create_new_tables(
     database: Database,
     tables: list[TableItemCreate],
     tool_helpers: "ToolHelpers",
-) -> tuple[list[Table], list[str]]:
+) -> tuple[list[Table], list[str], bool]:
     """Create tables, fields, and navigation for new requests."""
 
     created_tables = _create_empty_tables(user, database, tables, tool_helpers)
     if not created_tables:
-        return [], []
+        return [], [], False
 
     formula_fixer = make_formula_fixer(user, workspace, tool_helpers)
-    notes = _create_table_fields(
+    notes, permission_denied = _create_table_fields(
         user,
         tables,
         created_tables,
@@ -463,7 +472,7 @@ def _create_new_tables(
             table_name=last_table.name,
         )
     )
-    return created_tables, notes
+    return created_tables, notes, permission_denied
 
 
 def _create_sample_rows(
@@ -483,8 +492,12 @@ def _create_sample_rows(
         rows = generate_sample_rows(
             user, workspace, tool_helpers, tables, data_brief=data_brief
         )
+    except PermissionException:
+        return {}, [
+            "Permission denied while creating sample rows. The tables were created. "
+            "Some rows may already exist; inspect them and do not retry the denied operation."
+        ]
     except Exception as exc:
-        raise_if_permission_denied(exc)
         logger.exception(
             "[assistant] generate_sample_rows raised unexpectedly: {}", exc
         )
@@ -562,7 +575,7 @@ def create_tables(
             f"Conflicting table definitions use the same name: {names}. "
             "Submit one definition per table name."
         )
-    created_tables, notes = _create_new_tables(
+    created_tables, notes, permission_denied = _create_new_tables(
         user, workspace, database, plan.to_create, tool_helpers
     )
 
@@ -573,7 +586,7 @@ def create_tables(
         workspace,
         tool_helpers,
         created_tables,
-        add_sample_rows,
+        add_sample_rows if not permission_denied else False,
     )
     notes.extend(row_notes)
 

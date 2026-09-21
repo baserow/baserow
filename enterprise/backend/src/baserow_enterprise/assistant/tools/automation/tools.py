@@ -11,6 +11,7 @@ from pydantic_ai.toolsets import FunctionToolset
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
+from baserow.core.exceptions import PermissionException
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
@@ -188,9 +189,20 @@ def _create_new_workflows(
             )
             last_workflow = workflow
 
-        formula_errors.extend(
-            agents.update_workflow_formulas(workflow_spec, node_mapping, tool_helpers)
+        workflow_errors = agents.update_workflow_formulas(
+            workflow_spec, node_mapping, tool_helpers
         )
+        formula_errors.extend(workflow_errors)
+        if not workflow_errors:
+            run_created = tool_helpers.request_context.setdefault(
+                reconciliation.RUN_CREATED_WORKFLOWS, {}
+            )
+            run_created[workflow.id] = reconciliation.VerifiedWorkflowCreation(
+                request=workflow_spec.model_dump(),
+                configuration=reconciliation.workflow_configuration_fingerprint(
+                    user, workflow
+                ),
+            )
 
     return created_workflows, last_workflow, formula_errors
 
@@ -266,8 +278,15 @@ def create_workflows(
     run_created = tool_helpers.request_context.setdefault(
         reconciliation.RUN_CREATED_WORKFLOWS, {}
     )
-    for summary, spec in zip(created_workflows, plan.to_create):
-        run_created[summary["id"]] = spec
+    requested_by_name = {spec.name: spec for spec in plan.requested}
+    verified_workflow_ids = {
+        workflow.id
+        for workflow in plan.to_reuse
+        if (verified := run_created.get(workflow.id)) is not None
+        and verified.request == requested_by_name[workflow.name].model_dump()
+        and verified.configuration
+        == reconciliation.workflow_configuration_fingerprint(user, workflow)
+    }
 
     reused_workflows = reconciliation.describe_reused_workflows(user, plan.to_reuse)
     result: dict[str, Any] = {
@@ -276,7 +295,7 @@ def create_workflows(
     }
     result.update(
         reconciliation.reused_workflow_report(
-            plan.requested, reused_workflows, run_created
+            plan.requested, reused_workflows, verified_workflow_ids
         )
     )
     if formula_errors:
@@ -396,8 +415,9 @@ def delete_nodes(
         try:
             helpers.delete_node(user, workspace, node_id)
             deleted.append(node_id)
+        except PermissionException:
+            errors.append(f"Permission denied for node {node_id}; it was not deleted.")
         except Exception as error:
-            raise_if_permission_denied(error)
             errors.append(f"Error deleting node {node_id}: {error}")
 
     result: dict[str, Any] = {"deleted_node_ids": deleted}

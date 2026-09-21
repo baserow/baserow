@@ -34,10 +34,12 @@ def permission_denied_result(tool_name: str) -> dict[str, str]:
     """
 
     return {
-        "error": f"{tool_name} was not executed because permission was denied.",
+        "error": f"{tool_name} stopped because permission was denied.",
         "next_steps": (
-            "Do not retry or claim the change succeeded. Explain that the "
-            "current user lacks permission for this operation."
+            "Do not retry or claim the entire change succeeded. Explain that the "
+            "current user lacks permission for the denied operation. Earlier "
+            "changes may have been applied; inspect the current state before "
+            "describing what remains."
         ),
     }
 

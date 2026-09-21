@@ -1,9 +1,13 @@
+import json
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from hashlib import sha256
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
 from . import helpers
@@ -22,6 +26,38 @@ class WorkflowCreationPlan:
 
 
 RUN_CREATED_WORKFLOWS = "run_created_workflows"
+
+
+@dataclass(frozen=True)
+class VerifiedWorkflowCreation:
+    """The request and persisted configuration of a completed creation."""
+
+    request: dict[str, Any]
+    configuration: str
+
+
+def workflow_configuration_fingerprint(
+    user: AbstractUser, workflow: AutomationWorkflow
+) -> str:
+    """
+    Fingerprint the current graph and node configuration without caching secrets.
+
+    :param user: The acting user whose node permissions apply.
+    :param workflow: The workflow to inspect.
+    :return: A digest of its freshly loaded, serializable configuration.
+    """
+
+    workflow.refresh_from_db(fields=["graph"])
+    nodes = []
+    for node in AutomationNodeService().get_nodes(user, workflow):
+        serialized = AutomationNodeHandler().export_node(node)
+        # Test-run samples are observations, not the requested configuration.
+        serialized["service"].pop("sample_data", None)
+        nodes.append(serialized)
+    configuration = json.dumps(
+        {"graph": workflow.graph, "nodes": nodes}, sort_keys=True
+    )
+    return sha256(configuration.encode()).hexdigest()
 
 
 def _canonical_workflow_requests(
@@ -147,7 +183,7 @@ def _incomplete_reused_workflows(
 def reused_workflow_report(
     requested: Sequence[WorkflowCreate],
     actual: Sequence[dict[str, Any]],
-    run_created: dict[int, WorkflowCreate] | None = None,
+    verified_workflow_ids: set[int] | None = None,
 ) -> dict[str, Any]:
     """
     Build follow-up guidance for reused workflows.
@@ -155,8 +191,8 @@ def reused_workflow_report(
     :param requested: The requested workflow definitions.
     :param actual: The reused workflows as described by
         describe_reused_workflows.
-    :param run_created: Workflows this run created, by id, with the request
-        that created them.
+    :param verified_workflow_ids: Workflows whose current configuration still
+        matches a successful creation of the same request in this run.
     :return: Incomplete workflows and next_steps keys, or an empty dict when
         nothing was reused.
     """
@@ -166,13 +202,10 @@ def reused_workflow_report(
 
     requested_by_name = {workflow.name: workflow for workflow in requested}
     incomplete = _incomplete_reused_workflows(requested_by_name, actual)
-    created_this_run = run_created or {}
+    verified_workflow_ids = verified_workflow_ids or set()
     # Re-asking for what this run already built is answered, not unverifiable.
     unverified = [
-        workflow
-        for workflow in actual
-        if workflow["id"] not in created_this_run
-        or created_this_run[workflow["id"]] != requested_by_name.get(workflow["name"])
+        workflow for workflow in actual if workflow["id"] not in verified_workflow_ids
     ]
 
     report: dict[str, Any] = {}

@@ -273,31 +273,26 @@ def _mutation_evidence(execution: _ToolExecution) -> MutationEvidence:
 
 def get_mutation_evidence(messages: list[ModelMessage]) -> list[MutationEvidence]:
     """
-    Return the mutation results present in model history.
+    Return mutation results from the current user turn.
+
+    Stored outcomes provide context for reusing prior work, but cannot establish
+    that a change requested in the current turn succeeded. Keep only live tool
+    executions after the latest user prompt, including executions across output
+    validation retries, which do not introduce a new user prompt.
 
     :param messages: The model message history to inspect.
-    :return: Evidence from stored outcomes followed by live tool executions.
+    :return: Evidence from live tool executions in the current turn.
     """
 
-    stored = []
-    for outcome in get_verified_tool_outcomes(messages):
-        execution = _ToolExecution(
-            tool_name=outcome.get("tool", ""),
-            arguments=outcome.get("arguments", {}),
-            result=outcome.get("result"),
-            outcome="success",
-        )
-        evidence = _mutation_evidence(execution)
-        stored.append(
-            MutationEvidence(
-                tool_name=evidence.tool_name,
-                arguments=evidence.arguments,
-                result=evidence.result,
-                changed=_stored_flag(outcome, "changed", evidence.changed),
-                completed=_stored_flag(outcome, "completed", evidence.completed),
-            )
-        )
-    return [*stored, *map(_mutation_evidence, _tool_executions(messages))]
+    turn_start = next(
+        (
+            index
+            for index in range(len(messages) - 1, -1, -1)
+            if _has_user_prompt(messages[index])
+        ),
+        0,
+    )
+    return list(map(_mutation_evidence, _tool_executions(messages[turn_start:])))
 
 
 def _stored_flag(outcome: dict[str, Any], key: str, fallback: bool) -> bool:

@@ -15,9 +15,11 @@ from baserow_enterprise.assistant.tools.automation.reconciliation import (
 from baserow_enterprise.assistant.tools.automation.tools import (
     create_workflows,
     list_workflows,
+    update_nodes,
 )
 from baserow_enterprise.assistant.tools.automation.types import (
     ActionNodeCreate,
+    NodeUpdate,
     TriggerNodeCreate,
     WorkflowCreate,
 )
@@ -212,31 +214,32 @@ def test_create_workflows_returns_formula_errors_without_losing_workflow(
         lambda _model_profile: _fail_formula_generation,
     )
 
+    workflows = [
+        WorkflowCreate(
+            name="Formula Workflow",
+            trigger=TriggerNodeCreate(
+                ref="trigger",
+                label="Periodic Trigger",
+                type="periodic",
+                periodic_interval={"interval": "DAY"},
+            ),
+            nodes=[
+                ActionNodeCreate(
+                    ref="email",
+                    label="Send Email",
+                    previous_node_ref="trigger",
+                    type="smtp_email",
+                    to_emails="test@example.com",
+                    subject="$formula: the trigger name",
+                    body="Hello",
+                )
+            ],
+        )
+    ]
     result = create_workflows(
         ctx,
         automation_id=automation.id,
-        workflows=[
-            WorkflowCreate(
-                name="Formula Workflow",
-                trigger=TriggerNodeCreate(
-                    ref="trigger",
-                    label="Periodic Trigger",
-                    type="periodic",
-                    periodic_interval={"interval": "DAY"},
-                ),
-                nodes=[
-                    ActionNodeCreate(
-                        ref="email",
-                        label="Send Email",
-                        previous_node_ref="trigger",
-                        type="smtp_email",
-                        to_emails="test@example.com",
-                        subject="$formula: the trigger name",
-                        body="Hello",
-                    )
-                ],
-            )
-        ],
+        workflows=workflows,
         thought="test formula failure",
     )
 
@@ -252,6 +255,16 @@ def test_create_workflows_returns_formula_errors_without_losing_workflow(
             "error": "Formula generation unavailable",
         }
     ]
+
+    repeated = create_workflows(
+        ctx,
+        automation_id=automation.id,
+        workflows=workflows,
+        thought="retry after formula failure",
+    )
+    assert action.service.specific.subject["formula"] == "''"
+    assert repeated["created_workflows"] == []
+    assert "do not claim the workflow is complete" in repeated["next_steps"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -409,7 +422,10 @@ def test_create_workflows_does_not_treat_matching_structure_as_matching_config(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_repeating_an_identical_create_workflows_call_settles_it(data_fixture):
+@pytest.mark.parametrize("change_configuration", [False, True])
+def test_repeating_an_identical_create_workflows_call_settles_it(
+    data_fixture, change_configuration
+):
     """The agent's own creation must not read back as unverifiable reuse.
 
     Re-issuing the same request used to return next_steps telling the model it
@@ -450,6 +466,22 @@ def test_repeating_an_identical_create_workflows_call_settles_it(data_fixture):
     first = create_workflows(
         ctx, automation_id=automation.id, workflows=[spec], thought="create workflow"
     )
+    if change_configuration:
+        other_table = data_fixture.create_database_table(database=database)
+        workflow_id = first["created_workflows"][0]["id"]
+        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
+        action = workflow.automation_workflow_nodes.exclude(
+            id=workflow.get_trigger().id
+        ).get()
+        update_nodes(
+            ctx,
+            workflow_id=workflow_id,
+            nodes=[NodeUpdate(node_id=action.id, table_id=other_table.id)],
+            thought="retarget action",
+        )
+        action.service.specific.refresh_from_db()
+        assert action.service.specific.table_id == other_table.id
+
     second = create_workflows(
         ctx, automation_id=automation.id, workflows=[spec], thought="verify workflow"
     )
@@ -458,7 +490,7 @@ def test_repeating_an_identical_create_workflows_call_settles_it(data_fixture):
     assert [w["id"] for w in second["reused_workflows"]] == [
         first["created_workflows"][0]["id"]
     ]
-    assert "next_steps" not in second
+    assert ("next_steps" in second) is change_configuration
     assert automation.workflows.count() == 1
 
 

@@ -4,6 +4,7 @@ import pytest
 from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.fields.models import FormulaField
+from baserow.contrib.database.fields.operations import CreateFieldOperationType
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
@@ -29,6 +30,8 @@ from baserow_enterprise.assistant.tools.database.types import (
     TableItem,
     TableItemCreate,
 )
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import Role
 
 from .utils import make_test_ctx
 
@@ -48,6 +51,58 @@ def _make_mock_formula_result(**kwargs):
     mock_agent_result = MagicMock()
     mock_agent_result.output = result
     return mock_agent_result
+
+
+@pytest.mark.django_db(transaction=True)
+def test_created_tables_are_reported_when_field_creation_is_denied(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles, monkeypatch
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    database = data_fixture.create_database_application(user=owner, workspace=workspace)
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    role = Role.objects.create(name="Create tables without fields", workspace=workspace)
+    role.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=CreateFieldOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=role, scope=database.application_ptr
+    )
+
+    sample_rows = MagicMock()
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.database.tools.generate_sample_rows",
+        sample_rows,
+    )
+    result = create_tables(
+        make_test_ctx(user, workspace),
+        database_id=database.id,
+        tables=[
+            TableItemCreate(
+                name="Orders",
+                primary_field_name="Order",
+                fields=[FieldItemCreate(name="Notes", type="long_text")],
+            )
+        ],
+        add_sample_rows=True,
+        thought="Create the Orders table",
+    )
+
+    table = database.table_set.get(name="Orders")
+    sample_rows.assert_not_called()
+    assert [item["id"] for item in result["created_tables"]] == [table.id]
+    assert list(table.field_set.values_list("name", flat=True)) == ["Order"]
+    assert result["notes"] == [
+        f"Permission denied while creating fields in table_{table.id}. "
+        "The tables were created, but further field setup stopped. "
+        "Do not retry the denied operation."
+    ]
 
 
 def test_plan_table_creation_keeps_the_first_identical_request():

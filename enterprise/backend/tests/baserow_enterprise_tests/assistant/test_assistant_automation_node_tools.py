@@ -1,8 +1,13 @@
 import pytest
+from asgiref.sync import async_to_sync
 from pydantic import ValidationError
+from pydantic_ai import RunContext
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.usage import RunUsage
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.operations import (
+    DeleteAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.service import AutomationNodeService
@@ -12,12 +17,14 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
 from baserow_enterprise.assistant.tools.automation.agents import (
     update_single_node_formulas,
 )
 from baserow_enterprise.assistant.tools.automation.tools import (
     add_nodes,
+    automation_toolset,
     create_workflows,
     delete_nodes,
     list_nodes,
@@ -32,6 +39,7 @@ from baserow_enterprise.assistant.tools.automation.types import (
 from baserow_enterprise.assistant.tools.automation.types.node import (
     AutomationFieldValue,
 )
+from baserow_enterprise.assistant.tools.routing import ModeAwareToolset
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -928,3 +936,71 @@ def test_a_required_node_field_still_accepts_a_falsy_but_real_value():
     """Rejecting every falsy value would refuse legitimate zeroes."""
 
     assert _update_row_node(table_id=0).table_id == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_partial_delete_is_reported_when_a_later_node_is_forbidden(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    allowed_workflow = data_fixture.create_automation_workflow(
+        user=owner,
+        automation=data_fixture.create_automation_application(workspace=workspace),
+    )
+    forbidden_workflow = data_fixture.create_automation_workflow(
+        user=owner,
+        automation=data_fixture.create_automation_application(workspace=workspace),
+    )
+    allowed_node = data_fixture.create_core_iterator_action_node(
+        workflow=allowed_workflow
+    )
+    forbidden_node = data_fixture.create_core_iterator_action_node(
+        workflow=forbidden_workflow
+    )
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    no_delete = Role.objects.create(name="Read without delete", workspace=workspace)
+    no_delete.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=DeleteAutomationNodeOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=allowed_workflow.automation.application_ptr,
+    )
+    RoleAssignmentHandler().assign_role(
+        user,
+        workspace,
+        role=no_delete,
+        scope=forbidden_workflow.automation.application_ptr,
+    )
+    deps = make_test_ctx(user, workspace).deps
+    deps.mode = AgentMode.AUTOMATION
+    ctx = RunContext(
+        deps=deps, model=TestModel(), usage=RunUsage(), tool_name="delete_nodes"
+    )
+    router = ModeAwareToolset(automation_toolset, deps)
+
+    async def invoke():
+        tools = await router.get_tools(ctx)
+        return await router.call_tool(
+            "delete_nodes",
+            {"node_ids": [allowed_node.id, forbidden_node.id], "thought": "test"},
+            ctx,
+            tools["delete_nodes"],
+        )
+
+    result = async_to_sync(invoke)()
+    assert not AutomationNode.objects.filter(pk=allowed_node.id).exists()
+    assert AutomationNode.objects.filter(pk=forbidden_node.id).exists()
+    assert result["deleted_node_ids"] == [allowed_node.id]
+    assert result["errors"] == [
+        f"Permission denied for node {forbidden_node.id}; it was not deleted."
+    ]

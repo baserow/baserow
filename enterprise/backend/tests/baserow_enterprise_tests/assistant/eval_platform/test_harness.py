@@ -8,6 +8,7 @@ import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import ModelRequest, RetryPromptPart
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -18,13 +19,14 @@ from baserow.core.ai_provider.constants import (
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
-from baserow_enterprise.assistant.deps import AssistantDeps, ToolHelpers
+from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps, ToolHelpers
 from baserow_enterprise.assistant.evals import harness, registry
 from baserow_enterprise.assistant.evals.harness import (
     PROMPT_AGENT_TARGETS,
     PROMPT_ATTR_TARGETS,
     EvalCaseCleanupError,
     EvalCaseTimeout,
+    count_tool_errors,
     get_case_timeout_s,
     override_assistant_prompts,
     run_case,
@@ -40,7 +42,37 @@ from baserow_enterprise.assistant.model_profiles import (
 )
 from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
+from baserow_enterprise.assistant.tools.routing import mode_redirect_message
 from baserow_enterprise.assistant.tools.toolset import InlineRefsToolset
+
+
+def test_mode_redirect_is_not_counted_as_a_failed_tool_call():
+    result = SimpleNamespace(
+        all_messages=lambda: [
+            ModelRequest(
+                parts=[
+                    RetryPromptPart(
+                        content=mode_redirect_message(
+                            "create_workflows", AgentMode.AUTOMATION
+                        ),
+                        tool_name="create_workflows",
+                    ),
+                    RetryPromptPart(
+                        content="Missing required workflow name",
+                        tool_name="create_workflows",
+                    ),
+                    RetryPromptPart(content="An unsupported completion claim"),
+                ]
+            )
+        ]
+    )
+
+    count, hint = count_tool_errors(result)
+
+    assert count == 2
+    assert "Missing required workflow name" in hint
+    assert "An unsupported completion claim" in hint
+    assert "Switched to" not in hint
 
 
 @pytest.fixture(autouse=True)
