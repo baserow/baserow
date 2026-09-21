@@ -107,6 +107,9 @@ class TeamSubject(
                     "-created_on",
                 ]
             ),
+            models.Index(
+                fields=["team", "-created_on"], name="ent_ts_team_created_idx"
+            ),
         ]
 
     def __str__(self) -> str:

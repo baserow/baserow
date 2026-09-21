@@ -1352,5 +1352,28 @@
   },
   "adminWorkspaces": {
     "title": "Workspaces"
+  },
+  "subjectType": {
+    "user": "User",
+    "users": "Users",
+    "agent": "Agent",
+    "agents": "Agents"
+  },
+  "agents": {
+    "saved": "Changes saved",
+    "tabTitle": "Agents",
+    "title": "{count} agents in {workspace}",
+    "create": "Create agent",
+    "createTitle": "Create agent",
+    "updateTitle": "Edit agent",
+    "save": "Save agent",
+    "edit": "Edit agent",
+    "delete": "Delete agent",
+    "general": "General",
+    "mcpServerPlaceholder": "MCP server settings will be available here.",
+    "name": "Name",
+    "invalidNameTitle": "Agent name not allowed",
+    "lastActive": "Last active",
+    "workspaceRole": "Workspace role"
   }
 }

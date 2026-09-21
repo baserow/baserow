@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 
 import pytest
 
+from baserow.core.models import Agent
+from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.exceptions import (
     TeamNameNotUnique,
@@ -220,6 +222,55 @@ def test_update_team_subjects(data_fixture, enterprise_data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "subject_type,agents_enabled",
+    [("auth.User", False), ("auth.User", True), ("core.Agent", True)],
+)
+def test_update_team_removes_all_duplicate_memberships(
+    data_fixture, enterprise_data_fixture, settings, subject_type, agents_enabled
+):
+    """Remove every membership and inherited role without mixing subject types."""
+    settings.FEATURE_FLAGS = ["agents"] if agents_enabled else []
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        user=member, workspace=workspace, permissions="NO_ROLE_LOW_PRIORITY"
+    )
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+    handler = TeamHandler()
+    role_handler = RoleAssignmentHandler()
+    builder = role_handler.get_role_by_uid("BUILDER")
+    role_handler.assign_role(team, workspace, builder)
+    subject = member
+    retained = []
+    if agents_enabled:
+        agent = Agent.objects.create(
+            id=member.id,
+            workspace=workspace,
+            name="Agent",
+            role_uid="NO_ROLE_LOW_PRIORITY",
+        )
+        subject = agent if subject_type == "core.Agent" else member
+        retained_type = "auth.User" if subject_type == "core.Agent" else "core.Agent"
+        retained_membership = handler.create_subject(
+            admin, {"id": member.id}, retained_type, team
+        )
+        retained = [{"subject_id": member.id, "subject_type": retained_type}]
+
+    for _ in range(2):
+        handler.create_subject(admin, {"id": subject.id}, subject_type, team)
+    assert builder in role_handler.get_roles_per_scope(workspace, subject)[0][1]
+
+    handler.update_team(admin, team, team.name, subjects=retained, default_role=builder)
+
+    assert list(team.subjects.values_list("id", flat=True)) == (
+        [retained_membership.id] if agents_enabled else []
+    )
+    assert builder not in role_handler.get_roles_per_scope(workspace, subject)[0][1]
+
+
+@pytest.mark.django_db
 def test_delete_team(data_fixture, enterprise_data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace()
@@ -257,6 +308,19 @@ def test_create_subject_with_unsupported_lookup(data_fixture, enterprise_data_fi
     team = enterprise_data_fixture.create_team()
     with pytest.raises(TeamSubjectBadRequest):
         TeamHandler().create_subject(user, {"username": "baserow"}, "auth.User", team)
+
+
+@pytest.mark.django_db
+def test_create_agent_subject_with_email_lookup_is_rejected(
+    data_fixture, enterprise_data_fixture
+):
+    user = data_fixture.create_user()
+    team = enterprise_data_fixture.create_team()
+
+    with pytest.raises(TeamSubjectBadRequest):
+        TeamHandler().create_subject(
+            user, {"email": "agent@example.com"}, "core.Agent", team
+        )
 
 
 @pytest.mark.django_db

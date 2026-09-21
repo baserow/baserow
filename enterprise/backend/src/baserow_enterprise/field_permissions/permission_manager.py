@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.operations import (
     WriteFieldValuesOperationType,
 )
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
@@ -52,6 +53,7 @@ class FieldPermissionManagerType(PermissionManagerType):
     type = "write_field_values"
     supported_actor_types = [
         UserSubjectType.type,
+        AgentSubjectType.type,
         AnonymousUserSubjectType.type,
     ]
 
@@ -100,49 +102,58 @@ class FieldPermissionManagerType(PermissionManagerType):
             matching assignment resolve to an empty set.
         """
 
-        user_model = subject_type_registry.get(UserSubjectType.type).model_class
-        actors_by_id = {
-            actor.id: actor for actor in actors if isinstance(actor, user_model)
-        }
+        actors_by_model = defaultdict(dict)
+        for actor in actors:
+            subject_type = subject_type_registry.get_by_model(actor)
+            if subject_type.type in (UserSubjectType.type, AgentSubjectType.type):
+                actors_by_model[subject_type.model_class][actor.id] = actor
         result = defaultdict(set)
-        if not actors_by_id or not field_ids:
+        if not actors_by_model or not field_ids:
             return result
 
-        content_types = ContentType.objects.get_for_models(user_model, Team, Field)
-        user_content_type = content_types[user_model]
-        team_content_type = content_types[Team]
-        field_content_type = content_types[Field]
+        content_types = ContentType.objects.get_for_models(
+            *actors_by_model, Team, Field
+        )
+        actors_by_key = {
+            (content_types[model].id, actor_id): actor
+            for model, actors_by_id in actors_by_model.items()
+            for actor_id, actor in actors_by_id.items()
+        }
+        actor_filter = Q()
+        for model, actors_by_id in actors_by_model.items():
+            actor_filter |= Q(
+                subject_type=content_types[model], subject_id__in=actors_by_id
+            )
 
-        actor_ids_by_team_id = defaultdict(set)
-        for team_id, actor_id in TeamSubject.objects.filter(
+        actor_keys_by_team_id = defaultdict(set)
+        for team_id, subject_type_id, actor_id in TeamSubject.objects.filter(
+            actor_filter,
             team__workspace=workspace,
             team__trashed=False,
-            subject_type=user_content_type,
-            subject_id__in=actors_by_id,
-        ).values_list("team_id", "subject_id"):
-            actor_ids_by_team_id[team_id].add(actor_id)
+        ).values_list("team_id", "subject_type_id", "subject_id"):
+            actor_keys_by_team_id[team_id].add((subject_type_id, actor_id))
 
         assignments = RoleAssignment.objects.filter(
             workspace=workspace,
-            scope_type=field_content_type,
+            scope_type=content_types[Field],
             scope_id__in=field_ids,
             role__uid=FIELD_PERMISSION_EDITOR_ROLE_UID,
         ).filter(
-            Q(subject_type=user_content_type, subject_id__in=actors_by_id)
+            actor_filter
             | Q(
-                subject_type=team_content_type,
-                subject_id__in=actor_ids_by_team_id,
+                subject_type=content_types[Team],
+                subject_id__in=actor_keys_by_team_id,
             )
         )
 
         for subject_type_id, subject_id, field_id in assignments.values_list(
             "subject_type_id", "subject_id", "scope_id"
         ):
-            if subject_type_id == user_content_type.id:
-                result[actors_by_id[subject_id]].add(field_id)
+            if subject_type_id == content_types[Team].id:
+                for actor_key in actor_keys_by_team_id[subject_id]:
+                    result[actors_by_key[actor_key]].add(field_id)
             else:
-                for actor_id in actor_ids_by_team_id[subject_id]:
-                    result[actors_by_id[actor_id]].add(field_id)
+                result[actors_by_key[(subject_type_id, subject_id)]].add(field_id)
 
         return result
 
@@ -182,9 +193,9 @@ class FieldPermissionManagerType(PermissionManagerType):
                 result[check] = PermissionDenied()
                 continue
             elif required_role == FieldPermissionsRoleEnum.CUSTOM.value:
-                if not isinstance(
-                    check.actor,
-                    subject_type_registry.get(UserSubjectType.type).model_class,
+                if subject_type_registry.get_by_model(check.actor).type not in (
+                    UserSubjectType.type,
+                    AgentSubjectType.type,
                 ):
                     result[check] = PermissionDenied()
                     continue

@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -28,6 +29,10 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
+)
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowIntegration,
+    LocalBaserowUpsertRow,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.service import IntegrationService
@@ -531,10 +536,47 @@ SERVICE_TABLES = {
 }
 
 
+def _fill_service_tables(application, table, count=10000):
+    """
+    Adds `count` unrelated integrations, services and upsert row services, as
+    the builder and automations would. On a few thousand rows the planner may
+    rightly hash a whole table rather than look up one row per action.
+    """
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            WITH integrations AS (
+                INSERT INTO core_integration
+                    (trashed, name, "order", application_id, content_type_id)
+                SELECT false, '', n, %s, %s FROM generate_series(1, %s) AS n
+                RETURNING id
+            ), services AS (
+                INSERT INTO core_service (trashed, content_type_id, integration_id)
+                SELECT false, %s, id FROM integrations
+                RETURNING id
+            )
+            INSERT INTO integrations_localbaserowupsertrow (service_ptr_id, table_id)
+            SELECT id, %s FROM services
+            """,
+            [
+                application.id,
+                ContentType.objects.get_for_model(LocalBaserowIntegration).id,
+                count,
+                ContentType.objects.get_for_model(LocalBaserowUpsertRow).id,
+                table.id,
+            ],
+        )
+
+
 def _service_scans(sql, params=None):
     """
     Plans `sql` with sequential scans discouraged, as they would be on tables
     of real size, and returns every scan of a service or integration in the plan.
+    The tables are analyzed first and the costs pinned to Postgres' defaults, so
+    the plan depends neither on whether autovacuum analyzed them during an
+    earlier test nor on how the database was started: the dev database lowers
+    `random_page_cost`, which makes an index lookup look cheaper than on CI.
     """
 
     def walk(node):
@@ -544,10 +586,16 @@ def _service_scans(sql, params=None):
             yield from walk(child)
 
     with connection.cursor() as cursor:
+        for service_table in sorted(SERVICE_TABLES):
+            cursor.execute(f"ANALYZE {service_table}")
+        cursor.execute("SET LOCAL random_page_cost = 4")
+        cursor.execute("SET LOCAL work_mem = '4MB'")
         cursor.execute("SET LOCAL enable_seqscan = off")
         cursor.execute("EXPLAIN (ANALYZE, FORMAT JSON) " + sql, params)
         plan = cursor.fetchone()[0]
         cursor.execute("SET LOCAL enable_seqscan = on")
+        cursor.execute("RESET random_page_cost")
+        cursor.execute("RESET work_mem")
     return list(walk(plan[0]["Plan"]))
 
 
@@ -572,6 +620,7 @@ def test_the_check_only_reads_the_buttons_own_services(data_fixture, setup):
         unrelated = data_fixture.create_local_baserow_upsert_row_service(table=table)
         unrelated.field_mappings.create(field=name_field, value="'x'", enabled=True)
         data_fixture.create_slack_write_message_service()
+    _fill_service_tables(database, table)
 
     annotated = ButtonFieldType().enhance_field_queryset_for_serialization(
         ButtonField.objects.filter(id=button_field.id), None
