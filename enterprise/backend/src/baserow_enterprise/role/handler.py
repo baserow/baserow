@@ -580,12 +580,14 @@ class RoleAssignmentHandler:
                 inherited_workspace_roles = roles_by_scope[actor.id].get(
                     workspace_scope_param
                 )
-                if (
-                    not actor_subject_type.is_workspace_role_fallback(
-                        workspace_level_role.uid
-                    )
-                    or not inherited_workspace_roles
+                if actor_subject_type.is_workspace_role_fallback(
+                    workspace_level_role.uid
                 ):
+                    if not inherited_workspace_roles:
+                        roles_by_scope[actor.id][workspace_scope_param] = [
+                            self.get_role_by_uid(NO_ACCESS_ROLE_UID)
+                        ]
+                else:
                     roles_by_scope[actor.id][workspace_scope_param] = [
                         workspace_level_role
                     ]
