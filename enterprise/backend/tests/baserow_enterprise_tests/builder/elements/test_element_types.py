@@ -180,9 +180,19 @@ def test_graph_element_create_requires_license(enterprise_data_fixture):
 @pytest.mark.parametrize(
     "series",
     [
-        [{}],
-        [{"label": "'Count'"}],
-        [{"values": "to_array('1,2')"}],
+        [{"uid": "61b8a893-d454-47e4-9924-8d8da62a8bd9"}],
+        [
+            {
+                "uid": "61b8a893-d454-47e4-9924-8d8da62a8bd9",
+                "label": "'Count'",
+            }
+        ],
+        [
+            {
+                "uid": "61b8a893-d454-47e4-9924-8d8da62a8bd9",
+                "values": "to_array('1,2')",
+            }
+        ],
     ],
 )
 def test_graph_element_update_rejects_incomplete_series(
