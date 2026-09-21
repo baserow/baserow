@@ -5,11 +5,12 @@
     "issue_number": 5182,
     "domain": "core",
     "bullet_points": [
-        "Upgrading imports the `BASEROW_*` AI provider connection and model-list variables into **Admin \u2192 AI providers**, and each workspace's stored AI settings into that workspace. The imported provider then takes precedence, so editing those variables afterwards has no effect. Rotate credentials in the admin instead. Provider types with nothing configured in the admin still fall back to their environment settings.",
-        "Imported credentials are stored in the database, so they now appear in database dumps.",
-        "A workspace that had a credential but no model list now has no models available, where it previously fell back to the instance model list. A workspace that had models but no credential now uses the full instance model list instead of its own shorter one. Complete the configuration under workspace **Settings \u2192 AI providers** to restore the intended list.",
-        "A workspace with its own AI credential now uses the provider's default endpoint unless it sets its own. Previously it fell back to the instance's `BASEROW_OPENAI_BASE_URL` and `BASEROW_OPENAI_ORGANIZATION`. If a workspace must reach a specific endpoint, set it on that workspace's provider under **Settings \u2192 AI providers**.",
-        "Kuma's model is not imported. Mark a model as available for Kuma and select it under **AI features**; until then it keeps using its environment configuration."
+        "Rotate credentials in Admin \u2192 AI providers; the `BASEROW_*` variables no longer take effect.",
+        "Imported credentials are stored in the database, so they appear in database dumps.",
+        "A workspace with a credential but no models now has no models available.",
+        "A workspace with models but no credential now uses the instance model list.",
+        "A workspace with a credential but no endpoint uses the provider's default endpoint.",
+        "Kuma stays on its environment model until you mark one available and select it."
     ],
     "created_at": "2026-09-21"
 }
