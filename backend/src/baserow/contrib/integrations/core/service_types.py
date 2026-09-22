@@ -2317,6 +2317,8 @@ class CoreResponseServiceType(CoreServiceType):
                 "response_written": created,
                 "ignored": not created,
                 "status_code": status_code,
+                "headers": headers,
+                "body": body,
                 "body_type": service.body_type,
             }
         }

@@ -47,6 +47,8 @@ def test_response_service_dispatch_writes_workflow_response(data_fixture):
         "response_written": True,
         "ignored": False,
         "status_code": 201,
+        "headers": {"X-Test": "yes"},
+        "body": "Created",
         "body_type": RESPONSE_BODY_TYPE.TEXT,
     }
     assert response.status_code == 201
