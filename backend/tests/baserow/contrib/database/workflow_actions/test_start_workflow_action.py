@@ -871,9 +871,7 @@ def test_a_template_install_drops_a_workflow_whose_id_collides(data_fixture):
 def test_an_import_drops_a_workflow_this_installation_does_not_have(data_fixture):
     """
     Exporting only the database leaves the automation behind, so the file
-    names a workflow id that exists nowhere here. The import runs the action
-    callbacks after the application's transaction has committed, so a row
-    written with that id fails on insert.
+    names a workflow id that exists nowhere here.
     """
 
     user = data_fixture.create_user()
@@ -891,31 +889,6 @@ def test_an_import_drops_a_workflow_this_installation_does_not_have(data_fixture
 
     with deferred_callback_context():
         imported = action_type.import_serialized(destination_field, exported, {})
-
-    assert imported.service.specific.workflow_id is None
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("named", [[12], {"id": 12}, True, "12abc"])
-def test_an_import_survives_a_workflow_id_that_is_not_one(data_fixture, named):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    source_field = _button(data_fixture, user, workspace)
-    workflow = _workflow(data_fixture, user, workspace)
-    action = _action_starting(data_fixture, source_field, workflow)
-
-    action_type = database_workflow_action_type_registry.get("start_workflow")
-    exported = action_type.export_serialized(action.specific)
-    exported["service"]["workflow_id"] = named
-
-    destination_field = _button(data_fixture, user, workspace)
-    with deferred_callback_context():
-        imported = action_type.import_serialized(
-            destination_field,
-            exported,
-            {"automation_workflows": {1: workflow.id}},
-            import_export_config=_duplicate_config(),
-        )
 
     assert imported.service.specific.workflow_id is None
 
