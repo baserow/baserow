@@ -3,6 +3,7 @@ from typing import List
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import CharField, Count, F, Value
 from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import Workspace
@@ -23,6 +24,35 @@ class TeamSubjectType(SubjectType):
 
     def get_display_name(self, subject: Team) -> str:
         return subject.name
+
+    def get_options_queryset(
+        self,
+        workspace: Workspace | None = None,
+        search: str = "",
+        exclude_ids: List[int] | None = None,
+    ):
+        """Return searchable team options, optionally scoped to a workspace."""
+
+        queryset = Team.objects.exclude(id__in=exclude_ids or [])
+        if workspace is not None:
+            queryset = queryset.filter(workspace=workspace)
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+        return queryset.annotate(
+            subject_id=F("id"),
+            subject_type=Value(self.type, output_field=CharField()),
+            subject_name=F("name"),
+            subject_label=F("name"),
+            subject_email=Value(None, output_field=CharField()),
+            subject_count=Count("subjects"),
+        ).values(
+            "subject_id",
+            "subject_type",
+            "subject_name",
+            "subject_label",
+            "subject_email",
+            "subject_count",
+        )
 
     def are_in_workspace(
         self,

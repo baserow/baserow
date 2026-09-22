@@ -5,28 +5,19 @@ from typing import TypedDict
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from django.db.models import (
-    Case,
-    CharField,
-    Count,
-    F,
-    IntegerField,
-    Q,
-    QuerySet,
-    Value,
-    When,
-)
+from django.db.models import QuerySet
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent, Workspace, WorkspaceUser
+from baserow.core.models import Agent, Workspace
 from baserow.core.registries import (
     permission_manager_type_registry,
     subject_type_registry,
 )
+from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.exceptions import SubjectNotExist, SubjectUnsupported
 from baserow_enterprise.field_permissions.models import (
@@ -101,52 +92,15 @@ class FieldPermissionsHandler:
         :return: A queryset of user, agent, and team option dictionaries.
         """
 
-        search = (search or "").strip()
-        users = WorkspaceUser.objects.filter(
+        return SubjectOptionsHandler.get_options(
             workspace=workspace,
-            user__is_active=True,
-            user__profile__to_be_deleted=False,
-        ).exclude(user_id__in=exclude_user_ids or [])
-        teams = Team.objects.filter(workspace=workspace).exclude(
-            id__in=exclude_team_ids or []
-        )
-        agents = Agent.objects.filter(workspace=workspace).exclude(
-            id__in=exclude_agent_ids or []
-        )
-        if search:
-            users = users.filter(
-                Q(user__first_name__icontains=search)
-                | Q(user__username__icontains=search)
-                | Q(user__email__icontains=search)
-            )
-            teams = teams.filter(name__icontains=search)
-            agents = agents.filter(name__icontains=search)
-
-        user_options = users.annotate(
-            subject_id=F("user_id"),
-            subject_type=Value(UserSubjectType.type, output_field=CharField()),
-            name=Case(
-                When(user__first_name="", then=F("user__email")),
-                default=F("user__first_name"),
-                output_field=CharField(),
-            ),
-            email=F("user__email"),
-            subject_count=Value(None, output_field=IntegerField()),
-        ).values("subject_id", "subject_type", "name", "email", "subject_count")
-        team_options = teams.annotate(
-            subject_id=F("id"),
-            subject_type=Value(TeamSubjectType.type, output_field=CharField()),
-            email=Value(None, output_field=CharField()),
-            subject_count=Count("subjects"),
-        ).values("subject_id", "subject_type", "name", "email", "subject_count")
-        agent_options = agents.annotate(
-            subject_id=F("id"),
-            subject_type=Value(AgentSubjectType.type, output_field=CharField()),
-            email=Value(None, output_field=CharField()),
-            subject_count=Value(None, output_field=IntegerField()),
-        ).values("subject_id", "subject_type", "name", "email", "subject_count")
-        return user_options.union(team_options, agent_options, all=True).order_by(
-            "name", "subject_type", "subject_id"
+            search=search,
+            subject_types=cls.allowed_subject_types,
+            exclude_ids={
+                UserSubjectType.type: exclude_user_ids or [],
+                TeamSubjectType.type: exclude_team_ids or [],
+                AgentSubjectType.type: exclude_agent_ids or [],
+            },
         )
 
     @classmethod

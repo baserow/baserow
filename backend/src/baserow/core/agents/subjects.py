@@ -2,6 +2,8 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.db.models import CharField, F, IntegerField, Value
+from django.db.models.functions import Cast
 from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import Agent, Workspace
@@ -27,6 +29,35 @@ class AgentSubjectType(SubjectType):
         if workspace_id is not None:
             queryset = queryset.filter(workspace_id=workspace_id)
         return queryset.order_by("name")
+
+    def get_options_queryset(
+        self,
+        workspace: Workspace | None = None,
+        search: str = "",
+        exclude_ids: List[int] | None = None,
+    ):
+        """Return searchable agent options, optionally scoped to a workspace."""
+
+        queryset = Agent.objects.exclude(id__in=exclude_ids or [])
+        if workspace is not None:
+            queryset = queryset.filter(workspace=workspace)
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+        return queryset.annotate(
+            subject_id=F("id"),
+            subject_type=Value(self.type, output_field=CharField()),
+            subject_name=F("name"),
+            subject_label=F("name"),
+            subject_email=Value(None, output_field=CharField()),
+            subject_count=Cast(Value(None), output_field=IntegerField()),
+        ).values(
+            "subject_id",
+            "subject_type",
+            "subject_name",
+            "subject_label",
+            "subject_email",
+            "subject_count",
+        )
 
     def _get_workspace_agents(self, workspace: Workspace, include_trash: bool):
         """Return agents using the requested agent and parent-workspace visibility."""
