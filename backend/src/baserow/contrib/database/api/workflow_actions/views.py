@@ -77,7 +77,6 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
@@ -139,8 +138,6 @@ class DatabaseWorkflowActionsView(APIView):
         serializer_class_context={"application_type": DatabaseApplicationType},
     )
     def post(self, request, data: Dict, field_id: int):
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
-
         type_name = data.pop("type")
         workflow_action_type = database_workflow_action_type_registry.get(type_name)
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
@@ -192,8 +189,6 @@ class DatabaseWorkflowActionsView(APIView):
         }
     )
     def get(self, request, field_id: int):
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
-
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
         workflow_actions = DatabaseWorkflowActionService().get_workflow_actions(
@@ -248,8 +243,6 @@ class DatabaseWorkflowActionView(APIView):
         }
     )
     def delete(self, request, workflow_action_id: int):
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
-
         # Locked, so a second delete of the same action waits for the first and
         # then finds no action, rather than trashing it twice.
         workflow_action = (
@@ -317,8 +310,6 @@ class DatabaseWorkflowActionView(APIView):
     )
     @require_request_data_type(dict)
     def patch(self, request, workflow_action_id: int):
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
-
         # Locked for the request: a type change swaps the action's own row, so
         # a concurrent update must not read it half way through.
         workflow_action = (
@@ -390,8 +381,6 @@ class OrderDatabaseWorkflowActionsView(APIView):
     )
     @validate_body(OrderWorkflowActionsSerializer)
     def post(self, request, data: Dict, field_id: int):
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
-
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
         action_type_registry.get(OrderDatabaseWorkflowActionsActionType.type).do(
@@ -569,8 +558,6 @@ class DispatchDatabaseWorkflowActionsView(APIView):
     )
     @validate_body(DispatchWorkflowActionsSerializer)
     def post(self, request, data: Dict, field_id: int):
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
-
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
         row = RowHandler().get_row(request.user, field.table, data["row_id"])
 

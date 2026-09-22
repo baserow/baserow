@@ -166,7 +166,6 @@ from baserow.core.deferred_callbacks import (
     register_deferred_callback,
 )
 from baserow.core.expressions import DateTrunc
-from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
@@ -8261,20 +8260,11 @@ class ButtonFieldType(ReadOnlyFieldType):
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
-        # Only creation is gated. The type is always registered and updating,
-        # duplicating or exporting an existing button field keeps working with
-        # the flag off, so turning it off never breaks a table that already has
-        # one. `import_serialized` (table duplication, snapshot restore,
-        # template install) deliberately isn't gated either: it round-trips
-        # fields that already exist rather than creating new ones.
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
         self._validate_label(allowed_field_values, required=True)
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
         # Converting another field type into a button counts as creating one.
         converting_into_button = not isinstance(from_field, ButtonField)
-        if converting_into_button:
-            feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
         self._validate_label(to_field_values, required=converting_into_button)
 
     def _validate_label(self, field_values, required: bool):

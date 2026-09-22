@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added the button field. A button in a row runs a sequence of actions: open a URL, create, update or delete rows, send an HTTP request, email or Slack message, or start a workflow.",
+    "issue_origin": "github",
+    "issue_number": 1722,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-22"
+}

@@ -1,5 +1,4 @@
 import BigNumber from 'bignumber.js'
-import { FF_BUTTON_FIELD } from '@baserow/modules/core/plugins/featureFlags'
 import {
   DURATION_FORMATS,
   formatDurationValue,
@@ -5627,12 +5626,6 @@ export class ButtonFieldType extends FieldType {
 
   getFormViewFieldComponents() {
     return {}
-  }
-
-  isVisibleInDropdown(workspace) {
-    // Hidden (not just disabled) while the feature flag is off. Existing
-    // button fields keep rendering because the type stays registered.
-    return this.app.$featureFlagIsEnabled(FF_BUTTON_FIELD)
   }
 
   isReadOnlyField() {

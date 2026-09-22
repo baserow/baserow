@@ -10,8 +10,6 @@ Add/remove features flags to the list below:
 - `agents` — workspace Agent management and Agent creation.
 - `ai-providers` — AI provider management for the instance admin area and for
   workspace settings.
-- `button-field`: enables the button field type
-  ([#1722](https://github.com/baserow/baserow/issues/1722)).
 
 ### Preparing the `ai-providers` feature
 

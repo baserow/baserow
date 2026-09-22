@@ -1,14 +1,13 @@
 from unittest.mock import patch
 
 from django.db import connection
-from django.test.utils import CaptureQueriesContext, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
-    HTTP_403_FORBIDDEN,
 )
 
 from baserow.contrib.database.fields.actions import UpdateFieldActionType
@@ -49,74 +48,6 @@ def test_create_button_field_via_api(api_client, data_fixture):
     # A button's URL lives on its `open_url` action, not on the field.
     assert "url_formula" not in data
     assert "error" not in data
-
-
-@pytest.mark.django_db
-def test_create_button_field_with_flag_disabled(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-
-    with override_settings(FEATURE_FLAGS=[]):
-        response = api_client.post(
-            reverse("api:database:fields:list", kwargs={"table_id": table.id}),
-            {"name": "Open profile", "type": "button", "label": "Open"},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-
-
-@pytest.mark.django_db
-def test_existing_button_field_keeps_working_with_flag_disabled(
-    api_client, data_fixture
-):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    data_fixture.create_text_field(table=table)
-    button_field = data_fixture.create_button_field(table=table, name="btn")
-    data_fixture.create_database_workflow_action(
-        OpenUrlWorkflowAction, field=button_field
-    )
-    row = table.get_model().objects.create()
-
-    # The type stays registered when the flag is off, so tables containing an
-    # existing button field must keep listing fields and rows normally.
-    with override_settings(FEATURE_FLAGS=[]):
-        response = api_client.get(
-            reverse("api:database:fields:list", kwargs={"table_id": table.id}),
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-        assert response.status_code == HTTP_200_OK
-        assert any(
-            field["id"] == button_field.id
-            and field["type"] == "button"
-            # Serialized regardless of the flag, so the cell still renders an
-            # enabled button.
-            and field["has_workflow_actions"] is True
-            for field in response.json()
-        )
-
-        response = api_client.get(
-            reverse("api:database:rows:list", kwargs={"table_id": table.id}),
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-        assert response.status_code == HTTP_200_OK
-
-        # Only reading keeps working with the flag off. The cell still renders
-        # an enabled button, but the click itself is refused.
-        response = api_client.post(
-            reverse(
-                "api:database:workflow_actions:dispatch",
-                kwargs={"field_id": button_field.id},
-            ),
-            {"row_id": row.id},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-        assert response.status_code == HTTP_403_FORBIDDEN
-        assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.django_db
@@ -276,45 +207,6 @@ def test_undoing_a_label_change_leaves_the_actions_alone(data_fixture):
     field = Field.objects.get(id=button_field.id).specific
     assert field.label == "Open"
     assert DatabaseWorkflowAction.objects.filter(field_id=field.id).count() == 1
-
-
-@pytest.mark.django_db
-def test_updating_an_existing_button_field_with_flag_disabled(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    button_field = data_fixture.create_button_field(table=table, name="btn")
-
-    # Only creation is gated: an existing button field stays editable so that
-    # turning the flag off never traps a table.
-    with override_settings(FEATURE_FLAGS=[]):
-        response = api_client.patch(
-            reverse("api:database:fields:item", kwargs={"field_id": button_field.id}),
-            {"label": "Renamed"},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json()["label"] == "Renamed"
-
-
-@pytest.mark.django_db
-def test_converting_a_field_to_button_with_flag_disabled(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table)
-
-    # Converting another type into a button is a creation, so it is gated.
-    with override_settings(FEATURE_FLAGS=[]):
-        response = api_client.patch(
-            reverse("api:database:fields:item", kwargs={"field_id": text_field.id}),
-            {"type": "button", "label": "Open"},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
 
 
 @pytest.mark.django_db
