@@ -1,4 +1,5 @@
 import json
+from contextlib import nullcontext
 from dataclasses import fields as dataclass_fields
 from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional
@@ -10,6 +11,7 @@ from django.db import transaction
 
 from loguru import logger
 from opentelemetry import trace
+from opentelemetry.instrumentation.utils import suppress_http_instrumentation
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.fields.models import ButtonField
@@ -851,9 +853,17 @@ class DatabaseWorkflowActionService:
                                 workflow_action_type=workflow_action.get_type().type,
                                 position=positions[workflow_action.id],
                             )
-                            result = self.handler.dispatch_workflow_action(
-                                workflow_action, dispatch_context
-                            )
+                            # The requests instrumentation's client span names
+                            # the whole address, query string included, and
+                            # would send the trace id to it.
+                            with (
+                                suppress_http_instrumentation()
+                                if is_external
+                                else nullcontext()
+                            ):
+                                result = self.handler.dispatch_workflow_action(
+                                    workflow_action, dispatch_context
+                                )
                     except Exception as dispatch_exc:
                         exc = dispatch_exc
                     self._send_workflow_action_dispatched(

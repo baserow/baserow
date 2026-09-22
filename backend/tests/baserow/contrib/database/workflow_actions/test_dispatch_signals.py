@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.urls import reverse
 
 import pytest
+from opentelemetry.instrumentation.utils import is_http_instrumentation_enabled
 from rest_framework.exceptions import APIException
 from rest_framework.status import (
     HTTP_200_OK,
@@ -39,6 +40,7 @@ from baserow.contrib.database.workflow_actions.signals import (
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.models import Action
+from baserow.core.services.types import DispatchResult
 from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
@@ -845,3 +847,27 @@ def test_a_plugin_refusal_with_djangos_permission_denied_sends_denied(
 
     assert response.status_code == HTTP_403_FORBIDDEN
     assert [call["outcome"] for call in calls] == [DispatchOutcome.DENIED]
+
+
+@pytest.mark.django_db
+def test_an_external_action_runs_without_the_http_client_span(data_fixture):
+    user = data_fixture.create_user()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    _add_http_action(data_fixture, button_field)
+    enabled = []
+
+    def record(workflow_action, dispatch_context):
+        enabled.append(is_http_instrumentation_enabled())
+        return DispatchResult()
+
+    with patch(
+        "baserow.contrib.database.workflow_actions.handler."
+        "DatabaseWorkflowActionHandler.dispatch_workflow_action",
+        side_effect=record,
+    ):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert enabled == [True, False]
