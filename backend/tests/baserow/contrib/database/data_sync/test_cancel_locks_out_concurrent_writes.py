@@ -8,10 +8,7 @@ import responses
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.job_types import SyncDataSyncTableJobType
-from baserow.contrib.database.data_sync.models import (
-    DataSyncSyncedProperty,
-    SyncDataSyncTableJob,
-)
+from baserow.contrib.database.data_sync.models import SyncDataSyncTableJob
 from baserow.core.jobs.constants import JOB_FAILED
 
 FEED = """BEGIN:VCALENDAR
@@ -168,43 +165,4 @@ def test_the_cancel_check_and_the_delete_see_the_same_rows(data_fixture):
     data_sync.table.refresh_from_db()
     assert not data_sync.table.trashed, (
         "the cancellation trashed a table that held a committed row"
-    )
-
-
-@pytest.mark.django_db(transaction=True)
-@responses.activate
-def test_failed_sync_cleanup_holds_concurrent_writers_off_while_it_decides(
-    data_fixture,
-):
-    """
-    `_remove_fields_added_by_failed_sync` checks whether a field's column is empty
-    and then permanently deletes it. The two share a transaction, but under READ
-    COMMITTED that is not enough: a concurrent sync's commit becomes visible
-    between them, so a column that was empty at the check can hold data by the time
-    it is dropped. The lock has to hold that writer off.
-    """
-
-    responses.add(responses.GET, "https://baserow.io/ical.ics", status=200, body=FEED)
-    user = data_fixture.create_user()
-    database = data_fixture.create_database_application(user=user)
-    data_sync = _make_sync(user, database)
-    DataSyncHandler().sync_data_sync_table(user=user, data_sync=data_sync)
-
-    db_table = data_sync.table.get_model()._meta.db_table
-    summary_field_id = DataSyncSyncedProperty.objects.get(
-        data_sync=data_sync, key="summary"
-    ).field_id
-
-    handler = DataSyncHandler()
-    waited = _run_while_a_writer_holds_the_table(
-        db_table,
-        lambda: handler._remove_fields_added_by_failed_sync(
-            user, data_sync, [summary_field_id]
-        ),
-    )
-
-    assert waited, (
-        "the cleanup decided whether a field's column was empty and permanently "
-        "deleted it while another connection held a write lock on that table, so "
-        "a concurrent sync could fill the column between the two and lose it"
     )

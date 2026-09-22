@@ -32,8 +32,8 @@ class RealtimePushTwoWaySyncStrategy(TwoWaySyncStrategy):
 
     That last point holds except while a sync's fetch is in flight: the rows it read
     predate any edit made after it started reading, even though that edit has already
-    been pushed to the source. The sync therefore compares each synced cell against
-    its own pre-fetch value and declines to write the cells that moved in the
+    been pushed to the source. The sync therefore compares each row's synced cells
+    against their pre-fetch state and declines to update the rows that moved in the
     meantime, leaving them to the next sync, which reads the source after the push.
     Only two-way syncs are affected; one-way synced fields are read-only, so a user
     cannot edit them at all.

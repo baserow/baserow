@@ -165,3 +165,56 @@ def test_ical_sync_date_not_equal(data_fixture):
         for index2, d2 in enumerate(not_equal_dates):
             if index != index2:
                 assert not compare_date(d1, d2)
+
+
+ICAL_FEED_WITHOUT_EVENTS = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:Baserow / baserow.io
+NAME:Calendar
+X-WR-CALNAME:Calendar
+X-WR-TIMEZONE:UTC
+END:VCALENDAR
+"""
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+def test_ical_sync_empty_source_after_populated_sync(data_fixture):
+    """
+    A source that lost all its rows must not fail the sync: with an empty fetch
+    there are no rows to take the property keys from, and the stale rows still have
+    to be deleted.
+    """
+
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS_WITHOUT_DTEND,
+    )
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend", "summary"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    model = data_sync.table.get_model()
+    assert model.objects.count() == 1
+
+    responses.replace(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITHOUT_EVENTS,
+    )
+    data_sync.refresh_from_db()
+    data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    assert data_sync.last_error is None
+    assert model.objects.count() == 0

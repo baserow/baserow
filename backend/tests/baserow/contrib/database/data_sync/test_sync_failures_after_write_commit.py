@@ -81,14 +81,12 @@ def test_a_non_sync_error_after_the_write_phase_is_recorded_as_last_error(
 
 @pytest.mark.django_db(transaction=True)
 @responses.activate
-def test_cancelling_a_sync_does_not_delete_a_table_that_already_has_rows(
-    data_fixture,
-):
+def test_last_sync_is_committed_together_with_the_rows(data_fixture):
     """
-    Finding 3. `on_cancelled` deleted the table whenever `last_sync is None`,
-    treating that as "initial sync, nothing written yet". After finding 2 that
-    is false: rows can be committed while `last_sync` is still None, and the
-    table -- with those rows in it -- was trashed.
+    `last_sync` is written in the same transaction as the rows. A failure inside
+    that transaction rolls back both, and a worker killed right after the commit
+    leaves a data sync that knows it synced. Neither leaves rows behind on a data
+    sync that still reads as never synced.
     """
 
     responses.add(responses.GET, "https://baserow.io/ical.ics", status=200, body=FEED)
@@ -96,29 +94,61 @@ def test_cancelling_a_sync_does_not_delete_a_table_that_already_has_rows(
     database = data_fixture.create_database_application(user=user)
     data_sync = _make_sync(user, database)
 
-    # Put the data sync in the state finding 2 produces: rows committed,
-    # `last_sync` still None.
-    original = DataSyncHandler._fetch_and_write_rows
-
-    def write_then_boom(self, *args, **kwargs):
-        original(self, *args, **kwargs)
-        raise RuntimeError("boom after the rows were committed")
-
-    with patch.object(DataSyncHandler, "_fetch_and_write_rows", write_then_boom):
+    # The last step inside the write transaction, after the rows were written.
+    with patch.object(
+        DataSyncHandler,
+        "_schedule_search_updates_after_sync",
+        side_effect=RuntimeError("boom inside the write transaction"),
+    ):
         with pytest.raises(RuntimeError):
             JobHandler().create_and_start_job(
                 user, "sync_data_sync_table", sync=True, data_sync_id=data_sync.id
             )
 
     data_sync.refresh_from_db()
-    assert data_sync.last_sync is None, (
-        "this test no longer reproduces the state it is about: `last_sync` was set"
+    assert data_sync.table.get_model().objects.count() == 0, (
+        "the write transaction failed, but its rows were still committed"
     )
-    rows_before = data_sync.table.get_model().objects.count()
-    assert rows_before > 0, "this test is vacuous: no rows were committed"
+    assert data_sync.last_sync is None, (
+        "the write transaction failed, but `last_sync` was still committed"
+    )
+    assert data_sync.last_error is not None
 
-    job = SyncDataSyncTableJob.objects.filter(data_sync=data_sync).first()
-    assert job is not None
+    JobHandler().create_and_start_job(
+        user, "sync_data_sync_table", sync=True, data_sync_id=data_sync.id
+    )
+    data_sync.refresh_from_db()
+    assert data_sync.table.get_model().objects.count() == 1
+    assert data_sync.last_sync is not None
+    assert data_sync.last_error is None
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+def test_cancelling_a_sync_does_not_delete_a_table_that_already_has_rows(
+    data_fixture,
+):
+    """
+    `on_cancelled` used to delete the table whenever `last_sync is None`, treating
+    that as "initial sync, nothing written yet". The sync itself can no longer
+    produce rows without `last_sync` (see the test above), but a two-way synced
+    table is writable by users, so rows can exist before the first sync finished.
+    Only a genuinely empty table is deleted.
+    """
+
+    responses.add(responses.GET, "https://baserow.io/ical.ics", status=200, body=FEED)
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    data_sync = _make_sync(user, database)
+
+    assert data_sync.last_sync is None
+    data_sync.table.get_model().objects.create()
+    rows_before = data_sync.table.get_model().objects.count()
+    assert rows_before > 0, "this test is vacuous: no rows exist"
+
+    job = SyncDataSyncTableJob.objects.create(
+        user=user, data_sync=data_sync, state=JOB_FAILED
+    )
     SyncDataSyncTableJobType().on_cancelled(job)
 
     data_sync.table.refresh_from_db()

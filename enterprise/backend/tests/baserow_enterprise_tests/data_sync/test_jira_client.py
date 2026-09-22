@@ -5,6 +5,7 @@ import pytest
 import responses
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
+from baserow.core.utils import Progress
 from baserow_enterprise.data_sync.jira_client import (
     _is_cloud_from_server_info,
     fetch_issues,
@@ -15,6 +16,7 @@ from baserow_enterprise.data_sync.models import (
 )
 
 BASE_URL = "https://jira.example.com"
+FIELDS = ["summary", "status"]
 
 
 def _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_API_TOKEN, url=BASE_URL):
@@ -82,7 +84,7 @@ def test_fetch_issues_detection_failure_falls_back_to_on_prem():
             "total": 1,
         },
     )
-    issues = fetch_issues(instance, "project=TEST")
+    issues = fetch_issues(instance, "project=TEST", FIELDS)
     assert len(issues) == 1
 
 
@@ -107,7 +109,7 @@ def test_fetch_issues_cloud_single_page():
         status=200,
         json={"issues": [{"id": "1", "key": "TEST-1", "fields": {}}]},
     )
-    issues = fetch_issues(instance, "project=TEST")
+    issues = fetch_issues(instance, "project=TEST", FIELDS)
     assert len(issues) == 1
     assert issues[0]["id"] == "1"
 
@@ -142,7 +144,7 @@ def test_fetch_issues_cloud_pagination():
         status=200,
         json={"issues": [{"id": "2", "key": "TEST-2", "fields": {}}]},
     )
-    issues = fetch_issues(instance, "project=TEST")
+    issues = fetch_issues(instance, "project=TEST", FIELDS)
     assert len(issues) == 2
     assert issues[1]["id"] == "2"
 
@@ -169,7 +171,7 @@ def test_fetch_issues_cloud_no_issues_error():
         json={"issues": []},
     )
     with pytest.raises(SyncError, match="No issues found"):
-        fetch_issues(instance, "project=TEST")
+        fetch_issues(instance, "project=TEST", FIELDS)
     assert len(responses.calls) == 3  # serverInfo + approximate-count + search/jql
 
 
@@ -195,7 +197,7 @@ def test_fetch_issues_cloud_error_response():
         json={"errorMessages": ["Unauthorized"]},
     )
     with pytest.raises(SyncError, match="Unauthorized"):
-        fetch_issues(instance, "project=TEST")
+        fetch_issues(instance, "project=TEST", FIELDS)
 
 
 @responses.activate
@@ -218,7 +220,7 @@ def test_fetch_issues_on_prem_single_page():
             "total": 1,
         },
     )
-    issues = fetch_issues(instance, "project=TEST")
+    issues = fetch_issues(instance, "project=TEST", FIELDS)
     assert len(issues) == 1
     assert issues[0]["id"] == "1"
 
@@ -258,7 +260,7 @@ def test_fetch_issues_on_prem_pagination():
             "total": 101,
         },
     )
-    issues = fetch_issues(instance, "project=TEST")
+    issues = fetch_issues(instance, "project=TEST", FIELDS)
     assert len(issues) == 101
     assert issues[0]["id"] == "1"
     assert issues[-1]["id"] == "101"
@@ -285,7 +287,7 @@ def test_fetch_issues_on_prem_no_issues_error():
         },
     )
     with pytest.raises(SyncError, match="No issues found"):
-        fetch_issues(instance, "project=TEST")
+        fetch_issues(instance, "project=TEST", FIELDS)
 
 
 @responses.activate
@@ -304,7 +306,7 @@ def test_fetch_issues_on_prem_error_response():
         json={"errorMessages": ["JQL query is invalid"]},
     )
     with pytest.raises(SyncError, match="JQL query is invalid"):
-        fetch_issues(instance, "invalid jql")
+        fetch_issues(instance, "invalid jql", FIELDS)
 
 
 @responses.activate
@@ -328,7 +330,7 @@ def test_fetch_issues_cloud_basic_auth():
         status=200,
         json={"issues": [{"id": "1", "key": "TEST-1", "fields": {}}]},
     )
-    fetch_issues(instance, "project=TEST")
+    fetch_issues(instance, "project=TEST", FIELDS)
     search_request = responses.calls[2].request
     assert search_request.headers["Authorization"].startswith("Basic ")
 
@@ -353,7 +355,7 @@ def test_fetch_issues_on_prem_bearer_auth():
             "total": 1,
         },
     )
-    fetch_issues(instance, "project=TEST")
+    fetch_issues(instance, "project=TEST", FIELDS)
     search_request = responses.calls[1].request
     assert search_request.headers["Authorization"] == "Bearer token123"
 
@@ -391,7 +393,7 @@ def test_fetch_issues_on_prem_short_page_is_not_the_last_page():
             },
         )
 
-    issues = fetch_issues(instance, "project=TEST")
+    issues = fetch_issues(instance, "project=TEST", FIELDS)
 
     assert len(issues) == 120, (
         f"the instance capped the page size below the requested one, so every page "
@@ -430,7 +432,7 @@ def test_fetch_issues_on_prem_stops_on_an_empty_page_when_total_is_wrong():
         json={"issues": [], "startAt": 1, "maxResults": 100, "total": 999},
     )
 
-    issues = fetch_issues(instance, "project=TEST")
+    issues = fetch_issues(instance, "project=TEST", FIELDS)
 
     assert len(issues) == 1
     # serverInfo + the two search pages, and no third request.
@@ -438,7 +440,7 @@ def test_fetch_issues_on_prem_stops_on_an_empty_page_when_total_is_wrong():
 
 
 @responses.activate
-def test_fetch_issues_on_prem_requests_only_the_fields_the_sync_reads():
+def test_fetch_issues_on_prem_requests_only_the_given_fields():
     instance = _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN)
     responses.add(
         responses.GET,
@@ -458,8 +460,40 @@ def test_fetch_issues_on_prem_requests_only_the_fields_the_sync_reads():
         },
     )
 
-    fetch_issues(instance, "project=TEST")
+    fetch_issues(instance, "project=TEST", ["summary", "duedate"])
 
     params = _search_query_params()
     assert params["maxResults"] == ["100"]
-    assert "*all" not in params.get("fields", [""])[0]
+    assert params["fields"] == ["summary,duedate"]
+
+
+@responses.activate
+def test_fetch_issues_on_prem_progress_follows_the_capped_page_size():
+    """
+    When Jira Server caps the page size below the requested one, the number of
+    pages, and so the progress total, follows the size it applied.
+    """
+
+    instance = _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN)
+    responses.add(
+        responses.GET,
+        f"{BASE_URL}/rest/api/2/serverInfo",
+        status=200,
+        json={"deploymentType": "Server"},
+    )
+    for start in (0, 50, 100):
+        page = [
+            {"id": str(i), "key": f"TEST-{i}", "fields": {}}
+            for i in range(start + 1, min(start + 50, 120) + 1)
+        ]
+        responses.add(
+            responses.GET,
+            f"{BASE_URL}/rest/api/2/search",
+            status=200,
+            json={"issues": page, "startAt": start, "maxResults": 50, "total": 120},
+        )
+    progress = Progress(100)
+
+    fetch_issues(instance, "project=TEST", FIELDS, progress.create_child_builder(100))
+
+    assert progress.progress == 100

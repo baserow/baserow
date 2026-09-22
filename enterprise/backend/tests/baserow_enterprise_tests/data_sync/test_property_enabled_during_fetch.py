@@ -95,10 +95,21 @@ def test_a_property_enabled_during_the_fetch_does_not_fail_the_write(
     ).field_id
     assert getattr(model.objects.first(), f"field_{synced_text_field_id}") == "a"
 
-    # The next sync fetches with the new property included and fills it in.
-    DataSyncHandler().set_data_sync_synced_properties(
-        user, data_sync, synced_properties=all_properties
+    # The property the user enabled survives the sync that was already running:
+    # it is not treated as obsolete because it wasn't enabled when that sync
+    # started.
+    late_property = DataSyncSyncedProperty.objects.filter(
+        data_sync=data_sync, key=f"field_{late_field.id}"
+    ).first()
+    assert late_property is not None, (
+        "the property enabled during the fetch was removed by that same sync"
     )
+    assert data_sync.table.field_set.filter(id=late_property.field_id).exists(), (
+        "the column of the property enabled during the fetch was deleted by that "
+        "same sync"
+    )
+
+    # The next sync fetches with the new property included and fills it in.
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 
     data_sync.refresh_from_db()

@@ -211,6 +211,11 @@ class SyncDataSyncTableJobType(JobType):
         if not job.data_sync:
             return
 
+        # Another sync of the same data sync holds the lock. This job did nothing,
+        # so the data sync's last error, whatever it is, still stands.
+        if isinstance(error, SyncDataSyncTableAlreadyRunning):
+            return
+
         data_sync = job.data_sync
         # Every failure is recorded, not just `SyncError`. The write phase commits
         # on its own, so an unexpected error (worker kill, timeout, database error)
@@ -232,10 +237,9 @@ class SyncDataSyncTableJobType(JobType):
         unsynced table that the user never explicitly created.
 
         The table is only deleted when it is genuinely empty. `last_sync is None`
-        on its own is not enough: the write phase commits in its own transaction,
-        so a sync that wrote rows and then failed before `last_sync` was set leaves
-        rows behind on a data sync that still reads as never synced. Deleting the
-        table on that basis would discard committed rows.
+        on its own is not enough: a two-way synced table is writable, so a user
+        can have added rows before the first sync finished. Deleting the table on
+        that basis would discard them.
         """
 
         if not job.data_sync or job.data_sync.last_sync is not None:

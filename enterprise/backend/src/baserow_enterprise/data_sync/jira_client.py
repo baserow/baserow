@@ -20,13 +20,6 @@ logger = logging.getLogger(__name__)
 
 JIRA_MAX_RESULTS_PER_PAGE = 100
 
-# Only the fields used by JiraIssuesDataSyncType.get_all_rows(). The Jira API
-# always returns `id` and `key` regardless of this parameter.
-JIRA_SYNC_FIELDS = (
-    "summary,description,assignee,reporter,project,"
-    "status,labels,created,updated,resolutiondate,duedate"
-)
-
 JIRA_NO_ISSUES_ERROR = (
     "No issues found. This is usually because the authentication details are wrong."
 )
@@ -113,8 +106,11 @@ def _approximate_total(jira: Jira, jql: str) -> int:
         return 0
 
 
-def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
+def _iter_pages(jira: Jira, jql: str, fields: str) -> Iterator[dict]:
     """Yield issue pages from Jira, handling cloud/on-prem pagination differences.
+
+    `fields` is the comma separated list of issue fields to request; the Jira API
+    always returns `id` and `key` regardless of it.
 
     On-prem responses include 'total'. For Cloud, we look it up once via
     approximate_issue_count and stamp it onto every page so callers can
@@ -127,7 +123,7 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
         while True:
             page = jira.enhanced_jql(
                 jql,
-                fields=JIRA_SYNC_FIELDS,
+                fields=fields,
                 limit=JIRA_MAX_RESULTS_PER_PAGE,
                 nextPageToken=token,
             )
@@ -143,7 +139,7 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
         while True:
             page = jira.jql(
                 jql,
-                fields=JIRA_SYNC_FIELDS,
+                fields=fields,
                 start=start,
                 limit=JIRA_MAX_RESULTS_PER_PAGE,
             )
@@ -162,9 +158,13 @@ def _iter_pages(jira: Jira, jql: str) -> Iterator[dict]:
 def fetch_issues(
     instance: JiraIssuesDataSync,
     jql: str,
+    fields: List[str],
     progress_builder: Optional[ChildProgressBuilder] = None,
 ) -> List[dict]:
-    """Fetch all issues matching a JQL query from a Jira instance."""
+    """
+    Fetch all issues matching a JQL query from a Jira instance, requesting only
+    the given issue fields.
+    """
 
     issues: List[dict] = []
     progress = None
@@ -173,12 +173,14 @@ def fetch_issues(
         # Creating the client already probes the server info, so it must be inside
         # the try block to convert a blocked private address into a sync error.
         jira = _create_jira(instance)
-        for i, page in enumerate(_iter_pages(jira, jql)):
+        for i, page in enumerate(_iter_pages(jira, jql, ",".join(fields))):
             if progress is None:
                 total = int(page.get("total") or 0)
-                child_total = (
-                    math.ceil(total / JIRA_MAX_RESULTS_PER_PAGE) if total else 1
-                )
+                # Jira Server can cap the page size below what was asked for, in
+                # which case it reports the size it applied and there are more
+                # pages than the requested size suggests.
+                page_size = int(page.get("maxResults") or JIRA_MAX_RESULTS_PER_PAGE)
+                child_total = math.ceil(total / page_size) if total else 1
                 progress = ChildProgressBuilder.build(
                     progress_builder, child_total=child_total
                 )
