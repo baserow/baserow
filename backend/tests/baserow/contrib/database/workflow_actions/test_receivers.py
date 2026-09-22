@@ -201,7 +201,7 @@ def test_an_action_adds_to_the_action_metrics(counter, duration):
         dispatch_context=None,
         position=2,
         succeeded=True,
-        result=DispatchResult(status=504),
+        result=DispatchResult(data={"status_code": 504, "body": "", "headers": {}}),
         duration_ms=30.0,
     )
     record_workflow_action_dispatched(

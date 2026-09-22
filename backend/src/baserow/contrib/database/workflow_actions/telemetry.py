@@ -36,8 +36,12 @@ def _result_label(succeeded, result) -> str:
     if not succeeded:
         return "failed"
     # An HTTP action answers a timeout or a remote error with a result of its
-    # own rather than raising.
-    if result.status >= 400:
+    # own rather than raising. Only the status code is read: the rest of the
+    # data is what the endpoint sent back.
+    status_code = (
+        result.data.get("status_code") if isinstance(result.data, dict) else None
+    )
+    if result.status >= 400 or (isinstance(status_code, int) and status_code >= 400):
         return "error_status"
     return "ok"
 
