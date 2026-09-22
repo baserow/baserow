@@ -76,7 +76,10 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import WorkflowHistory from '@baserow/modules/automation/components/workflow/sidePanels/WorkflowHistory'
 const store = useStore()
 const workflow = inject('workflow')
-const loading = computed(() => store.state.automationHistory.loading)
+const loading = computed(() => {
+  const request = store.state.automationHistory.request
+  return request !== null && !request.refresh
+})
 const page = computed(() => store.state.automationHistory.page)
 const content = ref(null)
 const history = computed(() =>

@@ -38,7 +38,7 @@ describe('automation realtime run lifecycle events', () => {
 
       expect(store.dispatch).toHaveBeenCalledTimes(1)
       expect(store.dispatch).toHaveBeenCalledWith(
-        'automationHistory/fetchWorkflowHistory',
+        'automationHistory/refreshWorkflowHistory',
         { workflowId: workflow.id }
       )
     }
