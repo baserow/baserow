@@ -90,7 +90,11 @@ try:
 except ImportError:
     pass
 
-# Containers in the dev stack, such as the opt-in inbound email receiver started
-# by `just mox up`, reach a natively running backend through Docker's host
-# alias. Dev only: production deployments set PRIVATE_BACKEND_URL instead.
+# Containers in the dev stack reach a natively running backend (`just dev`)
+# through Docker's host alias, so their requests arrive with a Host header of
+# `host.docker.internal:8000`, which Django refuses with a 400 (DisallowedHost)
+# unless the name is allowed. The opt-in inbound email receiver started by
+# `just mox up` posts its webhooks that way. Dev only: production deployments
+# reach the backend through PRIVATE_BACKEND_URL, whose hostname is allowed in
+# the base settings.
 ALLOWED_HOSTS.append("host.docker.internal")  # noqa: F405

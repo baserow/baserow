@@ -1,9 +1,9 @@
-from datetime import timedelta
-
-from django.conf import settings
 from django.db import transaction
 
 from baserow.config.celery import app
+from baserow.contrib.integrations.core.inbound_email_receiver import (
+    InboundEmailReceiverError,
+)
 from baserow.core.services.registries import service_type_registry
 
 
@@ -17,24 +17,31 @@ def call_periodic_services_that_are_due(self):
         ).call_periodic_services_that_are_due()
 
 
-@app.task(bind=True, queue="export")
-def sweep_inbound_email_receiver(self):
+# Retried with exponential backoff (1, 2, 4 ... minutes, capped at an hour)
+# while the receiver cannot be used, so a receiver restart or redeploy of a few
+# hours does not leave the message behind.
+INBOUND_EMAIL_RECEIVER_DELETE_MAX_RETRIES = 8
+
+
+@app.task(
+    bind=True,
+    queue="export",
+    autoretry_for=(InboundEmailReceiverError,),
+    retry_backoff=60,
+    retry_backoff_max=60 * 60,
+    retry_jitter=True,
+    max_retries=INBOUND_EMAIL_RECEIVER_DELETE_MAX_RETRIES,
+)
+def delete_inbound_email_receiver_message(self, message_id: int):
     """
-    Deletes handed-over messages from the bundled inbound mail server, which
-    keeps them forever otherwise. A no-op when inbound email is not configured.
+    Deletes one handed-over message from the bundled inbound mail server, which
+    keeps every accepted message forever otherwise. Queued by the inbound email
+    webhook for each message it receives. A no-op when inbound email is not
+    configured on this instance.
     """
 
     from baserow.contrib.integrations.core.inbound_email_receiver import (
-        sweep_inbound_email_receiver as sweep,
+        delete_receiver_message,
     )
 
-    sweep()
-
-
-@app.on_after_finalize.connect
-def setup_inbound_email_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(
-        timedelta(minutes=settings.INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES),
-        sweep_inbound_email_receiver.s(),
-        name="inbound-email-receiver-sweep",
-    )
+    delete_receiver_message(message_id)

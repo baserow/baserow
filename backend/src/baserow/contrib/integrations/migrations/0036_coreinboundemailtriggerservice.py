@@ -14,15 +14,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='CoreInboundEmailReceiverState',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('last_seen_message_id', models.BigIntegerField(default=0, help_text='The highest receiver-side message id that reached the webhook.')),
-                ('last_deleted_message_id', models.BigIntegerField(default=0, help_text='Every message up to and including this id has been deleted from the receiver.')),
-                ('updated_on', models.DateTimeField(auto_now=True)),
-            ],
-        ),
-        migrations.CreateModel(
             name='CoreInboundEmailTriggerService',
             fields=[
                 ('service_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='core.service')),

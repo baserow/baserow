@@ -1,19 +1,24 @@
-from unittest.mock import MagicMock, patch
+import json
+from unittest.mock import MagicMock, call, patch
+from urllib.parse import parse_qs
 
 from django.test import override_settings
 
 import pytest
 import requests
 import responses
+from celery.exceptions import Retry
 
 from baserow.contrib.integrations.core.inbound_email import InboundEmailHandler
 from baserow.contrib.integrations.core.inbound_email_receiver import (
+    INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS,
     InboundEmailReceiverClient,
     InboundEmailReceiverError,
-    InboundEmailReceiverStateHandler,
-    sweep_inbound_email_receiver,
+    delete_receiver_message,
 )
-from baserow.contrib.integrations.core.models import CoreInboundEmailReceiverState
+from baserow.contrib.integrations.tasks import (
+    delete_inbound_email_receiver_message as delete_task,
+)
 
 from .inbound_email_test_utils import make_mox_payload
 
@@ -128,179 +133,154 @@ def test_client_from_settings_is_none_when_not_configured(overrides):
         assert InboundEmailReceiverClient.from_settings() is None
 
 
-@pytest.mark.django_db
-@override_settings(INBOUND_EMAIL_DOMAIN=DOMAIN)
-def test_webhook_records_the_high_water_mark_whatever_the_outcome():
-    handler = InboundEmailHandler()
-
-    # Unknown token: discarded, but the message exists on the receiver.
-    payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}")
-    payload["Meta"]["MsgID"] = 7
-    handler.handle_webhook_payload(payload)
-    assert InboundEmailReceiverStateHandler.get_state().last_seen_message_id == 7
-
-    # Automated mail: discarded before any dispatch, still counted.
-    payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}", MessageID="<auto@x>")
-    payload["Meta"]["MsgID"] = 9
-    payload["Meta"]["Automated"] = True
-    handler.handle_webhook_payload(payload)
-    assert InboundEmailReceiverStateHandler.get_state().last_seen_message_id == 9
-
-    # A retried delivery with a lower id never moves the mark back.
-    payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}", MessageID="<older@x>")
-    payload["Meta"]["MsgID"] = 8
-    handler.handle_webhook_payload(payload)
-    assert InboundEmailReceiverStateHandler.get_state().last_seen_message_id == 9
+CONFIGURED = dict(
+    INBOUND_EMAIL_DOMAIN=DOMAIN,
+    INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
+    INBOUND_EMAIL_RECEIVER_URL=RECEIVER,
+)
 
 
-@pytest.mark.django_db
-@override_settings(INBOUND_EMAIL_DOMAIN=DOMAIN)
-def test_webhook_lowers_the_deleted_mark_when_an_already_swept_id_arrives():
-    """
-    Ids restart at 1 when the receiver's data directory is wiped. Without
-    lowering the deleted mark the sweep would skip everything until the ids
-    climbed past the old mark again, and the receiver would fill up.
-    """
-
-    state = InboundEmailReceiverStateHandler.get_state()
-    state.last_seen_message_id = 5000
-    state.last_deleted_message_id = 5000
-    state.save()
-
-    payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}")
-    payload["Meta"]["MsgID"] = 3
-    InboundEmailHandler().handle_webhook_payload(payload)
-
-    state = InboundEmailReceiverStateHandler.get_state()
-    assert state.last_deleted_message_id == 2
-    # The seen mark still covers the old ids, so the next sweep cleans up both
-    # the reset store and whatever the old one may still hold.
-    assert state.last_seen_message_id == 5000
-
-    # An id above the deleted mark, e.g. a first delivery, leaves it alone.
-    payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}", MessageID="<next@x>")
-    payload["Meta"]["MsgID"] = 4
-    InboundEmailHandler().handle_webhook_payload(payload)
-    assert InboundEmailReceiverStateHandler.get_state().last_deleted_message_id == 2
-
-
-@pytest.mark.django_db
-def test_webhook_ignores_a_missing_receiver_id():
-    with override_settings(INBOUND_EMAIL_DOMAIN=DOMAIN):
-        payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}")
-        payload["Meta"]["MsgID"] = 0
-        InboundEmailHandler().handle_webhook_payload(payload)
-
-    assert CoreInboundEmailReceiverState.objects.count() == 0
-
-
-@pytest.mark.django_db
-def test_sweep_closes_the_client_it_created_but_not_an_injected_one():
-    InboundEmailReceiverStateHandler.record_seen_message(1)
-    created = MagicMock()
-    created.delete_message.return_value = True
-    with patch.object(
-        InboundEmailReceiverClient, "from_settings", return_value=created
-    ):
-        sweep_inbound_email_receiver()
-    created.close.assert_called_once_with()
-
-    injected = MagicMock()
-    injected.delete_message.return_value = True
-    InboundEmailReceiverStateHandler.record_seen_message(2)
-    sweep_inbound_email_receiver(client=injected)
-    injected.close.assert_not_called()
-
-
-@pytest.mark.django_db
-def test_sweep_is_a_no_op_when_not_configured():
-    with override_settings(INBOUND_EMAIL_RECEIVER_URL=""):
-        assert sweep_inbound_email_receiver() is None
-
-
-@pytest.mark.django_db
-def test_sweep_deletes_every_id_up_to_the_high_water_mark():
-    InboundEmailReceiverStateHandler.record_seen_message(5)
-    client = MagicMock()
-    # Ids 1, 2 and 4 still exist on the receiver, 3 and 5 are already gone.
-    client.delete_message.side_effect = [True, True, False, True, False]
-
-    counts = sweep_inbound_email_receiver(client=client)
-
-    assert [c.args[0] for c in client.delete_message.call_args_list] == [1, 2, 3, 4, 5]
-    assert counts == {"deleted": 3, "already_gone": 2, "remaining": 0}
-    assert InboundEmailReceiverStateHandler.get_state().last_deleted_message_id == 5
-
-
-@pytest.mark.django_db
-def test_sweep_resumes_after_the_last_deleted_id():
-    InboundEmailReceiverStateHandler.record_seen_message(6)
-    InboundEmailReceiverStateHandler.record_deleted_up_to(4)
-    client = MagicMock()
-    client.delete_message.return_value = True
-
-    sweep_inbound_email_receiver(client=client)
-
-    assert [c.args[0] for c in client.delete_message.call_args_list] == [5, 6]
-
-
-@pytest.mark.django_db
-def test_sweep_keeps_progress_when_the_receiver_fails_midway():
-    InboundEmailReceiverStateHandler.record_seen_message(4)
-    client = MagicMock()
-    client.delete_message.side_effect = [
-        True,
-        True,
-        InboundEmailReceiverError("down"),
-        True,
+def deleted_ids(request_calls):
+    return [
+        json.loads(parse_qs(c.request.body)["request"][0])["MsgID"]
+        for c in request_calls
     ]
 
-    counts = sweep_inbound_email_receiver(client=client)
 
-    assert counts == {"deleted": 2, "already_gone": 0, "remaining": 2}
-    assert InboundEmailReceiverStateHandler.get_state().last_deleted_message_id == 2
-    # The next run resumes with the id that failed.
-    client.delete_message.side_effect = None
-    client.delete_message.return_value = True
-    client.delete_message.reset_mock()
-    sweep_inbound_email_receiver(client=client)
-    assert [c.args[0] for c in client.delete_message.call_args_list] == [3, 4]
+@pytest.mark.django_db
+@override_settings(**CONFIGURED)
+def test_webhook_queues_the_deletion_of_every_received_message(
+    django_capture_on_commit_callbacks,
+):
+    handler = InboundEmailHandler()
+
+    with patch.object(delete_task, "apply_async") as apply_async:
+        # Unknown token: discarded, but the message exists on the receiver.
+        payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}")
+        payload["Meta"]["MsgID"] = 7
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.handle_webhook_payload(payload)
+
+        # Automated mail: discarded before any dispatch, still deleted.
+        payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}", MessageID="<auto@x>")
+        payload["Meta"]["MsgID"] = 9
+        payload["Meta"]["Automated"] = True
+        with django_capture_on_commit_callbacks(execute=True):
+            handler.handle_webhook_payload(payload)
+
+    assert apply_async.call_args_list == [
+        call(args=[7], countdown=INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS),
+        call(args=[9], countdown=INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS),
+    ]
 
 
 @pytest.mark.django_db
-def test_sweep_processes_at_most_max_messages_per_run():
-    InboundEmailReceiverStateHandler.record_seen_message(10)
-    client = MagicMock()
-    client.delete_message.return_value = True
+@override_settings(**CONFIGURED)
+def test_webhook_queues_the_deletion_only_once_the_request_commits(
+    django_capture_on_commit_callbacks,
+):
+    """
+    The deletion must not race the webhook it belongs to: it is queued from an
+    on-commit hook, so a failing request (which mox retries) queues nothing.
+    """
 
-    counts = sweep_inbound_email_receiver(client=client, max_messages=4)
+    payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}")
+    payload["Meta"]["MsgID"] = 7
 
-    assert [c.args[0] for c in client.delete_message.call_args_list] == [1, 2, 3, 4]
-    assert counts["remaining"] == 6
-    assert InboundEmailReceiverStateHandler.get_state().last_deleted_message_id == 4
+    with patch.object(delete_task, "apply_async") as apply_async:
+        with django_capture_on_commit_callbacks() as callbacks:
+            InboundEmailHandler().handle_webhook_payload(payload)
+        apply_async.assert_not_called()
 
-
-@pytest.mark.django_db
-def test_sweep_does_nothing_when_up_to_date():
-    InboundEmailReceiverStateHandler.record_seen_message(3)
-    InboundEmailReceiverStateHandler.record_deleted_up_to(3)
-    client = MagicMock()
-
-    assert sweep_inbound_email_receiver(client=client) == {
-        "deleted": 0,
-        "already_gone": 0,
-        "remaining": 0,
-    }
-    client.delete_message.assert_not_called()
+    assert len(callbacks) == 1
 
 
 @pytest.mark.django_db
-def test_celery_task_runs_the_sweep():
-    from baserow.contrib.integrations.tasks import sweep_inbound_email_receiver as task
+@pytest.mark.parametrize(
+    "message_id,receiver_url",
+    [
+        # Mox always sends an id; a missing one is nothing to delete.
+        (0, RECEIVER),
+        # No receiver to delete from, so nothing is queued at all.
+        (7, ""),
+    ],
+)
+def test_webhook_queues_no_deletion_when_there_is_nothing_to_delete(
+    django_capture_on_commit_callbacks, message_id, receiver_url
+):
+    payload = make_mox_payload(f"{'a' * 32}@{DOMAIN}")
+    payload["Meta"]["MsgID"] = message_id
 
-    with patch(
-        "baserow.contrib.integrations.core.inbound_email_receiver.sweep_inbound_email_receiver"
-    ) as mocked:
-        task.apply()
+    with override_settings(
+        **{**CONFIGURED, "INBOUND_EMAIL_RECEIVER_URL": receiver_url}
+    ):
+        with patch.object(delete_task, "apply_async") as apply_async:
+            with django_capture_on_commit_callbacks(execute=True):
+                InboundEmailHandler().handle_webhook_payload(payload)
 
-    mocked.assert_called_once_with()
+    apply_async.assert_not_called()
+
+
+@responses.activate
+@override_settings(**CONFIGURED)
+def test_delete_task_deletes_the_message_from_the_receiver():
+    responses.add(responses.POST, DELETE_URL, json={}, status=200)
+
+    delete_task.apply(args=[7])
+
+    assert deleted_ids(responses.calls) == [7]
+
+
+@responses.activate
+@override_settings(**CONFIGURED)
+def test_delete_task_treats_an_already_gone_message_as_done():
+    # A retried webhook queues a second deletion of the same message.
+    responses.add(
+        responses.POST,
+        DELETE_URL,
+        json={"Code": "messageNotFound", "Message": "message not found"},
+        status=400,
+    )
+
+    result = delete_task.apply(args=[7])
+
+    assert result.successful()
+    assert len(responses.calls) == 1
+
+
+@responses.activate
+def test_delete_task_is_a_no_op_when_no_receiver_is_configured():
+    with override_settings(**{**CONFIGURED, "INBOUND_EMAIL_RECEIVER_URL": ""}):
+        assert delete_receiver_message(7) is None
+        result = delete_task.apply(args=[7])
+
+    assert result.successful()
+    assert len(responses.calls) == 0
+
+
+@responses.activate
+@override_settings(**CONFIGURED)
+def test_delete_task_retries_with_backoff_while_the_receiver_cannot_be_used():
+    responses.add(responses.POST, DELETE_URL, status=502, body="bad gateway")
+
+    # Eagerly, the retry surfaces as the Retry exception a worker would act on.
+    with pytest.raises(Retry) as retry:
+        delete_task.apply(args=[7])
+
+    assert isinstance(retry.value.exc, InboundEmailReceiverError)
+    assert len(responses.calls) == 1
+    # Exponential backoff from a minute, capped at an hour, for a few hours.
+    assert delete_task.max_retries == 8
+    assert delete_task.retry_backoff == 60
+    assert delete_task.retry_backoff_max == 60 * 60
+
+
+@responses.activate
+@override_settings(**CONFIGURED)
+def test_delete_receiver_message_closes_the_client():
+    responses.add(responses.POST, DELETE_URL, json={}, status=200)
+
+    with patch.object(InboundEmailReceiverClient, "close") as close:
+        assert delete_receiver_message(7) is True
+
+    close.assert_called_once_with()

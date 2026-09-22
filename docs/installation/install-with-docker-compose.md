@@ -230,9 +230,8 @@ receiver offers STARTTLS with a self-signed certificate; see
 `BASEROW_INBOUND_EMAIL_TLS_MODE` in [configuration](configuration.md) to
 provide a real certificate. The receiver's webhook retry queue and TLS
 certificate persist in the `mox_data` volume. Received messages are not
-retained: the backend deletes every message it has been handed from the mail
-server on a schedule (`BASEROW_INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES`, hourly by
-default), whether or not it matched a trigger.
+retained: the backend deletes each message from the mail server about a minute
+after it has been handed over, whether or not it matched a trigger.
 
 Emails larger than 25 MB (`BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB`) are
 refused during delivery and bounce back to the sender. Attachments are never

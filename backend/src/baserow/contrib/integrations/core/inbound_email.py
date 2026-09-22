@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 
 from loguru import logger
 
@@ -343,11 +344,9 @@ class InboundEmailHandler:
 
         email = normalize_mox_payload(data)
 
-        # Whatever happens to it below, the message now exists on the receiver.
-        # Its id is the high-water mark for the periodic sweep that deletes
-        # handed-over messages from the mail server (see
-        # `inbound_email_receiver.py`).
-        self._record_receiver_message_id(email)
+        # Whatever happens to it below, the message now exists on the receiver,
+        # which keeps it forever unless told otherwise.
+        self._schedule_receiver_message_deletion(email)
 
         # Loop protection: never dispatch automated messages (auto-replies,
         # delivery reports, etc), otherwise a forward rule plus an
@@ -382,16 +381,36 @@ class InboundEmailHandler:
 
         return HANDLE_STATUS_DISCARDED
 
-    def _record_receiver_message_id(self, email: InboundEmail) -> None:
+    def _schedule_receiver_message_deletion(self, email: InboundEmail) -> None:
+        """
+        Queues the deletion of the message from the receiver once this
+        request's transaction has committed, i.e. once the webhook is about to
+        be acknowledged (see `inbound_email_receiver.py`). A retried delivery
+        of the same message queues a second deletion, which finds the message
+        already gone. Nothing is queued when the receiver is not configured,
+        which the node type's availability gate rules out for real triggers.
+        """
+
         from baserow.contrib.integrations.core.inbound_email_receiver import (
-            InboundEmailReceiverStateHandler,
+            INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS,
+        )
+        from baserow.contrib.integrations.tasks import (
+            delete_inbound_email_receiver_message,
         )
 
         try:
             message_id = int(email.internal_message_id)
         except (TypeError, ValueError):
             return
-        InboundEmailReceiverStateHandler.record_seen_message(message_id)
+        if message_id <= 0 or not settings.INBOUND_EMAIL_RECEIVER_URL:
+            return
+
+        transaction.on_commit(
+            lambda: delete_inbound_email_receiver_message.apply_async(
+                args=[message_id],
+                countdown=INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS,
+            )
+        )
 
     def _process_target(
         self, service_type, target: InboundEmailTarget, email: InboundEmail

@@ -1021,16 +1021,11 @@ INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB = int(
     os.getenv("BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB") or 25
 )
 # Where the backend reaches the bundled inbound mail server's web API. Mox keeps
-# every accepted message on disk and has no retention setting, so a periodic
-# task deletes the messages it has already handed over through this API. Empty
-# disables the sweep (see `inbound_email_receiver.py`).
+# every accepted message on disk and has no retention setting, so the backend
+# deletes each message through this API shortly after receiving its webhook.
+# Empty disables that (see `inbound_email_receiver.py`).
 INBOUND_EMAIL_RECEIVER_URL = os.getenv("BASEROW_INBOUND_EMAIL_RECEIVER_URL", "").rstrip(
     "/"
-)
-# How often, in minutes, that sweep runs. At least one: a zero interval would
-# have Celery beat schedule the task continuously.
-INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES = max(
-    1, int(os.getenv("BASEROW_INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES") or 60)
 )
 
 AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(

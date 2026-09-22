@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import override_settings
@@ -15,6 +16,10 @@ from rest_framework.status import (
 
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.integrations.core.inbound_email_receiver import (
+    INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS,
+)
+from baserow.contrib.integrations.tasks import delete_inbound_email_receiver_message
 
 from ...inbound_email_test_utils import make_mox_payload
 
@@ -34,6 +39,18 @@ def get_url():
 @pytest.fixture(autouse=True)
 def clear_cache():
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def receiver_deletion():
+    """
+    Every accepted webhook queues the deletion of its message from the mail
+    server once the request commits. Celery runs eagerly in tests and there is
+    no receiver to reach, so the queueing itself is captured instead.
+    """
+
+    with patch.object(delete_inbound_email_receiver_message, "apply_async") as m:
+        yield m
 
 
 @pytest.mark.django_db
@@ -132,7 +149,9 @@ def test_discards_unknown_token(api_client):
     INBOUND_EMAIL_WEBHOOK_SECRET=SECRET,
     INBOUND_EMAIL_RECEIVER_URL=RECEIVER_URL,
 )
-def test_accepts_email_and_starts_live_workflow(api_client, data_fixture):
+def test_accepts_email_and_starts_live_workflow(
+    api_client, data_fixture, receiver_deletion
+):
     user, _ = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     automation = data_fixture.create_automation_application(
@@ -184,6 +203,11 @@ def test_accepts_email_and_starts_live_workflow(api_client, data_fixture):
     rows = model.objects.all()
     assert len(rows) == 1
     assert getattr(rows[0], f"field_{fields[0].id}") == "Hello from Ada"
+
+    # The message is deleted from the mail server once the request committed.
+    receiver_deletion.assert_called_once_with(
+        args=[42], countdown=INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS
+    )
 
 
 @pytest.mark.django_db(transaction=True)

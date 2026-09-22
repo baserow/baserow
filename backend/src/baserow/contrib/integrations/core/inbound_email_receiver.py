@@ -2,35 +2,33 @@
 Deletes handed-over messages from the bundled inbound mail server (mox).
 
 Mox writes every accepted message to disk before posting the incoming-delivery
-webhook and never removes it: it has no retention setting, and its web API can
-delete a message by id but cannot list them. Two properties make a sweep
-possible anyway. Message ids are sequential per account, and every accepted
-message reaches `InboundEmailHandler.handle_webhook_payload`, which records the
-highest id it has seen. The sweep then deletes every id between the last swept
-one and that high-water mark, treating "not found" as already gone. Deleting a
-message whose webhook is still being retried is safe: mox retries from its own
-stored copy of the payload, and Baserow never reads a message back. Ids start
-over when the receiver's data directory is wiped, which the handler notices
-when an id at or below the swept mark arrives and lowers the mark again.
+webhook and never removes it: it has no retention setting. Its web API can
+delete a message by id, and every webhook carries the id of the message it is
+about, so `InboundEmailHandler.handle_webhook_payload` queues the deletion of
+each message it is handed, whatever it then does with it. Deleting a message
+whose webhook is still being retried is safe: mox retries from its own stored
+copy of the payload, and Baserow never reads a message back. The one thing this
+does not cover is a message whose webhook never reaches the backend at all,
+which happens when the backend stays unreachable for longer than mox retries
+(roughly 32 hours).
 """
 
 import json
-from typing import Dict, Optional
+from typing import Optional
 
 from django.conf import settings
 
 import requests
 from loguru import logger
 
-from baserow.contrib.integrations.core.models import CoreInboundEmailReceiverState
-
 # The explicit address the web API authenticates with. Must match the
 # destination `generate-mox-config.sh` adds to the inbound account.
 INBOUND_EMAIL_WEBAPI_LOCALPART = "webapi"
-# Bounds one run after a long backlog (one HTTP call per id); the rest is
-# picked up by the next run.
-INBOUND_EMAIL_SWEEP_MAX_MESSAGES_PER_RUN = 10_000
 INBOUND_EMAIL_RECEIVER_TIMEOUT_SECONDS = 10
+# How long after its webhook a message is deleted from the receiver. Not needed
+# for correctness (see the module docstring), but it lets the receiver finish
+# its own bookkeeping for the delivery before the backend calls back into it.
+INBOUND_EMAIL_RECEIVER_DELETE_DELAY_SECONDS = 60
 
 
 class InboundEmailReceiverError(Exception):
@@ -132,98 +130,30 @@ class InboundEmailReceiverClient:
         )
 
 
-class InboundEmailReceiverStateHandler:
-    @staticmethod
-    def get_state() -> CoreInboundEmailReceiverState:
-        state, _ = CoreInboundEmailReceiverState.objects.get_or_create(pk=1)
-        return state
-
-    @classmethod
-    def record_seen_message(cls, message_id: int) -> None:
-        """
-        Raises the high-water mark to the provided receiver-side message id.
-        Lower ids, e.g. from a retried webhook, never move it back.
-
-        An id at or below the swept mark means either that the receiver's
-        message store was reset (ids restart at 1 after its data directory is
-        wiped) or that this is a retried webhook for an already swept message.
-        The mark is lowered to just below the id either way: it is what keeps
-        the sweep going after a reset, and in the retry case the next run
-        merely re-deletes a few ids that are already gone.
-        """
-
-        if message_id <= 0:
-            return
-        state = cls.get_state()
-        CoreInboundEmailReceiverState.objects.filter(
-            pk=state.pk, last_seen_message_id__lt=message_id
-        ).update(last_seen_message_id=message_id)
-        CoreInboundEmailReceiverState.objects.filter(
-            pk=state.pk, last_deleted_message_id__gte=message_id
-        ).update(last_deleted_message_id=message_id - 1)
-
-    @classmethod
-    def record_deleted_up_to(cls, message_id: int) -> None:
-        state = cls.get_state()
-        CoreInboundEmailReceiverState.objects.filter(
-            pk=state.pk, last_deleted_message_id__lt=message_id
-        ).update(last_deleted_message_id=message_id)
-
-
-def sweep_inbound_email_receiver(
-    client: Optional[InboundEmailReceiverClient] = None,
-    max_messages: int = INBOUND_EMAIL_SWEEP_MAX_MESSAGES_PER_RUN,
-) -> Optional[Dict[str, int]]:
+def delete_receiver_message(message_id: int) -> Optional[bool]:
     """
-    Deletes every message the receiver still holds up to the high-water mark.
+    Deletes one message from the configured receiver.
 
-    :param client: The receiver client, resolved from the settings by default.
-    :param max_messages: The most ids to process in one run.
-    :return: Counts of deleted, already gone and remaining ids, or None when
-        the sweep is not configured on this instance.
+    :param message_id: The receiver-side id of the message, as carried by its
+        webhook.
+    :raises InboundEmailReceiverError: When the receiver cannot be used; the
+        calling task retries.
+    :return: True when the message was deleted, False when the receiver no
+        longer had it, or None when no receiver is configured on this instance.
     """
 
-    owns_client = client is None
-    client = client or InboundEmailReceiverClient.from_settings()
+    client = InboundEmailReceiverClient.from_settings()
     if client is None:
         return None
 
     try:
-        return _sweep(client, max_messages)
+        deleted = client.delete_message(message_id)
     finally:
-        if owns_client:
-            client.close()
+        client.close()
 
-
-def _sweep(client: InboundEmailReceiverClient, max_messages: int) -> Dict[str, int]:
-    state = InboundEmailReceiverStateHandler.get_state()
-    first = state.last_deleted_message_id + 1
-    last = min(state.last_seen_message_id, first + max_messages - 1)
-    counts = {"deleted": 0, "already_gone": 0, "remaining": 0}
-    progress = state.last_deleted_message_id
-
-    for message_id in range(first, last + 1):
-        try:
-            deleted = client.delete_message(message_id)
-        except InboundEmailReceiverError as exc:
-            # Keep what was achieved; the next run resumes from here.
-            logger.warning(
-                "Inbound email sweep stopped at message {message_id}: {error}",
-                message_id=message_id,
-                error=exc,
-            )
-            break
-        counts["deleted" if deleted else "already_gone"] += 1
-        progress = message_id
-
-    if progress > state.last_deleted_message_id:
-        InboundEmailReceiverStateHandler.record_deleted_up_to(progress)
-    counts["remaining"] = max(state.last_seen_message_id - progress, 0)
-
-    if counts["deleted"] or counts["remaining"]:
-        logger.info(
-            "Inbound email sweep deleted {deleted} message(s) from the receiver "
-            "({already_gone} already gone, {remaining} remaining).",
-            **counts,
-        )
-    return counts
+    logger.debug(
+        "Inbound email receiver message {message_id} {outcome}.",
+        message_id=message_id,
+        outcome="deleted" if deleted else "was already gone",
+    )
+    return deleted

@@ -307,9 +307,8 @@ Emails larger than 25 MB (`BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB`) are
 refused during delivery and bounce back to the sender. Attachments are never
 stored: the workflow only receives their name, type and size, and text or HTML
 bodies over 1 MB are truncated. Received messages are not retained: the backend
-deletes every message it has been handed from the mail server on a schedule
-(`BASEROW_INBOUND_EMAIL_SWEEP_INTERVAL_MINUTES`, hourly by default), whether or
-not it matched a trigger.
+deletes each message from the mail server about a minute after it has been
+handed over, whether or not it matched a trigger.
 
 ```bash
 docker run \

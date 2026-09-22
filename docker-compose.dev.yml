@@ -239,6 +239,9 @@ services:
   # the dev image so no Go toolchain or `brew install mox` is needed.
   email-receiver:
     image: baserow_backend:dev
+    # Inherited from the base file, repeated here so it is not mistaken for an
+    # omission: the receiver only exists under this profile.
+    profiles: ["inbound-email"]
     build:
       dockerfile: ./backend/Dockerfile
       context: .
