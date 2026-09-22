@@ -32,14 +32,6 @@ from .utils import check_for_license_and_permissions_or_raise
 
 AUDIT_LOG_CSV_COLUMN_NAMES = OrderedDict(
     {
-        "user_email": {
-            "field": "actor_name",
-            "descr": _("User Email"),
-        },
-        "user_id": {
-            "field": "actor_id",
-            "descr": _("User ID"),
-        },
         "workspace_name": {
             "field": "workspace_name",
             "descr": _("Group Name"),
@@ -79,23 +71,36 @@ AUDIT_LOG_CSV_COLUMN_NAMES = OrderedDict(
     }
 )
 
+LEGACY_AUDIT_LOG_CSV_COLUMN_ALIASES = {
+    "user_email": "actor_name",
+    "user_id": "actor_id",
+}
+
 
 class CommaSeparatedCsvColumnsField(serializers.CharField):
-    def validate_values(self, value):
+    def to_internal_value(self, data):
+        value = super().to_internal_value(data)
         items = value.split(",")
+
+        valid_column_names = {
+            *AUDIT_LOG_CSV_COLUMN_NAMES,
+            *LEGACY_AUDIT_LOG_CSV_COLUMN_ALIASES,
+        }
+        for item in items:
+            if item not in valid_column_names:
+                raise serializers.ValidationError(f"{item} is not a valid choice.")
+
+        items = [
+            LEGACY_AUDIT_LOG_CSV_COLUMN_ALIASES.get(item, item) for item in items
+        ]
 
         if len(set(items)) != len(items):
             raise serializers.ValidationError("Duplicate items are not allowed.")
 
-        if len(items) > 0:
-            for item in items:
-                if item not in AUDIT_LOG_CSV_COLUMN_NAMES.keys():
-                    raise serializers.ValidationError(f"{item} is not a valid choice.")
-
-        if len(items) == len(self.child.choices):
+        if len(items) == len(AUDIT_LOG_CSV_COLUMN_NAMES):
             raise serializers.ValidationError("At least one column must be included.")
 
-        return value
+        return ",".join(items)
 
 
 class AuditLogExportJobType(JobType):
@@ -175,7 +180,9 @@ class AuditLogExportJobType(JobType):
             required=False,
             help_text=(
                 "Optional: A comma separated list of column names to exclude from the export. "
-                f"Available options are `{', '.join(AUDIT_LOG_CSV_COLUMN_NAMES.keys())}`."
+                f"Available options are `{', '.join(AUDIT_LOG_CSV_COLUMN_NAMES.keys())}`. "
+                "The legacy `user_email` and `user_id` names are accepted as aliases "
+                "for `actor_name` and `actor_id`."
             ),
         ),
     }
