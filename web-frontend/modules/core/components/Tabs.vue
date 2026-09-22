@@ -36,6 +36,10 @@
         >
           <i v-if="tab.icon" :class="tab.icon"></i>
           {{ tab.title }}
+          <DevelopmentBadge
+            v-if="tab.developmentStage"
+            :stage="tab.developmentStage"
+          />
           <i v-if="tab.appendIcon" :class="tab.appendIcon"></i>
         </a>
       </li>
@@ -46,8 +50,11 @@
 </template>
 
 <script>
+import DevelopmentBadge from '@baserow/modules/core/components/DevelopmentBadge'
+
 export default {
   name: 'Tabs',
+  components: { DevelopmentBadge },
   provide() {
     return {
       tabsProvider: {
