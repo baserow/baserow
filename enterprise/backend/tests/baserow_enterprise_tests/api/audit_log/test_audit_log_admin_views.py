@@ -132,6 +132,35 @@ def test_audit_log_actor_filter_returns_users_and_agents_in_separate_types(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_audit_log_actor_filter_searches_users_and_agents(
+    api_client, enterprise_data_fixture
+):
+    admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token(
+        email="admin@test.com"
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    matching_user = enterprise_data_fixture.create_user(email="matching@test.com")
+    matching_agent = Agent.objects.create(workspace=workspace, name="Matching robot")
+    Agent.objects.create(workspace=workspace, name="Other robot")
+
+    response = api_client.get(
+        reverse("api:enterprise:audit_log:actors") + "?search=matching",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert {
+        (result["actor_type"], result["actor_id"])
+        for result in response.json()["results"]
+    } == {
+        (UserSubjectType.type, matching_user.id),
+        (AgentSubjectType.type, matching_agent.id),
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_audit_log_actor_filter_returns_pagination_links(
     api_client, enterprise_data_fixture
 ):
@@ -140,7 +169,7 @@ def test_audit_log_actor_filter_returns_pagination_links(
     )
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     other_user = enterprise_data_fixture.create_user(email="other@test.com")
-    Agent.objects.create(workspace=workspace, name="Audit robot")
+    agent = Agent.objects.create(workspace=workspace, name="Audit robot")
     url = reverse("api:enterprise:audit_log:actors")
 
     response = api_client.get(
@@ -161,8 +190,26 @@ def test_audit_log_actor_filter_returns_pagination_links(
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["next"] is None
+    assert response.json()["next"].endswith(f"{url}?page=3&size=1")
     assert response.json()["previous"].endswith(f"{url}?size=1")
+    assert response.json()["results"] == [
+        {
+            "id": f"{AgentSubjectType.type}:{agent.id}",
+            "actor_id": agent.id,
+            "actor_type": AgentSubjectType.type,
+            "value": agent.name,
+        }
+    ]
+
+    response = api_client.get(
+        f"{url}?page=3&size=1",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["next"] is None
+    assert response.json()["previous"].endswith(f"{url}?page=2&size=1")
     assert response.json()["results"] == [
         {
             "id": f"{UserSubjectType.type}:{other_user.id}",

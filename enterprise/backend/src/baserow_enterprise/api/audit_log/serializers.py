@@ -55,6 +55,9 @@ class AuditLogActorFilterQueryParamsSerializer(
 ):
     page = serializers.IntegerField(min_value=1, required=False, default=1)
     size = serializers.IntegerField(min_value=1, required=False)
+    search = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, default=None
+    )
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
@@ -106,10 +109,13 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 
 class AuditLogActorFilterSerializer(serializers.Serializer):
-    id = serializers.CharField()
-    actor_id = serializers.IntegerField()
-    actor_type = serializers.CharField()
-    value = serializers.CharField()
+    id = serializers.SerializerMethodField()
+    actor_id = serializers.IntegerField(source="subject_id")
+    actor_type = serializers.CharField(source="subject_type")
+    value = serializers.CharField(source="subject_label")
+
+    def get_id(self, instance):
+        return f"{instance['subject_type']}:{instance['subject_id']}"
 
 
 class AuditLogActionTypeSerializer(serializers.Serializer):
