@@ -265,9 +265,6 @@ class DatabaseConfig(AppConfig):
         field_type_registry.register(AutonumberFieldType())
         field_type_registry.register(PasswordFieldType())
         field_type_registry.register(FormViewEditRowFieldType())
-        # Always registered so tables holding an existing button field stay
-        # readable when the flag is off. Creation and dispatch are gated
-        # separately, so a click then answers ERROR_FEATURE_DISABLED.
         field_type_registry.register(ButtonFieldType())
 
         from .workflow_actions.registries import database_workflow_action_type_registry

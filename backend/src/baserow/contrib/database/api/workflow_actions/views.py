@@ -116,9 +116,7 @@ class DatabaseWorkflowActionsView(APIView):
                     "ERROR_SERVICE_INVALID_TYPE",
                 ]
             ),
-            403: get_error_schema(
-                ["ERROR_FEATURE_DISABLED", "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]
-            ),
+            403: get_error_schema(["ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]),
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
@@ -178,7 +176,6 @@ class DatabaseWorkflowActionsView(APIView):
                 many=True,
             ),
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
@@ -231,7 +228,6 @@ class DatabaseWorkflowActionView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST"]),
         },
     )
@@ -288,9 +284,7 @@ class DatabaseWorkflowActionView(APIView):
                     "ERROR_SERVICE_INVALID_TYPE",
                 ]
             ),
-            403: get_error_schema(
-                ["ERROR_FEATURE_DISABLED", "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]
-            ),
+            403: get_error_schema(["ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]),
             404: get_error_schema(
                 [
                     "ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST",
@@ -367,7 +361,6 @@ class OrderDatabaseWorkflowActionsView(APIView):
                     "ERROR_WORKFLOW_ACTION_NOT_IN_FIELD",
                 ]
             ),
-            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
             404: get_error_schema(["ERROR_FIELD_DOES_NOT_EXIST"]),
         },
     )
@@ -531,9 +524,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                     "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED",
                 ]
             ),
-            403: get_error_schema(
-                ["ERROR_FEATURE_DISABLED", "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]
-            ),
+            403: get_error_schema(["ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"]),
             404: get_error_schema(
                 [
                     "ERROR_FIELD_DOES_NOT_EXIST",

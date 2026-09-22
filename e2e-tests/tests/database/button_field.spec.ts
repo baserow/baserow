@@ -1483,8 +1483,6 @@ test.describe("Button field", () => {
     const context = page.locator(".field-context:visible");
     await context.getByPlaceholder("Name").fill("Made");
 
-    // The type only appears here while the feature flag is on, so picking it
-    // is the flag's only end to end coverage.
     await context.locator(".dropdown").first().click();
     await page
       .locator(".dropdown__items:visible")
