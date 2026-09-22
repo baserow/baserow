@@ -124,7 +124,7 @@ export const registerRealtimeEvents = (realtime) => {
   const refetchSelectedWorkflowHistory = ({ store }, data) => {
     const selectedWorkflow = store.getters['automationWorkflow/getSelected']
     if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
-      store.dispatch('automationHistory/fetchWorkflowHistory', {
+      store.dispatch('automationHistory/refreshWorkflowHistory', {
         workflowId: data.workflow_id,
       })
     }
