@@ -5,6 +5,7 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK
 
+from baserow.api.sessions import set_untrusted_client_session_id
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
@@ -22,6 +23,7 @@ from baserow.contrib.database.workflow_actions.telemetry import (
     record_workflow_action_dispatched,
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
+from baserow.core.services.types import DispatchResult
 
 POSTHOG_PROPERTIES = {
     "database_id",
@@ -65,6 +67,7 @@ def test_the_posthog_event_carries_the_documented_properties(
     mock_capture, data_fixture
 ):
     user = data_fixture.create_user()
+    set_untrusted_client_session_id(user, "session-1")
     table, button_field, _, workflow_actions = _button_with_three_actions(
         data_fixture, user
     )
@@ -99,6 +102,7 @@ def test_the_posthog_event_carries_the_documented_properties(
         "external_action_count": 1,
     }
     assert kwargs["workspace"] == table.database.workspace
+    assert kwargs["session"] == "session-1"
 
 
 @pytest.mark.django_db
@@ -188,7 +192,7 @@ def test_an_action_adds_to_the_action_metrics(counter, duration):
         dispatch_context=None,
         position=1,
         succeeded=True,
-        result=object(),
+        result=DispatchResult(),
         duration_ms=10.0,
     )
     record_workflow_action_dispatched(
@@ -196,6 +200,15 @@ def test_an_action_adds_to_the_action_metrics(counter, duration):
         workflow_action=_FakeAction(),
         dispatch_context=None,
         position=2,
+        succeeded=True,
+        result=DispatchResult(status=504),
+        duration_ms=30.0,
+    )
+    record_workflow_action_dispatched(
+        sender=None,
+        workflow_action=_FakeAction(),
+        dispatch_context=None,
+        position=3,
         succeeded=False,
         result=None,
         duration_ms=20.0,
@@ -203,10 +216,12 @@ def test_an_action_adds_to_the_action_metrics(counter, duration):
 
     assert counter.add.call_args_list == [
         call(1, {"action_type": "http_request", "result": "ok"}),
+        call(1, {"action_type": "http_request", "result": "error_status"}),
         call(1, {"action_type": "http_request", "result": "failed"}),
     ]
     assert duration.record.call_args_list == [
         call(10.0, {"action_type": "http_request", "result": "ok"}),
+        call(30.0, {"action_type": "http_request", "result": "error_status"}),
         call(20.0, {"action_type": "http_request", "result": "failed"}),
     ]
 
@@ -240,7 +255,7 @@ def test_the_metric_receivers_are_connected(
         dispatch_context=None,
         position=1,
         succeeded=True,
-        result=object(),
+        result=DispatchResult(),
         duration_ms=1.0,
     )
 

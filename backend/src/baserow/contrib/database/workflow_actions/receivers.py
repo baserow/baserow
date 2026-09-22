@@ -1,6 +1,7 @@
 from django.db import transaction
 from django.db.models.signals import pre_delete
 
+from baserow.api.sessions import get_untrusted_client_session_id
 from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     DatabaseWorkflowServiceAction,
@@ -86,6 +87,7 @@ def capture_button_field_dispatched(
             "client_action_count": sum(t.is_frontend_only for t in types),
             "external_action_count": sum(t.is_external for t in types),
         },
+        session=get_untrusted_client_session_id(user),
         workspace=table.database.workspace,
     )
 

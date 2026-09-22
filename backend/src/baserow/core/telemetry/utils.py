@@ -211,12 +211,7 @@ def baserow_trace_phase(
         yield span
 
 
-def _baserow_trace_func(
-    wrapped_func,
-    tracer: Tracer,
-    allow_nested: bool = False,
-    record_exception: bool = True,
-):
+def _baserow_trace_func(wrapped_func, tracer: Tracer, allow_nested: bool = False):
     span_level = (
         _BASEROW_SPAN_LEVEL_PHASE if allow_nested else _BASEROW_SPAN_LEVEL_OPERATION
     )
@@ -225,12 +220,7 @@ def _baserow_trace_func(
 
         @functools.wraps(wrapped_func)
         async def _async_wrapper(*args, **kwargs):
-            with _baserow_trace_span(
-                tracer,
-                wrapped_func.__qualname__,
-                span_level,
-                record_exception=record_exception,
-            ):
+            with _baserow_trace_span(tracer, wrapped_func.__qualname__, span_level):
                 return await wrapped_func(*args, **kwargs)
 
         wrapper = _async_wrapper
@@ -238,21 +228,12 @@ def _baserow_trace_func(
 
         @functools.wraps(wrapped_func)
         def _sync_wrapper(*args, **kwargs):
-            with _baserow_trace_span(
-                tracer,
-                wrapped_func.__qualname__,
-                span_level,
-                record_exception=record_exception,
-            ):
+            with _baserow_trace_span(tracer, wrapped_func.__qualname__, span_level):
                 return wrapped_func(*args, **kwargs)
 
         wrapper = _sync_wrapper
 
-    setattr(
-        wrapper,
-        _BASEROW_TRACE_CONFIG_ATTR,
-        (tracer, allow_nested, record_exception),
-    )
+    setattr(wrapper, _BASEROW_TRACE_CONFIG_ATTR, (tracer, allow_nested))
     return wrapper
 
 
@@ -262,31 +243,17 @@ def _get_baserow_trace_config(value):
     return getattr(value, _BASEROW_TRACE_CONFIG_ATTR, None)
 
 
-def _trace_method_descriptor(
-    value, tracer: Tracer, allow_nested: bool, record_exception: bool = True
-):
+def _trace_method_descriptor(value, tracer: Tracer, allow_nested: bool):
     if isinstance(value, classmethod):
         return classmethod(
-            _baserow_trace_func(
-                value.__func__,
-                tracer,
-                allow_nested=allow_nested,
-                record_exception=record_exception,
-            )
+            _baserow_trace_func(value.__func__, tracer, allow_nested=allow_nested)
         )
     if isinstance(value, staticmethod):
         return staticmethod(
-            _baserow_trace_func(
-                value.__func__,
-                tracer,
-                allow_nested=allow_nested,
-                record_exception=record_exception,
-            )
+            _baserow_trace_func(value.__func__, tracer, allow_nested=allow_nested)
         )
     if inspect.isfunction(value):
-        return _baserow_trace_func(
-            value, tracer, allow_nested=allow_nested, record_exception=record_exception
-        )
+        return _baserow_trace_func(value, tracer, allow_nested=allow_nested)
     raise TypeError(
         "baserow_trace can only decorate functions, classmethods, or staticmethods"
     )
@@ -336,16 +303,11 @@ class BaserowTraceMeta(ABCMeta):
             if trace_config is None:
                 continue
 
-            tracer, allow_nested, record_exception = trace_config
+            tracer, allow_nested = trace_config
             setattr(
                 created_class,
                 attr,
-                _trace_method_descriptor(
-                    value,
-                    tracer,
-                    allow_nested=allow_nested,
-                    record_exception=record_exception,
-                ),
+                _trace_method_descriptor(value, tracer, allow_nested=allow_nested),
             )
         return created_class
 
@@ -357,7 +319,7 @@ class BaserowTraceMeta(ABCMeta):
         return None
 
 
-def baserow_trace(tracer, *, allow_nested: bool = False, record_exception: bool = True):
+def baserow_trace(tracer, *, allow_nested: bool = False):
     """
     Decorates a function to send a span of its execution. This will let you see how
     long the function took in your telemetry platform.
@@ -366,9 +328,6 @@ def baserow_trace(tracer, *, allow_nested: bool = False, record_exception: bool 
         of your file to get one.
     :param allow_nested: Whether this is an important phase which may create one span
         below a domain operation.
-    :param record_exception: Set to False when a failure's message may name an
-        address or other sensitive detail; only the exception's class is then kept
-        on the span.
     """
 
     if not isinstance(tracer, Tracer):
@@ -381,10 +340,7 @@ def baserow_trace(tracer, *, allow_nested: bool = False, record_exception: bool 
 
     def inner(wrapped_function_or_cls):
         return _trace_method_descriptor(
-            wrapped_function_or_cls,
-            tracer,
-            allow_nested=allow_nested,
-            record_exception=record_exception,
+            wrapped_function_or_cls, tracer, allow_nested=allow_nested
         )
 
     return inner

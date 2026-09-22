@@ -72,7 +72,6 @@ from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
 from baserow.core.telemetry.utils import (
     add_baserow_trace_attrs,
-    baserow_trace,
     baserow_trace_phase,
 )
 from baserow.core.trash.handler import TrashHandler
@@ -555,6 +554,7 @@ class DatabaseWorkflowActionService:
                 self,
                 workflow_action=workflow_action,
                 dispatch_context=dispatch_context,
+                field=dispatch_context.field,
                 position=position,
                 succeeded=result is not None,
                 result=result,
@@ -638,9 +638,6 @@ class DatabaseWorkflowActionService:
                 action_id=workflow_action.id,
             )
 
-    # An external action's exception message can name the address it reached
-    # (with its query string), so this span never records it.
-    @baserow_trace(tracer, record_exception=False)
     def dispatch_workflow_actions(
         self,
         user: AbstractUser,
@@ -648,6 +645,7 @@ class DatabaseWorkflowActionService:
         row: Any,
         workflow_actions: Optional[List[DatabaseWorkflowAction]] = None,
         on_external_dispatch: Optional[Callable[[DatabaseWorkflowAction], None]] = None,
+        on_action_failed: Optional[Callable[[int], None]] = None,
     ) -> WorkflowActionsDispatchResult:
         """
         Runs the server-side actions in order as the given user, and hands the
@@ -665,6 +663,8 @@ class DatabaseWorkflowActionService:
         :param on_external_dispatch: Called just before each action that
             reaches outside Baserow, so the caller learns what the click really
             sent rather than what the button is configured to send.
+        :param on_action_failed: Called with the position of the action that
+            failed, whatever it raised.
         :raises WorkflowActionDispatchInProgress: When a click is already running
             for this field and row.
         :raises WorkflowActionDispatchError: When an action fails with a message
@@ -692,6 +692,8 @@ class DatabaseWorkflowActionService:
         if workflow_actions is None:
             workflow_actions = self.get_dispatch_snapshot(field)
 
+        # On the request's span: one of its own would be marked failed by every
+        # refused click, a double click included.
         add_baserow_trace_attrs(
             field_id=field.id,
             workspace_id=field.table.database.workspace_id,
@@ -862,6 +864,8 @@ class DatabaseWorkflowActionService:
                         duration_ms=(perf_counter() - started) * 1000,
                     )
                     if exc is not None:
+                        if on_action_failed:
+                            on_action_failed(positions[workflow_action.id])
                         if (
                             is_external
                             and on_external_dispatch

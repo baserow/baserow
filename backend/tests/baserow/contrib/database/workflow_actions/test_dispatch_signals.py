@@ -1,4 +1,5 @@
 import logging
+import sys
 from contextlib import contextmanager
 from unittest.mock import Mock, patch
 
@@ -12,6 +13,7 @@ from rest_framework.status import (
     HTTP_200_OK,
     HTTP_400_BAD_REQUEST,
     HTTP_403_FORBIDDEN,
+    HTTP_404_NOT_FOUND,
     HTTP_409_CONFLICT,
     HTTP_429_TOO_MANY_REQUESTS,
 )
@@ -122,6 +124,7 @@ def test_each_server_action_sends_dispatched_with_its_result(data_fixture):
     assert all(
         c["dispatch_context"].field.id == button_field.id for c in recorder.calls
     )
+    assert all(c["field"] is c["dispatch_context"].field for c in recorder.calls)
 
 
 @pytest.mark.django_db
@@ -599,7 +602,7 @@ def test_a_click_on_a_deactivated_type_sends_deactivated(api_client, data_fixtur
 
 
 @pytest.mark.django_db
-def test_an_outsiders_click_sends_denied_without_a_snapshot(api_client, data_fixture):
+def test_an_outsiders_click_sends_nothing(api_client, data_fixture):
     owner = data_fixture.create_user()
     _, outsider_token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, owner)
@@ -609,9 +612,75 @@ def test_an_outsiders_click_sends_denied_without_a_snapshot(api_client, data_fix
         response = _click(api_client, outsider_token, button_field, row.id)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
+    assert calls == []
+
+
+@pytest.mark.django_db
+def test_a_click_on_a_missing_row_sends_row_not_found(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+
+    with _received(button_field_dispatched) as calls:
+        response = _click(api_client, token, button_field, row.id + 1000)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert [call["outcome"] for call in calls] == [DispatchOutcome.ROW_NOT_FOUND]
+
+
+@pytest.mark.django_db
+def test_an_action_that_crashes_sends_error_with_its_position(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table, "first")
+    _add_row_action(data_fixture, button_field, table, "second")
+    real_dispatch = DatabaseWorkflowActionService().handler.dispatch_workflow_action
+    dispatches = []
+
+    def crash_on_the_second(workflow_action, dispatch_context):
+        dispatches.append(workflow_action)
+        if len(dispatches) == 2:
+            raise RuntimeError("boom")
+        return real_dispatch(workflow_action, dispatch_context)
+
+    with patch(
+        "baserow.contrib.database.workflow_actions.handler."
+        "DatabaseWorkflowActionHandler.dispatch_workflow_action",
+        side_effect=crash_on_the_second,
+    ):
+        with _received(button_field_dispatched) as calls:
+            with pytest.raises(RuntimeError):
+                _click(api_client, token, button_field, row.id)
+
     assert len(calls) == 1
-    assert calls[0]["outcome"] == DispatchOutcome.DENIED
-    assert calls[0]["workflow_actions"] == []
+    assert calls[0]["outcome"] == DispatchOutcome.ERROR
+    assert calls[0]["failed_position"] == 2
+
+
+@pytest.mark.django_db
+def test_a_failed_click_is_not_being_handled_when_its_receivers_run(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    data_fixture.create_database_workflow_action(
+        LocalBaserowDeleteRowWorkflowAction, field=button_field
+    )
+    handled = []
+
+    def receiver(sender, **kwargs):
+        # An exception raised here would carry this one as its context.
+        handled.append(sys.exception())
+
+    button_field_dispatched.connect(receiver)
+    try:
+        response = _click(api_client, token, button_field, row.id)
+    finally:
+        button_field_dispatched.disconnect(receiver)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert handled == [None]
 
 
 @pytest.mark.django_db

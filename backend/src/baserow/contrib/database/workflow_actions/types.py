@@ -22,6 +22,7 @@ class DispatchOutcome(StrEnum):
     IN_PROGRESS = "in_progress"
     DEACTIVATED = "deactivated"
     DENIED = "denied"
+    ROW_NOT_FOUND = "row_not_found"
     ERROR = "error"
 
 

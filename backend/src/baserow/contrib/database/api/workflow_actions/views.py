@@ -425,6 +425,8 @@ def _outcome_for(exc: Exception) -> Tuple[DispatchOutcome, Optional[int]]:
         return DispatchOutcome.IN_PROGRESS, None
     if isinstance(exc, WorkflowActionTypeDeactivated):
         return DispatchOutcome.DEACTIVATED, None
+    if isinstance(exc, RowDoesNotExist):
+        return DispatchOutcome.ROW_NOT_FOUND, None
     # A 403 from outside core is a plugin refusing the click, a SaaS quota for
     # instance, which core has no error code for.
     if isinstance(exc, (PermissionException, DjangoPermissionDenied)) or (
@@ -607,24 +609,10 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
 
         started = perf_counter()
-        # Starts as ERROR: anything that skips both the `return` below and the
-        # `except`, a worker timeout for instance, must not count as completed.
-        outcome, failed_position = DispatchOutcome.ERROR, None
         workflow_actions: List[DatabaseWorkflowAction] = []
-        try:
-            row = RowHandler().get_row(request.user, field.table, data["row_id"])
+        failed_positions: List[int] = []
 
-            service = DatabaseWorkflowActionService()
-            # Read once for the budget, the permission checks and the run, so all
-            # three describe the same click.
-            workflow_actions = service.get_dispatch_snapshot(field)
-            response = self._run_click(request, field, row, service, workflow_actions)
-            outcome = DispatchOutcome.COMPLETED
-            return response
-        except Exception as exc:
-            outcome, failed_position = _outcome_for(exc)
-            raise
-        finally:
+        def send_dispatched(outcome, failed_position=None):
             # Refused clicks leave no audit entry, so this is the only place
             # they are counted.
             button_field_dispatched.send_robust(
@@ -638,6 +626,40 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 duration_ms=(perf_counter() - started) * 1000,
             )
 
+        error = None
+        try:
+            row = RowHandler().get_row(request.user, field.table, data["row_id"])
+
+            service = DatabaseWorkflowActionService()
+            # Read once for the budget, the permission checks and the run, so all
+            # three describe the same click.
+            workflow_actions = service.get_dispatch_snapshot(field)
+            response = self._run_click(
+                request, field, row, service, workflow_actions, failed_positions
+            )
+        except Exception as exc:
+            error = exc
+        except BaseException:
+            # A worker timeout, for instance, must not go uncounted.
+            send_dispatched(DispatchOutcome.ERROR)
+            raise
+
+        # Sent outside the `except`, so a receiver's own failure does not carry
+        # the click's, whose message can name the address an action reached.
+        # Not for someone outside the workspace: anyone could send those, each
+        # tagged with another workspace's ids.
+        if error is None:
+            send_dispatched(DispatchOutcome.COMPLETED)
+        elif not isinstance(error, UserNotInWorkspace):
+            outcome, failed_position = _outcome_for(error)
+            send_dispatched(
+                outcome, failed_position or next(iter(failed_positions), None)
+            )
+
+        if error is not None:
+            raise error
+        return response
+
     def _run_click(
         self,
         request,
@@ -645,6 +667,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         row,
         service: DatabaseWorkflowActionService,
         workflow_actions: List[DatabaseWorkflowAction],
+        failed_positions: List[int],
     ) -> Response:
         reservations = self._reserve_dispatch_budget(request, field, workflow_actions)
         reached_outside = []
@@ -656,6 +679,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 row,
                 workflow_actions=workflow_actions,
                 on_external_dispatch=reached_outside.append,
+                on_action_failed=failed_positions.append,
             )
         finally:
             # Charged for what the click really sent. Without this a member

@@ -34,7 +34,7 @@ workflow_actions_reordered = Signal()
 # yet and the lock is released.
 workflow_actions_before_dispatch = Signal()
 
-# Sent once per server-side action with `succeeded`, `position` and
+# Sent once per server-side action with `field`, `succeeded`, `position` and
 # `duration_ms`, and with `result` when it succeeded. Receivers must not read
 # the result's data, which for an external action can name the address, and must
 # not write to `result` or `dispatch_context`, which later actions read. A

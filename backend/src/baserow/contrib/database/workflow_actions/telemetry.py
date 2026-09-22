@@ -32,12 +32,22 @@ def record_button_field_dispatched(sender, outcome, duration_ms, **kwargs):
     button_field_dispatch_duration.record(duration_ms, attributes)
 
 
+def _result_label(succeeded, result) -> str:
+    if not succeeded:
+        return "failed"
+    # An HTTP action answers a timeout or a remote error with a result of its
+    # own rather than raising.
+    if result.status >= 400:
+        return "error_status"
+    return "ok"
+
+
 def record_workflow_action_dispatched(
-    sender, workflow_action, succeeded, duration_ms, **kwargs
+    sender, workflow_action, succeeded, result, duration_ms, **kwargs
 ):
     attributes = {
         "action_type": workflow_action.get_type().type,
-        "result": "ok" if succeeded else "failed",
+        "result": _result_label(succeeded, result),
     }
     workflow_action_dispatch_counter.add(1, attributes)
     workflow_action_dispatch_duration.record(duration_ms, attributes)

@@ -155,43 +155,20 @@ def test_baserow_trace_keeps_entrypoint_operation_and_phase_hierarchy():
     provider.shutdown()
 
 
-def test_baserow_trace_record_exception_false_keeps_only_the_exception_class():
+def test_baserow_trace_phase_record_exception_false_keeps_only_the_class():
     provider, tracer, exporter = _tracer_with_memory_exporter()
 
-    @baserow_trace(tracer, record_exception=False)
-    def leaks_a_url():
-        raise RuntimeError(SECRET)
-
-    with pytest.raises(RuntimeError):
-        leaks_a_url()
-
-    (span,) = exporter.get_finished_spans()
-    assert span.status.status_code == StatusCode.ERROR
-    assert span.attributes["baserow.exception_type"] == "RuntimeError"
-    assert span.events == ()
-    _assert_the_secret_never_leaked(exporter.get_finished_spans())
-    provider.shutdown()
-
-
-def test_baserow_trace_phase_record_exception_false_keeps_the_secret_off_both_spans():
-    provider, tracer, exporter = _tracer_with_memory_exporter()
-
-    @baserow_trace(tracer, record_exception=False)
-    def outer_operation():
+    with pytest.raises(ConnectionError):
         with baserow_trace_phase(tracer, "phase", record_exception=False):
             try:
                 raise ValueError(SECRET)
             except ValueError as cause:
                 raise ConnectionError("refused") from cause
 
-    with pytest.raises(ConnectionError):
-        outer_operation()
-
-    phase_span, operation_span = exporter.get_finished_spans()
-    for span in (phase_span, operation_span):
-        assert span.status.status_code == StatusCode.ERROR
-        assert span.attributes["baserow.exception_type"] == "ConnectionError"
-        assert span.events == ()
+    (span,) = exporter.get_finished_spans()
+    assert span.status.status_code == StatusCode.ERROR
+    assert span.attributes["baserow.exception_type"] == "ConnectionError"
+    assert span.events == ()
     _assert_the_secret_never_leaked(exporter.get_finished_spans())
     provider.shutdown()
 
