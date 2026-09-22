@@ -149,7 +149,9 @@ describe('Chart', () => {
     ).toEqual([2])
     expect(barResize).toHaveBeenCalledWith(400, 200)
     expect(resizeObservers).toHaveLength(1)
-    expect(wrapper.emitted('rendered')).toBeTruthy()
+    await vi.waitFor(() => {
+      expect(wrapper.emitted('rendered')).toBeTruthy()
+    })
   })
 
   test('renders the responsive chart container when data becomes available', async () => {

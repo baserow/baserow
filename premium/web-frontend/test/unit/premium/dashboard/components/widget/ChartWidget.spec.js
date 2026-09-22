@@ -1,3 +1,4 @@
+import { useNuxtApp } from '#app'
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import {
   ChartWidgetType,
