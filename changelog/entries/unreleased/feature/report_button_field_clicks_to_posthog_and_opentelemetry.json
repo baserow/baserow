@@ -1,9 +1,0 @@
-{
-    "type": "feature",
-    "message": "Report button field clicks and their actions to PostHog and OpenTelemetry",
-    "issue_origin": "github",
-    "issue_number": null,
-    "domain": "database",
-    "bullet_points": [],
-    "created_at": "2026-09-17"
-}
