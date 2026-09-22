@@ -6,7 +6,7 @@
     <div ref="app" class="layout">
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
         <SidebarAllWorkspaces
-          v-if="sidebarType === 'all-workspaces'"
+          v-if="sidebarType === SIDEBAR_TYPES.ALL_WORKSPACES"
           :workspaces="workspaces"
           :selected-workspace="selectedWorkspace"
           :collapsed="isCollapsed"
@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
 
 import Toasts from '@baserow/modules/core/components/toasts/Toasts.vue'
@@ -86,12 +86,16 @@ import RightSidebar from '@baserow/modules/core/components/sidebar/RightSidebar.
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize.vue'
 import GuidedTour from '@baserow/modules/core/components/guidedTour/GuidedTour.vue'
 import WorkspaceSearchModal from '@baserow/modules/core/components/workspace/WorkspaceSearchModal.vue'
-import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
+import {
+  CORE_ACTION_SCOPES,
+  getSidebarActionScopes,
+} from '@baserow/modules/core/utils/undoRedoConstants'
 import {
   isOsSpecificModifierPressed,
   keyboardShortcutsToPriorityEventBus,
 } from '@baserow/modules/core/utils/events'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
 
 const store = useStore()
 const { $registry, $priorityBus, $realtime, $bus } = useNuxtApp()
@@ -113,8 +117,33 @@ const route = useRoute()
 const router = useRouter()
 
 // Pages can render an alternative sidebar via
-// `definePageMeta({ sidebarType: 'all-workspaces' })`.
-const sidebarType = computed(() => route.meta.sidebarType ?? 'workspace')
+// `definePageMeta({ sidebarType: SIDEBAR_TYPES.ALL_WORKSPACES })`.
+const sidebarType = computed(
+  () => route.meta.sidebarType ?? SIDEBAR_TYPES.WORKSPACE
+)
+
+// The sidebar decides which workspace and application level actions the user
+// can undo, so the corresponding scopes follow it and the store selections here
+// rather than in every page. The selections stay in the store when navigating
+// to a page that doesn't select anything (settings, the homepage), so the
+// scopes are re-derived from them whenever the sidebar changes.
+const selectedApplication = computed(
+  () => store.getters['application/getSelected']
+)
+watch(
+  () => [
+    sidebarType.value,
+    selectedWorkspace.value?.id ?? null,
+    selectedApplication.value?.id ?? null,
+  ],
+  ([type, workspaceId, applicationId]) => {
+    store.dispatch(
+      'undoRedo/updateCurrentScopeSet',
+      getSidebarActionScopes({ sidebarType: type, workspaceId, applicationId })
+    )
+  },
+  { immediate: true }
+)
 
 // The right sidebar contains workspace specific components, like the assistant, so
 // it must not render on pages without a workspace context. The open state is kept,

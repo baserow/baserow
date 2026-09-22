@@ -430,6 +430,7 @@ class CoreConfig(AppConfig):
         action_type_registry.register(AdminDisableTwoFactorAuthActionType())
 
         from baserow.core.action.scopes import (
+            AllWorkspacesActionScopeType,
             ApplicationActionScopeType,
             RootActionScopeType,
             WorkspaceActionScopeType,
@@ -437,6 +438,7 @@ class CoreConfig(AppConfig):
 
         action_scope_registry.register(RootActionScopeType())
         action_scope_registry.register(WorkspaceActionScopeType())
+        action_scope_registry.register(AllWorkspacesActionScopeType())
         action_scope_registry.register(ApplicationActionScopeType())
 
         from baserow.core.jobs.registries import job_type_registry

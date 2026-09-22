@@ -105,8 +105,8 @@ import WorkspaceInvitation from '@baserow/modules/core/components/workspace/Work
 import AllWorkspacesHeader from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesHeader'
 import AllWorkspacesWorkspaceBox from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesWorkspaceBox'
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
-import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import { getRoleTranslations } from '@baserow/modules/core/store/workspace'
+import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
 import {
   isTypeFilterActive,
   matchesQuery,
@@ -118,7 +118,7 @@ const HIDDEN_ROLE_UIDS = ['NO_ACCESS', 'NO_ROLE_LOW_PRIORITY']
 
 definePageMeta({
   layout: 'app',
-  sidebarType: 'all-workspaces',
+  sidebarType: SIDEBAR_TYPES.ALL_WORKSPACES,
   middleware: [
     'settings',
     'authenticated',
@@ -131,13 +131,6 @@ definePageMeta({
 const store = useStore()
 const router = useRouter()
 const { $registry, $i18n } = useNuxtApp()
-
-// The page is workspace agnostic, so the undo/redo buttons in the sidebar footer
-// must not act on the scope of a previously visited workspace.
-store.dispatch(
-  'undoRedo/updateCurrentScopeSet',
-  CORE_ACTION_SCOPES.workspace(null)
-)
 
 const workspaceInvitations = computed(
   () => store.getters['auth/getWorkspaceInvitations']
