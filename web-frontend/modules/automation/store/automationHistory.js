@@ -8,38 +8,31 @@ const state = () => ({
   // Holds the value of which workflow history is currently selected
   workflowHistory: {},
   page: 1,
-  requestedPage: 1,
   refreshPending: false,
   workflowId: null,
-  loading: false,
-  requestId: 0,
+  request: null,
   nodeHistoriesByWorkflowHistory: {},
   nodeResults: {},
 })
 
 const mutations = {
   START_HISTORY_REQUEST(state, { workflowId, page, refresh }) {
-    state.requestId += 1
     state.workflowId = workflowId
-    state.requestedPage = page
+    state.request = { page, refresh }
     state.refreshPending = false
-    if (!refresh) state.loading = true
   },
   FINISH_HISTORY_REQUEST(state) {
-    state.loading = false
-    state.requestedPage = state.page
+    state.request = null
   },
   SET_REFRESH_PENDING(state, pending) {
     state.refreshPending = pending
   },
   RESET_HISTORY(state) {
-    state.requestId += 1
     state.workflowId = null
     state.workflowHistory = {}
     state.page = 1
-    state.requestedPage = 1
     state.refreshPending = false
-    state.loading = false
+    state.request = null
   },
   SET_WORKFLOW_HISTORY(state, { data, page }) {
     state.workflowHistory = data
@@ -71,11 +64,11 @@ const actions = {
     { workflowId, page = 1, refresh = false }
   ) {
     commit('START_HISTORY_REQUEST', { workflowId, page, refresh })
-    const requestId = state.requestId
+    const request = state.request
     try {
       const service = AutomationHistoryService(useNuxtApp().$client)
       let { data } = await service.getWorkflowHistory(workflowId, page)
-      if (requestId !== state.requestId) return
+      if (request !== state.request) return
       const lastPage = Math.max(
         1,
         Math.ceil(data.count / WORKFLOW_HISTORY_PAGE_SIZE)
@@ -86,29 +79,29 @@ const actions = {
         ;({ data } = await service.getWorkflowHistory(workflowId, page))
       }
       // Navigation and closing the panel invalidate earlier responses.
-      if (requestId !== state.requestId) return
+      if (request !== state.request) return
       commit('SET_WORKFLOW_HISTORY', { data, page })
       return data
     } catch (error) {
-      if (requestId === state.requestId) throw error
+      if (request === state.request) throw error
     } finally {
-      if (requestId === state.requestId) {
+      if (request === state.request) {
         commit('FINISH_HISTORY_REQUEST')
         if (state.refreshPending) {
-          commit('SET_REFRESH_PENDING', false)
-          await dispatch('refreshWorkflowHistory', { workflowId })
+          // Realtime updates must not delay the navigation caller.
+          dispatch('refreshWorkflowHistory', { workflowId })
         }
       }
     }
   },
   refreshWorkflowHistory({ state, commit, dispatch }, { workflowId }) {
-    if (state.workflowId !== workflowId || state.requestedPage !== 1) return
-    if (state.loading) {
+    const requestedPage = state.request?.page ?? state.page
+    if (state.workflowId !== workflowId || requestedPage !== 1) return
+    if (state.request) {
       // A completion event can arrive after the response snapshot was taken.
       commit('SET_REFRESH_PENDING', true)
       return
     }
-    if (state.page !== 1) return
     return dispatch('fetchWorkflowHistory', {
       workflowId,
       refresh: true,
@@ -159,8 +152,8 @@ const actions = {
       if (state.workflowId === workflowId) {
         await dispatch('fetchWorkflowHistory', {
           workflowId,
-          page: state.requestedPage,
-          refresh: !state.loading,
+          page: state.request?.page ?? state.page,
+          refresh: state.request?.refresh ?? true,
         }).catch(() => {})
       }
     }

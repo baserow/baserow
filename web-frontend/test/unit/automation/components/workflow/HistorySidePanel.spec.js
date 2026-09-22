@@ -91,6 +91,7 @@ describe('HistorySidePanel pagination', () => {
     await flushPromises()
     for (const name of [
       'automation_workflow_dispatch_started',
+      'automation_workflow_dispatch_cancellation_requested',
       'automation_workflow_dispatch_done',
     ]) {
       events[name]({ store: testApp.store }, { workflow_id: 7 })
@@ -263,5 +264,79 @@ describe('HistorySidePanel pagination', () => {
     expect(
       wrapper.findAll('.history-side-panel__counts-runs-total')[0].text()
     ).toBe('1')
+  })
+
+  test('coalesces realtime bursts while continuing to display completed responses', async () => {
+    const wrapper = await mountPanel()
+    const requests = []
+    testApp.mock
+      .onGet('automation/workflows/7/history/')
+      .reply(() => new Promise((resolve) => requests.push(resolve)))
+    const completeRun = () =>
+      events.automation_workflow_dispatch_done(
+        { store: testApp.store },
+        { workflow_id: 7 }
+      )
+    completeRun()
+    await flushPromises()
+    for (let index = 0; index < 3; index++) {
+      for (let event = 0; event < 5; event++) completeRun()
+      await flushPromises()
+      expect(requests).toHaveLength(index + 1)
+      requests[index]([
+        200,
+        {
+          count: 45,
+          success_count: 41 + index,
+          fail_count: 4 - index,
+          results: histories.slice(0, 20),
+        },
+      ])
+      await flushPromises()
+      expect(
+        wrapper.findAll('.history-side-panel__counts-runs-total')[0].text()
+      ).toBe(String(41 + index))
+      expect(requests).toHaveLength(index + 2)
+      expect(wrapper.find('.loading').exists()).toBe(false)
+    }
+    requests[3]([
+      200,
+      {
+        count: 45,
+        success_count: 44,
+        fail_count: 1,
+        results: histories.slice(0, 20),
+      },
+    ])
+    await flushPromises()
+    expect(requests).toHaveLength(4)
+    expect(
+      wrapper.findAll('.history-side-panel__counts-runs-total')[0].text()
+    ).toBe('44')
+  })
+
+  test('does not reset the current page scroll when an initial deferred refresh finishes', async () => {
+    const requests = []
+    testApp.mock
+      .onGet('automation/workflows/7/history/')
+      .reply(() => new Promise((resolve) => requests.push(resolve)))
+    const wrapper = await mountPanel()
+    events.automation_workflow_dispatch_done(
+      { store: testApp.store },
+      { workflow_id: 7 }
+    )
+    requests[0]([200, { count: 45, results: histories.slice(0, 20) }])
+    await flushPromises()
+    expect(requests).toHaveLength(2)
+    await wrapper.findAll('.paginator__button')[1].trigger('click')
+    await flushPromises()
+    requests[2]([200, { count: 45, results: histories.slice(20, 40) }])
+    await flushPromises()
+    const content = wrapper.get('.history-side-panel__content').element
+    content.scrollTop = 300
+    requests[1]([200, { count: 45, results: histories.slice(0, 20) }])
+    await flushPromises()
+    expect(wrapper.get('.paginator input').element.value).toBe('2')
+    expect(content.scrollTop).toBe(300)
   })
 })
