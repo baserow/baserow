@@ -2294,8 +2294,11 @@ class CoreResponseServiceType(CoreServiceType):
             for header in service.headers.all()
             if header.key
         }
-        body = self._normalize_response_body(service.body_type, resolved_values)
         status_code = resolved_values["status_code"]
+        body_type = (
+            RESPONSE_BODY_TYPE.EMPTY if status_code == 204 else service.body_type
+        )
+        body = self._normalize_response_body(body_type, resolved_values)
 
         try:
             with transaction.atomic():
@@ -2304,7 +2307,7 @@ class CoreResponseServiceType(CoreServiceType):
                     status_code=status_code,
                     headers=headers,
                     body=body,
-                    body_type=service.body_type,
+                    body_type=body_type,
                     source_node=source_node,
                     is_default=False,
                 )
@@ -2319,7 +2322,7 @@ class CoreResponseServiceType(CoreServiceType):
                 "status_code": status_code,
                 "headers": headers,
                 "body": body,
-                "body_type": service.body_type,
+                "body_type": body_type,
             }
         }
 
