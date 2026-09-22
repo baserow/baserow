@@ -12,6 +12,7 @@ describe('AgentsWorkspaceSettingsPageType', () => {
     })
     const workspace = { id: 42 }
 
+    expect(pageType.developmentStage).toBe('beta')
     expect(pageType.hasPermission(workspace)).toBe(true)
     expect(hasPermission).toHaveBeenCalledWith(
       'workspace.list_agents',
