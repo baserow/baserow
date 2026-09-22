@@ -1411,6 +1411,16 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
         return None
 
+    def get_options_queryset(
+        self,
+        workspace: Optional["Workspace"] = None,
+        search: str = "",
+        exclude_ids: Optional[List[int]] = None,
+    ) -> Optional[QuerySet]:
+        """Return a standardized queryset of selectable subject options."""
+
+        return None
+
     def get_label(self, subject: Subject) -> str:
         """Return the label shown when this subject is presented as an option."""
 

@@ -23,11 +23,13 @@ from baserow.api.pagination import (
 )
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.core.actions import DeleteWorkspaceActionType, OrderWorkspacesActionType
+from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.exceptions import WorkspaceDoesNotExist
+from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.registries import subject_type_registry
+from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
 from baserow_enterprise.audit_log.models import AuditLogEntry
@@ -248,41 +250,21 @@ class AuditLogActorFilterView(APIView):
     @map_exceptions({WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST})
     @validate_query_parameters(AuditLogActorFilterQueryParamsSerializer)
     def get(self, request, query_params):
-        """Return independently paginated actor types in one response."""
+        """Return searchable users and agents as audit-log actor options."""
 
         workspace_id = query_params.get("workspace_id")
         check_for_license_and_permissions_or_raise(request.user, workspace_id)
-
-        count = 0
-        next_link = None
-        previous_link = None
-        results = []
-        for subject_type in subject_type_registry.get_all():
-            queryset = subject_type.get_queryset(workspace_id)
-            if queryset is None:
-                continue
-
-            page, paginator = self.paginate_queryset(queryset, request)
-            count += paginator.page.paginator.count
-            next_link = next_link or paginator.get_next_link()
-            previous_link = previous_link or paginator.get_previous_link()
-            results.extend(
-                {
-                    "id": f"{subject_type.type}:{subject.id}",
-                    "actor_id": subject.id,
-                    "actor_type": subject_type.type,
-                    "value": subject_type.get_label(subject),
-                }
-                for subject in page
-            )
-
-        return Response(
-            {
-                "count": count,
-                "next": next_link,
-                "previous": previous_link,
-                "results": self.serializer_class(results, many=True).data,
-            }
+        workspace = None
+        if workspace_id is not None:
+            workspace = CoreHandler().get_workspace(workspace_id)
+        queryset = SubjectOptionsHandler.get_options(
+            workspace=workspace,
+            search=query_params.get("search") or "",
+            subject_types={UserSubjectType.type, AgentSubjectType.type},
+        )
+        page, paginator = self.paginate_queryset(queryset, request)
+        return paginator.get_paginated_response(
+            self.serializer_class(page, many=True).data
         )
 
 

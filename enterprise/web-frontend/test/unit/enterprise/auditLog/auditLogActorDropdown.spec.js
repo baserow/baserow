@@ -7,23 +7,25 @@ import AuditLogActorDropdown from '@baserow_enterprise/components/auditLog/Audit
 const actors = [
   {
     id: 'auth.User:1',
-    actor_id: 1,
-    actor_type: 'auth.User',
-    value: 'user@example.com',
+    subject_id: 1,
+    subject_type: 'auth.User',
+    label: 'user@example.com',
   },
   {
     id: 'core.Agent:1',
-    actor_id: 1,
-    actor_type: 'core.Agent',
-    value: 'Row writer',
+    subject_id: 1,
+    subject_type: 'core.Agent',
+    label: 'Row writer',
   },
 ]
 
-async function mountComponent() {
+async function mountComponent(fetchPage = null) {
   return await mountSuspended(AuditLogActorDropdown, {
     props: {
-      fetchPage: () =>
-        Promise.resolve({ data: { count: actors.length, results: actors } }),
+      fetchPage:
+        fetchPage ||
+        (() =>
+          Promise.resolve({ data: { count: actors.length, results: actors } })),
     },
     global: {
       mocks: {
@@ -48,5 +50,17 @@ describe('AuditLogActorDropdown', () => {
     await wrapper.findAll('.select__item-link')[2].trigger('click')
 
     expect(wrapper.emitted('input')).toEqual([[{ id: 1, type: 'core.Agent' }]])
+  })
+
+  test('forwards the search query to the actor endpoint', async () => {
+    const fetchPage = vi.fn(() =>
+      Promise.resolve({ data: { count: 0, results: [] } })
+    )
+    const wrapper = await mountComponent(fetchPage)
+    const dropdown = wrapper.findComponent(PaginatedDropdown)
+
+    await dropdown.vm.fetch(1, 'robot')
+
+    expect(fetchPage).toHaveBeenCalledWith(1, 'robot')
   })
 })

@@ -366,8 +366,8 @@ function filterActor(actor) {
     : nextFilters
 }
 
-function fetchActors(page) {
-  return service.fetchActors(page, workspaceId)
+function fetchActors(page, search) {
+  return service.fetchActors(page, search, workspaceId)
 }
 
 function filterWorkspace(wsId) {

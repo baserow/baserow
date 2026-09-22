@@ -24,6 +24,7 @@ from .search import urls as search_urls
 from .settings import urls as settings_urls
 from .snapshots import urls as snapshots_urls
 from .spectacular.views import CachedSpectacularJSONAPIView
+from .subjects import urls as subjects_urls
 from .templates import urls as templates_urls
 from .trash import urls as trash_urls
 from .two_factor_auth import urls as two_factor_urls
@@ -56,6 +57,7 @@ urlpatterns = (
         path("trash/", include(trash_urls, namespace="trash")),
         path("jobs/", include(jobs_urls, namespace="jobs")),
         path("snapshots/", include(snapshots_urls, namespace="snapshots")),
+        path("subjects/", include(subjects_urls, namespace="subjects")),
         path("_health/", include(health_urls, namespace="health")),
         path("notifications/", include(notifications_urls, namespace="notifications")),
         path("search/", include(search_urls, namespace="search")),
