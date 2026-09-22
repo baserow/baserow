@@ -20,7 +20,8 @@
         required
         :size="totalPages.toString().length"
         :value="page"
-        @change="changePage(parseInt($event.target.value))"
+        @change="changePageFromInput($event)"
+        @keydown.enter.prevent="changePageFromInput($event)"
       />
       <span>{{ $t('paginator.of', { pages: totalPages }) }}</span>
     </div>
@@ -58,8 +59,17 @@ export default {
   },
   emits: ['change-page'],
   methods: {
+    changePageFromInput(event) {
+      this.changePage(Number(event.target.value))
+      event.target.value = this.page
+    },
     changePage(newPage) {
-      if (newPage <= this.totalPages && newPage > 0)
+      if (
+        Number.isInteger(newPage) &&
+        newPage !== this.page &&
+        newPage <= this.totalPages &&
+        newPage > 0
+      )
         this.$emit('change-page', newPage)
     },
   },

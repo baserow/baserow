@@ -1,29 +1,51 @@
 import { useNuxtApp } from '#app'
-import AutomationHistoryService from '@baserow/modules/automation/services/history'
+import AutomationHistoryService, {
+  WORKFLOW_HISTORY_PAGE_SIZE,
+} from '@baserow/modules/automation/services/history'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const state = () => ({
   // Holds the value of which workflow history is currently selected
   workflowHistory: {},
-  // The id of the fetch whose data `workflowHistory` reflects, so that an
-  // older response landing later can be recognised and dropped.
-  workflowHistoryRequestId: 0,
-  // Incremented for every fetch of the workflow history, see
-  // `fetchWorkflowHistory`.
-  fetchRequestId: 0,
+  page: 1,
+  requestedPage: 1,
+  refreshPending: false,
+  workflowId: null,
+  loading: false,
+  requestId: 0,
   nodeHistoriesByWorkflowHistory: {},
   nodeResults: {},
 })
 
 const mutations = {
-  INCREMENT_FETCH_REQUEST_ID(state) {
-    state.fetchRequestId += 1
+  START_HISTORY_REQUEST(state, { workflowId, page, refresh }) {
+    state.requestId += 1
+    state.workflowId = workflowId
+    state.requestedPage = page
+    state.refreshPending = false
+    if (!refresh) state.loading = true
   },
-  SET_WORKFLOW_HISTORY(state, { data, requestId }) {
+  FINISH_HISTORY_REQUEST(state) {
+    state.loading = false
+    state.requestedPage = state.page
+  },
+  SET_REFRESH_PENDING(state, pending) {
+    state.refreshPending = pending
+  },
+  RESET_HISTORY(state) {
+    state.requestId += 1
+    state.workflowId = null
+    state.workflowHistory = {}
+    state.page = 1
+    state.requestedPage = 1
+    state.refreshPending = false
+    state.loading = false
+  },
+  SET_WORKFLOW_HISTORY(state, { data, page }) {
     state.workflowHistory = data
-    state.workflowHistoryRequestId = requestId
+    state.page = page
   },
-  UPDATE_WORKFLOW_HISTORY_ITEM(state, { id, values, requestId }) {
-    state.workflowHistoryRequestId = requestId
+  UPDATE_WORKFLOW_HISTORY_ITEM(state, { id, values }) {
     const results = state.workflowHistory?.results
     if (!Array.isArray(results)) return
     const index = results.findIndex((item) => item.id === id)
@@ -44,28 +66,57 @@ const mutations = {
 }
 
 const actions = {
-  /**
-   * Fetches the history page of the given workflow. Fetches are started by the
-   * side panel, by the run lifecycle realtime events and after a cancellation
-   * request, so several can be in flight at once and their responses can land
-   * out of order. A response only replaces the state when it is newer than
-   * what the state already reflects; an older one is dropped because it would
-   * undo what a newer fetch, or a cancellation, applied in the meantime. The
-   * fetched page is returned either way.
-   */
-  async fetchWorkflowHistory({ state, commit }, { workflowId }) {
-    commit('INCREMENT_FETCH_REQUEST_ID')
-    const requestId = state.fetchRequestId
-
-    const { data } = await AutomationHistoryService(
-      useNuxtApp().$client
-    ).getWorkflowHistory(workflowId)
-
-    if (requestId > state.workflowHistoryRequestId) {
-      commit('SET_WORKFLOW_HISTORY', { data, requestId })
+  async fetchWorkflowHistory(
+    { state, commit, dispatch },
+    { workflowId, page = 1, refresh = false }
+  ) {
+    commit('START_HISTORY_REQUEST', { workflowId, page, refresh })
+    const requestId = state.requestId
+    try {
+      const service = AutomationHistoryService(useNuxtApp().$client)
+      let { data } = await service.getWorkflowHistory(workflowId, page)
+      if (requestId !== state.requestId) return
+      const lastPage = Math.max(
+        1,
+        Math.ceil(data.count / WORKFLOW_HISTORY_PAGE_SIZE)
+      )
+      if (page > lastPage) {
+        // Retention can remove the page while the user is browsing history.
+        page = lastPage
+        ;({ data } = await service.getWorkflowHistory(workflowId, page))
+      }
+      // Navigation and closing the panel invalidate earlier responses.
+      if (requestId !== state.requestId) return
+      commit('SET_WORKFLOW_HISTORY', { data, page })
+      return data
+    } catch (error) {
+      if (requestId === state.requestId) throw error
+    } finally {
+      if (requestId === state.requestId) {
+        commit('FINISH_HISTORY_REQUEST')
+        if (state.refreshPending) {
+          commit('SET_REFRESH_PENDING', false)
+          await dispatch('refreshWorkflowHistory', { workflowId })
+        }
+      }
     }
-
-    return data
+  },
+  refreshWorkflowHistory({ state, commit, dispatch }, { workflowId }) {
+    if (state.workflowId !== workflowId || state.requestedPage !== 1) return
+    if (state.loading) {
+      // A completion event can arrive after the response snapshot was taken.
+      commit('SET_REFRESH_PENDING', true)
+      return
+    }
+    if (state.page !== 1) return
+    return dispatch('fetchWorkflowHistory', {
+      workflowId,
+      refresh: true,
+    }).catch((error) => notifyIf(error, 'automationWorkflow'))
+  },
+  reset({ commit }) {
+    commit('RESET_HISTORY')
+    commit('CLEAR_HISTORY_CACHES')
   },
   async fetchNodeHistories({ state, commit }, { workflowHistoryId }) {
     if (workflowHistoryId in state.nodeHistoriesByWorkflowHistory) return
@@ -86,16 +137,6 @@ const actions = {
     ).getNodeResult(nodeHistoryId)
     commit('SET_NODE_RESULT', { nodeHistoryId, data: data.result })
   },
-  /**
-   * Requests the cancellation of a run. The backend answers with the updated
-   * record, which is applied right away so the entry shows as cancelling
-   * without waiting for a round trip. The state is then marked as newer than
-   * every fetch started so far: those may have read the run before the
-   * cancellation was recorded and must not bring it back. The refetch that
-   * follows starts after this point, so it always reflects the cancellation.
-   * It also runs when the backend refuses because the run resolved in the
-   * meantime, so the entry shows its terminal state.
-   */
   async cancelWorkflowRun(
     { state, commit, dispatch },
     { workflowId, workflowHistoryId }
@@ -108,17 +149,20 @@ const actions = {
       // by the list endpoint is not part of it and must keep its value.
       const values = { ...data }
       delete values.plugin_data
-      commit('INCREMENT_FETCH_REQUEST_ID')
-      commit('UPDATE_WORKFLOW_HISTORY_ITEM', {
-        id: data.id,
-        values,
-        requestId: state.fetchRequestId,
-      })
+      if (state.workflowId === workflowId) {
+        commit('UPDATE_WORKFLOW_HISTORY_ITEM', { id: data.id, values })
+      }
     } finally {
       // The refetch is best effort: what the caller reports is the outcome of
       // the request above, which a failed refresh must not replace. The
       // realtime event for the cancellation request refetches anyway.
-      await dispatch('fetchWorkflowHistory', { workflowId }).catch(() => {})
+      if (state.workflowId === workflowId) {
+        await dispatch('fetchWorkflowHistory', {
+          workflowId,
+          page: state.requestedPage,
+          refresh: !state.loading,
+        }).catch(() => {})
+      }
     }
   },
   invalidate({ commit }) {
