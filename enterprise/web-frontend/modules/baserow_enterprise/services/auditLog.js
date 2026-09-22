@@ -4,9 +4,13 @@ import { fetchWorkspaceOptions } from '@baserow/modules/core/services/admin/work
 
 export default (client) =>
   Object.assign(baseService(client, `/audit-log/`), {
-    fetchActors(page, workspaceId = null) {
-      const actorsUrl = `/audit-log/actors/`
-      const params = { page }
+    fetchActors(page, search, workspaceId = null) {
+      const actorsUrl = `/subjects/`
+      const params = {
+        page,
+        search,
+        subject_types: 'auth.User,core.Agent',
+      }
       if (workspaceId) {
         params.workspace_id = workspaceId
       }

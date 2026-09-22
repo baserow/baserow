@@ -5,7 +5,7 @@
     :fetch-page="fetchPage"
     :empty-item-display-name="$t('auditLog.allActors')"
     :not-selected-text="$t('auditLog.allActors')"
-    :show-search="false"
+    show-search
     include-display-name-in-selected-event
     @input="selectActor"
   >
@@ -18,7 +18,7 @@
           <DropdownItem
             v-for="actor in resultsForType(results, subjectType.type)"
             :key="actor.id"
-            :name="actor.value"
+            :name="actor.label"
             :value="actor.id"
             :icon="subjectType.iconClass"
           />
@@ -60,13 +60,13 @@ export default {
       this.$refs.dropdown.clear()
     },
     resultsForType(results, type) {
-      return results.filter((result) => result.actor_type === type)
+      return results.filter((result) => result.subject_type === type)
     },
     selectActor(selection) {
       const actor = selection?.item
       this.$emit(
         'input',
-        actor ? { id: actor.actor_id, type: actor.actor_type } : null
+        actor ? { id: actor.subject_id, type: actor.subject_type } : null
       )
     },
   },

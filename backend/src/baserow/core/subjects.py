@@ -2,6 +2,8 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, AnonymousUser
+from django.db.models import Case, CharField, F, IntegerField, Q, Value, When
+from django.db.models.functions import Cast
 from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import User, Workspace, WorkspaceUser
@@ -59,6 +61,45 @@ class UserSubjectType(SubjectType):
 
     def get_label(self, subject: AbstractUser) -> str:
         return subject.email
+
+    def get_options_queryset(
+        self,
+        workspace: Workspace | None = None,
+        search: str = "",
+        exclude_ids: List[int] | None = None,
+    ):
+        """Return searchable user options, optionally scoped to a workspace."""
+
+        queryset = User.objects.filter(
+            is_active=True, profile__to_be_deleted=False
+        ).exclude(id__in=exclude_ids or [])
+        if workspace is not None:
+            queryset = queryset.filter(workspaceuser__workspace=workspace)
+        if search:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search)
+                | Q(username__icontains=search)
+                | Q(email__icontains=search)
+            )
+        return queryset.annotate(
+            subject_id=F("id"),
+            subject_type=Value(self.type, output_field=CharField()),
+            subject_name=Case(
+                When(first_name="", then=F("email")),
+                default=F("first_name"),
+                output_field=CharField(),
+            ),
+            subject_label=F("email"),
+            subject_email=F("email"),
+            subject_count=Cast(Value(None), output_field=IntegerField()),
+        ).values(
+            "subject_id",
+            "subject_type",
+            "subject_name",
+            "subject_label",
+            "subject_email",
+            "subject_count",
+        )
 
     def get_workspace_role_uids(
         self,
