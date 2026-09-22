@@ -141,10 +141,7 @@ def test_agent_is_stored_as_typed_row_history_actor(data_fixture):
         "type": AgentSubjectType.type,
         "name": agent.name,
     }
-    assert RowHistorySerializer(entry).data["user"] == {
-        "id": agent.id,
-        "name": agent.name,
-    }
+    assert RowHistorySerializer(entry).data["user"] is None
 
 
 @pytest.mark.django_db
@@ -169,6 +166,10 @@ def test_existing_row_history_columns_are_reused_for_user_actors(data_fixture):
     assert RowHistory._meta.get_field("actor_id").column == "user_id"
     assert RowHistory._meta.get_field("actor_name").column == "user_name"
     assert entry.actor_type == UserSubjectType.type
+    assert RowHistorySerializer(entry).data["user"] == {
+        "id": user.id,
+        "name": user.first_name,
+    }
 
 
 @pytest.mark.django_db
