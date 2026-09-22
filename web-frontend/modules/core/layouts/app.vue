@@ -145,6 +145,15 @@ watch(
   { immediate: true }
 )
 
+// The all workspaces sidebar shows no selected application, and application
+// types redirect away on delete while their application is still selected, so
+// the selection of a previously opened application must not linger.
+watch(sidebarType, (type) => {
+  if (type === SIDEBAR_TYPES.ALL_WORKSPACES) {
+    store.dispatch('application/unselect')
+  }
+})
+
 // The right sidebar contains workspace specific components, like the assistant, so
 // it must not render on pages without a workspace context. The open state is kept,
 // so it shows again when navigating back to a workspace page.

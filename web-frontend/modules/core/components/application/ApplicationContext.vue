@@ -180,8 +180,13 @@ export default {
     // are only fetched for the selected workspace, so they might still be
     // missing when the context is opened from a workspace agnostic page.
     async fetchRolesAndPermissions() {
-      await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
-      await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+      try {
+        await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
+        await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+      } catch (error) {
+        this.$refs.context.hide()
+        notifyIf(error, 'workspace')
+      }
     },
     setLoading(application, value) {
       this.$store.dispatch('application/setItemLoading', {

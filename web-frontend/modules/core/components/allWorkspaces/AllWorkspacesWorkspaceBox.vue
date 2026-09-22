@@ -9,15 +9,16 @@
         <div class="workspace-box__name-row">
           <div class="workspace-box__name" @click="goToWorkspace()">
             <SearchHighlight
-              v-if="highlight !== ''"
+              v-if="!showEditable"
               :text="workspace.name"
               :query="highlight"
             ></SearchHighlight>
             <Editable
-              v-else
+              v-show="showEditable"
               ref="rename"
               :value="workspace.name"
-              @change="renameWorkspace(workspace, $event)"
+              @editing="editing = $event"
+              @change="rename($event)"
             ></Editable>
           </div>
           <span
@@ -221,9 +222,14 @@ export default {
       // few. It only matters while the body is compact and visible, so it's
       // reset whenever either of those changes.
       revealed: false,
+      editing: false,
+      saving: false,
     }
   },
   computed: {
+    showEditable() {
+      return this.highlight === '' || this.editing || this.saving
+    },
     // The design shows a single letter, not the two letter abbreviation used
     // elsewhere.
     avatarInitials() {
@@ -282,9 +288,12 @@ export default {
     },
     enableRename() {
       this.$refs.context.hide()
-      // There is no inline editable in search results mode because the name is
-      // rendered with the match highlighted.
-      this.$refs.rename?.edit()
+      this.$refs.rename.edit()
+    },
+    async rename(event) {
+      this.saving = true
+      await this.renameWorkspace(this.workspace, event)
+      this.saving = false
     },
   },
 }

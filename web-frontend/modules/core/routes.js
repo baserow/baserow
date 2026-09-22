@@ -72,6 +72,11 @@ export const routes = [
         file: path.resolve(__dirname, 'pages/allWorkspaces.vue'),
       },
       {
+        name: 'dashboard',
+        path: '/dashboard',
+        redirect: { name: 'all-workspaces' },
+      },
+      {
         name: 'workspace',
         path: '/workspace/:workspaceId',
         file: path.resolve(__dirname, 'pages/workspace.vue'),

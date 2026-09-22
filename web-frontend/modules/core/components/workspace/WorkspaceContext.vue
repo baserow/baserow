@@ -173,8 +173,13 @@ export default {
   },
   methods: {
     async fetchRolesAndPermissions() {
-      await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
-      await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+      try {
+        await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
+        await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+      } catch (error) {
+        this.$refs.context.hide()
+        notifyIf(error, 'workspace')
+      }
     },
     showWorkspaceTrashModal() {
       this.$refs.context.hide()

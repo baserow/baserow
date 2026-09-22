@@ -18,15 +18,16 @@
     <div class="application-card__details">
       <div class="application-card__name">
         <SearchHighlight
-          v-if="highlight !== ''"
+          v-if="!showEditable"
           :text="application.name"
           :query="highlight"
         ></SearchHighlight>
         <Editable
-          v-else
+          v-show="showEditable"
           ref="rename"
           :value="application.name"
-          @change="renameApplication(application, $event)"
+          @editing="editing = $event"
+          @change="rename($event)"
         ></Editable>
       </div>
       <div class="application-card__meta">
@@ -79,7 +80,16 @@ export default {
     },
   },
   emits: ['click'],
+  data() {
+    return {
+      editing: false,
+      saving: false,
+    }
+  },
   computed: {
+    showEditable() {
+      return this.highlight === '' || this.editing || this.saving
+    },
     humanCreatedAt() {
       const { period, count } = getHumanPeriodAgoCount(
         this.application.created_on
@@ -106,9 +116,12 @@ export default {
       this.select()
     },
     handleRenameApplication() {
-      // There is no inline editable in search results mode because the name is
-      // rendered with the match highlighted.
-      this.$refs.rename?.edit()
+      this.$refs.rename.edit()
+    },
+    async rename(event) {
+      this.saving = true
+      await this.renameApplication(this.application, event)
+      this.saving = false
     },
   },
 }
