@@ -25,6 +25,7 @@
     </FormGroup>
 
     <FormGroup
+      v-if="canHaveBody"
       class="margin-bottom-2"
       small-label
       required
@@ -41,7 +42,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="values.body_type !== 'empty'"
+      v-if="canHaveBody && values.body_type !== 'empty'"
       class="margin-bottom-2"
       small-label
       :label="$t('coreResponseServiceForm.body')"
@@ -135,6 +136,10 @@ export default {
     }
   },
   computed: {
+    canHaveBody() {
+      const statusCode = this.values.status_code
+      return statusCode?.mode !== 'raw' || statusCode.formula !== '204'
+    },
     statusCodes() {
       return [200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422, 429].map(
         (value) => ({

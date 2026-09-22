@@ -6,7 +6,15 @@ import CoreResponseServiceForm from '@baserow/modules/integrations/core/componen
 
 const FormGroupStub = defineComponent({
   name: 'FormGroup',
-  template: '<div><slot /></div>',
+  props: {
+    label: {
+      type: String,
+      required: false,
+      default: '',
+    },
+  },
+  template:
+    '<div><span class="form-group-label">{{ label }}</span><slot /></div>',
 })
 
 const InjectedFormulaInputStub = defineComponent({
@@ -80,6 +88,10 @@ async function mountComponent() {
   })
 }
 
+function getVisibleLabels(wrapper) {
+  return wrapper.findAll('.form-group-label').map((label) => label.text())
+}
+
 describe('CoreResponseServiceForm', () => {
   test('defaults to a raw 204 status code and proposes common HTTP codes', async () => {
     const wrapper = await mountComponent()
@@ -126,5 +138,49 @@ describe('CoreResponseServiceForm', () => {
       formula: '404',
       mode: 'raw',
     })
+  })
+
+  test('only shows body controls when the status can have a body', async () => {
+    const wrapper = await mountComponent()
+
+    expect(getVisibleLabels(wrapper)).toEqual([
+      'coreResponseServiceForm.statusCode',
+      'coreResponseServiceForm.headers',
+    ])
+
+    const statusDropdown = wrapper.findComponent({ name: 'Dropdown' })
+    statusDropdown.vm.$emit('update:modelValue', '200')
+    await flushPromises()
+
+    expect(getVisibleLabels(wrapper)).toEqual([
+      'coreResponseServiceForm.statusCode',
+      'coreResponseServiceForm.bodyType',
+      'coreResponseServiceForm.headers',
+    ])
+
+    const bodyTypeDropdown = wrapper.findAllComponents({ name: 'Dropdown' })[1]
+    bodyTypeDropdown.vm.$emit('update:modelValue', 'text')
+    await flushPromises()
+
+    expect(getVisibleLabels(wrapper)).toEqual([
+      'coreResponseServiceForm.statusCode',
+      'coreResponseServiceForm.bodyType',
+      'coreResponseServiceForm.body',
+      'coreResponseServiceForm.headers',
+    ])
+
+    const statusInput = wrapper.findComponent({ name: 'InjectedFormulaInput' })
+    statusInput.vm.$emit('update:modelValue', {
+      formula: '204',
+      mode: 'formula',
+    })
+    await flushPromises()
+
+    expect(getVisibleLabels(wrapper)).toEqual([
+      'coreResponseServiceForm.statusCode',
+      'coreResponseServiceForm.bodyType',
+      'coreResponseServiceForm.body',
+      'coreResponseServiceForm.headers',
+    ])
   })
 })
