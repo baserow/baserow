@@ -6,6 +6,7 @@ from django.test.utils import override_settings
 
 import pytest
 from freezegun import freeze_time
+from rest_framework import serializers
 
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.core.actions import CreateApplicationActionType, CreateWorkspaceActionType
@@ -13,7 +14,10 @@ from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.subjects import UserSubjectType
-from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
+from baserow_enterprise.audit_log.job_types import (
+    AuditLogExportJobType,
+    CommaSeparatedCsvColumnsField,
+)
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
@@ -56,10 +60,10 @@ def test_audit_log_export_csv_correctly(
 
     assert data == (
         bom
-        + "User Email,User ID,Group Name,Group ID,Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
-        + f"{user.email},{user.id},{workspace_2.name},{workspace_2.id},Create group,"
+        + "Group Name,Group ID,Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
+        + f"{workspace_2.name},{workspace_2.id},Create group,"
         f'"Group ""{workspace_2.name}"" ({workspace_2.id}) created.",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
-        + f"{user.email},{user.id},{workspace_1.name},{workspace_1.id},Create group,"
+        + f"{workspace_1.name},{workspace_1.id},Create group,"
         f'"Group ""{workspace_1.name}"" ({workspace_1.id}) created.",2023-01-01 '
         f"12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n"
     )
@@ -88,15 +92,24 @@ def test_audit_log_export_csv_correctly(
     bom = "\ufeff"
 
     assert data == (
-        bom + f"{user.email}|{user.id}|{workspace_2.name}|{workspace_2.id}|Create "
+        bom + f"{workspace_2.name}|{workspace_2.id}|Create "
         f'group|"Group ""{workspace_2.name}"" ({workspace_2.id}) '
         f'created."|2023-01-01 12:00:10+00:00||{UserSubjectType.type}|{user.email}|{user.id}\r\n'
-        + f"{user.email}|{user.id}|{workspace_1.name}|{workspace_1.id}|Create "
+        + f"{workspace_1.name}|{workspace_1.id}|Create "
         f'group|"Group ""{workspace_1.name}"" ({workspace_1.id}) '
         f'created."|2023-01-01 12:00:00+00:00||{UserSubjectType.type}|{user.email}|{user.id}\r\n'
     )
 
     close()
+
+
+def test_audit_log_export_legacy_user_columns_are_actor_column_aliases():
+    field = CommaSeparatedCsvColumnsField()
+
+    assert field.run_validation("user_email,user_id") == "actor_name,actor_id"
+
+    with pytest.raises(serializers.ValidationError, match="Duplicate items"):
+        field.run_validation("user_email,actor_name")
 
 
 @pytest.mark.django_db
@@ -137,7 +150,7 @@ def test_audit_log_export_csv_in_the_user_language(
 
     assert data == (
         bom
-        + f"{user.email},{user.id},{workspace_1.name},{workspace_1.id},Crea progetto,"
+        + f"{workspace_1.name},{workspace_1.id},Crea progetto,"
         + f'"Progetto ""{workspace_1.name}"" ({workspace_1.id}) creato.",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
     )
 
@@ -300,10 +313,10 @@ def test_audit_log_export_workspace_csv_correctly(
 
     assert data == (
         bom
-        + "User Email,User ID,Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
-        + f'{user.email},{user.id},Create application,"""{app_2.name}"" ({app_2.id}) database created '
+        + "Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
+        + f'Create application,"""{app_2.name}"" ({app_2.id}) database created '
         + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
-        + f'{user.email},{user.id},Create application,"""{app_1.name}"" ({app_1.id}) database created '
+        + f'Create application,"""{app_1.name}"" ({app_1.id}) database created '
         + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
     )
 
@@ -386,10 +399,10 @@ def test_audit_log_export_workspace_csv_correctly_if_feature_is_enable_for_the_u
 
         assert data == (
             bom
-            + "User Email,User ID,Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
-            + f'{user.email},{user.id},Create application,"""{app_2.name}"" ({app_2.id}) database created '
+            + "Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
+            + f'Create application,"""{app_2.name}"" ({app_2.id}) database created '
             + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
-            + f'{user.email},{user.id},Create application,"""{app_1.name}"" ({app_1.id}) database created '
+            + f'Create application,"""{app_1.name}"" ({app_1.id}) database created '
             + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
         )
 
