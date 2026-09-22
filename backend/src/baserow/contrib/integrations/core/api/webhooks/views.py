@@ -150,7 +150,11 @@ class CoreHTTPTriggerView(APIView):
             webhook_uid, request_data, simulate
         )
 
-        if service.wait_for_response and history is not None:
+        if (
+            service.wait_for_response
+            and history is not None
+            and history.simulate_until_node_id is None
+        ):
             history_handler = AutomationHistoryHandler()
             workflow_response = history_handler.wait_for_workflow_response(
                 history,

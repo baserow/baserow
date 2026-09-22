@@ -1,4 +1,5 @@
 import json
+import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -13,6 +14,7 @@ from rest_framework.status import (
     HTTP_405_METHOD_NOT_ALLOWED,
 )
 
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -307,6 +309,33 @@ def test_http_trigger_does_not_wait_for_response_when_disabled(
     resp = api_client.post(get_url(trigger.service.uid) + "?test=true")
 
     assert resp.status_code == HTTP_204_NO_CONTENT
+
+
+def test_http_trigger_does_not_wait_for_node_simulation(api_request_factory):
+    """Node simulations delete their history, so the webhook must not poll it."""
+
+    service = SimpleNamespace(
+        wait_for_response=True,
+        response_timeout_seconds=10,
+    )
+    history = SimpleNamespace(simulate_until_node_id=123)
+    service_type = service_type_registry.get("http_trigger")
+    request = api_request_factory.post("/?test=true")
+
+    with (
+        patch.object(
+            service_type,
+            "process_webhook_request",
+            return_value=(service, history),
+        ),
+        patch.object(
+            AutomationHistoryHandler, "wait_for_workflow_response"
+        ) as mock_wait,
+    ):
+        response = CoreHTTPTriggerView.as_view()(request, webhook_uid=uuid.uuid4())
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+    mock_wait.assert_not_called()
 
 
 @pytest.mark.django_db(transaction=True)
