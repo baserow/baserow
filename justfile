@@ -582,6 +582,7 @@ _dc_help:
 [doc("Docker compose (dev): just dc-dev <build|up|down|logs|exec|ps|wipe>")]
 dc-dev *ARGS:
     #!/usr/bin/env bash
+    {{ _load_env }}
     if [ -z "{{ ARGS }}" ]; then
         just _dc_help
     else
