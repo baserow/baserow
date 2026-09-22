@@ -17,6 +17,7 @@ from baserow.contrib.database.rows.registries import (
     RowMetadataType,
     row_metadata_registry,
 )
+from baserow.core.subjects import UserSubjectType
 
 
 class RowSerializer(serializers.ModelSerializer):
@@ -643,9 +644,8 @@ class RowHistorySerializer(serializers.ModelSerializer):
         source="action_timestamp",
         help_text="The timestamp of the action that was performed.",
     )
-    user = RowHistoryUserSerializer(
-        source="*",
-        help_text="Deprecated. Use actor instead.",
+    user = serializers.SerializerMethodField(
+        help_text="Deprecated. Use actor instead. Null for non-user actors.",
     )
     actor = RowHistoryActorSerializer(
         source="*", help_text="The actor that performed the action."
@@ -658,6 +658,11 @@ class RowHistorySerializer(serializers.ModelSerializer):
         source="after_values",
         help_text="The mapping between field_ids and values for the row after the action was performed.",
     )
+
+    def get_user(self, instance):
+        if instance.actor_type != UserSubjectType.type:
+            return None
+        return RowHistoryUserSerializer(instance).data
 
     class Meta:
         model = RowHistory
