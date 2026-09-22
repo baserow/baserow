@@ -30,6 +30,7 @@
             class="context__menu-item-link"
             :class="{
               'context__menu-item-link--delete': action.danger,
+              'context__menu-item-link--loading': action.loading,
             }"
             :data-action="action.key"
             @click.prevent="select(action.key)"
@@ -53,9 +54,19 @@ export default {
     title: { type: String, required: true },
   },
   emits: ['select'],
+  computed: {
+    loadingAction() {
+      return this.actions.find((action) => action.loading)?.key || null
+    },
+  },
   watch: {
     disabled(value) {
       if (value) this.$refs.context?.hide()
+    },
+    loadingAction(value, previous) {
+      // The menu stays open while an action is in flight and closes once it
+      // has settled, whether it succeeded or the parent reported an error.
+      if (previous !== null && value === null) this.$refs.context?.hide()
     },
   },
   methods: {
@@ -69,9 +80,13 @@ export default {
       )
     },
     select(action) {
-      if (this.disabled) return
-      this.$refs.context.hide()
+      if (this.disabled || this.loadingAction !== null) return
       this.$emit('select', action)
+      // A parent that starts a request marks the action as loading in the
+      // same tick, in which case the menu must remain visible.
+      this.$nextTick(() => {
+        if (this.loadingAction !== action) this.$refs.context?.hide()
+      })
     },
   },
 }

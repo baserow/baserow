@@ -7,13 +7,15 @@
         </h2>
         <p>{{ $t('generativeAIWorkspaceSettings.providerDescription') }}</p>
       </div>
-      <Button
-        icon="iconoir-plus"
-        :disabled="availableProviderTypes.length === 0"
-        @click="openProviderForm(null)"
-      >
-        {{ $t('aiProviderAdmin.addProvider') }}
-      </Button>
+      <div class="ai-provider-workspace-settings__add-provider">
+        <Button
+          icon="iconoir-plus"
+          :disabled="availableProviderTypes.length === 0"
+          @click="openProviderForm(null)"
+        >
+          {{ $t('aiProviderAdmin.addProvider') }}
+        </Button>
+      </div>
     </header>
 
     <AIProviderFeatureSettings
@@ -81,6 +83,9 @@
             :provider="group.workspaceProvider"
             :provider-type="providerType(group.providerType)"
             :testing-model-ids="testingModelIds"
+            :toggling-provider-ids="togglingProviderIds"
+            :toggling-model-ids="togglingModelIds"
+            :deleting-model-ids="deletingModelIds"
             :embedded="true"
             :primary="true"
             :title="providerDisplayName(group.workspaceProvider)"
@@ -100,6 +105,7 @@
             :provider="group.inheritedProvider"
             :provider-type="providerType(group.providerType)"
             :testing-model-ids="testingModelIds"
+            :toggling-provider-ids="togglingProviderIds"
             :embedded="true"
             :title="$t('generativeAIWorkspaceSettings.sharedModelsTitle')"
             :source-label="$t('aiProviderAdmin.inherited')"
@@ -178,6 +184,9 @@ export default {
       pendingAction: null,
       actionLoading: false,
       testingModelIds: [],
+      togglingModelIds: [],
+      togglingProviderIds: [],
+      deletingModelIds: [],
       initialLoadFailed: false,
     }
   },
@@ -306,14 +315,21 @@ export default {
       this.modelFormOpen = true
       this.$nextTick(() => this.$refs.modelForm.show())
     },
-    toggleProvider(provider) {
+    async toggleProvider(provider) {
       const enabled = provider.read_only
         ? provider.workspace_enabled
         : provider.is_active
-      return this.runAction(
-        enabled ? 'provider-disable' : 'provider-enable',
-        provider
-      )
+      this.togglingProviderIds = [...this.togglingProviderIds, provider.id]
+      try {
+        return await this.runAction(
+          enabled ? 'provider-disable' : 'provider-enable',
+          provider
+        )
+      } finally {
+        this.togglingProviderIds = this.togglingProviderIds.filter(
+          (providerId) => providerId !== provider.id
+        )
+      }
     },
     deleteProvider(provider) {
       this.openConfirmation({
@@ -328,28 +344,44 @@ export default {
       })
     },
     async toggleModel(model) {
-      if (!model.is_enabled) {
-        return await this.runAction('model-enable', model)
+      this.togglingModelIds = [...this.togglingModelIds, model.id]
+      try {
+        if (!model.is_enabled) {
+          return await this.runAction('model-enable', model)
+        }
+        const usage = await this.lookupModelUsage(model.id, this.workspace.id)
+        if (!this.modelHasDependents(usage)) {
+          return await this.runAction('model-disable', model)
+        }
+        this.openConfirmation({
+          kind: 'model-disable',
+          resource: model,
+          title: this.$t('aiProviderAdmin.disableModelTitle', {
+            name: model.model_identifier,
+          }),
+          message: this.modelUsageMessage(
+            usage,
+            this.$t('aiProviderAdmin.disableModelDescription')
+          ),
+          confirmLabel: this.$t('aiProviderAdmin.disable'),
+        })
+      } finally {
+        this.togglingModelIds = this.togglingModelIds.filter(
+          (modelId) => modelId !== model.id
+        )
       }
-      const usage = await this.lookupModelUsage(model.id, this.workspace.id)
-      if (!this.modelHasDependents(usage)) {
-        return await this.runAction('model-disable', model)
-      }
-      this.openConfirmation({
-        kind: 'model-disable',
-        resource: model,
-        title: this.$t('aiProviderAdmin.disableModelTitle', {
-          name: model.model_identifier,
-        }),
-        message: this.modelUsageMessage(
-          usage,
-          this.$t('aiProviderAdmin.disableModelDescription')
-        ),
-        confirmLabel: this.$t('aiProviderAdmin.disable'),
-      })
     },
     async deleteModel(model) {
-      const usage = await this.lookupModelUsage(model.id, this.workspace.id)
+      // The usage lookup is a request of its own, so the menu item shows it.
+      this.deletingModelIds = [...this.deletingModelIds, model.id]
+      let usage
+      try {
+        usage = await this.lookupModelUsage(model.id, this.workspace.id)
+      } finally {
+        this.deletingModelIds = this.deletingModelIds.filter(
+          (modelId) => modelId !== model.id
+        )
+      }
       this.openConfirmation({
         kind: 'model-delete',
         resource: model,

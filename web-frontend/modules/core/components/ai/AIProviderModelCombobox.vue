@@ -30,6 +30,7 @@
       <ul
         v-else-if="filteredSuggestions.length"
         :id="listId"
+        v-auto-overflow-scroll
         class="select__items"
         role="listbox"
       >

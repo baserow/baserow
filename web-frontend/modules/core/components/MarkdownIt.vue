@@ -25,6 +25,11 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  openLinksInNewTab: {
+    required: false,
+    type: Boolean,
+    default: false,
+  },
 })
 
 // Keep a single markdown-it instance per component instance.
@@ -38,13 +43,33 @@ const contentHash = computed(() => generateHash(props.content))
 // Use ref + watcher to avoid side effects in computed
 const htmlContent = ref('')
 
+const linkInNewTabRules = {
+  link_open: (tokens, idx, options, env, self) => {
+    if (tokens[idx].attrIndex('target') < 0) {
+      tokens[idx].attrPush(['target', '_blank'])
+    }
+    if (tokens[idx].attrIndex('rel') < 0) {
+      tokens[idx].attrPush(['rel', 'noopener noreferrer'])
+    }
+    return self.renderToken(tokens, idx, options)
+  },
+}
+
 const renderMarkdown = () => {
-  md.renderer.rules = { ...baseRules, ...props.rules }
+  md.renderer.rules = {
+    ...baseRules,
+    ...(props.openLinksInNewTab ? linkInNewTabRules : {}),
+    ...props.rules,
+  }
   htmlContent.value = md.render(props.content)
 }
 
-watch(() => [props.content, props.rules], renderMarkdown, {
-  deep: true,
-  immediate: true,
-})
+watch(
+  () => [props.content, props.rules, props.openLinksInNewTab],
+  renderMarkdown,
+  {
+    deep: true,
+    immediate: true,
+  }
+)
 </script>

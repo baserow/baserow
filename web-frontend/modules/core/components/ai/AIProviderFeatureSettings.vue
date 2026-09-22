@@ -21,7 +21,7 @@
       </div>
       <Dropdown
         :value="selection(setting)"
-        :disabled="savingFeatures.includes(setting.feature_type)"
+        :loading="savingFeatures.includes(setting.feature_type)"
         :show-search="true"
         :aria-label="
           $t('aiProviderAdmin.featureModelLabel', {
@@ -103,7 +103,9 @@ export default {
     workspaceId: { type: Number, default: null },
   },
   data() {
-    return { savingFeatures: [] }
+    // The dropdown is controlled by the store, which only changes once the save
+    // request returns. Keep the chosen value locally so it shows immediately.
+    return { savingFeatures: [], pendingSelections: {} }
   },
   computed: {
     settings() {
@@ -176,6 +178,9 @@ export default {
       })
     },
     selection(setting) {
+      if (setting.feature_type in this.pendingSelections) {
+        return this.pendingSelections[setting.feature_type]
+      }
       if (setting.mode === 'model' && setting.model) {
         return `model:${setting.model.id}`
       }
@@ -284,6 +289,7 @@ export default {
         ? { mode: 'model', model_id: Number(selection.slice(6)) }
         : { mode: selection }
       this.savingFeatures.push(setting.feature_type)
+      this.pendingSelections[setting.feature_type] = selection
       try {
         await this.$store.dispatch('aiProvider/updateFeatureSetting', {
           featureType: setting.feature_type,
@@ -296,6 +302,8 @@ export default {
           message: this.$t('aiProviderAdmin.featureSettingErrorDescription'),
         })
       } finally {
+        // The store holds the saved value now, or the old one after a failure.
+        delete this.pendingSelections[setting.feature_type]
         this.savingFeatures = this.savingFeatures.filter(
           (featureType) => featureType !== setting.feature_type
         )

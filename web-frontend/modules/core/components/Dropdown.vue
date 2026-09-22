@@ -7,6 +7,7 @@
       'dropdown--disabled': disabled,
       'dropdown--large': size === 'large',
       'dropdown--error': error,
+      'dropdown--loading': loading,
     }"
     :tabindex="realTabindex"
     role="list"
@@ -48,7 +49,8 @@
         </slot>
       </template>
 
-      <i class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
+      <span v-if="loading" class="dropdown__toggle-loading"></span>
+      <i v-else class="dropdown__toggle-icon iconoir-nav-arrow-down"></i>
     </a>
     <div
       ref="itemsContainer"
@@ -99,5 +101,31 @@ import dropdown from '@baserow/modules/core/mixins/dropdown'
 export default {
   name: 'Dropdown',
   mixins: [dropdown],
+  props: {
+    /**
+     * Replaces the toggle icon with a spinner and prevents the value from being
+     * changed until loading has finished.
+     */
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+  },
+  watch: {
+    loading(value) {
+      if (value) {
+        this.hide()
+      }
+    },
+  },
+  methods: {
+    show(target) {
+      if (this.loading) {
+        return
+      }
+      return dropdown.methods.show.call(this, target)
+    },
+  },
 }
 </script>
