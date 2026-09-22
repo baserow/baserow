@@ -23,6 +23,7 @@
     <p>{{ $t('coreHTTPTriggerServiceForm.description') }}</p>
 
     <FormGroup
+      class="margin-bottom-2"
       small-label
       required
       :label="$t('coreHTTPTriggerServiceForm.methodsOptionLabel')"
