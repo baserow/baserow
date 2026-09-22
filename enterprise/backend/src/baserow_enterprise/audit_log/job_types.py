@@ -103,6 +103,14 @@ class CommaSeparatedCsvColumnsField(serializers.CharField):
         return ",".join(items)
 
 
+class RemovedFilterUserIdField(serializers.Field):
+    def to_internal_value(self, data):
+        raise serializers.ValidationError(
+            "This filter has been removed. Use filter_actor_id and "
+            "filter_actor_type instead."
+        )
+
+
 class AuditLogExportJobType(JobType):
     type = "audit_log_export"
     model_class = AuditLogExportJob
@@ -115,6 +123,7 @@ class AuditLogExportJobType(JobType):
         "export_charset",
         "filter_actor_id",
         "filter_actor_type",
+        "filter_user_id",
         "filter_workspace_id",
         "filter_action_type",
         "filter_from_timestamp",
@@ -157,6 +166,7 @@ class AuditLogExportJobType(JobType):
             required=False,
             help_text="Optional: The actor type to filter the audit log by.",
         ),
+        "filter_user_id": RemovedFilterUserIdField(required=False),
         "filter_workspace_id": serializers.IntegerField(
             min_value=0,
             required=False,

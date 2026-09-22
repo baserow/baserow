@@ -724,6 +724,39 @@ def test_audit_log_can_export_to_csv_all_entries(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_audit_log_export_rejects_removed_filter_user_id(
+    api_client, enterprise_data_fixture, synced_roles
+):
+    """The removed user filter must not be silently ignored."""
+
+    admin_user, admin_token = (
+        enterprise_data_fixture.create_enterprise_admin_user_and_token()
+    )
+
+    response = api_client.post(
+        reverse("api:enterprise:audit_log:async_export"),
+        data={
+            "csv_column_separator": ",",
+            "csv_first_row_header": True,
+            "export_charset": "utf-8",
+            "filter_user_id": admin_user.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["filter_user_id"] == [
+        {
+            "error": "This filter has been removed. Use filter_actor_id and "
+            "filter_actor_type instead.",
+            "code": "invalid",
+        }
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_audit_log_can_export_to_csv_filtered_entries(
     api_client,
     enterprise_data_fixture,
