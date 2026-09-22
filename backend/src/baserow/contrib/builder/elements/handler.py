@@ -602,8 +602,10 @@ class ElementHandler:
         """
 
         workflow_actions_duplicated = []
-        # A copy that stays inside the instance keeps what the action refers to
-        # outside the element, such as the workflow it starts.
+        # Service types read `is_duplicate` to keep ids the mapping does not
+        # remap, such as the workflow an action starts or the table it writes
+        # to. A duplicate stays on this instance, so those ids still refer to
+        # the right objects; a file import would drop them.
         import_export_config = ImportExportConfig(
             include_permission_data=True,
             reduce_disk_space_usage=False,
