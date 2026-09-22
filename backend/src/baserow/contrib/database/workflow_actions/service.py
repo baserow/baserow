@@ -864,7 +864,9 @@ class DatabaseWorkflowActionService:
                                 result = self.handler.dispatch_workflow_action(
                                     workflow_action, dispatch_context
                                 )
-                    except Exception as dispatch_exc:
+                    except BaseException as dispatch_exc:
+                        # A worker timeout too, so the failed action is still
+                        # counted before it propagates unchanged.
                         exc = dispatch_exc
                     self._send_workflow_action_dispatched(
                         workflow_action=workflow_action,

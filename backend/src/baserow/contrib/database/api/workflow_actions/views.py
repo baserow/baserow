@@ -641,7 +641,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             error = exc
         except BaseException:
             # A worker timeout, for instance, must not go uncounted.
-            send_dispatched(DispatchOutcome.ERROR)
+            send_dispatched(DispatchOutcome.ERROR, next(iter(failed_positions), None))
             raise
 
         # Sent outside the `except`, so a receiver's own failure does not carry

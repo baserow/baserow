@@ -871,3 +871,39 @@ def test_an_external_action_runs_without_the_http_client_span(data_fixture):
         )
 
     assert enabled == [True, False]
+
+
+@pytest.mark.django_db
+def test_an_action_interrupted_by_a_worker_timeout_is_still_counted(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    interrupted = _add_row_action(data_fixture, button_field, table)
+    dispatch = DatabaseWorkflowActionService().handler.dispatch_workflow_action
+
+    def dispatch_or_time_out(workflow_action, dispatch_context):
+        if workflow_action.id == interrupted.id:
+            raise SystemExit(1)
+        return dispatch(workflow_action, dispatch_context)
+
+    with (
+        patch(
+            "baserow.contrib.database.workflow_actions.handler."
+            "DatabaseWorkflowActionHandler.dispatch_workflow_action",
+            side_effect=dispatch_or_time_out,
+        ),
+        _received(workflow_action_dispatched) as actions,
+        _received(button_field_dispatched) as clicks,
+        pytest.raises(SystemExit),
+    ):
+        _click(api_client, token, button_field, row.id)
+
+    assert [(c["position"], c["succeeded"]) for c in actions] == [
+        (1, True),
+        (2, False),
+    ]
+    assert [(c["outcome"], c["failed_position"]) for c in clicks] == [
+        (DispatchOutcome.ERROR, 2)
+    ]
