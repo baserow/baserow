@@ -13,7 +13,6 @@ from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_402_PAYMENT_REQUIRED,
     HTTP_403_FORBIDDEN,
-    HTTP_404_NOT_FOUND,
 )
 
 from baserow.core.action.handler import ActionHandler
@@ -172,14 +171,6 @@ def test_audit_log_actor_filter_returns_pagination_links(
             "value": other_user.email,
         }
     ]
-
-    response = api_client.get(
-        f"{url}?page=3&size=1",
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db

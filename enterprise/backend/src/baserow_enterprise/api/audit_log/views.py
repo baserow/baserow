@@ -3,7 +3,6 @@ from django.utils import translation
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_202_ACCEPTED
@@ -258,21 +257,12 @@ class AuditLogActorFilterView(APIView):
         next_link = None
         previous_link = None
         results = []
-        pagination_error = None
-        has_valid_page = False
         for subject_type in subject_type_registry.get_all():
             queryset = subject_type.get_queryset(workspace_id)
             if queryset is None:
                 continue
 
-            try:
-                page, paginator = self.paginate_queryset(queryset, request)
-            except NotFound as exc:
-                count += queryset.count()
-                pagination_error = pagination_error or exc
-                continue
-
-            has_valid_page = True
+            page, paginator = self.paginate_queryset(queryset, request)
             count += paginator.page.paginator.count
             next_link = next_link or paginator.get_next_link()
             previous_link = previous_link or paginator.get_previous_link()
@@ -285,9 +275,6 @@ class AuditLogActorFilterView(APIView):
                 }
                 for subject in page
             )
-
-        if not has_valid_page and pagination_error is not None:
-            raise pagination_error
 
         return Response(
             {
