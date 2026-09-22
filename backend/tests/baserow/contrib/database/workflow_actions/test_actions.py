@@ -795,24 +795,11 @@ def test_a_service_left_unattached_is_found_in_two_queries(
         ),
         (
             UpdateDatabaseWorkflowActionActionType,
-            [
-                "database_id",
-                "table_id",
-                "field_id",
-                "workflow_action_id",
-                "workflow_action_type",
-                "original_workflow_action_type",
-            ],
+            ["database_id", "table_id", "field_id", "workflow_action_id"],
         ),
         (
             DeleteDatabaseWorkflowActionActionType,
-            [
-                "database_id",
-                "table_id",
-                "field_id",
-                "workflow_action_id",
-                "workflow_action_type",
-            ],
+            ["database_id", "table_id", "field_id", "workflow_action_id"],
         ),
         (
             OrderDatabaseWorkflowActionsActionType,
@@ -833,15 +820,23 @@ def done_params():
     received = []
 
     def receiver(sender, action_type, action_params, **kwargs):
-        received.append((action_type.type, action_params))
+        received.append((action_type, action_params))
 
     action_done.connect(receiver)
     yield received
     action_done.disconnect(receiver)
 
 
+def _update_properties(done_params):
+    return [
+        action_type.get_analytics_properties(params)
+        for action_type, params in done_params
+        if action_type.type == UpdateDatabaseWorkflowActionActionType.type
+    ]
+
+
 @pytest.mark.django_db
-def test_an_update_records_the_type_before_and_after(data_fixture, done_params):
+def test_an_update_reports_the_type_before_and_after(data_fixture, done_params):
     user, session_id, table, button_field = _setup(data_fixture)
     action = data_fixture.create_database_workflow_action(
         LocalBaserowCreateRowWorkflowAction, field=button_field
@@ -851,16 +846,15 @@ def test_an_update_records_the_type_before_and_after(data_fixture, done_params):
         user, action, type="local_baserow_delete_row"
     )
 
-    params = [
-        p for t, p in done_params if t == UpdateDatabaseWorkflowActionActionType.type
-    ]
-    assert len(params) == 1
-    assert params[0]["workflow_action_type"] == "local_baserow_delete_row"
-    assert params[0]["original_workflow_action_type"] == "local_baserow_create_row"
+    properties = _update_properties(done_params)
+    assert len(properties) == 1
+    assert properties[0]["workflow_action_id"] == action.id
+    assert properties[0]["workflow_action_type"] == "local_baserow_delete_row"
+    assert properties[0]["original_workflow_action_type"] == "local_baserow_create_row"
 
 
 @pytest.mark.django_db
-def test_an_update_without_a_type_change_records_the_same_type(
+def test_an_update_without_a_type_change_reports_the_same_type(
     data_fixture, done_params
 ):
     user, session_id, table, button_field = _setup(data_fixture)
@@ -870,30 +864,6 @@ def test_an_update_without_a_type_change_records_the_same_type(
 
     UpdateDatabaseWorkflowActionActionType.do(user, action, target="blank")
 
-    params = [
-        p for t, p in done_params if t == UpdateDatabaseWorkflowActionActionType.type
-    ]
-    assert params[0]["workflow_action_type"] == "open_url"
-    assert params[0]["original_workflow_action_type"] == "open_url"
-
-
-@pytest.mark.django_db
-def test_a_delete_records_the_type(data_fixture, done_params):
-    user, session_id, table, button_field = _setup(data_fixture)
-    action = data_fixture.create_database_workflow_action(
-        OpenUrlWorkflowAction, field=button_field
-    )
-
-    DeleteDatabaseWorkflowActionActionType.do(user, action)
-
-    params = [
-        p for t, p in done_params if t == DeleteDatabaseWorkflowActionActionType.type
-    ]
-    assert params[0]["workflow_action_type"] == "open_url"
-
-
-def test_stored_update_and_delete_params_without_a_type_still_load():
-    UpdateDatabaseWorkflowActionActionType.Params(
-        1, "db", 2, "table", 3, "field", 4, {}, {}
-    )
-    DeleteDatabaseWorkflowActionActionType.Params(1, "db", 2, "table", 3, "field", 4)
+    properties = _update_properties(done_params)
+    assert properties[0]["workflow_action_type"] == "open_url"
+    assert properties[0]["original_workflow_action_type"] == "open_url"

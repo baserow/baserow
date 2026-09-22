@@ -118,11 +118,7 @@ def capture_event_action_done(
         action_command_type == ActionCommandType.DO
         and action_type.capture_analytics_event
     ):
-        action_params_copy = deepcopy(action_params)
-        properties = {
-            key: action_params_copy.get(key, None)
-            for key in action_type.analytics_params
-        }
+        properties = action_type.get_analytics_properties(deepcopy(action_params))
         capture_user_event(
             user, action_type.type, properties, workspace=workspace, session=session
         )
