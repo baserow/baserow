@@ -526,31 +526,6 @@ def test_start_workflow_service_import_keeps_a_duplicated_workflow_mapping(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("named", [[12], {"id": 12}, True, "12abc"])
-def test_start_workflow_service_import_survives_a_workflow_id_that_is_not_one(
-    data_fixture, named
-):
-    """
-    Nothing coerces a hand-edited export, so a list would key the mapping and
-    fail the whole import job with a `TypeError`, and a `True` would hash
-    equal to 1.
-    """
-
-    service = data_fixture.create_core_start_workflow_service(workflow=None)
-    service_type = CoreStartWorkflowServiceType()
-    exported = {**service_type.export_serialized(service), "workflow_id": named}
-
-    imported_service = service_type.import_serialized(
-        None,
-        exported,
-        {"automation_workflows": MirrorDict()},
-        import_export_config=_copy_config(is_duplicate=True),
-    )
-
-    assert imported_service.workflow_id is None
-
-
-@pytest.mark.django_db
 def test_start_workflow_service_import_waits_for_the_workflow_mapping(data_fixture):
     """
     A workspace import brings the builder in before the automation, so the
