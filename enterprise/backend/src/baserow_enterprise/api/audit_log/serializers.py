@@ -45,6 +45,15 @@ class AuditLogQueryParamsSerializer(serializers.Serializer):
     from_timestamp = serializers.DateTimeField(required=False, default=None)
     to_timestamp = serializers.DateTimeField(required=False, default=None)
 
+    def validate(self, attrs):
+        """Require an actor type whenever filtering by a polymorphic actor ID."""
+
+        if attrs.get("actor_id") is not None and attrs.get("actor_type") is None:
+            raise serializers.ValidationError(
+                {"actor_type": "This field is required when actor_id is provided."}
+            )
+        return attrs
+
 
 class AuditLogWorkspaceFilterQueryParamsSerializer(serializers.Serializer):
     workspace_id = serializers.IntegerField(min_value=1, required=False, default=None)
