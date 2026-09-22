@@ -516,6 +516,28 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
         "type": AgentSubjectType.type,
         "name": "Agent with colliding ID",
     }
+
+    # actor_id is ambiguous without its polymorphic actor type
+    response = api_client.get(
+        reverse("api:enterprise:audit_log:list") + f"?actor_id={user.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["detail"]["actor_type"] == [
+        "This field is required when actor_id is provided."
+    ]
+
+    # actor_type remains independently filterable
+    response = api_client.get(
+        reverse("api:enterprise:audit_log:list")
+        + f"?actor_type={AgentSubjectType.type}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 1
+    assert response.json()["results"][0]["actor"]["type"] == AgentSubjectType.type
     agent_entry.delete()
 
     # by workspace_id
