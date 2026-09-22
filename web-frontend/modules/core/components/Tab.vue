@@ -46,6 +46,12 @@ export default {
       required: false,
       default: null,
     },
+    developmentStage: {
+      type: String,
+      required: false,
+      default: null,
+      validator: (value) => value === null || ['alpha', 'beta'].includes(value),
+    },
     highlight: {
       type: [String, null],
       required: false,
