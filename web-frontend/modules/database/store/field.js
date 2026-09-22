@@ -1,6 +1,41 @@
 import FieldService from '@baserow/modules/database/services/field'
 import { clone } from '@baserow/modules/core/utils/object'
 
+// One permissions request per database at a time, with one more queued when a
+// field lands mid-request, so the newest response is the last one applied.
+const permissionRefreshes = new Map()
+
+/**
+ * Refetches the workspace permissions after a field appeared. A role on the
+ * table or database is handed out as a list of field ids fetched with the
+ * workspace, so until this runs every field scoped check refuses the new field.
+ */
+function refreshPermissionsAfterField(dispatch, databaseId) {
+  const pending = permissionRefreshes.get(databaseId)
+  if (pending) {
+    pending.again = true
+    return pending.promise
+  }
+  const entry = { again: false }
+  entry.promise = (async () => {
+    try {
+      do {
+        entry.again = false
+        await dispatch('application/refreshPermissions', databaseId, {
+          root: true,
+        })
+      } while (entry.again)
+    } catch (error) {
+      // The field is already in the store, so the toast asks for a reload.
+      await dispatch('toast/setPermissionsUpdated', true, { root: true })
+    } finally {
+      permissionRefreshes.delete(databaseId)
+    }
+  })()
+  permissionRefreshes.set(databaseId, entry)
+  return entry.promise
+}
+
 export function populateField(field, registry) {
   const type = registry.get('field', field.type)
 
@@ -250,10 +285,12 @@ export const actions = {
    */
   async fieldRestored(context, { table, selectedView, values }) {
     const { $registry } = this
-    const { commit } = context
+    const { commit, dispatch } = context
     const fieldType = $registry.get('field', values.type)
     const populatedField = populateField(values, $registry)
     commit('ADD_ITEM', populatedField)
+    // A trashed field drops out of the list the same way a new one is missing.
+    refreshPermissionsAfterField(dispatch, table.database_id)
 
     if (selectedView) {
       const selectedViewType = $registry.get('view', selectedView.type)
@@ -276,6 +313,9 @@ export const actions = {
     const fieldType = $registry.get('field', values.type)
     const data = populateField(values, $registry)
     commit('ADD_ITEM', data)
+    // Not awaited: the field shows straight away and its checks pass once
+    // the response lands.
+    refreshPermissionsAfterField(dispatch, table.database_id)
 
     // Call the field created event on all the registered views because they might
     // need to change things in loaded data. For example the grid field will add the
