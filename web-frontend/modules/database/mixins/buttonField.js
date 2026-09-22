@@ -29,8 +29,10 @@ export default {
       return this.field.requires_reconfiguration === true
     },
     /**
-     * Not every place that renders a button is handed the workspace, so it is
-     * found through the field's table when it is not.
+     * The row select modal's grid is the one place that hands no workspace,
+     * so there it is found through the field's table. A miss gives `null`,
+     * which the permission check answers with `false`: a disabled button
+     * saying the user may not click.
      */
     fieldWorkspaceId() {
       if (this.workspaceId != null) {

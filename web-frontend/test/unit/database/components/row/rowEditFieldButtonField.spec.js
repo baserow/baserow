@@ -34,7 +34,7 @@ describe('RowEditFieldButtonField', () => {
     has_workflow_actions: true,
   }
 
-  const mountField = (props = {}) =>
+  const mountField = (props = {}, options = {}) =>
     testApp.mount(RowEditFieldButtonField, {
       props: {
         field,
@@ -44,6 +44,7 @@ describe('RowEditFieldButtonField', () => {
         allFieldsInTable: [field],
         ...props,
       },
+      ...options,
     })
 
   test('the dispatch button runs the actions for a created row', async () => {
@@ -68,6 +69,31 @@ describe('RowEditFieldButtonField', () => {
 
     const button = wrapper.find('button')
     expect(button.attributes('disabled')).toBeDefined()
+
+    await button.trigger('click')
+
+    expect(client.post).not.toHaveBeenCalled()
+  })
+
+  test('a user who may not click gets a disabled button that says so', async () => {
+    const hasPermission = vi.fn().mockReturnValue(false)
+    const wrapper = await mountField(
+      { workspaceId: 9 },
+      { global: { mocks: { $hasPermission: hasPermission } } }
+    )
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(hasPermission).toHaveBeenCalledWith(
+      'database.table.field.workflow_action.dispatch',
+      field,
+      9
+    )
+    // A disabled button fires no mouse events, so the wrapper carries the
+    // tooltip.
+    expect(button.element.parentElement.tooltipOptions.value).toBe(
+      'buttonField.noPermission'
+    )
 
     await button.trigger('click')
 

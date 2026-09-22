@@ -26,7 +26,7 @@ describe('RowCardFieldButtonField', () => {
     has_workflow_actions: true,
   }
 
-  const mountCell = async (props = {}, responseData = {}) => {
+  const mountCell = async (props = {}, responseData = {}, options = {}) => {
     const wrapper = await testApp.mount(RowCardFieldButtonField, {
       propsData: {
         field,
@@ -34,6 +34,7 @@ describe('RowCardFieldButtonField', () => {
         row: { id: 1, field_1: 'ada' },
         ...props,
       },
+      ...options,
     })
     wrapper.vm.$client.post = vi.fn().mockResolvedValue({
       data: { results: [], client_actions: [], ...responseData },
@@ -47,8 +48,39 @@ describe('RowCardFieldButtonField', () => {
     })
 
     expect(wrapper.find('a').exists()).toBe(false)
-    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('button').text()).toBe('Open')
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.text()).toBe('Open')
+    // Nothing to say, so the card keeps the pointer.
+    expect(button.element.parentElement.classList).not.toContain(
+      'forced-pointer-events-auto'
+    )
+  })
+
+  test('a user who may not click gets a disabled button that says so', async () => {
+    const hasPermission = vi.fn().mockReturnValue(false)
+    const wrapper = await mountCell(
+      { workspaceId: 9 },
+      {},
+      { global: { mocks: { $hasPermission: hasPermission } } }
+    )
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(hasPermission).toHaveBeenCalledWith(
+      'database.table.field.workflow_action.dispatch',
+      field,
+      9
+    )
+    // A card takes the pointer away from everything inside it, so the wrapper
+    // asks for it back to show the tooltip.
+    const wrapperElement = button.element.parentElement
+    expect(wrapperElement.classList).toContain('forced-pointer-events-auto')
+    expect(wrapperElement.tooltipOptions.value).toBe('buttonField.noPermission')
+
+    await button.trigger('click')
+
+    expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
   })
 
   test('a field that needs reconfiguring renders a disabled button with a warning', async () => {
