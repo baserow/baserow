@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0036_triggered_by'),
+        ('automation', '0037_automationworkflowhistory_cancellation_requested_by_and_more'),
     ]
 
     operations = [
