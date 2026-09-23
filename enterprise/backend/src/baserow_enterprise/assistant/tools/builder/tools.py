@@ -490,6 +490,7 @@ def _create_elements_internal(
 
     ref_to_id: dict[str, int] = _get_element_refs(tool_helpers, page_id)
     element_mapping: dict[str, tuple[Any, ElementItemCreate]] = {}
+    created_elements_by_id: dict[int, Any] = {}
     ds_ref_to_id = _get_data_source_refs(tool_helpers, page_id)
     shared_page_refs: set[str] = set(
         _get_element_refs(tool_helpers, shared_page.id).keys()
@@ -517,6 +518,7 @@ def _create_elements_internal(
                 continue
             ref_to_id[el_create.ref] = el_id
             element_mapping[el_create.ref] = (element, el_create)
+            created_elements_by_id[el_id] = element
             table_action_pairs.extend(action_pairs)
             created.append({"id": el_id, "ref": el_create.ref, "type": el_create.type})
 
@@ -546,18 +548,40 @@ def _create_elements_internal(
     if errors:
         result["errors"] = errors
 
-    # Guide the model to create workflow actions for interactive elements
+    # Report the saved graph after the entire batch, including children added by
+    # post-create hooks. A container's successful creation does not add content.
+    empty_containers = [
+        item
+        for item in created
+        if (element := created_elements_by_id[item["id"]]).get_type().is_container
+        and not element.page.get_graph().get_children(element)
+    ]
+    next_steps = []
+    if empty_containers:
+        result["empty_containers"] = empty_containers
+        next_steps.append(
+            "The empty_containers have no child elements. If the user requested "
+            "content, add that requested content before finishing, using "
+            "parent_element with the returned container ID or ref. Creating a "
+            "container does not complete its requested content. Inside a repeat, "
+            "use current_record for each row's dynamic values. Do not add "
+            "unrequested content or invent missing data."
+        )
+
+    # Guide the model to create workflow actions for interactive elements.
     actionable = [
         el.ref
         for el in elements
         if el.ref in element_mapping and el.type in ("button", "form_container")
     ]
     if actionable:
-        result["next_steps"] = (
+        next_steps.append(
             f"Elements {actionable} need workflow actions. "
             "Call create_actions next: 'click' event for buttons, "
             "'submit' event for form_container."
         )
+    if next_steps:
+        result["next_steps"] = " ".join(next_steps)
 
     # Navigate to the page containing the created elements
     if created:

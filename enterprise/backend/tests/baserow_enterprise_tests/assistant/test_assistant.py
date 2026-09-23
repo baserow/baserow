@@ -2444,6 +2444,81 @@ class TestFinalAnswerValidation:
 
         assert validate_final_answer(ctx, answer) == answer
 
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            "Here’s the requested application page:\n\n"
+            "**App:** *Project Tracker* (ID\u202f33)  \n"
+            "**Page:** **Projects** – `/projects`\n\n"
+            "**Data source** `projects` (list of rows from the **Projects** table).  \n"
+            "**Layout:** a vertical **repeat** element that iterates over each "
+            "project, with a simple‑container “card” for each item.\n\n"
+            "You can now add the card contents (e.g., heading for the project "
+            "name and text for the status) and any actions you need. Let me know "
+            "if you’d like to continue building the card details or set up "
+            "navigation/actions.",
+            "I created the Projects page. Let me know if you'd like me to "
+            "continue building the card details.",
+            "I created the Projects page. Would you like me to finish building "
+            "the card contents?",
+            "I created the Projects page. Would you like me to complete the "
+            "remaining card details?",
+        ],
+    )
+    def test_continuation_handoff_after_completed_substeps_is_retried(self, answer):
+        ctx = MagicMock()
+        ctx.messages = _mutation_messages(
+            "create_pages",
+            {"builder_id": 33, "pages": [{"name": "Projects", "path": "/projects"}]},
+            {"created_pages": [{"id": 8, "name": "Projects", "path": "/projects"}]},
+            "projects-page",
+        )
+
+        with pytest.raises(ModelRetry, match="hand an executable action") as exc:
+            validate_final_answer(ctx, answer)
+
+        assert "Only execute changes the user requested" in str(exc.value)
+        assert "Never make changes just to satisfy this check" in str(exc.value)
+
+    @pytest.mark.parametrize(
+        "answer,pending_question",
+        [
+            (
+                "You can add a heading inside a repeat to show each project's name.",
+                None,
+            ),
+            (
+                "Let me know if you'd like to continue building another app.",
+                None,
+            ),
+            (
+                "Let me know if you'd like me to continue adding optional animations.",
+                None,
+            ),
+            (
+                "Would you like me to continue building the cards once you have "
+                "permission to edit the page?",
+                None,
+            ),
+            (
+                "Would you like me to continue building with the existing table?",
+                "Which table should I use?",
+            ),
+            (
+                "Would you like me to continue deleting old pages?",
+                None,
+            ),
+        ],
+    )
+    def test_continuation_guard_preserves_explanations_extras_and_blockers(
+        self, answer, pending_question
+    ):
+        ctx = MagicMock()
+        ctx.messages = []
+        ctx.deps.pending_question = pending_question
+
+        assert validate_final_answer(ctx, answer) == answer
+
     def test_destructive_confirmation_is_never_forced(self):
         ctx = MagicMock()
         ctx.messages = []

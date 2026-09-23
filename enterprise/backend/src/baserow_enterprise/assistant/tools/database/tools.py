@@ -542,6 +542,7 @@ def create_tables(
     Create tables with fields; generates sample rows by default.
 
     WHEN to use: User wants new tables created in a database. Always set add_sample_rows=true (or a descriptive string) unless explicitly asked for empty tables.
+    DO NOT USE to invent backing data when an app request only asks to show records. If list_tables found no matching data, ask_user where it should come from unless the user already authorized new data storage or sample rows. An app's stated purpose alone does not authorize them.
     WHAT it does: Reuses exact-name matches, creates missing tables with fields, and generates sample rows for newly created tables by default. A reused table returns its actual schema and next_steps when that schema is incomplete. Pass add_sample_rows=false ONLY when the user explicitly asks for empty tables.
         Pass a string to guide the kind of sample data generated (e.g. "Italian recipes with calorie counts"). Table names must be unique. Reversed link_row fields are auto-created.
         At the end, this tool automatically navigates the user to the last created table.

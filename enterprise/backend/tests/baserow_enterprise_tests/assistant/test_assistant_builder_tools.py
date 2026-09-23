@@ -705,6 +705,111 @@ def test_create_column_with_children(data_fixture):
     assert result["created_elements"][1]["type"] == "heading"
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "element_type", ["simple_container", "column", "repeat", "form_container"]
+)
+def test_empty_container_response_directs_requested_content_completion(
+    data_fixture, element_type
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    ctx = make_test_ctx(user, workspace)
+    if element_type == "repeat":
+        source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=page
+        )
+        tool = create_collection_elements
+        element = CollectionElementCreate(
+            ref="container", type=element_type, data_source=source.id
+        )
+    elif element_type == "form_container":
+        tool = create_form_elements
+        element = FormElementCreate(ref="container", type=element_type)
+    else:
+        tool = create_layout_elements
+        element = LayoutElementCreate(ref="container", type=element_type)
+
+    result = tool(ctx, page_id=page.id, elements=[element], thought="Add the layout.")
+    assert result["empty_containers"] == result["created_elements"]
+    assert "requested content" in result["next_steps"]
+    assert "parent_element" in result["next_steps"]
+    assert "current_record" in result["next_steps"]
+    if element_type == "form_container":
+        assert "create_actions" in result["next_steps"]
+        assert "submit" in result["next_steps"]
+
+
+@pytest.mark.django_db
+def test_empty_container_response_uses_actual_children_created_in_same_batch(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    result = create_layout_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="outer", type="simple_container"),
+            LayoutElementCreate(
+                ref="inner", type="simple_container", parent_element="outer"
+            ),
+        ],
+        thought="Group the requested content.",
+    )
+    assert result["empty_containers"] == [result["created_elements"][1]]
+
+
+@pytest.mark.django_db
+def test_empty_container_response_identifies_ids_when_refs_repeat(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    result = create_layout_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="card", type="simple_container"),
+            LayoutElementCreate(ref="card", type="simple_container"),
+            LayoutElementCreate(
+                ref="child", type="simple_container", parent_element="card"
+            ),
+        ],
+        thought="Create the requested groups.",
+    )
+    assert result["empty_containers"] == [
+        result["created_elements"][0],
+        result["created_elements"][2],
+    ]
+
+
+@pytest.mark.django_db
+def test_empty_container_response_excludes_failed_creation(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    result = create_layout_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(
+                ref="card", type="simple_container", parent_element="missing"
+            )
+        ],
+        thought="Add the requested content container.",
+    )
+    assert not result["created_elements"]
+    assert result["errors"]
+    assert "empty_containers" not in result
+    assert "next_steps" not in result
+
+
 @pytest.mark.django_db(transaction=True)
 def test_create_form_container_with_inputs(data_fixture):
     user = data_fixture.create_user()
@@ -746,6 +851,8 @@ def test_create_form_container_with_inputs(data_fixture):
     assert result["created_elements"][0]["type"] == "form_container"
     assert result["created_elements"][1]["type"] == "input_text"
     assert result["created_elements"][2]["type"] == "input_text"
+    assert "empty_containers" not in result
+    assert "create_actions" in result["next_steps"]
 
 
 @pytest.mark.django_db
@@ -1783,6 +1890,7 @@ def test_update_menu_items(data_fixture):
         thought="test",
     )
     menu_id = result["ref_to_id_map"]["nav"]
+    assert "empty_containers" not in result
 
     # Update to 3 items
     update_result = update_element(

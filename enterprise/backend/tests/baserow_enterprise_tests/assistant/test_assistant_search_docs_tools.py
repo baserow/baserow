@@ -87,8 +87,17 @@ async def test_search_user_docs_handles_empty_results(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "Nothing found in the documentation.",
+        "Nothing found in the documentation",
+        "  NOTHING \n found in the documentation?!  ",
+    ],
+)
 async def test_search_user_docs_does_not_add_sources_for_nothing_found_prediction(
     data_fixture,
+    answer,
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -111,7 +120,7 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
         mock_handler_cls.return_value.search.return_value = [chunk]
         mock_run.return_value = MagicMock(
             output=SearchDocsResult(
-                answer="Nothing found in the documentation.",
+                answer=answer,
                 reliability=1.0,
                 sources=["https://example.com/docs"],
             )
@@ -195,7 +204,15 @@ async def test_search_user_docs_does_not_invent_source_attribution(
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_search_user_docs_preserves_cited_partial_answer(data_fixture):
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "You can choose the cover field. These passages do not establish custom cropping controls.",
+        "Nothing found about custom cropping. The documented cover field can be selected.",
+        "Nothing found in the documentation about cropping. You can choose the cover field.",
+    ],
+)
+async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, answer):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     profile = MagicMock()
@@ -207,7 +224,6 @@ async def test_search_user_docs_preserves_cited_partial_answer(data_fixture):
     model = MagicMock()
     model.__aenter__.return_value = model
     profile.create_model.return_value = model
-    answer = "You can choose the cover field. These passages do not establish custom cropping controls."
     with (
         patch(
             "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
