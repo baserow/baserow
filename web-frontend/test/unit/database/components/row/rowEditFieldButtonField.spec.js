@@ -344,4 +344,51 @@ describe('RowEditFieldButtonField', () => {
 
     expect(execute).not.toHaveBeenCalled()
   })
+
+  test('an accepted click waits on its job and then runs the client actions', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const job = {
+      id: 7,
+      type: 'button_field_dispatch',
+      state: 'pending',
+      progress_percentage: 0,
+      human_readable_error: '',
+      results: null,
+      client_actions: null,
+    }
+    const action = {
+      id: 1,
+      type: 'open_url',
+      url: { formula: "'https://example.com'", mode: 'simple', version: 1 },
+      target: 'self',
+    }
+    client.post.mockResolvedValue({ status: 202, data: job })
+    const wrapper = await mountField()
+    const store = wrapper.vm.$store
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    // Still waiting: the spinner stays and nothing has run.
+    expect(wrapper.vm.dispatching).toBe(true)
+    expect(wrapper.find('button').classes()).toContain('button--loading')
+    expect(execute).not.toHaveBeenCalled()
+    expect(store.getters['job/get'](job.id)).toBeTruthy()
+
+    await store.dispatch('job/forceUpdate', {
+      job: store.getters['job/get'](job.id),
+      data: {
+        ...job,
+        state: 'finished',
+        results: [],
+        client_actions: [action],
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(wrapper.find('button').classes()).not.toContain('button--loading')
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(execute.mock.calls[0][0].workflowAction).toEqual(action)
+  })
 })
