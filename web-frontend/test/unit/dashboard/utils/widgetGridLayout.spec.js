@@ -32,6 +32,22 @@ describe('widgetGridLayout', () => {
     ])
   })
 
+  test('reflows out-of-bounds and overlapping widgets without hiding them', () => {
+    const layout = createWidgetGridLayout([
+      summary(1, 0, 0, 3, 4),
+      summary(2, 3, 0, 3, 4),
+      summary(3, 6, 0, 3, 4),
+      summary(4, 9, 0, 3, 4),
+    ])
+
+    expect(layout).toEqual([
+      { i: 1, x: 0, y: 0, w: 3, h: 4 },
+      { i: 2, x: 3, y: 0, w: 3, h: 4 },
+      { i: 3, x: 0, y: 4, w: 3, h: 4 },
+      { i: 4, x: 3, y: 4, w: 3, h: 4 },
+    ])
+  })
+
   test('allows resizing an existing widget smaller than its current type minimum', () => {
     const chart = {
       grid_layout: {
