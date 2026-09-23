@@ -24,6 +24,7 @@ from baserow.contrib.database.workflow_actions.signals import (
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.signals import action_done
+from baserow.core.exceptions import PermissionException
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
@@ -223,9 +224,10 @@ def test_a_plugin_refusal_sends_denied_and_fails_the_job(
 ):
     """A receiver of `workflow_actions_before_dispatch` refusing the click (a
     SaaS quota, say) is not in `job_exceptions_map` by its own class, since a
-    plugin's exception is not one Baserow defines; `WorkflowActionDispatchDenied`
-    matches it by status instead, so the job fails cleanly with the plugin's
-    own message rather than raising out of the task."""
+    plugin's exception is not one Baserow defines; whenever `outcome_for`
+    recognises it as a denial, `run` re-raises it as
+    `WorkflowActionDispatchDenied`, so the job fails cleanly with the
+    plugin's own message rather than raising out of the task."""
 
     user = data_fixture.create_user()
     table, name_field, button_field, row = _button(data_fixture, user)
@@ -245,6 +247,34 @@ def test_a_plugin_refusal_sends_denied_and_fails_the_job(
 
     assert job.state == JOB_FAILED
     assert job.human_readable_error == "Quota exceeded."
+    assert job.error_code == "WorkflowActionDispatchDenied"
+
+
+@pytest.mark.django_db
+def test_a_plugin_refusal_with_permission_exception_fails_the_job_the_same_way(
+    data_fixture, dispatched_clicks
+):
+    """A plugin need not raise a DRF `APIException`: `PermissionException` and
+    Django's `PermissionDenied` are denials too (`outcome_for` recognises
+    both), and get the same `WorkflowActionDispatchDenied` failure."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    def refuse(sender, **kwargs):
+        raise PermissionException()
+
+    workflow_actions_before_dispatch.connect(refuse)
+    try:
+        job = _run(user, button_field, row)
+    finally:
+        workflow_actions_before_dispatch.disconnect(refuse)
+
+    assert len(dispatched_clicks) == 1
+    assert dispatched_clicks[0]["outcome"] == DispatchOutcome.DENIED
+
+    assert job.state == JOB_FAILED
     assert job.error_code == "WorkflowActionDispatchDenied"
 
 

@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.api.workflow_actions.serializers import (
     dispatch_result_payload,
@@ -13,6 +13,7 @@ from baserow.contrib.database.api.workflow_actions.serializers import (
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionDispatchDenied,
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
     WorkflowActionTypeDeactivated,
@@ -39,25 +40,6 @@ def _own_message(exc: Exception) -> str:
     # The framework formats the mapped message with `.format(e=e)`, so a brace
     # in an endpoint's answer would break it.
     return str(exc).replace("{", "{{").replace("}", "}}")
-
-
-class WorkflowActionDispatchDeniedMeta(type):
-    def __instancecheck__(cls, instance):
-        return isinstance(instance, APIException) and (
-            getattr(instance, "status_code", None) == 403
-        )
-
-
-class WorkflowActionDispatchDenied(
-    Exception, metaclass=WorkflowActionDispatchDeniedMeta
-):
-    """
-    A stand-in used only for the `isinstance` check `job_exceptions_map`'s
-    lookup does. A receiver of `workflow_actions_before_dispatch` (a SaaS
-    quota, say) can raise any `APIException` subclass with a 403 status, not
-    one Baserow defines, so the map cannot list it by class; this matches by
-    status instead, the same way `outcome_for` recognises a denial.
-    """
 
 
 class ButtonFieldDispatchJobType(JobType):
@@ -150,6 +132,14 @@ class ButtonFieldDispatchJobType(JobType):
                 send_dispatched(
                     outcome, failed_position or next(iter(failed_positions), None)
                 )
+                if outcome == DispatchOutcome.DENIED:
+                    # A plugin's refusal can be any exception type: a
+                    # `PermissionException`, Django's `PermissionDenied`, or
+                    # any `APIException` with a 403 status. None of those is
+                    # one `job_exceptions_map` can list by class alone, so it
+                    # is re-raised as one that is, with the plugin's own
+                    # message.
+                    raise WorkflowActionDispatchDenied(str(exc)) from exc
             raise
         except BaseException:
             send_dispatched(DispatchOutcome.ERROR, next(iter(failed_positions), None))

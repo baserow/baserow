@@ -17,6 +17,10 @@ class WorkflowActionDispatchInProgress(Exception):
     """A click is already running for this button field and row."""
 
 
+class WorkflowActionDispatchDenied(Exception):
+    """A receiver of `workflow_actions_before_dispatch` refused the click."""
+
+
 class WorkflowActionTypeDeactivated(Exception):
     """
     The action type cannot be used here. Carries a reason for the person

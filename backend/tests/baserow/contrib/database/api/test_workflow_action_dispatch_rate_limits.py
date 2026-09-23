@@ -19,7 +19,6 @@ from baserow.contrib.database.workflow_actions.models import (
     ButtonFieldDispatchJob,
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
-    SlackWriteMessageWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
@@ -27,7 +26,6 @@ from baserow.contrib.database.workflow_actions.registries import (
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
-from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.exceptions import PermissionException
 from baserow.core.jobs.constants import JOB_FAILED, JOB_STARTED
 from baserow.throttling.types import RateLimit
@@ -85,24 +83,6 @@ def _add_email_action(data_fixture, user, button_field):
     service.to_emails = "'someone@example.com'"
     service.subject = "'Hello'"
     service.body = "'Hi'"
-    service.save()
-    return action
-
-
-def _add_slack_action(data_fixture, button_field):
-    bot = data_fixture.create_integration(
-        SlackBotIntegration,
-        application=button_field.table.database,
-        name="Bot",
-        token="xoxb-secret",
-    )
-    action = data_fixture.create_database_workflow_action(
-        SlackWriteMessageWorkflowAction, field=button_field
-    )
-    service = action.service.specific
-    service.integration = bot
-    service.channel = "general"
-    service.text = "'hi'"
     service.save()
     return action
 
