@@ -723,19 +723,20 @@ class LocalBaserowUserSourceType(UserSourceType):
         self, user_source: LocalBaserowUserSource, email: str, name: str
     ):
         """
-        Creates the user if it doesn't exist yet and refuses the sign in when the
-        workspace is over the application user limit. This covers the SSO
-        auto-provisioning path, where the row may be created before we know the
-        workspace is over the limit.
+        Refuses the sign in when the workspace is over the application user limit,
+        otherwise creates the user if it doesn't exist yet. The limit is checked
+        before the user is created: this is the SSO auto-provisioning path, and the
+        SSO views swallow the refusal inside their transaction, so a row created
+        first would be committed for a user who was never signed in and would count
+        towards the usage from then on.
         """
 
         from baserow_enterprise.application_users.usage import (
             raise_if_over_application_user_login_limit,
         )
 
-        user, created = super().get_or_create_user(user_source, email, name)
         raise_if_over_application_user_login_limit(user_source)
-        return user, created
+        return super().get_or_create_user(user_source, email, name)
 
     def authenticate(self, user_source: LocalBaserowUserSource, **kwargs):
         """

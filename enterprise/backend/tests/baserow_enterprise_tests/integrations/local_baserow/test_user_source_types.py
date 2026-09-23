@@ -2679,10 +2679,9 @@ def test_local_baserow_user_source_get_or_create_user_refused_over_application_u
             user_source, email="new@baserow.io", name="New user"
         )
 
-    # The limit is deliberately checked after the user row is created (the SSO
-    # auto-provisioning path may create it before the limit is known), so the row
-    # exists even though the sign in was refused.
-    assert UserModel.objects.count() == count_before + 1
+    # The refused user must not be created, it would otherwise count towards the
+    # usage without ever having signed in.
+    assert UserModel.objects.count() == count_before
 
 
 @pytest.mark.django_db
