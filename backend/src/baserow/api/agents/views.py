@@ -39,6 +39,7 @@ from baserow.core.agents.exceptions import AgentDoesNotExist, AgentRoleDoesNotEx
 from baserow.core.agents.handler import AgentHandler
 from baserow.core.agents.service import AgentService
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
+from baserow.core.feature_flags import FF_AGENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 
 WORKSPACE_ID_PATH_PARAMETER = OpenApiParameter(
@@ -151,6 +152,7 @@ class WorkspaceAgentsView(APIView, SearchableViewMixin, SortableViewMixin):
     def post(self, request, data, workspace_id):
         """Creates a new agent in the workspace."""
 
+        feature_flag_is_enabled(FF_AGENTS, raise_if_disabled=True)
         workspace = CoreHandler().get_workspace(workspace_id)
         agent = AgentService().create_agent(request.user, workspace, **data)
         return Response(AgentSerializer(agent).data)
