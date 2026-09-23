@@ -1,10 +1,14 @@
 from contextlib import nullcontext
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.workflow_actions.actions import (
+    DispatchButtonFieldActionType,
+)
 from baserow.contrib.database.workflow_actions.job_types import (
     ButtonFieldDispatchJobType,
 )
@@ -16,13 +20,42 @@ from baserow.contrib.database.workflow_actions.models import (
 )
 from baserow.contrib.database.workflow_actions.signals import button_field_dispatched
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
-from baserow.core.action.models import Action
+from baserow.core.action.signals import action_done
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
 )
+
+
+@pytest.fixture
+def audited_clicks():
+    """The `action_params` and workspace of every button click registration."""
+
+    received = []
+
+    def receiver(sender, action_type, action_params, workspace, **kwargs):
+        if action_type is DispatchButtonFieldActionType:
+            received.append((action_params, workspace))
+
+    action_done.connect(receiver)
+    yield received
+    action_done.disconnect(receiver)
+
+
+@pytest.fixture
+def dispatched_clicks():
+    """Every `button_field_dispatched` event sent during the test."""
+
+    received = []
+
+    def receiver(sender, **kwargs):
+        received.append(kwargs)
+
+    button_field_dispatched.connect(receiver)
+    yield received
+    button_field_dispatched.disconnect(receiver)
 
 
 def _button(data_fixture, user):
@@ -100,7 +133,7 @@ def test_a_failing_action_keeps_what_ran_and_names_the_failure(data_fixture):
     _add_http_action(data_fixture, button_field)
     # A delete-row action with no table configured passes the pre-check (its
     # `raise_if_misconfigured` is a no-op) and fails once dispatched.
-    broken = data_fixture.create_database_workflow_action(
+    data_fixture.create_database_workflow_action(
         LocalBaserowDeleteRowWorkflowAction, field=button_field
     )
 
@@ -151,33 +184,45 @@ def test_the_job_cannot_be_started_without_a_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_the_job_reports_the_click_with_its_outcome(data_fixture):
+def test_the_job_reports_the_click_with_its_outcome(
+    data_fixture, dispatched_clicks, audited_clicks
+):
     user = data_fixture.create_user()
     table, name_field, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
-    received = []
-
-    def _record(sender, **kwargs):
-        received.append(kwargs)
-
-    # A reference is kept on `_record`: `connect` holds only a weak reference,
-    # so an inline lambda with nothing else pointing at it is garbage
-    # collected before the signal is sent.
-    button_field_dispatched.connect(_record)
 
     with mock_advocate_request({"ok": True}):
         _run(user, button_field, row)
 
-    assert len(received) == 1
-    assert received[0]["outcome"] == DispatchOutcome.COMPLETED
-    assert received[0]["field"] == button_field
-    assert received[0]["row_id"] == row.id
-    assert received[0]["duration_ms"] > 0
+    assert len(dispatched_clicks) == 1
+    assert dispatched_clicks[0]["outcome"] == DispatchOutcome.COMPLETED
+    assert dispatched_clicks[0]["field"] == button_field
+    assert dispatched_clicks[0]["row_id"] == row.id
+    assert dispatched_clicks[0]["duration_ms"] > 0
     # `DispatchButtonFieldActionType` is not undoable (ADR 006 section 8), so
-    # neither the inline path nor the job writes an `Action` row for the
-    # click itself; `dispatch_button_field` only fires `action_done` for
-    # webhooks and realtime updates to observe.
-    assert Action.objects.filter(user=user).count() == 0
+    # no `Action` row is written for the click, but `dispatch_button_field`
+    # still fires `action_done` for the audit log, as the inline path does.
+    assert len(audited_clicks) == 1
+    params, workspace = audited_clicks[0]
+    assert workspace == table.database.workspace
+    assert params["field_id"] == button_field.id
+    assert params["row_id"] == row.id
+
+
+@pytest.mark.django_db
+def test_a_deleted_row_fails_the_job_with_a_readable_message(data_fixture):
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    row_id = row.id
+    row.delete()
+
+    # A race between enqueue and run: the row was deleted while the job
+    # waited on the queue.
+    job = _run(user, button_field, SimpleNamespace(id=row_id))
+
+    assert job.state == JOB_FAILED
+    assert job.error_code == "RowDoesNotExist"
 
 
 @pytest.mark.django_db

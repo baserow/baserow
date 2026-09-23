@@ -10,10 +10,12 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.database.api.workflow_actions.serializers import (
     dispatch_result_payload,
 )
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
+    WorkflowActionTypeDeactivated,
 )
 from baserow.contrib.database.workflow_actions.models import (
     ButtonFieldDispatchJob,
@@ -28,6 +30,7 @@ from baserow.contrib.database.workflow_actions.telemetry import (
     result_label,
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
+from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import Progress
 
@@ -53,6 +56,12 @@ class ButtonFieldDispatchJobType(JobType):
     job_exceptions_map = {
         WorkflowActionDispatchError: _own_message,
         WorkflowActionDispatchInProgress: "Another click on this row is still running.",
+        # A race between enqueue and run: the row, the workspace membership or
+        # the type's activation can change while the job is queued. Mapped so
+        # the job fails with a message instead of raising out of the task.
+        RowDoesNotExist: "The clicked row no longer exists.",
+        UserNotInWorkspace: "The clicker is no longer a member of the workspace.",
+        WorkflowActionTypeDeactivated: _own_message,
     }
 
     request_serializer_field_names = []
@@ -110,10 +119,14 @@ class ButtonFieldDispatchJobType(JobType):
                 on_action_failed=failed_positions.append,
             )
         except Exception as exc:
-            outcome, failed_position = outcome_for(exc)
-            send_dispatched(
-                outcome, failed_position or next(iter(failed_positions), None)
-            )
+            # Anyone could send a click that fails this way, so it must not
+            # tag another workspace's ids in the event (mirrors the inline
+            # dispatch view).
+            if not isinstance(exc, UserNotInWorkspace):
+                outcome, failed_position = outcome_for(exc)
+                send_dispatched(
+                    outcome, failed_position or next(iter(failed_positions), None)
+                )
             raise
         except BaseException:
             send_dispatched(DispatchOutcome.ERROR, next(iter(failed_positions), None))
