@@ -97,13 +97,23 @@ _ACTION_HANDOFF_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+_CONTINUATION_HANDOFF_PATTERN = re.compile(
+    r"\b(?:let me know if you(?:['’]d| would) like(?: me)? to|"
+    r"would you like(?: me)? to|"
+    r"(?:I am|I['’]m|we are|we['’]re)\s+(?:now\s+)?ready to)\s+"
+    r"(?:(?:continue|finish)\s+(?:building|creating|setting up|configuring|"
+    r"updating|adding|applying|completing)|"
+    r"complete\s+(?:the\s+)?(?:remaining|requested))\b",
+    re.IGNORECASE,
+)
 _ACTION_BLOCKER_PATTERN = re.compile(
     r"\b(?:need|require|requires|missing|once|after|when|until|blocked|"
     r"permission|cannot|can't|unable)\b",
     re.IGNORECASE,
 )
 _UNRELATED_HELP_PATTERN = re.compile(
-    r"\b(?:anything else|another|additional|future|more help)\b", re.IGNORECASE
+    r"\b(?:anything else|another|additional|future|more help|optional)\b",
+    re.IGNORECASE,
 )
 
 
@@ -153,9 +163,14 @@ def _claims_completed_change(answer: str) -> bool:
     )
 
 
-def _defers_action_without_blocker(answer: str) -> bool:
+def _defers_action_without_blocker(
+    answer: str, *, continuation_only: bool = False
+) -> bool:
     for clause in _CLAUSE_BOUNDARY.split(answer):
-        if not any(pattern.search(clause) for pattern in _ACTION_HANDOFF_PATTERNS):
+        if not _CONTINUATION_HANDOFF_PATTERN.search(clause) and (
+            continuation_only
+            or not any(pattern.search(clause) for pattern in _ACTION_HANDOFF_PATTERNS)
+        ):
             continue
         if _ACTION_BLOCKER_PATTERN.search(clause):
             continue
@@ -247,8 +262,11 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
         )
     # A pending ask_user question is the one legitimate handoff.
     asked = ctx is not None and isinstance(ctx.deps.pending_question, str)
-    # A grounded completion claim means the offer is an optional extra.
-    if not claims and not asked and _defers_action_without_blocker(answer):
+    # Completing one substep does not make an explicit continuation optional.
+    # Ordinary offers of new work after a grounded completion still pass.
+    if not asked and _defers_action_without_blocker(
+        answer, continuation_only=bool(claims)
+    ):
         raise ModelRetry(
             "Do not hand an executable action back to the user by saying you are "
             "ready or asking whether to proceed. Complete requested work, ask "

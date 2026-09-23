@@ -47,7 +47,14 @@ Give the useful information the passages actually support:
 - Absence from these passages is NOT proof that a feature does not exist, or that
   upgrading enables it. Never invent feature availability, UI controls, plan
   requirements, or limitations.
-- If none of the passages provide useful evidence, answer exactly
+- Documented examples and non-exhaustive lists do not establish that other
+  formats or capabilities are unsupported. State that they are unverified.
+- Before deciding nothing was found, check whether any passage supports a
+  useful part of the answer or a documented alternative on the SAME product
+  surface. Keep that fact with its source and explicitly state the remaining
+  gap. Do not discard it merely because the exact requested capability is absent.
+- Only if there are no useful supported facts, including partial answers or
+  same-surface alternatives, answer exactly
   "Nothing found in the documentation." with reliability 0 and no sources.
 
 Cite up to three provided source URLs that support the claims you actually make.
@@ -55,7 +62,29 @@ Do not cite unrelated pages or invent URLs. Non-empty answers require supporting
 sources. Reliability describes evidence coverage: high for a complete documented
 answer, partial for supported information with an explicit gap, zero for no
 useful evidence. Never fill a gap with general knowledge or assumptions.
+
+Illustrative example only (not evidence or a source for the actual question):
+Question: Can a text field validate VAT identifiers?
+Provided passage: "A text field stores short text."
+Provided source: https://example.invalid/plain-text
+Supported answer: "You can store a VAT identifier as text. This passage does not
+establish whether VAT validation is available."
+Sources: ["https://example.invalid/plain-text"], reliability: 0.5.
+Do not infer that validation is unavailable, requires an upgrade, or can be
+enabled through an integration or setting that the passage does not document.
 """
+
+LOW_CONFIDENCE_NOTE = (
+    "LOW CONFIDENCE: This search did not establish a source-backed answer. "
+    "For the first such result on this user question, search_user_docs once more "
+    "with a narrower query for the underlying documented concept on the SAME "
+    "product surface, looking for supported partial facts or alternatives. "
+    "After that follow-up, state exactly what remains unverified and stop "
+    "searching. Share only supported facts with their sources. Missing evidence "
+    "does not establish feature availability, absence, or pricing. Do not fill "
+    "the gap with generic integration, feature-flag, workspace-setting, or "
+    "upgrade advice."
+)
 
 
 class SearchDocsResult(PydanticBaseModel):
@@ -74,8 +103,10 @@ class SearchDocsResult(PydanticBaseModel):
         description=(
             "How well the RELEVANT documents (not all documents) support the answer. "
             "1.0 = found documents that directly and completely answer the question. "
-            "0.5 = found partially relevant information. "
-            "0.0 = no documents actually addressed the question (regardless of keyword matches)."
+            "0.5 = useful documented partial answer or same-surface alternative "
+            "with an explicit remaining gap. "
+            "0.0 = no useful supported facts, including partial answers or alternatives "
+            "(regardless of keyword matches)."
         ),
     )
 
@@ -194,12 +225,7 @@ async def _search_user_docs_impl(
         return {
             "answer": "Nothing found in the documentation.",
             "reliability": 0.0,
-            "reliability_note": (
-                "LOW CONFIDENCE: This search did not find supporting documentation. "
-                "Do not infer that a feature exists or is unavailable from missing "
-                "evidence. Explain what could not be verified and suggest checking "
-                "the official documentation or community forum."
-            ),
+            "reliability_note": LOW_CONFIDENCE_NOTE,
             "sources": [],
         }
 
@@ -219,8 +245,10 @@ async def _search_user_docs_impl(
     )
     prediction = agent_result.output
 
-    # Force reliability to 0 if model says nothing was found.
-    nothing_found = "nothing found" in prediction.answer.lower()
+    # Only the standalone sentinel means there is no useful evidence. A cited
+    # partial answer can legitimately say that nothing was found about one part.
+    normalized_answer = " ".join(prediction.answer.casefold().split()).rstrip(".!?")
+    nothing_found = normalized_answer.strip() == "nothing found in the documentation"
     reliability = 0.0 if nothing_found else prediction.reliability
 
     sources = []
@@ -260,12 +288,7 @@ async def _search_user_docs_impl(
             "Do not infer unsupported capabilities, limitations, or plan requirements."
         )
     else:
-        reliability_note = (
-            "LOW CONFIDENCE: This search did not establish a source-backed answer. "
-            "Do not fill the gap with assumptions about capabilities, limitations, "
-            "or plan requirements. Explain what could not be verified and suggest "
-            "checking the official documentation or community forum."
-        )
+        reliability_note = LOW_CONFIDENCE_NOTE
 
     if sources:
         ctx.deps.extend_sources(sources)
