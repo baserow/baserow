@@ -643,6 +643,73 @@ describe('FieldButtonSubForm', () => {
       expect(list.find('.button-field-action-list__item').element).toBe(card)
     })
 
+    test('a retyped action keeps its card when the save keeps its id', async () => {
+      // Retyping gives a saved action a client id, and the server may update
+      // it in place rather than recreate it.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [
+        { id: 41, type: 'local_baserow_create_row', service: { table_id: 3 } },
+      ]
+      wrapper.vm.localActions = [
+        {
+          id: 41,
+          [CLIENT_ID_KEY]: 'retyped',
+          type: 'open_url',
+          url: { formula: "'a'" },
+        },
+      ]
+      await wrapper.vm.$nextTick()
+      const list = wrapper.findComponent(ButtonFieldActionList)
+      list.vm.expandedActions = { retyped: true }
+      await wrapper.vm.$nextTick()
+      const card = list.find('.button-field-action-list__item').element
+
+      const saved = { id: 41, type: 'open_url', url: { formula: "'a'" } }
+      wrapper.vm.$client.patch.mockResolvedValueOnce({ data: saved })
+      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [saved] })
+
+      await wrapper.vm.afterFieldSaved(7)
+      await wrapper.vm.$nextTick()
+
+      expect(list.vm.isExpanded(wrapper.vm.localActions[0])).toBe(true)
+      expect(list.find('.button-field-action-list__item').element).toBe(card)
+    })
+
+    test('an action created by an earlier save keeps its card on the next', async () => {
+      // The first save left the client id on the action. A later save of
+      // something else refetches the list, and must not drop it.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      const first = { id: 91, type: 'open_url', url: { formula: "'a'" } }
+      wrapper.vm.serverActions = [first]
+      wrapper.vm.localActions = [
+        { ...first, [CLIENT_ID_KEY]: 'first' },
+        {
+          [CLIENT_ID_KEY]: 'second',
+          type: 'open_url',
+          url: { formula: "'b'" },
+        },
+      ]
+      await wrapper.vm.$nextTick()
+      const list = wrapper.findComponent(ButtonFieldActionList)
+      list.vm.expandedActions = { first: true }
+      await wrapper.vm.$nextTick()
+      const card = list.find('.button-field-action-list__item').element
+
+      const second = { id: 92, type: 'open_url', url: { formula: "'b'" } }
+      wrapper.vm.$client.post.mockResolvedValueOnce({ data: second })
+      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [first, second] })
+
+      await wrapper.vm.afterFieldSaved(7)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.vm.localActions.map((a) => a[CLIENT_ID_KEY])).toEqual([
+        'first',
+        'second',
+      ])
+      expect(list.vm.isExpanded(wrapper.vm.localActions[0])).toBe(true)
+      expect(list.find('.button-field-action-list__item').element).toBe(card)
+    })
+
     test('an action the server forgot is not keyed by the id it had', async () => {
       // A collaborator deleted it, so it is created again. Its old id can
       // come back from the trash, and two cards keyed the same would follow.
