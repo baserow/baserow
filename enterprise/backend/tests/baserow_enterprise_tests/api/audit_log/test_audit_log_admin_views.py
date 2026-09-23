@@ -525,7 +525,10 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["detail"]["actor_type"] == [
-        "This field is required when actor_id is provided."
+        {
+            "error": "This field is required when actor_id is provided.",
+            "code": "invalid",
+        }
     ]
 
     # actor_type remains independently filterable
