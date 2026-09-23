@@ -765,6 +765,30 @@ def test_a_second_click_on_a_busy_cell_is_refused_before_a_job_exists(
 
 
 @pytest.mark.django_db
+def test_a_click_racing_another_enqueue_on_the_cell_is_refused(
+    api_client, data_fixture
+):
+    """Another request holds the enqueue lock between its busy check and its
+    job's creation, so this click cannot see the cell free and start a
+    second job for it."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    lock = cache.lock(f"button_enqueue_{button_field.id}_{row.id}", timeout=10)
+    assert lock.acquire(blocking=False)
+
+    try:
+        response = _click(api_client, token, button_field, row)
+    finally:
+        lock.release()
+
+    assert response.status_code == HTTP_409_CONFLICT
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS"
+    assert ButtonFieldDispatchJob.objects.count() == 0
+
+
+@pytest.mark.django_db
 def test_a_refused_click_with_an_external_action_creates_no_job(
     api_client, data_fixture
 ):

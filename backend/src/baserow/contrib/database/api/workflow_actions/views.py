@@ -1,10 +1,12 @@
 from time import perf_counter
 from typing import Dict, List
 
+from django.core.cache import cache
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from redis.exceptions import LockNotOwnedError
 from rest_framework import status as http_status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -91,7 +93,6 @@ from baserow.contrib.database.workflow_actions.signals import (
 )
 from baserow.contrib.database.workflow_actions.telemetry import (
     outcome_for,
-    result_label,
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.registries import action_type_registry
@@ -418,9 +419,8 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         click, or a button carrying ten requests would send ten for the price
         of one.
 
-        Reserved up front, the only way a limit holds under a burst, and given
-        back afterwards for whatever the click did not spend. A limit that
-        denies mid way gives back what came before it.
+        Reserved up front, the only way a limit holds under a burst. A limit
+        that denies mid way gives back what came before it.
 
         Nothing is reserved for a button that only touches rows here.
 
@@ -505,20 +505,16 @@ class DispatchDatabaseWorkflowActionsView(APIView):
 
         return external_count
 
-    def _release_dispatch_budget(self, reservations: List[list], keep: int = 0) -> None:
+    def _release_dispatch_budget(self, reservations: List[list]) -> None:
         """
-        Gives back the slots the click did not spend.
+        Gives back every slot of a click refused before its job was created.
 
         :param reservations: What `_reserve_dispatch_budget` took, one list per
             limit.
-        :param keep: How many external actions the click really ran. Their
-            slots stay spent, a failed request included: the budget caps the
-            traffic, not the successes. A limit that gave fewer slots than that
-            keeps all of them.
         """
 
         for held in reservations:
-            for throttle in held[min(keep, len(held)) :]:
+            for throttle in held:
                 throttle.release()
 
     @extend_schema(
@@ -585,7 +581,6 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         started = perf_counter()
         workflow_actions: List[DatabaseWorkflowAction] = []
         failed_positions: List[int] = []
-        error_status_positions: List[int] = []
 
         def send_dispatched(outcome, failed_position=None):
             # Refused clicks leave no audit entry, so this is the only place
@@ -598,7 +593,9 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 workflow_actions=workflow_actions,
                 outcome=outcome,
                 failed_position=failed_position,
-                error_status_count=len(error_status_positions),
+                # Only a click that reaches outside Baserow can get an error
+                # status back, and the job counts those itself.
+                error_status_count=0,
                 duration_ms=(perf_counter() - started) * 1000,
             )
 
@@ -621,13 +618,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 )
             else:
                 response = self._run_click(
-                    request,
-                    field,
-                    row,
-                    service,
-                    workflow_actions,
-                    failed_positions,
-                    error_status_positions,
+                    request, field, row, service, workflow_actions, failed_positions
                 )
         except Exception as exc:
             error = exc
@@ -666,6 +657,11 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         Hands the click to a job and answers 202 with it. Refuses first what
         the job would refuse, so a click that cannot run leaves no job behind.
 
+        A pending or started job row guards its cell from enqueue until the
+        job ends, so a second click on that cell is refused. The short enqueue
+        lock only serializes that check with the job's creation, so two
+        racing clicks cannot both pass it.
+
         The rate-limit slots are charged for every external action once the
         job exists, and not given back after that: a refund needs this
         request's throttle objects, which the job does not have, and
@@ -677,26 +673,41 @@ class DispatchDatabaseWorkflowActionsView(APIView):
 
         service.check_dispatch_allowed(request.user, field, workflow_actions)
 
-        # A click already waiting or running on this cell. The lock inside the
-        # job is the real guard; this only spares a job row for a double click.
-        if ButtonFieldDispatchJob.objects.filter(
-            field=field, row_id=row.id, state__in=[JOB_PENDING, JOB_STARTED]
-        ).exists():
+        # Two requests could otherwise both see the cell free and both create
+        # a job, which a single worker would then run one after the other,
+        # sending every request twice. Never waits: the loser is refused.
+        enqueue_lock = cache.lock(f"button_enqueue_{field.id}_{row.id}", timeout=10)
+        if not enqueue_lock.acquire(blocking=False):
             raise WorkflowActionDispatchInProgress()
 
-        reservations = self._reserve_dispatch_budget(request, field, workflow_actions)
-
         try:
-            job = JobHandler().create_and_start_job(
-                request.user,
-                ButtonFieldDispatchJobType.type,
-                field=field,
-                row_id=row.id,
+            # A click already waiting or running on this cell.
+            if ButtonFieldDispatchJob.objects.filter(
+                field=field, row_id=row.id, state__in=[JOB_PENDING, JOB_STARTED]
+            ).exists():
+                raise WorkflowActionDispatchInProgress()
+
+            reservations = self._reserve_dispatch_budget(
+                request, field, workflow_actions
             )
-        except MaxJobCountExceeded:
-            # No job was created to charge these slots to.
-            self._release_dispatch_budget(reservations)
-            raise
+
+            try:
+                job = JobHandler().create_and_start_job(
+                    request.user,
+                    ButtonFieldDispatchJobType.type,
+                    field=field,
+                    row_id=row.id,
+                )
+            except MaxJobCountExceeded:
+                # No job was created to charge these slots to.
+                self._release_dispatch_budget(reservations)
+                raise
+        finally:
+            try:
+                enqueue_lock.release()
+            except LockNotOwnedError:
+                # Held past its timeout, so the key is a later click's.
+                pass
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=http_status.HTTP_202_ACCEPTED)
@@ -709,36 +720,18 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         service: DatabaseWorkflowActionService,
         workflow_actions: List[DatabaseWorkflowAction],
         failed_positions: List[int],
-        error_status_positions: List[int],
     ) -> Response:
-        reservations = self._reserve_dispatch_budget(request, field, workflow_actions)
-        reached_outside = []
+        """
+        Runs a click none of whose actions reaches outside Baserow, inside the
+        request. Such a click spends no rate-limit budget, so nothing is
+        reserved or given back here.
+        """
 
-        try:
-            dispatch = service.dispatch_workflow_actions(
-                request.user,
-                field,
-                row,
-                workflow_actions=workflow_actions,
-                on_external_dispatch=reached_outside.append,
-                on_action_failed=failed_positions.append,
-            )
-        finally:
-            # Charged for what the click really sent. Without this a member
-            # who may not dispatch could spend the workspace's budget on
-            # refusals, and a click that failed after its request could repeat
-            # that request for free.
-            self._release_dispatch_budget(reservations, keep=len(reached_outside))
-
-        # An action that reaches outside Baserow answers a remote error or a
-        # timeout with a result rather than raising, so a click can complete
-        # with an action the endpoint refused. Counted here so the click's
-        # event says so, since the per-action metric carries no workspace.
-        error_status_positions.extend(
-            dispatch.positions[dispatched.workflow_action.id]
-            for dispatched in dispatch.dispatched
-            if dispatched.result is not None
-            and result_label(True, dispatched.result) == "error_status"
+        dispatch = service.dispatch_workflow_actions(
+            request.user,
+            field,
+            row,
+            workflow_actions=workflow_actions,
+            on_action_failed=failed_positions.append,
         )
-
         return Response(dispatch_result_payload(dispatch, request.user))
