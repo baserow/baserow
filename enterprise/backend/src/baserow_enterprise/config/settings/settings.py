@@ -49,26 +49,17 @@ def setup(settings):
         }
     )
 
-    # When enabled ("hard" limit) *every* login to a workspace that is over its
-    # application user limit is refused, not just the users past the limit. When
-    # disabled (the default "soft" limit) the limit is only used to notify workspace
-    # members; nobody is blocked from signing in.
+    # The number of hours a workspace can be over its application user limit before
+    # logins to its published applications are refused. This gives the workspace
+    # time to upgrade or reduce its usage instead of being blocked the moment it
+    # goes over. Set it to 0 to refuse logins as soon as the periodic count detects
+    # the workspace is over its limit. It's capped at the default, so that a
+    # misconfiguration can't stretch the grace period far enough to effectively
+    # disable the limit.
     #
     # Every install has an application user limit, including unlicensed ones and
     # those licensed before v1.32, which fall back to
-    # `DEFAULT_APPLICATION_USERS_LIMIT`. This setting only decides whether going over
-    # that limit has consequences beyond a notification.
-    settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED = str_to_bool(
-        os.getenv("BASEROW_APPLICATION_USER_LIMIT_ENFORCED", "")
-    )
-
-    # The number of hours a workspace can be over its application user limit before
-    # logins are refused when the limit is enforced. This gives the workspace time to
-    # upgrade or reduce its usage instead of being blocked the moment it goes over.
-    # Set it to 0 to refuse logins as soon as the periodic count detects the
-    # workspace is over its limit. It's capped at the default, so that a
-    # misconfiguration can't stretch the grace period far enough to effectively
-    # disable the enforcement.
+    # `DEFAULT_APPLICATION_USERS_LIMIT`. The limit is always enforced.
     max_application_user_limit_grace_period_hours = 24 * 7  # 7 days
     settings.BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS = min(
         int(

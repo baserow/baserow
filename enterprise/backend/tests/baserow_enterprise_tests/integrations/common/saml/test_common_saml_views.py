@@ -240,7 +240,6 @@ def test_builder_saml_assertion_consumer_service(
 @pytest.mark.django_db()
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
