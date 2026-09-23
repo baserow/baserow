@@ -177,7 +177,16 @@ class LocalBaserowServiceType(ServiceType):
         """
 
         if service.integration_id:
-            authorized_subject = service.integration.specific.authorized_subject
+            integration = service.integration.specific
+            if (
+                integration.authorized_agent is not None
+                and integration.authorized_agent.trashed
+            ):
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration's authorized agent is trashed"
+                )
+
+            authorized_subject = integration.authorized_subject
             # Nullable, and an import can leave the authorized user null. Refuse
             # rather than let a `None` reach a permission check as anonymous.
             if authorized_subject is None:
