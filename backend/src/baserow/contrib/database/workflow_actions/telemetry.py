@@ -1,4 +1,19 @@
+from typing import Optional, Tuple
+
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+
 from opentelemetry import metrics
+from rest_framework.exceptions import APIException
+
+from baserow.api.exceptions import ThrottledAPIException
+from baserow.contrib.database.rows.exceptions import RowDoesNotExist
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionDispatchError,
+    WorkflowActionDispatchInProgress,
+    WorkflowActionTypeDeactivated,
+)
+from baserow.contrib.database.workflow_actions.types import DispatchOutcome
+from baserow.core.exceptions import PermissionException
 
 meter = metrics.get_meter(__name__)
 
@@ -75,6 +90,33 @@ def result_label(succeeded, result) -> str:
     if result.status >= 400 or (isinstance(status_code, int) and status_code >= 400):
         return "error_status"
     return "ok"
+
+
+def outcome_for(exc: Exception) -> Tuple[DispatchOutcome, Optional[int]]:
+    """
+    What a click that raised became, for analytics.
+
+    :param exc: What the click raised.
+    :return: The outcome, and the failing action's position when one failed.
+    """
+
+    if isinstance(exc, WorkflowActionDispatchError):
+        return DispatchOutcome.FAILED, exc.position
+    if isinstance(exc, ThrottledAPIException):
+        return DispatchOutcome.THROTTLED, None
+    if isinstance(exc, WorkflowActionDispatchInProgress):
+        return DispatchOutcome.IN_PROGRESS, None
+    if isinstance(exc, WorkflowActionTypeDeactivated):
+        return DispatchOutcome.DEACTIVATED, None
+    if isinstance(exc, RowDoesNotExist):
+        return DispatchOutcome.ROW_NOT_FOUND, None
+    # A 403 from outside core is a plugin refusing the click, a SaaS quota for
+    # instance, which core has no error code for.
+    if isinstance(exc, (PermissionException, DjangoPermissionDenied)) or (
+        isinstance(exc, APIException) and exc.status_code == 403
+    ):
+        return DispatchOutcome.DENIED, None
+    return DispatchOutcome.ERROR, None
 
 
 def record_workflow_action_dispatched(

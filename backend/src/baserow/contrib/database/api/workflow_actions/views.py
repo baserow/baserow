@@ -1,12 +1,10 @@
 from time import perf_counter
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
-from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -40,11 +38,11 @@ from baserow.contrib.database.api.workflow_actions.errors import (
 from baserow.contrib.database.api.workflow_actions.serializers import (
     CreateDatabaseWorkflowActionSerializer,
     DatabaseWorkflowActionSerializer,
-    DispatchedClientActionSerializer,
     DispatchWorkflowActionsResponseSerializer,
     DispatchWorkflowActionsSerializer,
     OrderWorkflowActionsSerializer,
     UpdateDatabaseWorkflowActionSerializer,
+    dispatch_result_payload,
 )
 from baserow.contrib.database.api.workflow_actions.throttling import (
     ButtonFieldDispatchUserRateThrottle,
@@ -82,10 +80,13 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.contrib.database.workflow_actions.signals import (
     button_field_dispatched,
 )
-from baserow.contrib.database.workflow_actions.telemetry import result_label
+from baserow.contrib.database.workflow_actions.telemetry import (
+    outcome_for,
+    result_label,
+)
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.registries import action_type_registry
-from baserow.core.exceptions import PermissionException, UserNotInWorkspace
+from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
@@ -392,33 +393,6 @@ class OrderDatabaseWorkflowActionsView(APIView):
         return Response(status=204)
 
 
-def _outcome_for(exc: Exception) -> Tuple[DispatchOutcome, Optional[int]]:
-    """
-    What a click that raised became, for analytics.
-
-    :param exc: What the click raised.
-    :return: The outcome, and the failing action's position when one failed.
-    """
-
-    if isinstance(exc, WorkflowActionDispatchError):
-        return DispatchOutcome.FAILED, exc.position
-    if isinstance(exc, ThrottledAPIException):
-        return DispatchOutcome.THROTTLED, None
-    if isinstance(exc, WorkflowActionDispatchInProgress):
-        return DispatchOutcome.IN_PROGRESS, None
-    if isinstance(exc, WorkflowActionTypeDeactivated):
-        return DispatchOutcome.DEACTIVATED, None
-    if isinstance(exc, RowDoesNotExist):
-        return DispatchOutcome.ROW_NOT_FOUND, None
-    # A 403 from outside core is a plugin refusing the click, a SaaS quota for
-    # instance, which core has no error code for.
-    if isinstance(exc, (PermissionException, DjangoPermissionDenied)) or (
-        isinstance(exc, APIException) and exc.status_code == 403
-    ):
-        return DispatchOutcome.DENIED, None
-    return DispatchOutcome.ERROR, None
-
-
 class DispatchDatabaseWorkflowActionsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -638,7 +612,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         if error is None:
             send_dispatched(DispatchOutcome.COMPLETED)
         elif not isinstance(error, UserNotInWorkspace):
-            outcome, failed_position = _outcome_for(error)
+            outcome, failed_position = outcome_for(error)
             send_dispatched(
                 outcome, failed_position or next(iter(failed_positions), None)
             )
@@ -687,65 +661,4 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             and result_label(True, dispatched.result) == "error_status"
         )
 
-        # A client action can read only what ran before it, so a result with
-        # none after it is not sent at all. Configuring a button needs more
-        # permission than clicking one, and an answer from outside Baserow
-        # carries whatever the endpoint sent back, response headers included.
-        last_client_position = max(
-            (
-                dispatch.positions.get(workflow_action.id) or 0
-                for workflow_action in dispatch.client_actions
-            ),
-            default=0,
-        )
-
-        def is_wanted(dispatched):
-            position = dispatch.positions.get(dispatched.workflow_action.id) or 0
-            return 0 < position < last_client_position
-
-        def field_names_for(dispatched):
-            if not is_wanted(dispatched) or not isinstance(
-                dispatched.result.data, dict
-            ):
-                return {}
-            workflow_action = dispatched.workflow_action
-            return workflow_action.get_type().get_result_field_names(workflow_action)
-
-        results = [
-            {
-                "workflow_action_id": dispatched.workflow_action.id,
-                # The browser only lets a client action read what ran before
-                # it, and it has no other way to tell where an action sat.
-                # `order` is what the action carries; `position` is where it
-                # really ran, which is what two actions sharing an `order` are
-                # told apart by.
-                "order": dispatched.workflow_action.order,
-                "position": dispatch.positions.get(dispatched.workflow_action.id),
-                # Every action runs synchronously inside the request. The field
-                # is here so an async one can report "dispatched" later.
-                "status": "completed",
-                "data": dispatched.result.data if is_wanted(dispatched) else None,
-                "field_names": field_names_for(dispatched),
-            }
-            for dispatched in dispatch.dispatched
-        ]
-
-        return Response(
-            {
-                "results": results,
-                "client_actions": [
-                    database_workflow_action_type_registry.get_serializer(
-                        workflow_action,
-                        DispatchedClientActionSerializer,
-                        # The position is on the same scale as a result's, so
-                        # the browser can tell which results ran before this
-                        # action.
-                        context={
-                            "user": request.user,
-                            "positions": dispatch.positions,
-                        },
-                    ).data
-                    for workflow_action in dispatch.client_actions
-                ],
-            }
-        )
+        return Response(dispatch_result_payload(dispatch, request.user))
