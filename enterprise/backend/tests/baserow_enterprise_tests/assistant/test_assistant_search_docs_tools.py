@@ -95,7 +95,9 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
     model_profile = MagicMock()
     ctx = make_test_ctx(user, workspace, model_profile=model_profile)
     chunk = MagicMock(content="Some unrelated documentation.")
-    chunk.source_document = MagicMock(source_url="https://example.com/docs")
+    chunk.source_document = MagicMock(
+        title="Unrelated documentation", source_url="https://example.com/docs"
+    )
 
     with (
         patch(
@@ -146,3 +148,153 @@ async def test_search_user_docs_handles_error(data_fixture):
 
     assert result["reliability"] == 0.0
     assert "error" in result["answer"].lower()
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sources", [[], ["https://example.com/invented"]])
+async def test_search_user_docs_does_not_invent_source_attribution(
+    data_fixture, sources
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    profile = MagicMock()
+    ctx = make_test_ctx(user, workspace, model_profile=profile)
+    chunk = MagicMock(content="The rows guide describes editing rows.")
+    chunk.source_document = MagicMock(
+        title="Rows", source_url="https://example.com/rows"
+    )
+    model = MagicMock()
+    model.__aenter__.return_value = model
+    profile.create_model.return_value = model
+    with (
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
+        ) as handler,
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.search_docs_agent.run",
+            new_callable=AsyncMock,
+        ) as run,
+    ):
+        handler.return_value.search.return_value = [chunk]
+        run.return_value = MagicMock(
+            output=SearchDocsResult(
+                answer="An unsupported feature exists.",
+                sources=sources,
+                reliability=1.0,
+            )
+        )
+        result = await search_user_docs(
+            ctx, question="How do I edit rows?", thought="user asks"
+        )
+    assert result["reliability"] == 0.0
+    assert result["sources"] == []
+    assert ctx.deps.sources == []
+    assert "unsupported feature exists" not in result["answer"]
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_search_user_docs_preserves_cited_partial_answer(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    profile = MagicMock()
+    ctx = make_test_ctx(user, workspace, model_profile=profile)
+    chunk = MagicMock(content="Cards can display a selected file field as their cover.")
+    chunk.source_document = MagicMock(
+        title="Cards guide", source_url="https://example.com/cards"
+    )
+    model = MagicMock()
+    model.__aenter__.return_value = model
+    profile.create_model.return_value = model
+    answer = "You can choose the cover field. These passages do not establish custom cropping controls."
+    with (
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
+        ) as handler,
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.search_docs_agent.run",
+            new_callable=AsyncMock,
+        ) as run,
+    ):
+        handler.return_value.search.return_value = [chunk]
+        run.return_value = MagicMock(
+            output=SearchDocsResult(
+                answer=answer,
+                sources=["https://example.com/cards"],
+                reliability=0.5,
+            )
+        )
+        result = await search_user_docs(
+            ctx, question="How do I configure card covers?", thought="user asks"
+        )
+    assert result["answer"] == answer
+    assert result["reliability"] == 0.5
+    assert result["sources"] == ["https://example.com/cards"]
+    assert ctx.deps.sources == ["https://example.com/cards"]
+    assert "PARTIAL MATCH" in result["reliability_note"]
+    assert "Supplement with general knowledge" not in result["reliability_note"]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_hybrid_context_retains_midrank_semantic_evidence(data_fixture):
+    import json
+
+    from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS
+    from baserow_enterprise.assistant.models import (
+        KnowledgeBaseChunk,
+        KnowledgeBaseDocument,
+    )
+
+    KnowledgeBaseChunk.try_init_vector_field()
+    for index in range(40):
+        lexical = index >= 20
+        doc = KnowledgeBaseDocument.objects.create(
+            title="Reference phrase" if lexical else f"Topic {index}",
+            slug=f"topic-{index}",
+            source_url=f"https://example.com/topic-{index}",
+            status=KnowledgeBaseDocument.Status.READY,
+        )
+        KnowledgeBaseChunk.objects.create(
+            source_document=doc,
+            index=0,
+            content="The documented answer." if index == 11 else "Other evidence.",
+            embedding=[-1.0 if lexical else 1.0 - index * 0.01]
+            + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1),
+        )
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    profile = MagicMock()
+    ctx = make_test_ctx(user, workspace, model_profile=profile)
+    model = MagicMock()
+    model.__aenter__.return_value = model
+    profile.create_model.return_value = model
+    with (
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.handler.VectorHandler.embed_texts",
+            return_value=[[1.0] + [0.0] * (DEFAULT_EMBEDDING_DIMENSIONS - 1)],
+        ),
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.search_docs_agent.run",
+            new_callable=AsyncMock,
+        ) as run,
+    ):
+        run.return_value = MagicMock(
+            output=SearchDocsResult(
+                answer="The documented answer.",
+                sources=["https://example.com/topic-11"],
+                reliability=1.0,
+            )
+        )
+        result = await search_user_docs(
+            ctx, question="How do I use reference phrase?", thought="user asks"
+        )
+    passages = json.loads(
+        run.call_args.args[0].split("Documentation passages:\n", 1)[1]
+    )
+    assert any(passage["content"] == "The documented answer." for passage in passages)
+    assert len(passages) <= 30
+    assert sum(len(passage["content"]) for passage in passages) <= 30_000
+    assert result["sources"] == ["https://example.com/topic-11"]
+    assert result["reliability"] == 1.0
