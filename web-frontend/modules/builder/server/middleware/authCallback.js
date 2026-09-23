@@ -32,10 +32,13 @@ export default defineEventHandler(async (event) => {
   const previewBuilderId = callback.url.pathname.match(
     /^\/builder\/preview\/(\d+)(?:\/|$)/
   )?.[1]
-  const isFrontendHost = [
-    config.public.builderPreviewUrl,
-    config.public.publicWebFrontendUrl,
-  ].some((url) => url && new URL(url).hostname === callback.url.hostname)
+  const isFrontendHost =
+    [config.public.builderPreviewUrl, config.public.publicWebFrontendUrl].some(
+      (url) => url && new URL(url).hostname === callback.url.hostname
+    ) ||
+    (config.public.extraPublicWebFrontendHostnames || []).includes(
+      callback.url.hostname
+    )
   const isPreview = previewBuilderId && isFrontendHost
   let configuredProvider = false
   if (callback.token) {
