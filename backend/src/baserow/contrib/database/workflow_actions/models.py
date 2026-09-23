@@ -4,6 +4,8 @@ from django.db.models import OuterRef
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.core.formula.field import FormulaField as CoreFormulaModelField
+from baserow.core.jobs.mixins import JobWithWebsocketId
+from baserow.core.jobs.models import Job
 from baserow.core.mixins import OrderableMixin
 from baserow.core.registry import ModelRegistryMixin
 from baserow.core.services.models import Service
@@ -131,3 +133,27 @@ class SlackWriteMessageWorkflowAction(DatabaseWorkflowServiceAction): ...
 
 
 class CoreStartWorkflowWorkflowAction(DatabaseWorkflowServiceAction): ...
+
+
+class ButtonFieldDispatchJob(JobWithWebsocketId, Job):
+    """
+    One button click that runs behind the request, because an action of it
+    reaches outside Baserow. Carries what the click produced once it ran, in
+    the shape the inline response has.
+    """
+
+    field = models.ForeignKey(
+        "database.ButtonField",
+        on_delete=models.CASCADE,
+        related_name="dispatch_jobs",
+        help_text="The clicked button field.",
+    )
+    row_id = models.PositiveIntegerField(help_text="The clicked row.")
+    results = models.JSONField(
+        null=True,
+        help_text="One result per server action that ran, once the click finished.",
+    )
+    client_actions = models.JSONField(
+        null=True,
+        help_text="The frontend-only actions the browser runs after the click.",
+    )

@@ -879,6 +879,12 @@ class DatabaseConfig(AppConfig):
         job_type_registry.register(DuplicateFieldJobType())
         job_type_registry.register(SyncDataSyncTableJobType())
 
+        from baserow.contrib.database.workflow_actions.job_types import (
+            ButtonFieldDispatchJobType,
+        )
+
+        job_type_registry.register(ButtonFieldDispatchJobType())
+
         post_migrate.connect(safely_update_formula_versions, sender=self)
         pre_migrate.connect(clear_generated_model_cache_receiver, sender=self)
 
