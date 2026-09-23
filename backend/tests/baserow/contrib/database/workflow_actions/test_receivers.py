@@ -19,8 +19,11 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.contrib.database.workflow_actions.telemetry import (
+    DURATION_BUCKETS_MS,
+    button_field_dispatch_duration,
     record_button_field_dispatched,
     record_workflow_action_dispatched,
+    workflow_action_dispatch_duration,
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.services.types import DispatchResult
@@ -31,6 +34,7 @@ POSTHOG_PROPERTIES = {
     "field_id",
     "outcome",
     "failed_position",
+    "error_status_count",
     "duration_ms",
     "action_types",
     "server_action_count",
@@ -80,6 +84,7 @@ def test_the_posthog_event_carries_the_documented_properties(
         workflow_actions=workflow_actions,
         outcome=DispatchOutcome.FAILED,
         failed_position=2,
+        error_status_count=0,
         duration_ms=12.6,
     )
 
@@ -95,6 +100,7 @@ def test_the_posthog_event_carries_the_documented_properties(
         "field_id": button_field.id,
         "outcome": "failed",
         "failed_position": 2,
+        "error_status_count": 0,
         "duration_ms": 13,
         "action_types": ["local_baserow_create_row", "http_request", "open_url"],
         "server_action_count": 2,
@@ -247,6 +253,7 @@ def test_the_metric_receivers_are_connected(
         workflow_actions=[],
         outcome=DispatchOutcome.COMPLETED,
         failed_position=None,
+        error_status_count=0,
         duration_ms=1.0,
     )
     workflow_action_dispatched.send(
@@ -261,3 +268,16 @@ def test_the_metric_receivers_are_connected(
 
     click_counter.add.assert_called_once()
     action_counter.add.assert_called_once()
+
+
+def test_both_duration_histograms_reach_past_the_slowest_action():
+    # An HTTP action's timeout goes up to 120s and its watchdog allows twice
+    # that, so the SDK's default 10s ceiling would put every slow endpoint in
+    # the same bucket as a timeout.
+    for histogram in (
+        button_field_dispatch_duration,
+        workflow_action_dispatch_duration,
+    ):
+        boundaries = histogram._explicit_bucket_boundaries_advisory
+        assert boundaries == DURATION_BUCKETS_MS
+        assert boundaries[-1] >= 120_000 * 2
