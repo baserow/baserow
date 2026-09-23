@@ -1,10 +1,17 @@
 from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from rest_framework.exceptions import APIException, ValidationError
 
+from baserow.api.sessions import (
+    get_user_remote_addr_ip,
+    set_client_undo_redo_action_group_id,
+    set_untrusted_client_session_id,
+    set_user_remote_addr_ip,
+)
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.actions import (
     DispatchButtonFieldActionType,
@@ -318,3 +325,62 @@ def test_the_job_restores_the_clickers_websocket_id(data_fixture):
         _run(user, button_field, row)
 
     assert seen["web_socket_id"] == "socket-1"
+
+
+@pytest.mark.django_db
+def test_the_job_restores_the_clickers_ip_and_session_for_the_audit_log(
+    data_fixture,
+):
+    """The audit log reads the IP address and PostHog the session id from the
+    user, so the job carries both over from the request that clicked."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    user.web_socket_id = "socket-1"
+    set_user_remote_addr_ip(user, "203.0.113.7")
+    set_untrusted_client_session_id(user, "session-1")
+    set_client_undo_redo_action_group_id(user, str(uuid4()))
+    audited = []
+
+    def receiver(sender, user, action_type, session, **kwargs):
+        if action_type is DispatchButtonFieldActionType:
+            audited.append((get_user_remote_addr_ip(user), session))
+
+    action_done.connect(receiver)
+    try:
+        with mock_advocate_request({"ok": True}):
+            job = _run(user, button_field, row)
+    finally:
+        action_done.disconnect(receiver)
+
+    assert job.state == JOB_FINISHED
+    assert job.user_ip_address == "203.0.113.7"
+    assert audited == [("203.0.113.7", "session-1")]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_click_run_by_the_job_does_not_enter_the_undo_stack(data_fixture):
+    """The job restores the clicker's session id, which must still not let the
+    click's own row changes into their undo stack (ADR 006 section 8)."""
+
+    from baserow.contrib.database.action.scopes import TableActionScopeType
+    from baserow.core.action.handler import ActionHandler
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table, name_field, "first")
+    _add_http_action(data_fixture, button_field)
+    set_untrusted_client_session_id(user, "session-1")
+
+    with mock_advocate_request({"ok": True}):
+        job = _run(user, button_field, row)
+
+    assert job.state == JOB_FINISHED
+    assert job.user_session_id == "session-1"
+    undone = ActionHandler.undo(
+        user, [TableActionScopeType.value(table_id=table.id)], "session-1"
+    )
+    assert undone == []
+    assert table.get_model().objects.exclude(id=row.id).count() == 1
