@@ -21,6 +21,7 @@ from pydantic_ai._utils import (  # noqa: PLC2701
 )
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
+from pydantic_ai.tool_manager import ToolManager
 from pydantic_ai.toolsets import WrapperToolset
 from pydantic_ai.usage import UsageLimits
 
@@ -380,7 +381,11 @@ def run_case(
     start = time.monotonic()
     executor = _CaseExecutor()
     try:
-        with using_thread_executor(executor):
+        # Match production when a model batches dependent tool calls.
+        with (
+            using_thread_executor(executor),
+            ToolManager.parallel_execution_mode("sequential"),
+        ):
             result = run_until_complete(
                 _run_with_timeout(
                     run_agent_with_model(

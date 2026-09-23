@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess  # nosec
 from pathlib import Path
 
 # enterprise/backend/src/baserow_enterprise/assistant/evals/gitinfo.py -> repo root.
 _REPO_ROOT = Path(__file__).resolve().parents[6]
+
+
+def get_evaluator_source_hash() -> str:
+    """Fingerprint evaluator/check sources even in an archive without git metadata."""
+
+    root = Path(__file__).resolve().parent
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob("*.py")):
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def _git(*args: str) -> str:
