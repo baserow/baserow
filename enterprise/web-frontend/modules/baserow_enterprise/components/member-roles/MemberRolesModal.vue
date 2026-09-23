@@ -73,6 +73,7 @@ import error from '@baserow/modules/core/mixins/error'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
 import TeamService from '@baserow_enterprise/services/team'
 import AgentService from '@baserow/modules/core/services/agent'
+import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 import Modal from '@baserow/modules/core/mixins/modal'
 import MemberRolesTab from '@baserow_enterprise/components/member-roles/MemberRolesTab'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -236,6 +237,7 @@ export default {
     async fetchAgents() {
       this.agents = []
       if (
+        !this.$featureFlagIsEnabled(FF_AGENTS) ||
         !this.$hasPermission(
           'workspace.list_agents',
           this.workspace,
