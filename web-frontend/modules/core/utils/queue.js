@@ -124,31 +124,78 @@ export class ConcurrentPriorityTaskQueue {
     this.drain()
   }
 
-  /** Adds a task and keeps pending work ordered by priority and insertion. */
-  add(task, priority = 0) {
+  /**
+   * Adds a task and keeps pending work ordered by priority and insertion.
+   * Retried tasks release their worker slot while waiting and re-enter the queue.
+   */
+  add(
+    task,
+    priority = 0,
+    { maxRetries = 0, shouldRetry = () => false, retryDelay = () => 0 } = {}
+  ) {
+    if (!Number.isInteger(maxRetries) || maxRetries < 0) {
+      throw new TypeError('Max retries must be a non-negative integer.')
+    }
     return new Promise((resolve, reject) => {
       this.pending.push({
         task,
         priority,
         sequence: this.sequence++,
+        maxRetries,
+        shouldRetry,
+        retryDelay,
+        retryCount: 0,
         resolve,
         reject,
       })
-      this.pending.sort(
-        (a, b) => a.priority - b.priority || a.sequence - b.sequence
-      )
+      this.sortPending()
       this.drain()
     })
+  }
+
+  sortPending() {
+    this.pending.sort(
+      (a, b) => a.priority - b.priority || a.sequence - b.sequence
+    )
   }
 
   /** Starts pending tasks until the configured concurrency budget is full. */
   drain() {
     while (this.active < this.concurrency && this.pending.length > 0) {
-      const { task, resolve, reject } = this.pending.shift()
+      const item = this.pending.shift()
       this.active += 1
       Promise.resolve()
-        .then(task)
-        .then(resolve, reject)
+        .then(item.task)
+        .then(item.resolve, (error) => {
+          let retry
+          try {
+            retry =
+              item.retryCount < item.maxRetries &&
+              item.shouldRetry(error, item.retryCount)
+          } catch (retryError) {
+            item.reject(retryError)
+            return
+          }
+
+          if (!retry) {
+            item.reject(error)
+            return
+          }
+
+          let delay
+          try {
+            delay = item.retryDelay(error, item.retryCount)
+          } catch (retryError) {
+            item.reject(retryError)
+            return
+          }
+          item.retryCount += 1
+          setTimeout(() => {
+            this.pending.push(item)
+            this.sortPending()
+            this.drain()
+          }, delay)
+        })
         .finally(() => {
           this.active -= 1
           this.drain()

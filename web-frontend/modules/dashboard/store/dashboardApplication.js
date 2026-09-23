@@ -27,6 +27,8 @@ export const state = () => ({
 let debouncedWidgetUpdate = null
 
 const DEFAULT_DATA_SOURCE_DISPATCH_CONCURRENCY = 5
+const DATA_SOURCE_DISPATCH_MAX_RETRIES = 3
+const DATA_SOURCE_DISPATCH_RETRY_DELAY_MS = 250
 const dataSourceDispatchQueues = new WeakMap()
 
 const getDataSourceDispatchQueue = (state, concurrency) => {
@@ -81,20 +83,26 @@ export const prioritizeDataSources = (dataSources, widgets) => {
     .map(({ dataSource }) => dataSource)
 }
 
-/**
- * Processes a priority-ordered list with a bounded number of workers. A failed
- * item does not prevent remaining items from running.
- */
-export const processDataSourceQueue = async (
-  dataSources,
-  queue,
-  processDataSource,
-  shouldContinue = () => true
-) => {
-  const tasks = dataSources.map((dataSource, priority) =>
-    queue.add(() => shouldContinue() && processDataSource(dataSource), priority)
-  )
-  await Promise.allSettled(tasks)
+/** Returns whether the request was rejected by a concurrency or rate limit. */
+const isTooManyRequestsError = (error) =>
+  error?.isTooManyRequests?.() || error?.response?.status === 429
+
+const getRetryAfterMs = (error, attempt) => {
+  const headers = error?.response?.headers
+  const retryAfter = headers?.get?.('retry-after') ?? headers?.['retry-after']
+  if (retryAfter !== undefined) {
+    const seconds = Number.parseFloat(retryAfter)
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return seconds * 1000
+    }
+
+    const retryAt = Date.parse(retryAfter)
+    if (Number.isFinite(retryAt)) {
+      return Math.max(0, retryAt - Date.now())
+    }
+  }
+
+  return DATA_SOURCE_DISPATCH_RETRY_DELAY_MS * 2 ** attempt
 }
 
 const normalizeDashboardFetchRequest = (request, state, generationKey) => {
@@ -579,7 +587,7 @@ export const actions = {
     { state, commit, dispatch, getters },
     requestValues
   ) {
-    const { $client, $config } = this
+    const { $client } = this
     const dashboardId =
       typeof requestValues === 'object' && requestValues !== null
         ? requestValues.dashboardId
@@ -624,25 +632,15 @@ export const actions = {
       dataSourcesData.filter(({ id }) => dataSourceIdsToDispatch.has(id)),
       state.widgets
     )
-    const isCurrent = () =>
-      isFetchRequestCurrent(
-        state,
-        request,
-        'dataSourceCollectionFetchGeneration'
-      )
-    await processDataSourceQueue(
-      queuedDataSources,
-      getDataSourceDispatchQueue(
-        state,
-        getDataSourceDispatchConcurrency($config)
-      ),
-      (dataSource) =>
+    await Promise.allSettled(
+      queuedDataSources.map((dataSource, priority) =>
         dispatch('dispatchDataSource', {
           dataSourceId: dataSource.id,
           dashboardId: request.dashboardId,
           dashboardGeneration: request.dashboardGeneration,
-        }),
-      isCurrent
+          priority,
+        })
+      )
     )
     if (
       !isFetchRequestCurrent(
@@ -688,7 +686,7 @@ export const actions = {
     return widget
   },
   async dispatchDataSource({ state, commit }, requestValues) {
-    const { $client } = this
+    const { $client, $config } = this
     const requestContext = normalizeDataSourceRequestContext(
       requestValues,
       state
@@ -705,16 +703,38 @@ export const actions = {
     commit('INVALIDATE_DATA_SOURCE_DISPATCH', requestContext.dataSourceId)
     const request = getDataSourceDispatchRequest(requestContext, state)
     commit('UPDATE_DATA', { dataSourceId: request.dataSourceId, values: null })
+    const queue = getDataSourceDispatchQueue(
+      state,
+      getDataSourceDispatchConcurrency($config)
+    )
+    const priority = requestValues?.priority ?? 0
+
     try {
-      const { data } = await DataSourceService($client).dispatch(
-        request.dataSourceId
+      const response = await queue.add(
+        () => {
+          if (!isDataSourceDispatchCurrent(state, request)) {
+            return undefined
+          }
+          return DataSourceService($client).dispatch(request.dataSourceId)
+        },
+        priority,
+        {
+          maxRetries: DATA_SOURCE_DISPATCH_MAX_RETRIES,
+          shouldRetry: (error) =>
+            isDataSourceDispatchCurrent(state, request) &&
+            isTooManyRequestsError(error),
+          retryDelay: getRetryAfterMs,
+        }
       )
-      if (!isDataSourceDispatchCurrent(state, request)) {
+      if (
+        response === undefined ||
+        !isDataSourceDispatchCurrent(state, request)
+      ) {
         return
       }
       commit('UPDATE_DATA', {
         dataSourceId: request.dataSourceId,
-        values: data,
+        values: response.data,
       })
     } catch (error) {
       if (!isDataSourceDispatchCurrent(state, request)) {

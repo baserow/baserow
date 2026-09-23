@@ -181,15 +181,36 @@ describe('Dashboard application store', () => {
     const requests = Object.fromEntries(
       dataSources.map(({ id }) => [id, deferred()])
     )
-    DataSourceService.mockReturnValue({
-      getAllDataSources: vi.fn().mockResolvedValue({ data: dataSources }),
-    })
     const started = []
-    const dispatch = vi.fn((action, { dataSourceId }) => {
+    const dispatchDataSource = vi.fn((dataSourceId) => {
       started.push(dataSourceId)
       return requests[dataSourceId].promise
     })
+    DataSourceService.mockReturnValue({
+      getAllDataSources: vi.fn().mockResolvedValue({ data: dataSources }),
+      dispatch: dispatchDataSource,
+    })
     const commit = applyCommit(dashboardState)
+    const actionContext = {
+      state: dashboardState,
+      commit,
+      getters: { getDataSourceById: () => undefined },
+    }
+    const dispatch = vi.fn((action, payload) => {
+      if (action !== 'dispatchDataSource') {
+        throw new Error(`Unexpected action: ${action}`)
+      }
+      return actions.dispatchDataSource.call(
+        {
+          $client: {},
+          $config: {
+            public: { baserowDashboardDataSourceDispatchConcurrency: '2' },
+          },
+        },
+        actionContext,
+        payload
+      )
+    })
 
     const fetch = actions.fetchNewDataSources.call(
       {
@@ -202,7 +223,7 @@ describe('Dashboard application store', () => {
         state: dashboardState,
         commit,
         dispatch,
-        getters: { getDataSourceById: () => undefined },
+        getters: actionContext.getters,
       },
       42
     )
@@ -449,6 +470,7 @@ describe('Dashboard application store', () => {
       context,
       1
     )
+    await vi.waitFor(() => expect(dispatchDataSource).toHaveBeenCalledOnce())
     const secondDispatch = actions.dispatchDataSource.call(
       { $client: {} },
       context,
@@ -461,6 +483,96 @@ describe('Dashboard application store', () => {
     await firstDispatch
 
     expect(dashboardState.data[1]).toEqual({ result: 'newest' })
+  })
+
+  test('retries a throttled dispatch after the retry-after delay', async () => {
+    vi.useFakeTimers()
+    try {
+      const dashboardState = createDashboardState()
+      dashboardState.dataSources = [{ id: 1 }]
+      const throttled = {
+        response: { status: 429, headers: { 'retry-after': '1' } },
+      }
+      const dispatchDataSource = vi
+        .fn()
+        .mockRejectedValueOnce(throttled)
+        .mockResolvedValueOnce({ data: { result: 'retried' } })
+      DataSourceService.mockReturnValue({ dispatch: dispatchDataSource })
+      const commit = applyCommit(dashboardState)
+
+      const dispatch = actions.dispatchDataSource.call(
+        { $client: {} },
+        { state: dashboardState, commit },
+        1
+      )
+      await vi.advanceTimersByTimeAsync(999)
+      expect(dispatchDataSource).toHaveBeenCalledOnce()
+
+      await vi.advanceTimersByTimeAsync(1)
+      await dispatch
+
+      expect(dispatchDataSource).toHaveBeenCalledTimes(2)
+      expect(dashboardState.data[1]).toEqual({ result: 'retried' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('stops retrying a throttled dispatch after the dashboard changes', async () => {
+    vi.useFakeTimers()
+    try {
+      const dashboardState = createDashboardState()
+      dashboardState.dataSources = [{ id: 1 }]
+      const throttled = {
+        response: { status: 429, headers: { 'retry-after': '1' } },
+      }
+      const dispatchDataSource = vi.fn().mockRejectedValue(throttled)
+      DataSourceService.mockReturnValue({ dispatch: dispatchDataSource })
+      const commit = applyCommit(dashboardState)
+
+      const dispatch = actions.dispatchDataSource.call(
+        { $client: {} },
+        { state: dashboardState, commit },
+        1
+      )
+      await vi.advanceTimersByTimeAsync(0)
+      mutations.RESET(dashboardState)
+      mutations.SET_DASHBOARD_ID(dashboardState, 99)
+      await vi.advanceTimersByTimeAsync(1000)
+      await dispatch
+
+      expect(dispatchDataSource).toHaveBeenCalledOnce()
+      expect(dashboardState.data).toEqual({})
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  test('marks a data source as failed after bounded throttle retries', async () => {
+    vi.useFakeTimers()
+    try {
+      const dashboardState = createDashboardState()
+      dashboardState.dataSources = [{ id: 1 }]
+      const throttled = {
+        response: { status: 429, headers: { 'retry-after': '0' } },
+      }
+      const dispatchDataSource = vi.fn().mockRejectedValue(throttled)
+      DataSourceService.mockReturnValue({ dispatch: dispatchDataSource })
+      const commit = applyCommit(dashboardState)
+
+      const dispatch = actions.dispatchDataSource.call(
+        { $client: {} },
+        { state: dashboardState, commit },
+        1
+      )
+      await vi.runAllTimersAsync()
+      await dispatch
+
+      expect(dispatchDataSource).toHaveBeenCalledTimes(4)
+      expect(dashboardState.data[1]).toEqual({ _error: true })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('does not restore data from a dispatch completed after source removal', async () => {

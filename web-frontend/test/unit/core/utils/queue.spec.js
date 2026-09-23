@@ -65,6 +65,50 @@ describe('ConcurrentPriorityTaskQueue', () => {
     await second
     expect(secondTask).toHaveBeenCalledOnce()
   })
+
+  test('releases its worker slot while a retry is delayed', async () => {
+    const queue = new ConcurrentPriorityTaskQueue({ concurrency: 1 })
+    const order = []
+    const retryingTask = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        order.push('first attempt')
+        return Promise.reject(new Error('Throttled'))
+      })
+      .mockImplementationOnce(() => {
+        order.push('retry')
+      })
+
+    const retrying = queue.add(retryingTask, 0, {
+      maxRetries: 1,
+      shouldRetry: () => true,
+      retryDelay: () => 1000,
+    })
+    const other = queue.add(() => order.push('other task'), 0)
+
+    await flushPromises()
+    expect(order).toEqual(['first attempt', 'other task'])
+
+    await vi.advanceTimersByTimeAsync(1000)
+    await Promise.all([retrying, other])
+    expect(order).toEqual(['first attempt', 'other task', 'retry'])
+  })
+
+  test('rejects after the maximum number of retries', async () => {
+    const queue = new ConcurrentPriorityTaskQueue()
+    const error = new Error('Throttled')
+    const task = vi.fn().mockRejectedValue(error)
+
+    const queued = queue.add(task, 0, {
+      maxRetries: 2,
+      shouldRetry: () => true,
+    })
+    queued.catch(() => {})
+    await vi.runAllTimersAsync()
+
+    await expect(queued).rejects.toBe(error)
+    expect(task).toHaveBeenCalledTimes(3)
+  })
 })
 
 describe('test GroupTaskQueue when immediately filling the queue', () => {
