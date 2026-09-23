@@ -4,6 +4,7 @@ from unittest.mock import patch
 import pytest
 from rest_framework import serializers
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
@@ -17,6 +18,7 @@ from baserow.contrib.automation.nodes.node_types import (
 )
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.contrib.integrations.core.models import CoreResponseHeader
 from baserow.contrib.integrations.core.service_types import CoreStartWorkflowServiceType
@@ -247,6 +249,85 @@ def test_start_workflow_automation_node_waits_for_response_node(data_fixture):
         "body": "Child response",
         "body_type": RESPONSE_BODY_TYPE.TEXT,
     }
+
+
+@pytest.mark.django_db
+def test_start_workflow_node_simulation_completes_deferred_child(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    """A simulated deferred node schedules its child before ending simulation."""
+
+    user = data_fixture.create_user()
+    child_workflow = data_fixture.create_automation_workflow(
+        user=user,
+        trigger_type=CoreManualTriggerNodeType.type,
+        trigger_service_kwargs={"wait_for_response": True},
+    )
+    data_fixture.create_core_response_action_node(workflow=child_workflow)
+    AutomationWorkflowHandler().publish(child_workflow)
+
+    parent_workflow = data_fixture.create_automation_workflow(
+        user=user,
+        automation=child_workflow.automation,
+        trigger_type=CoreManualTriggerNodeType.type,
+    )
+    data_fixture.create_automation_node(
+        workflow=parent_workflow,
+        type="start_workflow",
+        service_kwargs={"workflow": child_workflow},
+    )
+    data_fixture.create_core_response_action_node(workflow=parent_workflow)
+    published_parent = AutomationWorkflowHandler().publish(parent_workflow)
+    start_node = published_parent.automation_workflow_nodes.get(
+        service__content_type__model="corestartworkflowservice"
+    )
+    parent_history = data_fixture.create_automation_workflow_history(
+        workflow=published_parent,
+        original_workflow=parent_workflow,
+        simulate_until_node=start_node,
+        is_test_run=True,
+    )
+
+    with (
+        patch(
+            "baserow.contrib.automation.workflows.tasks."
+            "start_workflow_celery_task.delay"
+        ) as start_child,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        resume_signature = AutomationNodeHandler().dispatch_node(
+            start_node.id, parent_history.id
+        )
+
+    child_history = AutomationWorkflowHistory.objects.filter(
+        original_workflow=child_workflow
+    ).latest("id")
+    start_child.assert_called_once_with(child_history.workflow_id, child_history.id)
+    assert resume_signature is not None
+
+    AutomationHistoryHandler().create_workflow_history_response(
+        child_history,
+        status_code=200,
+        body_type=RESPONSE_BODY_TYPE.EMPTY,
+    )
+    handle_workflow_dispatch_done(history_id=child_history.id)
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=parent_history,
+        node=start_node,
+    )
+
+    assert (
+        AutomationNodeHandler().complete_deferred_node(
+            node_history.id,
+            child_history.id,
+            "",
+        )
+        is None
+    )
+    child_history.refresh_from_db()
+    node_history.refresh_from_db()
+    assert child_history.status == HistoryStatusChoices.SUCCESS
+    assert node_history.status == HistoryStatusChoices.SUCCESS
 
 
 @pytest.mark.django_db

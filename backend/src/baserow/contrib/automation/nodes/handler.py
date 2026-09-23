@@ -642,9 +642,12 @@ class AutomationNodeHandler:
             self._handle_simulation_notify(simulate_until_node, node)
             return None
 
-        # Return early if this is a simulation as we've reached the
-        # simulated node.
-        if self._handle_simulation_notify(simulate_until_node, node):
+        # A deferred node must first schedule and await its child workflow. The
+        # simulation is completed when the deferred result is resumed below.
+        if (
+            dispatch_result.deferred_history_id is None
+            and self._handle_simulation_notify(simulate_until_node, node)
+        ):
             return None
 
         if dispatch_result.deferred_history_id is not None:
@@ -766,6 +769,11 @@ class AutomationNodeHandler:
         )
 
         self._after_node_dispatch(node, node_history)
+
+        # Deferred nodes reach the simulated target only after their child result is
+        # available. Notify the frontend now and do not traverse later parent nodes.
+        if self._handle_simulation_notify(simulate_until_node, node):
+            return None
 
         to_chain = []
         if children := node.get_children(first_only=True):
