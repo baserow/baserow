@@ -541,7 +541,9 @@ export default {
       }
 
       if (this.multiple) {
-        return value.map((valueItem) => get(valueItem, property))
+        return Array.isArray(value)
+          ? value.map((valueItem) => get(valueItem, property))
+          : []
       } else {
         return get(value, property)
       }

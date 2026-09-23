@@ -698,6 +698,26 @@ describe('elementTypes tests', () => {
       }
       expect(elementType.isValid(element, 'uk', {})).toBe(true)
     })
+    test('ChoiceElementType | required multiple | undefined value.', () => {
+      const elementType = new ChoiceElementType()
+      const element = {
+        required: true,
+        multiple: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
+        options: [{ id: 1, value: 'uk', name: 'UK' }],
+      }
+      expect(elementType.isValid(element, undefined, {})).toBe(false)
+    })
+    test('ChoiceElementType | not required multiple | undefined value.', () => {
+      const elementType = new ChoiceElementType()
+      const element = {
+        required: false,
+        multiple: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
+        options: [{ id: 1, value: 'uk', name: 'UK' }],
+      }
+      expect(elementType.isValid(element, undefined, {})).toBe(true)
+    })
     test('RecordSelectorElementType | required | no value.', () => {
       const elementType = new RecordSelectorElementType()
       const element = { required: true, multiple: false }

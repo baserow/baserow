@@ -1998,7 +1998,8 @@ export class ChoiceElementType extends FormElementType {
     ).map(({ value }) => value)
 
     const validOption = element.multiple
-      ? optionValues.some((option) => value.includes(option))
+      ? Array.isArray(value) &&
+        optionValues.some((option) => value.includes(option))
       : optionValues.includes(value)
 
     return !(element.required && !validOption)
