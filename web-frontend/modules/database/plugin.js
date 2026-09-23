@@ -7,6 +7,7 @@ import {
   FileImportJobType,
   DuplicateFieldJobType,
   AirtableJobType,
+  ButtonFieldDispatchJobType,
 } from '@baserow/modules/database/jobTypes'
 import {
   GridViewType,
@@ -436,6 +437,7 @@ export default defineNuxtPlugin({
     $registry.register('job', new FileImportJobType(context))
     $registry.register('job', new DuplicateFieldJobType(context))
     $registry.register('job', new AirtableJobType(context))
+    $registry.register('job', new ButtonFieldDispatchJobType(context))
 
     $registry.register('view', new GridViewType(context))
     $registry.register('view', new GalleryViewType(context))

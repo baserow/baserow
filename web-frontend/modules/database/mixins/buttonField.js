@@ -2,11 +2,13 @@ import { reactive } from 'vue'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
+import { ButtonFieldDispatchJobType } from '@baserow/modules/database/jobTypes'
 
 // Keyed by field and row rather than kept per component. The grid swaps an
 // unselected cell for its own component on the first click, and that remount
 // would drop a flag held in `data`, taking the loading state and the double
-// click guard with it.
+// click guard with it. The flag also spans a click whose actions run behind
+// a job: it stays set while that job is polled to its end.
 const dispatchesInFlight = reactive(new Set())
 
 const DISPATCH_OPERATION = 'database.table.field.workflow_action.dispatch'
@@ -90,14 +92,20 @@ export default {
         // The dispatch takes its own broadcast, so `this.row` can change
         // mid-request. Client actions get the row as it was at click time.
         const clickedRow = clone(this.row)
-        const { data } = await WorkflowActionService(this.$client).dispatch(
+        const response = await WorkflowActionService(this.$client).dispatch(
           this.field.id,
           this.row.id
         )
+        // A click with an action that reaches outside Baserow runs behind
+        // the request; the job carries the same body once it has run.
+        const outcome =
+          response.status === 202
+            ? await this.awaitDispatchJob(response.data)
+            : response.data
         await this.runClientActions(
-          data?.client_actions || [],
+          outcome?.client_actions || [],
           clickedRow,
-          this.previousActionResults(data)
+          this.previousActionResults(outcome)
         )
       } catch (error) {
         // The shared handler stays quiet on a 429, so a refused click would
@@ -120,6 +128,47 @@ export default {
       } finally {
         dispatchesInFlight.delete(key)
       }
+    },
+    /**
+     * Waits for the job store to poll the click's job to its end. A failed
+     * job is raised the way a failed inline click is, with its own message,
+     * so the catch above shows it.
+     */
+    async awaitDispatchJob(job) {
+      // Cloned so the store's own updates to the tracked job never mutate
+      // the response body the caller holds.
+      const ownJob = clone(job)
+      const tracked =
+        (await this.$store.dispatch('job/create', ownJob)) || ownJob
+      const waiting = ButtonFieldDispatchJobType.waitFor(tracked)
+      // Eager backends can answer with a job that is already final.
+      if (tracked.state === 'finished') {
+        return tracked
+      }
+      if (tracked.state === 'failed' || tracked.state === 'cancelled') {
+        throw this.dispatchJobError(tracked)
+      }
+      try {
+        return await waiting
+      } catch (failed) {
+        throw this.dispatchJobError(failed)
+      }
+    },
+    dispatchJobError(failed) {
+      const error = new Error(
+        failed.human_readable_error || 'Button click failed'
+      )
+      error.handler = {
+        notifyIf: () => {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('buttonField.dispatchErrorTitle'),
+            message:
+              failed.human_readable_error ||
+              this.$t('buttonField.dispatchErrorMessage'),
+          })
+        },
+      }
+      return error
     },
     /**
      * What the server side actions returned, for a client action to reference.

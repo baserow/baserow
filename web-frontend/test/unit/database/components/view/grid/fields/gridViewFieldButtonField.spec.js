@@ -53,6 +53,7 @@ describe('GridViewFieldButtonField', () => {
     // app, so replace .post with a fresh mock per mount instead of hitting
     // the network mock adapter.
     wrapper.vm.$client.post = vi.fn().mockResolvedValue({
+      status: 200,
       data: { results: [], client_actions: [], ...responseData },
     })
     return wrapper
@@ -287,5 +288,111 @@ describe('GridViewFieldButtonField', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.dispatching).toBe(false)
+  })
+
+  const acceptedJob = {
+    id: 7,
+    type: 'button_field_dispatch',
+    state: 'pending',
+    progress_percentage: 0,
+    human_readable_error: '',
+    results: null,
+    client_actions: null,
+  }
+
+  const finishJob = async (wrapper, values) => {
+    const store = wrapper.vm.$store
+    const job = store.getters['job/get'](acceptedJob.id)
+    await store.dispatch('job/forceUpdate', {
+      job,
+      data: { ...acceptedJob, ...values },
+    })
+    await flushPromises()
+  }
+
+  test('an accepted click waits on its job and then runs the client actions', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    // Still waiting: the spinner stays and nothing has run.
+    expect(wrapper.vm.dispatching).toBe(true)
+    expect(execute).not.toHaveBeenCalled()
+    expect(wrapper.vm.$store.getters['job/get'](acceptedJob.id)).toBeTruthy()
+
+    await finishJob(wrapper, {
+      state: 'finished',
+      results: [
+        {
+          workflow_action_id: 3,
+          order: 1,
+          position: 1,
+          status: 'completed',
+          data: { id: 99 },
+          field_names: {},
+        },
+      ],
+      client_actions: [{ ...openUrlAction, position: 2 }],
+    })
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(
+      execute.mock.calls[0][0].applicationContext.previousActionResults
+    ).toEqual({
+      3: { data: { id: 99 }, fieldNames: {}, order: 1, position: 1 },
+    })
+  })
+
+  test('a failed job shows its message and clears the spinner', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await finishJob(wrapper, {
+      state: 'failed',
+      human_readable_error:
+        'Action 1 ran before action 2 failed: No table selected',
+    })
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).not.toHaveBeenCalled()
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.dispatchErrorTitle',
+      message: 'Action 1 ran before action 2 failed: No table selected',
+    })
+  })
+
+  test('the spinner survives a remount while the job polls', async () => {
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    // The grid swaps the cell component on selection; the flag is keyed by
+    // field and row outside the component, so the new one still spins.
+    const remounted = await mountCell({ selected: true })
+
+    expect(remounted.vm.dispatching).toBe(true)
+
+    await finishJob(wrapper, {
+      state: 'finished',
+      results: [],
+      client_actions: [],
+    })
+
+    expect(remounted.vm.dispatching).toBe(false)
   })
 })

@@ -138,3 +138,42 @@ export class AirtableJobType extends JobType {
     return 'airtable'
   }
 }
+
+// Clicks waiting on their job, by job id. The button mixin keeps its own
+// state outside any component, so this lives here rather than in one.
+const waitingClicks = new Map()
+
+export class ButtonFieldDispatchJobType extends JobType {
+  static getType() {
+    return 'button_field_dispatch'
+  }
+
+  getName() {
+    return 'button_field_dispatch'
+  }
+
+  /**
+   * A promise for the click's outcome: the finished job's data, or a
+   * rejection with the failed job's data. The job store polls the job and
+   * `afterUpdate` settles this once it is final.
+   */
+  static waitFor(job) {
+    return new Promise((resolve, reject) => {
+      waitingClicks.set(job.id, { resolve, reject })
+    })
+  }
+
+  async afterUpdate(job, data) {
+    const waiting = waitingClicks.get(job.id)
+    if (!waiting) {
+      return
+    }
+    if (data.state === 'finished') {
+      waitingClicks.delete(job.id)
+      waiting.resolve(data)
+    } else if (data.state === 'failed' || data.state === 'cancelled') {
+      waitingClicks.delete(job.id)
+      waiting.reject(data)
+    }
+  }
+}
