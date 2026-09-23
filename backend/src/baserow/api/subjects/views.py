@@ -8,8 +8,9 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST
 from baserow.api.pagination import PageNumberPagination
 from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
+from baserow.core.registries import subject_type_registry
 from baserow.core.subject_options import SubjectOptionsHandler
+from baserow.core.types import PermissionCheck
 
 from .serializers import SubjectOptionSerializer, SubjectOptionsQueryParamsSerializer
 
@@ -25,7 +26,9 @@ class SubjectOptionsView(APIView):
         description="Returns searchable options supplied by registered subject types.",
     )
     @map_exceptions({WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST})
-    @validate_query_parameters(SubjectOptionsQueryParamsSerializer)
+    @validate_query_parameters(
+        SubjectOptionsQueryParamsSerializer, return_validated=True
+    )
     def get(self, request, query_params):
         """Return subject options after checking the requested disclosure scope."""
 
@@ -33,11 +36,20 @@ class SubjectOptionsView(APIView):
         workspace = None
         if workspace_id is not None:
             workspace = CoreHandler().get_workspace(workspace_id)
-            CoreHandler().check_permissions(
-                request.user,
-                ListWorkspaceUsersWorkspaceOperationType.type,
-                workspace=workspace,
-                context=workspace,
+            requested_types = query_params.get("subject_types") or set(
+                subject_type_registry.get_types()
+            )
+            operation_types = {
+                subject_type_registry.get(subject_type_name).options_list_operation_type
+                for subject_type_name in requested_types
+            }
+            checks = [
+                PermissionCheck(request.user, operation_type, workspace)
+                for operation_type in operation_types
+                if operation_type is not None
+            ]
+            CoreHandler().check_multiple_permissions(
+                checks, workspace=workspace, raise_exception=True
             )
         elif not request.user.is_staff:
             raise PermissionDenied()

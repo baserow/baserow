@@ -6,6 +6,7 @@ from django.db.models import CharField, F, IntegerField, Value
 from django.db.models.functions import Cast
 from django.utils.translation import gettext_lazy as _
 
+from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.models import Agent, Workspace
 from baserow.core.registries import SubjectType
 from baserow.core.types import Subject
@@ -15,6 +16,7 @@ class AgentSubjectType(SubjectType):
     type = "core.Agent"
     model_class = Agent
     display_name_field = "name"
+    options_list_operation_type = ListAgentsWorkspaceOperationType.type
 
     has_direct_workspace_roles = True
 
