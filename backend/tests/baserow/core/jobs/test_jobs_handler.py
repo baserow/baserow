@@ -17,7 +17,7 @@ from baserow.core.jobs.exceptions import (
 )
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import Job
-from baserow.core.jobs.registries import JobType
+from baserow.core.jobs.registries import JobType, job_type_registry
 from baserow.core.jobs.tasks import run_async_job
 
 
@@ -34,9 +34,9 @@ def test_create_and_start_job(mock_run_async_job, data_fixture):
     assert job.state == "pending"
     assert job.error == ""
 
-    mock_run_async_job.delay.assert_called_once()
-    args = mock_run_async_job.delay.call_args
-    assert args[0][0] == job.id
+    mock_run_async_job.apply_async.assert_called_once()
+    call_kwargs = mock_run_async_job.apply_async.call_args.kwargs
+    assert call_kwargs["args"][0] == job.id
 
 
 @pytest.mark.django_db(transaction=True)
@@ -46,8 +46,8 @@ def test_create_and_start_job_with_system_exit(mock_run_async_job, data_fixture)
 
     user = data_fixture.create_user()
 
-    # Simulate a SystemExit during the delay call
-    mock_run_async_job.delay.side_effect = lambda x: sys.exit(-1)
+    # Simulate a SystemExit during the apply_async call
+    mock_run_async_job.apply_async.side_effect = lambda **kwargs: sys.exit(-1)
 
     with pytest.raises(SystemExit):
         JobHandler().create_and_start_job(user, "tmp_job_type_1")
@@ -57,6 +57,40 @@ def test_create_and_start_job_with_system_exit(mock_run_async_job, data_fixture)
     assert job.progress_percentage == 0
     assert job.state == "failed"
     assert job.error == "-1"
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.handler.run_async_job")
+def test_create_and_start_job_enqueues_on_the_export_queue_by_default(
+    mock_run_async_job, data_fixture
+):
+    data_fixture.register_temp_job_types()
+    user = data_fixture.create_user()
+
+    job = JobHandler().create_and_start_job(user, "tmp_job_type_1")
+
+    mock_run_async_job.apply_async.assert_called_once_with(
+        args=[job.id], queue="export"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.handler.run_async_job")
+def test_create_and_start_job_enqueues_on_the_types_queue(
+    mock_run_async_job, data_fixture, monkeypatch
+):
+    data_fixture.register_temp_job_types()
+    user = data_fixture.create_user()
+    monkeypatch.setattr(job_type_registry.get("tmp_job_type_1"), "queue", "other")
+
+    job = JobHandler().create_and_start_job(user, "tmp_job_type_1")
+
+    mock_run_async_job.apply_async.assert_called_once_with(args=[job.id], queue="other")
+
+
+def test_every_registered_job_type_names_a_queue():
+    for job_type in job_type_registry.get_all():
+        assert isinstance(job_type.queue, str) and job_type.queue
 
 
 @pytest.mark.django_db
@@ -151,7 +185,7 @@ def test_job_cancel_before_run(data_fixture, test_thread, mutable_job_type_regis
     mutable_job_type_registry.register(IdlingJobType())
 
     user = data_fixture.create_user()
-    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
         job = jh.create_and_start_job(user, IdlingJobType.type, sync=False)
     assert job.user_id == user.id
     assert job.get_cached_progress_percentage() == 0
@@ -197,7 +231,7 @@ def test_job_cancel_before_run_calls_on_cancelled(
     mutable_job_type_registry.register(IdlingJobType())
 
     user = data_fixture.create_user()
-    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
         job = jh.create_and_start_job(user, IdlingJobType.type, sync=False)
 
     jh.cancel_job(job)
@@ -241,7 +275,7 @@ def test_job_cancel_when_running(data_fixture, test_thread, mutable_job_type_reg
 
     user = data_fixture.create_user()
 
-    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
         job = jh.create_and_start_job(user, IdlingJobType.type, sync=False)
     assert job.user_id == user.id
     assert job.get_cached_progress_percentage() == 0
@@ -288,7 +322,7 @@ def test_job_cancel_failed(data_fixture, test_thread, mutable_job_type_registry)
     mutable_job_type_registry.register(IdlingJobType())
 
     user = data_fixture.create_user()
-    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
         job = jh.create_and_start_job(user, IdlingJobType.type, sync=False)
     assert job.user_id == user.id
     assert job.get_cached_progress_percentage() == 0
@@ -332,7 +366,7 @@ def test_job_cancel_finished(data_fixture, test_thread, mutable_job_type_registr
     mutable_job_type_registry.register(IdlingJobType())
 
     user = data_fixture.create_user()
-    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
         job = jh.create_and_start_job(user, IdlingJobType.type, sync=False)
     assert job.user_id == user.id
     assert job.get_cached_progress_percentage() == 0
@@ -378,7 +412,7 @@ def test_job_cancel_cancelled(data_fixture, test_thread, mutable_job_type_regist
     mutable_job_type_registry.register(IdlingJobType())
 
     user = data_fixture.create_user()
-    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
         job = jh.create_and_start_job(user, IdlingJobType.type, sync=False)
     assert job.user_id == user.id
     assert job.get_cached_progress_percentage() == 0
