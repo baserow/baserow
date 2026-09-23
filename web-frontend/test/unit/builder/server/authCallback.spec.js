@@ -26,6 +26,7 @@ vi.mock('nitropack/runtime', () => ({
     public: {
       publicWebFrontendUrl: 'https://baserow.example.com',
       builderPreviewUrl: 'http://preview.example.com',
+      extraPublicWebFrontendHostnames: ['extra.example.com'],
       baserowFrontendCookiePrefix: 'test_',
     },
   }),
@@ -77,6 +78,7 @@ test.each(['saml', 'oidc', 'custom_provider-v2'])(
     for (const origin of [
       'http://preview.example.com',
       'https://baserow.example.com',
+      'https://extra.example.com',
     ]) {
       const response = await request(
         `/builder/preview/17/members?user_source_${provider}_token__42=test-refresh-token`,
@@ -204,21 +206,24 @@ test('resolves published callbacks by domain without forwarding browser cookies'
     }
   )
 })
-test('resolves previews using only the preview SSR credential', async () => {
-  await request(
-    '/builder/preview/17/login?user_source_saml_token__42=token',
-    'http://preview.example.com',
-    {
-      cookie:
-        'test_baserow_builder_preview_ssr=preview-session; unrelated=secret',
-    }
-  )
-  expect($fetch).toHaveBeenCalledWith('builder/preview/17/current/', {
-    baseURL: 'http://backend:8000/api/',
-    headers: { Cookie: 'test_baserow_builder_preview=preview-session' },
-    retry: 0,
-  })
-})
+test.each(['http://preview.example.com', 'https://extra.example.com'])(
+  'resolves previews on %s using only the preview SSR credential',
+  async (origin) => {
+    await request(
+      '/builder/preview/17/login?user_source_saml_token__42=token',
+      origin,
+      {
+        cookie:
+          'test_baserow_builder_preview_ssr=preview-session; test_jwt_token=private-token; unrelated=secret',
+      }
+    )
+    expect($fetch).toHaveBeenCalledWith('builder/preview/17/current/', {
+      baseURL: 'http://backend:8000/api/',
+      headers: { Cookie: 'test_baserow_builder_preview=preview-session' },
+      retry: 0,
+    })
+  }
+)
 test('resolves the published-by-ID route on the frontend host', async () => {
   await request(
     '/builder/published/17/login?user_source_saml_token__42=token',
