@@ -548,12 +548,14 @@ def _create_elements_internal(
 
     # Guide the model to create workflow actions for interactive elements
     actionable = [
-        el.ref for el in elements if el.type in ("button", "link", "form_container")
+        el.ref
+        for el in elements
+        if el.ref in element_mapping and el.type in ("button", "form_container")
     ]
     if actionable:
         result["next_steps"] = (
             f"Elements {actionable} need workflow actions. "
-            "Call create_actions next: 'click' event for buttons/links, "
+            "Call create_actions next: 'click' event for buttons, "
             "'submit' event for form_container."
         )
 
@@ -588,6 +590,10 @@ def create_display_elements(
     """\
     Create display elements on a page: heading, text, button, link, image.
 
+    For navigation, use a link (link_variant='button' gives a button appearance),
+    or create a button and then create_actions(type='open_page', event='click').
+    Button elements do not accept navigation properties.
+
     PREREQUISITE: The page must already exist. Call create_pages first if it doesn't.
     WHEN to use: User wants to add text content, headings, buttons, links, or images.
     WHAT it does: Creates display elements with formula support for dynamic values.
@@ -602,10 +608,12 @@ def create_display_elements(
     - Heading/text value: "$formula: the product name from the products data source"
     - Image URL: "$formula: the image URL from the product data source"
     - Static text: use plain strings (auto-wrapped in quotes)
+    - Inside a collection, descriptions use current_record for that collection's row.
+      For intentional fixed-row access, supply an explicit runtime expression.
 
-    ## After Creating Buttons/Links
-    Buttons/links need a click action (open_page, notification, etc.) via create_actions.
-    ALWAYS call create_actions after creating buttons or links.
+    ## After Creating Buttons
+    Buttons need a click action (open_page, notification, etc.) via create_actions.
+    Links use their navigation properties directly.
 
     ## Buttons/Links in Shared Headers
     - In shared headers, only use links that navigate to a FIXED page (navigate_to_page_id).
@@ -768,11 +776,17 @@ def update_element(
     ## Usage
     - element_id: ID of the element to update (from list_elements).
     - Only set the fields you want to change — unset fields are left unchanged.
-    - Invalid fields for the element type are silently ignored.
+    - Unsupported fields reject the update without applying any changes.
+    - Button navigation belongs in create_actions(type='open_page', event='click'),
+      not in update_element. Links support navigation properties directly.
+    - Table fields accept literal values or explicit runtime expressions on update;
+      natural-language formula generation for table fields is creation-only.
 
     ## Dynamic Values with $formula:
     - value: "$formula: the product name from the data source"
     - default_value: "$formula: the current user's email"
+    - Inside a collection, descriptions use current_record for that collection's row.
+      For intentional fixed-row access, supply an explicit runtime expression.
 
     ## Menu Items
     - To add/replace menu items on a menu element, set menu_items with the full list.
@@ -793,18 +807,35 @@ def update_element(
 
     # Handle formula generation for $formula: fields (separate transaction)
     formulas = element.get_formulas_to_update(orm_element, None, element_type)
+    applied_formulas: list[str] = []
+    errors: list[str] = []
     if formulas:
-        agents.update_single_element_formulas(
-            user, page, orm_element, element, element_type, tool_helpers
-        )
+        try:
+            applied_formulas, errors = agents.update_single_element_formulas(
+                user, page, orm_element, element, element_type, tool_helpers
+            )
+        except PermissionException:
+            errors = [
+                "Permission denied while applying element formulas. "
+                "Previous formula values were retained. Do not retry the denied operation."
+            ]
 
-    updated_fields = element.get_updated_field_names()
-    return {
-        "status": "ok",
+    updated_fields = []
+    for field in element.get_updated_field_names():
+        formula_field = (
+            "value" if element_type == "button" and field == "label" else field
+        )
+        if formula_field not in formulas or formula_field in applied_formulas:
+            updated_fields.append(field)
+    result = {
+        "status": ("partial" if updated_fields else "error") if errors else "ok",
         "element_id": element.element_id,
         "element_type": element_type,
         "updated_fields": updated_fields,
     }
+    if errors:
+        result["errors"] = errors
+    return result
 
 
 # ---------------------------------------------------------------------------

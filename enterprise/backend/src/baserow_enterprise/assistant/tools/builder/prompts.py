@@ -27,7 +27,7 @@ In builder formulas, data is accessed through these providers:
 **Rules:**
 1. Use context_metadata to find correct data source IDs and field IDs
 2. Always use field_<id> format (e.g., field_123), NOT field names
-3. Inside collection elements (table, repeat), use current_record for the row being rendered (e.g., get('current_record.field_123')). data_source.<id>.0 is the first row of the entire list — it does NOT change per row.
+3. Inside collection elements (table, repeat), use current_record for the row being rendered (e.g., get('current_record.field_123')). The collection's data source is deliberately omitted from implicit formula context; its name and fields are on current_record. data_source.<id>.0 is the first row of the entire list — it does NOT change per row. Do not invent a list path when current_record is available. Other listed data sources remain available. Intentional absolute access to this same collection must be supplied as an explicit formula, not guessed from missing context.
 4. Skip fields marked with [optional] if no suitable data exists
 5. If **feedback** is provided, use it to refine or correct the generated formulas
 6. Return valid formulas that evaluate against the provided context

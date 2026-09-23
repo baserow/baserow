@@ -992,9 +992,12 @@ class TestAssistantLicenseTier:
         agent's bias toward acting."""
 
         assert "<intent>" in AGENT_SYSTEM_PROMPT
-        assert "Default to building" in AGENT_SYSTEM_PROMPT
+        assert "Product questions: explain" in AGENT_SYSTEM_PROMPT
         assert "never invent their data" in AGENT_SYSTEM_PROMPT
-        assert "You act rather than describe" in AGENT_SYSTEM_PROMPT
+        assert (
+            "A request to display existing data does not authorize"
+            in AGENT_SYSTEM_PROMPT
+        )
 
     def test_agent_system_prompt_covers_production_regressions(self):
         assert "Cross-mode routing is automatic" in AGENT_SYSTEM_PROMPT
@@ -2316,6 +2319,8 @@ class TestFinalAnswerValidation:
             "I created the Process Orders workflow with errors.",
             "I created the Process Orders workflow, but the action failed.",
             "I created the Process Orders workflow. The action could not be configured.",
+            "I created the Process Orders workflow. Permission to configure its action was denied.",
+            "I created the Process Orders workflow. Configuring its action is forbidden for this role.",
         ],
     )
     def test_partial_success_can_be_acknowledged_in_a_separate_sentence(self, answer):
@@ -2335,6 +2340,9 @@ class TestFinalAnswerValidation:
             "I created the Process Orders workflow without errors.",
             "I created the Process Orders workflow with no errors.",
             "I created the Process Orders workflow without errors. The action failed.",
+            "I created the Process Orders workflow. No permission was denied.",
+            "I created the Process Orders workflow. The action is not forbidden.",
+            "I created the Process Orders workflow. Access wasn't denied.",
         ):
             with pytest.raises(ModelRetry, match="without a verified"):
                 validate_final_answer(ctx, unqualified)
