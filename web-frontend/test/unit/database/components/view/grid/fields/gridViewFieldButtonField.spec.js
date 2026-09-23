@@ -418,6 +418,20 @@ describe('GridViewFieldButtonField', () => {
     expect(wrapper.vm.dispatching).toBe(false)
   })
 
+  // Answers the one fetch of the click's job the deadline makes, and leaves
+  // every other request, the job store's own polls included, to the client.
+  const answerJobFetch = (wrapper, job) => {
+    const client = wrapper.vm.$client
+    const originalGet = client.get
+    const get = vi.fn((url, ...args) =>
+      url === `/jobs/${acceptedJob().id}/`
+        ? Promise.resolve({ data: job })
+        : originalGet.call(client, url, ...args)
+    )
+    client.get = get
+    return get
+  }
+
   test('a click gives up on a job that never reaches a final state', async () => {
     // Only the timer the deadline itself uses is faked, so the promise
     // machinery the dispatch, the store and `flushPromises` all rely on
@@ -428,6 +442,7 @@ describe('GridViewFieldButtonField', () => {
     wrapper.vm.$client.post = vi
       .fn()
       .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const get = answerJobFetch(wrapper, acceptedJob())
     const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
 
     await wrapper.find('button').trigger('click')
@@ -436,12 +451,39 @@ describe('GridViewFieldButtonField', () => {
     expect(wrapper.vm.dispatching).toBe(true)
 
     await vi.advanceTimersByTimeAsync(DISPATCH_JOB_DEADLINE_MS + 1)
+    await flushPromises()
 
+    expect(get).toHaveBeenCalledWith(`/jobs/${acceptedJob().id}/`)
     expect(wrapper.vm.dispatching).toBe(false)
     expect(execute).not.toHaveBeenCalled()
     expect(toast).toHaveBeenCalledWith('toast/error', {
       title: 'buttonField.stillRunningTitle',
       message: 'buttonField.stillRunningMessage',
     })
+  })
+
+  test('a job the poller stopped watching still runs its client actions if it finished by the deadline', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    answerJobFetch(wrapper, {
+      ...acceptedJob(),
+      state: 'finished',
+      results: [],
+      client_actions: [openUrlAction],
+    })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_DEADLINE_MS + 1)
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(toast).not.toHaveBeenCalledWith('toast/error', expect.anything())
   })
 })

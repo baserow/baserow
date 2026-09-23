@@ -3,6 +3,7 @@ import WorkflowActionService from '@baserow/modules/database/services/workflowAc
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
 import { ButtonFieldDispatchJobType } from '@baserow/modules/database/jobTypes'
+import JobService from '@baserow/modules/core/services/job'
 
 // Keyed by field and row rather than kept per component. The grid swaps an
 // unselected cell for its own component on the first click, and that remount
@@ -152,9 +153,24 @@ export default {
       const waiting = ButtonFieldDispatchJobType.waitFor(tracked)
       let deadlineTimer
       const deadline = new Promise((resolve, reject) => {
-        deadlineTimer = setTimeout(() => {
+        deadlineTimer = setTimeout(async () => {
           ButtonFieldDispatchJobType.forget(tracked)
-          reject(this.dispatchJobStillRunningError())
+          // The job store stops polling before the deadline, so the job may
+          // have ended unseen. Asked once more before giving up on it.
+          let job = null
+          try {
+            const { data } = await JobService(this.$client).get(tracked.id)
+            job = data
+          } catch {
+            // Treated as still running: the message says as much.
+          }
+          if (job?.state === 'finished') {
+            resolve(job)
+          } else if (job?.state === 'failed' || job?.state === 'cancelled') {
+            reject(this.dispatchJobError(job))
+          } else {
+            reject(this.dispatchJobStillRunningError())
+          }
         }, DISPATCH_JOB_DEADLINE_MS)
       })
       try {
