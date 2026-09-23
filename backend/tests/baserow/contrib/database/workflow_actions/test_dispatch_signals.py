@@ -419,7 +419,8 @@ def test_a_failing_receiver_does_not_log_the_address_a_failed_action_reached(
     data_fixture, caplog
 ):
     # A receiver's failure raised while the dispatch failure was being handled
-    # would chain it, and Django logs the receiver's failure with its traceback.
+    # would chain it, and a traceback of it holds the frames that resolved the
+    # address.
     user = data_fixture.create_user()
     table, _ = _table_with_name(data_fixture, user)
     button_field = data_fixture.create_button_field(table=table, label="Go")
@@ -433,21 +434,27 @@ def test_a_failing_receiver_does_not_log_the_address_a_failed_action_reached(
     workflow_action_dispatched.connect(fail)
     workflow_action_dispatched.connect(dispatched)
     try:
-        with caplog.at_level(logging.ERROR, logger="django.dispatch"):
-            # The builtin one: the service turns it into a failure that names
-            # the URL.
-            with _answer_requests(raise_exception=ConnectionError("refused")):
-                with pytest.raises(WorkflowActionDispatchError):
-                    DatabaseWorkflowActionService().dispatch_workflow_actions(
-                        user, button_field, row
-                    )
+        with caplog.at_level(logging.ERROR):
+            with patch("baserow.core.signals.logger") as mock_logger:
+                # The builtin one: the service turns it into a failure that
+                # names the URL.
+                with _answer_requests(raise_exception=ConnectionError("refused")):
+                    with pytest.raises(WorkflowActionDispatchError):
+                        DatabaseWorkflowActionService().dispatch_workflow_actions(
+                            user, button_field, row
+                        )
     finally:
         workflow_action_dispatched.disconnect(fail)
         workflow_action_dispatched.disconnect(dispatched)
 
     assert dispatched.calls[0]["succeeded"] is False
-    assert "bookkeeping receiver blew up" in caplog.text
+    # Logged by its class, without the message and the traceback Django's own
+    # line carries.
+    mock_logger.error.assert_called_once()
+    assert mock_logger.error.call_args.kwargs["exception"] == "RuntimeError"
+    assert "bookkeeping receiver blew up" not in caplog.text
     assert "canary" not in caplog.text
+    assert [r for r in caplog.records if r.name == "django.dispatch"] == []
 
 
 @contextmanager
@@ -773,9 +780,7 @@ def test_a_raising_button_field_dispatched_receiver_never_leaks_its_message(
     button_field_dispatched.connect(leaky)
     try:
         with caplog.at_level(logging.ERROR):
-            with patch(
-                "baserow.contrib.database.workflow_actions.signals.logger"
-            ) as mock_logger:
+            with patch("baserow.core.signals.logger") as mock_logger:
                 _click(api_client, token, button_field, row.id)
     finally:
         button_field_dispatched.disconnect(leaky)
@@ -907,3 +912,39 @@ def test_an_action_interrupted_by_a_worker_timeout_is_still_counted(
     assert [(c["outcome"], c["failed_position"]) for c in clicks] == [
         (DispatchOutcome.ERROR, 2)
     ]
+
+
+@pytest.mark.django_db
+def test_a_click_whose_endpoint_refused_counts_the_error_status(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table)
+    _add_http_action(data_fixture, button_field)
+
+    with _received(button_field_dispatched) as calls:
+        with mock_advocate_request({"nope": True}, status_code=504):
+            response = _click(api_client, token, button_field, row.id)
+
+    assert response.status_code == HTTP_200_OK
+    # Baserow ran the sequence; the endpoint is what refused.
+    assert calls[0]["outcome"] == DispatchOutcome.COMPLETED
+    assert calls[0]["failed_position"] is None
+    assert calls[0]["error_status_count"] == 1
+
+
+@pytest.mark.django_db
+def test_a_click_whose_endpoint_accepted_counts_no_error_status(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    with _received(button_field_dispatched) as calls:
+        with mock_advocate_request({"ok": True}):
+            _click(api_client, token, button_field, row.id)
+
+    assert calls[0]["outcome"] == DispatchOutcome.COMPLETED
+    assert calls[0]["error_status_count"] == 0

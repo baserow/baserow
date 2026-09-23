@@ -82,6 +82,7 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.contrib.database.workflow_actions.signals import (
     button_field_dispatched,
 )
+from baserow.contrib.database.workflow_actions.telemetry import result_label
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
@@ -611,6 +612,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         started = perf_counter()
         workflow_actions: List[DatabaseWorkflowAction] = []
         failed_positions: List[int] = []
+        error_status_positions: List[int] = []
 
         def send_dispatched(outcome, failed_position=None):
             # Refused clicks leave no audit entry, so this is the only place
@@ -623,6 +625,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 workflow_actions=workflow_actions,
                 outcome=outcome,
                 failed_position=failed_position,
+                error_status_count=len(error_status_positions),
                 duration_ms=(perf_counter() - started) * 1000,
             )
 
@@ -635,7 +638,13 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             # three describe the same click.
             workflow_actions = service.get_dispatch_snapshot(field)
             response = self._run_click(
-                request, field, row, service, workflow_actions, failed_positions
+                request,
+                field,
+                row,
+                service,
+                workflow_actions,
+                failed_positions,
+                error_status_positions,
             )
         except Exception as exc:
             error = exc
@@ -668,6 +677,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         service: DatabaseWorkflowActionService,
         workflow_actions: List[DatabaseWorkflowAction],
         failed_positions: List[int],
+        error_status_positions: List[int],
     ) -> Response:
         reservations = self._reserve_dispatch_budget(request, field, workflow_actions)
         reached_outside = []
@@ -687,6 +697,17 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             # refusals, and a click that failed after its request could repeat
             # that request for free.
             self._release_dispatch_budget(reservations, keep=len(reached_outside))
+
+        # An action that reaches outside Baserow answers a remote error or a
+        # timeout with a result rather than raising, so a click can complete
+        # with an action the endpoint refused. Counted here so the click's
+        # event says so, since the per-action metric carries no workspace.
+        error_status_positions.extend(
+            dispatch.positions[dispatched.workflow_action.id]
+            for dispatched in dispatch.dispatched
+            if dispatched.result is not None
+            and result_label(True, dispatched.result) == "error_status"
+        )
 
         # A client action can read only what ran before it, so a result with
         # none after it is not sent at all. Configuring a button needs more

@@ -62,6 +62,7 @@ def capture_button_field_dispatched(
     workflow_actions,
     outcome,
     failed_position,
+    error_status_count,
     duration_ms,
     **kwargs,
 ):
@@ -81,6 +82,9 @@ def capture_button_field_dispatched(
             "field_id": field.id,
             "outcome": str(outcome),
             "failed_position": failed_position,
+            # `completed` says Baserow ran the sequence, not that every
+            # endpoint an action reached accepted what it sent.
+            "error_status_count": error_status_count,
             "duration_ms": round(duration_ms),
             "action_types": [type_.type for type_ in types],
             "server_action_count": sum(not t.is_frontend_only for t in types),

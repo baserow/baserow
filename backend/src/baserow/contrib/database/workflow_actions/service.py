@@ -537,12 +537,12 @@ class DatabaseWorkflowActionService:
         Tells receivers what one action did. The action already ran, so a
         receiver that fails must not fail the click. Called outside the
         dispatch's `except`, or a receiver's failure would chain the dispatch
-        failure, whose text can name the address, into Django's log of it.
+        failure, whose text can name the address, into the log of it.
 
-        `send_robust` covers a receiver that raises, except that its own log
-        reads `receiver.__qualname__`, which a callable object has not, so
-        the send is wrapped too. Only the failure's class is logged: the
-        frames hold the result and the address it went to.
+        The signal sends robustly and logs a failing receiver by its class,
+        except that its log reads `receiver.__qualname__`, which a callable
+        object has not, so the send is wrapped too. Only the failure's class
+        is logged: the frames hold the result and the address it went to.
 
         :param workflow_action: The action that was dispatched.
         :param dispatch_context: The click's dispatch context.
