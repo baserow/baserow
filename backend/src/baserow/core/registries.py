@@ -1359,6 +1359,7 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     is_interactive_user = False
     display_name_field: Optional[str] = None
     lookup_fields = ("id", "pk")
+    options_list_operation_type: Optional[str] = None
 
     def supports_lookup_field(self, field_name: str) -> bool:
         """Return whether this subject type supports lookup by the given field."""

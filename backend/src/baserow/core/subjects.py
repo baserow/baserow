@@ -7,6 +7,7 @@ from django.db.models.functions import Cast
 from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import User, Workspace, WorkspaceUser
+from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
 from baserow.core.registries import SubjectType
 from baserow.core.types import Subject
 
@@ -17,6 +18,7 @@ class UserSubjectType(SubjectType):
     is_interactive_user = True
     display_name_field = "first_name"
     lookup_fields = (*SubjectType.lookup_fields, "email")
+    options_list_operation_type = ListWorkspaceUsersWorkspaceOperationType.type
 
     has_direct_workspace_roles = True
 
