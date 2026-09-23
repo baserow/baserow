@@ -1,4 +1,7 @@
-import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
+import {
+  ConcurrentPriorityTaskQueue,
+  GroupTaskQueue,
+} from '@baserow/modules/core/utils/queue'
 import flushPromises from 'flush-promises'
 
 vi.useFakeTimers()
@@ -6,6 +9,63 @@ vi.useFakeTimers()
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
+
+function deferred() {
+  let resolve
+  let reject
+  const promise = new Promise((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, resolve, reject }
+}
+
+describe('ConcurrentPriorityTaskQueue', () => {
+  test('limits concurrency and starts higher-priority pending tasks first', async () => {
+    const queue = new ConcurrentPriorityTaskQueue({ concurrency: 2 })
+    const requests = [deferred(), deferred(), deferred(), deferred()]
+    const started = []
+    let active = 0
+    let maximumActive = 0
+    const addTask = (index, priority) =>
+      queue.add(async () => {
+        started.push(index)
+        active += 1
+        maximumActive = Math.max(maximumActive, active)
+        await requests[index].promise
+        active -= 1
+      }, priority)
+
+    const tasks = [addTask(0, 0), addTask(1, 0), addTask(2, 10), addTask(3, 1)]
+    await flushPromises()
+
+    expect(started).toEqual([0, 1])
+    expect(maximumActive).toBe(2)
+
+    requests[0].resolve()
+    await flushPromises()
+    expect(started).toEqual([0, 1, 3])
+
+    requests[1].resolve()
+    requests[2].resolve()
+    requests[3].resolve()
+    await Promise.all(tasks)
+    expect(started).toEqual([0, 1, 3, 2])
+    expect(maximumActive).toBe(2)
+  })
+
+  test('continues after a task rejects', async () => {
+    const queue = new ConcurrentPriorityTaskQueue({ concurrency: 1 })
+    const error = new Error('Failed')
+    const first = queue.add(() => Promise.reject(error))
+    const secondTask = vi.fn()
+    const second = queue.add(secondTask)
+
+    await expect(first).rejects.toBe(error)
+    await second
+    expect(secondTask).toHaveBeenCalledOnce()
+  })
+})
 
 describe('test GroupTaskQueue when immediately filling the queue', () => {
   test('GroupTaskQueue when immediately filling the queue', async () => {

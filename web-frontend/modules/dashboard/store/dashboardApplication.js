@@ -2,6 +2,7 @@ import { useNuxtApp } from '#app'
 import WidgetService from '@baserow/modules/dashboard/services/widget'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
 import IntegrationService from '@baserow/modules/core/services/integration'
+import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 import debounce from 'lodash/debounce'
 
 export const state = () => ({
@@ -24,6 +25,77 @@ export const state = () => ({
 })
 
 let debouncedWidgetUpdate = null
+
+const DEFAULT_DATA_SOURCE_DISPATCH_CONCURRENCY = 5
+const dataSourceDispatchQueues = new WeakMap()
+
+const getDataSourceDispatchQueue = (state, concurrency) => {
+  let queue = dataSourceDispatchQueues.get(state)
+  if (queue === undefined) {
+    queue = new ConcurrentPriorityTaskQueue({ concurrency })
+    dataSourceDispatchQueues.set(state, queue)
+  } else {
+    queue.setConcurrency(concurrency)
+  }
+  return queue
+}
+
+export const getDataSourceDispatchConcurrency = ($config) => {
+  const configuredValue = Number.parseInt(
+    $config?.public?.baserowDashboardDataSourceDispatchConcurrency,
+    10
+  )
+  return Number.isFinite(configuredValue) && configuredValue > 0
+    ? configuredValue
+    : DEFAULT_DATA_SOURCE_DISPATCH_CONCURRENCY
+}
+
+/**
+ * Orders data sources according to the position of their first widget. Sources
+ * without a widget are kept last, in the order returned by the backend.
+ */
+export const prioritizeDataSources = (dataSources, widgets) => {
+  const widgetPositionByDataSourceId = new Map()
+  ;[...widgets]
+    .sort(
+      (a, b) =>
+        (a.grid_y ?? 0) - (b.grid_y ?? 0) || (a.grid_x ?? 0) - (b.grid_x ?? 0)
+    )
+    .forEach((widget, index) => {
+      if (!widgetPositionByDataSourceId.has(widget.data_source_id)) {
+        widgetPositionByDataSourceId.set(widget.data_source_id, index)
+      }
+    })
+
+  return dataSources
+    .map((dataSource, index) => ({ dataSource, index }))
+    .sort((a, b) => {
+      const aPriority =
+        widgetPositionByDataSourceId.get(a.dataSource.id) ??
+        Number.MAX_SAFE_INTEGER
+      const bPriority =
+        widgetPositionByDataSourceId.get(b.dataSource.id) ??
+        Number.MAX_SAFE_INTEGER
+      return aPriority - bPriority || a.index - b.index
+    })
+    .map(({ dataSource }) => dataSource)
+}
+
+/**
+ * Processes a priority-ordered list with a bounded number of workers. A failed
+ * item does not prevent remaining items from running.
+ */
+export const processDataSourceQueue = async (
+  dataSources,
+  queue,
+  processDataSource,
+  shouldContinue = () => true
+) => {
+  const tasks = dataSources.map((dataSource, priority) =>
+    queue.add(() => shouldContinue() && processDataSource(dataSource), priority)
+  )
+  await Promise.allSettled(tasks)
+}
 
 const normalizeDashboardFetchRequest = (request, state, generationKey) => {
   const requestValues =
@@ -468,7 +540,6 @@ export const actions = {
     if (!isDashboardRequestCurrent(state, request)) {
       return
     }
-
     if (forEditing) {
       const { data: integrationsData } =
         await IntegrationService($client).fetchAll(dashboardId)
@@ -508,7 +579,7 @@ export const actions = {
     { state, commit, dispatch, getters },
     requestValues
   ) {
-    const { $client } = this
+    const { $client, $config } = this
     const dashboardId =
       typeof requestValues === 'object' && requestValues !== null
         ? requestValues.dashboardId
@@ -549,26 +620,29 @@ export const actions = {
     )
     commit('SET_DATA_SOURCES', dataSourcesData)
 
-    await Promise.all(
-      dataSourcesData.map(async (dataSource) => {
-        if (
-          !isFetchRequestCurrent(
-            state,
-            request,
-            'dataSourceCollectionFetchGeneration'
-          )
-        ) {
-          return
-        }
-        if (!dataSourceIdsToDispatch.has(dataSource.id)) {
-          return
-        }
-        await dispatch('dispatchDataSource', {
+    const queuedDataSources = prioritizeDataSources(
+      dataSourcesData.filter(({ id }) => dataSourceIdsToDispatch.has(id)),
+      state.widgets
+    )
+    const isCurrent = () =>
+      isFetchRequestCurrent(
+        state,
+        request,
+        'dataSourceCollectionFetchGeneration'
+      )
+    await processDataSourceQueue(
+      queuedDataSources,
+      getDataSourceDispatchQueue(
+        state,
+        getDataSourceDispatchConcurrency($config)
+      ),
+      (dataSource) =>
+        dispatch('dispatchDataSource', {
           dataSourceId: dataSource.id,
           dashboardId: request.dashboardId,
           dashboardGeneration: request.dashboardGeneration,
-        })
-      })
+        }),
+      isCurrent
     )
     if (
       !isFetchRequestCurrent(

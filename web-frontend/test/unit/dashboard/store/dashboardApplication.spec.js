@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
   actions,
   mutations,
+  prioritizeDataSources,
   state as createState,
 } from '@baserow/modules/dashboard/store/dashboardApplication'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
@@ -151,6 +152,67 @@ describe('Dashboard application store', () => {
     expect(getAllWidgets).toHaveBeenCalledWith(42)
     expect(dashboardState.widgets).toEqual(widgets)
     expect(result).toEqual(widgets)
+  })
+
+  test('prioritizes data sources by their first widget position', () => {
+    const dataSources = [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]
+    const widgets = [
+      { data_source_id: 2, grid_x: 1, grid_y: 1 },
+      { data_source_id: 3, grid_x: 2, grid_y: 0 },
+      { data_source_id: 2, grid_x: 0, grid_y: 0 },
+    ]
+
+    expect(prioritizeDataSources(dataSources, widgets)).toEqual([
+      { id: 2 },
+      { id: 3 },
+      { id: 1 },
+      { id: 4 },
+    ])
+  })
+
+  test('limits concurrent data source dispatches using runtime config', async () => {
+    const dashboardState = createDashboardState()
+    dashboardState.widgets = [
+      { data_source_id: 3, grid_x: 0, grid_y: 0 },
+      { data_source_id: 2, grid_x: 0, grid_y: 1 },
+      { data_source_id: 1, grid_x: 0, grid_y: 2 },
+    ]
+    const dataSources = [{ id: 1 }, { id: 2 }, { id: 3 }]
+    const requests = Object.fromEntries(
+      dataSources.map(({ id }) => [id, deferred()])
+    )
+    DataSourceService.mockReturnValue({
+      getAllDataSources: vi.fn().mockResolvedValue({ data: dataSources }),
+    })
+    const started = []
+    const dispatch = vi.fn((action, { dataSourceId }) => {
+      started.push(dataSourceId)
+      return requests[dataSourceId].promise
+    })
+    const commit = applyCommit(dashboardState)
+
+    const fetch = actions.fetchNewDataSources.call(
+      {
+        $client: {},
+        $config: {
+          public: { baserowDashboardDataSourceDispatchConcurrency: '2' },
+        },
+      },
+      {
+        state: dashboardState,
+        commit,
+        dispatch,
+        getters: { getDataSourceById: () => undefined },
+      },
+      42
+    )
+
+    await vi.waitFor(() => expect(started).toEqual([3, 2]))
+    requests[3].resolve()
+    await vi.waitFor(() => expect(started).toEqual([3, 2, 1]))
+    requests[2].resolve()
+    requests[1].resolve()
+    await fetch
   })
 
   test('updateWidgetLayout merges canonical geometry into existing widgets', async () => {

@@ -104,6 +104,59 @@ export class TaskQueue {
   }
 }
 
+/**
+ * Executes prioritized asynchronous tasks while enforcing a shared concurrency
+ * limit. Tasks with the same priority retain their insertion order.
+ */
+export class ConcurrentPriorityTaskQueue {
+  constructor({ concurrency = 1 } = {}) {
+    this.pending = []
+    this.active = 0
+    this.sequence = 0
+    this.setConcurrency(concurrency)
+  }
+
+  setConcurrency(concurrency) {
+    if (!Number.isInteger(concurrency) || concurrency < 1) {
+      throw new TypeError('Concurrency must be a positive integer.')
+    }
+    this.concurrency = concurrency
+    this.drain()
+  }
+
+  /** Adds a task and keeps pending work ordered by priority and insertion. */
+  add(task, priority = 0) {
+    return new Promise((resolve, reject) => {
+      this.pending.push({
+        task,
+        priority,
+        sequence: this.sequence++,
+        resolve,
+        reject,
+      })
+      this.pending.sort(
+        (a, b) => a.priority - b.priority || a.sequence - b.sequence
+      )
+      this.drain()
+    })
+  }
+
+  /** Starts pending tasks until the configured concurrency budget is full. */
+  drain() {
+    while (this.active < this.concurrency && this.pending.length > 0) {
+      const { task, resolve, reject } = this.pending.shift()
+      this.active += 1
+      Promise.resolve()
+        .then(task)
+        .then(resolve, reject)
+        .finally(() => {
+          this.active -= 1
+          this.drain()
+        })
+    }
+  }
+}
+
 export class GroupTaskQueue {
   constructor() {
     this.queues = {}

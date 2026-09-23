@@ -69,6 +69,7 @@ export default defineNuxtModule({
         baserowFrontendSameSiteCookie: 'lax',
         baserowFrontendCookiePrefix: '',
         baserowFrontendJobsPollingTimeoutMs: 2000,
+        baserowDashboardDataSourceDispatchConcurrency: 5,
         posthogProjectApiKey: '',
         posthogHost: '',
         baserowEmbeddedShareUrl: 'http://localhost:3000',
