@@ -107,7 +107,7 @@ def update_application_user_over_limit_state(
     it again once usage is back within the limit (or no limit resolves anymore, e.g.
     after a license upgrade). Repeated calls while the workspace stays over its limit
     keep the original timestamp, so the grace period isn't restarted. The timestamp
-    drives the grace period before logins are refused when the limit is enforced.
+    drives the grace period before logins are refused.
 
     This is deliberately kept in the cache rather than the database, so it is best
     effort: losing it (a flush, an eviction, the version bump that comes with a new
@@ -186,11 +186,6 @@ def raise_if_over_application_user_login_limit(user_source: UserSource) -> None:
     :raises ApplicationUserLimitReached: When the workspace has been over the limit
         for longer than the grace period.
     """
-
-    # Soft limit: the limit is only used to notify workspace admins and nobody
-    # is blocked from signing in.
-    if not settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED:
-        return
 
     # A published app's application has no workspace of its own, so resolve the
     # workspace it was published from. That's where the limit is enforced and where
