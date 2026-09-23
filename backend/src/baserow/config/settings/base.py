@@ -536,6 +536,8 @@ BUILDER_GRAPH_PATCH_HEADER = "X-Baserow-Builder-Graph-Patch"
 # Response headers the browser is allowed to read on cross-origin requests
 CORS_EXPOSE_HEADERS = [
     BUILDER_GRAPH_PATCH_HEADER,
+    # Lets the web frontend honor the throttling cooldown on 429 responses.
+    "Retry-After",
 ]
 
 ACCESS_TOKEN_LIFETIME = timedelta(
