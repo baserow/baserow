@@ -19,16 +19,15 @@
 </template>
 
 <script setup>
-import { useStore } from 'vuex'
 import { useNuxtApp, navigateTo } from '#app'
 import { useHead } from '#imports'
 
 import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
-import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
+import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
 
 definePageMeta({
   layout: 'app',
-  sidebarType: 'all-workspaces',
+  sidebarType: SIDEBAR_TYPES.ALL_WORKSPACES,
   middleware: [
     'settings',
     'authenticated',
@@ -38,15 +37,7 @@ definePageMeta({
   ],
 })
 
-const store = useStore()
 const { $i18n } = useNuxtApp()
-
-// The page is workspace agnostic, so the undo/redo buttons in the sidebar footer
-// must not act on the scope of a previously visited workspace.
-store.dispatch(
-  'undoRedo/updateCurrentScopeSet',
-  CORE_ACTION_SCOPES.workspace(null)
-)
 
 useHead(() => ({
   title: $i18n.t('recentlyViewed.title'),

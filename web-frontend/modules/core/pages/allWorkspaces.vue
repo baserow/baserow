@@ -110,6 +110,7 @@ import AllWorkspacesWorkspaceBox from '@baserow/modules/core/components/allWorks
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
 import { getRoleTranslations } from '@baserow/modules/core/store/workspace'
 import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
+import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import { matchesQuery } from '@baserow/modules/core/utils/search'
 
 import {
@@ -142,6 +143,21 @@ definePageMeta({
 const store = useStore()
 const router = useRouter()
 const { $registry, $i18n } = useNuxtApp()
+
+// The page lists the applications of every workspace, so actions performed on
+// them in their own workspace scope must be undoable here. Unlike the workspace
+// and application scopes, which follow the sidebar, this one belongs to the page
+// and must not outlive it.
+store.dispatch(
+  'undoRedo/updateCurrentScopeSet',
+  CORE_ACTION_SCOPES.allWorkspaces(true)
+)
+onBeforeUnmount(() => {
+  store.dispatch(
+    'undoRedo/updateCurrentScopeSet',
+    CORE_ACTION_SCOPES.allWorkspaces(false)
+  )
+})
 
 const workspaceInvitations = computed(
   () => store.getters['auth/getWorkspaceInvitations']

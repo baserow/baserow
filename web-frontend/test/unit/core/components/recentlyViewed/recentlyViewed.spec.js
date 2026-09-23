@@ -5,13 +5,6 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import RecentlyViewed from '@baserow/modules/core/components/recentlyViewed/RecentlyViewed'
 import RecentlyViewedHeader from '@baserow/modules/core/components/recentlyViewed/RecentlyViewedHeader'
 
-const ACCESS_TOKEN =
-  `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImpvaG5AZXhhb` +
-  `XBsZS5jb20iLCJpYXQiOjE2NjAyOTEwODYsImV4cCI6MTY2MDI5NDY4NiwianRpIjo` +
-  `iNDZmNzUwZWUtMTJhMS00N2UzLWJiNzQtMDIwYWM4Njg3YWMzIiwidXNlcl9pZCI6M` +
-  `iwidXNlcl9wcm9maWxlX2lkIjpbMl0sIm9yaWdfaWF0IjoxNjYwMjkxMDg2fQ.RQ-M` +
-  `NQdDR9zTi8CbbQkRrwNsyDa5CldQI83Uid1l9So`
-
 const hoursAgo = (hours) => moment().subtract(hours, 'hours').toISOString()
 
 const acme = { id: 1, name: 'Acme' }
@@ -61,10 +54,7 @@ describe('RecentlyViewed', () => {
 
   beforeEach(async () => {
     testApp = new TestApp()
-    testApp.store.dispatch('auth/forceSetUserData', {
-      user: { id: 1, preferences: {} },
-      access_token: ACCESS_TOKEN,
-    })
+    testApp.authenticate({ id: 1, preferences: {} })
     await testApp.store.dispatch('workspace/forceCreate', {
       ...acme,
       users: [],

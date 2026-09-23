@@ -18,7 +18,7 @@ describe('undoRedo scopes', () => {
     testApp.afterEach()
   })
 
-  test('the all workspaces sidebar sees every workspace and no application', () => {
+  test('the all workspaces sidebar selects no workspace or application', () => {
     expect(
       getSidebarActionScopes({
         sidebarType: SIDEBAR_TYPES.ALL_WORKSPACES,
@@ -26,11 +26,7 @@ describe('undoRedo scopes', () => {
         workspaceId: 5,
         applicationId: 9,
       })
-    ).toStrictEqual({
-      all_workspaces: true,
-      workspace: null,
-      application: null,
-    })
+    ).toStrictEqual({ workspace: null, application: null })
   })
 
   test('the workspace sidebar sees the selected workspace and application', () => {
@@ -40,14 +36,14 @@ describe('undoRedo scopes', () => {
         workspaceId: 5,
         applicationId: 9,
       })
-    ).toStrictEqual({ all_workspaces: false, workspace: 5, application: 9 })
+    ).toStrictEqual({ workspace: 5, application: 9 })
     expect(
       getSidebarActionScopes({
         sidebarType: SIDEBAR_TYPES.WORKSPACE,
         workspaceId: 5,
         applicationId: null,
       })
-    ).toStrictEqual({ all_workspaces: false, workspace: 5, application: null })
+    ).toStrictEqual({ workspace: 5, application: null })
   })
 
   test('switching sidebars replaces the previous surface scopes', () => {
@@ -70,7 +66,6 @@ describe('undoRedo scopes', () => {
     )
     expect(store.getters['undoRedo/getCurrentScope']).toStrictEqual({
       root: true,
-      all_workspaces: true,
       workspace: null,
       application: null,
     })
@@ -84,7 +79,6 @@ describe('undoRedo scopes', () => {
     )
     expect(store.getters['undoRedo/getCurrentScope']).toStrictEqual({
       root: true,
-      all_workspaces: false,
       workspace: 5,
       application: 9,
     })
