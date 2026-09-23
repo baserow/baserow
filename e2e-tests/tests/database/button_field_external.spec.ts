@@ -641,15 +641,9 @@ test.describe("Button field, external actions", () => {
     const button = grid.fieldCellAt(0, LOCAL_FIELD_INDEX).locator("button");
 
     // More clicks than the budget allows, none of which may spend any of it.
-    // This button reaches nothing outside, so its own click stays inline;
-    // the longer timeout is for the shared backend and Celery worker, which
-    // the suite's other, external-action tests keep busy at the same time.
     for (let click = 0; click < RATE_LIMIT + 2; click++) {
       await button.click();
-      await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
-        "local",
-        { timeout: 20_000 },
-      );
+      await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText("local");
     }
 
     await expect(page.locator(".toast")).toHaveCount(0);
@@ -721,21 +715,22 @@ test.describe("Button field, external actions", () => {
       await other.close();
     });
 
-    test("two buttons on one row do not block each other", async ({ page }) => {
+    test("a second button on a row is accepted while the first is held", async ({
+      page,
+    }) => {
       test.setTimeout(120_000);
       await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
       const clicker = await freshClicker();
       const grid = await gridFor(page, clicker);
 
-      // The lock is keyed on the field and the row together, so a request
-      // held on one button must leave the other alone: the second click is
-      // accepted rather than refused, even though this environment's Celery
-      // worker runs the button_dispatch queue at a concurrency of one and so
-      // only reaches the second endpoint once the first job has finished.
-      // (Two requests actually held open at once, which is what this test
-      // asserted before the click moved behind a job, cannot happen here:
-      // one worker executes one dispatch job at a time regardless of which
-      // row or field it belongs to.)
+      // This environment's Celery worker runs the button_dispatch queue at a
+      // concurrency of one, so the two jobs below are never actually
+      // in flight together and the per-field, per-row lock itself is not
+      // contested here — that's covered instead by
+      // backend/tests/baserow/contrib/database/workflow_actions/test_dispatch.py::test_two_button_fields_on_one_row_do_not_block_each_other.
+      // What this test proves is the view's per-cell busy-job check: a
+      // second field on the same row is accepted, not refused, while the
+      // first field's job is still running.
       const first = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
       const second = grid
         .fieldCellAt(0, SLOW_TWO_FIELD_INDEX)
@@ -744,12 +739,13 @@ test.describe("Button field, external actions", () => {
       await first.click();
       await expect.poll(() => arrivedAt(slowKey), { timeout: 20_000 }).toBe(1);
 
+      const accepted = page.waitForResponse(
+        (r) =>
+          r.url().includes("/workflow_actions/dispatch/") &&
+          r.request().method() === "POST",
+      );
       await second.click();
-      // Accepted, not refused: the lock the other test in this block proves
-      // (a second click on the *same* button while its row is locked) does
-      // not apply here, because the two buttons use different fields.
-      await expect(second).toHaveClass(/button--loading/);
-      await expect(page.locator(".toast")).toHaveCount(0);
+      expect((await accepted).status()).toBe(202);
 
       await release(slowKey);
       await expect(first).not.toHaveClass(/button--loading/, {
@@ -779,7 +775,13 @@ test.describe("Button field, external actions", () => {
       const grid = await gridFor(page, clicker);
 
       const button = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+      const accepted = page.waitForResponse(
+        (r) =>
+          r.url().includes("/workflow_actions/dispatch/") &&
+          r.request().method() === "POST",
+      );
       await button.click();
+      expect((await accepted).status()).toBe(202);
       await expect(button).toHaveClass(/button--loading/);
       await expect.poll(() => arrivedAt(slowKey), { timeout: 20_000 }).toBe(1);
 
