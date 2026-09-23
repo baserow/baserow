@@ -19,6 +19,7 @@ from baserow_enterprise.assistant.tools.search_user_docs.handler import (
 def handler_and_csv(tmp_path, monkeypatch):
     csv_path = tmp_path / "website_export.csv"
     monkeypatch.setattr(KnowledgeBaseHandler, "_csv_path", lambda self: csv_path)
+    monkeypatch.setattr(KnowledgeBaseHandler, "_get_docs_path", lambda self: None)
     handler = KnowledgeBaseHandler()
     return handler, csv_path
 
@@ -505,3 +506,161 @@ def test_sync_dev_docs_deletes_docs_when_file_removed(
     assert KnowledgeBaseDocument.objects.filter(
         type=doc_type, slug="dev/development/other-page"
     ).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("source", ["csv", "dev_docs"])
+def test_sync_indexes_bounded_passages_including_end_of_document(
+    source, handler_and_csv, handler_and_docs_root, monkeypatch
+):
+    csv_handler, csv_path = handler_and_csv
+    dev_handler, docs_root = handler_and_docs_root
+    body = "Introduction to records.\n\n" * 150 + "Use elapsed_days() for elapsed days."
+    title = "Record reference"
+    if source == "csv":
+        handler = csv_handler
+        write_csv(
+            csv_path,
+            [
+                {
+                    "slug": "reference",
+                    "title": title,
+                    "markdown_body": body,
+                    "type": "baserow_user_docs",
+                    "source_url": "https://baserow.io/user-docs/reference",
+                }
+            ],
+        )
+        sync = handler.sync_knowledge_base_from_csv
+    else:
+        handler = dev_handler
+        (docs_root / "record-reference.md").write_text(body)
+        title = "Record Reference"
+        sync = handler.sync_knowledge_base_from_dev_docs
+    embedded = []
+
+    def embed(texts):
+        embedded.extend(texts)
+        return fake_embed_texts(texts)
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", embed)
+    sync()
+    document = KnowledgeBaseDocument.objects.get(title=title)
+    chunks = list(document.chunks.order_by("index"))
+    assert document.content == body
+    assert len(chunks) > 1
+    assert all(len(chunk.content) <= 1000 for chunk in chunks)
+    assert any(
+        "Use elapsed_days() for elapsed days." in chunk.content for chunk in chunks
+    )
+    assert all(text.startswith(title + "\n\n") for text in embedded)
+    assert all(len(text) <= 1252 for text in embedded)
+    assert [chunk.index for chunk in chunks] == list(range(len(chunks)))
+    assert all(
+        chunk.content == body[chunk.metadata["start"] : chunk.metadata["end"]]
+        for chunk in chunks
+    )
+    ids = [chunk.id for chunk in chunks]
+    embedded.clear()
+    sync()
+    assert list(document.chunks.order_by("index").values_list("id", flat=True)) == ids
+    assert embedded == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("source", ["csv", "dev_docs"])
+def test_sync_reindexes_legacy_chunks_and_title_changes(
+    source, handler_and_csv, handler_and_docs_root, monkeypatch
+):
+    csv_handler, csv_path = handler_and_csv
+    dev_handler, docs_root = handler_and_docs_root
+    body = "A stable document body."
+    if source == "csv":
+        handler = csv_handler
+        write_csv(
+            csv_path,
+            [
+                {
+                    "slug": "reference",
+                    "title": "New title",
+                    "markdown_body": body,
+                    "type": "baserow_user_docs",
+                }
+            ],
+        )
+        sync = handler.sync_knowledge_base_from_csv
+    else:
+        handler = dev_handler
+        (docs_root / "reference.md").write_text(body)
+        sync = handler.sync_knowledge_base_from_dev_docs
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    sync()
+    doc = KnowledgeBaseDocument.objects.get()
+    old = doc.chunks.get()
+    old.metadata = {}
+    old.save()
+    sync()
+    assert not KnowledgeBaseChunk.objects.filter(id=old.id).exists()
+    current = doc.chunks.get()
+    # Titles participate in the embedding even when the body has not changed.
+    doc.title = "Old title"
+    doc.save()
+    sync()
+    assert not KnowledgeBaseChunk.objects.filter(id=current.id).exists()
+    current = doc.chunks.get()
+    current.delete()
+    sync()
+    assert doc.chunks.count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "body", ["", "x" * 3100, "词" * 3100, "word " * 700, "line\n\n" * 700]
+)
+def test_split_document_preserves_source_content(body):
+    from baserow_enterprise.assistant.tools.search_user_docs.handler import (
+        split_document,
+    )
+
+    passages = list(split_document(body))
+    assert passages[0][0] == 0
+    assert passages[-1][1] == len(body)
+    covered = set()
+    for start, end, content in passages:
+        assert end - start <= 1000
+        assert content == body[start:end]
+        covered.update(range(start, end))
+    assert len(covered) == len(body)
+    assert all(a[0] < b[0] for a, b in zip(passages, passages[1:]))
+
+
+@pytest.mark.django_db
+def test_failed_reindex_preserves_ready_document_and_existing_chunks(
+    handler_and_csv, monkeypatch
+):
+    handler, csv_path = handler_and_csv
+    row = {
+        "slug": "reference",
+        "title": "Reference",
+        "markdown_body": "Existing guide.",
+        "type": "baserow_user_docs",
+    }
+    write_csv(csv_path, [row])
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fake_embed_texts)
+    handler.sync_knowledge_base_from_csv()
+    doc = KnowledgeBaseDocument.objects.get()
+    old_ids = list(doc.chunks.values_list("id", flat=True))
+    row["markdown_body"] = "New content. " * 200
+    write_csv(csv_path, [row])
+
+    def fail_embedding(texts):
+        assert len(texts) > 1
+        raise RuntimeError("local embedding service failed")
+
+    monkeypatch.setattr(handler.vector_handler, "embed_texts", fail_embedding)
+    with pytest.raises(RuntimeError, match="local embedding service failed"):
+        handler.sync_knowledge_base_from_csv()
+    doc.refresh_from_db()
+    assert doc.content == "Existing guide."
+    assert doc.status == KnowledgeBaseDocument.Status.READY
+    assert list(doc.chunks.values_list("id", flat=True)) == old_ids

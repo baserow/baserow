@@ -1,9 +1,14 @@
 import csv
+import re
 from collections import defaultdict
+from functools import reduce
+from itertools import zip_longest
+from operator import or_
 from pathlib import Path
 from typing import Iterable, Tuple
 
 from django.conf import settings
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import transaction
 
 from httpx import Client as httpxClient
@@ -17,21 +22,58 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseDocument,
 )
 
+# The local embedding model truncates long inputs. Keep passages small enough for
+# ordinary prose, with overlap so a sentence at a boundary remains retrievable.
+# This is a character bound, not a promise about an arbitrary model's token limit.
+KNOWLEDGE_CHUNK_SIZE = 1000
+KNOWLEDGE_CHUNK_OVERLAP = 150
+KNOWLEDGE_CHUNK_VERSION = 1
+MAX_LEXICAL_QUERY_TERMS = 64
+
+
+def split_document(content: str):
+    """Yield bounded, overlapping source slices without dropping content."""
+
+    start = 0
+    if not content:
+        yield 0, 0, ""
+    while start < len(content):
+        end = min(start + KNOWLEDGE_CHUNK_SIZE, len(content))
+        if end < len(content):
+            for separator in ("\n\n", "\n", " "):
+                boundary = content.rfind(
+                    separator, start + KNOWLEDGE_CHUNK_SIZE // 2, end
+                )
+                if boundary >= 0:
+                    end = boundary + len(separator)
+                    break
+        yield start, end, content[start:end]
+        if end == len(content):
+            break
+        start = end - KNOWLEDGE_CHUNK_OVERLAP
+        # Start at a word boundary within the overlap when possible. If a word,
+        # code block or URL is very long, the hard character bound still progresses.
+        boundary = content.find(" ", start, end)
+        if boundary >= 0:
+            start = boundary + 1
+
 
 class BaserowEmbedder:
     def __init__(self, api_url: str):
         self.api_url = api_url
 
-    def _embed(self, texts: list[str], batch_size=20) -> list[float]:
+    def _embed(self, texts: list[str], batch_size=8) -> list[list[float]]:
         embeddings = []
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            response = httpxClient(base_url=self.api_url).post(
-                "/embed", json={"texts": batch}
-            )
-
-            embeddings.extend(response.json()["embeddings"])
-
+        client = httpxClient(base_url=self.api_url)
+        try:
+            for i in range(0, len(texts), batch_size):
+                response = client.post(
+                    "/embed", json={"texts": texts[i : i + batch_size]}
+                )
+                response.raise_for_status()
+                embeddings.extend(response.json()["embeddings"])
+        finally:
+            client.close()
         return embeddings
 
     def __call__(self, texts: list[str]) -> list[list[float]]:
@@ -192,7 +234,56 @@ class KnowledgeBaseHandler:
         :return: A list of KnowledgeBaseChunk instances matching the query
         """
 
-        return self.vector_handler.query(query, num_results=num_results)
+        if num_results <= 0:
+            return []
+
+        # Semantic search can miss exact function names and information buried in
+        # legacy whole-page embeddings. Search terms independently (OR), so the
+        # filler words in a natural-language question cannot exclude a useful page.
+        candidate_limit = max(num_results * 4, 20)
+        semantic = list(self.vector_handler.query(query, num_results=candidate_limit))
+        # Bound Django's combined query depth for long or repetitive questions.
+        # The semantic query still receives the complete original question.
+        terms = list(dict.fromkeys(re.findall(r"\w+", query.lower())))[
+            :MAX_LEXICAL_QUERY_TERMS
+        ]
+        if not terms:
+            return semantic[:num_results]
+        lexical_query = reduce(
+            or_, (SearchQuery(term, config="english") for term in terms)
+        )
+        lexical_vector = SearchVector(
+            "source_document__title", weight="A", config="english"
+        ) + SearchVector("content", weight="B", config="english")
+        lexical = list(
+            KnowledgeBaseChunk.objects.filter(
+                source_document__status=KnowledgeBaseDocument.Status.READY
+            )
+            .select_related("source_document")
+            .annotate(rank=SearchRank(lexical_vector, lexical_query))
+            .filter(rank__gt=0)
+            .order_by("-rank", "id")[:candidate_limit]
+        )
+
+        # Alternate the rankings rather than adding their incomparable scores.
+        # Weak matches present in both lists must not bury a strong exact-term
+        # match present only in the lexical list (or a paraphrase only in vectors).
+        results = []
+        seen = set()
+        document_counts = defaultdict(int)
+        for pair in zip_longest(semantic, lexical):
+            for chunk in pair:
+                if chunk is None or chunk.id in seen:
+                    continue
+                seen.add(chunk.id)
+                # Overlap from one long page must not crowd out other sources.
+                if document_counts[chunk.source_document_id] >= 3:
+                    continue
+                results.append(chunk)
+                document_counts[chunk.source_document_id] += 1
+                if len(results) == num_results:
+                    return results
+        return results
 
     def load_categories(self, categories_serialized: Iterable[Tuple[str, str | None]]):
         """
@@ -303,7 +394,9 @@ class KnowledgeBaseHandler:
             types_in_csv = list(slugs_by_type.keys())
             existing = {
                 (d.type, d.slug): d
-                for d in KnowledgeBaseDocument.objects.filter(type__in=types_in_csv)
+                for d in KnowledgeBaseDocument.objects.filter(
+                    type__in=types_in_csv
+                ).prefetch_related("chunks")
             }
 
             # Deletes the user docs that exist in the KnowledgeBaseDocument,
@@ -329,10 +422,11 @@ class KnowledgeBaseHandler:
                 d = existing.get(key)
                 if d:
                     changed = False
-                    body_changed = False
+                    body_changed = self._needs_reindex(d)
                     if d.title != p["title"]:
                         d.title = p["title"]
                         changed = True
+                        body_changed = True
                     if d.raw_content != p["body"]:
                         d.raw_content = p["body"]
                         changed = True
@@ -417,12 +511,12 @@ class KnowledgeBaseHandler:
                 if d.id not in doc_ids_needing_chunks:
                     continue
                 body = pages[(t, s)]["body"]
-                chunks.append(
-                    KnowledgeBaseChunk(
-                        source_document=d, index=0, content=body, metadata={}
-                    )
+                document_chunks = self._document_chunks(d, body)
+                chunks.extend(document_chunks)
+                texts.extend(
+                    f"{d.title[: KnowledgeBaseDocument.TITLE_MAX_LENGTH]}\n\n{chunk.content}"
+                    for chunk in document_chunks
                 )
-                texts.append(body)
 
             if not chunks:
                 return
@@ -486,7 +580,10 @@ class KnowledgeBaseHandler:
 
         with transaction.atomic():
             existing = {
-                d.slug: d for d in KnowledgeBaseDocument.objects.filter(type=doc_type)
+                d.slug: d
+                for d in KnowledgeBaseDocument.objects.filter(
+                    type=doc_type
+                ).prefetch_related("chunks")
             }
 
             # Delete docs that no longer have a corresponding markdown file. This is
@@ -507,10 +604,11 @@ class KnowledgeBaseHandler:
                 d = existing.get(slug)
                 if d:
                     changed = False
-                    body_changed = False
+                    body_changed = self._needs_reindex(d)
                     if d.title != p["title"]:
                         d.title = p["title"]
                         changed = True
+                        body_changed = True
                     if d.raw_content != p["body"]:
                         d.raw_content = p["body"]
                         changed = True
@@ -595,17 +693,44 @@ class KnowledgeBaseHandler:
                 if d.id not in doc_ids_needing_chunks:
                     continue
                 body = pages[slug]["body"]
-                chunks.append(
-                    KnowledgeBaseChunk(
-                        source_document=d, index=0, content=body, metadata={}
-                    )
+                document_chunks = self._document_chunks(d, body)
+                chunks.extend(document_chunks)
+                texts.extend(
+                    f"{d.title[: KnowledgeBaseDocument.TITLE_MAX_LENGTH]}\n\n{chunk.content}"
+                    for chunk in document_chunks
                 )
-                texts.append(body)
 
             if not chunks:
                 return
 
             self._update_chunks(texts, chunks)
+
+    def _needs_reindex(self, document: KnowledgeBaseDocument) -> bool:
+        """Upgrade old whole-page indexes and repair incomplete passage sets."""
+
+        chunks = list(document.chunks.all())
+        return not chunks or any(
+            chunk.metadata.get("version") != KNOWLEDGE_CHUNK_VERSION
+            or chunk.metadata.get("total") != len(chunks)
+            for chunk in chunks
+        )
+
+    def _document_chunks(self, document: KnowledgeBaseDocument, body: str):
+        passages = list(split_document(body))
+        return [
+            KnowledgeBaseChunk(
+                source_document=document,
+                index=index,
+                content=content,
+                metadata={
+                    "version": KNOWLEDGE_CHUNK_VERSION,
+                    "start": start,
+                    "end": end,
+                    "total": len(passages),
+                },
+            )
+            for index, (start, end, content) in enumerate(passages)
+        ]
 
     def _csv_path(self):
         path = Path(__file__).resolve().parents[5] / "website_export.csv"
