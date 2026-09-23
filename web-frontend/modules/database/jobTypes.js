@@ -163,6 +163,15 @@ export class ButtonFieldDispatchJobType extends JobType {
     })
   }
 
+  /**
+   * Stops tracking a click's job, without settling its promise. Used when a
+   * click gives up on a job that never reached a final state in time, so a
+   * late poll of that job finds no one waiting on it any more.
+   */
+  static forget(job) {
+    waitingClicks.delete(job.id)
+  }
+
   async afterUpdate(job, data) {
     const waiting = waitingClicks.get(job.id)
     if (!waiting) {

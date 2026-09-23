@@ -21,6 +21,15 @@ describe('ButtonFieldDispatchJobType', () => {
     await expect(waiting).rejects.toEqual(failed)
   })
 
+  test('a cancelled job rejects the click waiting on it', async () => {
+    const waiting = ButtonFieldDispatchJobType.waitFor({ id: 12 })
+    const cancelled = { id: 12, state: 'cancelled' }
+
+    await type.afterUpdate({ id: 12 }, cancelled)
+
+    await expect(waiting).rejects.toEqual(cancelled)
+  })
+
   test('an update that is not final leaves the click waiting', async () => {
     let settled = false
     ButtonFieldDispatchJobType.waitFor({ id: 9 }).finally(() => {

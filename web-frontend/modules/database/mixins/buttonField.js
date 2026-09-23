@@ -13,6 +13,11 @@ const dispatchesInFlight = reactive(new Set())
 
 const DISPATCH_OPERATION = 'database.table.field.workflow_action.dispatch'
 
+// A poller that never sees the job reach a final state (the poller's own
+// attempt cap, or one poll that never lands) would otherwise leave the
+// button spinning and refusing clicks until the page is reloaded.
+export const DISPATCH_JOB_DEADLINE_MS = 5 * 60 * 1000
+
 /**
  * Dispatches a cell's actions on click and runs the ones the backend hands
  * back. Falls back to the field store where the render context provides no
@@ -135,23 +140,31 @@ export default {
      * so the catch above shows it.
      */
     async awaitDispatchJob(job) {
-      // Cloned so the store's own updates to the tracked job never mutate
-      // the response body the caller holds.
-      const ownJob = clone(job)
-      const tracked =
-        (await this.$store.dispatch('job/create', ownJob)) || ownJob
-      const waiting = ButtonFieldDispatchJobType.waitFor(tracked)
-      // Eager backends can answer with a job that is already final.
+      const tracked = await this.$store.dispatch('job/create', job)
+      // Eager backends can answer with a job that is already final, in
+      // which case nothing is worth waiting or polling for.
       if (tracked.state === 'finished') {
         return tracked
       }
       if (tracked.state === 'failed' || tracked.state === 'cancelled') {
         throw this.dispatchJobError(tracked)
       }
+      const waiting = ButtonFieldDispatchJobType.waitFor(tracked)
+      let deadlineTimer
+      const deadline = new Promise((resolve, reject) => {
+        deadlineTimer = setTimeout(() => {
+          ButtonFieldDispatchJobType.forget(tracked)
+          reject(this.dispatchJobStillRunningError())
+        }, DISPATCH_JOB_DEADLINE_MS)
+      })
       try {
-        return await waiting
+        return await Promise.race([waiting, deadline])
       } catch (failed) {
-        throw this.dispatchJobError(failed)
+        // The deadline already threw a fully formed error; a rejection from
+        // `waiting` is the failed job's data and still needs wrapping.
+        throw failed instanceof Error ? failed : this.dispatchJobError(failed)
+      } finally {
+        clearTimeout(deadlineTimer)
       }
     },
     dispatchJobError(failed) {
@@ -165,6 +178,23 @@ export default {
             message:
               failed.human_readable_error ||
               this.$t('buttonField.dispatchErrorMessage'),
+          })
+        },
+      }
+      return error
+    },
+    /**
+     * A job that never reached a final state before the deadline. The
+     * click's actions may still finish server side; this only stops the
+     * button waiting on them forever.
+     */
+    dispatchJobStillRunningError() {
+      const error = new Error('Button click job still running')
+      error.handler = {
+        notifyIf: () => {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('buttonField.stillRunningTitle'),
+            message: this.$t('buttonField.stillRunningMessage'),
           })
         },
       }

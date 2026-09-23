@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
+import { DISPATCH_JOB_DEADLINE_MS } from '@baserow/modules/database/mixins/buttonField'
 
 describe('GridViewFieldButtonField', () => {
   let testApp = null
@@ -18,6 +19,7 @@ describe('GridViewFieldButtonField', () => {
   afterEach(() => {
     testApp.afterEach()
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   const field = {
@@ -290,7 +292,7 @@ describe('GridViewFieldButtonField', () => {
     expect(wrapper.vm.dispatching).toBe(false)
   })
 
-  const acceptedJob = {
+  const acceptedJob = () => ({
     id: 7,
     type: 'button_field_dispatch',
     state: 'pending',
@@ -298,14 +300,14 @@ describe('GridViewFieldButtonField', () => {
     human_readable_error: '',
     results: null,
     client_actions: null,
-  }
+  })
 
   const finishJob = async (wrapper, values) => {
     const store = wrapper.vm.$store
-    const job = store.getters['job/get'](acceptedJob.id)
+    const job = store.getters['job/get'](acceptedJob().id)
     await store.dispatch('job/forceUpdate', {
       job,
-      data: { ...acceptedJob, ...values },
+      data: { ...acceptedJob(), ...values },
     })
     await flushPromises()
   }
@@ -315,7 +317,7 @@ describe('GridViewFieldButtonField', () => {
     const wrapper = await mountCell()
     wrapper.vm.$client.post = vi
       .fn()
-      .mockResolvedValue({ status: 202, data: acceptedJob })
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
 
     await wrapper.find('button').trigger('click')
     await flushPromises()
@@ -323,7 +325,7 @@ describe('GridViewFieldButtonField', () => {
     // Still waiting: the spinner stays and nothing has run.
     expect(wrapper.vm.dispatching).toBe(true)
     expect(execute).not.toHaveBeenCalled()
-    expect(wrapper.vm.$store.getters['job/get'](acceptedJob.id)).toBeTruthy()
+    expect(wrapper.vm.$store.getters['job/get'](acceptedJob().id)).toBeTruthy()
 
     await finishJob(wrapper, {
       state: 'finished',
@@ -354,7 +356,7 @@ describe('GridViewFieldButtonField', () => {
     const wrapper = await mountCell()
     wrapper.vm.$client.post = vi
       .fn()
-      .mockResolvedValue({ status: 202, data: acceptedJob })
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
     const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
 
     await wrapper.find('button').trigger('click')
@@ -377,7 +379,7 @@ describe('GridViewFieldButtonField', () => {
     const wrapper = await mountCell()
     wrapper.vm.$client.post = vi
       .fn()
-      .mockResolvedValue({ status: 202, data: acceptedJob })
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
 
     await wrapper.find('button').trigger('click')
     await flushPromises()
@@ -394,5 +396,52 @@ describe('GridViewFieldButtonField', () => {
     })
 
     expect(remounted.vm.dispatching).toBe(false)
+  })
+
+  test('a job that is already finished on the 202 runs its client actions without polling', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi.fn().mockResolvedValue({
+      status: 202,
+      data: {
+        ...acceptedJob(),
+        state: 'finished',
+        results: [],
+        client_actions: [openUrlAction],
+      },
+    })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(wrapper.vm.dispatching).toBe(false)
+  })
+
+  test('a click gives up on a job that never reaches a final state', async () => {
+    // Only the timer the deadline itself uses is faked, so the promise
+    // machinery the dispatch, the store and `flushPromises` all rely on
+    // keeps working as normal.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_DEADLINE_MS + 1)
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).not.toHaveBeenCalled()
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.stillRunningTitle',
+      message: 'buttonField.stillRunningMessage',
+    })
   })
 })
