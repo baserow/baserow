@@ -149,19 +149,34 @@ def _should_skip_baserow_span(span_level: str) -> bool:
 
 
 @contextmanager
-def _baserow_trace_span(tracer: Tracer, span_name: str, span_level: str):
+def _baserow_trace_span(
+    tracer: Tracer, span_name: str, span_level: str, *, record_exception: bool = True
+):
     if _should_skip_baserow_span(span_level):
         yield None
         return
 
     token = _baserow_span_scope.set(span_level)
     try:
-        with tracer.start_as_current_span(span_name) as span:
+        if record_exception:
+            span_context = tracer.start_as_current_span(span_name)
+        else:
+            # Also `set_status_on_exception=False`: the SDK would otherwise
+            # still write the exception's `str()` onto the status description.
+            span_context = tracer.start_as_current_span(
+                span_name, record_exception=False, set_status_on_exception=False
+            )
+        with span_context as span:
             try:
                 yield span
             except Exception as ex:
                 span.set_status(Status(StatusCode.ERROR))
-                span.record_exception(ex)
+                if record_exception:
+                    span.record_exception(ex)
+                else:
+                    # The message can name an address, so only the class of
+                    # the failure is kept on the span.
+                    span.set_attribute("baserow.exception_type", type(ex).__name__)
                 raise
     finally:
         _baserow_span_scope.reset(token)
@@ -182,10 +197,17 @@ def baserow_trace_entrypoint(tracer: Tracer, span_name: str):
 
 
 @contextmanager
-def baserow_trace_phase(tracer: Tracer, span_name: str):
+def baserow_trace_phase(
+    tracer: Tracer, span_name: str, *, record_exception: bool = True
+):
     """Create one important phase below an entry point or domain operation."""
 
-    with _baserow_trace_span(tracer, span_name, _BASEROW_SPAN_LEVEL_PHASE) as span:
+    with _baserow_trace_span(
+        tracer,
+        span_name,
+        _BASEROW_SPAN_LEVEL_PHASE,
+        record_exception=record_exception,
+    ) as span:
         yield span
 
 

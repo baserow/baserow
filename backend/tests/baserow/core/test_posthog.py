@@ -99,3 +99,27 @@ def test_capture_event_action_done(mock_capture_event, data_fixture):
         workspace=None,
         session="session",
     )
+
+
+class NotCapturedActionType(TestActionType):
+    type = "not_captured"
+    capture_analytics_event = False
+
+
+@pytest.mark.django_db
+@patch("baserow.core.posthog.capture_user_event")
+def test_capture_event_action_done_skips_opted_out_types(
+    mock_capture_event, data_fixture
+):
+    capture_event_action_done(
+        sender=None,
+        user=data_fixture.create_user(),
+        action_type=NotCapturedActionType(),
+        action_params={"must_be_kept": "yes"},
+        action_timestamp=None,
+        action_command_type=ActionCommandType.DO,
+        workspace=None,
+        session="session",
+    )
+
+    mock_capture_event.assert_not_called()

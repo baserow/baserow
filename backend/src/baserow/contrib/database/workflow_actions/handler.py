@@ -17,6 +17,7 @@ from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.registry import Registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.types import DispatchResult
+from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import extract_allowed
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 from baserow.core.workflow_actions.handler import WorkflowActionHandler
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     )
 
 
+@baserow_trace_handler
 class DatabaseWorkflowActionHandler(WorkflowActionHandler):
     @property
     def model(self) -> Type[DatabaseWorkflowAction]:

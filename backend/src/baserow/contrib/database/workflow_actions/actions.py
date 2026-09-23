@@ -98,6 +98,13 @@ class CreateDatabaseWorkflowActionActionType(UndoableActionType):
         ),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = [
+        "database_id",
+        "table_id",
+        "field_id",
+        "workflow_action_id",
+        "workflow_action_type",
+    ]
 
     @dataclass
     class Params:
@@ -178,6 +185,24 @@ class UpdateDatabaseWorkflowActionActionType(
         ),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = [
+        "database_id",
+        "table_id",
+        "field_id",
+        "workflow_action_id",
+    ]
+
+    @classmethod
+    def get_analytics_properties(cls, action_params: Dict[str, Any]) -> Dict[str, Any]:
+        # Read from the values: params of their own would stop the previous
+        # version from loading a stored action to undo it.
+        return {
+            **super().get_analytics_properties(action_params),
+            "workflow_action_type": action_params["new_values"].get("type"),
+            "original_workflow_action_type": action_params["original_values"].get(
+                "type"
+            ),
+        }
 
     @dataclass
     class Params:
@@ -367,6 +392,12 @@ class DeleteDatabaseWorkflowActionActionType(UndoableActionType):
         ),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = [
+        "database_id",
+        "table_id",
+        "field_id",
+        "workflow_action_id",
+    ]
 
     @dataclass
     class Params:
@@ -439,6 +470,7 @@ class OrderDatabaseWorkflowActionsActionType(UndoableActionType):
         _('Actions ordered on button field "%(field_name)s" (%(field_id)s)'),
         TABLE_ACTION_CONTEXT,
     )
+    analytics_params = ["database_id", "table_id", "field_id"]
 
     @dataclass
     class Params:
@@ -507,13 +539,9 @@ class DispatchButtonFieldActionType(ActionType):
         _('Button "%(field_name)s" (%(field_id)s) clicked on row %(row_id)s'),
         TABLE_ACTION_CONTEXT,
     )
-    analytics_params = [
-        "table_id",
-        "database_id",
-        "workspace_id",
-        "field_id",
-        "action_count",
-    ]
+    # The click's event comes from `capture_button_field_dispatched`, which
+    # knows the outcome and sees refused clicks too.
+    capture_analytics_event = False
 
     @dataclasses.dataclass
     class Params:

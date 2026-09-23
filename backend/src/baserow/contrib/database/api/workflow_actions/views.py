@@ -1,9 +1,12 @@
-from typing import Dict, List
+from time import perf_counter
+from typing import Dict, List, Optional, Tuple
 
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -69,14 +72,20 @@ from baserow.contrib.database.workflow_actions.exceptions import (
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
+from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
 from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
+from baserow.contrib.database.workflow_actions.signals import (
+    button_field_dispatched,
+)
+from baserow.contrib.database.workflow_actions.telemetry import result_label
+from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.registries import action_type_registry
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import PermissionException, UserNotInWorkspace
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
@@ -383,6 +392,33 @@ class OrderDatabaseWorkflowActionsView(APIView):
         return Response(status=204)
 
 
+def _outcome_for(exc: Exception) -> Tuple[DispatchOutcome, Optional[int]]:
+    """
+    What a click that raised became, for analytics.
+
+    :param exc: What the click raised.
+    :return: The outcome, and the failing action's position when one failed.
+    """
+
+    if isinstance(exc, WorkflowActionDispatchError):
+        return DispatchOutcome.FAILED, exc.position
+    if isinstance(exc, ThrottledAPIException):
+        return DispatchOutcome.THROTTLED, None
+    if isinstance(exc, WorkflowActionDispatchInProgress):
+        return DispatchOutcome.IN_PROGRESS, None
+    if isinstance(exc, WorkflowActionTypeDeactivated):
+        return DispatchOutcome.DEACTIVATED, None
+    if isinstance(exc, RowDoesNotExist):
+        return DispatchOutcome.ROW_NOT_FOUND, None
+    # A 403 from outside core is a plugin refusing the click, a SaaS quota for
+    # instance, which core has no error code for.
+    if isinstance(exc, (PermissionException, DjangoPermissionDenied)) or (
+        isinstance(exc, APIException) and exc.status_code == 403
+    ):
+        return DispatchOutcome.DENIED, None
+    return DispatchOutcome.ERROR, None
+
+
 class DispatchDatabaseWorkflowActionsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -550,12 +586,77 @@ class DispatchDatabaseWorkflowActionsView(APIView):
     @validate_body(DispatchWorkflowActionsSerializer)
     def post(self, request, data: Dict, field_id: int):
         field = FieldHandler().get_field(field_id, base_queryset=ButtonField.objects)
-        row = RowHandler().get_row(request.user, field.table, data["row_id"])
 
-        service = DatabaseWorkflowActionService()
-        # Read once for the budget, the permission checks and the run, so all
-        # three describe the same click.
-        workflow_actions = service.get_dispatch_snapshot(field)
+        started = perf_counter()
+        workflow_actions: List[DatabaseWorkflowAction] = []
+        failed_positions: List[int] = []
+        error_status_positions: List[int] = []
+
+        def send_dispatched(outcome, failed_position=None):
+            # Refused clicks leave no audit entry, so this is the only place
+            # they are counted.
+            button_field_dispatched.send_robust(
+                self.__class__,
+                user=request.user,
+                field=field,
+                row_id=data["row_id"],
+                workflow_actions=workflow_actions,
+                outcome=outcome,
+                failed_position=failed_position,
+                error_status_count=len(error_status_positions),
+                duration_ms=(perf_counter() - started) * 1000,
+            )
+
+        error = None
+        try:
+            row = RowHandler().get_row(request.user, field.table, data["row_id"])
+
+            service = DatabaseWorkflowActionService()
+            # Read once for the budget, the permission checks and the run, so all
+            # three describe the same click.
+            workflow_actions = service.get_dispatch_snapshot(field)
+            response = self._run_click(
+                request,
+                field,
+                row,
+                service,
+                workflow_actions,
+                failed_positions,
+                error_status_positions,
+            )
+        except Exception as exc:
+            error = exc
+        except BaseException:
+            # A worker timeout, for instance, must not go uncounted.
+            send_dispatched(DispatchOutcome.ERROR, next(iter(failed_positions), None))
+            raise
+
+        # Sent outside the `except`, so a receiver's own failure does not carry
+        # the click's, whose message can name the address an action reached.
+        # Not for someone outside the workspace: anyone could send those, each
+        # tagged with another workspace's ids.
+        if error is None:
+            send_dispatched(DispatchOutcome.COMPLETED)
+        elif not isinstance(error, UserNotInWorkspace):
+            outcome, failed_position = _outcome_for(error)
+            send_dispatched(
+                outcome, failed_position or next(iter(failed_positions), None)
+            )
+
+        if error is not None:
+            raise error
+        return response
+
+    def _run_click(
+        self,
+        request,
+        field: ButtonField,
+        row,
+        service: DatabaseWorkflowActionService,
+        workflow_actions: List[DatabaseWorkflowAction],
+        failed_positions: List[int],
+        error_status_positions: List[int],
+    ) -> Response:
         reservations = self._reserve_dispatch_budget(request, field, workflow_actions)
         reached_outside = []
 
@@ -566,6 +667,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 row,
                 workflow_actions=workflow_actions,
                 on_external_dispatch=reached_outside.append,
+                on_action_failed=failed_positions.append,
             )
         finally:
             # Charged for what the click really sent. Without this a member
@@ -573,6 +675,17 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             # refusals, and a click that failed after its request could repeat
             # that request for free.
             self._release_dispatch_budget(reservations, keep=len(reached_outside))
+
+        # An action that reaches outside Baserow answers a remote error or a
+        # timeout with a result rather than raising, so a click can complete
+        # with an action the endpoint refused. Counted here so the click's
+        # event says so, since the per-action metric carries no workspace.
+        error_status_positions.extend(
+            dispatch.positions[dispatched.workflow_action.id]
+            for dispatched in dispatch.dispatched
+            if dispatched.result is not None
+            and result_label(True, dispatched.result) == "error_status"
+        )
 
         # A client action can read only what ran before it, so a result with
         # none after it is not sent at all. Configuring a button needs more

@@ -159,6 +159,20 @@ class ActionType(
     type: str = NotImplemented
     description: ActionTypeDescription = ActionTypeDescription()
     analytics_params = []
+    # False for action types whose PostHog event is sent from somewhere that
+    # knows more than the action does.
+    capture_analytics_event: bool = True
+
+    @classmethod
+    def get_analytics_properties(cls, action_params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        The properties of this action's PostHog event, read from its params.
+
+        :param action_params: The action's params, as a dict.
+        :return: The event's properties.
+        """
+
+        return {key: action_params.get(key, None) for key in cls.analytics_params}
 
     @dataclasses.dataclass
     class Params:

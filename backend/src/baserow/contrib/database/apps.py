@@ -1354,9 +1354,11 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.ws.rows.tasks  # noqa: F401
         from baserow.contrib.database.workflow_actions.receivers import (
             connect_to_database_workflow_action_pre_delete_signal,
+            connect_to_database_workflow_action_signals,
         )
 
         connect_to_database_workflow_action_pre_delete_signal()
+        connect_to_database_workflow_action_signals()
 
         from baserow.contrib.database.fields.models import SelectOption
 

@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import uuid
 
@@ -777,3 +778,92 @@ def test_a_service_left_unattached_is_found_in_two_queries(
         assert not UpdateDatabaseWorkflowActionActionType._service_is_needed(
             replaced_service_id, logged
         )
+
+
+@pytest.mark.parametrize(
+    "action_type,expected",
+    [
+        (
+            CreateDatabaseWorkflowActionActionType,
+            [
+                "database_id",
+                "table_id",
+                "field_id",
+                "workflow_action_id",
+                "workflow_action_type",
+            ],
+        ),
+        (
+            UpdateDatabaseWorkflowActionActionType,
+            ["database_id", "table_id", "field_id", "workflow_action_id"],
+        ),
+        (
+            DeleteDatabaseWorkflowActionActionType,
+            ["database_id", "table_id", "field_id", "workflow_action_id"],
+        ),
+        (
+            OrderDatabaseWorkflowActionsActionType,
+            ["database_id", "table_id", "field_id"],
+        ),
+    ],
+)
+def test_editor_actions_send_their_analytics_params(action_type, expected):
+    assert action_type.analytics_params == expected
+    param_names = {f.name for f in dataclasses.fields(action_type.Params)}
+    assert set(expected) <= param_names
+
+
+@pytest.fixture
+def done_params():
+    """The `action_params` of every editor action registration, by type."""
+
+    received = []
+
+    def receiver(sender, action_type, action_params, **kwargs):
+        received.append((action_type, action_params))
+
+    action_done.connect(receiver)
+    yield received
+    action_done.disconnect(receiver)
+
+
+def _update_properties(done_params):
+    return [
+        action_type.get_analytics_properties(params)
+        for action_type, params in done_params
+        if action_type.type == UpdateDatabaseWorkflowActionActionType.type
+    ]
+
+
+@pytest.mark.django_db
+def test_an_update_reports_the_type_before_and_after(data_fixture, done_params):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        LocalBaserowCreateRowWorkflowAction, field=button_field
+    )
+
+    UpdateDatabaseWorkflowActionActionType.do(
+        user, action, type="local_baserow_delete_row"
+    )
+
+    properties = _update_properties(done_params)
+    assert len(properties) == 1
+    assert properties[0]["workflow_action_id"] == action.id
+    assert properties[0]["workflow_action_type"] == "local_baserow_delete_row"
+    assert properties[0]["original_workflow_action_type"] == "local_baserow_create_row"
+
+
+@pytest.mark.django_db
+def test_an_update_without_a_type_change_reports_the_same_type(
+    data_fixture, done_params
+):
+    user, session_id, table, button_field = _setup(data_fixture)
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field, url=_url("'https://before'")
+    )
+
+    UpdateDatabaseWorkflowActionActionType.do(user, action, target="blank")
+
+    properties = _update_properties(done_params)
+    assert properties[0]["workflow_action_type"] == "open_url"
+    assert properties[0]["original_workflow_action_type"] == "open_url"

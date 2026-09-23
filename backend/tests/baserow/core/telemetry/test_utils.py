@@ -12,6 +12,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
+from opentelemetry.trace import StatusCode
 
 from baserow.core.telemetry.sampling import OTEL_FORCE_FULL_TRACE_ATTRIBUTE
 from baserow.core.telemetry.utils import (
@@ -21,8 +22,20 @@ from baserow.core.telemetry.utils import (
     baserow_trace,
     baserow_trace_entrypoint,
     baserow_trace_handler,
+    baserow_trace_phase,
     setup_user_in_baggage_and_spans,
 )
+
+SECRET = "https://secret.example/?key=1"
+
+
+def _assert_the_secret_never_leaked(spans):
+    for span in spans:
+        assert SECRET not in str(span.attributes)
+        assert SECRET not in str(span.status.description)
+        for event in span.events:
+            assert SECRET not in event.name
+            assert SECRET not in str(event.attributes)
 
 
 def _tracer_with_memory_exporter():
@@ -139,6 +152,40 @@ def test_baserow_trace_keeps_entrypoint_operation_and_phase_hierarchy():
     ]
     assert operation_span.parent.span_id == entrypoint_span.context.span_id
     assert phase_span.parent.span_id == operation_span.context.span_id
+    provider.shutdown()
+
+
+def test_baserow_trace_phase_record_exception_false_keeps_only_the_class():
+    provider, tracer, exporter = _tracer_with_memory_exporter()
+
+    with pytest.raises(ConnectionError):
+        with baserow_trace_phase(tracer, "phase", record_exception=False):
+            try:
+                raise ValueError(SECRET)
+            except ValueError as cause:
+                raise ConnectionError("refused") from cause
+
+    (span,) = exporter.get_finished_spans()
+    assert span.status.status_code == StatusCode.ERROR
+    assert span.attributes["baserow.exception_type"] == "ConnectionError"
+    assert span.events == ()
+    _assert_the_secret_never_leaked(exporter.get_finished_spans())
+    provider.shutdown()
+
+
+def test_baserow_trace_default_still_records_an_exception_event():
+    provider, tracer, exporter = _tracer_with_memory_exporter()
+
+    @baserow_trace(tracer)
+    def raises():
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError):
+        raises()
+
+    (span,) = exporter.get_finished_spans()
+    assert span.status.status_code == StatusCode.ERROR
+    assert any(event.name == "exception" for event in span.events)
     provider.shutdown()
 
 

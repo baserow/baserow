@@ -1,4 +1,5 @@
 import json
+from contextlib import nullcontext
 from dataclasses import fields as dataclass_fields
 from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional
@@ -9,6 +10,8 @@ from django.core.cache import cache
 from django.db import transaction
 
 from loguru import logger
+from opentelemetry import trace
+from opentelemetry.instrumentation.utils import suppress_http_instrumentation
 from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.fields.models import ButtonField
@@ -69,6 +72,10 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.models import Service
 from baserow.core.services.types import DispatchResult
+from baserow.core.telemetry.utils import (
+    add_baserow_trace_attrs,
+    baserow_trace_phase,
+)
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 
@@ -96,6 +103,8 @@ DID_NOT_REACH_OUT_EXCEPTIONS = (
     # so nothing was sent even though the message names where it was going.
     AddressNotAllowedDispatchException,
 )
+
+tracer = trace.get_tracer(__name__)
 
 
 def reached_outside(exc: Exception) -> bool:
@@ -528,12 +537,12 @@ class DatabaseWorkflowActionService:
         Tells receivers what one action did. The action already ran, so a
         receiver that fails must not fail the click. Called outside the
         dispatch's `except`, or a receiver's failure would chain the dispatch
-        failure, whose text can name the address, into Django's log of it.
+        failure, whose text can name the address, into the log of it.
 
-        `send_robust` covers a receiver that raises, except that its own log
-        reads `receiver.__qualname__`, which a callable object has not, so
-        the send is wrapped too. Only the failure's class is logged: the
-        frames hold the result and the address it went to.
+        The signal sends robustly and logs a failing receiver by its class,
+        except that its log reads `receiver.__qualname__`, which a callable
+        object has not, so the send is wrapped too. Only the failure's class
+        is logged: the frames hold the result and the address it went to.
 
         :param workflow_action: The action that was dispatched.
         :param dispatch_context: The click's dispatch context.
@@ -547,6 +556,7 @@ class DatabaseWorkflowActionService:
                 self,
                 workflow_action=workflow_action,
                 dispatch_context=dispatch_context,
+                field=dispatch_context.field,
                 position=position,
                 succeeded=result is not None,
                 result=result,
@@ -637,6 +647,7 @@ class DatabaseWorkflowActionService:
         row: Any,
         workflow_actions: Optional[List[DatabaseWorkflowAction]] = None,
         on_external_dispatch: Optional[Callable[[DatabaseWorkflowAction], None]] = None,
+        on_action_failed: Optional[Callable[[int], None]] = None,
     ) -> WorkflowActionsDispatchResult:
         """
         Runs the server-side actions in order as the given user, and hands the
@@ -654,6 +665,8 @@ class DatabaseWorkflowActionService:
         :param on_external_dispatch: Called just before each action that
             reaches outside Baserow, so the caller learns what the click really
             sent rather than what the button is configured to send.
+        :param on_action_failed: Called with the position of the action that
+            failed, whatever it raised.
         :raises WorkflowActionDispatchInProgress: When a click is already running
             for this field and row.
         :raises WorkflowActionDispatchError: When an action fails with a message
@@ -680,6 +693,14 @@ class DatabaseWorkflowActionService:
 
         if workflow_actions is None:
             workflow_actions = self.get_dispatch_snapshot(field)
+
+        # On the request's span: one of its own would be marked failed by every
+        # refused click, a double click included.
+        add_baserow_trace_attrs(
+            field_id=field.id,
+            workspace_id=field.table.database.workspace_id,
+            action_count=len(workflow_actions),
+        )
 
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
@@ -819,10 +840,33 @@ class DatabaseWorkflowActionService:
                     started = perf_counter()
                     exc = result = None
                     try:
-                        result = self.handler.dispatch_workflow_action(
-                            workflow_action, dispatch_context
-                        )
-                    except Exception as dispatch_exc:
+                        # A span per action, so the type and position of one
+                        # do not overwrite the last one's on the click's span.
+                        # `record_exception=False`: the action's own failure
+                        # can name the address it reached.
+                        with baserow_trace_phase(
+                            tracer,
+                            "DatabaseWorkflowActionService.dispatch_workflow_action",
+                            record_exception=False,
+                        ):
+                            add_baserow_trace_attrs(
+                                workflow_action_type=workflow_action.get_type().type,
+                                position=positions[workflow_action.id],
+                            )
+                            # The requests instrumentation's client span names
+                            # the whole address, query string included, and
+                            # would send the trace id to it.
+                            with (
+                                suppress_http_instrumentation()
+                                if is_external
+                                else nullcontext()
+                            ):
+                                result = self.handler.dispatch_workflow_action(
+                                    workflow_action, dispatch_context
+                                )
+                    except BaseException as dispatch_exc:
+                        # A worker timeout too, so the failed action is still
+                        # counted before it propagates unchanged.
                         exc = dispatch_exc
                     self._send_workflow_action_dispatched(
                         workflow_action=workflow_action,
@@ -832,6 +876,8 @@ class DatabaseWorkflowActionService:
                         duration_ms=(perf_counter() - started) * 1000,
                     )
                     if exc is not None:
+                        if on_action_failed:
+                            on_action_failed(positions[workflow_action.id])
                         if (
                             is_external
                             and on_external_dispatch
