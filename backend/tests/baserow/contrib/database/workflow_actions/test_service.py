@@ -1,7 +1,8 @@
-from django.core.cache import cache
-
 import pytest
 
+from baserow.contrib.database.workflow_actions.actions import (
+    DispatchButtonFieldActionType,
+)
 from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
 )
@@ -21,7 +22,7 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_deleted,
 )
-from baserow.core.action.models import Action
+from baserow.core.action.signals import action_done
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.models import Service
 
@@ -246,9 +247,24 @@ def test_check_dispatch_allowed_refuses_a_user_outside_the_workspace(data_fixtur
         )
 
 
+@pytest.fixture
+def audited_clicks():
+    """The `action_params` of every button click registration."""
+
+    received = []
+
+    def receiver(sender, action_type, action_params, **kwargs):
+        if action_type is DispatchButtonFieldActionType:
+            received.append(action_params)
+
+    action_done.connect(receiver)
+    yield received
+    action_done.disconnect(receiver)
+
+
 @pytest.mark.django_db
 def test_check_dispatch_allowed_refuses_a_misconfigured_action_by_position(
-    data_fixture,
+    data_fixture, audited_clicks
 ):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -267,9 +283,8 @@ def test_check_dispatch_allowed_refuses_a_misconfigured_action_by_position(
         )
 
     assert raised.value.position == 2
-    # Nothing was locked or recorded by a refusal.
-    assert cache.get(f"button_dispatch_{button_field.id}_1") is None
-    assert Action.objects.count() == 0
+    # A refusal leaves no audit entry for the click.
+    assert audited_clicks == []
 
 
 @pytest.mark.django_db
