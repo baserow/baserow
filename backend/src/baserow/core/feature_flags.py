@@ -3,6 +3,7 @@ from django.conf import settings
 from baserow.core.exceptions import FeatureDisabledException
 
 FF_ENABLE_ALL = "*"
+FF_AGENTS = "agents"
 FF_AI_PROVIDERS = "ai-providers"
 
 

@@ -25,6 +25,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import AgentService from '@baserow/modules/core/services/agent'
+import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
@@ -46,6 +47,9 @@ export default {
     }
   },
   computed: {
+    agentsEnabled() {
+      return this.$featureFlagIsEnabled(FF_AGENTS)
+    },
     authenticationSubject: {
       get() {
         return this.values.authorized_agent_id || 'user'
@@ -56,6 +60,9 @@ export default {
     },
   },
   async mounted() {
+    if (!this.agentsEnabled) {
+      return
+    }
     this.loadingAgents = true
     try {
       const { data } = await AgentService(this.$client).list(

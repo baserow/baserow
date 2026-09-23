@@ -7,6 +7,7 @@ describe('AgentsWorkspaceSettingsPageType', () => {
     const hasPermission = vi.fn().mockReturnValue(true)
     const pageType = new AgentsWorkspaceSettingsPageType({
       app: {
+        $featureFlagIsEnabled: () => true,
         $hasPermission: hasPermission,
       },
     })
