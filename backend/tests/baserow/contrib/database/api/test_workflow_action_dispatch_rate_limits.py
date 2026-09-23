@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 from django.urls import reverse
 
 import pytest
-from requests import exceptions as request_exceptions
 from rest_framework.status import (
     HTTP_200_OK,
+    HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
@@ -14,9 +14,9 @@ from rest_framework.status import (
     HTTP_429_TOO_MANY_REQUESTS,
 )
 
-from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     SlackWriteMessageWorkflowAction,
@@ -29,6 +29,7 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.exceptions import PermissionException
+from baserow.core.jobs.constants import JOB_STARTED
 from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
@@ -126,12 +127,15 @@ def test_a_click_that_reaches_outside_spends_the_budget(
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
     with mock_advocate_request({"ok": True}):
         first = _click(api_client, token, button_field, row)
-        second = _click(api_client, token, button_field, row)
+        second = _click(api_client, token, button_field, row_two)
 
-    assert first.status_code == HTTP_200_OK
+    assert first.status_code == HTTP_202_ACCEPTED
     assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
 
 
@@ -161,13 +165,16 @@ def test_the_workspace_budget_is_shared_between_its_members(
     )
     button_field = data_fixture.create_button_field(table=table, label="Go")
     row = table.get_model().objects.create()
+    # A second row, so the second click meets the workspace budget rather than
+    # the first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
     _add_http_action(data_fixture, button_field)
 
     with mock_advocate_request({"ok": True}):
         first = _click(api_client, token, button_field, row)
-        second = _click(api_client, other_token, button_field, row)
+        second = _click(api_client, other_token, button_field, row_two)
 
-    assert first.status_code == HTTP_200_OK
+    assert first.status_code == HTTP_202_ACCEPTED
     # The second user never clicked before, so only the workspace's own budget
     # can be what stopped them.
     assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
@@ -190,20 +197,26 @@ def test_a_refused_click_does_not_charge_the_other_limit(
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
+    # A second row, so the workspace-refused click does not also meet the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
     with mock_advocate_request({"ok": True}):
         first = _click(api_client, token, button_field, row)
-        refused = _click(api_client, token, button_field, row)
+        refused = _click(api_client, token, button_field, row_two)
 
-    assert first.status_code == HTTP_200_OK
+    assert first.status_code == HTTP_202_ACCEPTED
     assert refused.status_code == HTTP_429_TOO_MANY_REQUESTS
 
     # One call of the user's two was spent by the click that ran, and the
     # refused one gave its reservation back, so the workspace limit is the only
-    # thing still standing in the way.
+    # thing still standing in the way. The refusal left no job behind, so the
+    # same row is free again.
     settings.DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS = ()
     with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+        assert _click(api_client, token, button_field, row_two).status_code == (
+            HTTP_202_ACCEPTED
+        )
 
 
 @pytest.mark.django_db
@@ -234,7 +247,9 @@ def test_a_local_click_that_fails_spends_nothing(api_client, data_fixture, setti
 
     # Nothing was spent above, so the one external click is still available.
     with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
 
 
 @pytest.mark.django_db
@@ -244,51 +259,54 @@ def test_a_failed_external_click_still_spends_its_budget(
     """
     Otherwise a button pointed at an endpoint that refuses every request could
     be clicked without limit, which is the traffic the budget exists to cap.
+    The failure itself now happens in the job, not in this request.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
-    with mock_advocate_request(
-        raise_exception=request_exceptions.ConnectionError("nope")
-    ):
-        failed = _click(api_client, token, button_field, row)
-        second = _click(api_client, token, button_field, row)
+    failed = _click(api_client, token, button_field, row)
+    second = _click(api_client, token, button_field, row_two)
 
-    assert failed.status_code == HTTP_400_BAD_REQUEST
+    assert failed.status_code == HTTP_202_ACCEPTED
     assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
 
 
 @pytest.mark.django_db
-def test_a_click_refused_by_the_lock_spends_nothing(api_client, data_fixture, settings):
+def test_a_click_refused_by_a_pending_job_spends_nothing(
+    api_client, data_fixture, settings
+):
     """
-    A second click while the first is still running is refused before anything
-    of it runs, so it reached nothing outside and owes nothing.
+    A second click while the first's job is still pending or running is
+    refused before anything is reserved, so it owes nothing. The job's own
+    row, not the old dispatch lock, is what a click with an external action
+    is refused by, since it never reaches `dispatch_workflow_actions`
+    synchronously.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
-
-    from django.core.cache import cache
-
-    held = cache.lock(
-        f"button_dispatch_{button_field.id}_{row.id}",
-        timeout=60,
+    ButtonFieldDispatchJob.objects.create(
+        user=user, field=button_field, row_id=row.id, state=JOB_STARTED
     )
-    assert held.acquire(blocking=False)
-    try:
-        refused = _click(api_client, token, button_field, row)
-    finally:
-        held.release()
+
+    refused = _click(api_client, token, button_field, row)
 
     assert refused.status_code == HTTP_409_CONFLICT
 
-    with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+    # Nothing was reserved for the refusal, so the one external click the
+    # budget allows is still there, on a row with no job of its own.
+    row_two = table.get_model().objects.create()
+    assert _click(api_client, token, button_field, row_two).status_code == (
+        HTTP_202_ACCEPTED
+    )
 
 
 @pytest.mark.django_db
@@ -316,7 +334,9 @@ def test_a_click_refused_by_permissions_spends_nothing(
     assert refused.status_code == HTTP_401_UNAUTHORIZED
 
     with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
 
 
 @pytest.mark.django_db
@@ -335,12 +355,15 @@ def test_every_request_on_a_button_spends_its_own_slot(
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
     _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
     with mock_advocate_request({"ok": True}):
         first = _click(api_client, token, button_field, row)
-        second = _click(api_client, token, button_field, row)
+        second = _click(api_client, token, button_field, row_two)
 
-    assert first.status_code == HTTP_200_OK
+    assert first.status_code == HTTP_202_ACCEPTED
     # The two requests of the first click used the whole budget.
     assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
 
@@ -376,46 +399,41 @@ def test_a_button_carrying_more_requests_than_the_budget_is_refused(
     smaller = data_fixture.create_button_field(table=table, label="Go")
     _add_http_action(data_fixture, smaller)
     with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, smaller, row).status_code == HTTP_200_OK
+        assert _click(api_client, token, smaller, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
 
 
 @pytest.mark.django_db
-def test_an_address_refused_before_the_send_gives_the_slot_back(
+def test_an_async_click_keeps_its_slot_even_when_the_send_is_refused(
     api_client, data_fixture, settings
 ):
-    """
-    Advocate rejects an address without sending anything, so no traffic left
-    the instance. Charging for it would let one button pointed at a private
-    address lock its clicker out of every other one.
-    """
+    """The async path never refunds: the slot is spent when the click is
+    enqueued, before advocate ever gets to reject the address."""
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
-    with mock_advocate_request(
-        raise_exception=UnacceptableAddressException("127.0.0.1")
-    ) as request:
-        refused = _click(api_client, token, button_field, row)
+    first = _click(api_client, token, button_field, row)
+    second = _click(api_client, token, button_field, row_two)
 
-    assert refused.status_code == HTTP_400_BAD_REQUEST
-    assert request.call_count == 1
-
-    # Nothing was sent, so the one external click is still there.
-    with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+    assert first.status_code == HTTP_202_ACCEPTED
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
 
 
 @pytest.mark.django_db
-def test_a_request_that_was_never_built_is_not_charged(
+def test_a_request_that_was_never_built_still_spends_its_slot(
     api_client, data_fixture, settings
 ):
     """
-    The formulas are resolved inside the dispatch, so a body that is not valid
-    JSON fails before anything is sent. Charging for it would let one
-    misconfigured button lock its clicker out of every external button they
-    have.
+    The formulas that would fail to build a body not valid JSON are resolved
+    inside the job, not this request, so whether they would succeed is not
+    known yet when the slot for this click is reserved.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
@@ -427,28 +445,25 @@ def test_a_request_that_was_never_built_is_not_charged(
     service.body_type = "json"
     service.body_content = "'not json{'"
     service.save()
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
-    with mock_advocate_request({"ok": True}) as request:
-        failed = _click(api_client, token, button_field, row)
+    first = _click(api_client, token, button_field, row)
+    second = _click(api_client, token, button_field, row_two)
 
-    assert failed.status_code == HTTP_400_BAD_REQUEST
-    assert request.call_count == 0
-
-    # Nothing left the instance, so the budget is untouched.
-    service.body_type = "none"
-    service.save()
-    with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+    assert first.status_code == HTTP_202_ACCEPTED
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
 
 
 @pytest.mark.django_db
-def test_a_click_that_stopped_before_its_request_gives_the_slot_back(
+def test_a_click_with_a_broken_local_action_still_spends_its_slot(
     api_client, data_fixture, settings
 ):
     """
-    A local action failing first means no request left the instance, so there
-    is nothing to charge for. Charging anyway would let one broken row action
-    lock the clicker out of every button they have.
+    A local action ahead of the external one would fail first, but that only
+    happens once the job runs. The slot for the click is reserved when it is
+    enqueued, before the job ever reaches that local action.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
@@ -459,18 +474,15 @@ def test_a_click_that_stopped_before_its_request_gives_the_slot_back(
     service.table = None
     service.save()
     _add_http_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
-    with mock_advocate_request({"ok": True}) as request:
-        failed = _click(api_client, token, button_field, row)
+    first = _click(api_client, token, button_field, row)
+    second = _click(api_client, token, button_field, row_two)
 
-    assert failed.status_code == HTTP_400_BAD_REQUEST
-    assert request.call_count == 0
-
-    # Nothing was spent, so the one external click is still there.
-    service.table = table
-    service.save()
-    with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+    assert first.status_code == HTTP_202_ACCEPTED
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
 
 
 @pytest.mark.django_db
@@ -479,7 +491,8 @@ def test_a_click_that_failed_after_its_request_still_spends_it(
 ):
     """
     The request already left the instance, so repeating the click repeats the
-    traffic. Giving the slot back would make that traffic free.
+    traffic. Giving the slot back would make that traffic free. The failure
+    itself now happens in the job, not in this request.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
@@ -487,22 +500,22 @@ def test_a_click_that_failed_after_its_request_still_spends_it(
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
     _add_row_action(data_fixture, button_field, table)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
     with patch(
         "baserow.contrib.integrations.local_baserow.service_types."
         "LocalBaserowUpsertRowServiceType.dispatch_data",
         side_effect=PermissionException(),
     ):
-        with mock_advocate_request({"ok": True}) as request:
-            failed = _click(api_client, token, button_field, row)
+        failed = _click(api_client, token, button_field, row)
 
-    assert failed.status_code == HTTP_401_UNAUTHORIZED
-    assert request.call_count == 1
+    assert failed.status_code == HTTP_202_ACCEPTED
 
-    with mock_advocate_request({"ok": True}):
-        assert _click(api_client, token, button_field, row).status_code == (
-            HTTP_429_TOO_MANY_REQUESTS
-        )
+    assert _click(api_client, token, button_field, row_two).status_code == (
+        HTTP_429_TOO_MANY_REQUESTS
+    )
 
 
 @pytest.mark.django_db
@@ -529,7 +542,9 @@ def test_a_click_refused_by_a_deactivated_type_spends_nothing(
     # The budget is intact, so the one external click it allows is still there.
     settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     with patch("django.core.mail.EmailMultiAlternatives.send", return_value=1):
-        assert _click(api_client, token, button_field, row).status_code == HTTP_200_OK
+        assert _click(api_client, token, button_field, row).status_code == (
+            HTTP_202_ACCEPTED
+        )
 
 
 @pytest.mark.django_db
@@ -545,9 +560,9 @@ def test_a_server_that_refused_after_answering_still_spends_the_slot(
 ):
     """
     A rejected login, or a server that will not start TLS, is a configuration
-    problem the sender can fix, but the instance had already opened the
-    connection and held a conversation with the server. Giving the slot back
-    would make that traffic free to repeat.
+    problem the sender can fix, but that only surfaces once the job runs. The
+    slot for the click is reserved when it is enqueued either way, so a
+    second click still meets the budget.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
@@ -556,15 +571,18 @@ def test_a_server_that_refused_after_answering_still_spends_the_slot(
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_email_action(data_fixture, user, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
     with patch("django.core.mail.EmailMultiAlternatives.send", side_effect=refusal):
         failed = _click(api_client, token, button_field, row)
 
-    assert failed.status_code == HTTP_400_BAD_REQUEST
+    assert failed.status_code == HTTP_202_ACCEPTED
 
-    # The server was reached, so the click keeps what it spent.
+    # The slot was already spent when the click was enqueued.
     with patch("django.core.mail.EmailMultiAlternatives.send", return_value=1):
-        assert _click(api_client, token, button_field, row).status_code == (
+        assert _click(api_client, token, button_field, row_two).status_code == (
             HTTP_429_TOO_MANY_REQUESTS
         )
 
@@ -574,15 +592,18 @@ def test_a_click_slack_refused_after_answering_still_spends_it(
     api_client, data_fixture, settings
 ):
     """
-    Slack answers `ok: false` only after the post has been made, so the
-    traffic happened. Giving the slot back would let one row drive unbounded
-    requests at Slack.
+    Slack would answer `ok: false` only once the post is made, but that now
+    happens in the job. The slot for the click is reserved when it is
+    enqueued regardless, so a second click still meets the budget.
     """
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_slack_action(data_fixture, button_field)
+    # A second row, so the second click meets the budget rather than the
+    # first click's own still-pending job on the same cell.
+    row_two = table.get_model().objects.create()
 
     refusal = Mock()
     refusal.json.return_value = {"ok": False, "error": "not_in_channel"}
@@ -594,16 +615,35 @@ def test_a_click_slack_refused_after_answering_still_spends_it(
     ):
         failed = _click(api_client, token, button_field, row)
 
-    assert failed.status_code == HTTP_400_BAD_REQUEST
-    assert posted.call_count == 1
+    assert failed.status_code == HTTP_202_ACCEPTED
+    # Nothing ran in the request itself.
+    assert posted.call_count == 0
 
     # The budget is spent, so the next click is refused rather than repeating
     # the post.
-    with patch(
-        "baserow.contrib.integrations.slack.service_types.send_http_request",
-        new=posted,
-    ):
-        again = _click(api_client, token, button_field, row)
+    again = _click(api_client, token, button_field, row_two)
 
     assert again.status_code == HTTP_429_TOO_MANY_REQUESTS
-    assert posted.call_count == 1
+
+
+@pytest.mark.django_db
+def test_an_accepted_click_is_charged_one_slot_per_external_action(
+    api_client, data_fixture, settings
+):
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=2),
+    )
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    _add_http_action(data_fixture, button_field)
+
+    first = _click(api_client, token, button_field, row)
+    # A second row, so the second click would meet the busy cell if it were
+    # not already refused by the budget.
+    row_two = table.get_model().objects.create()
+    second = _click(api_client, token, button_field, row_two)
+
+    assert first.status_code == HTTP_202_ACCEPTED
+    # Two requests spent both slots; nothing is given back while the job waits.
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS

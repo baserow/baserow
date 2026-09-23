@@ -4,6 +4,7 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import (
     HTTP_200_OK,
+    HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
@@ -12,9 +13,16 @@ from rest_framework.status import (
 
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
+    CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
+)
+from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
+from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
+    mock_advocate_request,
 )
 
 
@@ -653,3 +661,156 @@ def test_a_result_no_client_action_can_read_is_not_sent(api_client, data_fixture
     assert results[after.id]["field_names"] == {}
     # Both still ran: it is only the answer that is withheld.
     assert table.get_model().objects.count() == 3
+
+
+def _add_http_action(data_fixture, button_field):
+    action = data_fixture.create_database_workflow_action(
+        CoreHTTPRequestWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.url = "'http://example.notexist/'"
+    service.save()
+    return action
+
+
+def _click(api_client, token, button_field, row):
+    return api_client.post(
+        reverse(
+            "api:database:workflow_actions:dispatch",
+            kwargs={"field_id": button_field.id},
+        ),
+        {"row_id": row.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+
+@pytest.mark.django_db
+def test_a_click_with_an_external_action_is_accepted_as_a_job(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, _ = _button_with_create_action(
+        data_fixture, user
+    )
+    _add_http_action(data_fixture, button_field)
+
+    response = _click(api_client, token, button_field, row)
+
+    assert response.status_code == HTTP_202_ACCEPTED, response.json()
+    body = response.json()
+    assert body["type"] == "button_field_dispatch"
+    assert body["state"] == JOB_PENDING
+    assert body["results"] is None
+    assert body["client_actions"] is None
+    job = ButtonFieldDispatchJob.objects.get(id=body["id"])
+    assert job.field_id == button_field.id
+    assert job.row_id == row.id
+    # Nothing ran in the request.
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_job_of_an_accepted_click_carries_its_outcome(
+    api_client, data_fixture, django_capture_on_commit_callbacks
+):
+    user, token = data_fixture.create_user_and_token()
+    table, name_field, button_field, row, create_action = _button_with_create_action(
+        data_fixture, user
+    )
+    http_action = _add_http_action(data_fixture, button_field)
+    open_url = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with (
+        mock_advocate_request({"ok": True}),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        response = _click(api_client, token, button_field, row)
+
+    assert response.status_code == HTTP_202_ACCEPTED
+    job_response = api_client.get(
+        reverse("api:jobs:item", kwargs={"job_id": response.json()["id"]}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    body = job_response.json()
+    assert body["state"] == "finished"
+    assert [r["workflow_action_id"] for r in body["results"]] == [
+        create_action.id,
+        http_action.id,
+    ]
+    assert [a["id"] for a in body["client_actions"]] == [open_url.id]
+    # The row action ran, in the job.
+    assert table.get_model().objects.exclude(id=row.id).count() == 1
+
+
+@pytest.mark.django_db
+def test_a_second_click_on_a_busy_cell_is_refused_before_a_job_exists(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    ButtonFieldDispatchJob.objects.create(
+        user=user, field=button_field, row_id=row.id, state=JOB_STARTED
+    )
+
+    response = _click(api_client, token, button_field, row)
+
+    assert response.status_code == HTTP_409_CONFLICT
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS"
+    assert ButtonFieldDispatchJob.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_a_refused_click_with_an_external_action_creates_no_job(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    outsider, outsider_token = data_fixture.create_user_and_token()
+    table, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    response = _click(api_client, outsider_token, button_field, row)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+    assert ButtonFieldDispatchJob.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_a_misconfigured_action_refuses_the_click_before_a_job_exists(
+    api_client, data_fixture
+):
+    """A `LocalBaserowUpdateRowWorkflowAction` created through the fixture keeps
+    its default empty row id, which `check_dispatch_allowed` refuses up front
+    (unlike a delete-row action with no table, whose `raise_if_misconfigured`
+    is a no-op)."""
+
+    user, token = data_fixture.create_user_and_token()
+    table, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    data_fixture.create_database_workflow_action(
+        LocalBaserowUpdateRowWorkflowAction, field=button_field
+    )
+
+    response = _click(api_client, token, button_field, row)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
+    assert ButtonFieldDispatchJob.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_a_sixth_click_in_flight_is_refused(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    for row_id in range(100, 105):
+        ButtonFieldDispatchJob.objects.create(
+            user=user, field=button_field, row_id=row_id, state=JOB_PENDING
+        )
+
+    response = _click(api_client, token, button_field, row)
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_MAX_JOB_COUNT_EXCEEDED"

@@ -12,6 +12,7 @@ from opentelemetry.instrumentation.utils import is_http_instrumentation_enabled
 from rest_framework.exceptions import APIException
 from rest_framework.status import (
     HTTP_200_OK,
+    HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
@@ -566,20 +567,19 @@ def test_a_throttled_click_sends_throttled(api_client, data_fixture, settings):
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     action = _add_http_action(data_fixture, button_field)
+    # A second row: the first click's job is enqueued, not run, so it sends no
+    # signal of its own here; only the throttled one does.
+    row_two = table.get_model().objects.create()
 
     with _received(button_field_dispatched) as calls:
-        with mock_advocate_request({"ok": True}):
-            _click(api_client, token, button_field, row.id)
-            response = _click(api_client, token, button_field, row.id)
+        _click(api_client, token, button_field, row.id)
+        response = _click(api_client, token, button_field, row_two.id)
 
     assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
-    assert [call["outcome"] for call in calls] == [
-        DispatchOutcome.COMPLETED,
-        DispatchOutcome.THROTTLED,
-    ]
+    assert [call["outcome"] for call in calls] == [DispatchOutcome.THROTTLED]
     # The snapshot is read before the budget, so the refusal still knows what
     # the button carries.
-    assert [wa.id for wa in calls[1]["workflow_actions"]] == [action.id]
+    assert [wa.id for wa in calls[0]["workflow_actions"]] == [action.id]
 
 
 @pytest.mark.django_db
@@ -803,6 +803,14 @@ class _PluginRefusal(APIException):
 
 @pytest.mark.django_db
 def test_a_plugin_refusal_with_a_403_sends_denied(api_client, data_fixture, settings):
+    """The plugin connects to `workflow_actions_before_dispatch`, which now
+    only fires inside the job, once it runs; the click itself is accepted at
+    once and sends no signal of its own. The DENIED mapping for a refusal
+    like this is exercised where the job actually runs it (`test_job_types.py`
+    and `telemetry.py`'s own tests); here only the enqueue and its budget are
+    in scope.
+    """
+
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
         RateLimit(period_in_seconds=60, number_of_calls=1),
     )
@@ -820,16 +828,17 @@ def test_a_plugin_refusal_with_a_403_sends_denied(api_client, data_fixture, sett
     finally:
         workflow_actions_before_dispatch.disconnect(refuse)
 
-    assert response.status_code == HTTP_403_FORBIDDEN
-    assert len(calls) == 1
-    assert calls[0]["outcome"] == DispatchOutcome.DENIED
-    assert cache.get(f"button_dispatch_{button_field.id}_{row.id}") is None
+    assert response.status_code == HTTP_202_ACCEPTED
+    # Nothing ran in the request, so the plugin never got to refuse it yet.
+    assert calls == []
 
-    # The refusal must not have spent the rate limit's only slot.
+    # The slot was already spent when the click was enqueued, ahead of
+    # whatever the job goes on to do with it.
+    row_two = table.get_model().objects.create()
     with mock_advocate_request({"ok": True}):
-        second_response = _click(api_client, token, button_field, row.id)
+        second_response = _click(api_client, token, button_field, row_two.id)
 
-    assert second_response.status_code == HTTP_200_OK
+    assert second_response.status_code == HTTP_429_TOO_MANY_REQUESTS
 
 
 @pytest.mark.django_db
@@ -914,36 +923,45 @@ def test_an_action_interrupted_by_a_worker_timeout_is_still_counted(
     ]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_a_click_whose_endpoint_refused_counts_the_error_status(
-    api_client, data_fixture
+    api_client, data_fixture, django_capture_on_commit_callbacks
 ):
+    """The action reaches outside Baserow, so the click runs in a job; the
+    signal it sends is the same one a local click would send."""
+
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_row_action(data_fixture, button_field, table)
     _add_http_action(data_fixture, button_field)
 
     with _received(button_field_dispatched) as calls:
-        with mock_advocate_request({"nope": True}, status_code=504):
+        with (
+            mock_advocate_request({"nope": True}, status_code=504),
+            django_capture_on_commit_callbacks(execute=True),
+        ):
             response = _click(api_client, token, button_field, row.id)
 
-    assert response.status_code == HTTP_200_OK
-    # Baserow ran the sequence; the endpoint is what refused.
+    assert response.status_code == HTTP_202_ACCEPTED
+    # Baserow ran the sequence in the job; the endpoint is what refused.
     assert calls[0]["outcome"] == DispatchOutcome.COMPLETED
     assert calls[0]["failed_position"] is None
     assert calls[0]["error_status_count"] == 1
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_a_click_whose_endpoint_accepted_counts_no_error_status(
-    api_client, data_fixture
+    api_client, data_fixture, django_capture_on_commit_callbacks
 ):
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
 
     with _received(button_field_dispatched) as calls:
-        with mock_advocate_request({"ok": True}):
+        with (
+            mock_advocate_request({"ok": True}),
+            django_capture_on_commit_callbacks(execute=True),
+        ):
             _click(api_client, token, button_field, row.id)
 
     assert calls[0]["outcome"] == DispatchOutcome.COMPLETED
