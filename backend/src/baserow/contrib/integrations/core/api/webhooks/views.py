@@ -24,6 +24,7 @@ from baserow.contrib.integrations.core.exceptions import (
 from baserow.core.services.registries import service_type_registry
 
 CORE_WEBHOOKS_TAG = "Core webhooks"
+WORKFLOW_RESPONSE_CONTENT_SECURITY_POLICY = "sandbox"
 
 
 def webhook_schema(method):
@@ -97,7 +98,14 @@ class CoreHTTPTriggerView(APIView):
         }
 
     def response_to_http_response(self, workflow_response):
-        headers = workflow_response.headers or {}
+        """Builds a browser-sandboxed HTTP response from a workflow response."""
+
+        headers = {
+            key: value
+            for key, value in (workflow_response.headers or {}).items()
+            if key.lower() != "content-security-policy"
+        }
+        headers["Content-Security-Policy"] = WORKFLOW_RESPONSE_CONTENT_SECURITY_POLICY
         status = workflow_response.status_code
 
         if workflow_response.body_type == RESPONSE_BODY_TYPE.TEXT:

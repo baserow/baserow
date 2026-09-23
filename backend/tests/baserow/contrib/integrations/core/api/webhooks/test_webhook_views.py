@@ -295,6 +295,28 @@ def test_text_workflow_response_content_type_is_case_insensitive(
     assert response["X-Workflow"] == "done"
 
 
+@pytest.mark.parametrize(
+    "csp_header_key",
+    ["Content-Security-Policy", "content-security-policy", "CoNtEnT-SeCuRiTy-PoLiCy"],
+)
+def test_workflow_response_enforces_browser_sandbox(csp_header_key):
+    workflow_response = SimpleNamespace(
+        headers={
+            "Content-Type": "text/html",
+            csp_header_key: "script-src * 'unsafe-inline'",
+        },
+        status_code=HTTP_200_OK,
+        body_type=RESPONSE_BODY_TYPE.TEXT,
+        body="<script>alert('foo')</script>",
+    )
+
+    response = CoreHTTPTriggerView().response_to_http_response(workflow_response)
+
+    assert response.content == b"<script>alert('foo')</script>"
+    assert response["Content-Type"] == "text/html"
+    assert response["Content-Security-Policy"] == "sandbox"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_http_trigger_does_not_wait_for_response_when_disabled(
     api_client, data_fixture
