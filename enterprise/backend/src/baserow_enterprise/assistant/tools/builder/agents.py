@@ -9,6 +9,7 @@ Contains:
 """
 
 import json
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
@@ -23,6 +24,8 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.signals import workflow_action_updated
 from baserow.core.exceptions import PermissionException
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.utils import to_path
 from baserow_enterprise.assistant.tools.shared import raise_if_permission_denied
@@ -30,6 +33,7 @@ from baserow_enterprise.assistant.tools.shared.agents import get_formula_generat
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     create_example_from_json_schema,
     formula_object,
+    is_valid_formula,
     minimize_json_schema,
 )
 
@@ -66,6 +70,7 @@ class BuilderFormulaContext:
         self.context: dict[str, Any] = {}
         self.context_metadata: dict[str, Any] = {}
         self._current_record_stack: list[int] = []
+        self._row_scoped_data_source: int | None = None
 
     def load_page_context(self) -> None:
         """Load all available data providers into the formula context."""
@@ -224,6 +229,7 @@ class BuilderFormulaContext:
             self.context["current_record"] = example
             ds_meta = self.context_metadata[ds_key]
             self.context_metadata["current_record"] = {
+                "name": ds_meta.get("name", ""),
                 "desc": "Current row in the collection element. "
                 "Use current_record.field_<id> for row values.",
                 **ds_meta.get("fields", {}),
@@ -247,11 +253,30 @@ class BuilderFormulaContext:
 
     def get_formula_context(self) -> dict[str, Any]:
         """Return the context dict for formula generation."""
-        return self.context
+        return self._scoped_context(self.context)
 
     def get_context_metadata(self) -> dict[str, Any]:
         """Return metadata about the context."""
-        return self.context_metadata
+        return self._scoped_context(self.context_metadata)
+
+    def _scoped_context(self, values: dict[str, Any]) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in values.items()
+            if key != f"data_source.{self._row_scoped_data_source}"
+        }
+
+    @contextmanager
+    def scope_to_current_record(self):
+        """Use the collection row for implicit formulas, keeping other sources."""
+
+        previous = self._row_scoped_data_source
+        if self._current_record_stack and "current_record" in self.context:
+            self._row_scoped_data_source = self._current_record_stack[-1]
+        try:
+            yield
+        finally:
+            self._row_scoped_data_source = previous
 
     def __getitem__(self, key: str) -> Any:
         """
@@ -275,6 +300,13 @@ class BuilderFormulaContext:
         """Resolve the root segment, handling ``data_source.{id}`` compound keys."""
 
         if len(parts) >= 2 and parts[0] == "data_source":
+            if parts[1] == str(self._row_scoped_data_source):
+                raise KeyError(
+                    "This collection's row values are available through "
+                    "current_record. Use get('current_record.field_<id>') for "
+                    "the row being rendered, not a fixed row of its data source. "
+                    "Intentional absolute access requires an explicit formula."
+                )
             ds_key = f"data_source.{parts[1]}"
             if ds_key not in self.context:
                 raise KeyError(
@@ -347,6 +379,37 @@ class BuilderFormulaContext:
 # ---------------------------------------------------------------------------
 
 
+def _generate_formulas(generate, formulas: dict, context: BuilderFormulaContext):
+    """Preserve explicit formulas and scope implicit collection formulas to a row.
+
+    The same list is otherwise advertised twice, once as its first example row
+    and once as current_record. Both resolve successfully, but a fixed list
+    index repeats the same value on every card. Only the enclosing collection's
+    source is scoped; unrelated sources and formulas outside collections remain
+    available. Explicit expressions are validated against the complete context.
+    """
+
+    if not context._current_record_stack or "current_record" not in context.context:
+        return generate(formulas, context)
+
+    generated = {}
+    descriptions = {}
+    for field, description in formulas.items():
+        if is_valid_formula(description):
+            resolve_formula(
+                formula_object(description, mode=BASEROW_FORMULA_MODE_ADVANCED),
+                formula_runtime_function_registry,
+                context,
+            )
+            generated[field] = description
+        else:
+            descriptions[field] = description
+    if descriptions:
+        with context.scope_to_current_record():
+            generated.update(generate(descriptions, context))
+    return generated
+
+
 def update_element_formulas(
     user: "AbstractUser",
     page: Page,
@@ -409,7 +472,9 @@ def update_element_formulas(
                 )
                 with transaction.atomic():
                     try:
-                        generated = generate_formulas(formulas, context)
+                        generated = _generate_formulas(
+                            generate_formulas, formulas, context
+                        )
                         if generated:
                             el_create.update_with_formulas(user, orm_element, generated)
                     except Exception as exc:
@@ -576,7 +641,7 @@ def update_single_element_formulas(
     element_update: ElementUpdate,
     element_type: str,
     tool_helpers: "ToolHelpers",
-) -> None:
+) -> tuple[list[str], list[str]]:
     """Generate and apply formulas for one updated element.
 
     :param user: The user whose element permissions apply.
@@ -585,13 +650,15 @@ def update_single_element_formulas(
     :param element_update: The assistant update containing formula requests.
     :param element_type: The registered type name of the element.
     :param tool_helpers: Helpers for status updates and the request model profile.
-    :return: None.
+    :return: Applied formula fields and formula-generation errors.
     """
 
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
     context = BuilderFormulaContext(page)
     context.load_page_context()
+    applied: list[str] = []
+    errors: list[str] = []
 
     # Push collection context if inside a repeat/table
     pushed = False
@@ -625,9 +692,9 @@ def update_single_element_formulas(
             generate_formulas = get_formula_generator(
                 BUILDER_FORMULA_PROMPT, tool_helpers.model_profile
             )
-            with transaction.atomic():
-                try:
-                    generated = generate_formulas(formulas, context)
+            try:
+                with transaction.atomic():
+                    generated = _generate_formulas(generate_formulas, formulas, context)
                     if generated:
                         kwargs = {}
                         for field_name, formula in generated.items():
@@ -640,16 +707,29 @@ def update_single_element_formulas(
                                 )
                         if kwargs:
                             UpdateElementActionType.do(user, orm_element, kwargs)
-                except Exception as exc:
-                    raise_if_permission_denied(exc)
-                    logger.exception(
-                        "Failed to generate formulas for element {}: {}",
-                        orm_element.id,
-                        exc,
-                    )
+                            applied.extend(kwargs)
+                    missing = set(formulas) - set(applied)
+                    if missing:
+                        errors.append(
+                            "No valid formula was generated for: "
+                            f"{', '.join(sorted(missing))}. Previous values were retained."
+                        )
+            except Exception as exc:
+                applied.clear()
+                raise_if_permission_denied(exc)
+                logger.exception(
+                    "Failed to generate formulas for element {}: {}",
+                    orm_element.id,
+                    exc,
+                )
+                errors.append(
+                    f"Formula generation failed for element {orm_element.id}: {exc}. "
+                    "Previous formula values were retained."
+                )
     finally:
         if pushed:
             context.pop_current_record_context()
+    return applied, errors
 
 
 def update_workflow_action_formulas(
@@ -701,7 +781,9 @@ def update_workflow_action_formulas(
                 )
                 with transaction.atomic():
                     try:
-                        generated = generate_formulas(formulas, context)
+                        generated = _generate_formulas(
+                            generate_formulas, formulas, context
+                        )
                         if generated:
                             action_create.update_with_formulas(orm_action, generated)
                         orm_action.refresh_from_db()

@@ -58,6 +58,7 @@ from .types import (
     PageItem,
     PageUpdate,
 )
+from .types.element import BUTTON_NAVIGATION_GUIDANCE
 
 if TYPE_CHECKING:
     pass
@@ -534,11 +535,38 @@ def update_element(
 
     element_type = element.get_type().type
     kwargs = element_update.to_update_kwargs(element_type)
+    allowed = set(ElementHandler.allowed_fields_update) | set(
+        element.get_type().allowed_fields
+    )
+    # These relations are consumed by the element type's after_update hook,
+    # rather than assigned as model fields by ElementHandler.
+    allowed.update(
+        {"table": {"fields"}, "menu": {"menu_items"}}.get(element_type, set())
+    )
+    kwargs = {name: value for name, value in kwargs.items() if name in allowed}
+    unsupported = element_update.unsupported_fields(element_type, kwargs)
+    if unsupported:
+        if element_type == "button":
+            guidance = BUTTON_NAVIGATION_GUIDANCE
+        else:
+            allowed = set(element.get_type().allowed_fields) & set(
+                ElementUpdate.model_fields
+            )
+            allowed.update(("visibility", "role_type", "roles"))
+            guidance = f"Supported properties include: {', '.join(sorted(allowed))}."
+        raise ToolInputError(
+            f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
+            f"No changes were applied. {guidance}"
+        )
+    # Generated values are applied only after validation. Do not replace an
+    # existing value with the creation placeholder if formula generation fails.
+    for field in element_update.get_formulas_to_update(element, None, element_type):
+        kwargs.pop(field, None)
     if kwargs:
         element = UpdateElementActionType.do(user, element, kwargs)
 
     # Headers/footers are containers — menu_items belong on a child menu.
-    if element_type in ("header", "footer") and element_update.menu_items:
+    if element_type in ("header", "footer") and element_update.menu_items is not None:
         _ensure_child_menu(user, element, element_update)
 
     return element, element_type

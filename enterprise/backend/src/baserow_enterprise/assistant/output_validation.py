@@ -71,12 +71,19 @@ _CLAUSE_BOUNDARY = re.compile(
     r"[.!?;\n]+|\b(?:although|but|however|though|while|yet)\b", re.IGNORECASE
 )
 _FAILED_WORK_PATTERN = re.compile(
-    r"\b(?:errors?|failed|failure|incomplete|pending|remaining|"
+    r"\b(?:errors?|failed|failure|denied|forbidden|incomplete|pending|remaining|"
     r"could(?:n't|n’t| not)|unable|wasn't|weren't|"
     r"not (?:applied|completed|configured|created|deleted|updated))\b",
     re.IGNORECASE,
 )
-_NO_ERROR_PATTERN = re.compile(r"\b(?:without|no)\s+errors?\b", re.IGNORECASE)
+_NO_ERROR_PATTERN = re.compile(
+    r"\b(?:(?:without|no)\s+errors?|"
+    r"no\s+(?:permissions?|requests?|actions?|operations?|access)\s+"
+    r"(?:was|were|is|are)\s+(?:denied|forbidden)|"
+    r"(?:was|were|is|are)\s+not\s+(?:denied|forbidden)|"
+    r"(?:wasn|weren|isn|aren)['’]t\s+(?:denied|forbidden))\b",
+    re.IGNORECASE,
+)
 # Delete is excluded: destructive actions must stay behind user confirmation.
 _HANDOFF_VERBS = r"(?:create|set up|configure|update|add|apply|complete)"
 _ACTION_HANDOFF_PATTERNS = (

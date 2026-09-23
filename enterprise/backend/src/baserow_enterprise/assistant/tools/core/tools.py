@@ -262,10 +262,10 @@ def ask_user(
     """\
     Ask the user for a requirement you cannot look up, then stop.
 
-    WHEN to use: The request names data, fields, or users no list_* tool result matches, or never says what it is for.
+    WHEN to use: A change request refers to existing data, fields, or users no list_* tool result matches, or a new build never says what it is for.
     WHAT it does: Records the question; you deliver it as your final answer.
     RETURNS: Instructions for delivering the question.
-    DO NOT USE when: A sensible first version can be built with defaults (see `<intent>`), a list_* tool can answer it, or you only want permission to continue — build and iterate.
+    DO NOT USE when: The user asks a product/how-to question (answer it using search_user_docs), a sensible first version can be built with defaults (see `<intent>`), a list_* tool can answer it, or you only want permission to continue.
     """
 
     ctx.deps.pending_question = question
