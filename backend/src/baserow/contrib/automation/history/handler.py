@@ -259,15 +259,6 @@ class AutomationHistoryHandler:
 
         return node_result.result
 
-    def workflow_has_response_node(self, workflow: AutomationWorkflow) -> bool:
-        """
-        Returns whether the workflow contains at least one response action node.
-        """
-
-        return workflow.automation_workflow_nodes.filter(
-            service__content_type__model="coreresponseservice",
-        ).exists()
-
     def create_workflow_history_response(
         self,
         workflow_history: AutomationWorkflowHistory,
