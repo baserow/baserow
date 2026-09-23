@@ -1,3 +1,5 @@
+from django.contrib.auth.models import AnonymousUser
+
 import pytest
 
 from baserow.contrib.database.views.models import View
@@ -5,6 +7,7 @@ from baserow.contrib.database.views.operations import (
     ListViewsOperationType,
     ReadViewOperationType,
 )
+from baserow.core.agents.handler import AgentHandler
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.registries import object_scope_type_registry, operation_type_registry
 from baserow.core.types import PermissionCheck
@@ -85,3 +88,35 @@ def test_non_user_subjects_cannot_access_personal_views(data_fixture):
         View.objects.filter(table=table),
         workspace,
     ).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.view_ownership
+@pytest.mark.parametrize("actor_type", ["anonymous", "token", "agent"])
+def test_non_user_subjects_skip_license_check_for_collaborative_views(
+    data_fixture, mocker, actor_type
+):
+    """
+    Non-user actors, like an anonymous user visiting a public view, must be left to
+    the lower permission managers without checking per-user premium licenses.
+    """
+
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=workspace)
+    )
+    view = data_fixture.create_grid_view(table=table, public=True)
+    actor = {
+        "anonymous": lambda: AnonymousUser(),
+        "token": lambda: data_fixture.create_token(user=owner, workspace=workspace),
+        "agent": lambda: AgentHandler().create_agent(workspace, name="Agent"),
+    }[actor_type]()
+    user_has_feature = mocker.patch(
+        "baserow_premium.permission_manager.LicenseHandler.user_has_feature"
+    )
+    manager = ViewOwnershipPermissionManagerType()
+    check = PermissionCheck(actor, ReadViewOperationType.type, view)
+
+    assert manager.check_multiple_permissions([check], workspace) == {}
+    user_has_feature.assert_not_called()

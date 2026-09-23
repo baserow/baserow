@@ -231,6 +231,12 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
                 )
                 continue
 
+            # The remaining ownership rules depend on a per-user premium license, which
+            # only applies to users. Let the lower permission managers decide for other
+            # actors like tokens or anonymous users.
+            if not isinstance(actor, User):
+                continue
+
             premium = local_cache.get(
                 f"has_premium_permission_{actor.id}_{workspace.id}",
                 partial(LicenseHandler.user_has_feature, PREMIUM, actor, workspace),
