@@ -109,6 +109,39 @@ describe('ConcurrentPriorityTaskQueue', () => {
     await expect(queued).rejects.toBe(error)
     expect(task).toHaveBeenCalledTimes(3)
   })
+
+  test('cancels pending tasks without starting them', async () => {
+    const queue = new ConcurrentPriorityTaskQueue({ concurrency: 1 })
+    const activeRequest = deferred()
+    const pendingTask = vi.fn()
+    const active = queue.add(() => activeRequest.promise)
+    const pending = queue.add(pendingTask)
+    await flushPromises()
+
+    queue.cancelPending()
+
+    await expect(pending).resolves.toBeUndefined()
+    expect(pendingTask).not.toHaveBeenCalled()
+    activeRequest.resolve()
+    await active
+  })
+
+  test('cancels a delayed retry', async () => {
+    const queue = new ConcurrentPriorityTaskQueue()
+    const task = vi.fn().mockRejectedValue(new Error('Throttled'))
+    const queued = queue.add(task, 0, {
+      maxRetries: 1,
+      shouldRetry: () => true,
+      retryDelay: () => 1000,
+    })
+    await flushPromises()
+
+    queue.cancelPending()
+    await vi.advanceTimersByTimeAsync(1000)
+
+    await expect(queued).resolves.toBeUndefined()
+    expect(task).toHaveBeenCalledOnce()
+  })
 })
 
 describe('test GroupTaskQueue when immediately filling the queue', () => {

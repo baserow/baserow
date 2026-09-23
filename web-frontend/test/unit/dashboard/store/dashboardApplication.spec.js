@@ -548,6 +548,35 @@ describe('Dashboard application store', () => {
     }
   })
 
+  test('cancels unstarted dispatches after the dashboard changes', async () => {
+    const dashboardState = createDashboardState()
+    dashboardState.dataSources = [{ id: 1 }, { id: 2 }, { id: 3 }]
+    const activeRequest = deferred()
+    const dispatchDataSource = vi.fn().mockReturnValue(activeRequest.promise)
+    DataSourceService.mockReturnValue({ dispatch: dispatchDataSource })
+    const commit = applyCommit(dashboardState)
+    const context = { state: dashboardState, commit }
+    const app = {
+      $client: {},
+      $config: {
+        public: { baserowDashboardDataSourceDispatchConcurrency: '1' },
+      },
+    }
+
+    const dispatches = [1, 2, 3].map((dataSourceId) =>
+      actions.dispatchDataSource.call(app, context, dataSourceId)
+    )
+    await vi.waitFor(() => expect(dispatchDataSource).toHaveBeenCalledOnce())
+
+    mutations.RESET(dashboardState)
+    mutations.SET_DASHBOARD_ID(dashboardState, 99)
+    activeRequest.resolve({ data: { result: 'old dashboard' } })
+    await Promise.all(dispatches)
+
+    expect(dispatchDataSource).toHaveBeenCalledOnce()
+    expect(dashboardState.data).toEqual({})
+  })
+
   test('marks a data source as failed after bounded throttle retries', async () => {
     vi.useFakeTimers()
     try {

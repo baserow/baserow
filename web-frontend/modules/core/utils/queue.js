@@ -111,8 +111,10 @@ export class TaskQueue {
 export class ConcurrentPriorityTaskQueue {
   constructor({ concurrency = 1 } = {}) {
     this.pending = []
+    this.delayed = new Map()
     this.active = 0
     this.sequence = 0
+    this.cancellationGeneration = 0
     this.setConcurrency(concurrency)
   }
 
@@ -145,6 +147,7 @@ export class ConcurrentPriorityTaskQueue {
         shouldRetry,
         retryDelay,
         retryCount: 0,
+        cancellationGeneration: this.cancellationGeneration,
         resolve,
         reject,
       })
@@ -159,6 +162,17 @@ export class ConcurrentPriorityTaskQueue {
     )
   }
 
+  /** Resolves queued and delayed tasks without starting another attempt. */
+  cancelPending() {
+    this.cancellationGeneration += 1
+    this.pending.splice(0).forEach(({ resolve }) => resolve(undefined))
+    this.delayed.forEach((timer, item) => {
+      clearTimeout(timer)
+      item.resolve(undefined)
+    })
+    this.delayed.clear()
+  }
+
   /** Starts pending tasks until the configured concurrency budget is full. */
   drain() {
     while (this.active < this.concurrency && this.pending.length > 0) {
@@ -167,6 +181,11 @@ export class ConcurrentPriorityTaskQueue {
       Promise.resolve()
         .then(item.task)
         .then(item.resolve, (error) => {
+          if (item.cancellationGeneration !== this.cancellationGeneration) {
+            item.resolve(undefined)
+            return
+          }
+
           let retry
           try {
             retry =
@@ -190,11 +209,13 @@ export class ConcurrentPriorityTaskQueue {
             return
           }
           item.retryCount += 1
-          setTimeout(() => {
+          const timer = setTimeout(() => {
+            this.delayed.delete(item)
             this.pending.push(item)
             this.sortPending()
             this.drain()
           }, delay)
+          this.delayed.set(item, timer)
         })
         .finally(() => {
           this.active -= 1

@@ -216,6 +216,7 @@ const refreshAfterWidgetCreation = async (dispatch, dashboard) => {
 
 export const mutations = {
   RESET(state) {
+    dataSourceDispatchQueues.get(state)?.cancelPending()
     state.dashboardId = null
     state.dashboardGeneration += 1
     state.widgetFetchGeneration += 1
@@ -231,6 +232,7 @@ export const mutations = {
   },
   SET_DASHBOARD_ID(state, dashboardId) {
     if (state.dashboardId !== dashboardId) {
+      dataSourceDispatchQueues.get(state)?.cancelPending()
       state.dashboardGeneration += 1
       state.widgetFetchGeneration += 1
       state.dataSourceCollectionFetchGeneration += 1
