@@ -35,6 +35,7 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.jobs.tasks import run_async_job
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
 )
@@ -384,3 +385,32 @@ def test_a_click_run_by_the_job_does_not_enter_the_undo_stack(data_fixture):
     )
     assert undone == []
     assert table.get_model().objects.exclude(id=row.id).count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("trash", ["field", "table"])
+def test_a_trashed_button_fails_the_job_with_a_readable_message(
+    data_fixture, dispatched_clicks, trash
+):
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    with patch("baserow.core.jobs.handler.run_async_job"):
+        job = JobHandler().create_and_start_job(
+            user, ButtonFieldDispatchJobType.type, field=button_field, row_id=row.id
+        )
+    # Trashed while the job waited on the queue.
+    trashed = button_field if trash == "field" else table
+    trashed.trashed = True
+    trashed.save()
+
+    with mock_advocate_request({"ok": True}) as request:
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.state == JOB_FAILED
+    assert job.error_code == "FieldDoesNotExist"
+    assert job.human_readable_error == "The button no longer exists."
+    assert not request.called
+    assert dispatched_clicks == []

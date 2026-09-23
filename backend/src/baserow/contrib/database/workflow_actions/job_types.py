@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.database.api.workflow_actions.serializers import (
     dispatch_result_payload,
 )
+from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
@@ -57,9 +58,11 @@ class ButtonFieldDispatchJobType(JobType):
     job_exceptions_map = {
         WorkflowActionDispatchError: _own_message,
         WorkflowActionDispatchInProgress: "Another click on this row is still running.",
-        # A race between enqueue and run: the row, the workspace membership or
-        # the type's activation can change while the job is queued. Mapped so
-        # the job fails with a message instead of raising out of the task.
+        # A race between enqueue and run: the field, the row, the workspace
+        # membership or the type's activation can change while the job is
+        # queued. Mapped so the job fails with a message instead of raising
+        # out of the task.
+        FieldDoesNotExist: "The button no longer exists.",
         RowDoesNotExist: "The clicked row no longer exists.",
         UserNotInWorkspace: "The clicker is no longer a member of the workspace.",
         WorkflowActionTypeDeactivated: _own_message,
@@ -93,6 +96,10 @@ class ButtonFieldDispatchJobType(JobType):
         # Reading `job.user` restores the clicker's websocket id on it.
         user = job.user
         field = job.field
+        # Trashed while the job waited on the queue. Refused before the click
+        # event, as the view refuses a missing field before it sends one.
+        if field.trashed or field.table.trashed:
+            raise FieldDoesNotExist()
         service = DatabaseWorkflowActionService()
 
         started = perf_counter()
