@@ -499,6 +499,12 @@ This image has the following "horizontal scaling" environment variables:
        that there is only one process handling tasks per container and so a slow task
        such as a snapshot of a large Baserow database might delay a fast queue task
        like sending a realtime row updated signal to all users looking at a table.
+    2. The default worker also consumes the `automation_workflow` and
+       `button_dispatch` queues. A button click whose actions reach outside
+       Baserow runs on `button_dispatch`, so a slow endpoint holds a Celery
+       worker rather than a web worker. If you run the workers with your own
+       `celery worker -Q ...` command, include both queues, or those clicks
+       stay pending until the job cleanup fails them.
 
 ## Backing up and Restoring Baserow
 
