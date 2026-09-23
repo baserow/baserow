@@ -90,9 +90,7 @@ class CommaSeparatedCsvColumnsField(serializers.CharField):
             if item not in valid_column_names:
                 raise serializers.ValidationError(f"{item} is not a valid choice.")
 
-        items = [
-            LEGACY_AUDIT_LOG_CSV_COLUMN_ALIASES.get(item, item) for item in items
-        ]
+        items = [LEGACY_AUDIT_LOG_CSV_COLUMN_ALIASES.get(item, item) for item in items]
 
         if len(set(items)) != len(items):
             raise serializers.ValidationError("Duplicate items are not allowed.")
