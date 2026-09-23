@@ -548,10 +548,10 @@ describe('FieldButtonSubForm', () => {
       expect(secondCall[1].url.formula).toBe("get('previous_action.91.id')")
     })
 
-    test('the open card follows an action that is given its id', async () => {
-      // The card is keyed by what identifies the action, so a save that stops
-      // part way would otherwise close the one the user is fixing and drop the
-      // flag holding its error back.
+    test('the open card keeps its key when its action is given an id', async () => {
+      // The card is keyed by what the action was edited under, so a save that
+      // stops part way leaves the one the user is fixing open, with the flag
+      // holding its error back.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.localActions = [
         { [CLIENT_ID_KEY]: 'first', type: 'open_url', url: { formula: "'a'" } },
@@ -563,11 +563,18 @@ describe('FieldButtonSubForm', () => {
       wrapper.vm.adoptAssignedIds(new Map([['first', 91]]))
       await wrapper.vm.$nextTick()
 
-      expect(list.vm.expandedActions).toEqual({ 91: true })
-      expect(list.vm.pristineActions).toEqual({ 91: true })
+      expect(wrapper.vm.localActions[0]).toMatchObject({
+        id: 91,
+        [CLIENT_ID_KEY]: 'first',
+      })
+      expect(list.vm.isExpanded(wrapper.vm.localActions[0])).toBe(true)
+      expect(list.vm.errorFor(wrapper.vm.localActions[0])).toBeNull()
     })
 
-    test('the open card stays open once a save gives its action an id', async () => {
+    test('the open card stays put once a save gives its action an id', async () => {
+      // The refetched list names the action by its id. Keyed by that, the
+      // card would remount while the editor is still on screen, and the
+      // editor would scroll to the top as the card rebuilt its form.
       const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
       wrapper.vm.localActions = [
         { [CLIENT_ID_KEY]: 'first', type: 'open_url', url: { formula: "'a'" } },
@@ -575,6 +582,8 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.$nextTick()
       const list = wrapper.findComponent(ButtonFieldActionList)
       list.vm.expandedActions = { first: true }
+      await wrapper.vm.$nextTick()
+      const card = list.find('.button-field-action-list__item').element
 
       const saved = { id: 91, type: 'open_url', url: { formula: "'a'" } }
       wrapper.vm.$client.post.mockResolvedValueOnce({ data: saved })
@@ -583,7 +592,73 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.afterFieldSaved(7)
       await wrapper.vm.$nextTick()
 
+      expect(wrapper.vm.localActions[0]).toMatchObject({
+        id: 91,
+        [CLIENT_ID_KEY]: 'first',
+      })
       expect(list.vm.isExpanded(wrapper.vm.localActions[0])).toBe(true)
+      expect(list.find('.button-field-action-list__item').element).toBe(card)
+      // The server's copy stays as the server sent it.
+      expect(wrapper.vm.serverActions).toEqual([saved])
+      // A reopen with nothing changed on the server keeps the list as is.
+      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [saved] })
+      const revision = wrapper.vm.actionListRevision
+      await wrapper.vm.onShow()
+      expect(wrapper.vm.actionListRevision).toBe(revision)
+    })
+
+    test('a retyped action keeps its card once the save gives it a new id', async () => {
+      // The server deletes and recreates an action whose type changed, so it
+      // comes back under a new id, like a created one.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = [
+        { id: 41, type: 'local_baserow_create_row', service: { table_id: 3 } },
+      ]
+      wrapper.vm.localActions = [
+        {
+          id: 41,
+          [CLIENT_ID_KEY]: 'retyped',
+          type: 'open_url',
+          url: { formula: "'a'" },
+        },
+      ]
+      await wrapper.vm.$nextTick()
+      const list = wrapper.findComponent(ButtonFieldActionList)
+      list.vm.expandedActions = { retyped: true }
+      await wrapper.vm.$nextTick()
+      const card = list.find('.button-field-action-list__item').element
+
+      const saved = { id: 130, type: 'open_url', url: { formula: "'a'" } }
+      wrapper.vm.$client.patch.mockResolvedValueOnce({ data: saved })
+      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [saved] })
+
+      await wrapper.vm.afterFieldSaved(7)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.vm.localActions[0]).toMatchObject({
+        id: 130,
+        [CLIENT_ID_KEY]: 'retyped',
+      })
+      expect(list.vm.isExpanded(wrapper.vm.localActions[0])).toBe(true)
+      expect(list.find('.button-field-action-list__item').element).toBe(card)
+    })
+
+    test('an action the server forgot is not keyed by the id it had', async () => {
+      // A collaborator deleted it, so it is created again. Its old id can
+      // come back from the trash, and two cards keyed the same would follow.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.serverActions = []
+      wrapper.vm.localActions = [
+        { id: 41, type: 'open_url', url: { formula: "'a'" } },
+      ]
+      const saved = { id: 91, type: 'open_url', url: { formula: "'a'" } }
+      wrapper.vm.$client.post.mockResolvedValueOnce({ data: saved })
+      wrapper.vm.$client.get.mockResolvedValueOnce({ data: [saved] })
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(wrapper.vm.localActions[0]).toMatchObject({ id: 91 })
+      expect(wrapper.vm.localActions[0]).not.toHaveProperty(CLIENT_ID_KEY)
     })
 
     test('saving creates a new action with its config in one call', async () => {
@@ -1202,12 +1277,15 @@ describe('FieldButtonSubForm', () => {
 
       await wrapper.vm.afterFieldSaved(7)
 
+      // Only the key the card was edited under is kept from the buffer. No
+      // `target` either: the card did not remount, so its form emitted no
+      // defaults.
       expect(wrapper.vm.localActions).toEqual([
         {
           id: 55,
+          [CLIENT_ID_KEY]: 'a',
           type: 'open_url',
           url: { formula: "'one'" },
-          target: 'self',
         },
       ])
     })

@@ -64,11 +64,30 @@ import {
 } from '@baserow/modules/database/utils/buttonField'
 import { MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP } from '@baserow/modules/database/utils/action'
 
-/** An action without the answer a click left on its service. */
-const withoutCapturedAnswers = (action) =>
-  action.service
-    ? { ...action, service: _.omit(action.service, ['sample_data', 'schema']) }
-    : action
+/**
+ * An action without the answer a click left on its service, and without the
+ * client id a saved action keeps for the card it is edited under.
+ */
+const withoutCapturedAnswers = (action) => {
+  // Destructured rather than `_.omit`, which would copy the schema it keeps.
+  const { [CLIENT_ID_KEY]: clientId, ...bare } = action
+  return bare.service
+    ? { ...bare, service: _.omit(bare.service, ['sample_data', 'schema']) }
+    : bare
+}
+
+/**
+ * Puts the client id an action was edited under back onto the action the
+ * server handed back for it, so its card does not remount and lose its
+ * scroll and open state. Only a client id: an id the action used to have
+ * can come back from the trash and would then key two cards the same.
+ */
+const keepClientIds = (actions, clientIdByServerId) =>
+  actions.map((action) =>
+    clientIdByServerId.has(action.id)
+      ? { ...action, [CLIENT_ID_KEY]: clientIdByServerId.get(action.id) }
+      : action
+  )
 
 export default {
   name: 'FieldButtonSubForm',
@@ -221,8 +240,8 @@ export default {
     async reset(deep = false) {
       await form.methods.reset.call(this, deep)
       this.localActions = clone(this.serverActions)
-      // The flag is keyed by a saved action's id, so it would outlive the
-      // cancel and keep hiding that action's own error.
+      // The flag is keyed by what the card was edited under, so it would
+      // outlive the cancel and keep hiding that action's own error.
       this.$refs.actionList?.revealErrors()
       // The action forms copy their values once, so a card would otherwise
       // keep showing, and later send, the edit that was cancelled.
@@ -233,14 +252,19 @@ export default {
      * editable copy. Also called after a save, so a second save reconciles
      * against real ids rather than re-creating what the first one made.
      */
-    async fetchWorkflowActions(fieldId, { keepEdits = false } = {}) {
+    async fetchWorkflowActions(
+      fieldId,
+      { keepEdits = false, clientIds = new Map() } = {}
+    ) {
       const { data } = await WorkflowActionService(this.$client).fetchAll(
         fieldId
       )
       this.serverActions = data
       if (!keepEdits) {
         // Deep copy, or the reconciliation would diff a list against itself.
-        this.localActions = clone(data)
+        // Keyed before it is assigned: a render in between would remount the
+        // created action's card under its id.
+        this.localActions = keepClientIds(clone(data), clientIds)
       }
     },
     /**
@@ -351,6 +375,8 @@ export default {
       const idMap = Object.fromEntries(assignedIds)
       this.localActions = this.localActions.map((action) => {
         const created = assignedIds.get(workflowActionKey(action))
+        // The client id stays on the action, so the card the user is fixing
+        // keeps its place and the flag holding its error back.
         const adopted =
           created === undefined ? action : { ...action, id: created }
         // References to the actions that did get made have to follow them too.
@@ -358,10 +384,6 @@ export default {
         // `toCreate`, so nothing maps it and the save can never succeed.
         return rewriteActionFormulaIds(adopted, idMap)
       })
-      // An adopted action is a different row to everything keyed by what
-      // identified it, so the card the user is fixing would collapse and lose
-      // the flag holding its error back.
-      this.$refs.actionList?.remapActionKeys(idMap)
     },
     /**
      * Adds the `type` the API needs to a payload's `service`, taken from the
@@ -427,6 +449,14 @@ export default {
       const service = WorkflowActionService(this.$client)
       const createdIds = []
       const assignedIds = new Map()
+      // The client id of each action the server handed a new id, by that id.
+      // A create and a type change both do.
+      const clientIdByServerId = new Map()
+      const rememberClientId = (action, serverId) => {
+        if (action?.[CLIENT_ID_KEY] != null) {
+          clientIdByServerId.set(serverId, action[CLIENT_ID_KEY])
+        }
+      }
       let failed = false
       // Captured before the `finally` below re-fetches and replaces the list.
       const serverById = new Map(this.serverActions.map((a) => [a.id, a]))
@@ -444,6 +474,7 @@ export default {
             groupId
           )
           createdIds.push(data.id)
+          rememberClientId(action, data.id)
           // Both ways of naming it are mapped: an unsaved action is referenced
           // by its client id, while one the server has forgotten, deleted by a
           // collaborator say, is referenced by the id it used to have. Neither
@@ -473,6 +504,12 @@ export default {
             continue
           }
           const { data } = await service.update(id, payload, groupId)
+          if (data?.id != null && data.id !== id) {
+            rememberClientId(
+              this.localActions.find((action) => action.id === id),
+              data.id
+            )
+          }
           if (defersConfig) {
             const config = this.resolveActionIds(
               this.configPayload(values, data),
@@ -519,14 +556,13 @@ export default {
           this.adoptAssignedIds(assignedIds)
         }
         try {
-          await this.fetchWorkflowActions(fieldId, { keepEdits: failed })
-          // The fetched list keys a created action by its id, so the card
-          // that was open would close while the context is still on screen.
-          if (!failed && assignedIds.size > 0) {
-            this.$refs.actionList?.remapActionKeys(
-              Object.fromEntries(assignedIds)
-            )
-          }
+          // The fetched list has only ids. Keyed by those, a created action's
+          // card would remount and the editor would scroll to the top while
+          // it is still on screen.
+          await this.fetchWorkflowActions(fieldId, {
+            keepEdits: failed,
+            clientIds: clientIdByServerId,
+          })
         } catch (refreshError) {
           notifyIf(refreshError, 'field')
         }

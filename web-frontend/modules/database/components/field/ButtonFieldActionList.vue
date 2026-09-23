@@ -135,7 +135,7 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import ButtonFieldActionForm from '@baserow/modules/database/components/field/ButtonFieldActionForm'
 import {
   CLIENT_ID_KEY,
-  workflowActionKey,
+  workflowActionEditorKey,
 } from '@baserow/modules/database/utils/workflowActionReconciliation'
 import { fetchIntegrationsOnce } from '@baserow/modules/database/utils/buttonField'
 
@@ -227,7 +227,7 @@ export default {
       }
       return Object.fromEntries(
         this.value.map((action) => [
-          workflowActionKey(action),
+          this.actionKey(action),
           action.type
             ? this.$registry
                 .get('databaseWorkflowActionType', action.type)
@@ -259,7 +259,7 @@ export default {
   },
   methods: {
     actionKey(action) {
-      return workflowActionKey(action)
+      return workflowActionEditorKey(action)
     },
     /**
      * Why this installation cannot run a type at all, shown on the option
@@ -270,7 +270,7 @@ export default {
       return actionType.isDeactivatedReason({ workspace: this.workspace })
     },
     errorFor(action) {
-      const key = workflowActionKey(action)
+      const key = this.actionKey(action)
       if (this.pristineActions[key]) {
         return null
       }
@@ -278,24 +278,6 @@ export default {
     },
     revealErrors() {
       this.pristineActions = {}
-    },
-    /**
-     * Follows the per-action state to the ids a save just handed out. An
-     * action is keyed by its client id until it has one, so without this a
-     * save that stopped part way closes the card the user is working on.
-     *
-     * @param idMap Client id, or the id an action used to have, to its new id.
-     */
-    remapActionKeys(idMap) {
-      const remap = (state) =>
-        Object.fromEntries(
-          Object.entries(state).map(([key, value]) => [
-            idMap[key] ?? key,
-            value,
-          ])
-        )
-      this.expandedActions = remap(this.expandedActions)
-      this.pristineActions = remap(this.pristineActions)
     },
     /** The list is not a form, so the sub-form touches it by hand. */
     touch() {
@@ -313,11 +295,11 @@ export default {
         return form ? form.isValid() === false : false
       })
       if (invalid) {
-        this.expandedActions = { [workflowActionKey(invalid)]: true }
+        this.expandedActions = { [this.actionKey(invalid)]: true }
       }
     },
     actionForm(action) {
-      const form = this.$refs[`actionForm_${workflowActionKey(action)}`]
+      const form = this.$refs[`actionForm_${this.actionKey(action)}`]
       return Array.isArray(form) ? form[0] : form
     },
     /**
@@ -342,7 +324,7 @@ export default {
     isExpanded(action) {
       return (
         Boolean(action.type) &&
-        this.expandedActions[workflowActionKey(action)] === true
+        this.expandedActions[this.actionKey(action)] === true
       )
     },
     /**
@@ -351,7 +333,7 @@ export default {
      * under the input it belongs to.
      */
     toggleAction(action) {
-      const key = workflowActionKey(action)
+      const key = this.actionKey(action)
       this.expandedActions = this.expandedActions[key] ? {} : { [key]: true }
       // Cards are hidden rather than unmounted, so opening one is the only
       // moment a user can ask for a retry.
@@ -379,11 +361,11 @@ export default {
       this.revealErrors()
       const action = this.newAction(type)
       if (type !== null) {
-        this.pristineActions = { [workflowActionKey(action)]: true }
+        this.pristineActions = { [this.actionKey(action)]: true }
       }
       // Open straight away, and only this one: building a chain otherwise
       // leaves every card of it open and the editor grows past the screen.
-      this.expandedActions = { [workflowActionKey(action)]: true }
+      this.expandedActions = { [this.actionKey(action)]: true }
       this.$emit('input', [...this.value, action])
     },
     newAction(type) {
@@ -415,10 +397,17 @@ export default {
       if (action[CLIENT_ID_KEY] != null) {
         replacement[CLIENT_ID_KEY] = action[CLIENT_ID_KEY]
       }
+      // A saved action is keyed by its id until here, and by the client id
+      // it was just given from here on, so its open state follows it. The
+      // server hands a retyped action a new id, and the client id is what
+      // keeps its card in place through that save.
+      if (this.isExpanded(action)) {
+        this.expandedActions = { [this.actionKey(replacement)]: true }
+      }
       // A retyped action is configured after the fact, like a new one.
       this.pristineActions = {
         ...this.pristineActions,
-        [workflowActionKey(replacement)]: true,
+        [this.actionKey(replacement)]: true,
       }
       this.$emit(
         'input',

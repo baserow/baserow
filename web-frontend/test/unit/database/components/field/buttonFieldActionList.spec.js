@@ -198,6 +198,22 @@ describe('ButtonFieldActionList', () => {
     ])
   })
 
+  test('changing the type of an open saved action keeps its card open', async () => {
+    // The card is keyed by its id until the change gives it a client id.
+    const wrapper = await mountList([
+      { id: 1, type: 'local_baserow_create_row', service: { table_id: 3 } },
+    ])
+    wrapper.vm.expandedActions = { 1: true }
+
+    await wrapper.vm.onActionTypeChanged(0, 'open_url')
+
+    const [replacement] = lastEmitted(wrapper)
+    expect(wrapper.vm.isExpanded(replacement)).toBe(true)
+    expect(wrapper.vm.expandedActions).toEqual({
+      [replacement[CLIENT_ID_KEY]]: true,
+    })
+  })
+
   test('choosing a type on a new row seeds that type defaults', async () => {
     const wrapper = await mountList([{ type: null }])
 

@@ -24,6 +24,16 @@ export function workflowActionKey(action) {
 }
 
 /**
+ * What the editor hangs a card off: its open state, its held back error and
+ * its place in the list. The client id comes first, and a save that hands
+ * the action its id keeps it on, so the card stays where it is. Formulas
+ * name an action the other way round, by `workflowActionKey`.
+ */
+export function workflowActionEditorKey(action) {
+  return action[CLIENT_ID_KEY] ?? action.id
+}
+
+/**
  * The type specific config of an action, without the keys the API owns. Used
  * both to diff two actions and to build the payload that persists one.
  */
