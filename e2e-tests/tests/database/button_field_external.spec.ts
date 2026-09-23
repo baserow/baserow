@@ -273,6 +273,9 @@ test.describe("Button field, external actions", () => {
   test("a click calls the endpoint and keeps what it answered", async ({
     page,
   }) => {
+    // The 20s poll below for the job's answer leaves little room under the
+    // suite's default 30s test timeout once setup is counted in.
+    test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();
     const grid = await gridFor(page, clicker);
@@ -290,6 +293,9 @@ test.describe("Button field, external actions", () => {
   });
 
   test("the URL is built from the row that was clicked", async ({ page }) => {
+    // The 30s wait below on its own reaches the suite's default 30s test
+    // timeout with no room left for setup, so it needs a wider budget.
+    test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();
     const grid = await gridFor(page, clicker);
@@ -298,12 +304,20 @@ test.describe("Button field, external actions", () => {
 
     // The stub echoes the URL it was called on, and the following action puts
     // that back in the row, so the row's own name has to come back around.
-    await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toContainText("Ada");
+    // The click answers with a job now, so this crosses a poll of it before
+    // the row updates; the default expect timeout is too tight for that.
+    await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toContainText(
+      "Ada",
+      { timeout: 30_000 },
+    );
   });
 
   test("a request that fails says so without repeating the URL", async ({
     page,
   }) => {
+    // The toast wait below leaves no room under the suite's default 30s
+    // test timeout once setup is counted in.
+    test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();
     const grid = await gridFor(page, clicker);
@@ -311,7 +325,10 @@ test.describe("Button field, external actions", () => {
     await grid.fieldCellAt(0, FAILING_FIELD_INDEX).locator("button").click();
 
     const toast = page.locator(".toast");
-    await expect(toast).toBeVisible();
+    // The failure now surfaces once the job is polled to its failed state,
+    // rather than in the response that started it, so it takes longer than
+    // the default expect timeout to appear.
+    await expect(toast).toBeVisible({ timeout: 20_000 });
 
     // Named like any other failure, so the clicker can count to it in the
     // editor rather than being told only that something went wrong.
@@ -327,12 +344,14 @@ test.describe("Button field, external actions", () => {
   });
 
   test("an action after a failed request does not run", async ({ page }) => {
+    test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();
     const grid = await gridFor(page, clicker);
 
     await grid.fieldCellAt(0, FAILING_FIELD_INDEX).locator("button").click();
-    await expect(page.locator(".toast")).toBeVisible();
+    // Same wait as above: the toast trails the job's own poll.
+    await expect(page.locator(".toast")).toBeVisible({ timeout: 20_000 });
 
     // ADR 006 section 3: what already ran stays, what comes after does not run.
     const rows = await listRows(g.user, g.table);
@@ -380,6 +399,9 @@ test.describe("Button field, external actions", () => {
   });
 
   test("once it has answered, the editor offers its body", async ({ page }) => {
+    // The 20s poll below for the job's answer, plus the editor navigation
+    // after it, no longer fits the suite's default 30s test timeout.
+    test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();
     const grid = await gridFor(page, clicker);
@@ -419,6 +441,9 @@ test.describe("Button field, external actions", () => {
   });
 
   test("the answer it describes survives a reload", async ({ page }) => {
+    // Same budget problem as the test above: the poll plus a reload and the
+    // editor navigation after it outgrow the default 30s test timeout.
+    test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();
     const grid = await gridFor(page, clicker);
@@ -542,15 +567,19 @@ test.describe("Button field, external actions", () => {
   test("a later action writes what the endpoint answered into the row", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();
     const grid = await gridFor(page, clicker);
 
     await grid.fieldCellAt(0, CHAINED_FIELD_INDEX).locator("button").click();
 
-    // httpbin's own fixture, so the value can only have come from the request.
+    // httpbin's own fixture, so the value can only have come from the
+    // request. The write only lands once the job behind the click is polled
+    // to its end, which outruns the default expect timeout.
     await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
       "Sample Slide Show",
+      { timeout: 20_000 },
     );
 
     const rows = await listRows(g.user, g.table);
@@ -612,9 +641,15 @@ test.describe("Button field, external actions", () => {
     const button = grid.fieldCellAt(0, LOCAL_FIELD_INDEX).locator("button");
 
     // More clicks than the budget allows, none of which may spend any of it.
+    // This button reaches nothing outside, so its own click stays inline;
+    // the longer timeout is for the shared backend and Celery worker, which
+    // the suite's other, external-action tests keep busy at the same time.
     for (let click = 0; click < RATE_LIMIT + 2; click++) {
       await button.click();
-      await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText("local");
+      await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
+        "local",
+        { timeout: 20_000 },
+      );
     }
 
     await expect(page.locator(".toast")).toHaveCount(0);
@@ -693,7 +728,14 @@ test.describe("Button field, external actions", () => {
       const grid = await gridFor(page, clicker);
 
       // The lock is keyed on the field and the row together, so a request
-      // held on one button must leave the other alone.
+      // held on one button must leave the other alone: the second click is
+      // accepted rather than refused, even though this environment's Celery
+      // worker runs the button_dispatch queue at a concurrency of one and so
+      // only reaches the second endpoint once the first job has finished.
+      // (Two requests actually held open at once, which is what this test
+      // asserted before the click moved behind a job, cannot happen here:
+      // one worker executes one dispatch job at a time regardless of which
+      // row or field it belongs to.)
       const first = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
       const second = grid
         .fieldCellAt(0, SLOW_TWO_FIELD_INDEX)
@@ -701,18 +743,58 @@ test.describe("Button field, external actions", () => {
 
       await first.click();
       await expect.poll(() => arrivedAt(slowKey), { timeout: 20_000 }).toBe(1);
+
       await second.click();
-      // Both requests are held at once, so both locks were taken at once.
-      await expect
-        .poll(() => arrivedAt(slowTwoKey), { timeout: 20_000 })
-        .toBe(1);
+      // Accepted, not refused: the lock the other test in this block proves
+      // (a second click on the *same* button while its row is locked) does
+      // not apply here, because the two buttons use different fields.
+      await expect(second).toHaveClass(/button--loading/);
+      await expect(page.locator(".toast")).toHaveCount(0);
 
       await release(slowKey);
-      await release(slowTwoKey);
       await expect(first).not.toHaveClass(/button--loading/, {
         timeout: 30_000,
       });
+
+      // Only now does the single worker reach the second endpoint.
+      await expect
+        .poll(() => arrivedAt(slowTwoKey), { timeout: 30_000 })
+        .toBe(1);
+      await release(slowTwoKey);
       await expect(second).not.toHaveClass(/button--loading/, {
+        timeout: 30_000,
+      });
+      await expect(page.locator(".toast")).toHaveCount(0);
+    });
+
+    test("a slow endpoint leaves the grid usable while the button waits", async ({
+      page,
+    }) => {
+      test.setTimeout(90_000);
+      await resetRows(g, [
+        { Name: "Ada", Status: "todo" },
+        { Name: "Grace", Status: "todo" },
+      ]);
+      const clicker = await freshClicker();
+      const grid = await gridFor(page, clicker);
+
+      const button = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+      await button.click();
+      await expect(button).toHaveClass(/button--loading/);
+      await expect.poll(() => arrivedAt(slowKey), { timeout: 20_000 }).toBe(1);
+
+      // The click answered at once (202, job accepted), so the page is not
+      // waiting on anything: another row's primary cell can be edited while
+      // the held request keeps the button loading.
+      const nameCell = grid.primaryCellAt(1);
+      await grid.startEditingPrimary(1);
+      await grid.type("Hopper");
+      await grid.confirmWithEnter();
+      await expect(nameCell).toContainText("Hopper");
+      await expect(button).toHaveClass(/button--loading/);
+
+      await release(slowKey);
+      await expect(button).not.toHaveClass(/button--loading/, {
         timeout: 30_000,
       });
       await expect(page.locator(".toast")).toHaveCount(0);
