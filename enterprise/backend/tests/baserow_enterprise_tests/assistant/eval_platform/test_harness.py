@@ -8,7 +8,14 @@ import pytest
 from asgiref.sync import async_to_sync
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelRequest, RetryPromptPart
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    RetryPromptPart,
+    TextPart,
+    ToolCallPart,
+)
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
 from baserow.core.ai_provider.constants import (
@@ -42,6 +49,60 @@ from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.tools.routing import mode_redirect_message
 from baserow_enterprise.assistant.tools.toolset import InlineRefsToolset
+
+
+@pytest.mark.django_db
+def test_harness_runs_batched_tool_calls_in_production_order(data_fixture, monkeypatch):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    registry.register_scenario("sequential-tools")(
+        lambda _: EvalScenario(user=user, workspace=workspace, ui_context=None)
+    )
+    events = []
+    state = {"ready": False}
+    agent = Agent()
+
+    @agent.tool_plain
+    async def prepare_resource():
+        events.append("prepare started")
+        await asyncio.sleep(0)
+        state["ready"] = True
+        events.append("prepare finished")
+        return "ready"
+
+    @agent.tool_plain
+    async def use_resource():
+        events.append("use resource")
+        return state["ready"]
+
+    requests = 0
+
+    def model_function(messages, info):
+        nonlocal requests
+        requests += 1
+        if requests == 1:
+            return ModelResponse(
+                parts=[
+                    ToolCallPart("prepare_resource", {}, tool_call_id="prepare"),
+                    ToolCallPart("use_resource", {}, tool_call_id="use"),
+                ]
+            )
+        return ModelResponse(parts=[TextPart("Finished")])
+
+    monkeypatch.setattr("baserow_enterprise.assistant.evals.harness.main_agent", agent)
+    case = EvalCase(
+        id="harness/sequential-tools",
+        dataset="harness-test",
+        prompt="Prepare the resource, then use it.",
+        scenario="sequential-tools",
+        checks=lambda case, scenario, output: [],
+    )
+    output, checks = run_case(case, FunctionModel(model_function))
+
+    assert events == ["prepare started", "prepare finished", "use resource"]
+    assert output.tool_calls == ["prepare_resource", "use_resource"]
+    assert output.tool_error_count == 0
+    assert all(check.passed for check in checks)
 
 
 def test_mode_redirect_is_not_counted_as_a_failed_tool_call():

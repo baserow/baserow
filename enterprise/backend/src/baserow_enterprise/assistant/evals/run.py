@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections import Counter
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -24,13 +25,16 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.control import RunControl
-from baserow_enterprise.assistant.evals.gitinfo import get_git_info
+from baserow_enterprise.assistant.evals.gitinfo import (
+    get_evaluator_source_hash,
+    get_git_info,
+)
 from baserow_enterprise.assistant.evals.harness import (
     EvalCaseTimeout,
-    get_case_timeout_s,
     override_assistant_prompts,
     run_case,
     tool_called,
@@ -67,7 +71,8 @@ from baserow_enterprise.assistant.tools.search_user_docs.handler import (
 UI_CASE_PREFIX = "ui:"
 # Version 1 recorded production settings without applying them to the agent.
 # Version 3 excludes required mode redirects from the tool-error budget.
-HARNESS_VERSION = 3
+# Version 4 checks saved Builder behavior and records request-budget failures.
+HARNESS_VERSION = 4
 
 _PROMPT_INPUT_KEYS = ("prompt", "question", "input", "message")
 
@@ -266,25 +271,38 @@ def passed(output: dict[str, Any]) -> bool | dict[str, Any]:
     return all(c["passed"] for c in output.get("checks", []))
 
 
-def _timed_out_result(case: EvalCase, reason: str) -> dict[str, Any]:
-    """A timed-out case's Phoenix output: one failed check, so it scores 0."""
+def _failed_execution_result(
+    case: EvalCase, error: Exception, duration_s: float
+) -> dict[str, Any]:
+    """Record a failed attempt without inventing counters or running state checks."""
 
-    checks = [{"name": "completed_within_timeout", "passed": False, "hint": reason}]
+    timed_out = isinstance(error, EvalCaseTimeout)
+    reason = str(error)
+    check_name = (
+        "completed_within_timeout" if timed_out else "completed_within_request_limit"
+    )
+    span = trace.get_current_span()
+    span.record_exception(error)
+    span.set_status(Status(StatusCode.ERROR, reason))
+    checks = [{"name": check_name, "passed": False, "hint": reason}]
     return {
         "question": case.prompt,
         # No answer to grade, so don't spend a judge call on it.
         "judge_docs": False,
         "answer": "",
         "tool_calls": [],
-        "tool_error_count": 0,
+        "tool_error_count": None,
         "checks": checks,
         "score": 0.0,
         "passed": False,
-        "timed_out": True,
+        "timed_out": timed_out,
+        "usage_limit_exceeded": not timed_out,
+        "execution_error": reason,
+        "execution_error_type": type(error).__name__,
         "sources": [],
         "sources_count": 0,
-        "request_count": 0,
-        "duration_s": get_case_timeout_s(),
+        "request_count": None,
+        "duration_s": duration_s,
     }
 
 
@@ -306,14 +324,15 @@ def run_case_for_experiment(
         return {"skipped": "knowledge base unavailable"}
 
     logger.info("run {}", case.id)
+    started = time.monotonic()
     try:
         with override_assistant_prompts(prompt_texts or {}):
             output, checks = run_case(case, model)
-    except EvalCaseTimeout as exc:
-        # A hang is a real failure: score it 0 rather than skipping it, and
-        # keep the remaining cases running.
-        logger.warning("TIMEOUT {}", exc)
-        return _timed_out_result(case, str(exc))
+    except (EvalCaseTimeout, UsageLimitExceeded) as exc:
+        # Preserve the original failed attempt and trace, then continue the
+        # suite. There is no final result from which to infer tool counts.
+        logger.warning("FAILED EXECUTION {}: {}", case.id, exc)
+        return _failed_execution_result(case, exc, time.monotonic() - started)
     check_dicts = [asdict(c) for c in checks]
     partial = {"checks": check_dicts}
     score = _score_and_explanation(check_dicts)[0]
@@ -415,6 +434,7 @@ def _experiment_metadata(
     metadata = {
         "model": model,
         "harness_version": HARNESS_VERSION,
+        "evaluator_source_hash": get_evaluator_source_hash(),
         "model_settings": dict(get_model_settings(model, ORCHESTRATOR)),
         "judge_model": get_judge_model(),
         **extra,
@@ -625,7 +645,11 @@ def _log_case_run(
             result = run_case_for_experiment(case, model, kb_available, prompt_texts)
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, json.dumps(result))
             span.set_attribute(SpanAttributes.OUTPUT_MIME_TYPE, "application/json")
-            span.set_status(Status(StatusCode.OK))
+            span.set_status(
+                Status(StatusCode.ERROR, result["execution_error"])
+                if result.get("execution_error")
+                else Status(StatusCode.OK)
+            )
             span_context = span.get_span_context()
         end = datetime.now(timezone.utc)
 

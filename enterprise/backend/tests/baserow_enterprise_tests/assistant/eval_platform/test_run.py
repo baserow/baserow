@@ -11,6 +11,8 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
+from opentelemetry.trace import StatusCode
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import gitinfo, registry
@@ -90,6 +92,20 @@ def _make_output(**overrides) -> EvalRunOutput:
 
 
 class TestGetGitInfo:
+    def test_evaluator_fingerprint_tracks_nested_check_source_not_snapshot(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(gitinfo, "__file__", str(tmp_path / "gitinfo.py"))
+        checks = tmp_path / "datasets"
+        checks.mkdir()
+        source = checks / "builder.py"
+        source.write_text("return old_checks\n")
+        original = gitinfo.get_evaluator_source_hash()
+        (tmp_path / "baseline.json").write_text('{"old_results": true}')
+        assert gitinfo.get_evaluator_source_hash() == original
+        source.write_text("return stronger_checks\n")
+        assert gitinfo.get_evaluator_source_hash() != original
+
     def test_uses_git_subprocess_when_available(self, monkeypatch):
         monkeypatch.delenv("BASEROW_EVAL_GIT_BRANCH", raising=False)
         monkeypatch.delenv("BASEROW_EVAL_GIT_COMMIT", raising=False)
@@ -568,7 +584,8 @@ class TestRunExperimentForFullDataset:
         assert call_kwargs["experiment_name"] == "exp-name"
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 3,
+            "harness_version": 4,
+            "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": "local-run",
             "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
@@ -611,7 +628,8 @@ class TestRunExperimentForFullDataset:
         call_kwargs = client.experiments.run_experiment_calls[0]
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 3,
+            "harness_version": 4,
+            "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
@@ -1062,7 +1080,8 @@ class TestRunExperimentForCaseSubset:
         assert create_kwargs["repetitions"] == 1
         assert create_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 3,
+            "harness_version": 4,
+            "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
             "judge_model": "groq:openai/gpt-oss-120b",
@@ -2054,6 +2073,8 @@ class TestTimeoutIsRecordedNotRaised:
             result = run_case_for_experiment(case, "groq:test-model", True)
 
         assert result["timed_out"] is True
+        assert result["request_count"] is None
+        assert result["tool_error_count"] is None
         assert result["score"] == 0.0
         assert result["passed"] is False
         assert result["checks"] == [
@@ -2107,3 +2128,74 @@ class TestTimeoutIsRecordedNotRaised:
         assert calls == ["db/case-1", "db/case-2"], "the run stopped at the timeout"
         assert control.completed == 2
         assert len(client.experiments.log_run_calls) == 2
+
+
+class TestUsageLimitIsRecordedNotRaised:
+    def test_failure_is_scored_without_inventing_unavailable_counts(self):
+        case = _make_case("docs/exhausted", requires_knowledge_base=True)
+        error = UsageLimitExceeded(
+            "The next request would exceed the request_limit of 15"
+        )
+        reason = str(error)
+        with patch(
+            "baserow_enterprise.assistant.evals.run.run_case",
+            side_effect=error,
+        ):
+            result = run_case_for_experiment(case, "groq:test-model", True)
+
+        assert result["usage_limit_exceeded"] is True
+        assert result["passed"] is False
+        assert result["score"] == 0.0
+        assert result["judge_docs"] is False
+        assert result["execution_error"] == reason
+        assert result["tool_error_count"] is None
+        assert result["request_count"] is None
+        assert result["duration_s"] >= 0
+        assert result["checks"] == [
+            {
+                "name": "completed_within_request_limit",
+                "passed": False,
+                "hint": reason,
+            }
+        ]
+        assert "skipped" not in result
+
+    def test_subset_records_error_trace_and_continues_without_retrying(self):
+        client = _two_case_client()
+        control = RunControl()
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        calls = []
+
+        def exhaust_first(case, *args, **kwargs):
+            calls.append((case.id, case.max_iters))
+            if len(calls) == 1:
+                raise UsageLimitExceeded("request_limit of 15 exceeded")
+            return _make_output(), []
+
+        with (
+            _subset_env(client, run_case_side_effect=exhaust_first),
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_assistant_tracer_provider",
+                return_value=provider,
+            ),
+        ):
+            run_experiment_for(
+                "kuma-database",
+                "groq:test-model",
+                case_ids=["db/case-1", "db/case-2"],
+                control=control,
+            )
+
+        assert calls == [("db/case-1", 15), ("db/case-2", 15)]
+        assert control.completed == 2
+        first, second = client.experiments.log_run_calls
+        assert first["output"]["score"] == 0
+        assert second["output"]["passed"] is True
+        spans = {s.name: s for s in exporter.get_finished_spans()}
+        failed_span = spans["Task: db/case-1"]
+        assert failed_span.status.status_code == StatusCode.ERROR
+        assert any(event.name == "exception" for event in failed_span.events)
+        assert first["trace_id"] == format(failed_span.context.trace_id, "032x")
+        assert spans["Task: db/case-2"].status.status_code == StatusCode.OK

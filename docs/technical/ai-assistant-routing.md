@@ -53,11 +53,30 @@ They return existing resource IDs and report conflicting definitions or requeste
 settings that remain unapplied. Reuse does not silently overwrite an existing
 resource. It also does not prevent duplicates across concurrent agent runs.
 
-The prompt directs the agent to use reasonable defaults for a useful first
-version. Missing user-owned data must be looked up before asking for clarification.
+Product questions use documentation without requiring example tables or fields to
+exist. Inspection requests use read tools. For changes, missing user-owned data
+must be looked up before asking for clarification; displaying existing data does
+not authorize creating replacement tables or sample records. New build requests
+with enough context use reasonable defaults for a useful first version.
 `ask_user` records a question for the final answer; it does not persist a separate
 workflow or introduce a new frontend protocol. The next reply resumes through the
 ordinary chat history.
+
+## Builder formulas and documentation retrieval
+
+Implicit formulas inside a collection use its current record. Explicit formulas
+can still intentionally access an absolute row or another data source. Builder
+updates reject unsupported properties before applying changes, retain existing
+formula values when generation fails, and report any separately committed updates
+as partial. Buttons navigate through click actions; links store their destination
+directly and can use button styling.
+
+Knowledge-base synchronization indexes overlapping passages, including document
+titles, instead of embedding whole pages that exceed the embedding model's input
+limit. Passage metadata triggers reindexing of legacy or incomplete indexes.
+Retrieval combines semantic and lexical matches and limits passages per document.
+Answers must cite retrieved sources and distinguish supported information from
+documentation gaps; missing evidence does not establish feature availability.
 
 ## Verification
 
@@ -73,6 +92,10 @@ compaction, eviction, no-ops, failed mutations, and current-turn evidence. Domai
 tool tests verify saved state and reconciliation. For live model runs, use the
 [eval platform](../testing/ai-assistant-evals.md) with a disposable database and
 record the source revision, model settings, case population, and failures.
-Eval harness version 3 excludes required mode-switch redirects from the tool-error
-budget. Genuine argument and output-validation failures still count. Older score
-totals must be interpreted with their recorded harness version and configuration.
+Eval harness version 4 preserves version 3's exclusion of required mode-switch
+redirects from the tool-error budget. Genuine argument and output-validation
+failures still count. It also matches production's sequential tool execution,
+records request-limit failures without retrying or aborting the suite, and checks
+saved Builder navigation and card values across multiple records. Metadata records
+the evaluator source hash. Older score totals must be interpreted with their
+recorded checks, harness version, and configuration.

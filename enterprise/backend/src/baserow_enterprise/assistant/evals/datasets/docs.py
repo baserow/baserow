@@ -41,8 +41,13 @@ def _make_docs_checks(
     def _checks(
         case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
     ) -> list[CheckResult]:
-        answer = output.answer.lower()
-        keyword_match = any(kw.lower() in answer for kw in expected_keywords)
+        # Typography such as a narrow no-break space in "14\u202fdays" is
+        # equivalent to an ordinary space; values and wording still matter.
+        answer = " ".join(output.answer.casefold().split())
+        keyword_match = any(
+            " ".join(keyword.casefold().split()) in answer
+            for keyword in expected_keywords
+        )
 
         # Source-URL matching is non-fatal — URLs change and retrieval may
         # return valid alternative sources — so this always passes; a
