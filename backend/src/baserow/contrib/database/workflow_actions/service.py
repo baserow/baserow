@@ -639,6 +639,76 @@ class DatabaseWorkflowActionService:
                 action_id=workflow_action.id,
             )
 
+    def dispatch_positions(
+        self, workflow_actions: List[DatabaseWorkflowAction]
+    ) -> Dict[int, int]:
+        """
+        Where each action sits in the sequence, by id, counting from one over
+        the whole list, frontend-only actions included, so it matches what the
+        clicker counts in the editor. Taken from the execution order rather
+        than from `order`, which two actions can share.
+
+        :param workflow_actions: The snapshot the click runs.
+        :return: Action id to position.
+        """
+
+        return {
+            workflow_action.id: index
+            for index, workflow_action in enumerate(workflow_actions, start=1)
+        }
+
+    def check_dispatch_allowed(
+        self,
+        user: AbstractUser,
+        field: ButtonField,
+        workflow_actions: List[DatabaseWorkflowAction],
+    ) -> None:
+        """
+        Refuses a click that cannot run as a whole, before anything is locked,
+        reserved or enqueued. In order: the dispatch permission, a deactivated
+        type, a misconfigured action.
+
+        :param user: The user who clicked.
+        :param field: The clicked button field.
+        :param workflow_actions: The snapshot the click would run.
+        :raises PermissionException: When the user may not click this button.
+        :raises WorkflowActionTypeDeactivated: When a type cannot run here.
+        :raises WorkflowActionDispatchError: When an action's saved
+            configuration cannot run, named by its position.
+        """
+
+        # Asked of the field, so it covers every action, frontend-only
+        # included, and a click is refused as a whole (ADR 006 section 7).
+        CoreHandler().check_permissions(
+            user,
+            DispatchDatabaseWorkflowActionOperationType.type,
+            workspace=field.table.database.workspace,
+            context=field,
+        )
+
+        # After the permission check, since the reason describes how this
+        # installation is configured and only a dispatcher may see it. Once
+        # per type, in the order the actions run.
+        checked_types = {}
+        for workflow_action in workflow_actions:
+            workflow_action_type = workflow_action.get_type()
+            checked_types.setdefault(workflow_action_type.type, workflow_action_type)
+        for workflow_action_type in checked_types.values():
+            workflow_action_type.raise_if_deactivated(field.table.database.workspace)
+
+        # An action whose saved configuration cannot run is known before the
+        # click starts, and the actions ahead of it would not be rolled back.
+        positions = self.dispatch_positions(workflow_actions)
+        for workflow_action in workflow_actions:
+            if workflow_action.get_type().is_frontend_only:
+                continue
+            try:
+                workflow_action.get_type().raise_if_misconfigured(workflow_action)
+            except ServiceImproperlyConfiguredDispatchException as exc:
+                raise WorkflowActionDispatchError(
+                    workflow_action.id, str(exc), positions[workflow_action.id]
+                ) from exc
+
     def dispatch_workflow_actions(
         self,
         user: AbstractUser,
@@ -704,28 +774,8 @@ class DatabaseWorkflowActionService:
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
 
-        # Asked of the field, so it covers every action, frontend-only
-        # included, and a click is refused as a whole (ADR 006 section 7).
         # Before the lock is taken, so a refused user never holds it.
-        CoreHandler().check_permissions(
-            user,
-            DispatchDatabaseWorkflowActionOperationType.type,
-            workspace=field.table.database.workspace,
-            context=field,
-        )
-
-        # Refused as a whole: a sequence that cannot finish should not start.
-        # After the permission check, since the reason describes how this
-        # installation is configured and only a dispatcher may see it. Once per
-        # type, since it is the type that is unavailable rather than the
-        # action, and in the order the actions run, so a button carrying two of
-        # them names the same one every time.
-        checked_types = {}
-        for workflow_action in workflow_actions:
-            workflow_action_type = workflow_action.get_type()
-            checked_types.setdefault(workflow_action_type.type, workflow_action_type)
-        for workflow_action_type in checked_types.values():
-            workflow_action_type.raise_if_deactivated(field.table.database.workspace)
+        self.check_dispatch_allowed(user, field, workflow_actions)
 
         # Frontend-only actions can't be dispatched here; the caller runs them
         # in the browser.
@@ -735,25 +785,7 @@ class DatabaseWorkflowActionService:
         server_actions = [
             wa for wa in workflow_actions if not wa.get_type().is_frontend_only
         ]
-
-        # Positions come from the whole list, frontend-only actions included, so
-        # they match what the clicker counts in the editor. Taken from the
-        # execution order rather than from `order`, which two actions can share.
-        positions = {
-            workflow_action.id: index
-            for index, workflow_action in enumerate(workflow_actions, start=1)
-        }
-
-        # Refused as a whole too, and for the same reason: an action whose saved
-        # configuration cannot run is known before the click starts, and the
-        # actions ahead of it would not be rolled back.
-        for workflow_action in server_actions:
-            try:
-                workflow_action.get_type().raise_if_misconfigured(workflow_action)
-            except ServiceImproperlyConfiguredDispatchException as exc:
-                raise WorkflowActionDispatchError(
-                    workflow_action.id, str(exc), positions[workflow_action.id]
-                ) from exc
+        positions = self.dispatch_positions(workflow_actions)
 
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.

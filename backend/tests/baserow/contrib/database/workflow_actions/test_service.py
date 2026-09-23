@@ -1,9 +1,15 @@
+from django.core.cache import cache
+
 import pytest
 
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionDispatchError,
+)
 from baserow.contrib.database.workflow_actions.models import (
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
@@ -15,6 +21,7 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_deleted,
 )
+from baserow.core.action.models import Action
 from baserow.core.exceptions import PermissionException
 from baserow.core.services.models import Service
 
@@ -221,3 +228,62 @@ def test_order_workflow_actions(data_fixture):
     second.refresh_from_db()
 
     assert second.order < first.order
+
+
+@pytest.mark.django_db
+def test_check_dispatch_allowed_refuses_a_user_outside_the_workspace(data_fixture):
+    user = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with pytest.raises(PermissionException):
+        DatabaseWorkflowActionService().check_dispatch_allowed(
+            outsider, button_field, [action]
+        )
+
+
+@pytest.mark.django_db
+def test_check_dispatch_allowed_refuses_a_misconfigured_action_by_position(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    fine = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    # An update-row action with no row id formula is misconfigured.
+    broken = data_fixture.create_database_workflow_action(
+        LocalBaserowUpdateRowWorkflowAction, field=button_field
+    )
+
+    with pytest.raises(WorkflowActionDispatchError) as raised:
+        DatabaseWorkflowActionService().check_dispatch_allowed(
+            user, button_field, [fine, broken]
+        )
+
+    assert raised.value.position == 2
+    # Nothing was locked or recorded by a refusal.
+    assert cache.get(f"button_dispatch_{button_field.id}_1") is None
+    assert Action.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_dispatch_positions_count_every_action_from_one(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    first = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    second = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    positions = DatabaseWorkflowActionService().dispatch_positions([first, second])
+
+    assert positions == {first.id: 1, second.id: 2}
