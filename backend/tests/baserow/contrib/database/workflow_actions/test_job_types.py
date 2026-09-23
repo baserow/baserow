@@ -3,7 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.actions import (
@@ -18,7 +18,10 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
-from baserow.contrib.database.workflow_actions.signals import button_field_dispatched
+from baserow.contrib.database.workflow_actions.signals import (
+    button_field_dispatched,
+    workflow_actions_before_dispatch,
+)
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.signals import action_done
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
@@ -207,6 +210,42 @@ def test_the_job_reports_the_click_with_its_outcome(
     assert workspace == table.database.workspace
     assert params["field_id"] == button_field.id
     assert params["row_id"] == row.id
+
+
+class _PluginRefusal(APIException):
+    status_code = 403
+    default_detail = "Quota exceeded."
+
+
+@pytest.mark.django_db
+def test_a_plugin_refusal_sends_denied_and_fails_the_job(
+    data_fixture, dispatched_clicks
+):
+    """A receiver of `workflow_actions_before_dispatch` refusing the click (a
+    SaaS quota, say) is not in `job_exceptions_map` by its own class, since a
+    plugin's exception is not one Baserow defines; `WorkflowActionDispatchDenied`
+    matches it by status instead, so the job fails cleanly with the plugin's
+    own message rather than raising out of the task."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    def refuse(sender, **kwargs):
+        raise _PluginRefusal()
+
+    workflow_actions_before_dispatch.connect(refuse)
+    try:
+        job = _run(user, button_field, row)
+    finally:
+        workflow_actions_before_dispatch.disconnect(refuse)
+
+    assert len(dispatched_clicks) == 1
+    assert dispatched_clicks[0]["outcome"] == DispatchOutcome.DENIED
+
+    assert job.state == JOB_FAILED
+    assert job.human_readable_error == "Quota exceeded."
+    assert job.error_code == "WorkflowActionDispatchDenied"
 
 
 @pytest.mark.django_db

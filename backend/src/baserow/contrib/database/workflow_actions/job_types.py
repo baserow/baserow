@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 
 from baserow.contrib.database.api.workflow_actions.serializers import (
     dispatch_result_payload,
@@ -41,6 +41,25 @@ def _own_message(exc: Exception) -> str:
     return str(exc).replace("{", "{{").replace("}", "}}")
 
 
+class WorkflowActionDispatchDeniedMeta(type):
+    def __instancecheck__(cls, instance):
+        return isinstance(instance, APIException) and (
+            getattr(instance, "status_code", None) == 403
+        )
+
+
+class WorkflowActionDispatchDenied(
+    Exception, metaclass=WorkflowActionDispatchDeniedMeta
+):
+    """
+    A stand-in used only for the `isinstance` check `job_exceptions_map`'s
+    lookup does. A receiver of `workflow_actions_before_dispatch` (a SaaS
+    quota, say) can raise any `APIException` subclass with a 403 status, not
+    one Baserow defines, so the map cannot list it by class; this matches by
+    status instead, the same way `outcome_for` recognises a denial.
+    """
+
+
 class ButtonFieldDispatchJobType(JobType):
     """
     Runs a button click whose actions reach outside Baserow, so the request
@@ -62,6 +81,10 @@ class ButtonFieldDispatchJobType(JobType):
         RowDoesNotExist: "The clicked row no longer exists.",
         UserNotInWorkspace: "The clicker is no longer a member of the workspace.",
         WorkflowActionTypeDeactivated: _own_message,
+        # A plugin refusing the click (a SaaS quota, for instance) gets its
+        # own message too, and does not raise out of the task: the refusal is
+        # not a bug to alert on.
+        WorkflowActionDispatchDenied: _own_message,
     }
 
     request_serializer_field_names = []

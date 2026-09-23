@@ -14,6 +14,7 @@ from baserow.contrib.database.workflow_actions.exceptions import (
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.exceptions import PermissionException
+from baserow.core.jobs.exceptions import MaxJobCountExceeded
 
 meter = metrics.get_meter(__name__)
 
@@ -102,7 +103,9 @@ def outcome_for(exc: Exception) -> Tuple[DispatchOutcome, Optional[int]]:
 
     if isinstance(exc, WorkflowActionDispatchError):
         return DispatchOutcome.FAILED, exc.position
-    if isinstance(exc, ThrottledAPIException):
+    if isinstance(exc, (ThrottledAPIException, MaxJobCountExceeded)):
+        # The per-user job cap is a throttle too: both stop a click for
+        # carrying too much traffic, not for anything wrong with it.
         return DispatchOutcome.THROTTLED, None
     if isinstance(exc, WorkflowActionDispatchInProgress):
         return DispatchOutcome.IN_PROGRESS, None

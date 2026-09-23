@@ -802,11 +802,14 @@ class _PluginRefusal(APIException):
 
 
 @pytest.mark.django_db
-def test_a_plugin_refusal_with_a_403_sends_denied(api_client, data_fixture, settings):
+def test_a_click_a_plugin_would_refuse_is_still_enqueued_and_charged(
+    api_client, data_fixture, settings
+):
     """The plugin connects to `workflow_actions_before_dispatch`, which now
     only fires inside the job, once it runs; the click itself is accepted at
     once and sends no signal of its own. The DENIED mapping for a refusal
-    like this is exercised where the job actually runs it (`test_job_types.py`
+    like this is exercised where the job actually runs it
+    (`test_job_types.py::test_a_plugin_refusal_sends_denied_and_fails_the_job`
     and `telemetry.py`'s own tests); here only the enqueue and its budget are
     in scope.
     """

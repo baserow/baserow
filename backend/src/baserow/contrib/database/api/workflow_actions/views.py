@@ -666,10 +666,13 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         Hands the click to a job and answers 202 with it. Refuses first what
         the job would refuse, so a click that cannot run leaves no job behind.
 
-        The rate-limit slots are charged for every external action and not
-        given back: a refund needs this request's throttle objects, which the
-        job does not have, and over-counting a click that fails early is the
-        conservative direction for a limit.
+        The rate-limit slots are charged for every external action once the
+        job exists, and not given back after that: a refund needs this
+        request's throttle objects, which the job does not have, and
+        over-counting a click whose job later fails is the conservative
+        direction for a limit. A refusal still inside this request, such as
+        the per-user job cap, gives its slots back like every other in-request
+        refusal, since no job was ever created to charge them to.
         """
 
         service.check_dispatch_allowed(request.user, field, workflow_actions)
@@ -681,11 +684,20 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         ).exists():
             raise WorkflowActionDispatchInProgress()
 
-        self._reserve_dispatch_budget(request, field, workflow_actions)
+        reservations = self._reserve_dispatch_budget(request, field, workflow_actions)
 
-        job = JobHandler().create_and_start_job(
-            request.user, ButtonFieldDispatchJobType.type, field=field, row_id=row.id
-        )
+        try:
+            job = JobHandler().create_and_start_job(
+                request.user,
+                ButtonFieldDispatchJobType.type,
+                field=field,
+                row_id=row.id,
+            )
+        except MaxJobCountExceeded:
+            # No job was created to charge these slots to.
+            self._release_dispatch_budget(reservations)
+            raise
+
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=http_status.HTTP_202_ACCEPTED)
 

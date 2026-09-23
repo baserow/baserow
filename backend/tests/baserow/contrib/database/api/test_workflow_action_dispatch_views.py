@@ -20,7 +20,10 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
+from baserow.contrib.database.workflow_actions.signals import button_field_dispatched
+from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
+from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
     mock_advocate_request,
 )
@@ -801,7 +804,14 @@ def test_a_misconfigured_action_refuses_the_click_before_a_job_exists(
 
 
 @pytest.mark.django_db
-def test_a_sixth_click_in_flight_is_refused(api_client, data_fixture):
+def test_a_sixth_click_in_flight_is_refused(api_client, data_fixture, settings):
+    """A refusal still inside the request, such as the per-user job cap,
+    gives its rate-limit slots back like every other in-request refusal: no
+    job was ever created to charge them to."""
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
     user, token = data_fixture.create_user_and_token()
     table, _, button_field, row, _ = _button_with_create_action(data_fixture, user)
     _add_http_action(data_fixture, button_field)
@@ -810,7 +820,27 @@ def test_a_sixth_click_in_flight_is_refused(api_client, data_fixture):
             user=user, field=button_field, row_id=row_id, state=JOB_PENDING
         )
 
-    response = _click(api_client, token, button_field, row)
+    calls = []
+
+    def _receiver(sender, **kwargs):
+        calls.append(kwargs)
+
+    button_field_dispatched.connect(_receiver)
+    try:
+        response = _click(api_client, token, button_field, row)
+    finally:
+        button_field_dispatched.disconnect(_receiver)
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MAX_JOB_COUNT_EXCEEDED"
+    # No job was created for the refused click, so the cap is still 5.
+    assert ButtonFieldDispatchJob.objects.count() == 5
+    assert calls[-1]["outcome"] == DispatchOutcome.THROTTLED
+
+    # Freeing a job slot and clicking again, on another row, succeeds rather
+    # than meeting a rate limit the refused click should not have spent.
+    ButtonFieldDispatchJob.objects.filter(row_id=100).delete()
+    row_two = table.get_model().objects.create()
+    assert _click(api_client, token, button_field, row_two).status_code == (
+        HTTP_202_ACCEPTED
+    )
