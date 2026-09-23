@@ -226,9 +226,9 @@ def test_async_publish_domain(mock_run_async_job, data_fixture):
 
     job = DomainService().async_publish(user, domain1)
 
-    mock_run_async_job.delay.assert_called_once()
-    args = mock_run_async_job.delay.call_args
-    assert args[0][0] == job.id
+    mock_run_async_job.apply_async.assert_called_once()
+    call_kwargs = mock_run_async_job.apply_async.call_args.kwargs
+    assert call_kwargs["args"][0] == job.id
 
 
 @pytest.mark.django_db(transaction=True)

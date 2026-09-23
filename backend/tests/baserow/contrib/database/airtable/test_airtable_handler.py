@@ -1714,9 +1714,9 @@ def test_create_and_start_airtable_import_job(mock_run_async_job, data_fixture):
     assert job.state == "pending"
     assert job.error == ""
 
-    mock_run_async_job.delay.assert_called_once()
-    args = mock_run_async_job.delay.call_args
-    assert args[0][0] == job.id
+    mock_run_async_job.apply_async.assert_called_once()
+    call_kwargs = mock_run_async_job.apply_async.call_args.kwargs
+    assert call_kwargs["args"][0] == job.id
 
 
 @pytest.mark.django_db

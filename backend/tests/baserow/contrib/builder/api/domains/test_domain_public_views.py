@@ -422,9 +422,9 @@ def test_publish_builder(mock_run_async_job, api_client, data_fixture):
 
     assert response.status_code == HTTP_202_ACCEPTED
 
-    mock_run_async_job.delay.assert_called_once()
-    args = mock_run_async_job.delay.call_args
-    assert args[0][0] == response_json["id"]
+    mock_run_async_job.apply_async.assert_called_once()
+    call_kwargs = mock_run_async_job.apply_async.call_args.kwargs
+    assert call_kwargs["args"][0] == response_json["id"]
 
 
 @pytest.mark.django_db(transaction=True)
