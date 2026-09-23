@@ -6,6 +6,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.models import Agent
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -80,6 +81,36 @@ def test_get_acting_user_raises_when_the_integration_has_no_authorized_user(
         LocalBaserowUpsertRowServiceType().get_acting_user(
             service, FakeDispatchContext(actor=clicker)
         )
+
+
+@pytest.mark.django_db
+def test_dispatch_rejects_a_trashed_authorized_agent(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    agent = Agent.objects.create(
+        workspace=page.builder.workspace,
+        name="Row writer",
+        role_uid="ADMIN",
+        trashed=True,
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder,
+        user=user,
+        authorized_agent=agent,
+    )
+    table, name_field = _table_with_name_field(data_fixture, user)
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration,
+        table=table,
+    )
+    service.field_mappings.create(field=name_field, value="'Ada'", enabled=True)
+
+    with pytest.raises(
+        ServiceImproperlyConfiguredDispatchException, match="agent is trashed"
+    ):
+        ServiceHandler().dispatch_service(service, FakeDispatchContext())
+
+    assert table.get_model().objects.count() == 0
 
 
 @pytest.mark.django_db
