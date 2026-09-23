@@ -12,7 +12,10 @@ from baserow.contrib.database.fields.field_types import (
     LongTextFieldType,
     MultipleCollaboratorsFieldType,
 )
-from baserow.contrib.database.rows.handler import RowM2MChangeTracker
+from baserow.contrib.database.rows.handler import (
+    RowM2MChangeTracker,
+    user_for_row_audit_columns,
+)
 from baserow.contrib.database.rows.signals import rows_created, rows_updated
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.core.notifications.handler import (
@@ -182,7 +185,9 @@ class UserMentionInRichTextFieldNotificationType(
         return _(
             "%(sender)s mentioned you in %(field_name)s in row %(row_name)s in %(table_name)s."
         ) % {
-            "sender": notification.sender.first_name,
+            "sender": notification.sender.first_name
+            if notification.sender
+            else _("An unknown user"),
             "field_name": notification.data["field_name"],
             "row_name": notification.data.get("row_name", notification.data["row_id"]),
             "table_name": notification.data["table_name"],
@@ -374,13 +379,14 @@ def notify_users_when_rows_created(
     m2m_change_tracker=None,
     **kwargs,
 ):
+    notification_sender = user_for_row_audit_columns(user)
     if m2m_change_tracker is not None:
         CollaboratorAddedToRowNotificationType.create_notifications_grouped_by_user(
-            user, m2m_change_tracker, rows
+            notification_sender, m2m_change_tracker, rows
         )
 
     UserMentionInRichTextFieldNotificationType.create_notifications_grouped_by_user(
-        user, rows
+        notification_sender, rows
     )
 
 
@@ -396,11 +402,12 @@ def notify_users_when_rows_updated(
     m2m_change_tracker=None,
     **kwargs,
 ):
+    notification_sender = user_for_row_audit_columns(user)
     if m2m_change_tracker is not None:
         CollaboratorAddedToRowNotificationType.create_notifications_grouped_by_user(
-            user, m2m_change_tracker, rows
+            notification_sender, m2m_change_tracker, rows
         )
 
     UserMentionInRichTextFieldNotificationType.create_notifications_grouped_by_user(
-        user, rows, updated_field_ids
+        notification_sender, rows, updated_field_ids
     )
