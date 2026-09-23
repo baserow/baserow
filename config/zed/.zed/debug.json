@@ -119,6 +119,7 @@
     //   celery              — default / general task queue
     //   export              — file-export tasks (spreadsheet, PDF, …)
     //   automation_workflow — automation trigger / action tasks
+    //   button_dispatch     — button click actions that reach outside Baserow
     "label": "backend: celery worker (launch)",
     "adapter": "Debugpy",
     "request": "launch",
@@ -128,7 +129,7 @@
       "baserow",
       "worker",
       "-Q",
-      "celery,export,automation_workflow",
+      "celery,export,automation_workflow,button_dispatch",
       "-l",
       "INFO",
       "--pool=solo",

@@ -83,7 +83,7 @@ Breakpoints set inside task functions are hit when a task is dispatched.
 > strategies that use forked sub-processes put the task execution in a child
 > that Debugpy is not attached to.
 
-Queues consumed: `celery`, `export`, `automation_workflow`.
+Queues consumed: `celery`, `export`, `automation_workflow`, `button_dispatch`.
 
 ### backend: pytest current file
 
