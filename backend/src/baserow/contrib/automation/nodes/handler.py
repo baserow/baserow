@@ -709,6 +709,7 @@ class AutomationNodeHandler:
             node_history.node.workflow,
             node_history.workflow_history,
             event_payload=node_history.workflow_history.event_payload,
+            simulate_until_node=node_history.workflow_history.simulate_until_node,
             current_iterations=current_iterations,
         )
         response_data = (
