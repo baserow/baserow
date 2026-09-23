@@ -104,6 +104,9 @@ def test_oauth2_callback_redirects_with_error_over_application_user_limit(
     session.save()
     api_client.cookies[settings.SESSION_COOKIE_NAME] = session.session_key
 
+    UserModel = data["user_table"].get_model()
+    count_before = UserModel.objects.count()
+
     response = api_client.get(
         reverse(
             "api:user_sources:sso_oauth2_openid_connect:callback",
@@ -121,3 +124,7 @@ def test_oauth2_callback_redirects_with_error_over_application_user_limit(
         == "errorApplicationUserLimitReached"
     )
     assert f"user_source_oidc_token__{user_source.id}" not in query_params
+    # The view swallows the refusal inside its transaction, so a user row created
+    # before the limit check would have been committed. The first time user must not
+    # have been auto-provisioned.
+    assert UserModel.objects.count() == count_before
