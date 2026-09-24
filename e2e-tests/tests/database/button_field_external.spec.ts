@@ -30,6 +30,7 @@ import {
 } from "../../fixtures/database/gridSetup";
 import {
   createHttpRequestAction,
+  createOpenUrlAction,
   createRowAction,
   getWorkflowAction,
   listWorkflowActions,
@@ -79,6 +80,8 @@ const CAPTURED_FIELD_INDEX = 9;
 const LIMITED_FIELD_INDEX = 10;
 const DUPLICATE_FIELD_INDEX = 11;
 const SESSION_FIELD_INDEX = 12;
+const LINKED_FIELD_INDEX = 13;
+const EDITED_FIELD_INDEX = 14;
 
 let g: GridSetupResult;
 let httpAction: WorkflowAction;
@@ -90,6 +93,7 @@ let duplicateAction: WorkflowAction;
 // execute this file's tests at the same time.
 let slowKey: string;
 let slowTwoKey: string;
+let editedKey: string;
 
 /**
  * A member of the workspace who has clicked nothing yet. The rate limit counts
@@ -136,7 +140,7 @@ async function gridFor(page: Page, user: User) {
 test.describe("Button field, external actions", () => {
   // Every button field has to be on screen at once, or the grid never renders
   // the column a test clicks.
-  test.use({ viewport: { width: 3600, height: 900 } });
+  test.use({ viewport: { width: 4200, height: 900 } });
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -158,6 +162,8 @@ test.describe("Button field, external actions", () => {
         // Built through the editor by the same-session test; `beforeAll`
         // gives it no actions on purpose.
         { name: "Session", type: "button", settings: { label: "Session" } },
+        { name: "Linked", type: "button", settings: { label: "Linked" } },
+        { name: "Edited", type: "button", settings: { label: "Edited" } },
       ],
     });
 
@@ -175,7 +181,7 @@ test.describe("Button field, external actions", () => {
     const echoRequest = await createHttpRequestAction(
       g.user,
       g.fieldByName["Echo"],
-      { url: `concat('${STUB}/anything/', get('row.field_${name.id}'))` },
+      { url: `concat('${STUB}/anything/', get('row.field_${name.id}'))` }
     );
     await createRowAction(g.user, g.fieldByName["Echo"], {
       type: "local_baserow_update_row",
@@ -206,7 +212,7 @@ test.describe("Button field, external actions", () => {
     const chainedRequest = await createHttpRequestAction(
       g.user,
       g.fieldByName["Chained"],
-      { url: `'${STUB}/json'` },
+      { url: `'${STUB}/json'` }
     );
     await createRowAction(g.user, g.fieldByName["Chained"], {
       type: "local_baserow_update_row",
@@ -252,7 +258,7 @@ test.describe("Button field, external actions", () => {
     capturedAction = await createHttpRequestAction(
       g.user,
       g.fieldByName["Captured"],
-      { url: `'${STUB}/json'` },
+      { url: `'${STUB}/json'` }
     );
 
     // "Limited" is clicked until the rate limit refuses it.
@@ -260,11 +266,32 @@ test.describe("Button field, external actions", () => {
       url: `'${STUB}/json'`,
     });
 
+    // "Linked" calls the stub, then opens a URL built from its answer. The
+    // click runs as a job, so the URL can only open once the job is done and
+    // has handed its results back to the browser.
+    const linkedRequest = await createHttpRequestAction(
+      g.user,
+      g.fieldByName["Linked"],
+      { url: `'${STUB}/uuid'` }
+    );
+    await createOpenUrlAction(g.user, g.fieldByName["Linked"], {
+      url: `concat('/linked-', get('previous_action.${linkedRequest.id}.body.uuid'))`,
+      target: "self",
+    });
+
+    // "Edited" gets an action added while one of its clicks waits on the
+    // queue, so that click must not run. Its request goes to the barrier so
+    // the test can tell it was never sent.
+    editedKey = `edited-${randomUUID()}`;
+    await createHttpRequestAction(g.user, g.fieldByName["Edited"], {
+      url: `'${BARRIER_STUB_URL ?? STUB}/hold/${editedKey}'`,
+    });
+
     // "Duplicate" is copied, and the copy must carry no answer of its own.
     duplicateAction = await createHttpRequestAction(
       g.user,
       g.fieldByName["Duplicate"],
-      { url: `'${STUB}/json'` },
+      { url: `'${STUB}/json'` }
     );
   });
 
@@ -306,10 +333,9 @@ test.describe("Button field, external actions", () => {
     // that back in the row, so the row's own name has to come back around.
     // The click answers with a job now, so this crosses a poll of it before
     // the row updates; the default expect timeout is too tight for that.
-    await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toContainText(
-      "Ada",
-      { timeout: 30_000 },
-    );
+    await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toContainText("Ada", {
+      timeout: 30_000,
+    });
   });
 
   test("a request that fails says so without repeating the URL", async ({
@@ -370,10 +396,10 @@ test.describe("Button field, external actions", () => {
     // leaving the missing body unexplained.
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer"),
+      actionItem(page, 0).locator(".sample-data-viewer")
     ).toHaveCount(0);
     await expect(actionItem(page, 0).locator(".alert")).toContainText(
-      "capture what the endpoint answers",
+      "capture what the endpoint answers"
     );
 
     // What a request always has is offered from the start; what the endpoint
@@ -420,7 +446,7 @@ test.describe("Button field, external actions", () => {
     // note about capturing is gone.
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer"),
+      actionItem(page, 0).locator(".sample-data-viewer")
     ).toHaveCount(1);
     await expect(actionItem(page, 0).locator(".alert")).toHaveCount(0);
 
@@ -470,7 +496,7 @@ test.describe("Button field, external actions", () => {
     await expect(
       explorer(page).locator(".node-explorer-content__name", {
         hasText: HTTP_ACTION,
-      }),
+      })
     ).toHaveCount(1);
   });
 
@@ -537,7 +563,7 @@ test.describe("Button field, external actions", () => {
     await openFieldEditor(page, "Session");
     await expandAction(page, 0);
     await expect(
-      actionItem(page, 0).locator(".sample-data-viewer"),
+      actionItem(page, 0).locator(".sample-data-viewer")
     ).toHaveCount(1);
 
     await expandAction(page, 1);
@@ -579,7 +605,7 @@ test.describe("Button field, external actions", () => {
     // to its end, which outruns the default expect timeout.
     await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
       "Sample Slide Show",
-      { timeout: 20_000 },
+      { timeout: 20_000 }
     );
 
     const rows = await listRows(g.user, g.table);
@@ -594,7 +620,7 @@ test.describe("Button field, external actions", () => {
     await actionItem(page, 0).locator(".button-icon").first().click();
 
     await expect(page.locator("[data-action-error]")).toContainText(
-      "no longer runs before it",
+      "no longer runs before it"
     );
   });
 
@@ -603,7 +629,7 @@ test.describe("Button field, external actions", () => {
   test("a user who keeps clicking is refused", async ({ page }) => {
     test.skip(
       !DECLARED_RATE_LIMIT,
-      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with",
+      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with"
     );
     test.setTimeout(120_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
@@ -631,7 +657,7 @@ test.describe("Button field, external actions", () => {
   }) => {
     test.skip(
       !DECLARED_RATE_LIMIT,
-      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with",
+      "set E2E_BUTTON_RATE_LIMIT to the limit the backend runs with"
     );
     test.setTimeout(120_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
@@ -654,7 +680,7 @@ test.describe("Button field, external actions", () => {
   test.describe("while a request is held", () => {
     test.skip(
       !BARRIER_STUB_URL,
-      "Needs the barrier stub: set E2E_BARRIER_STUB_URL.",
+      "Needs the barrier stub: set E2E_BARRIER_STUB_URL."
     );
 
     // The keys are shared by every test in this worker, and a released key
@@ -664,6 +690,7 @@ test.describe("Button field, external actions", () => {
     test.beforeEach(async () => {
       await forget(slowKey);
       await forget(slowTwoKey);
+      await forget(editedKey);
     });
 
     // A test that fails before releasing would leave the backend waiting on
@@ -671,6 +698,7 @@ test.describe("Button field, external actions", () => {
     test.afterEach(async () => {
       await release(slowKey);
       await release(slowTwoKey);
+      await release(editedKey);
     });
 
     test("a click while the same row is still running is refused", async ({
@@ -742,7 +770,7 @@ test.describe("Button field, external actions", () => {
       const accepted = page.waitForResponse(
         (r) =>
           r.url().includes("/workflow_actions/dispatch/") &&
-          r.request().method() === "POST",
+          r.request().method() === "POST"
       );
       await second.click();
       expect((await accepted).status()).toBe(202);
@@ -763,6 +791,53 @@ test.describe("Button field, external actions", () => {
       await expect(page.locator(".toast")).toHaveCount(0);
     });
 
+    test("a click whose button changed while it waited does not run", async ({
+      page,
+    }) => {
+      test.setTimeout(120_000);
+      await resetRows(g, [
+        { Name: "Ada", Status: "todo" },
+        { Name: "Grace", Status: "todo" },
+      ]);
+      const clicker = await freshClicker();
+      const grid = await gridFor(page, clicker);
+
+      // The worker runs one job at a time here, so while "Slow" is held the
+      // "Edited" click waits on the queue.
+      const slow = grid.fieldCellAt(0, SLOW_FIELD_INDEX).locator("button");
+      await slow.click();
+      await expect.poll(() => arrivedAt(slowKey), { timeout: 20_000 }).toBe(1);
+
+      const edited = grid.fieldCellAt(1, EDITED_FIELD_INDEX).locator("button");
+      const accepted = page.waitForResponse(
+        (r) =>
+          r.url().includes("/workflow_actions/dispatch/") &&
+          r.request().method() === "POST"
+      );
+      await edited.click();
+      expect((await accepted).status()).toBe(202);
+
+      // An editor adds an action to the button while the click waits.
+      await createRowAction(g.user, g.fieldByName["Edited"], {
+        type: "local_baserow_update_row",
+        table: g.table,
+        rowId: "get('row.id')",
+        fieldMappings: [{ field: g.fieldByName["Status"], value: "'added'" }],
+      });
+
+      await release(slowKey);
+
+      await expect(page.locator(".toast")).toContainText(
+        "The button's actions changed while the click was waiting",
+        { timeout: 30_000 }
+      );
+      await expect(edited).not.toHaveClass(/button--loading/);
+      // Neither the request it was accepted with nor the added action ran.
+      expect(await arrivedAt(editedKey)).toBe(0);
+      const rows = await listRows(clicker, g.table);
+      expect(rows.find((row) => row.Name === "Grace").Status).toBe("todo");
+    });
+
     test("a slow endpoint leaves the grid usable while the button waits", async ({
       page,
     }) => {
@@ -778,7 +853,7 @@ test.describe("Button field, external actions", () => {
       const accepted = page.waitForResponse(
         (r) =>
           r.url().includes("/workflow_actions/dispatch/") &&
-          r.request().method() === "POST",
+          r.request().method() === "POST"
       );
       await button.click();
       expect((await accepted).status()).toBe(202);
@@ -803,7 +878,30 @@ test.describe("Button field, external actions", () => {
     });
   });
 
-  // G. Copies
+  // G. What a finished job hands back to the browser
+
+  test("a URL opens carrying what the endpoint answered", async ({ page }) => {
+    test.setTimeout(60_000);
+    await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
+    const clicker = await freshClicker();
+    const grid = await gridFor(page, clicker);
+
+    const accepted = page.waitForResponse(
+      (r) =>
+        r.url().includes("/workflow_actions/dispatch/") &&
+        r.request().method() === "POST"
+    );
+    await grid.fieldCellAt(0, LINKED_FIELD_INDEX).locator("button").click();
+    expect((await accepted).status()).toBe(202);
+
+    // Only the stub knows this uuid, so the URL can carry it only if the job
+    // stored the answer and the browser read it once the job finished.
+    await expect(page).toHaveURL(/\/linked-[0-9a-f-]{36}$/, {
+      timeout: 30_000,
+    });
+  });
+
+  // H. Copies
 
   test("a copied field keeps the request but not the answer", async ({
     page,
