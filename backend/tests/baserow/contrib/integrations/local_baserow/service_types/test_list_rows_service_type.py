@@ -1306,8 +1306,9 @@ def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
 @pytest.mark.django_db
 def test_generating_a_schema_does_not_query_per_button_field(data_fixture):
     """
-    A button's `has_workflow_actions` and `requires_reconfiguration` describe
-    its actions, not the table's data, and each would cost a query.
+    A button's `has_workflow_actions`, `requires_reconfiguration` and
+    `opens_new_tab` describe its actions, not the table's data, and each would
+    cost a query.
     """
 
     service_type = LocalBaserowListRowsUserServiceType()
@@ -1336,6 +1337,7 @@ def test_generating_a_schema_does_not_query_per_button_field(data_fixture):
         for metadata in buttons:
             assert "has_workflow_actions" not in metadata
             assert "requires_reconfiguration" not in metadata
+            assert "opens_new_tab" not in metadata
         return len(captured)
 
     schema_queries(1)

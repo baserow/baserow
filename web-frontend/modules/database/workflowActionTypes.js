@@ -461,7 +461,21 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
     }
 
     if (workflowAction.target === 'blank') {
-      window.open(url, '_blank', 'noopener,noreferrer')
+      // The button opened this tab on click, see `openNewTab` in the button
+      // field mixin. Without one, or for a second new tab action, fall back
+      // to opening it here.
+      const tab = applicationContext.newTab?.take()
+      if (tab) {
+        // A link followed from inside the tab, so `noreferrer` still keeps
+        // this page's URL from the site, as the fallback below does.
+        const link = tab.document.createElement('a')
+        link.href = url
+        link.rel = 'noreferrer'
+        tab.document.body.appendChild(link)
+        link.click()
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
     } else {
       window.location.href = url
     }

@@ -584,13 +584,19 @@ export default {
       }
     },
     /**
-     * The field response carries `has_workflow_actions` and
-     * `requires_reconfiguration` computed before these calls, so the store
-     * needs both flags as they ended up. The reconfigure flag is left out when
-     * the refresh failed, so the store keeps what it has.
+     * The field response carries `has_workflow_actions`,
+     * `requires_reconfiguration` and `opens_new_tab` computed before these
+     * calls, so the store needs the flags as they ended up. The reconfigure
+     * flag is left out when the refresh failed, so the store keeps what it
+     * has.
      */
     fieldValuesAfterSave() {
-      const values = { has_workflow_actions: this.serverActions.length > 0 }
+      const values = {
+        has_workflow_actions: this.serverActions.length > 0,
+        opens_new_tab: this.serverActions.some(
+          (action) => action.type === 'open_url' && action.target === 'blank'
+        ),
+      }
       if (this.requiresReconfiguration !== null) {
         values.requires_reconfiguration = this.requiresReconfiguration
       }
