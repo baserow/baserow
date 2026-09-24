@@ -13,6 +13,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.model_profiles import SUBAGENT
 from baserow_enterprise.assistant.models import KnowledgeBaseChunk
 
 from .handler import KnowledgeBaseHandler
@@ -77,8 +78,10 @@ enabled through an integration or setting that the passage does not document.
 LOW_CONFIDENCE_NOTE = (
     "LOW CONFIDENCE: This search did not establish a source-backed answer. "
     "For the first such result on this user question, search_user_docs once more "
-    "with a narrower query for the underlying documented concept on the SAME "
-    "product surface, looking for supported partial facts or alternatives. "
+    "for the underlying task on the SAME product surface. Remove the unverified "
+    "feature qualifier and search for the general field type or operation that "
+    "would handle the data; merely shortening the same feature request is not "
+    "a different search. Look for supported partial facts or alternatives. "
     "After that follow-up, state exactly what remains unverified and stop "
     "searching. Share only supported facts with their sources. Missing evidence "
     "does not establish feature availability, absence, or pricing. Do not fill "
@@ -242,6 +245,7 @@ async def _search_user_docs_impl(
         search_docs_agent,
         prompt,
         model=model,
+        model_settings=model_profile.get_settings(SUBAGENT),
     )
     prediction = agent_result.output
 

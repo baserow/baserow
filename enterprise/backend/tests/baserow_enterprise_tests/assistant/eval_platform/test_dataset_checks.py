@@ -9,7 +9,11 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.core.graph.types import GraphPointPosition
 from baserow_enterprise.assistant.evals.datasets.automation import (
     _check_creates_row_with_field_values,
+    _check_creates_update_row_workflow,
+    _check_creates_workflow,
     _creates_row_with_field_values_scenario,
+    _creates_update_row_workflow_scenario,
+    _creates_workflow_scenario,
 )
 from baserow_enterprise.assistant.evals.datasets.builder import (
     _back_button_on_page_not_header_scenario,
@@ -130,6 +134,90 @@ def test_automation_row_check_uses_saved_configuration(data_fixture, defect, nod
     )
     checks = _check_creates_row_with_field_values(None, scenario, output)
     assert all(check.passed for check in checks) == (defect is None), checks
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "node_type", ["update_row", "local_baserow_update_row", "unsupported"]
+)
+@pytest.mark.parametrize(
+    "factory, check, trigger_type, status",
+    [
+        (
+            _creates_workflow_scenario,
+            _check_creates_workflow,
+            "rows_created",
+            "Processing",
+        ),
+        (
+            _creates_update_row_workflow_scenario,
+            _check_creates_update_row_workflow,
+            "rows_updated",
+            "Reviewed",
+        ),
+    ],
+)
+def test_update_workflow_checks_accept_production_aliases(
+    data_fixture, node_type, factory, check, trigger_type, status
+):
+    scenario = factory(data_fixture)
+    table = scenario.refs["table"]
+    workflow = data_fixture.create_automation_workflow(
+        automation=scenario.refs["automation"],
+        trigger_type=trigger_type,
+        trigger_service_kwargs={"table": table},
+    )
+    trigger = workflow.get_trigger()
+    row_id = f"get('previous_node.{trigger.id}[0].id')"
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="update_row",
+        service_kwargs={"table": table, "row_id": row_id},
+    )
+    values = [{"field_id": table.field_set.get(name="Status").id, "value": status}]
+    if trigger_type == "rows_updated":
+        values.append(
+            {
+                "field_id": table.field_set.get(name="Notes").id,
+                "value": "Automatically reviewed by automation",
+            }
+        )
+    for value in values:
+        LocalBaserowTableServiceFieldMapping.objects.create(
+            service=node.service, field_id=value["field_id"], value=repr(value["value"])
+        )
+    output = _output(
+        tool_calls=["create_workflows"],
+        messages=[
+            {
+                "role": "assistant",
+                "tool_name": "create_workflows",
+                "args": {
+                    "workflows": [
+                        {
+                            "trigger": {
+                                "type": "local_baserow_" + trigger_type,
+                                "rows_triggers_settings": {"table_id": table.id},
+                            },
+                            "nodes": [
+                                {
+                                    "type": node_type,
+                                    "table_id": table.id,
+                                    "row_id": row_id,
+                                    "values": values,
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        ],
+    )
+    checks = check(None, scenario, output)
+    assert all(result.passed for result in checks) == (node_type != "unsupported"), (
+        checks
+    )
+    assert output.messages[0]["args"]["workflows"][0]["nodes"][0]["type"] == node_type
 
 
 @pytest.mark.parametrize("space", [" ", "\u202f", "\u00a0", "\n", "\t"])
