@@ -253,8 +253,10 @@ export const actions = {
         commit('SET_UI_LOCATION', update.location)
         break
       case MESSAGE_TYPE.CHAT_TITLE:
+        // The stream's own chat, because the user can have moved on to another
+        // conversation by the time the title arrives.
         commit('UPDATE_CHAT', {
-          id: state.currentChatId,
+          id: chat.id,
           updates: { title: update.content },
         })
         break
