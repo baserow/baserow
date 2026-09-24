@@ -133,7 +133,11 @@ def list_pages(
             "For a requested new page, use create_pages with this application_id "
             "first, then use its returned page ID in setup_page or element tools. "
             "An application ID is not a page ID. Do not replace a different existing "
-            "page when the user asked for a new one. For pages displaying records, "
+            "page when the user asked for a new one. If a new presentation page's "
+            "CTA has no specified destination and a Home page is listed, link the "
+            "CTA to that page and state this assumption instead of blocking the "
+            "build with a question. Do not modify that destination page. "
+            "For pages displaying records, "
             "find the matching table before creating the page; if the records are "
             "missing, ask where they should come from first."
         ),
