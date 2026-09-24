@@ -5,6 +5,10 @@ The implementation lives in `baserow_enterprise.assistant`. Modes control tool
 discovery and schema size; the domain services still enforce the acting user's
 permissions and workspace boundaries.
 
+The main agent uses high reasoning effort for Groq's GPT-OSS 120B model. Helper
+agents retain their role defaults. The output-token and timeout limits are
+unchanged; eval metadata records the effective model settings.
+
 ## Tool discovery
 
 `AssistantToolRegistry` first filters tool groups through `can_use`. The permitted
@@ -79,6 +83,9 @@ limit. Passage metadata triggers reindexing of legacy or incomplete indexes.
 Retrieval combines semantic and lexical matches and limits passages per document.
 Answers must cite retrieved sources and distinguish supported information from
 documentation gaps; missing evidence does not establish feature availability.
+If synthesis returns no valid citation, it reconsiders the same passages once for
+supported partial information. This fallback keeps the citation checks and can
+still return no evidence.
 
 ## Verification
 
@@ -94,6 +101,8 @@ compaction, eviction, no-ops, failed mutations, and current-turn evidence. Domai
 tool tests verify saved state and reconciliation. For live model runs, use the
 [eval platform](../testing/ai-assistant-evals.md) with a disposable database and
 record the source revision, model settings, case population, and failures.
+Generated eval user identities use UUIDs because the database persists across
+scenarios and Faker's per-instance uniqueness cache does not.
 Eval harness version 5 preserves version 3's exclusion of required mode-switch
 redirects from the tool-error budget. Genuine argument and output-validation
 failures still count. It also matches production's sequential tool execution,
