@@ -102,7 +102,13 @@ export class FileInputElementType extends FormElementType {
   }
 
   static getError(element, value, applicationContext) {
-    const arrayValue = element.multiple ? value : value ? [value] : []
+    const arrayValue = element.multiple
+      ? Array.isArray(value)
+        ? value
+        : []
+      : value
+        ? [value]
+        : []
 
     if (element.required && arrayValue.length === 0) {
       return 'required'
