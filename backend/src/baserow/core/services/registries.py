@@ -477,6 +477,7 @@ class ServiceType(
         """
 
         return False
+
     def dispatch(
         self,
         service: ServiceSubClass,
