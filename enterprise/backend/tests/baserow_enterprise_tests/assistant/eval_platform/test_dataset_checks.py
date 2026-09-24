@@ -589,10 +589,24 @@ def test_landing_checks_reject_inert_or_wrong_cta(data_fixture, defect):
     "source",
     ["current_record", "first_row", "mixed", "outside_repeat", "nested_repeat"],
 )
-def test_project_cards_resolve_both_fields_for_each_record(data_fixture, source):
+@pytest.mark.parametrize("target", ["current", "new", "other_workspace", "existing"])
+def test_project_cards_resolve_both_fields_for_each_record(
+    data_fixture, source, target
+):
     scenario = _creates_app_when_table_exists_scenario(data_fixture)
     table = scenario.refs["projects_table"]
-    page = data_fixture.create_builder_page(builder=scenario.refs["builder"])
+    builder = scenario.refs["builder"]
+    if target != "current":
+        builder = data_fixture.create_builder_application(
+            workspace=(
+                data_fixture.create_workspace()
+                if target == "other_workspace"
+                else scenario.workspace
+            )
+        )
+        if target == "existing":
+            scenario.refs["initial_builder_ids"].append(builder.id)
+    page = data_fixture.create_builder_page(builder=builder)
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
         page=page, table=table
     )
@@ -637,7 +651,8 @@ def test_project_cards_resolve_both_fields_for_each_record(data_fixture, source)
         ],
     )
     checks = _check_creates_app_when_table_exists(None, scenario, output)
-    assert all(check.passed for check in checks) is (source == "current_record"), checks
+    expected = source == "current_record" and target in {"current", "new"}
+    assert all(check.passed for check in checks) is expected, checks
 
 
 @pytest.mark.django_db
