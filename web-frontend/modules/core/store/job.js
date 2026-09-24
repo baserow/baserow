@@ -171,8 +171,11 @@ export const actions = {
   async updateAllAndScheduleNext({ dispatch }, jobIds) {
     try {
       await dispatch('updateAll', jobIds)
-      await dispatch('tryScheduleNextUpdate')
-    } catch (error) {}
+    } catch (error) {
+      // One failed poll, a proxy error during a redeploy for instance, must
+      // not stop polling for good: a job waited on would never be seen ending.
+    }
+    await dispatch('tryScheduleNextUpdate')
   },
   /**
    * Update the status of all the jobs in the store that are unfinished.

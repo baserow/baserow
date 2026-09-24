@@ -349,6 +349,8 @@ describe('GridViewFieldButtonField', () => {
     ).toEqual({
       3: { data: { id: 99 }, fieldNames: {}, order: 1, position: 1 },
     })
+    // Settled, so the store no longer polls it.
+    expect(wrapper.vm.$store.getters['job/get'](acceptedJob().id)).toBeFalsy()
   })
 
   test('a failed job shows its message and clears the spinner', async () => {

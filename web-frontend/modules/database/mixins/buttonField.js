@@ -155,8 +155,8 @@ export default {
       const deadline = new Promise((resolve, reject) => {
         deadlineTimer = setTimeout(async () => {
           ButtonFieldDispatchJobType.forget(tracked)
-          // The job store stops polling before the deadline, so the job may
-          // have ended unseen. Asked once more before giving up on it.
+          // A poll may have been missed, so the job may have ended unseen.
+          // Asked once more before giving up on it.
           let job = null
           try {
             const { data } = await JobService(this.$client).get(tracked.id)
@@ -181,6 +181,8 @@ export default {
         throw failed instanceof Error ? failed : this.dispatchJobError(failed)
       } finally {
         clearTimeout(deadlineTimer)
+        // Settled or given up on either way, so the store stops polling it.
+        this.$store.dispatch('job/forceDelete', tracked)
       }
     },
     dispatchJobError(failed) {
