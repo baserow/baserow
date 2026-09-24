@@ -207,7 +207,9 @@ def list_tables(
             "If the requested records are absent (even if unrelated tables exist), "
             "call ask_user to find their source before creating anything. "
             "Creating an app does not authorize inventing its records or storage. "
-            "Create tables only if the user requested new data storage or sample data."
+            "Create tables only if the user requested new data storage or sample data. "
+            "Setting up application login is a storage request: setup_user_source "
+            "can create its backing users table if none was specified."
         ),
     }
     if len(databases) == 0:

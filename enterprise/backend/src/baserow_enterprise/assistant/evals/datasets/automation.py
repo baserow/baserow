@@ -9,6 +9,8 @@ and invalidate any existing baseline.
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -28,6 +30,9 @@ from baserow_enterprise.assistant.evals.types import (
     EvalScenario,
 )
 from baserow_enterprise.assistant.tools.automation.agents import AssistantFormulaContext
+from baserow_enterprise.assistant.tools.automation.types.node import (
+    CANONICAL_TO_SHORT_TYPE,
+)
 
 # Names the automation instead of a live DB id, since prompts are fixed before creation.
 PROMPT_LISTS_WORKFLOWS = "List the workflows in automation '{automation_name}'."
@@ -81,13 +86,21 @@ PROMPT_CREATES_EMAIL_NOTIFICATION_WORKFLOW = (
 def _get_create_workflows_args(output: EvalRunOutput) -> list[dict]:
     """Return the parsed ``args`` dicts of every ``create_workflows`` call."""
 
-    return [
-        e["args"]
+    calls = [
+        deepcopy(e["args"])
         for e in output.messages
         if e["role"] == "assistant"
         and e.get("tool_name") == "create_workflows"
         and "args" in e
     ]
+    # Match the same registered aliases accepted by the production tool schema.
+    # Preserve the original trace and every other argument for the checks.
+    for args in calls:
+        for workflow in args.get("workflows", []):
+            for node in [workflow.get("trigger", {}), *workflow.get("nodes", [])]:
+                node_type = node.get("type")
+                node["type"] = CANONICAL_TO_SHORT_TYPE.get(node_type, node_type)
+    return calls
 
 
 def _get_workflow_nodes(

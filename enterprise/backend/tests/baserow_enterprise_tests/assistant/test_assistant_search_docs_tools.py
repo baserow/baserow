@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from baserow_enterprise.assistant.model_profiles import SUBAGENT
 from baserow_enterprise.assistant.tools.search_user_docs.tools import (
     _TOOL_QUERY_RE,
     SearchDocsResult,
@@ -216,6 +217,7 @@ async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, ans
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     profile = MagicMock()
+    profile.get_settings.return_value = {"temperature": 0.3, "timeout": 20}
     ctx = make_test_ctx(user, workspace, model_profile=profile)
     chunk = MagicMock(content="Cards can display a selected file field as their cover.")
     chunk.source_document = MagicMock(
@@ -250,6 +252,11 @@ async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, ans
     assert ctx.deps.sources == ["https://example.com/cards"]
     assert "PARTIAL MATCH" in result["reliability_note"]
     assert "Supplement with general knowledge" not in result["reliability_note"]
+    profile.get_settings.assert_called_once_with(SUBAGENT)
+    assert run.call_args.kwargs["model_settings"] == {
+        "temperature": 0.3,
+        "timeout": 20,
+    }
 
 
 @pytest.mark.django_db(transaction=True)
