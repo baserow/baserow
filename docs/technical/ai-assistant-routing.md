@@ -93,9 +93,10 @@ Pydantic AI otherwise embeds it in visible `<think>` text, which can trigger
 malformed final/tool responses. The adapter preserves text, tool calls, and stored
 history; other providers and models retain their SDK mapping. Provider failures
 and malformed responses still count against the same eval limits.
-Groq GPT-OSS 120B uses high reasoning effort for orchestration and subagents.
+Groq GPT-OSS 120B uses high reasoning effort for documentation synthesis.
 This can increase latency and token usage; output-token, timeout, request, and
-error limits remain unchanged. Other models and utility roles keep their settings.
+error limits remain unchanged. Orchestration, other models, and utility roles keep
+their settings.
 
 ## Verification
 

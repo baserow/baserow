@@ -148,7 +148,9 @@ async def search_user_docs(
     question: Annotated[
         str,
         (
-            "A precise search query in English using Baserow terminology. "
+            "A self-contained version of the user's question in English using "
+            "Baserow terminology. Preserve the underlying task, product surface, "
+            "and relevant concerns; do not discard why the user is asking. "
             "Focus on the SPECIFIC Baserow feature being asked about. "
             "Include the feature name and action, e.g., 'How to create webhooks in Baserow' "
             "or 'Baserow table linking feature'. Avoid generic terms that could match "

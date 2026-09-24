@@ -152,13 +152,9 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
         if env_temp is not None:
             result["temperature"] = env_temp
 
-    if (
-        provider == "groq"
-        and model_name == "gpt-oss-120b"
-        and role in {ORCHESTRATOR, SUBAGENT}
-    ):
-        # More reasoning helps follow prerequisites and distinguish documentation
-        # surfaces. Keep the existing request, output-token, and timeout limits.
+    if provider == "groq" and model_name == "gpt-oss-120b" and role == SUBAGENT:
+        # More reasoning helps distinguish documentation surfaces during synthesis.
+        # Keep the existing request, output-token, and timeout limits.
         result["extra_body"] = {"reasoning_effort": "high"}
 
     if provider in {"google", "google-gla", "google-cloud", "google-vertex"}:
