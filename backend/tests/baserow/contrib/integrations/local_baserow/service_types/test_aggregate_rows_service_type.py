@@ -342,6 +342,30 @@ def test_local_baserow_aggregate_rows_dispatch_transform_with_scalar_result_for_
 
 
 @pytest.mark.django_db
+def test_local_baserow_aggregate_rows_dispatch_with_null_result(data_fixture):
+    """An empty min aggregation returns null instead of failing serialization."""
+
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_builder_page(user=user).builder
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_autonumber_field(table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        integration=integration,
+        table=table,
+        field=field,
+        aggregation_type="min",
+    )
+
+    result = service_type.dispatch(service, FakeDispatchContext())
+
+    assert result == DispatchResult(data={"result": None}, status=200, output_uid="")
+
+
+@pytest.mark.django_db
 def test_local_baserow_aggregate_rows_dispatch_data_with_total(data_fixture):
     """
     Tests an aggregation that is not based only on
