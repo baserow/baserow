@@ -52,7 +52,15 @@ from django.db.models import (
 )
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
-from django.db.models.functions import Cast, Coalesce, Left, LPad, RowNumber
+from django.db.models.functions import (
+    Cast,
+    Coalesce,
+    Left,
+    Length,
+    LPad,
+    Replace,
+    RowNumber,
+)
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -72,6 +80,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INVALID_ROLLUP_THROUGH_FIELD,
     ERROR_LINK_ROW_TABLE_NOT_IN_SAME_DATABASE,
     ERROR_LINK_ROW_TABLE_NOT_PROVIDED,
+    ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
     ERROR_SELF_REFERENCING_LINK_ROW_CANNOT_HAVE_RELATED_FIELD,
     ERROR_TOO_DEEPLY_NESTED_FORMULA,
     ERROR_WITH_FORMULA,
@@ -215,6 +224,7 @@ from .exceptions import (
     InvalidRollupThroughField,
     LinkRowTableNotInSameDatabase,
     LinkRowTableNotProvided,
+    RichTextImageLimitExceeded,
     SelfReferencingLinkRowCannotHaveRelatedField,
 )
 from .expressions import extract_jsonb_array_values_to_single_string
@@ -287,11 +297,13 @@ from .rich_text_utils import (
     MARKDOWN_IMAGE_REGEX,
     MAX_RICH_TEXT_IMAGES,
     append_user_file_urls,
+    contains_markdown_image,
     count_image_references,
     extract_user_file_names,
     is_renderable_user_file,
     keep_first_image_references,
     map_outside_code,
+    neutralize_markdown_images,
     normalize_rich_text_for_storage,
     replace_user_file_images_with_alt,
     resolve_user_file_urls,
@@ -544,11 +556,55 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     model_class = LongTextField
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
+    api_exceptions_map = {
+        RichTextImageLimitExceeded: ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
+    }
     _can_have_db_index = True
     can_upsert = True
 
     def check_can_group_by(self, field: Field, sort_type: str) -> bool:
         return not field.long_text_enable_rich_text
+
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
+        """
+        Enabling rich text, or converting another field into a rich text one, turns
+        existing values into rendered images without passing through
+        ``prepare_value_for_db``. Enforce the same image bound as ordinary writes
+        on the converted values. The field update runs in a transaction, so
+        raising here rolls the conversion back.
+        """
+
+        was_rich_text = isinstance(from_field, LongTextField) and bool(
+            from_field.long_text_enable_rich_text
+        )
+        if was_rich_text or not to_field.long_text_enable_rich_text:
+            return
+
+        column = to_field.db_column
+        # Every reference starts with `![`, so only rows with more openers than
+        # the limit can exceed it. The exact count skips code, done in Python.
+        opener_count = (
+            Length(column) - Length(Replace(column, Value("!["), Value("")))
+        ) / 2
+        candidates = (
+            to_model.objects_and_trash.annotate(_rich_text_openers=opener_count)
+            .filter(_rich_text_openers__gt=MAX_RICH_TEXT_IMAGES)
+            .values_list(column, flat=True)
+        )
+        for value in candidates.iterator(chunk_size=100):
+            if count_image_references(value) > MAX_RICH_TEXT_IMAGES:
+                raise RichTextImageLimitExceeded(MAX_RICH_TEXT_IMAGES)
 
     def can_be_primary_field(self, field_or_values: Union[Field, dict]) -> bool:
         if isinstance(field_or_values, dict):
@@ -709,11 +765,29 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 code="not_an_image",
             )
 
+    def _validate_no_markdown_images(self, value: str):
+        """
+        Rejects a value for which markdown itself would render an image, such as
+        ``![x][ref]`` with a ``[ref]: https://...`` definition. Only user files may
+        be embedded, and those are stored as unresolved references.
+
+        :param value: The value, already normalized for storage.
+        :raises ValidationError: If markdown-it renders an image for the value.
+        """
+
+        if contains_markdown_image(value):
+            raise ValidationError(
+                "Rich text values can only embed uploaded user files, external "
+                "images are not supported.",
+                code="external_image_not_supported",
+            )
+
     def prepare_value_for_db(self, instance, value):
         if not instance.long_text_enable_rich_text or not value:
             return value
 
         value = normalize_rich_text_for_storage(value)
+        self._validate_no_markdown_images(value)
         names = extract_user_file_names(value)
         if not names:
             return value
@@ -739,6 +813,13 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 continue
             value = normalize_rich_text_for_storage(value)
             values_by_row[row_index] = value
+            try:
+                self._validate_no_markdown_images(value)
+            except ValidationError as e:
+                if continue_on_error:
+                    values_by_row[row_index] = e
+                    continue
+                raise
             names = extract_user_file_names(value)
             if names:
                 names_by_row[row_index] = names
@@ -850,6 +931,10 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             # it. Those point at storage this instance does not own, so strip them
             # to the stored `![alt][name]` form, like `prepare_value_for_db` does.
             content = normalize_rich_text_for_storage(content)
+            # One bad cell can't abort the whole import, so an image markdown would
+            # render (e.g. through a reference definition) is escaped instead of
+            # rejected like the API does.
+            content = neutralize_markdown_images(content)
             # Bound the references before touching the zip, so surplus images are
             # never uploaded only to end up unreferenced.
             content = self._sanitize_imported_rich_text(content)

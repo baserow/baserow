@@ -16,6 +16,7 @@ from baserow.contrib.database.data_sync.export_serialized import (
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
 from baserow.contrib.database.fields.models import Field, LongTextField
 from baserow.contrib.database.fields.rich_text_utils import (
+    neutralize_markdown_images,
     normalize_rich_text_for_storage,
 )
 from baserow.core.registries import ImportExportConfig
@@ -94,6 +95,18 @@ class DataSyncProperty(ABC):
 
         return None
 
+    def normalize_value(self, data_sync_row_value: Any) -> Any:
+        """
+        Called on every value from `get_all_rows` before it's compared with the
+        Baserow value and written. Can adapt a value the field would otherwise
+        reject, because one bad value must not fail the whole sync.
+
+        :param data_sync_row_value: The row value from the data sync.
+        :return: The value to compare and write.
+        """
+
+        return data_sync_row_value
+
     def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
         """
         Checks if the provided cell value is equal. This is used to check if the
@@ -118,6 +131,15 @@ class RichTextDataSyncProperty(DataSyncProperty):
 
     def to_baserow_field(self) -> LongTextField:
         return LongTextField(name=self.name, long_text_enable_rich_text=True)
+
+    def normalize_value(self, data_sync_row_value: Any) -> Any:
+        # The field rejects a value markdown would render an image for, e.g. a
+        # reference definition pointing at a remote URL. Escape those instead.
+        if not isinstance(data_sync_row_value, str) or not data_sync_row_value:
+            return data_sync_row_value
+        return neutralize_markdown_images(
+            normalize_rich_text_for_storage(data_sync_row_value)
+        )
 
     def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
         return normalize_rich_text_for_storage(

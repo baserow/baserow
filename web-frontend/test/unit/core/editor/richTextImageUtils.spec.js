@@ -6,9 +6,13 @@ import {
   stripImageUrls,
   stripUnresolvedImageRefs,
   replaceImagesWithPlaceholder,
+  sanitizeUploadFileName,
+  imageUploadType,
+  isImageUploadCandidate,
   trimUnfinishedImageRef,
   IMAGE_PLACEHOLDER,
 } from '@baserow/modules/core/editor/richTextImageUtils'
+import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
 
 describe('preprocessRichTextImages', () => {
   test('returns empty content and nameMap for null', () => {
@@ -382,5 +386,157 @@ describe('image syntax inside code is literal', () => {
     expect(demoteExternalImagesToLinks(`\`${ext}\` ${ext}`)).toBe(
       `\`${ext}\` [x](https://e.com/a.png)`
     )
+  })
+})
+
+describe('image syntax inside block code found by markdown-it is literal', () => {
+  const ext = '![x](http://a)'
+  const ref = '![x][abc_def.png](http://h/abc_def.png)'
+
+  test('four-space indented code keeps the leading `!`', () => {
+    const content = `    ${ext}`
+    expect(demoteExternalImagesToLinks(content)).toBe(content)
+    expect(replaceImagesWithPlaceholder(content)).toBe(content)
+    const html = parseMarkdown(content, { enableImages: true })
+    expect(html).toContain(`<pre><code>${ext}`)
+  })
+
+  test('an indented line continuing a paragraph is not code', () => {
+    expect(demoteExternalImagesToLinks(`text\n    ${ext}`)).toBe(
+      'text\n    [x](http://a)'
+    )
+  })
+
+  test('a fence inside a list item is code', () => {
+    const content = `- item\n\n  \`\`\`\n  ${ext}\n  ${ref}\n  \`\`\`\n\n${ext}`
+    expect(demoteExternalImagesToLinks(content)).toBe(
+      content.replace(/\n\n!\[x\]\(http:\/\/a\)$/, '\n\n[x](http://a)')
+    )
+    expect(stripImageUrls(content)).toBe(content)
+    const html = parseMarkdown(content, { enableImages: true })
+    expect(html).toContain(ext)
+    expect(html).toContain(ref)
+  })
+
+  test('indented code inside a blockquote is code', () => {
+    const content = `>     ${ext}`
+    expect(demoteExternalImagesToLinks(content)).toBe(content)
+  })
+
+  test('CR and CRLF line endings split lines like markdown-it', () => {
+    const content = `a\r\n\r\n    ${ext}\r\rb ${ext}`
+    expect(demoteExternalImagesToLinks(content)).toBe(
+      `a\r\n\r\n    ${ext}\r\rb [x](http://a)`
+    )
+  })
+})
+
+describe('user file names without an extension', () => {
+  const ref = '![x][abc_def.]'
+  const resolved = `${ref}(http://h/abc_def.)`
+
+  test('round-trip through the helpers', () => {
+    expect(stripImageUrls(resolved)).toBe(ref)
+    const { content, nameMap } = preprocessRichTextImages(resolved)
+    expect(content).toBe('![x](http://h/abc_def.)')
+    expect(nameMap).toEqual({ 'http://h/abc_def.': 'abc_def.' })
+    expect(stripUnresolvedImageRefs(ref)).toBe(`${IMAGE_PLACEHOLDER} x`)
+    expect(replaceImagesWithPlaceholder(resolved)).toBe(
+      `${IMAGE_PLACEHOLDER} x`
+    )
+  })
+
+  test('render as an image in the preview', () => {
+    const html = parseMarkdown(resolved, { enableImages: true })
+    expect(html).toContain('<img src="http://h/abc_def."')
+  })
+})
+
+describe('sanitizeUploadFileName', () => {
+  test.each([
+    ['a.jpg)', 'a.jpg'],
+    ['photo.png)', 'photo.png'],
+    ['photo.p n]g', 'photo.png'],
+    ['photo.pn/g\\(', 'photo.png'],
+    ['my (1).png', 'my (1).png'],
+    ['noextension', 'noextension'],
+    ['trailing.', 'trailing.'],
+  ])('%j becomes %j', (input, expected) => {
+    expect(sanitizeUploadFileName(input)).toBe(expected)
+  })
+})
+
+describe('imageUploadType', () => {
+  test.each([
+    ['photo.png', 'image/png', 'image/png'],
+    ['doc.pdf', 'application/pdf', null],
+    ['photo.jpg)', '', 'image/jpeg'],
+    ['photo.JPEG', '', 'image/jpeg'],
+    ['logo.svg', '', 'image/svg+xml'],
+    ['notes.txt)', '', null],
+    ['noextension', '', null],
+  ])('%j with type %j is %j', (name, type, expected) => {
+    expect(imageUploadType(new File(['x'], name, { type }))).toBe(expected)
+  })
+
+  test('null file', () => {
+    expect(imageUploadType(null)).toBe(null)
+  })
+})
+
+describe('isImageUploadCandidate', () => {
+  test.each([
+    ['photo.png', 'image/png', true],
+    ['photo', '', true],
+    ['photo.jpg)', '', true],
+    ['notes.txt', 'text/plain', false],
+    ['doc.pdf', 'application/pdf', false],
+  ])('%j with type %j is %j', (name, type, expected) => {
+    expect(isImageUploadCandidate(new File(['x'], name, { type }))).toBe(
+      expected
+    )
+  })
+
+  test('null file', () => {
+    expect(isImageUploadCandidate(null)).toBe(false)
+  })
+})
+
+describe('image regexes are linear', () => {
+  // A quadratic scan at these sizes takes seconds; a linear one milliseconds.
+  const N = 20000
+  const time = (fn, input) => {
+    const start = performance.now()
+    fn(input)
+    return performance.now() - start
+  }
+  const functions = {
+    demoteExternalImagesToLinks,
+    stripImageUrls,
+    preprocessRichTextImages,
+    replaceImagesWithPlaceholder,
+    trimUnfinishedImageRef,
+    parseMarkdown: (value) => parseMarkdown(value, { enableImages: true }),
+    parseMarkdownWithoutImages: (value) => parseMarkdown(value),
+  }
+  const inputs = {
+    plain: (n) => '![x]('.repeat(n),
+    plainClosedAtEnd: (n) => '![x]('.repeat(n) + ')',
+    withUrl: (n) => '![x][a_b.png]('.repeat(n),
+    withUrlClosedAtEnd: (n) => '![x][a_b.png]('.repeat(n) + ')',
+    deepParens: (n) => '![x](' + '('.repeat(n),
+  }
+
+  describe.each(Object.keys(functions))('%s', (fnName) => {
+    test.each(Object.keys(inputs))('on %s', (inputName) => {
+      const fn = functions[fnName]
+      const input = inputs[inputName]
+      // Warm up so JIT compilation does not count against the smaller run.
+      fn(input(1000))
+      const small = time(fn, input(N))
+      const large = time(fn, input(2 * N))
+      expect(large).toBeLessThan(3 * small + 100)
+      expect(large).toBeLessThan(2000)
+    })
   })
 })

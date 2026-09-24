@@ -42,6 +42,8 @@ import { mapGetters } from 'vuex'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { isActive } from '@tiptap/core'
+import { GapCursor } from '@tiptap/pm/gapcursor'
+import { NodeSelection } from '@tiptap/pm/state'
 
 import RichTextEditorBubbleMenu from '@baserow/modules/core/components/editor/RichTextEditorBubbleMenu'
 import RichTextEditorFloatingMenu from '@baserow/modules/core/components/editor/RichTextEditorFloatingMenu'
@@ -58,7 +60,16 @@ import {
   plainTextToRichTextContent,
 } from '@baserow/modules/core/editor/richTextClipboard'
 import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
-import { isRenderableUserFile } from '@baserow/modules/core/editor/richTextImageUtils'
+import {
+  isRenderableUserFile,
+  sanitizeUploadFileName,
+  imageUploadType,
+  isImageUploadCandidate,
+} from '@baserow/modules/core/editor/richTextImageUtils'
+import {
+  registerTrustedImageUrl,
+  registerTrustedImageUrlsFromMarkdown,
+} from '@baserow/modules/core/editor/trustedImageUrls'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -305,6 +316,7 @@ export default {
     createEditor() {
       const extensions = this.getConfiguredExtensions()
       const content = this.modelValue
+      this.registerTrustedImageUrls(content)
       // The new editor has emitted nothing yet, so an echo remembered from the
       // previous one must not suppress the next external update.
       this.lastEmittedValue = null
@@ -328,8 +340,8 @@ export default {
             if (!this.canUploadImages || !event.dataTransfer) {
               return false
             }
-            const files = Array.from(event.dataTransfer.files).filter((file) =>
-              file.type.startsWith('image/')
+            const files = Array.from(event.dataTransfer.files).filter(
+              isImageUploadCandidate
             )
             if (files.length === 0) {
               return false
@@ -353,17 +365,19 @@ export default {
               const items = event.clipboardData?.items
                 ? Array.from(event.clipboardData.items)
                 : []
-              const imageItems = items.filter((item) =>
-                item.type.startsWith('image/')
-              )
-              if (imageItems.length > 0) {
-                const files = imageItems
-                  .map((item) => item.getAsFile())
-                  .filter(Boolean)
-                if (files.length > 0) {
-                  this.uploadFiles(files)
-                  return true
+              const files = items
+                .filter((item) => item.kind !== 'string')
+                .map((item) => item.getAsFile())
+                .filter(isImageUploadCandidate)
+              if (files.length > 0) {
+                // Like a drop, the image lands where it was pasted, not
+                // wherever the selection is when the upload finishes. A
+                // selection is replaced, as any paste would.
+                if (!view.state.selection.empty) {
+                  view.dispatch(view.state.tr.deleteSelection())
                 }
+                this.uploadFiles(files, view.state.selection.from)
+                return true
               }
             }
             const copiedFromRichTextEditor =
@@ -540,6 +554,15 @@ export default {
     },
     focus() {
       this.editor.commands.focus('end')
+      // `end` selects a trailing block image as a node, so the first keystroke
+      // would replace it. Put a gap cursor after it instead.
+      const { state, view } = this.editor
+      if (state.selection instanceof NodeSelection) {
+        const $after = state.doc.resolve(state.selection.to)
+        if (GapCursor.valid($after)) {
+          view.dispatch(state.tr.setSelection(new GapCursor($after)))
+        }
+      }
     },
     serializeToMarkdown() {
       return this.enableRichTextFormatting
@@ -559,6 +582,7 @@ export default {
       const previousSelection = preserveSelection
         ? this.editor.state.selection.anchor
         : null
+      this.registerTrustedImageUrls(value)
       this.editor.commands.setContent(value, {
         emitUpdate: false,
         contentType: this.getContentType(value),
@@ -570,6 +594,15 @@ export default {
         )
       }
       this.initialDocument = clone(this.editor.getJSON())
+    },
+    /**
+     * A Markdown value handed to the editor comes from the backend, which
+     * resolved every `![alt][name](url)` itself, so those URLs may be loaded.
+     */
+    registerTrustedImageUrls(value) {
+      if (this.enableImages && typeof value === 'string') {
+        registerTrustedImageUrlsFromMarkdown(value)
+      }
     },
     isEventFromMenu(event) {
       return (
@@ -597,6 +630,8 @@ export default {
         }
       }
       for (const image of validImages) {
+        // The URL comes from the upload response, so it is safe to load.
+        registerTrustedImageUrl(image.url)
         const chain = this.editor.chain()
         if (insertPos != null) {
           chain.focus(insertPos)
@@ -636,6 +671,23 @@ export default {
         dispose: () => this.editor?.off('transaction', onTransaction),
       }
     },
+    /**
+     * The stored reference is `![alt][<name>_<hash>.<ext>]`, and the backend
+     * derives `<ext>` from the uploaded name. Characters the reference cannot
+     * carry in the extension (`photo.png)`) are dropped so the image does not
+     * lose its reference after saving.
+     */
+    sanitizeUploadFile(file) {
+      const name = file?.name
+      if (typeof name !== 'string') {
+        return file
+      }
+      const cleanName = sanitizeUploadFileName(name)
+      const type = imageUploadType(file) || file.type
+      return cleanName === name && type === file.type
+        ? file
+        : new File([file], cleanName, { type })
+    },
     async uploadFiles(fileArray, insertPos = null) {
       if (!this.canUploadImages) {
         return
@@ -648,7 +700,10 @@ export default {
 
       const tracked = this.trackPosition(insertPos)
 
-      const files = fileArray.map((file) => ({ id: uuid(), file }))
+      const files = fileArray.map((file) => ({
+        id: uuid(),
+        file: this.sanitizeUploadFile(file),
+      }))
 
       // First add the file ids to the loading list so the user sees a visual loading
       // indication for each file.

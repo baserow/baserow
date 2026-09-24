@@ -4,13 +4,16 @@ from types import SimpleNamespace
 import pytest
 
 from baserow.contrib.database.fields.rich_text_utils import (
+    MAX_INLINE_IMAGE_SCAN_COST,
     append_user_file_urls,
+    contains_markdown_image,
     count_image_references,
     demote_external_images_to_links,
     extract_user_file_names,
     is_renderable_user_file,
     iter_code_segments,
     keep_first_image_references,
+    neutralize_markdown_images,
     normalize_rich_text_for_storage,
     replace_user_file_images_with_alt,
     resolve_user_file_urls,
@@ -171,6 +174,12 @@ class TestRegexHardening:
         content = r"![x][abc_def.png\..\secret]"
         assert extract_user_file_names(content) == set()
 
+    def test_accepts_name_without_extension(self):
+        content = "![x][abc_def.](http://h/abc_def.)"
+        assert extract_user_file_names(content) == {"abc_def."}
+        assert strip_user_file_urls(content) == "![x][abc_def.]"
+        assert append_user_file_urls("![x][abc_def.]").startswith("![x][abc_def.](")
+
     def test_accepts_extension_with_query_string_or_dash(self):
         content = "![x][abc_def.jpeg?w=50] ![y][abc_def.jpg-resized]"
         assert extract_user_file_names(content) == {
@@ -184,6 +193,25 @@ class TestRegexHardening:
         assert extract_user_file_names(content) == set()
         assert demote_external_images_to_links(content) == content
         assert time.perf_counter() - start < 0.5
+
+    @pytest.mark.parametrize(
+        "unit",
+        ["![x](", "![x](a ", "![x][a_b.png](", "![x][a_b.png](a ", "![[[", "[" * 8],
+    )
+    def test_unterminated_destinations_are_linear(self, unit):
+        def run(n):
+            content = unit * n
+            start = time.perf_counter()
+            normalize_rich_text_for_storage(content)
+            strip_user_file_urls(content)
+            extract_user_file_names(content)
+            contains_markdown_image(content)
+            return time.perf_counter() - start
+
+        small, large = run(20_000), run(40_000)
+        # Doubling the input must not quadruple the time. The floor absorbs noise.
+        assert large < max(small * 3, 0.1)
+        assert large < 1
 
 
 class TestDemoteExternalImagesToLinks:
@@ -217,6 +245,14 @@ class TestDemoteExternalImagesToLinks:
     def test_downgrades_javascript_uri_to_link(self):
         content = "![x](javascript:alert(1))"
         assert demote_external_images_to_links(content) == "[x](javascript:alert(1))"
+
+    def test_demotes_image_with_title_or_spaces(self):
+        assert (
+            demote_external_images_to_links(
+                '![a](https://e.com/a.png "title") ![b](my file.png)'
+            )
+            == '[a](https://e.com/a.png "title") [b](my file.png)'
+        )
 
     def test_does_not_touch_user_file_references(self):
         content = (
@@ -348,6 +384,25 @@ class TestIterCodeSegments:
         content = "````\n~~~\n```\nstill code"
         assert list(iter_code_segments(content)) == [(content, True)]
 
+    def test_indented_code_block(self):
+        content = "text\n\n    ![x](https://e.com/a.png)\n\nafter"
+        assert list(iter_code_segments(content)) == [
+            ("text\n\n", False),
+            ("    ![x](https://e.com/a.png)\n", True),
+            ("\nafter", False),
+        ]
+        assert normalize_rich_text_for_storage(content) == content
+
+    def test_fence_inside_list_item(self):
+        content = "- item\n\n  ```\n  ![x](https://e.com/a.png)\n  ```\n"
+        assert normalize_rich_text_for_storage(content) == content
+
+    def test_indented_continuation_is_not_code(self):
+        content = "para\n    ![x](https://e.com/a.png)"
+        assert normalize_rich_text_for_storage(content) == (
+            "para\n    [x](https://e.com/a.png)"
+        )
+
     def test_unclosed_fence_runs_to_end(self):
         content = "text\n```\nnever closed"
         assert list(iter_code_segments(content)) == [
@@ -418,3 +473,98 @@ class TestNormalizeRichTextForStorage:
     def test_is_idempotent(self):
         value = "![a][abc_def.png] [b](https://e.com/b.png) `![c](http://x)`"
         assert normalize_rich_text_for_storage(value) == value
+
+
+class TestContainsMarkdownImage:
+    @pytest.mark.parametrize(
+        "content",
+        [
+            None,
+            "",
+            "text",
+            "![a][abc_def.png] text",
+            "`![x](https://e.com/p.png)`",
+            "```\n![x](https://e.com/p.png)\n```",
+            "para\n\n    ![x](https://e.com/p.png)",
+            "\\![x](https://e.com/p.png)",
+            # A definition only matters when an image uses its label.
+            "![a][abc_def.png]\n\n[other]: https://e.com/p.png",
+        ],
+    )
+    def test_no_image(self, content):
+        assert not contains_markdown_image(content)
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "![x](https://e.com/p.png)",
+            # Tracking pixel through a reference definition.
+            "![logo][remote]\n\n[remote]: https://e.com/p.png",
+            "![logo]\n\n[logo]: https://e.com/p.png",
+            "![a][r]\n\n> [r]: https://e.com/p.png",
+            "- ![a][r]\n- [r]: https://e.com/p.png",
+            "|a|\n|-|\n|![x][r]|\n\n[r]: https://e.com/p.png",
+            # A definition hijacking a user file name, case-insensitively.
+            "![a][abc_def.png]\n\n[ABC_def.PNG]: https://e.com/p.png",
+            # Nested alt: the inner image is foreign.
+            "![a ![b](https://e.com/p.png)][abc_def.png]",
+            # An autolink ends before the backtick that looks like a code span.
+            "<http://a`b>![x](https://e.com/p.png)`c",
+        ],
+    )
+    def test_image(self, content):
+        assert contains_markdown_image(content)
+
+    def test_over_budget_counts_as_image(self):
+        content = "`![x]` " + "[" * MAX_INLINE_IMAGE_SCAN_COST
+        start = time.perf_counter()
+        assert contains_markdown_image(content)
+        assert time.perf_counter() - start < 0.5
+
+    def test_budget_ignores_paragraphs_without_foreign_images(self):
+        paragraph = "![a][abc_def.png] " + "[x] " * 1000
+        content = "\n\n".join([paragraph] * 100)
+        assert not contains_markdown_image(content)
+
+
+class TestNeutralizeMarkdownImages:
+    def test_keeps_content_without_images(self):
+        value = "![a][abc_def.png] [b](https://e.com/b.png) `![c](http://x)`"
+        assert neutralize_markdown_images(value) == value
+
+    def test_escapes_pixel_reference(self):
+        value = "![logo][remote]\n\n[remote]: https://e.com/p.png"
+        assert neutralize_markdown_images(value) == (
+            "\\![logo][remote]\n\n[remote]: https://e.com/p.png"
+        )
+
+    def test_escapes_hijacking_definition_and_keeps_reference(self):
+        value = "![a][abc_def.png]\n\n> [ABC_def.png]: https://e.com/p.png"
+        result = neutralize_markdown_images(value)
+        assert result == "![a][abc_def.png]\n\n> \\[ABC_def.png]: https://e.com/p.png"
+        assert extract_user_file_names(result) == {"abc_def.png"}
+
+    def test_escapes_nested_alt(self):
+        result = neutralize_markdown_images(
+            "![a ![b](https://e.com/p.png)][abc_def.png]"
+        )
+        assert not contains_markdown_image(result)
+
+    def test_escapes_code_as_last_resort(self):
+        value = "<http://a`b>![x](https://e.com/p.png)`c"
+        result = neutralize_markdown_images(value)
+        assert result == "<http://a`b>\\![x](https://e.com/p.png)`c"
+        assert not contains_markdown_image(result)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "![x](https://e.com/p.png)",
+            "![logo][remote]\n\n[remote]: https://e.com/p.png",
+            "![a][abc_def.png]\n\n[abc_def.png]: https://e.com/p.png",
+        ],
+    )
+    def test_is_idempotent(self, value):
+        once = neutralize_markdown_images(value)
+        assert not contains_markdown_image(once)
+        assert neutralize_markdown_images(once) == once
