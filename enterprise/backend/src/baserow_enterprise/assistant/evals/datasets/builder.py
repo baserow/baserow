@@ -278,18 +278,18 @@ def _render_saved_formula(formula, values=None) -> str | None:
         return None
 
 
-def _navigates_to_contact(navigation, builder) -> bool:
+def _navigates_to_path(navigation, builder, path) -> bool:
     if navigation.navigation_type == "page":
         target = navigation.navigate_to_page
         return bool(
             target
             and not target.trashed
             and target.builder_id == builder.id
-            and target.path == "/contact"
+            and target.path == path
         )
     return (
         navigation.navigation_type == "custom"
-        and _render_saved_formula(navigation.navigate_to_url) == "/contact"
+        and _render_saved_formula(navigation.navigate_to_url) == path
     )
 
 
@@ -323,7 +323,7 @@ def _check_creates_landing_page(
         and "get started" in text.casefold()
     ]
     navigation = [
-        _navigates_to_contact(element.specific, builder)
+        _navigates_to_path(element.specific, builder, "/contact")
         for element in buttons
         if element.get_type().type == "link"
     ]
@@ -333,7 +333,7 @@ def _check_creates_landing_page(
         event="click",
         content_type__model="openpageworkflowaction",
     ):
-        navigation.append(_navigates_to_contact(action.specific, builder))
+        navigation.append(_navigates_to_path(action.specific, builder, "/contact"))
     return [
         CheckResult(
             "Home page exists at '/'", bool(page and "home" in page.name.casefold())
@@ -771,11 +771,33 @@ def _check_back_button_on_page_not_header(
     detail_elements = Element.objects.filter(page=detail_page)
     shared_elements = Element.objects.filter(page=builder.shared_page)
 
-    button_texts = [
-        str(e.get("value", "") or e.get("label", "")).lower()
-        for e in _collect_element_args(output)
-        if e.get("type") == "button"
+    buttons = [
+        element
+        for element in detail_elements
+        if (
+            element.get_type().type == "button"
+            or (
+                element.get_type().type == "link"
+                and element.specific.variant == "button"
+            )
+        )
+        and (_render_saved_formula(element.specific.value) or "").casefold()
+        == "back to list"
     ]
+    navigation = [
+        _navigates_to_path(element.specific, builder, "/list")
+        for element in buttons
+        if element.get_type().type == "link"
+    ]
+    navigation.extend(
+        _navigates_to_path(action.specific, builder, "/list")
+        for action in BuilderWorkflowAction.objects.filter(
+            page=detail_page,
+            element__in=buttons,
+            event="click",
+            content_type__model="openpageworkflowaction",
+        )
+    )
 
     return [
         CheckResult(
@@ -787,11 +809,8 @@ def _check_back_button_on_page_not_header(
             detail_elements.exists(),
             hint="no elements on Detail page",
         ),
-        CheckResult(
-            "button labeled 'Back to List'",
-            any("back" in t for t in button_texts),
-            hint=f"button texts: {button_texts}",
-        ),
+        CheckResult("saved button labeled 'Back to List'", bool(buttons)),
+        CheckResult("back button navigates to List", any(navigation)),
         CheckResult(
             "no elements added to shared page",
             not shared_elements.exists(),

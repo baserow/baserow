@@ -158,13 +158,13 @@ def list_tables(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-) -> list[dict[str, Any]] | dict[str, Any]:
+) -> dict[str, Any]:
     """\
     List tables, optionally filtered by database or name.
 
     WHEN to use: Before creating tables (to avoid duplicates), when you need table IDs, or to discover what tables exist in the workspace.
     WHAT it does: Lists tables matching the filter criteria (database_id, name, starred), grouped by database.
-    RETURNS: Tables with id, name, database_id. Includes a hint with available tables if no match found.
+    RETURNS: Tables with id, name, database_id and next_steps for resolving missing data. Includes a hint with available tables if no match found.
     DO NOT USE when: You already have the table IDs you need.
     """
 
@@ -201,23 +201,22 @@ def list_tables(
         % {"database_names": ", ".join(database_names)}
     )
 
+    result = {
+        "next_steps": (
+            "For an app that shows records, use a matching table from these results. "
+            "If the requested records are absent (even if unrelated tables exist), "
+            "call ask_user to find their source before creating anything. "
+            "Creating an app does not authorize inventing its records or storage. "
+            "Create tables only if the user requested new data storage or sample data."
+        ),
+    }
     if len(databases) == 0:
-        return {
-            "tables": [],
-            "_info": _no_tables_found_hint(user, workspace, filters),
-            "next_steps": (
-                "If the user wants an app to show or list these records, ask_user "
-                "where that data should come from before building. No matching "
-                "table was found; do not invent records or create replacement "
-                "storage. Create tables only if the user requested new data "
-                "storage or sample records."
-            ),
-        }
+        result.update(tables=[], _info=_no_tables_found_hint(user, workspace, filters))
     elif len(databases) == 1:
-        # Return just the tables array when there's only one database
-        return list(databases.values())[0]["tables"]
+        result["tables"] = list(databases.values())[0]["tables"]
     else:
-        return list(databases.values())
+        result["databases"] = list(databases.values())
+    return result
 
 
 # ---------------------------------------------------------------------------

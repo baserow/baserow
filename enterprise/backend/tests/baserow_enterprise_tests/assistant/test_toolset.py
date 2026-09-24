@@ -5,12 +5,21 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic import ValidationError
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart
+from pydantic_ai.messages import (
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+)
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
+from baserow_enterprise.assistant.action_memory import (
+    get_mutation_evidence,
+    get_verified_tool_outcomes,
+)
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.tools.automation.types.node import (
     ActionNodeCreate,
@@ -114,9 +123,14 @@ async def test_deferred_tool_switches_modes_then_executes_once():
         elif step == 3:
             assert deps.mode == AgentMode.AUTOMATION
             assert executed == []
+            assert all(
+                not evidence.changed for evidence in get_mutation_evidence(messages)
+            )
+            assert get_verified_tool_outcomes(messages) == []
             assert any(
-                isinstance(part, RetryPromptPart)
-                and "was not executed yet" in part.content
+                isinstance(part, ToolReturnPart)
+                and part.content.get("changed") is False
+                and "was not executed yet" in part.content["next_steps"]
                 for part in messages[-1].parts
             )
             assert requests[-1]["create_workflows"].parameters_json_schema[
@@ -136,7 +150,7 @@ async def test_deferred_tool_switches_modes_then_executes_once():
         deps,
     )
 
-    result = await Agent(model=model, toolsets=[toolset]).run(
+    result = await Agent(model=model, toolsets=[toolset], retries=0).run(
         "Create a workflow", deps=deps
     )
 

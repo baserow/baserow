@@ -2,6 +2,7 @@
 
 import pytest
 
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFieldMapping,
 )
@@ -11,6 +12,8 @@ from baserow_enterprise.assistant.evals.datasets.automation import (
     _creates_row_with_field_values_scenario,
 )
 from baserow_enterprise.assistant.evals.datasets.builder import (
+    _back_button_on_page_not_header_scenario,
+    _check_back_button_on_page_not_header,
     _check_creates_app_when_table_exists,
     _check_creates_contact_form,
     _check_creates_landing_page,
@@ -153,6 +156,49 @@ def _element_call(elements):
         "tool_name": "create_display_elements",
         "args": {"elements": elements},
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind", ["button", "link"])
+@pytest.mark.parametrize(
+    "defect", [None, "inert", "wrong_target", "shared", "wrong_label", "text_link"]
+)
+def test_back_button_checks_saved_navigation(data_fixture, kind, defect):
+    scenario = _back_button_on_page_not_header_scenario(data_fixture)
+    builder = scenario.refs["builder"]
+    detail = scenario.refs["detail_page"]
+    page = builder.shared_page if defect == "shared" else detail
+    target = (
+        detail
+        if defect == "wrong_target"
+        else Page.objects.get(builder=builder, path="/list")
+    )
+    value = "'Go elsewhere'" if defect == "wrong_label" else "'Back to List'"
+    if kind == "link":
+        data_fixture.create_builder_link_element(
+            page=page,
+            value=value,
+            variant="link" if defect == "text_link" else "button",
+            navigation_type="page",
+            navigate_to_page_id=None if defect == "inert" else target.id,
+        )
+    else:
+        button = data_fixture.create_builder_button_element(page=page, value=value)
+        if defect != "inert":
+            data_fixture.create_open_page_workflow_action(
+                page=page,
+                element=button,
+                event="click",
+                navigation_type="page",
+                navigate_to_page=target,
+            )
+    output = _output(
+        tool_calls=["create_display_elements"],
+        messages=[_element_call([{"type": kind, "value": "Back to List"}])],
+    )
+    checks = _check_back_button_on_page_not_header(None, scenario, output)
+    expected = defect is None or (kind == "button" and defect == "text_link")
+    assert all(check.passed for check in checks) == expected, checks
 
 
 @pytest.mark.django_db

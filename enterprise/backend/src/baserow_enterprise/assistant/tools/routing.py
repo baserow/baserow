@@ -7,7 +7,6 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from loguru import logger
-from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
@@ -41,7 +40,7 @@ def mode_redirect_message(name: str, mode: AgentMode) -> str:
     )
 
 
-def is_mode_redirect(content: str) -> bool:
+def is_mode_redirect(content: Any) -> bool:
     """
     Whether a retry prompt is the router's re-call redirect.
 
@@ -49,7 +48,11 @@ def is_mode_redirect(content: str) -> bool:
     :return: True when the retry is routing protocol rather than a failure.
     """
 
-    return all(marker in content for marker in MODE_REDIRECT_MARKERS)
+    if isinstance(content, dict):
+        content = content.get("next_steps") if content.get("changed") is False else None
+    return isinstance(content, str) and all(
+        marker in content for marker in MODE_REDIRECT_MARKERS
+    )
 
 
 @dataclass(frozen=True)
@@ -268,16 +271,21 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         :param tool_args: The raw tool arguments.
         :param ctx: The agent run context.
         :param tool: The toolset tool being called.
-        :return: The inner tool result, or an error dict for contained
+        :return: The inner tool result, a mode redirect when the tool must be
+            re-issued with its full schema, or an error dict for contained
             failures such as invalid input or missing resources.
-        :raises ModelRetry: When the call routed a mode switch and the tool
-            must be re-issued with its full schema.
         """
 
         routed_mode = _routed_mode(tool)
         if routed_mode is not None:
             self._deps.mode = routed_mode
-            raise ModelRetry(mode_redirect_message(name, routed_mode))
+            # Routing is control flow, not invalid input. It must not consume
+            # the retry budget used for actual schema or execution failures.
+            return {
+                "changed": False,
+                "mode": routed_mode.value,
+                "next_steps": mode_redirect_message(name, routed_mode),
+            }
 
         try:
             return await self._inner.call_tool(name, tool_args, ctx, tool)

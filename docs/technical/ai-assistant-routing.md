@@ -12,9 +12,11 @@ tools share one catalog and a routing map in `tools/routing.py`. Tools active in
 the current mode expose their full schemas. Other permitted tools are deferred
 and discoverable through the model's tool search support.
 
-Calling a deferred tool changes the mode and returns a retry instruction without
-executing the requested operation. The model must call it again with the full
-schema. Tool execution is sequential so later calls see earlier results and mode
+Calling a deferred tool changes the mode and returns `changed: false` with
+instructions to reissue the call. It does not execute the operation or consume
+the tool-error retry budget. The model must call it again with the full schema.
+Pending calls remain visible in the instructions until they are reissued, and
+routing results are excluded from verified action memory. Tool execution is sequential so later calls see earlier results and mode
 changes. Dynamic row tools are available in database mode and are refreshed when
 their table schema changes.
 
@@ -92,10 +94,11 @@ compaction, eviction, no-ops, failed mutations, and current-turn evidence. Domai
 tool tests verify saved state and reconciliation. For live model runs, use the
 [eval platform](../testing/ai-assistant-evals.md) with a disposable database and
 record the source revision, model settings, case population, and failures.
-Eval harness version 4 preserves version 3's exclusion of required mode-switch
+Eval harness version 5 preserves version 3's exclusion of required mode-switch
 redirects from the tool-error budget. Genuine argument and output-validation
 failures still count. It also matches production's sequential tool execution,
-records request-limit failures without retrying or aborting the suite, and checks
+records request-limit and model/tool retry exhaustion without retrying or
+aborting the suite, and checks
 saved Builder navigation and card values across multiple records. Metadata records
 the evaluator source hash. Older score totals must be interpreted with their
 recorded checks, harness version, and configuration.
