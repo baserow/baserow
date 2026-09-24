@@ -1,12 +1,36 @@
-from django.db import migrations, models
+from django.db import migrations, models, transaction
+
+
+ROW_HISTORY_BACKFILL_BATCH_SIZE = 10_000
 
 
 def set_anonymous_actor_type(apps, schema_editor):
+    """Backfill anonymous actors in short, primary-key-ordered transactions."""
+
     RowHistory = apps.get_model("database", "RowHistory")
-    RowHistory.objects.filter(actor_id__isnull=True).update(actor_type="anonymous")
+    database_alias = schema_editor.connection.alias
+    last_id = 0
+
+    while row_history_ids := list(
+        RowHistory.objects.using(database_alias)
+        .filter(id__gt=last_id, actor_id__isnull=True)
+        .order_by("id")
+        .values_list("id", flat=True)[:ROW_HISTORY_BACKFILL_BATCH_SIZE]
+    ):
+        with transaction.atomic(using=database_alias):
+            RowHistory.objects.using(database_alias).filter(
+                id__in=row_history_ids,
+                actor_id__isnull=True,
+            ).update(actor_type="anonymous")
+        last_id = row_history_ids[-1]
 
 
 class Migration(migrations.Migration):
+    # Release the schema operations' ACCESS EXCLUSIVE locks before starting the
+    # potentially long row-history backfill. Each backfill batch manages its own
+    # short transaction in set_anonymous_actor_type.
+    atomic = False
+
     dependencies = [
         ("database", "0223_gridview_group_by_layout"),
     ]
