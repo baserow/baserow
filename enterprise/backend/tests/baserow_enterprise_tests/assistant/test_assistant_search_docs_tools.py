@@ -1,7 +1,11 @@
+import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
+from pydantic_ai.models.groq import GroqModel
+from pydantic_ai.providers.groq import GroqProvider
 
 from baserow_enterprise.assistant.model_profiles import SUBAGENT
 from baserow_enterprise.assistant.tools.search_user_docs.tools import (
@@ -15,6 +19,98 @@ from .utils import make_test_ctx
 # search_user_docs is async, so we need this to allow sync ORM calls from
 # data_fixture inside async tests.
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "model_name, native, first_error",
+    [
+        ("openai/gpt-oss-120b", True, None),
+        ("openai/gpt-oss-20b", True, None),
+        ("llama-3.3-70b-versatile", False, None),
+        ("openai/gpt-oss-120b", True, "reliability"),
+        ("openai/gpt-oss-120b", True, "source"),
+    ],
+)
+async def test_docs_synthesis_uses_supported_output_protocol(
+    data_fixture, model_name, native, first_error
+):
+    """Exercise the real agent and Groq wire format, including typed validation."""
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    source = "https://example.com/tokens"
+    answer = "Create a database token in Settings."
+    requests = []
+
+    def respond(request):
+        payload = json.loads(request.content)
+        requests.append(payload)
+        result = {"answer": answer, "sources": [source], "reliability": 0.9}
+        if len(requests) == 1:
+            if first_error == "reliability":
+                result["reliability"] = 1.5
+            elif first_error == "source":
+                result["sources"] = ["https://example.com/invented"]
+        if native:
+            response_format = payload["response_format"]
+            assert response_format["type"] == "json_schema"
+            definition = response_format["json_schema"]
+            assert definition["strict"] is True
+            schema = definition["schema"]
+            assert schema["additionalProperties"] is False
+            assert set(schema["required"]) == {"answer", "sources", "reliability"}
+            assert not payload.get("tools")
+            message = {"role": "assistant", "content": json.dumps(result)}
+            reason = "stop"
+        else:
+            assert "response_format" not in payload
+            name = payload["tools"][0]["function"]["name"]
+            message = {
+                "role": "assistant",
+                "tool_calls": [
+                    {
+                        "id": "result-1",
+                        "type": "function",
+                        "function": {"name": name, "arguments": json.dumps(result)},
+                    }
+                ],
+            }
+            reason = "tool_calls"
+        return httpx.Response(
+            200,
+            json={
+                "id": "docs-synthesis",
+                "object": "chat.completion",
+                "created": 0,
+                "model": model_name,
+                "choices": [{"index": 0, "message": message, "finish_reason": reason}],
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        profile = MagicMock(model_string=f"groq:{model_name}")
+        profile.get_settings.return_value = {}
+        profile.create_model.return_value = GroqModel(
+            model_name, provider=GroqProvider(api_key="test-only", http_client=client)
+        )
+        ctx = make_test_ctx(user, workspace, model_profile=profile)
+        chunk = MagicMock(content=answer)
+        chunk.source_document = MagicMock(title="Tokens", source_url=source)
+        with patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
+        ) as handler:
+            handler.return_value.search.return_value = [chunk]
+            result = await search_user_docs(
+                ctx, question="How do I create a database token?", thought="user asks"
+            )
+
+    assert result["answer"] == answer
+    assert result["sources"] == ctx.deps.sources == [source]
+    assert result["reliability"] == 0.9
+    assert len(requests) == (2 if first_error else 1)
+    if first_error == "reliability":
+        assert "less than or equal to 1" in json.dumps(requests[1]["messages"])
 
 
 class TestToolQueryGuard:
