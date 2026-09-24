@@ -131,11 +131,6 @@ def workspace_created(sender, workspace, user, **kwargs):
 @receiver(signals.workspace_updated)
 def workspace_updated(sender, workspace, user, updated_fields=None, **kwargs):
     updated_fields = updated_fields or []
-    excluded_web_socket_id = (
-        None
-        if "generative_ai_models_settings" in updated_fields
-        else getattr(user, "web_socket_id", None)
-    )
     transaction.on_commit(
         lambda: broadcast_to_group.delay(
             workspace.id,
@@ -145,7 +140,7 @@ def workspace_updated(sender, workspace, user, updated_fields=None, **kwargs):
                 "workspace": WorkspaceSerializer(workspace).data,
                 "updated_fields": updated_fields,
             },
-            excluded_web_socket_id,
+            getattr(user, "web_socket_id", None),
         )
     )
 

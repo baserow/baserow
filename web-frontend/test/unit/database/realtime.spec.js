@@ -75,47 +75,6 @@ describe('database realtime AI provider updates', () => {
       { realtimeRecovery: true }
     )
   })
-
-  test('refreshes cached field errors when workspace AI settings change', async () => {
-    const handlers = getHandlers()
-    const store = {
-      getters: {
-        'field/isLoaded': true,
-      },
-      dispatch: vi.fn().mockResolvedValue(),
-    }
-
-    await handlers.group_updated(
-      { store },
-      {
-        updated_fields: ['generative_ai_models_settings'],
-      }
-    )
-
-    expect(store.dispatch).toHaveBeenCalledWith(
-      'field/refreshLoadedFieldErrors',
-      { realtimeRecovery: true }
-    )
-  })
-
-  test('does not refresh field errors when workspace metadata changes', async () => {
-    const handlers = getHandlers()
-    const store = {
-      getters: {
-        'field/isLoaded': true,
-      },
-      dispatch: vi.fn().mockResolvedValue(),
-    }
-
-    await handlers.group_updated(
-      { store },
-      {
-        updated_fields: ['name'],
-      }
-    )
-
-    expect(store.dispatch).not.toHaveBeenCalled()
-  })
 })
 
 describe('database realtime button field updates', () => {

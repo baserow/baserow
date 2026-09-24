@@ -322,44 +322,6 @@ def test_workspace_updated(mock_broadcast_to_workspace, data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.ws.signals.broadcast_to_group")
-@pytest.mark.websockets
-def test_workspace_ai_settings_change_broadcasts_enabled_models(
-    mock_broadcast_to_workspace, data_fixture
-):
-    user = data_fixture.create_user()
-    user.web_socket_id = "test"
-    workspace = data_fixture.create_workspace(user=user)
-    AIProviderHandler.create_provider(
-        "openai",
-        api_key="secret",
-        models_data=[
-            {"model_identifier": "gpt-5"},
-            {"model_identifier": "gpt-4"},
-        ],
-    )
-
-    with transaction.atomic():
-        locked_workspace = CoreHandler().get_workspace_for_update(workspace.id)
-        CoreHandler().update_workspace(
-            user,
-            locked_workspace,
-            generative_ai_models_settings={
-                "openai": {
-                    "api_key": "workspace-secret",
-                    "models": ["gpt-4"],
-                }
-            },
-        )
-
-    payload = mock_broadcast_to_workspace.delay.call_args.args[1]
-    assert payload["type"] == "group_updated"
-    assert payload["updated_fields"] == ["generative_ai_models_settings"]
-    assert payload["workspace"]["generative_ai_models_enabled"] == {"openai": ["gpt-4"]}
-    assert mock_broadcast_to_workspace.delay.call_args.args[2] is None
-
-
-@pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.signals.broadcast_ai_provider_update")
 @pytest.mark.websockets
 def test_instance_ai_provider_change_schedules_complete_payload(

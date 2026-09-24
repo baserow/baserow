@@ -53,9 +53,6 @@ class AIIntegrationType(IntegrationType):
     ) -> Dict[str, Any]:
         """Validate explicit per-integration provider settings before saving.
 
-        Database-only providers are valid here because complete overrides are passed
-        atomically to the runtime instead of being stored in legacy workspace settings.
-
         :param values: The integration values supplied by the caller.
         :param user: The user creating or updating the integration.
         :returns: The normalized values prepared by the base integration type.
@@ -68,9 +65,7 @@ class AIIntegrationType(IntegrationType):
 
         if values["ai_settings"]:
             validated_settings = validate_data(
-                get_generative_ai_settings_serializer(
-                    include_database_only_providers=True
-                ),
+                get_generative_ai_settings_serializer(),
                 values["ai_settings"],
                 return_validated=True,
             )

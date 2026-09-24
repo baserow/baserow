@@ -179,19 +179,10 @@ Verify:
 - Both appear in the **Add provider** type list and accept an API key.
 - Their models can be marked for Kuma, AI fields, and AI Agent services, tested, and
   selected like any other provider's.
-- They are configurable through the admin/workspace AI providers UI only. The legacy
-  endpoint is `PATCH` (a `PUT` returns `405`), and a `google` or `groq` key is
-  rejected with `400 ERROR_REQUEST_BODY_VALIDATION`, *"Your request body had the
-  following unknown attributes: google"*, while `openai`, `anthropic`, `mistral`,
-  `ollama` and `openrouter` are still accepted there:
-
-  ```bash
-  curl -X PATCH "http://localhost:8000/api/workspaces/<id>/settings/generative-ai/" \
-    -H "Authorization: JWT $JWT" -H "Content-Type: application/json" \
-    -d '{"google":{"api_key":"x","models":["gemini-3.6-flash"]}}'
-  ```
-- An **AI integration** in the application builder or an automation *does* accept
-  `google` and `groq` in its `ai_settings`.
+- The legacy `/api/workspaces/<id>/settings/generative-ai/` endpoint is gone and
+  returns `404`.
+- An **AI integration** in the application builder or an automation accepts `google`
+  and `groq` in its `ai_settings`.
 
 ### 1.4 Editing a model resets its test result
 
@@ -718,7 +709,9 @@ These cases verify compatibility for deprecated environment configuration; new
 connections and model selections belong in **AI providers** settings.
 
 On a disposable copy with no database provider rows, retain working legacy
-environment settings and complete workspace settings. Verify:
+environment settings and complete workspace settings. The endpoint that edited
+workspace settings is gone, so write any missing ones to
+`Workspace.generative_ai_models_settings` in the shell. Verify:
 
 - AI Fields, formula suggestions, and inherited AI Agent services use the expected
   legacy account and model without running imports. Workspace settings are an atomic

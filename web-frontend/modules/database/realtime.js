@@ -34,19 +34,6 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
-  realtime.registerEvent('group_updated', async ({ store }, data) => {
-    if (
-      data.updated_fields?.includes('generative_ai_models_settings') &&
-      store.getters['field/isLoaded']
-    ) {
-      await Promise.allSettled([
-        store.dispatch('field/refreshLoadedFieldErrors', {
-          realtimeRecovery: true,
-        }),
-      ])
-    }
-  })
-
   realtime.registerEvent('table_created', ({ store }, data) => {
     const database = store.getters['application/get'](data.table.database_id)
     if (database !== undefined) {

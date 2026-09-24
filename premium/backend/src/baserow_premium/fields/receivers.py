@@ -4,8 +4,8 @@ from django.db import transaction
 from django.dispatch import receiver
 
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
-from baserow.core import signals as core_signals
 from baserow.core.ai_provider.signals import ai_provider_updated
+from baserow.core.models import Workspace
 from baserow.ws.registries import page_registry
 
 from .models import AIField
@@ -65,17 +65,4 @@ def broadcast_ai_field_errors(
     if model_identifiers is not None:
         fields = fields.filter(ai_generative_ai_model__in=model_identifiers)
 
-    _schedule_ai_field_error_broadcasts(fields)
-
-
-@receiver(core_signals.workspace_updated)
-def broadcast_workspace_ai_field_errors(
-    sender, workspace, updated_fields=None, **kwargs
-):
-    if "generative_ai_models_settings" not in (updated_fields or []):
-        return
-
-    fields = AIField.objects.filter(
-        table__database__workspace=workspace
-    ).select_related("table__database__workspace")
     _schedule_ai_field_error_broadcasts(fields)

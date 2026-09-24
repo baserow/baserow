@@ -605,173 +605,23 @@ def test_trashed_workspace_not_returned_by_views(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_only_admin_can_list_generative_ai_settings(api_client, data_fixture):
-    data_fixture.register_fake_generate_ai_type()
-    user, token = data_fixture.create_user_and_token(email="test@test.nl")
-    member_user, member_token = data_fixture.create_user_and_token(
-        email="test2@test.nl",
-    )
-
-    workspace = data_fixture.create_workspace(user=user)
-    data_fixture.create_user_workspace(
-        workspace=workspace, user=member_user, permissions="MEMBER"
-    )
-
-    response = api_client.get(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
-    )
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json == {}
-
-    response = api_client.get(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        **{"HTTP_AUTHORIZATION": f"JWT {member_token}"},
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-
-
-@pytest.mark.django_db
-def test_legacy_ai_settings_hide_database_only_providers(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(
-        user=user,
-        generative_ai_models_settings={
-            "google": {
-                "api_key": "google-secret",
-                "models": ["gemini-2.5-flash"],
-            },
-            "groq": {
-                "api_key": "groq-secret",
-                "models": ["openai/gpt-oss-120b"],
-            },
-            "openai": {
-                "api_key": "openai-secret",
-                "models": ["gpt-5"],
-            },
-        },
-    )
-
-    response = api_client.get(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json() == {
-        "openai": {"api_key": "openai-secret", "models": ["gpt-5"]}
-    }
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("provider_type", ["google", "groq"])
-def test_legacy_ai_settings_reject_database_only_providers(
-    api_client, data_fixture, provider_type
-):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-
-    response = api_client.patch(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        {
-            provider_type: {
-                "api_key": "database-only-secret",
-                "models": ["database-only-model"],
-            }
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    response_json = response.json()
-    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert provider_type in response_json["detail"]["non_field_errors"][0]["error"]
-    workspace.refresh_from_db()
-    assert workspace.generative_ai_models_settings == {}
-
-
-@pytest.mark.django_db
-def test_workspace_settings_override_global_generative_ai_settings(
+def test_legacy_workspace_generative_ai_settings_endpoint_is_removed(
     api_client, data_fixture
 ):
-    data_fixture.register_fake_generate_ai_type()
-    user, token = data_fixture.create_user_and_token(email="test@test.nl")
-    member_user, member_token = data_fixture.create_user_and_token(
-        email="test2@test.nl",
-    )
-
+    user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    data_fixture.create_user_workspace(
-        workspace=workspace, user=member_user, permissions="MEMBER"
+    url = f"/api/workspaces/{workspace.id}/settings/generative-ai/"
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    get_response = api_client.get(url, **headers)
+    patch_response = api_client.patch(
+        url, {"openai": {"models": ["gpt-5"]}}, format="json", **headers
     )
 
-    # the default value
-    response = api_client.get(
-        reverse("api:workspaces:list"), **{"HTTP_AUTHORIZATION": f"JWT {member_token}"}
-    )
-
-    assert response.status_code == HTTP_200_OK
-    assert response.json()[0]["generative_ai_models_enabled"] == {
-        "test_generative_ai": ["test_1"],
-        "test_generative_ai_prompt_error": ["test_1"],
-        "test_generative_ai_with_files": ["test_1"],
-    }
-
-    response = api_client.patch(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        {"test_generative_ai": {"models": ["cannot_change_it"]}},
-        format="json",
-        **{"HTTP_AUTHORIZATION": f"JWT {member_token}"},
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
-
-    response = api_client.patch(
-        reverse(
-            "api:workspaces:generative_ai_settings",
-            kwargs={"workspace_id": workspace.id},
-        ),
-        {"test_generative_ai": {"models": ["wp_model_setting"]}},
-        format="json",
-        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
-    )
-    assert response.status_code == HTTP_200_OK
-    response_json = response.json()
-    assert response_json == {
-        "id": workspace.id,
-        "name": workspace.name,
-        "generative_ai_models_enabled": {
-            "test_generative_ai": ["wp_model_setting"],  # it was "test_1"
-            "test_generative_ai_prompt_error": ["test_1"],
-            "test_generative_ai_with_files": ["test_1"],
-        },
-    }
-
-    response = api_client.get(
-        reverse("api:workspaces:list"), **{"HTTP_AUTHORIZATION": f"JWT {member_token}"}
-    )
-
-    # The global settings is overridden by the workspace settings
-    assert response.status_code == HTTP_200_OK
-    settings = response.json()[0]["generative_ai_models_enabled"]
-    assert settings["test_generative_ai"] == ["wp_model_setting"]  # it was "test_1"
+    assert get_response.status_code == HTTP_404_NOT_FOUND
+    assert patch_response.status_code == HTTP_404_NOT_FOUND
+    workspace.refresh_from_db()
+    assert workspace.generative_ai_models_settings == {}
 
 
 @pytest.mark.django_db

@@ -46,23 +46,14 @@ class WorkspaceSerializer(serializers.ModelSerializer):
         )
 
 
-def get_generative_ai_settings_serializer(
-    include_database_only_providers: bool = False,
-):
+def get_generative_ai_settings_serializer() -> type[serializers.Serializer]:
     """Build a serializer for explicit generative AI provider settings.
 
-    :param include_database_only_providers: Whether to include providers which cannot
-        persist settings in the legacy workspace JSON field.
-    :return: A serializer containing the providers allowed by the requested scope.
+    :return: A serializer with an optional settings field per registered provider.
     """
 
     ai_model_types = {}
     for ai_model_type in generative_ai_model_type_registry.get_all():
-        if (
-            not include_database_only_providers
-            and not ai_model_type.supports_legacy_workspace_settings
-        ):
-            continue
         settings_serializer = ai_model_type.get_settings_serializer()
         ai_model_types[ai_model_type.type] = settings_serializer(required=False)
     return type(
