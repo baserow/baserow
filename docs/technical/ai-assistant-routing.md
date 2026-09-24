@@ -12,13 +12,14 @@ tools share one catalog and a routing map in `tools/routing.py`. Tools active in
 the current mode expose their full schemas. Other permitted tools are deferred
 and discoverable through the model's tool search support.
 
-Calling a deferred tool changes the mode and returns `changed: false` with
-instructions to reissue the call. It does not execute the operation or consume
-the tool-error retry budget. The model must call it again with the full schema.
-Pending calls remain visible in the instructions until they are reissued, and
-routing results are excluded from verified action memory. Tool execution is sequential so later calls see earlier results and mode
-changes. Dynamic row tools are available in database mode and are refreshed when
-their table schema changes.
+Calling a deferred tool changes the mode. If its arguments already match the
+full JSON schema, it follows the normal validated execution path immediately.
+Incomplete calls return `changed: false` with instructions to reissue the call
+using the full schema, without consuming the tool-error retry budget. Those
+pending calls remain visible until reissued, and routing-only results are
+excluded from verified action memory. Tool execution is sequential so later calls
+see earlier results and mode changes. Dynamic row tools are available in database
+mode and are refreshed when their table schema changes.
 
 When adding a tool, register it in its domain's tool functions and ensure the
 routing map assigns it an owner. A mode switch never grants permissions or makes
@@ -95,9 +96,10 @@ Run the assistant and prompt tests with:
 just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ ../premium/backend/tests/baserow_premium_tests/prompts/test_prompt_assets.py -n=auto -q
 ```
 
-The routing tests exercise discovery, switching without execution, one subsequent
-execution, and unavailable groups. History and answer-validation tests cover
-compaction, eviction, no-ops, failed mutations, and current-turn evidence. Domain
+The routing tests exercise discovery, immediate execution of complete calls,
+deferred execution of incomplete calls, and unavailable groups. History and
+answer-validation tests cover compaction, eviction, no-ops, failed mutations,
+and current-turn evidence. Domain
 tool tests verify saved state and reconciliation. For live model runs, use the
 [eval platform](../testing/ai-assistant-evals.md) with a disposable database and
 record the source revision, model settings, case population, and failures.

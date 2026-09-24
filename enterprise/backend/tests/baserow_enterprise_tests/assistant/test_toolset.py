@@ -1,9 +1,10 @@
 import json
 from types import SimpleNamespace
+from typing import Annotated
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pydantic import ValidationError
+from pydantic import AfterValidator, ValidationError
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.messages import (
     ModelResponse,
@@ -16,6 +17,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
+from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow_enterprise.assistant.action_memory import (
     get_mutation_evidence,
     get_verified_tool_outcomes,
@@ -39,6 +41,7 @@ from baserow_enterprise.assistant.tools.registries import (
     AssistantToolType,
 )
 from baserow_enterprise.assistant.tools.routing import ModeAwareToolset
+from baserow_enterprise.assistant.tools.shared.errors import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import InlineRefsToolset
 
 from .utils import make_test_ctx
@@ -65,7 +68,7 @@ async def test_routed_call_remains_in_instructions_until_reissued():
         if step == 1:
             part = ToolCallPart("search_tools", {"queries": ["create_workflows"]})
         elif step == 2:
-            part = ToolCallPart("create_workflows", {"name": "Process Orders"})
+            part = ToolCallPart("create_workflows", {})
         elif step in (3, 4):
             assert executed == []
             assert "create_workflows" in info.instructions
@@ -101,7 +104,50 @@ async def test_routed_call_remains_in_instructions_until_reissued():
 
 
 @pytest.mark.asyncio
-async def test_deferred_tool_switches_modes_then_executes_once():
+async def test_complete_deferred_tool_executes_once_without_a_second_call():
+    executed = []
+    deps = SimpleNamespace(mode=AgentMode.DATABASE)
+    step = 0
+
+    def create_workflows(name: Annotated[str, AfterValidator(str.strip)]):
+        executed.append(name)
+        return {"created_workflows": [{"id": 1, "name": name}]}
+
+    def respond(messages, info):
+        nonlocal step
+        step += 1
+        if step == 1:
+            part = ToolCallPart("search_tools", {"queries": ["create_workflows"]})
+        elif step == 2:
+            part = ToolCallPart("create_workflows", {"name": " Process Orders "})
+        else:
+            assert step == 3
+            assert deps.mode == AgentMode.AUTOMATION
+            assert executed == ["Process Orders"]
+            assert any(evidence.changed for evidence in get_mutation_evidence(messages))
+            part = TextPart("Created Process Orders.")
+        return ModelResponse(parts=[part])
+
+    model = FunctionModel(respond, profile={"supported_native_tools": frozenset()})
+    toolset = ModeAwareToolset(
+        InlineRefsToolset(
+            FunctionToolset([create_workflows]), model=model, model_profile=MagicMock()
+        ),
+        deps,
+    )
+    result = await Agent(model=model, toolsets=[toolset], retries=0).run(
+        "Create a workflow", deps=deps
+    )
+
+    assert result.output == "Created Process Orders."
+    assert executed == ["Process Orders"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "initial_args", [{}, {"name": 7}, {"name": "Orders", "extra": True}]
+)
+async def test_deferred_tool_switches_modes_then_executes_once(initial_args):
     executed = []
     requests = []
     deps = SimpleNamespace(mode=AgentMode.DATABASE)
@@ -119,7 +165,7 @@ async def test_deferred_tool_switches_modes_then_executes_once():
             part = ToolCallPart("search_tools", {"queries": ["create_workflows"]})
         elif step == 2:
             assert executed == []
-            part = ToolCallPart("create_workflows", {})
+            part = ToolCallPart("create_workflows", initial_args)
         elif step == 3:
             assert deps.mode == AgentMode.AUTOMATION
             assert executed == []
@@ -156,6 +202,44 @@ async def test_deferred_tool_switches_modes_then_executes_once():
 
     assert result.output == "Created Process Orders."
     assert executed == ["Process Orders"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error, expected",
+    [
+        (PermissionDenied(), "permission was denied"),
+        (UserNotInWorkspace(), "outside the current workspace"),
+        (ToolInputError("Invalid workflow"), "Invalid workflow"),
+        (ModelRetry("Invalid workflow"), "Invalid workflow"),
+    ],
+)
+async def test_complete_deferred_tool_preserves_domain_errors(error, expected):
+    deps = SimpleNamespace(mode=AgentMode.DATABASE)
+
+    def create_workflows(name: str):
+        raise error
+
+    model = TestModel()
+    toolset = ModeAwareToolset(
+        InlineRefsToolset(
+            FunctionToolset([create_workflows]), model=model, model_profile=MagicMock()
+        ),
+        deps,
+    )
+    ctx = RunContext(deps=deps, model=model, usage=RunUsage(), prompt="Create")
+    tools = await toolset.get_tools(ctx)
+    if isinstance(error, ModelRetry):
+        with pytest.raises(ModelRetry, match=expected):
+            await toolset.call_tool(
+                "create_workflows", {"name": "Orders"}, ctx, tools["create_workflows"]
+            )
+    else:
+        result = await toolset.call_tool(
+            "create_workflows", {"name": "Orders"}, ctx, tools["create_workflows"]
+        )
+        assert expected in result["error"]
+    assert deps.mode == AgentMode.AUTOMATION
 
 
 @pytest.mark.asyncio
