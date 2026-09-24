@@ -2,8 +2,12 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, AnonymousUser
+from django.db.models import Case, CharField, F, IntegerField, Q, Value, When
+from django.db.models.functions import Cast
+from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import User, Workspace, WorkspaceUser
+from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
 from baserow.core.registries import SubjectType
 from baserow.core.types import Subject
 
@@ -11,8 +15,10 @@ from baserow.core.types import Subject
 class UserSubjectType(SubjectType):
     type = "auth.User"
     model_class = User
+    is_interactive_user = True
     display_name_field = "first_name"
     lookup_fields = (*SubjectType.lookup_fields, "email")
+    options_list_operation_type = ListWorkspaceUsersWorkspaceOperationType.type
 
     has_direct_workspace_roles = True
 
@@ -41,6 +47,60 @@ class UserSubjectType(SubjectType):
         permissions = "MEMBER" if role_uid == "BUILDER" else role_uid
         CoreHandler().force_update_workspace_user(
             None, workspace_user, permissions=permissions
+        )
+
+    def get_type_display_name(self):
+        return _("User")
+
+    def get_display_name(self, subject: AbstractUser) -> str:
+        return subject.first_name
+
+    def get_queryset(self, workspace_id=None):
+        queryset = User.objects.all()
+        if workspace_id is not None:
+            queryset = queryset.filter(workspaceuser__workspace_id=workspace_id)
+        return queryset.order_by("email")
+
+    def get_label(self, subject: AbstractUser) -> str:
+        return subject.email
+
+    def get_options_queryset(
+        self,
+        workspace: Workspace | None = None,
+        search: str = "",
+        exclude_ids: List[int] | None = None,
+    ):
+        """Return searchable user options, optionally scoped to a workspace."""
+
+        queryset = User.objects.filter(
+            is_active=True, profile__to_be_deleted=False
+        ).exclude(id__in=exclude_ids or [])
+        if workspace is not None:
+            queryset = queryset.filter(workspaceuser__workspace=workspace)
+        if search:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search)
+                | Q(username__icontains=search)
+                | Q(email__icontains=search)
+            )
+        return queryset.annotate(
+            subject_id=F("id"),
+            subject_type=Value(self.type, output_field=CharField()),
+            subject_name=Case(
+                When(first_name="", then=F("email")),
+                default=F("first_name"),
+                output_field=CharField(),
+            ),
+            subject_label=F("email"),
+            subject_email=F("email"),
+            subject_count=Cast(Value(None), output_field=IntegerField()),
+        ).values(
+            "subject_id",
+            "subject_type",
+            "subject_name",
+            "subject_label",
+            "subject_email",
+            "subject_count",
         )
 
     def get_workspace_role_uids(
@@ -131,6 +191,14 @@ class UserSubjectType(SubjectType):
 class AnonymousUserSubjectType(SubjectType):
     type = "anonymous"
     model_class = AnonymousUser
+
+    def get_type_display_name(self):
+        return _("Anonymous user")
+
+    def get_display_name(self, subject: AnonymousUser) -> str:
+        # Row history persists this as a stable fallback. Clients translate the
+        # anonymous actor label at render time so it uses the viewer's language.
+        return "Anonymous User"
 
     def are_in_workspace(
         self,

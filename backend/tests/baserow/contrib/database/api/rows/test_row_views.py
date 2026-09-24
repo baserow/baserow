@@ -3898,6 +3898,11 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1",
@@ -3918,6 +3923,11 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -3968,6 +3978,11 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4137,6 +4152,11 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4380,6 +4400,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1",
@@ -4400,6 +4425,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4448,6 +4478,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:02:00Z",
                 "before": {
                     f"field_{name_field.id}": "Original 1",
@@ -4470,6 +4505,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1",
@@ -4490,6 +4530,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4613,6 +4658,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2023-01-01T12:04:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1.3",
@@ -4633,6 +4683,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2023-01-01T12:03:00Z",
@@ -4676,6 +4731,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2023-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1.0",
@@ -4696,6 +4756,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2023-01-01T12:00:00Z",

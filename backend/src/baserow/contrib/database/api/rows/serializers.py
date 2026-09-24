@@ -17,6 +17,7 @@ from baserow.contrib.database.rows.registries import (
     RowMetadataType,
     row_metadata_registry,
 )
+from baserow.core.subjects import UserSubjectType
 
 
 class RowSerializer(serializers.ModelSerializer):
@@ -612,13 +613,20 @@ class GetRowAdjacentSerializer(
 
 class RowHistoryUserSerializer(serializers.Serializer):
     id = serializers.IntegerField(
-        source="user_id",
+        source="actor_id",
+        allow_null=True,
         help_text="The id of the user.",
     )
     name = serializers.CharField(
-        source="user_name",
+        source="actor_name",
         help_text="The first name of the user.",
     )
+
+
+class RowHistoryActorSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="actor_id", allow_null=True)
+    type = serializers.CharField(source="actor_type")
+    name = serializers.CharField(source="actor_name")
 
 
 class RowHistorySerializer(serializers.ModelSerializer):
@@ -626,8 +634,11 @@ class RowHistorySerializer(serializers.ModelSerializer):
         source="action_timestamp",
         help_text="The timestamp of the action that was performed.",
     )
-    user = RowHistoryUserSerializer(
-        source="*", help_text="The user that performed the action."
+    user = serializers.SerializerMethodField(
+        help_text="Deprecated. Use actor instead. Null for non-user actors.",
+    )
+    actor = RowHistoryActorSerializer(
+        source="*", help_text="The actor that performed the action."
     )
     before = serializers.JSONField(
         source="before_values",
@@ -638,6 +649,11 @@ class RowHistorySerializer(serializers.ModelSerializer):
         help_text="The mapping between field_ids and values for the row after the action was performed.",
     )
 
+    def get_user(self, instance):
+        if instance.actor_type != UserSubjectType.type:
+            return None
+        return RowHistoryUserSerializer(instance).data
+
     class Meta:
         model = RowHistory
         fields = [
@@ -645,6 +661,7 @@ class RowHistorySerializer(serializers.ModelSerializer):
             "action_type",
             "action_command_type",
             "user",
+            "actor",
             "timestamp",
             "before",
             "after",

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 import pytest
 
@@ -21,6 +22,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
 )
 from baserow.core.exceptions import PermissionException
+from baserow.core.models import Agent
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -55,6 +57,27 @@ def test_create_local_baserow_list_rows_service(data_fixture):
 
     assert service.view.id == view.id
     assert service.table.id == view.table_id
+
+
+@pytest.mark.django_db
+def test_before_dispatch_updates_authorized_agent_last_active(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = Agent.objects.create(workspace=workspace, name="Reader")
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_agent=agent,
+        application=data_fixture.create_builder_application(workspace=workspace),
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration
+    )
+
+    before = timezone.now()
+    service.get_type().before_dispatch(service, FakeDispatchContext())
+    agent.refresh_from_db()
+
+    assert agent.last_active is not None
+    assert agent.last_active >= before
 
 
 @pytest.mark.django_db

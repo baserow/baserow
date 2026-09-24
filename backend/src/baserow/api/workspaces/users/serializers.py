@@ -134,6 +134,9 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True,
         help_text="List of all workspace users.",
     )
+    agents_count = serializers.SerializerMethodField(
+        help_text="The number of agents in the workspace."
+    )
 
     # WorkspaceUser fields
     order = serializers.IntegerField(
@@ -151,6 +154,11 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True, help_text="Generative AI models available in this workspace."
     )
     ai_features = serializers.SerializerMethodField(read_only=True)
+
+    def get_agents_count(self, workspace_user):
+        """Return the annotated agent count without issuing another query."""
+
+        return getattr(workspace_user, "workspace_agent_count", 0)
 
     def _get_ai_provider_state(self, workspace_user):
         """

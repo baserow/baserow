@@ -127,9 +127,6 @@ describe('SelectAgentsList', () => {
     const wrapper = await mountSuspended(RoleAssignmentModal, {
       props: { agents: [agent], scopeType: 'application' },
       global: {
-        mocks: {
-          $featureFlagIsEnabled: (flag) => flag === 'agents',
-        },
         stubs: {
           Modal: {
             methods: { hide() {} },
@@ -156,24 +153,5 @@ describe('SelectAgentsList', () => {
     await agentsTab.trigger('click')
     await wrapper.find('.select-agent').trigger('click')
     expect(wrapper.emitted('invite-agents')).toEqual([[[agent], role]])
-  })
-
-  test('hides the Agents tab when the feature flag is disabled', async () => {
-    const wrapper = await mountSuspended(RoleAssignmentModal, {
-      props: { scopeType: 'application' },
-      global: {
-        mocks: {
-          $featureFlagIsEnabled: () => false,
-        },
-        stubs: {
-          Modal: { template: '<div><slot /></div>' },
-          SelectMembersList: true,
-          SelectTeamsList: true,
-          SelectAgentsList: true,
-        },
-      },
-    })
-
-    expect(wrapper.text()).not.toContain('roleAssignmentModal.agentsTab')
   })
 })

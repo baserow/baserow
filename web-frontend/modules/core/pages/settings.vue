@@ -14,6 +14,7 @@
         :disabled="!page.navigable"
         :to="page.to"
         :icon="!page.navigable ? 'iconoir-lock' : null"
+        :development-stage="page.developmentStage"
       >
         <NuxtPage :workspace="workspace" />
       </Tab>
@@ -81,6 +82,7 @@ const pages = computed(() => {
   return permittedPages.map((instance) => ({
     type: instance.type,
     name: instance.getName(),
+    developmentStage: instance.developmentStage,
     to: instance.getRoute(workspace.value),
     navigable: instance.isFeatureActive(workspace.value),
     deactivatedModal: instance.getFeatureDeactivatedModal(workspace.value),

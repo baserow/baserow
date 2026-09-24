@@ -64,4 +64,17 @@ describe('Tabs', () => {
     expect(tabItem.attributes('data-highlight')).toBe('tour-target')
     expect(tabItem.get('.tabs__link').text()).toBe('Agents')
   })
+
+  it('renders a development badge next to the tab title', async () => {
+    const wrapper = await mountSuspended(Tabs, {
+      components: {
+        Tab,
+      },
+      slots: {
+        default: '<Tab title="Agents" development-stage="beta">Content</Tab>',
+      },
+    })
+
+    expect(wrapper.get('.tabs__link .badge').text()).toContain('common.beta')
+  })
 })
