@@ -41,6 +41,7 @@ from baserow.core.ai_provider.registries import (
     AIProviderModelFeatureType,
     ai_provider_model_feature_type_registry,
 )
+from baserow.core.ai_provider.resolution import clear_ai_provider_state_cache
 from baserow.core.generative_ai.capabilities import (
     ModelTextResponseNotSupportedError,
 )
@@ -640,7 +641,9 @@ def test_kuma_model_selection_inherits_overrides_and_disables(data_fixture):
 
 
 @pytest.mark.django_db
-def test_inherited_state_reports_why_an_instance_selection_is_unusable(data_fixture):
+def test_inherited_state_follows_the_instance_selection_not_workspace_switch_offs(
+    data_fixture,
+):
     workspace = data_fixture.create_workspace()
     instance_provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="instance-key"
@@ -663,19 +666,20 @@ def test_inherited_state_reports_why_an_instance_selection_is_unusable(data_fixt
     assert configured["inherited_state"] == "configured"
     assert configured["inherited_model"] == instance_model
 
-    AIProviderHandler.update_feature_setting(
-        AI_PROVIDER_FEATURE_KUMA,
-        AI_PROVIDER_FEATURE_MODE_DISABLED,
-        workspace=workspace,
-    )
     AIProviderHandler.set_workspace_provider_enabled(
         workspace, instance_provider, False
     )
-    invalid = AIProviderHandler.list_feature_settings(workspace)[0]
-    assert invalid["inherited_state"] == "invalid"
-    assert invalid["inherited_model"] is None
-    # The instance itself is still configured; only this workspace cannot resolve it.
-    assert AIProviderHandler.list_feature_settings()[0]["state"] == "configured"
+    switched_off = AIProviderHandler.list_feature_settings(workspace)[0]
+    assert switched_off["inherited_state"] == "configured"
+    assert switched_off["inherited_model"] == instance_model
+
+    AIProviderModel.objects.filter(id=instance_model.id).update(is_enabled=False)
+    clear_ai_provider_state_cache()
+    assert (
+        AIProviderHandler.list_feature_settings(workspace)[0]["inherited_state"]
+        == "invalid"
+    )
+    assert AIProviderHandler.list_feature_settings()[0]["state"] == "invalid"
 
     AIProviderHandler.update_feature_setting(
         AI_PROVIDER_FEATURE_KUMA,
@@ -689,7 +693,7 @@ def test_inherited_state_reports_why_an_instance_selection_is_unusable(data_fixt
 
 
 @pytest.mark.django_db
-def test_in_use_error_names_the_model_an_inherited_provider_resolves_through(
+def test_switch_off_keeps_inherited_kuma_but_rejects_explicit_instance_selection(
     data_fixture,
 ):
     workspace = data_fixture.create_workspace()
@@ -704,6 +708,98 @@ def test_in_use_error_names_the_model_an_inherited_provider_resolves_through(
     AIProviderHandler.update_feature_setting(
         AI_PROVIDER_FEATURE_KUMA,
         AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=instance_model,
+    )
+
+    AIProviderHandler.set_workspace_provider_enabled(
+        workspace, instance_provider, False
+    )
+
+    inherited = AIProviderHandler.list_feature_settings(workspace)[0]
+    assert inherited["state"] == "inherited"
+    assert inherited["model"] == instance_model
+    with pytest.raises(AIProviderFeatureModelNotAvailable):
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_MODEL,
+            workspace=workspace,
+            model=instance_model,
+        )
+
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_DISABLED,
+        workspace=workspace,
+    )
+    inherited_again = AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_INHERIT,
+        workspace=workspace,
+    )
+    assert inherited_again["state"] == "inherited"
+    assert inherited_again["model"] == instance_model
+
+
+@pytest.mark.django_db
+def test_workspace_disabled_kuma_stays_disabled_when_instance_provider_is_switched_off(
+    data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "openai:legacy-model"
+    workspace = data_fixture.create_workspace()
+    instance_provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-key"
+    )
+    instance_model = AIProviderModel.objects.create(
+        provider_config=instance_provider,
+        model_identifier="instance-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_DISABLED,
+        workspace=workspace,
+    )
+    AIProviderHandler.set_workspace_provider_enabled(
+        workspace, instance_provider, False
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=instance_model,
+    )
+
+    kuma = AIProviderHandler.list_feature_settings(workspace)[0]
+    assert kuma["mode"] == AI_PROVIDER_FEATURE_MODE_DISABLED
+    assert kuma["state"] == "disabled"
+    assert kuma["model"] is None
+    assert kuma["inherited_state"] == "configured"
+    assert kuma["inherited_model"] == instance_model
+    availability = ai_provider_model_feature_type_registry.get_workspace_availability(
+        workspace
+    )
+    assert availability[AI_PROVIDER_FEATURE_KUMA] == {
+        "is_enabled": False,
+        "state": "disabled",
+    }
+
+
+@pytest.mark.django_db
+def test_in_use_error_names_the_model_an_explicit_workspace_selection_uses(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    instance_provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-key"
+    )
+    instance_model = AIProviderModel.objects.create(
+        provider_config=instance_provider,
+        model_identifier="instance-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        workspace=workspace,
         model=instance_model,
     )
 
@@ -908,73 +1004,6 @@ def test_in_use_error_pairs_the_named_model_with_only_its_own_features(monkeypat
     assert second_model.id
 
 
-@pytest.mark.django_db
-def test_get_model_usage_counts_per_consumer_features_only(monkeypatch):
-    class CountingFeatureType(AIProviderModelFeatureType):
-        type = "counting_feature"
-
-        def count_model_references(
-            self, provider_type, model_identifier, workspace=None
-        ):
-            return 3
-
-    class PlainFeatureType(AIProviderModelFeatureType):
-        type = "plain_feature"
-
-    class DefaultModelFeatureType(AIProviderModelFeatureType):
-        type = "default_model_feature"
-        supports_default_model = True
-
-    monkeypatch.setattr(
-        ai_provider_model_feature_type_registry,
-        "registry",
-        {
-            "counting_feature": CountingFeatureType(),
-            "plain_feature": PlainFeatureType(),
-            "default_model_feature": DefaultModelFeatureType(),
-        },
-    )
-    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
-    model = AIProviderModel.objects.create(
-        provider_config=provider, model_identifier="gpt-4o"
-    )
-
-    assert AIProviderHandler.get_model_usage(model) == {
-        "counting_feature": 3,
-        "plain_feature": 0,
-    }
-
-
-@pytest.mark.django_db
-def test_get_model_usage_passes_the_provider_scope(monkeypatch, data_fixture):
-    calls = []
-
-    class RecordingFeatureType(AIProviderModelFeatureType):
-        type = "recording_feature"
-
-        def count_model_references(
-            self, provider_type, model_identifier, workspace=None
-        ):
-            calls.append((provider_type, model_identifier, workspace))
-            return 0
-
-    monkeypatch.setattr(
-        ai_provider_model_feature_type_registry,
-        "registry",
-        {"recording_feature": RecordingFeatureType()},
-    )
-    workspace = data_fixture.create_workspace()
-    provider = AIProviderConfig.objects.create(
-        provider_type="openai", api_key="secret", workspace=workspace
-    )
-    model = AIProviderModel.objects.create(
-        provider_config=provider, model_identifier="gpt-4o"
-    )
-
-    assert AIProviderHandler.get_model_usage(model) == {"recording_feature": 0}
-    assert calls == [("openai", "gpt-4o", workspace)]
-
-
 def _select_model_for_kuma_in_new_workspaces(
     data_fixture, model: AIProviderModel, count: int
 ) -> None:
@@ -1048,6 +1077,73 @@ def test_instance_in_use_guard_does_not_scale_with_selecting_workspaces(
         assert error.feature_types == [AI_PROVIDER_FEATURE_KUMA]
     assert one_queries == five_queries
     assert one_rows == five_rows
+
+
+@pytest.mark.django_db
+def test_get_model_usage_counts_per_consumer_features_only(monkeypatch):
+    class CountingFeatureType(AIProviderModelFeatureType):
+        type = "counting_feature"
+
+        def count_model_references(
+            self, provider_type, model_identifier, workspace=None
+        ):
+            return 3
+
+    class PlainFeatureType(AIProviderModelFeatureType):
+        type = "plain_feature"
+
+    class DefaultModelFeatureType(AIProviderModelFeatureType):
+        type = "default_model_feature"
+        supports_default_model = True
+
+    monkeypatch.setattr(
+        ai_provider_model_feature_type_registry,
+        "registry",
+        {
+            "counting_feature": CountingFeatureType(),
+            "plain_feature": PlainFeatureType(),
+            "default_model_feature": DefaultModelFeatureType(),
+        },
+    )
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-4o"
+    )
+
+    assert AIProviderHandler.get_model_usage(model) == {
+        "counting_feature": 3,
+        "plain_feature": 0,
+    }
+
+
+@pytest.mark.django_db
+def test_get_model_usage_passes_the_provider_scope(monkeypatch, data_fixture):
+    calls = []
+
+    class RecordingFeatureType(AIProviderModelFeatureType):
+        type = "recording_feature"
+
+        def count_model_references(
+            self, provider_type, model_identifier, workspace=None
+        ):
+            calls.append((provider_type, model_identifier, workspace))
+            return 0
+
+    monkeypatch.setattr(
+        ai_provider_model_feature_type_registry,
+        "registry",
+        {"recording_feature": RecordingFeatureType()},
+    )
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="secret", workspace=workspace
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-4o"
+    )
+
+    assert AIProviderHandler.get_model_usage(model) == {"recording_feature": 0}
+    assert calls == [("openai", "gpt-4o", workspace)]
 
 
 @pytest.mark.django_db

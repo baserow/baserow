@@ -177,6 +177,41 @@ def test_listing_workspaces_includes_effective_kuma_availability(
 
 
 @pytest.mark.django_db
+def test_listing_workspaces_keeps_inherited_kuma_after_instance_provider_switch_off(
+    api_client, data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = ""
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="instance-secret"
+    )
+    kuma_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="kuma-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="fields-model",
+        feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
+    )
+    AIProviderHandler.set_workspace_provider_enabled(workspace, provider, False)
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA, AI_PROVIDER_FEATURE_MODE_MODEL, model=kuma_model
+    )
+
+    response = api_client.get(
+        reverse("api:workspaces:list"), HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_200_OK
+    ai_features = response.json()[0]["ai_features"]
+    assert ai_features["kuma"] == {"is_enabled": True, "state": "inherited"}
+    assert ai_features["ai_fields"] == {"is_enabled": False, "models": {}}
+
+
+@pytest.mark.django_db
 def test_listing_workspaces_keeps_generic_models_and_filters_ai_fields(
     api_client, data_fixture
 ):

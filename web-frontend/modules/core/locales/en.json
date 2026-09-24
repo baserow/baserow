@@ -1133,7 +1133,7 @@
     "kumaInvalidNoFallback": "Selected model unavailable — no environment model configured",
     "kumaDisabledInWorkspace": "Disabled in this workspace",
     "kumaUseInstance": "Use instance setting — {model}",
-    "kumaInheritedUnavailable": "selected model unavailable in this workspace",
+    "kumaInheritedUnavailable": "selected instance model unavailable",
     "kumaUseLegacy": "Use environment model (deprecated): {model}",
     "kumaLegacyFallback": "environment model (deprecated): {model}",
     "kumaLegacyEmpty": "empty",

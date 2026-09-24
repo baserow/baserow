@@ -101,9 +101,10 @@ instance: kuma -> source=legacy model=<provider>:<env model>
 
 `model=` on the feature line prints the bare model identifier; the `kuma ->` line
 prints the fully qualified `<provider>:<identifier>` that reaches the provider.
-`inherited_state` is only set at workspace scope: it reports how the *instance*
-selection resolves **in that workspace**, so `invalid` means the instance picked a
-model this workspace cannot reach.
+`inherited_state` is only set at workspace scope: it reports the *instance* selection
+the workspace would inherit, ignoring the workspace's own provider switch-offs. So
+`invalid` means the instance selection itself is unusable, and the instance line then
+prints `state=invalid` too.
 
 `source=legacy` means the env var is in use, `source=database` means the selected
 model is, and `AssistantModelDisabledError` means Kuma is off with no fallback.
@@ -114,6 +115,7 @@ model is, and `AssistantModelDisabledError` means Kuma is off with no fallback.
 |---|---|---|
 | Use environment model (deprecated): `<env model>` | Use instance setting | legacy env model |
 | Model A | Use instance setting | model A |
+| Model A, its provider switched off in this workspace | Use instance setting | model A |
 | Model A | Model B | model B |
 | Model A | Disabled in this workspace | off, no fallback |
 | Disabled | Use instance setting | off, no fallback |
@@ -124,9 +126,10 @@ model is, and `AssistantModelDisabledError` means Kuma is off with no fallback.
 explicit **Disabled** never falls back to the env var; **unconfigured** and
 **invalid** always do.
 
-The last row is a workspace that was *already* inheriting when the instance selection
-became unreachable. Newly switching to **Use instance setting** in that situation is
-refused instead — see 4.5.
+A workspace switch-off never stops inherited Kuma (4.4). The last row is a workspace
+that was *already* inheriting when the instance selection itself broke, for example
+because model A was disabled. Newly switching to **Use instance setting** in that
+situation is refused instead — see 4.5.
 
 ---
 
@@ -309,15 +312,16 @@ Verify:
 - The **AI features** row is set to **Use instance setting — `<Provider> · A`**.
 - The helper prints `mode=inherit state=inherited inherited_state=configured` and
   `source=database model=…A`.
-- The inherit option reflects the instance state as resolved *in this workspace*:
+- The inherit option reflects the instance selection's state; switching off its
+  provider in this workspace does not change it:
 
   | instance situation | `inherited_state` | inherit option reads | selectable |
   |---|---|---|---|
-  | model A, reachable here | `configured` | **— `<Provider> · A`** | yes |
+  | model A, usable | `configured` | **— `<Provider> · A`** | yes |
   | no instance row | `unconfigured` | **— environment model (deprecated): `<env model>`** | yes |
   | no instance row, env var unset | `unconfigured` | **— environment model (deprecated): empty** | no |
   | instance row **Disabled** | `disabled` | **— Disabled** | yes |
-  | model A, unreachable here | `invalid` | **— selected model unavailable in this workspace** | no |
+  | model A, unusable (for example disabled) | `invalid` | **— selected instance model unavailable** | no |
 
   The last row is what 4.5 sets up. The option must never advertise the legacy
   environment model when the instance is in fact pointing at a database model.
@@ -394,30 +398,55 @@ Verify: the model's **Disable** action and the provider's **Disable** both retur
 `400 ERROR_AI_PROVIDER_MODEL_IN_USE` and raise the same *"The AI provider change could
 not be completed."* toast as 4.1.
 
-### 4.4 A workspace turning off an inherited provider it resolves through
+### 4.4 A workspace switching off an inherited provider
 
-1. In a workspace inheriting an instance Kuma selection, toggle the inherited
-   provider off in the workspace AI providers list.
-
-Verify: rejected with the same error. It succeeds once that workspace no longer
-resolves Kuma **through that provider** — so setting Kuma to **Disabled in this
-workspace**, or selecting a model from a *different* provider. Picking another model
-of the same inherited provider does not unblock it.
-
-### 4.5 Inheriting an unavailable instance selection
-
-1. In a workspace inheriting instance model A, set its row to **Disabled in this
-   workspace** (so 4.4 no longer blocks the provider), then disable the inherited
-   provider in the workspace AI providers list.
-2. Reopen the **AI features** dropdown.
+1. In a workspace inheriting instance model A, toggle A's provider off in the
+   workspace AI providers list.
 
 Verify:
-- The inherit option now reads **Use instance setting — selected model unavailable in
-  this workspace** and is **disabled**, so the rejection cannot be reached by clicking.
-  It must not read *"environment model (deprecated): …"* — the instance is still pointing at
-  model A, this workspace just cannot reach it.
-- The helper prints `inherited_state=invalid` for this workspace while the instance
-  scope still prints `state=configured`.
+- The switch-off succeeds, and Kuma keeps using the instance selection: the row still
+  reads **Use instance setting — `<Provider> · A`**, the helper still prints
+  `mode=inherit state=inherited inherited_state=configured` and
+  `source=database model=…A`, and Kuma still answers.
+- The provider's models are no longer offered in the workspace dropdown, and
+  selecting model A through the API returns
+  `400 ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE`.
+
+2. Re-enable the provider, select model A explicitly in the workspace row
+   (**· Instance**), and toggle the provider off again.
+
+Verify: rejected with `ERROR_AI_PROVIDER_MODEL_IN_USE`, as in 4.1. Only an explicit
+workspace selection of one of the provider's models blocks the switch-off; setting
+the row to **Use instance setting**, **Disabled in this workspace**, or a model from
+a *different* provider unblocks it. Picking another model of the same provider does
+not.
+
+### 4.5 Inheriting an unusable instance selection
+
+A workspace switch-off cannot make the inherited selection `invalid` (4.4); only
+breaking the instance selection itself can. The guardrails in 4.3 refuse to disable
+the selected model, so force it.
+
+1. With the instance row on model A, set a workspace row to **Disabled in this
+   workspace**, then disable model A directly:
+
+   ```bash
+   just dc-dev exec -T backend /baserow/venv/bin/python \
+     /baserow/backend/src/baserow/manage.py shell <<'EOF'
+   from baserow.core.ai_provider.models import AIProviderModel
+   AIProviderModel.objects.filter(id=<model A id>).update(is_enabled=False)
+   EOF
+   ```
+
+2. Reload and reopen the workspace **AI features** dropdown.
+
+Verify:
+- The inherit option now reads **Use instance setting — selected instance model
+  unavailable** and is **disabled**, so the rejection cannot be reached by clicking.
+  It must not read *"environment model (deprecated): …"* — the instance is still
+  pointing at model A, it is just unusable.
+- The helper prints `inherited_state=invalid` for this workspace and `state=invalid`
+  for the instance.
 - The API still refuses the transition, which is what the disabled option reflects:
 
   ```bash
@@ -427,12 +456,12 @@ Verify:
   # 400 ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE
   ```
 
-- Re-enabling the inherited provider makes the option selectable again, and choosing
-  it deletes the workspace row (see 3.5).
+- Re-enabling model A (`update(is_enabled=True)`) makes the option selectable again,
+  and choosing it deletes the workspace row (see 3.5).
 
-Note the asymmetry, which is deliberate: a workspace *already* inheriting an
-unresolvable instance selection keeps working on the legacy environment model (see
-section 5), but no one may newly opt into that state.
+Note the asymmetry, which is deliberate: a workspace *already* inheriting when the
+instance selection broke keeps working on the legacy environment model (see
+section 5), but no workspace may newly opt into that state.
 
 ### 4.6 Cross-scope: a workspace selection blocks the instance admin
 
@@ -483,8 +512,9 @@ Reload the admin page and verify:
 Re-enable the provider (`update(is_active=True)`) and confirm the selection becomes
 `configured` again.
 
-The workspace scope has its own `invalid` branch, reached without the shell: have a
-workspace select an instance model, then disable that provider instance-wide. Verify
+The workspace scope has its own `invalid` branch for an explicit selection. The
+instance admin cannot disable a provider a workspace selects (4.6), so force it the
+same way: have a workspace select an instance model, then run the shell above. Verify
 its **AI features** dropdown shows the same disabled
 **"Selected model unavailable — using deprecated environment model: `<env model>`"** entry,
 and that Kuma there also falls back rather than switching off.
@@ -749,6 +779,9 @@ Verify:
   with `ai_fields` and `ai_agent` eligibility, leaves existing providers unchanged,
   skips settings it cannot store, and switches each imported workspace off the
   instance provider of the same type. Re-running it imports nothing further.
+- A workspace the import switched off still inherits the instance Kuma model: after
+  staff select a Kuma model of that provider, the workspace row reads **Use instance
+  setting — `<Provider> · <model>`** and Kuma answers there.
 - Settings the import skips keep resolving through the legacy compatibility path,
   subject to the explicit-override rules in 6.5.
 - After deploying the candidate, importing, and reloading editors, saved selections

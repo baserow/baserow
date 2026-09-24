@@ -261,7 +261,7 @@ export default {
       )
     },
     inheritDisabled(setting) {
-      // The backend refuses to inherit a selection this workspace cannot resolve.
+      // The backend refuses to inherit an unusable instance selection.
       const inheritedState = this.inheritedState(setting)
       if (inheritedState === 'invalid') {
         return true

@@ -29,7 +29,7 @@ describe('AIProviderFeatureSettings', () => {
       return 'Disabled'
     }
     if (key === 'aiProviderAdmin.kumaInheritedUnavailable') {
-      return 'selected model unavailable in this workspace'
+      return 'selected instance model unavailable'
     }
     if (key === 'aiProviderAdmin.modelScopeInstance') {
       return 'Instance'
@@ -478,9 +478,75 @@ describe('AIProviderFeatureSettings', () => {
     const inheritOption = wrapper.find('.select__item')
 
     expect(inheritOption.text()).toBe(
-      'Use instance setting — selected model unavailable in this workspace'
+      'Use instance setting — selected instance model unavailable'
     )
     expect(inheritOption.classes()).toContain('disabled')
+  })
+
+  test('offers the inherited instance model when that provider is switched off in the workspace', async () => {
+    const inheritedModel = {
+      id: 20,
+      provider_type: 'openai',
+      model_identifier: 'gpt-5.4',
+    }
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_PROVIDER_TYPES', [
+      { type: 'openai', name: 'OpenAI' },
+    ])
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [
+      {
+        id: 2,
+        provider_type: 'openai',
+        is_active: false,
+        workspace_enabled: false,
+        read_only: true,
+        models: [
+          {
+            id: 20,
+            model_identifier: 'gpt-5.4',
+            is_enabled: true,
+            feature_types: ['kuma'],
+          },
+        ],
+      },
+      {
+        id: 1,
+        provider_type: 'openai',
+        is_active: true,
+        read_only: false,
+        models: [
+          {
+            id: 10,
+            model_identifier: 'gpt-5.4-mini',
+            is_enabled: true,
+            feature_types: ['kuma'],
+          },
+        ],
+      },
+    ])
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
+      {
+        feature_type: 'kuma',
+        mode: 'inherit',
+        state: 'inherited',
+        model: inheritedModel,
+        inherited_model: inheritedModel,
+        inherited_state: 'configured',
+      },
+    ])
+
+    const wrapper = await mountComponent('', { workspaceId: 42 })
+    const dropdown = wrapper.find('.dropdown')
+    const inheritOption = dropdown.find('.select__item')
+
+    expect(dropdown.find('.dropdown__selected-text').text()).toBe(
+      'Use instance setting — OpenAI · gpt-5.4'
+    )
+    expect(inheritOption.text()).toBe('Use instance setting — OpenAI · gpt-5.4')
+    expect(inheritOption.classes()).not.toContain('disabled')
+    expect(
+      wrapper.vm.modelGroups('kuma').flatMap((group) => group.models)
+    ).toEqual([{ id: 10, name: 'gpt-5.4-mini' }])
   })
 
   test('keeps a database-backed instance model enabled without a legacy model', async () => {

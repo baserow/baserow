@@ -624,7 +624,8 @@ class AIProviderHandler:
         Prevent availability changes while a scope resolves through the provider.
 
         :param provider: The provider whose usage is checked.
-        :param workspace: An optional workspace restricting inherited-provider usage.
+        :param workspace: An optional workspace switching off an inherited provider;
+            only its explicit selections count, since inherited ones ignore switch-offs.
         :param prune_orphans: Whether an explicit delete may remove unloaded-feature
             settings whose restricted model relation blocks provider deletion.
         :raises AIProviderModelInUse: If an enabled feature resolves through the
@@ -642,7 +643,8 @@ class AIProviderHandler:
             used_models = {
                 resolution["feature_type"]: resolution["model"]
                 for resolution in cls.list_feature_settings(workspace)
-                if resolution["model"] is not None
+                if resolution["mode"] == AI_PROVIDER_FEATURE_MODE_MODEL
+                and resolution["model"] is not None
                 and resolution["model"].provider_config_id == provider.id
             }
         else:
@@ -672,6 +674,7 @@ class AIProviderHandler:
         model: AIProviderModel | None,
         feature_type: str,
         state: ScopedAIProviderState,
+        inherited: bool = False,
     ) -> bool:
         """
         Check whether a feature can resolve through a model in one scope.
@@ -679,6 +682,8 @@ class AIProviderHandler:
         :param model: The selected model, or None when nothing is selected.
         :param feature_type: The feature the model must be eligible for.
         :param state: The already-loaded provider state of the scope.
+        :param inherited: Whether the scope inherits the model as the instance
+            selection, which ignores the scope's provider switch-offs.
         :return: Whether the model is enabled, eligible and reachable in the scope.
         """
 
@@ -690,12 +695,11 @@ class AIProviderHandler:
         provider = model.provider_config
         if not provider.is_active:
             return False
-        if state.workspace is None:
-            return provider.workspace_id is None
-        if provider.workspace_id == state.workspace_id:
-            return True
         if provider.workspace_id is not None:
-            return False
+            return provider.workspace_id == state.workspace_id
+        # The legacy env model ignored workspace AI settings; inheritance keeps that.
+        if inherited or state.workspace is None:
+            return True
         return provider.id not in state.disabled_instance_provider_ids
 
     @classmethod
@@ -730,7 +734,7 @@ class AIProviderHandler:
                 instance_state = "disabled"
             elif instance_setting.is_enabled:
                 if cls._is_feature_model_available(
-                    instance_setting.model, feature_type, state
+                    instance_setting.model, feature_type, state, inherited=True
                 ):
                     instance_model = instance_setting.model
                     instance_state = "configured"
@@ -779,8 +783,6 @@ class AIProviderHandler:
                     "inherited_model": instance_model
                     if workspace is not None
                     else None,
-                    # Resolved against this workspace, so "invalid" means the instance
-                    # selection exists but cannot be used here.
                     "inherited_state": instance_state
                     if workspace is not None
                     else None,
@@ -850,7 +852,7 @@ class AIProviderHandler:
                 instance_setting is not None
                 and instance_setting.is_enabled
                 and not cls._is_feature_model_available(
-                    instance_setting.model, feature_type, state
+                    instance_setting.model, feature_type, state, inherited=True
                 )
             ):
                 raise AIProviderFeatureModelNotAvailable(

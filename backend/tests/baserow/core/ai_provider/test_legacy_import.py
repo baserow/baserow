@@ -4,7 +4,10 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_AI_AGENT,
     AI_PROVIDER_FEATURE_AI_FIELDS,
     AI_PROVIDER_FEATURE_KUMA,
+    AI_PROVIDER_FEATURE_MODE_INHERIT,
+    AI_PROVIDER_FEATURE_MODE_MODEL,
 )
+from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.legacy_import import (
     apply_import_plan,
     plan_instance_import,
@@ -16,6 +19,7 @@ from baserow.core.ai_provider.models import (
     AIProviderModel,
     AIProviderWorkspaceOverride,
 )
+from baserow.core.ai_provider.registries import ai_provider_model_feature_type_registry
 from baserow.core.ai_provider.resolution import clear_ai_provider_state_cache
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.models import Workspace
@@ -134,6 +138,54 @@ def test_import_leaves_kuma_without_eligible_models(data_fixture, settings):
         )
         == []
     )
+
+
+@pytest.mark.django_db
+def test_imported_workspace_keeps_inheriting_the_instance_kuma_model(
+    data_fixture, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = ""
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "workspace-key", "models": ["gpt-5.4-mini"]}
+        }
+    )
+    model_type = generative_ai_model_type_registry.get("openai")
+
+    _import_everything()
+    instance_provider = AIProviderConfig.objects.get(workspace__isnull=True)
+    instance_model = instance_provider.models.get()
+    AIProviderHandler.update_model(
+        instance_model, feature_types=[*FEATURE_TYPES, AI_PROVIDER_FEATURE_KUMA]
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA, AI_PROVIDER_FEATURE_MODE_MODEL, model=instance_model
+    )
+
+    assert AIProviderWorkspaceOverride.objects.filter(
+        workspace=workspace, provider_config=instance_provider
+    ).exists()
+    kuma = AIProviderHandler.list_feature_settings(workspace)[0]
+    assert kuma["mode"] == AI_PROVIDER_FEATURE_MODE_INHERIT
+    assert kuma["state"] == "inherited"
+    assert kuma["model"] == instance_model
+    assert kuma["inherited_state"] == "configured"
+    availability = ai_provider_model_feature_type_registry.get_workspace_availability(
+        workspace
+    )
+    assert availability[AI_PROVIDER_FEATURE_KUMA] == {
+        "is_enabled": True,
+        "state": "inherited",
+    }
+    assert availability[AI_PROVIDER_FEATURE_AI_FIELDS]["models"] == {
+        "openai": ["gpt-5.4-mini"]
+    }
+    for feature_type in FEATURE_TYPES:
+        assert model_type.get_enabled_models_for_feature(
+            feature_type, workspace=workspace
+        ) == ["gpt-5.4-mini"]
 
 
 @pytest.mark.django_db
