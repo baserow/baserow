@@ -114,7 +114,7 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     },
 }
 
-# GPT-OSS rejects ``reasoning_format``, so it keeps the provider-agnostic defaults.
+# Provider-specific settings are applied below without unsupported reasoning formats.
 _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {}
 
 
@@ -142,6 +142,12 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
 
     profile = _MODEL_PROFILES.get(model_name, _DEFAULT_PROFILE)
     result = dict(profile.get(role, _DEFAULT_PROFILE.get(role, {})))
+
+    # Multi-step tool use needs more deliberation than the short helper tasks.
+    # Keep the same output-token and timeout limits; never send reasoning_format,
+    # which GPT-OSS rejects. Other providers and agent roles retain their defaults.
+    if provider == "groq" and model_name == "gpt-oss-120b" and role == ORCHESTRATOR:
+        result["groq_reasoning_effort"] = "high"
 
     # Allow the env-var-driven setting to override the orchestrator temperature.
     if role == ORCHESTRATOR:

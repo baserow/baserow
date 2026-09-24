@@ -23,6 +23,29 @@ def test_groq_gpt_oss_profiles_do_not_send_unsupported_reasoning_format(model, r
     assert "groq_reasoning_format" not in model_settings
 
 
+def test_groq_gpt_oss_orchestrator_uses_high_reasoning_with_existing_limits():
+    model_settings = get_model_settings("groq:openai/gpt-oss-120b", ORCHESTRATOR)
+
+    assert model_settings["groq_reasoning_effort"] == "high"
+    assert model_settings["max_tokens"] == 16384
+    assert model_settings["timeout"] == 30
+    assert model_settings["parallel_tool_calls"] is False
+
+
+@pytest.mark.parametrize(
+    "model,role",
+    [
+        ("groq:openai/gpt-oss-120b", SUBAGENT),
+        ("groq:openai/gpt-oss-120b", SAMPLE),
+        ("groq:openai/gpt-oss-20b", ORCHESTRATOR),
+        ("groq:llama-3.3-70b-versatile", ORCHESTRATOR),
+        ("openai:gpt-oss-120b", ORCHESTRATOR),
+    ],
+)
+def test_groq_orchestrator_reasoning_does_not_leak_to_other_profiles(model, role):
+    assert "groq_reasoning_effort" not in get_model_settings(model, role)
+
+
 @pytest.mark.parametrize("role", [ORCHESTRATOR, SUBAGENT, SAMPLE])
 @pytest.mark.parametrize(
     "model", ["google:gemini-3.6-flash", "google:gemini-3.7-flash"]

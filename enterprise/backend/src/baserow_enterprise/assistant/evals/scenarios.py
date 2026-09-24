@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from django.contrib.auth.models import AbstractUser
 
 from faker import Faker
@@ -20,10 +22,18 @@ from baserow_enterprise.assistant.types import (
 )
 
 
+class _EvalFixtures(Fixtures):
+    def create_user(self, **kwargs) -> AbstractUser:
+        # Faker's uniqueness cache belongs to one fixture instance, while eval
+        # users persist across scenarios and runs in the same database.
+        kwargs.setdefault("email", f"kuma-eval-{uuid4().hex}@example.com")
+        return super().create_user(**kwargs)
+
+
 def make_fixtures() -> Fixtures:
     """Build a ``Fixtures`` instance usable outside pytest, e.g. by scenario builders."""
 
-    return Fixtures(Faker())
+    return _EvalFixtures(Faker())
 
 
 def build_database_ui_context(
