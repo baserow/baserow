@@ -58,6 +58,29 @@ backendSecrets:
   REDIS_PASSWORD: "password"
 ```
 
+## Inbound email receiver
+
+Enable the email receiver to use the "Start workflow by email" automation
+trigger. The chart creates a persistent volume for mox, an internal web API
+service used by the backend, and a `LoadBalancer` service which exposes SMTP on
+port 25.
+
+```yaml
+baserow-email-receiver:
+  enabled: true
+
+backendConfigMap:
+  BASEROW_INBOUND_EMAIL_DOMAIN: inbound.example.com
+
+backendSecrets:
+  BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET: replace-with-a-long-random-secret
+```
+
+Point the MX record for `inbound.example.com` to the external address of the
+`<release>-baserow-email-receiver-smtp` service. The SMTP service type,
+annotations, port, and persistent storage settings can all be overridden under
+`baserow-email-receiver`.
+
 ## Caddy Ingress Configuration
 
 Caddy is a web server that can be used as an ingress controller. When using Caddy, set the ingress configuration to use Caddy as the ingress controller. Make note of the `onDemandAsk` configuration, which is used to trigger on-demand TLS certificates. Pointed here to the health check endpoint of caddy itself to always create new certificates. On production workloads set it to the backend api endpoint to check if the domain exists in the database.

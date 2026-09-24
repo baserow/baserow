@@ -10,6 +10,10 @@ spec:
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "baserow.selectorLabels" . | nindent 6 }}
@@ -34,9 +38,16 @@ spec:
       {{- if or .Values.imagePullSecrets .Values.global.baserow.imagePullSecrets }}
       imagePullSecrets: {{ include "baserow.imagePullSecrets" . }}
       {{- end }}
-      {{- with .Values.volumes }}
+      {{- if or .Values.persistence.enabled .Values.volumes }}
       volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ default (include "baserow.fullname" .) .Values.persistence.existingClaim }}
+        {{- end }}
+        {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       containers:
         - name: {{ include "baserow.fullname" . }}
@@ -49,20 +60,25 @@ spec:
           {{- end }}
           {{- if .Values.service.create }}
           ports:
-            - name: http
+            - name: {{ .Values.service.name }}
               containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
+            {{- range $name, $service := .Values.additionalServices }}
+            - name: {{ $service.portName | default $name }}
+              containerPort: {{ $service.targetPort | default $service.port }}
+              protocol: {{ $service.protocol | default "TCP" }}
+            {{- end }}
           {{- end }}
-          {{- if .Values.readinessProbe.enabled }}
+          {{- if .Values.livenessProbe.enabled }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
-            {{ toYaml . | nindent 12 }}
+            {{ omit . "enabled" | toYaml | nindent 12 }}
           {{- end }}
           {{- end }}
           {{- if .Values.readinessProbe.enabled }}
           {{- with .Values.readinessProbe }}
           readinessProbe:
-            {{ toYaml . | nindent 12 }}
+            {{ omit . "enabled" | toYaml | nindent 12 }}
           {{- end }}
           {{- end }}
           {{- if or .Values.global.baserow.containerSecurityContext.enabled .Values.containerSecurityContext.enabled }}
@@ -71,9 +87,15 @@ spec:
           {{- with .Values.resources }}
           resources: {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
+          {{- if or .Values.persistence.enabled .Values.volumeMounts }}
           volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ required "persistence.mountPath is required when persistence is enabled" .Values.persistence.mountPath }}
+            {{- end }}
+            {{- with .Values.volumeMounts }}
             {{ toYaml . | nindent 12 }}
+            {{- end }}
           {{- end }}
           envFrom:
             {{ include "baserow.envFrom" . | nindent 12 }}

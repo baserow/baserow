@@ -22,6 +22,9 @@ data:
 {{- if (index .Values "baserow-embeddings").enabled }}
   BASEROW_EMBEDDINGS_API_URL: http://{{ include "baserow.fullname" (index .Subcharts "baserow-embeddings") }}
 {{- end }}
+{{- if (index .Values "baserow-email-receiver").enabled }}
+  BASEROW_INBOUND_EMAIL_RECEIVER_URL: http://{{ include "baserow.fullname" (index .Subcharts "baserow-email-receiver") }}:{{ index .Values "baserow-email-receiver" "service" "port" }}
+{{- end }}
 {{- range $key, $val := .Values.backendConfigMap }}
   {{ $key }}: {{ $val | quote }}
 {{- end }}

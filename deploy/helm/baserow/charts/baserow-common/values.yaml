@@ -166,6 +166,10 @@ replicaCount: 1
 ##
 revisionHistoryLimit: 10
 
+## @param strategy Deployment update strategy
+##
+strategy: {}
+
 ## @param resources Set container requests and limits for different resources like CPU or memory (essential for production workloads)
 ## Example:
 ## resources:
@@ -304,6 +308,9 @@ service:
   ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
   ##
   type: ClusterIP
+  ## @param service.name Name assigned to the service port
+  ##
+  name: http
   ## @param service.port Port to expose for the application
   ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport
   ##
@@ -312,6 +319,32 @@ service:
   ## Note: A Service can map any incoming port to a targetPort. By default and for convenience, the targetPort is set to the same value as the port field.
   ##
   targetPort: 8000 # Target port
+
+## Additional services which select the same application pods.
+## Useful when a component exposes internal and external ports through different
+## Kubernetes service types.
+## @param additionalServices Additional Kubernetes services keyed by name
+##
+additionalServices: {}
+
+## Persistent storage configuration
+## @param persistence.enabled Enable a PersistentVolumeClaim and mount it
+## @param persistence.existingClaim Use an existing PersistentVolumeClaim
+## @param persistence.mountPath Path where persistent storage is mounted
+## @param persistence.accessModes PersistentVolumeClaim access modes
+## @param persistence.size PersistentVolumeClaim requested size
+## @param persistence.storageClass PersistentVolumeClaim storage class
+## @param persistence.annotations PersistentVolumeClaim annotations
+##
+persistence:
+  enabled: false
+  existingClaim: ""
+  mountPath: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+  storageClass: ""
+  annotations: {}
 
 ## Pod Disruption Budget configuration
 ## ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb
