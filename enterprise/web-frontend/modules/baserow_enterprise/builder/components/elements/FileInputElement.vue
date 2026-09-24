@@ -37,7 +37,7 @@ export default {
      * @property {boolean} required - Whether the input is required.
      * @property {boolean} preview - Whether the user want to show the preview.
      * @property {boolean} multiple - Whether the input supports multiple files.
-     * @property {Array} allowed_filetypes - Allowed extensions, MIME types, or media wildcards.
+     * @property {Array} allowed_filetypes - Allowed extensions, MIME types, or MIME wildcards.
      */
     element: {
       type: Object,
@@ -66,6 +66,9 @@ export default {
       return this.element.allowed_filetypes
         .filter((v) => v)
         .map((value) => {
+          if (value.toLowerCase() === 'image/jpg') {
+            return 'image/jpeg'
+          }
           if (value.startsWith('.') || value.includes('/')) {
             return value
           } else {

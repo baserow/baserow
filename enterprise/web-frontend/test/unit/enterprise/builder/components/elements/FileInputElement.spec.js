@@ -48,9 +48,11 @@ describe('FileInputElement', () => {
   }
 
   test.each([
-    [['image/jpg'], 'image/jpg'],
+    [['image/jpg'], 'image/jpeg'],
     [['image/jpeg'], 'image/jpeg'],
+    [['IMAGE/JPG'], 'image/jpeg'],
     [['application/pdf'], 'application/pdf'],
+    [['text/csv'], 'text/csv'],
     [['image/svg+xml'], 'image/svg+xml'],
     [
       [
@@ -61,6 +63,7 @@ describe('FileInputElement', () => {
     [['jpg'], '.jpg'],
     [['.jpg'], '.jpg'],
     [['image/*', 'audio/*', 'video/*'], 'image/*,audio/*,video/*'],
+    [['text/*', 'application/*'], 'text/*,application/*'],
     [['', 'jpg', 'application/pdf', '.png'], '.jpg,application/pdf,.png'],
     [[], undefined],
     [[''], undefined],
