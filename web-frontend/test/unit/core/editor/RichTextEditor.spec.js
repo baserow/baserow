@@ -550,17 +550,15 @@ describe('RichTextEditor images', () => {
     )
   })
 
-  // Rich text images are Baserow user files only: a plain markdown image is
-  // never rendered, so a public view cannot be made to fetch a third-party URL.
-  test('renders a plain https markdown image as a link, not an img', async () => {
-    const wrapper = await mountEditor(
-      'see ![photo](https://example.com/photo.png) here',
-      { uploadFile: vi.fn() }
-    )
+  test('keeps an external image as a placeholder and saves it unchanged', async () => {
+    const markdown = '![photo](https://example.com/photo.png)'
+    const wrapper = await mountEditor(markdown, { uploadFile: vi.fn() })
 
     expect(wrapper.find('.tiptap img').exists()).toBe(false)
-    expect(wrapper.find('.tiptap').text()).toContain('photo')
-    expect(wrapper.vm.serializeToMarkdown()).not.toContain('![photo]')
+    expect(
+      wrapper.find('.tiptap .rich-text-editor__image-placeholder').exists()
+    ).toBe(true)
+    expect(wrapper.vm.serializeToMarkdown()).toBe(markdown)
   })
 
   test('uploads an image copied from a browser, which also carries text/html', async () => {
@@ -915,7 +913,8 @@ describe('RichTextEditor images', () => {
     expect(
       wrapper.find('.tiptap .rich-text-editor__image-placeholder').exists()
     ).toBe(true)
-    expect(wrapper.vm.serializeToMarkdown()).toContain('![x][abc_def.png]')
+    // The saved value feeds the optimistic preview, which would load the URL.
+    expect(wrapper.vm.serializeToMarkdown()).toBe('![x][abc_def.png]')
   })
 
   test('uploads an image pasted from the clipboard', async () => {

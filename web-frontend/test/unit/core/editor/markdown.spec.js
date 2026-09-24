@@ -688,23 +688,21 @@ describe('parseMarkdown external image handling', () => {
       'text/html'
     )
 
-  // External images are not supported in either mode: this preview is shown to
-  // anyone who can see a public view, so it must never fetch a third-party URL.
-  test('renders a plain https markdown image as a link when enableImages=true', () => {
+  // This preview is shown to anyone who can see a public view, so it never fetches a third-party URL.
+  test('shows a plain https image as a placeholder when enableImages=true', () => {
     const document = parse(
       'see ![photo](https://example.com/photo.png) here',
       true
     )
 
     expect(document.querySelector('img')).toBeNull()
-    const link = document.querySelector('a')
-    expect(link).not.toBeNull()
-    expect(link.getAttribute('href')).toBe('https://example.com/photo.png')
+    expect(document.querySelector('a')).toBeNull()
+    expect(
+      document.querySelector('.rich-text-image-placeholder')
+    ).not.toBeNull()
+    expect(document.body.textContent).toContain('photo')
   })
 
-  // The demotion regex allows one level of parentheses only. Any image it
-  // misses is still not loaded: the renderer only emits `<img>` for a resolved
-  // Baserow reference.
   test.each([
     ['![photo](https://example.com/a((b)).png)'],
     ['![photo](https://example.com/a((b)).png "t")'],
@@ -716,11 +714,11 @@ describe('parseMarkdown external image handling', () => {
     expect(document.body.textContent).toContain('photo')
   })
 
-  test('renders a titled plain image as a link', () => {
+  test('shows a titled plain image as a placeholder', () => {
     const document = parse('![photo](https://example.com/a.png "t")', true)
 
     expect(document.querySelector('img')).toBeNull()
-    expect(document.querySelector('a')).not.toBeNull()
+    expect(document.querySelector('a')).toBeNull()
   })
 
   test('renders a plain markdown image as a link when enableImages=false', () => {
@@ -747,9 +745,6 @@ describe('parseMarkdown external image handling', () => {
     }
   })
 
-  // The demotion is unconditional now, so an unsafe scheme is no longer
-  // filtered by a scheme check before it reaches the renderer. It must still
-  // never produce a live href in any mode.
   test.each([
     '![x](javascript:alert(1))',
     '![x](data:text/html;base64,PHNjcmlwdD4=)',
@@ -765,7 +760,7 @@ describe('parseMarkdown external image handling', () => {
     }
   })
 
-  test('drops a javascript: href entirely when downgrading an image', () => {
+  test('drops a javascript: image entirely', () => {
     const html = parseMarkdown('![x](javascript:alert(1))', {
       enableImages: true,
       openLinkOnClick: true,
@@ -775,7 +770,7 @@ describe('parseMarkdown external image handling', () => {
     expect(html).not.toContain('href=')
   })
 
-  test('renders the Baserow ref as img and the external image as a link', () => {
+  test('renders the Baserow ref as img and the external image as a placeholder', () => {
     const document = parse(
       [
         '![photo][abc123_def456.png](https://example.com/user_files/abc123_def456.png)',
@@ -790,17 +785,8 @@ describe('parseMarkdown external image handling', () => {
     expect(images[0].getAttribute('src')).toBe(
       'https://example.com/user_files/abc123_def456.png'
     )
-    const link = document.querySelector('a')
-    expect(link.getAttribute('href')).toBe('https://example.com/external.png')
-  })
-
-  test('renders external image as a link, never an img', () => {
-    const document = parse('![photo](https://example.com/photo.png)', true)
-
-    expect(document.querySelector('img')).toBeNull()
-    expect(document.querySelector('a').getAttribute('href')).toBe(
-      'https://example.com/photo.png'
-    )
+    expect(document.querySelector('a')).toBeNull()
+    expect(document.body.textContent).toContain('ext')
   })
 
   test('renders a Baserow ref with a path separator in the name as text', () => {
@@ -820,9 +806,6 @@ describe('external image round trips', () => {
     editor?.destroy()
   })
 
-  // Rich text images are Baserow user files only, so every plain image is
-  // demoted regardless of scheme or case. Stored values written before this
-  // rule are demoted on the next save rather than kept as images.
   test.each([
     ['a relative path', '![logo](/media/logo.png)'],
     ['an uppercase https scheme', '![logo](HTTPS://example.com/logo.png)'],
@@ -830,14 +813,13 @@ describe('external image round trips', () => {
     ['a lowercase https scheme', '![logo](https://example.com/logo.png)'],
     ['a scheme relative path', '![logo](relative/path.png)'],
     ['an unsafe protocol', '![logo](javascript:alert(1))'],
-  ])('demotes an image with %s on save', (_, markdown) => {
+  ])('keeps an image with %s unchanged on save', (_, markdown) => {
     editor = createEditor(markdown, { enableImages: true })
 
     const reopened = reopen(editor, { enableImages: true })
     editor = reopened.editor
 
-    expect(reopened.markdown).not.toContain('![logo]')
-    expect(reopened.markdown).toContain('logo')
+    expect(reopened.markdown).toBe(markdown)
   })
 })
 
@@ -845,11 +827,7 @@ describe('empty paragraph round trip with images', () => {
   const NAME = 'abc123_def456.png'
   const URL = 'https://storage.example.com/user_files/' + NAME
 
-  // `prepareMarkdownForPreview` round trips a value through TipTap to make
-  // empty paragraphs visible. It has to see the reference as stored: once
-  // `preprocessRichTextImages` has rewritten it to a plain `![alt](url)`, the
-  // round trip's own parse demotes it to a link, because a plain image is not
-  // a user file reference.
+  // `prepareMarkdownForPreview` round trips the value through TipTap; the reference must survive it.
   test('renders an image whose cell also contains an empty paragraph', () => {
     const html = parseMarkdown(`![photo][${NAME}](${URL})\n\n&nbsp;`, {
       enableImages: true,
@@ -867,8 +845,7 @@ describe('empty paragraph round trip with images', () => {
     expect(html).toContain('<img')
   })
 
-  // The round trip must not resurrect an external image the demotion removed.
-  test('keeps an external image demoted next to an empty paragraph', () => {
+  test('never renders an external image next to an empty paragraph', () => {
     const html = parseMarkdown('![x](https://example.com/x.png)\n\n&nbsp;', {
       enableImages: true,
     })

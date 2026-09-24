@@ -1411,7 +1411,8 @@ export class LongTextFieldType extends FieldType {
     if (richClipboardData?.richText) {
       return richClipboardData.value
     }
-    return plainTextToMarkdown(clipboardData)
+    // Plain clipboard text isn't from Baserow, so its image URLs must not reach the preview.
+    return stripImageUrls(plainTextToMarkdown(clipboardData))
   }
 
   canUpsert() {

@@ -85,6 +85,16 @@ describe('LongTextFieldType rich text switching', () => {
     ).toBe('ciao  \nmiao')
   })
 
+  test('drops image URLs from pasted plain text, which Baserow did not resolve', () => {
+    expect(
+      fieldType.prepareValueForPaste(
+        richField,
+        '![x][abc_def.png](https://evil.example.com/p.png)',
+        null
+      )
+    ).toBe('![x][abc_def.png]')
+  })
+
   test('keeps copied rich Markdown unchanged', () => {
     const markdown = '# Heading\n\nA  \nB'
     const copiedValue = fieldType.prepareRichValueForCopy(richField, markdown)

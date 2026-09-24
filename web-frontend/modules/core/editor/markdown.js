@@ -13,7 +13,6 @@ import {
   MARKDOWN_OPTIONS,
 } from '@baserow/modules/core/editor/richTextExtensions'
 import {
-  demoteExternalImagesToLinks,
   IMAGE_PLACEHOLDER,
   preprocessRichTextImages,
   renderImagePlaceholders,
@@ -67,11 +66,7 @@ export const parseMarkdown = (
     loggedUserId = null,
   } = {}
 ) => {
-  // The TipTap round trip must see the value as stored. `preprocessRichTextImages`
-  // below rewrites `![alt][name](url)` to a plain `![alt](url)`, which the round
-  // trip's own `parseMarkdown` then demotes to a link because it carries no
-  // `userFileName` -- an image whose cell also contains `&nbsp;` would render as
-  // a link instead of an image.
+  // Round trip first: after `preprocessRichTextImages` a reference has lost its file name.
   let content = prepareMarkdownForPreview(value || '')
 
   const md = new Markdown({ html: false })
@@ -80,19 +75,13 @@ export const parseMarkdown = (
   let resolvedUrls = new Set()
 
   if (enableImages) {
-    // External images are not supported: every plain `![alt](url)` becomes a
-    // link, whatever its protocol, so this render never loads an image from a
-    // host the workspace does not control.
-    content = demoteExternalImagesToLinks(content)
     const { content: processed, nameMap } = preprocessRichTextImages(content)
     resolvedUrls = new Set(
       Object.keys(nameMap).map((url) => md.normalizeLink(url))
     )
     content = stripUnresolvedImageRefs(processed)
   } else {
-    // Image-less surfaces (the grid cell preview) show a placeholder for every
-    // image and no link at all, so the URL is never rendered. Runs before the
-    // demotion, which would otherwise turn an external image into a link here.
+    // Image-less surfaces (the grid cell preview) show a placeholder for every image.
     content = replaceImagesWithPlaceholder(content)
   }
 
@@ -135,10 +124,7 @@ export const parseMarkdown = (
 
   if (enableImages) {
     md.renderer.rules.image = function (tokens, idx, options, env, self) {
-      // Only the Baserow references resolved above render as `<img>`. Any
-      // other image markdown-it still finds (syntax the demotion regex does
-      // not cover, e.g. deeply nested parentheses in the URL) shows the
-      // placeholder, so no image is ever loaded from a foreign host.
+      // Only Baserow references resolved above render; external images are placeholders.
       const src = tokens[idx].attrGet('src')
       if (!resolvedUrls.has(src)) {
         const alt = md.utils.escapeHtml(

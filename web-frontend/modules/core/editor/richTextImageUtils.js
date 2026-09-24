@@ -1,67 +1,55 @@
-import Markdown from 'markdown-it'
-
-// Alt text: anything except unescaped `[`/`]`, allowing backslash escapes.
-// Deliberately linear (no nested quantifiers) to stay ReDoS-safe. The name must
-// look like `<name>_<hash>.<ext>` and may not contain path separators, so it can
-// never escape the user files directory. The extension may be empty: the backend
-// names an upload without one `<name>_<hash>.`. The URL excludes parentheses and
-// whitespace, so a scan for the closing `)` stops at the next `(` instead of
-// running to the end of the input on every `![` (quadratic on `![x][a_b.png](`
-// repeated). An empty `()` still matches so `stripImageUrls` removes it.
+// Same ASCII-only grammar as `rich_text_utils.py`: the backend must strip every URL trusted here.
 const IMAGE_WITH_URL_REGEX =
-  /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]*)\]\(([^()\s]*)\)/g
+  /!\[([^[\]\\]*(?:\\[^\n][^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\] \t\n\r\f\v/\\()]*)\]\(([^() \t\n\r\f\v]*)\)/g
 
 const BACKTICK_RUN_REGEX = /`+/g
-
-// Same block configuration as `parseMarkdown` in `markdown.js`, which decides
-// what renders as code. Only the block structure is needed, so the inline rules
-// are skipped.
-const blockMarkdown = new Markdown({ html: false })
-blockMarkdown.core.ruler.disable(
-  ['inline', 'linkify', 'replacements', 'smartquotes', 'text_join'],
-  true
-)
-
-// markdown-it normalises `\r\n` and `\r` to `\n` before numbering lines, so the
-// lines are split the same way to keep its line map aligned.
-const LINE_REGEX = /[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+$/g
-
-let lastBlockSegments = { content: null, segments: null }
+// CommonMark 4.5: a fence is 3+ backticks or tildes indented by up to 3 spaces.
+const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/
+const FENCE_CLOSE_TAIL_REGEX = /^[ \t]*\r?\n?$/
+const LINE_REGEX = /[^\n]*\n|[^\n]+$/g
 
 /**
- * Splits `content` into `[segment, isCode]` pairs by line, using the
- * `code_block` (indented) and `fence` tokens markdown-it finds at any nesting
- * level (lists, blockquotes). Mirrors the backend, which uses markdown-it-py.
+ * Splits `content` into fenced code blocks and the text around them, like
+ * `_iter_fence_segments` on the backend. Lines end at `\n` only, so both sides
+ * agree on where a fence starts.
  */
-function blockSegments(content) {
-  if (lastBlockSegments.content === content) {
-    return lastBlockSegments.segments
-  }
-  const lines = content.match(LINE_REGEX) || []
-  const isCodeLine = new Uint8Array(lines.length)
-  for (const token of blockMarkdown.parse(content, {})) {
-    if ((token.type === 'code_block' || token.type === 'fence') && token.map) {
-      const [startLine, endLine] = token.map
-      isCodeLine.fill(1, startLine, Math.min(endLine, lines.length))
+function* iterFenceSegments(content) {
+  let text = ''
+  let code = ''
+  let fenceChar = null
+  let fenceLength = 0
+
+  for (const line of content.match(LINE_REGEX) || []) {
+    const match = FENCE_REGEX.exec(line)
+    if (fenceChar === null) {
+      if (match) {
+        if (text) {
+          yield [text, false]
+          text = ''
+        }
+        fenceChar = match[1][0]
+        fenceLength = match[1].length
+        code += line
+      } else {
+        text += line
+      }
+    } else {
+      code += line
+      if (
+        match &&
+        match[1][0] === fenceChar &&
+        match[1].length >= fenceLength &&
+        FENCE_CLOSE_TAIL_REGEX.test(line.slice(match[0].length))
+      ) {
+        yield [code, true]
+        code = ''
+        fenceChar = null
+      }
     }
   }
 
-  const segments = []
-  let current = ''
-  let currentIsCode = null
-  lines.forEach((line, index) => {
-    const isCode = isCodeLine[index] === 1
-    if (currentIsCode !== null && isCode !== currentIsCode) {
-      segments.push([current, currentIsCode])
-      current = ''
-    }
-    current += line
-    currentIsCode = isCode
-  })
-  if (current) segments.push([current, currentIsCode])
-
-  lastBlockSegments = { content, segments }
-  return segments
+  if (text) yield [text, false]
+  if (code) yield [code, true]
 }
 
 /**
@@ -112,13 +100,13 @@ function* iterInlineCodeSegments(content) {
 }
 
 /**
- * Yields `[segment, isCode]` pairs covering `content` in order. Inside a code
- * block (fenced or indented) or an inline code span, image syntax is literal text: it must not be
+ * Yields `[segment, isCode]` pairs covering `content` in order. Inside a fenced
+ * block or an inline code span, image syntax is literal text: it must not be
  * rewritten, resolved or replaced by a placeholder. Mirrors
  * `iter_code_segments` on the backend.
  */
 export function* iterCodeSegments(content) {
-  for (const [segment, isCode] of blockSegments(content)) {
+  for (const [segment, isCode] of iterFenceSegments(content)) {
     if (isCode) {
       yield [segment, true]
     } else {
@@ -151,18 +139,21 @@ export function preprocessRichTextImages(content) {
   return { content: processed, nameMap }
 }
 
-export function stripImageUrls(content) {
+/**
+ * Strips the URL from every `![alt][name](url)` outside code, except the URLs
+ * `keepUrl` accepts.
+ */
+export function stripImageUrls(content, keepUrl = () => false) {
   if (!content) return content || ''
   return mapOutsideCode(content, (segment) =>
-    segment.replace(
-      IMAGE_WITH_URL_REGEX,
-      (match, alt, name) => `![${alt}][${name}]`
+    segment.replace(IMAGE_WITH_URL_REGEX, (match, alt, name, url) =>
+      keepUrl(url) ? match : `![${alt}][${name}]`
     )
   )
 }
 
 const IMAGE_REF_REGEX =
-  /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]*\]/g
+  /!\[([^[\]\\]*(?:\\[^\n][^[\]\\]*)*)\]\[[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\] \t\n\r\f\v/\\()]*\]/g
 
 // A sentinel standing in for an image on the surfaces that render none. It is a
 // single character so it survives slicing and length maths as one unit, and
@@ -209,14 +200,7 @@ export function replaceImagesWithPlaceholder(content) {
   )
 }
 
-// Plain markdown images `![alt](url)` that are not Baserow uploads. Cannot
-// match the Baserow form because there `]` is followed by `[name]`, not `(`.
-// The destination allows one level of balanced parentheses
-// (`https://x/a_(b).png`) but no unbalanced `(`, so the scan for `)` cannot run
-// to the end of the input on every `![` (quadratic on `![x](` repeated).
-// Whitespace stays allowed so a titled image `![a](url "title")` is still
-// matched. Deeper nesting is not matched here; `parseMarkdown` refuses to render
-// any image it did not resolve, so such an image still never loads.
+// External `![alt](url)`, only for the placeholder; no unbalanced `(` keeps it linear.
 const PLAIN_IMAGE_REGEX =
   /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\(((?:[^()]|\([^()]*\))*)\)/g
 
@@ -238,23 +222,6 @@ const UNFINISHED_IMAGE_TAIL_REGEX = new RegExp(
 export function trimUnfinishedImageRef(content) {
   if (!content) return content || ''
   return content.replace(UNFINISHED_IMAGE_TAIL_REGEX, '')
-}
-
-/**
- * Rewrites every plain markdown image `![alt](url)` into a link `[alt](url)`.
- *
- * Rich text images are Baserow user files only. An external image would be
- * fetched by every reader of a public view from a host the workspace does not
- * control, which leaks reader IPs and lets the remote content be swapped after
- * the fact. Degrading to a link keeps the URL visible without loading it.
- *
- * Mirrors `demote_external_images_to_links` on the backend.
- */
-export function demoteExternalImagesToLinks(content) {
-  if (!content) return content || ''
-  return mapOutsideCode(content, (segment) =>
-    segment.replace(PLAIN_IMAGE_REGEX, (match, alt, url) => `[${alt}](${url})`)
-  )
 }
 
 const SVG_EXTENSIONS = ['svg', 'svgz']

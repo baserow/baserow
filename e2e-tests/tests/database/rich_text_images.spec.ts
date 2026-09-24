@@ -65,8 +65,7 @@ test.describe("Rich text images", () => {
     userFileName = await uploadImage();
   });
 
-  // An external image must not become an `<img>` in the cell editor, and the
-  // stored value must come back demoted to a link rather than kept as an image.
+  // An external image must not become an `<img>` in the cell editor.
   test("never renders an external image in the cell editor", async ({
     page,
   }) => {
@@ -127,10 +126,8 @@ test.describe("Rich text images", () => {
     ).toEqual([]);
   });
 
-  // Opening and closing a cell that holds an external image rewrites it to a
-  // link. Values stored before this rule are demoted on the next save, so the
-  // stored form is asserted rather than assumed unchanged.
-  test("demotes a stored external image to a link on save", async ({
+  // Editing a cell must save an external image back as written, not as a link.
+  test("keeps a stored external image unchanged on save", async ({
     page,
   }) => {
     await resetRows(g, [{ Name: "external", Notes: `![x](${EXTERNAL})` }]);
@@ -143,8 +140,8 @@ test.describe("Rich text images", () => {
 
     await expect(async () => {
       const rows = await listRows(g.user, g.table);
-      expect(rows[0].Notes).not.toContain(`![x](${EXTERNAL})`);
-      expect(rows[0].Notes).toContain(EXTERNAL);
+      expect(rows[0].Notes).toContain(`![x](${EXTERNAL})`);
+      expect(rows[0].Notes).toContain("edited");
     }).toPass({ timeout: 10_000 });
   });
 
@@ -178,8 +175,7 @@ test.describe("Rich text images", () => {
     }).toPass({ timeout: 10_000 });
   });
 
-  // An unsafe scheme must not survive as a clickable href anywhere, now that
-  // the demotion is unconditional rather than gated on a scheme check.
+  // An unsafe scheme must not survive as a clickable href anywhere.
   test("renders no live href for an unsafe scheme", async ({ page }) => {
     await resetRows(g, [
       { Name: "unsafe", Notes: "![x](javascript:alert(1))" },

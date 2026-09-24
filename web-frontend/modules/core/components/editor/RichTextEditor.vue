@@ -62,11 +62,13 @@ import {
 import { isRichTextSelectionVisible } from '@baserow/modules/core/editor/richTextMenuPosition'
 import {
   isRenderableUserFile,
+  stripImageUrls,
   sanitizeUploadFileName,
   imageUploadType,
   isImageUploadCandidate,
 } from '@baserow/modules/core/editor/richTextImageUtils'
 import {
+  isTrustedImageUrl,
   registerTrustedImageUrl,
   registerTrustedImageUrlsFromMarkdown,
 } from '@baserow/modules/core/editor/trustedImageUrls'
@@ -565,8 +567,9 @@ export default {
       }
     },
     serializeToMarkdown() {
+      // A URL the editor didn't get from Baserow (pasted) would load in the optimistic preview.
       return this.enableRichTextFormatting
-        ? this.editor.getMarkdown()
+        ? stripImageUrls(this.editor.getMarkdown(), isTrustedImageUrl)
         : this.editor.getText({ blockSeparator: '\n' })
     },
     isDirty() {

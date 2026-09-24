@@ -1,17 +1,10 @@
-import { InputRule } from '@tiptap/core'
 import { Image } from '@tiptap/extension-image'
-import { isAllowedUri } from '@tiptap/extension-link'
 
-import { LINK_PROTOCOLS } from '@baserow/modules/core/editor/linkProtocols'
 import { isTrustedImageUrl } from '@baserow/modules/core/editor/trustedImageUrls'
 
-// `![alt][userFileName](url)`: alt allows backslash escapes (linear, ReDoS-safe),
-// the name may not contain path separators and its extension may be empty, the
-// URL is optional because the backend strips it on write and re-appends it on
-// read. The URL excludes `(` and whitespace so a missing `)` stops the scan at
-// the next `(` rather than at the end of the input.
+// `![alt][name](url)`, the URL optional; same ASCII-only grammar as `rich_text_utils.py`.
 const IMAGE_REF_REGEX =
-  /^!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]*)\](?:\(([^()\s]+)\))?/
+  /^!\[([^[\]\\]*(?:\\[^\n][^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\] \t\n\r\f\v/\\()]*)\](?:\(([^() \t\n\r\f\v]+)\))?/
 
 const escapeAlt = (s) => s.replace(/[\\[\]]/g, '\\$&')
 const unescapeAlt = (s) => s.replace(/\\([\\[\]])/g, '$1')
@@ -42,13 +35,11 @@ export const ScalableImage = Image.extend({
     const attrs = { ...HTMLAttributes }
     if (node.attrs.userFileName) {
       attrs['data-user-file-name'] = node.attrs.userFileName
+    } else if (node.attrs.src) {
+      // Lets an in-editor copy/paste keep an external image the placeholder hides.
+      attrs['data-external-src'] = node.attrs.src
     }
-    // Only a URL Baserow handed out (see `trustedImageUrls`) is loaded. A
-    // reference the backend has not resolved yet has no URL, and one pasted as
-    // HTML may carry any `src`; both show the alt text instead. The node keeps
-    // `userFileName` and `src`, so serializing it back still produces the
-    // reference, which the backend resolves on save: the placeholder is
-    // display only.
+    // Only URLs Baserow handed out are loaded; external images stay placeholders for now.
     if (!isTrustedImageUrl(node.attrs.src)) {
       const { src, ...rest } = attrs
       // The icon is a child element rather than the U+1F5BC glyph: Inter does
@@ -72,6 +63,16 @@ export const ScalableImage = Image.extend({
   parseHTML() {
     return [
       {
+        tag: 'span[data-external-src]',
+        getAttrs(dom) {
+          return {
+            src: dom.getAttribute('data-external-src'),
+            alt: dom.getAttribute('alt'),
+            title: dom.getAttribute('title'),
+          }
+        },
+      },
+      {
         // The placeholder rendered for an unresolved reference. Without this
         // the span would paste back as literal text and the reference would be
         // lost, because the rule below only matches `img`.
@@ -91,11 +92,7 @@ export const ScalableImage = Image.extend({
           const src = dom.getAttribute('src') || ''
           const userFileName = dom.getAttribute('data-user-file-name')
           if (!userFileName) {
-            // Rich text images are Baserow user files only. An external image
-            // (pasted HTML) is not an image node here, whatever its protocol:
-            // it would be loaded by every reader of a public view, from a host
-            // the workspace does not control. See `parseMarkdown` below, which
-            // keeps the same rule for the markdown path.
+            // Pasting a web page must not bring its images in as placeholders.
             return false
           }
           return {
@@ -106,27 +103,6 @@ export const ScalableImage = Image.extend({
           }
         },
       },
-    ]
-  },
-  addInputRules() {
-    // The base rule turns a typed `![alt](url)` into an image loaded from any
-    // host. Rich text images are Baserow uploads only, so the typed syntax
-    // degrades to a link, like a plain markdown image does on parse.
-    return [
-      new InputRule({
-        find: /(?:^|\s)(!\[([^[\]\n]*)\]\((\S+)\))$/,
-        handler: ({ state, range, match }) => {
-          const [, token, alt, src] = match
-          const start = range.from + match[0].indexOf(token)
-          const text = alt || src
-          const link = state.schema.marks.link
-          const marks =
-            link && isAllowedUri(src, LINK_PROTOCOLS)
-              ? [link.create({ href: src })]
-              : []
-          state.tr.replaceWith(start, range.to, state.schema.text(text, marks))
-        },
-      }),
     ]
   },
   markdownTokenName: 'image',
@@ -151,28 +127,11 @@ export const ScalableImage = Image.extend({
     },
   },
   parseMarkdown(token, helpers) {
-    const src = token.src ?? token.href ?? ''
-    const alt = token.alt ?? token.text ?? ''
-    if (!token.userFileName) {
-      // Plain `![alt](url)` — an external image, which is not supported: rich
-      // text images are Baserow user files only. It degrades to a link so the
-      // URL stays visible and the reader chooses whether to follow it, instead
-      // of the page loading it for them.
-      const text = alt || src
-      if (!text) {
-        return null
-      }
-      if (src && isAllowedUri(src, LINK_PROTOCOLS)) {
-        return helpers.createTextNode(text, [
-          { type: 'link', attrs: { href: src } },
-        ])
-      }
-      return helpers.createTextNode(text)
-    }
     return helpers.createNode('image', {
-      src,
-      alt,
-      userFileName: token.userFileName,
+      src: token.src ?? token.href ?? '',
+      alt: token.alt ?? token.text ?? '',
+      title: token.title ?? null,
+      userFileName: token.userFileName ?? null,
     })
   },
   renderMarkdown(node) {

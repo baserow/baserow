@@ -190,34 +190,32 @@ describe('ScalableImage markdown parsing', () => {
     editor.destroy()
   })
 
-  // Rich text images are Baserow user files only. A plain markdown image names
-  // a host the workspace does not control, so it degrades to a link.
-  test('creates no image node for a plain https markdown image', () => {
-    const editor = createEditor(
-      'see ![photo](https://example.com/user_files/abc_def.png) here',
-      true
-    )
+  test.each([
+    ['https://example.com/p.png'],
+    ['javascript:alert(1)'],
+    ['data:image/png;base64,AAAA'],
+  ])('keeps the external image %s as a placeholder node', (url) => {
+    const markdown = `![photo](${url})`
+    const editor = createEditor(markdown, true)
 
-    expect(findImageNodes(editor)).toHaveLength(0)
-    expect(editor.getText()).toContain('photo')
+    const images = findImageNodes(editor)
+    expect(images).toHaveLength(1)
+    expect(images[0].attrs.userFileName).toBeNull()
+    expect(editor.view.dom.querySelector('img')).toBeNull()
+    expect(editor.view.dom.querySelector('a')).toBeNull()
+    expect(editor.getMarkdown()).toBe(markdown)
 
     editor.destroy()
   })
 
-  test.each([['javascript:alert(1)'], ['data:image/png;base64,AAAA']])(
-    'renders a plain image with unsafe url %s as text only',
-    (url) => {
-      const editor = createEditor(`![x](${url})`, true)
+  test('keeps the title of an external image', () => {
+    const markdown = '![photo](https://example.com/p.png "t")'
+    const editor = createEditor(markdown, true)
 
-      expect(findImageNodes(editor)).toHaveLength(0)
-      const html = editor.getHTML()
-      expect(html).not.toContain('<img')
-      expect(html).not.toContain('<a')
-      expect(html).toContain('x')
+    expect(editor.getMarkdown()).toBe(markdown)
 
-      editor.destroy()
-    }
-  )
+    editor.destroy()
+  })
 
   test('rejects user file names containing path separators', () => {
     const editor = createEditor(
@@ -335,38 +333,36 @@ describe('ScalableImage only loads trusted URLs', () => {
     editor.destroy()
   })
 
-  test('typing ![x](url) creates a link, never an image', () => {
-    const editor = createEditor('', true)
-    editor.commands.insertContent('![x](https://example.com/a.png')
-    const { from, to } = editor.state.selection
-    const handled = editor.view.someProp('handleTextInput', (handler) =>
-      handler(editor.view, from, to, ')')
-    )
+  test.each([['https://example.com/a.png'], ['javascript:alert(1)']])(
+    'typing ![x](%s) creates the same placeholder node',
+    (url) => {
+      const editor = createEditor('', true)
+      editor.commands.insertContent(`![x](${url}`)
+      const { from, to } = editor.state.selection
+      const handled = editor.view.someProp('handleTextInput', (handler) =>
+        handler(editor.view, from, to, ')')
+      )
 
-    expect(handled).toBe(true)
-    expect(findImageNodes(editor)).toHaveLength(0)
-    expect(editor.getText()).toBe('x')
-    expect(editor.getJSON().content[0].content[0].marks).toEqual([
-      expect.objectContaining({
-        type: 'link',
-        attrs: expect.objectContaining({ href: 'https://example.com/a.png' }),
-      }),
-    ])
+      expect(handled).toBe(true)
+      expect(findImageNodes(editor)).toHaveLength(1)
+      expect(editor.view.dom.querySelector('img')).toBeNull()
+      expect(editor.getMarkdown()).toContain(`![x](${url})`)
 
-    editor.destroy()
-  })
+      editor.destroy()
+    }
+  )
 
-  test('typing ![x](url) with a disallowed protocol leaves plain text', () => {
-    const editor = createEditor('', true)
-    editor.commands.insertContent('![x](javascript:alert(1)')
-    const { from, to } = editor.state.selection
-    editor.view.someProp('handleTextInput', (handler) =>
-      handler(editor.view, from, to, ')')
-    )
+  test('an external image survives an in-editor copy/paste', () => {
+    const markdown = '![x](https://example.com/a.png)'
+    const source = createEditor(markdown, true)
+    const target = createEditor('', true)
 
-    expect(findImageNodes(editor)).toHaveLength(0)
-    expect(editor.getHTML()).not.toContain('javascript:')
+    target.commands.insertContent(source.getHTML())
 
-    editor.destroy()
+    expect(findImageNodes(target)).toHaveLength(1)
+    expect(target.getMarkdown()).toBe(markdown)
+
+    source.destroy()
+    target.destroy()
   })
 })
