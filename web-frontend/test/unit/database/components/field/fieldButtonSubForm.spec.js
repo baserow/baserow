@@ -1108,7 +1108,6 @@ describe('FieldButtonSubForm', () => {
       // Nothing has asked the server yet.
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
-        opens_new_tab: false,
       })
 
       wrapper.vm.serverActions = []
@@ -1155,29 +1154,26 @@ describe('FieldButtonSubForm', () => {
       })
     })
 
-    test.each([
-      ['blank', true],
-      ['self', false],
-    ])(
-      'fieldValuesAfterSave reports a saved %s tab url action',
-      async (target, opensNewTab) => {
-        const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
-        wrapper.vm.localActions = []
-        wrapper.vm.$client.get
-          .mockResolvedValueOnce({
-            data: [{ id: 55, type: 'open_url', target, url: { formula: '' } }],
+    test('fieldValuesAfterSave takes the new tab flag from the field', async () => {
+      // Asked of the server rather than worked out from the action list,
+      // which is stale when refreshing it failed.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.localActions = []
+      wrapper.vm.$client.get
+        .mockRejectedValueOnce(
+          Object.assign(new Error('offline'), {
+            handler: { notifyIf: () => {} },
           })
-          .mockResolvedValueOnce({
-            data: { id: 7, requires_reconfiguration: false },
-          })
-
-        await wrapper.vm.afterFieldSaved(7)
-
-        expect(wrapper.vm.fieldValuesAfterSave().opens_new_tab).toBe(
-          opensNewTab
         )
-      }
-    )
+        .mockResolvedValueOnce({
+          data: { id: 7, requires_reconfiguration: false, opens_new_tab: true },
+        })
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(wrapper.vm.serverActions).toEqual([])
+      expect(wrapper.vm.fieldValuesAfterSave().opens_new_tab).toBe(true)
+    })
 
     test('a failed field refresh leaves the reconfigure flag out', async () => {
       // The store keeps what it has, which a broadcast may have updated since
@@ -1197,7 +1193,6 @@ describe('FieldButtonSubForm', () => {
 
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
-        opens_new_tab: false,
       })
 
       // Only the last save counts: an earlier refresh that worked is stale.
@@ -1219,7 +1214,6 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.afterFieldSaved(7)
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
-        opens_new_tab: false,
       })
     })
 

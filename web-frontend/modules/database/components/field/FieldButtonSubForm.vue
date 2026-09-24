@@ -132,6 +132,7 @@ export default {
       // Refreshed after every save, as the field response predates the
       // actions it saved. Null when the last refresh failed or none ran.
       requiresReconfiguration: null,
+      opensNewTab: null,
     }
   },
   computed: {
@@ -566,19 +567,22 @@ export default {
         } catch (refreshError) {
           notifyIf(refreshError, 'field')
         }
-        await this.refreshRequiresReconfiguration(fieldId)
+        await this.refreshFieldFlags(fieldId)
       }
     },
     /**
      * Asks the server whether the saved actions leave the button needing
-     * reconfiguration. On failure the flag is unknown: the next broadcast or
-     * reload corrects it, and a toast here would bury the save's own result.
+     * reconfiguration or opening a new tab. On failure the flags are unknown:
+     * the next broadcast or reload corrects them, and a toast here would bury
+     * the save's own result.
      */
-    async refreshRequiresReconfiguration(fieldId) {
+    async refreshFieldFlags(fieldId) {
       this.requiresReconfiguration = null
+      this.opensNewTab = null
       try {
         const { data } = await FieldService(this.$client).get(fieldId)
         this.requiresReconfiguration = data?.requires_reconfiguration === true
+        this.opensNewTab = data?.opens_new_tab === true
       } catch {
         // Left unknown, see above.
       }
@@ -587,18 +591,16 @@ export default {
      * The field response carries `has_workflow_actions`,
      * `requires_reconfiguration` and `opens_new_tab` computed before these
      * calls, so the store needs the flags as they ended up. The reconfigure
-     * flag is left out when the refresh failed, so the store keeps what it
-     * has.
+     * and new tab flags are left out when the refresh failed, so the store
+     * keeps what it has.
      */
     fieldValuesAfterSave() {
-      const values = {
-        has_workflow_actions: this.serverActions.length > 0,
-        opens_new_tab: this.serverActions.some(
-          (action) => action.type === 'open_url' && action.target === 'blank'
-        ),
-      }
+      const values = { has_workflow_actions: this.serverActions.length > 0 }
       if (this.requiresReconfiguration !== null) {
         values.requires_reconfiguration = this.requiresReconfiguration
+      }
+      if (this.opensNewTab !== null) {
+        values.opens_new_tab = this.opensNewTab
       }
       return values
     },

@@ -146,6 +146,7 @@ describe('RowEditFieldButtonField', () => {
         row: { id: 11 },
         fields: [field],
         previousActionResults: {},
+        newTab: null,
       },
     })
   })
