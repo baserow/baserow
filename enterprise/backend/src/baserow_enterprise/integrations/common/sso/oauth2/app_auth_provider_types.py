@@ -107,6 +107,8 @@ class OpenIdConnectAppAuthProviderType(
     login builder application using OAuth2 through OpenId Connect compatible provider.
     """
 
+    supports_callback = True
+
     model_class = OpenIdConnectAppAuthProviderModel
 
     compatible_user_source_types = [LocalBaserowUserSourceType.type]
