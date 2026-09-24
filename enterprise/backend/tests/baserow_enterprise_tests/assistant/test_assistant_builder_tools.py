@@ -205,18 +205,26 @@ class TestFormulaUtils:
 
 
 @pytest.mark.django_db
-def test_list_pages(data_fixture):
+@pytest.mark.parametrize("has_page", [False, True])
+def test_list_pages(data_fixture, has_page):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    if has_page:
+        page = data_fixture.create_builder_page(
+            builder=builder, name="Home", path="/home"
+        )
 
     ctx = make_test_ctx(user, workspace)
     result = list_pages(ctx, application_id=builder.id, thought="test")
 
-    assert len(result["pages"]) == 1
-    assert result["pages"][0]["name"] == "Home"
-    assert result["pages"][0]["id"] == page.id
+    assert len(result["pages"]) == int(has_page)
+    if has_page:
+        assert result["pages"][0]["name"] == "Home"
+        assert result["pages"][0]["id"] == page.id
+    assert result["application_id"] == builder.id
+    assert "create_pages" in result["next_steps"]
+    assert "existing page" in result["next_steps"]
 
 
 @pytest.mark.django_db(transaction=True)

@@ -124,10 +124,19 @@ def list_pages(
         user_source_data.append(entry)
 
     return {
+        "application_id": builder.id,
         "pages": [p.model_dump() for p in pages],
         "login_page_id": builder.login_page_id,
         "user_sources": user_source_data,
         "available_roles": UserSourceHandler().get_all_roles_for_application(builder),
+        "next_steps": (
+            "For a requested new page, use create_pages with this application_id "
+            "first, then use its returned page ID in setup_page or element tools. "
+            "An application ID is not a page ID. Do not replace a different existing "
+            "page when the user asked for a new one. For pages displaying records, "
+            "find the matching table before creating the page; if the records are "
+            "missing, ask where they should come from first."
+        ),
     }
 
 
@@ -1377,7 +1386,12 @@ def _setup_actions(
 
 def setup_page(
     ctx: RunContext[AssistantDeps],
-    page_id: Annotated[int, Field(description="The page ID.")],
+    page_id: Annotated[
+        int,
+        Field(
+            description="Existing page ID from list_pages or create_pages, never an application ID. Create a requested new page with create_pages first."
+        ),
+    ],
     data_sources: Annotated[
         list[DataSourceCreate] | None,
         Field(default=None, description="Data sources to create."),
@@ -1395,10 +1409,10 @@ def setup_page(
     ] = "",
 ) -> dict[str, Any]:
     """\
-    Set up a complete page: data sources, elements, and actions in one call.
+    Populate an existing page with data sources, elements, and actions.
 
     WHEN to use: Building a complete page with data, UI elements, and interactions.
-    WHAT it does: Creates data sources first, then elements (in order), then actions. Handles ref resolution across all three phases.
+    WHAT it does: Adds content to an existing page; it does not create the page itself. For a requested new page, call create_pages first and use its returned ID. Creates data sources first, then elements (in order), then actions. Handles ref resolution across all three phases.
     RETURNS: Created items with ref-to-ID mappings and any errors. Partial success is possible — some items may be created even when others fail. Check the ``errors`` key.
     ARGS: ``page_id`` is WHERE to build; ``data_sources``, ``elements`` and ``actions`` are WHAT to build. Each of the three is optional on its own, but a call carrying none of them creates nothing and is rejected. To only open a page, use ``navigate``.
 
