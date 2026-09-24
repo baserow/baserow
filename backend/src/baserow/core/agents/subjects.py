@@ -4,7 +4,6 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db.models import CharField, F, IntegerField, Value
 from django.db.models.functions import Cast
-from django.utils.translation import gettext_lazy as _
 
 from baserow.core.agents.operations import ListAgentsWorkspaceOperationType
 from baserow.core.models import Agent, Workspace
@@ -21,7 +20,7 @@ class AgentSubjectType(SubjectType):
     has_direct_workspace_roles = True
 
     def get_type_display_name(self):
-        return _("Agent")
+        return "Agent"
 
     def get_display_name(self, subject: Agent) -> str:
         return subject.name
