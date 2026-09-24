@@ -18,7 +18,11 @@ from baserow.contrib.integrations.core.service_types import (
     ensure_http_header_value,
     ensure_http_status_code,
 )
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
+)
 from baserow.core.services.exceptions import InvalidContextContentDispatchException
 
 
@@ -78,6 +82,80 @@ def test_response_service_dispatch_writes_workflow_response(data_fixture):
     assert response.headers == {"X-Test": "yes"}
     assert response.source_node_id == node.id
     assert response.is_default is False
+
+
+@pytest.mark.django_db
+def test_response_service_dispatch_deserializes_simple_json_body(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_core_response_action_node(
+        workflow=workflow,
+        service_kwargs={
+            "status_code": BaserowFormulaObject.create(
+                "200", mode=BASEROW_FORMULA_MODE_RAW
+            ),
+            "body_type": RESPONSE_BODY_TYPE.JSON,
+            "body": BaserowFormulaObject.create('\'{"foo": "bar"}\''),
+        },
+    )
+    history = data_fixture.create_automation_workflow_history(workflow=workflow)
+    dispatch_context = AutomationDispatchContext(workflow, history)
+
+    result = node.get_type().dispatch(node, dispatch_context)
+
+    response = AutomationWorkflowHistoryResponse.objects.get(workflow_history=history)
+    assert result.data["body"] == {"foo": "bar"}
+    assert response.body == {"foo": "bar"}
+
+
+@pytest.mark.django_db
+def test_response_service_dispatch_preserves_advanced_json_body_type(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_core_response_action_node(
+        workflow=workflow,
+        service_kwargs={
+            "status_code": BaserowFormulaObject.create(
+                "200", mode=BASEROW_FORMULA_MODE_RAW
+            ),
+            "body_type": RESPONSE_BODY_TYPE.JSON,
+            "body": BaserowFormulaObject.create(
+                "from_json('\"123\"')", mode=BASEROW_FORMULA_MODE_ADVANCED
+            ),
+        },
+    )
+    history = data_fixture.create_automation_workflow_history(workflow=workflow)
+    dispatch_context = AutomationDispatchContext(workflow, history)
+
+    result = node.get_type().dispatch(node, dispatch_context)
+
+    response = AutomationWorkflowHistoryResponse.objects.get(workflow_history=history)
+    assert result.data["body"] == "123"
+    assert response.body == "123"
+
+
+@pytest.mark.django_db
+def test_response_service_dispatch_rejects_invalid_simple_json_body(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_core_response_action_node(
+        workflow=workflow,
+        service_kwargs={
+            "status_code": BaserowFormulaObject.create(
+                "200", mode=BASEROW_FORMULA_MODE_RAW
+            ),
+            "body_type": RESPONSE_BODY_TYPE.JSON,
+            "body": BaserowFormulaObject.create("'{\"foo\": }'"),
+        },
+    )
+    history = data_fixture.create_automation_workflow_history(workflow=workflow)
+    dispatch_context = AutomationDispatchContext(workflow, history)
+
+    with pytest.raises(
+        InvalidContextContentDispatchException, match="Value is not valid JSON"
+    ):
+        node.get_type().dispatch(node, dispatch_context)
+
+    assert not AutomationWorkflowHistoryResponse.objects.filter(
+        workflow_history=history
+    ).exists()
 
 
 @pytest.mark.django_db
