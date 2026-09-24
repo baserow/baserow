@@ -55,6 +55,61 @@ def _make_mock_formula_result(**kwargs):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("generation", ["partial", "complete", "empty", "disabled"])
+def test_create_tables_reports_incomplete_sample_rows(data_fixture, generation):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    def generate(user, workspace, helpers, tables, **kwargs):
+        rows = {}
+        for table in tables:
+            if generation == "empty" or (
+                generation == "partial" and table.name == "Books"
+            ):
+                continue
+            primary = table.field_set.get(primary=True)
+            row = table.get_model().objects.create(
+                order=1, **{primary.db_column: "Example"}
+            )
+            rows[table.id] = [row]
+        return rows
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.generate_sample_rows",
+        side_effect=generate,
+    ) as sample_rows:
+        result = create_tables(
+            make_test_ctx(user, workspace),
+            database_id=database.id,
+            tables=[
+                TableItemCreate(name=name, primary_field_name="Name", fields=[])
+                for name in ("Authors", "Books")
+            ],
+            add_sample_rows=generation != "disabled",
+            thought="Create the requested tables and examples.",
+        )
+
+    authors, books = [
+        database.table_set.get(name=name) for name in ("Authors", "Books")
+    ]
+    assert authors.get_model().objects.count() == int(
+        generation in {"partial", "complete"}
+    )
+    assert books.get_model().objects.count() == int(generation == "complete")
+    if generation in {"partial", "empty"}:
+        notes = " ".join(result["notes"])
+        assert "Sample rows are still missing" in notes
+        assert f"Books (table_{books.id})" in notes
+        assert (f"Authors (table_{authors.id})" in notes) == (generation == "empty")
+        assert "load_row_tools" in notes
+    else:
+        assert result["notes"] == []
+    if generation == "disabled":
+        sample_rows.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_created_tables_are_reported_when_field_creation_is_denied(
     data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles, monkeypatch
 ):
