@@ -89,6 +89,15 @@ LOW_CONFIDENCE_NOTE = (
     "upgrade advice."
 )
 
+PARTIAL_EVIDENCE_FOLLOWUP = (
+    "The exact requested capability was not established. Find the closest "
+    "documented basic operation or field type relevant to the user's underlying "
+    "task on the same product surface. Explain only what those passages actually "
+    "support, cite them, and explicitly leave the requested capability unverified. "
+    "Do not conclude that a feature is unavailable. If no useful facts are "
+    "supported, keep the no-evidence result.\n\n"
+)
+
 
 class SearchDocsResult(PydanticBaseModel):
     answer: str = Field(description="The answer to the user's question.")
@@ -240,41 +249,40 @@ async def _search_user_docs_impl(
     )
 
     model_profile = ctx.deps.tool_helpers.model_profile
-    model = model_profile.create_model()
-    agent_result = await run_agent_with_model(
-        search_docs_agent,
-        prompt,
-        model=model,
-        model_settings=model_profile.get_settings(SUBAGENT),
-    )
-    prediction = agent_result.output
-
-    # Only the standalone sentinel means there is no useful evidence. A cited
-    # partial answer can legitimately say that nothing was found about one part.
-    normalized_answer = " ".join(prediction.answer.casefold().split()).rstrip(".!?")
-    nothing_found = normalized_answer.strip() == "nothing found in the documentation"
-    reliability = 0.0 if nothing_found else prediction.reliability
-
-    sources = []
+    model_settings = model_profile.get_settings(SUBAGENT)
     available_urls = {chunk.source_document.source_url for chunk in relevant_chunks}
-    if not nothing_found:
-        for url in prediction.sources:
-            # somehow LLMs sometimes return sources as objects
-            if isinstance(url, dict) and "url" in url:
-                url = url["url"]
+    # A synthesis focused on an undocumented capability can overlook useful
+    # partial evidence. Reconsider the same passages once, without substituting
+    # arbitrary retrieved URLs for actual citations or assuming a feature exists.
+    for synthesis_prompt in (prompt, PARTIAL_EVIDENCE_FOLLOWUP + prompt):
+        agent_result = await run_agent_with_model(
+            search_docs_agent,
+            synthesis_prompt,
+            model=model_profile.create_model(),
+            model_settings=model_settings,
+        )
+        prediction = agent_result.output
 
-            if not isinstance(url, str):
-                continue
+        # Only the standalone sentinel means there is no useful evidence. A cited
+        # partial answer can say that nothing was found about one part.
+        normalized_answer = " ".join(prediction.answer.casefold().split()).rstrip(".!?")
+        nothing_found = normalized_answer == "nothing found in the documentation"
+        reliability = 0.0 if nothing_found else prediction.reliability
 
-            if url in available_urls and url not in sources:
-                sources.append(url)
-                if len(sources) >= 3:
-                    break
+        sources = []
+        if not nothing_found:
+            for url in prediction.sources:
+                if url in available_urls and url not in sources:
+                    sources.append(url)
+                    if len(sources) >= 3:
+                        break
+
+        if sources:
+            break
 
         # Retrieval alone does not prove a source supports a generated claim.
         # Never attach arbitrary retrieved URLs to an otherwise uncited answer.
-        if not sources:
-            reliability = 0.0
+        reliability = 0.0
 
     answer = prediction.answer
     if not nothing_found and not sources:

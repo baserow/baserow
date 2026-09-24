@@ -226,15 +226,16 @@ def create_workflows(
     Create workflows with triggers and action nodes.
 
     WHEN to use: User wants automated workflows with triggers and action nodes.
-    WHAT it does: Reuses exact-name matches and creates missing workflows with a trigger and action/router/iterator nodes. Reused workflows return actual nodes and next_steps when their node sequence differs. Use {{ node.ref }} for referencing values from previous nodes.
+    WHAT it does: Reuses exact-name matches and creates missing workflows with a trigger and action/router/iterator nodes. Reused workflows return actual nodes and next_steps when their node sequence differs.
     RETURNS: Created and reused workflows, plus formula_errors if needed.
-    HOW: Each workflow needs exactly one trigger and one or more actions/routers. Use {{ node.ref }} syntax to reference previous node values in action formulas. Know the table_id and field_ids for row-based triggers and actions.
+    HOW: Each workflow needs exactly one trigger and one or more actions/routers. Know the table_id and field_ids for row-based triggers and actions. Every update_row or delete_row action also requires row_id. To act on the triggering row, set row_id to "$formula: ID of the row that fired the trigger". Never omit it or use a made-up row ID.
 
     ## Workflow Structure
 
     Each workflow has a trigger (the starting event) and action nodes (tasks to perform).
-    Nodes execute in sequence. Use {{ node.ref }} template syntax to reference
-    values from previous nodes.
+    Nodes execute in sequence. previous_node_ref connects nodes using their ref.
+    For dynamic field values, describe the previous node and property after
+    $formula:; the tool compiles that description against the actual node data.
 
     ## Dynamic Values with $formula:
 

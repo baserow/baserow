@@ -137,7 +137,7 @@ async def test_search_user_docs_does_not_add_sources_for_nothing_found_predictio
     assert result["reliability"] == 0.0
     assert result["sources"] == []
     assert ctx.deps.sources == []
-    model_profile.create_model.assert_called_once_with()
+    assert model_profile.create_model.call_count == mock_run.call_count == 2
 
 
 @pytest.mark.django_db
@@ -201,6 +201,7 @@ async def test_search_user_docs_does_not_invent_source_attribution(
     assert result["sources"] == []
     assert ctx.deps.sources == []
     assert "unsupported feature exists" not in result["answer"]
+    assert run.call_count == 2
 
 
 @pytest.mark.django_db
@@ -257,6 +258,56 @@ async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, ans
         "temperature": 0.3,
         "timeout": 20,
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_search_user_docs_recovers_supported_partial_facts_once(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    profile = MagicMock()
+    profile.get_settings.return_value = {"temperature": 0.3}
+    ctx = make_test_ctx(user, workspace, model_profile=profile)
+    chunk = MagicMock(content="Cards can display a selected file field as their cover.")
+    chunk.source_document = MagicMock(
+        title="Cards guide", source_url="https://example.com/cards"
+    )
+    partial = SearchDocsResult(
+        answer="Cards display a file field as their cover; cropping is unverified.",
+        sources=["https://example.com/cards"],
+        reliability=0.5,
+    )
+    with (
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
+        ) as handler,
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.search_docs_agent.run",
+            new_callable=AsyncMock,
+        ) as run,
+    ):
+        handler.return_value.search.return_value = [chunk]
+        model = MagicMock()
+        model.__aenter__.return_value = model
+        profile.create_model.return_value = model
+        run.side_effect = [
+            MagicMock(
+                output=SearchDocsResult(
+                    answer="Nothing found in the documentation.", reliability=0
+                )
+            ),
+            MagicMock(output=partial),
+        ]
+        result = await search_user_docs(
+            ctx, question="Can I crop a card cover?", thought="user asks"
+        )
+    assert result["answer"] == partial.answer
+    assert result["sources"] == partial.sources == ctx.deps.sources
+    assert result["reliability"] == 0.5
+    assert run.call_count == profile.create_model.call_count == 2
+    assert "underlying task" in run.call_args_list[1].args[0]
+    assert run.call_args_list[1].args[0].endswith(run.call_args_list[0].args[0])
+    handler.return_value.search.assert_called_once_with("Can I crop a card cover?", 30)
 
 
 @pytest.mark.django_db(transaction=True)

@@ -231,6 +231,33 @@ def test_documentation_keywords_accept_equivalent_whitespace(space):
     assert all(check.passed for check in checks)
 
 
+@pytest.mark.parametrize("apostrophe", ["'", "\u2018", "\u2019"])
+def test_documentation_keywords_accept_typographic_apostrophes(apostrophe):
+    checks = _make_docs_checks([], ["doesn't"])(
+        None,
+        None,
+        _output(
+            answer=f"The documentation doesn{apostrophe}t establish that feature.",
+            tool_calls=["search_user_docs"],
+            sources=["https://baserow.io/user-docs/example"],
+        ),
+    )
+    assert all(check.passed for check in checks)
+
+
+def test_documentation_apostrophe_normalization_preserves_negation():
+    checks = _make_docs_checks([], ["doesn't"])(
+        None,
+        None,
+        _output(
+            answer="The documentation does establish that feature.",
+            tool_calls=["search_user_docs"],
+            sources=["https://baserow.io/user-docs/example"],
+        ),
+    )
+    assert not next(c for c in checks if c.name.startswith("answer mentions")).passed
+
+
 def test_documentation_whitespace_normalization_preserves_other_requirements():
     checks = _make_docs_checks([], ["14 days"])(
         None, None, _output(answer="History is retained for 90\u202fdays.")
