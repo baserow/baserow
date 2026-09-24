@@ -11,6 +11,7 @@ from baserow.contrib.database.views.models import View
 from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.last_viewed.models import UserLastViewedItem
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.utils import IMPERSONATED_BY_USER_ATTR
 
 
 @pytest.mark.django_db
@@ -33,6 +34,22 @@ def test_schedule_mark_viewed_defers_task_until_commit(
     mock_apply_async.assert_called_once_with(
         args=(user.id, "database_view", 1, "2026-01-01T12:00:00+00:00"), countdown=7
     )
+
+
+@pytest.mark.django_db
+def test_schedule_mark_viewed_ignores_impersonated_users(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    setattr(user, IMPERSONATED_BY_USER_ATTR, data_fixture.create_user().id)
+
+    with patch(
+        "baserow.core.last_viewed.tasks.mark_item_viewed.apply_async"
+    ) as mock_apply_async:
+        with django_capture_on_commit_callbacks(execute=True):
+            LastViewedHandler.schedule_mark_viewed(user, "database_view", 1)
+
+    assert mock_apply_async.call_count == 0
 
 
 @pytest.mark.django_db

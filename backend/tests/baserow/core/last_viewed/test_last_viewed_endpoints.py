@@ -7,6 +7,8 @@ from django.shortcuts import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK
 
+from baserow.core.user.utils import generate_session_tokens_for_user
+
 
 @pytest.fixture
 def scheduled_views(django_capture_on_commit_callbacks):
@@ -126,3 +128,22 @@ def test_automation_nodes_endpoint_schedules_last_viewed(
 
     assert response.status_code == HTTP_200_OK
     assert scheduled_views == [("automation_workflow", workflow.id)]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_impersonated_requests_do_not_schedule_last_viewed(
+    api_client, data_fixture, scheduled_views
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(table=table)
+    staff = data_fixture.create_user(is_staff=True)
+    tokens = generate_session_tokens_for_user(user, impersonated_by_user_id=staff.id)
+
+    response = api_client.get(
+        reverse("api:database:views:grid:list", kwargs={"view_id": view.id}),
+        HTTP_AUTHORIZATION=f"JWT {tokens['access_token']}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert scheduled_views == []

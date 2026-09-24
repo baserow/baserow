@@ -41,6 +41,7 @@ from baserow.core.user.actions import SignInUserActionType
 from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.core.user.handler import UserHandler
 from baserow.core.user.utils import (
+    IMPERSONATED_BY_CLAIM,
     generate_session_tokens_for_user,
     normalize_email_address,
 )
@@ -418,7 +419,9 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
         ):
             raise EmailVerificationRequired()
 
-        data = generate_session_tokens_for_user(user)
+        data = generate_session_tokens_for_user(
+            user, impersonated_by_user_id=token.get(IMPERSONATED_BY_CLAIM)
+        )
         data.update(**get_all_user_data_serialized(user, self.context["request"]))
         token_refreshes_counter.add(1)
         return data

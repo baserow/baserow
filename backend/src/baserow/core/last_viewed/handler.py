@@ -13,6 +13,7 @@ from rest_framework import serializers
 
 from baserow.core.psycopg import sql
 from baserow.core.registries import last_viewed_item_type_registry
+from baserow.core.user.utils import is_user_impersonated
 
 from .models import UserLastViewedItem
 from .tasks import mark_item_viewed
@@ -77,8 +78,9 @@ class LastViewedHandler:
         """
 
         # The "loaded" endpoints are open to anonymous visitors of template
-        # workspaces, which have nothing to track.
-        if not user.is_authenticated:
+        # workspaces, which have nothing to track. A support session that
+        # impersonates the user must not reorder their recent items either.
+        if not user.is_authenticated or is_user_impersonated(user):
             return
 
         user_id = user.id
