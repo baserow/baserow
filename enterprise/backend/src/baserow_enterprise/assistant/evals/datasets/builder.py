@@ -1511,7 +1511,13 @@ def _creates_app_when_table_exists_scenario(fx: Fixtures) -> EvalScenario:
         user=user,
         workspace=workspace,
         ui_context=build_builder_ui_context(user, workspace, builder),
-        refs={"builder": builder, "projects_table": projects_table},
+        refs={
+            "builder": builder,
+            "projects_table": projects_table,
+            "initial_builder_ids": list(
+                Builder.objects.filter(workspace=workspace).values_list("id", flat=True)
+            ),
+        },
     )
 
 
@@ -1581,7 +1587,14 @@ def _check_creates_app_when_table_exists(
 ) -> list[CheckResult]:
     builder = scenario.refs["builder"]
     table = scenario.refs["projects_table"]
-    pages = Page.objects.filter(builder=builder, shared=False)
+    # The request says "Create an app" without naming a target. Both completing
+    # the current empty app and creating a new app in this workspace satisfy it.
+    # Existing unrelated apps and apps in other workspaces must not satisfy it.
+    unrelated_ids = set(scenario.refs["initial_builder_ids"]) - {builder.id}
+    builders = Builder.objects.filter(workspace=scenario.workspace).exclude(
+        id__in=unrelated_ids
+    )
+    pages = Page.objects.filter(builder__in=builders, shared=False)
     sources = []
     for source in DataSource.objects.filter(page__in=pages):
         service = source.service.specific if source.service else None
