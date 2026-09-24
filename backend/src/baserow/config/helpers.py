@@ -37,7 +37,7 @@ def log_ai_provider_env_deprecations() -> None:
     if configured_provider_variables:
         logger.warning(
             "Deprecated AI provider environment variables are configured: {}. "
-            "Upgrading imports them once into Admin > AI providers, which then "
+            "Upgrading imports them once into Admin tools > AI providers, which then "
             "takes precedence: editing these variables afterwards has no effect "
             "on a provider type configured there. Manage those providers in the "
             "admin instead, and verify the imported configuration before removing "
@@ -63,7 +63,7 @@ def log_ai_provider_env_deprecations() -> None:
             logger.warning(
                 "Deprecated Kuma environment variables are "
                 "configured: {}. Configure and test a provider and model under "
-                "Admin > AI providers, then select it for Kuma under AI features. "
+                "Admin tools > AI providers, then select it for Kuma under AI features. "
                 "The automatic import does not migrate Kuma selectors or SDK "
                 "credentials, and imported models are not Kuma-eligible until you "
                 "mark them. Keep the environment fallback until a supported "

@@ -5,7 +5,7 @@
     "issue_number": 5182,
     "domain": "core",
     "bullet_points": [
-        "Configure connections and models in Admin \u2192 AI providers, or per workspace.",
+        "Configure connections and models in Admin tools \u2192 AI providers, or per workspace in the workspace's Settings \u2192 AI providers.",
         "Choose which features may use each model.",
         "Upgrading imports existing environment and workspace settings automatically."
     ],

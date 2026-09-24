@@ -201,36 +201,40 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 
 ### Generative AI configuration
 
-Configure providers and models under **Admin → AI providers** or workspace
-**Settings → AI providers**. The provider connection and model-list variables below
-are **deprecated** and retained for compatibility. Upgrading imports them into
-**Admin → AI providers**, which then takes precedence: editing a variable afterwards
-has no effect on a provider type configured there. See
-[AI providers](ai-providers.md#environment-variables) for the precedence rules. No
-removal date is set.
-
-Kuma's deprecated environment model selector requires a separate manual model
-selection; see the [AI assistant guide](ai-assistant.md). Provider-native SDK
-credentials and operational settings such as generation concurrency, debounce,
-temperature, file limits, and embeddings configuration remain supported.
+AI providers and models are configured in Baserow, under **Admin tools → AI providers**
+or a workspace's **Settings → AI providers**. See [AI providers](ai-providers.md).
 
 | Name                                             | Description                                                                                                                                                                                                                                                                                                                                                 | Defaults |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| BASEROW\_OPENAI\_API\_KEY                        | **Deprecated.** Legacy OpenAI API key. Configure the OpenAI connection under **AI providers**. |          |
-| BASEROW\_OPENAI\_ORGANIZATION                    | **Deprecated.** Legacy OpenAI organization. Set the organization on the OpenAI connection under **AI providers**. |          |
-| BASEROW\_OPENAI\_MODELS                          | **Deprecated.** Legacy comma-separated OpenAI model identifiers. Add models and choose their feature availability under **AI providers**. |          |
-| BASEROW\_OPENAI\_BASE\_URL                       | **Deprecated.** Legacy OpenAI-compatible endpoint. Set the base URL on the OpenAI connection under **AI providers**. |          |
-| BASEROW\_OPENROUTER\_API\_KEY                    | **Deprecated.** Legacy OpenRouter API key. Configure the OpenRouter connection under **AI providers**. |          |
-| BASEROW\_OPENROUTER\_ORGANIZATION                | **Deprecated.** Legacy OpenRouter organization. Set the organization on the OpenRouter connection under **AI providers**. |          |
-| BASEROW\_OPENROUTER\_MODELS                      | **Deprecated.** Legacy comma-separated OpenRouter model identifiers. Add models and choose their feature availability under **AI providers**. |          |
-| BASEROW\_ANTHROPIC\_API\_KEY                     | **Deprecated.** Legacy Anthropic API key. Configure the Anthropic connection under **AI providers**. |          |
-| BASEROW\_ANTHROPIC\_MODELS                       | **Deprecated.** Legacy comma-separated Anthropic model identifiers. Add models and choose their feature availability under **AI providers**. |          |
-| BASEROW\_MISTRAL\_API\_KEY                       | **Deprecated.** Legacy Mistral API key. Configure the Mistral connection under **AI providers**. |          |
-| BASEROW\_MISTRAL\_MODELS                         | **Deprecated.** Legacy comma-separated Mistral model identifiers. Add models and choose their feature availability under **AI providers**. |          |
-| BASEROW\_OLLAMA\_HOST                            | **Deprecated.** Legacy Ollama host. Set the host on the Ollama connection under **AI providers**. |          |
-| BASEROW\_OLLAMA\_MODELS                          | **Deprecated.** Legacy comma-separated Ollama model identifiers. Add models and choose their feature availability under **AI providers**. |          |
 | BASEROW\_AI\_FIELD\_MAX\_CONCURRENT\_GENERATIONS | If AI field values are recalculated in a large number (i.e. recalculating whole table, empty rows, or a selection of rows), this controls the number of concurrent requests issued to AI model to generate values.                                                                                                                                          | 5        |
 | BASEROW\_AI\_FIELD\_AUTO\_UPDATE\_DEBOUNCE\_TIME | Debounce time in seconds for AI field updates scheduled from auto-update feature. If AI field has auto-update feature enabled, and many changes occur on fields that are referenced by that AI field, this will delay AI field generation by a number of seconds to accumulate many short updates into one bigger.                                          | 3        |
+
+#### Deprecated AI provider variables
+
+**Baserow 2.4 no longer reads these variables.** The upgrade imports them once into
+**Admin tools → AI providers**; change these settings there instead. See
+[Upgrading to Baserow 2.4](https://baserow.io/docs/installation%2Fai-providers#upgrading-to-baserow-24)
+for the exceptions.
+
+| Name                              | Used to set                                                                   | Now set in Admin tools → AI providers as |
+| --------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------- |
+| BASEROW\_OPENAI\_API\_KEY         | The OpenAI API key.                                                           | OpenAI **API key**                       |
+| BASEROW\_OPENAI\_ORGANIZATION     | The OpenAI organization.                                                      | OpenAI **Organization**                  |
+| BASEROW\_OPENAI\_MODELS           | Comma-separated OpenAI model identifiers.                                     | OpenAI **Models**                        |
+| BASEROW\_OPENAI\_BASE\_URL        | An OpenAI-compatible endpoint, such as Azure OpenAI or a self-hosted gateway. | OpenAI **Base URL**                      |
+| BASEROW\_OPENROUTER\_API\_KEY     | The OpenRouter API key.                                                       | OpenRouter **API key**                   |
+| BASEROW\_OPENROUTER\_ORGANIZATION | The OpenRouter organization.                                                  | OpenRouter **Organization**              |
+| BASEROW\_OPENROUTER\_MODELS       | Comma-separated OpenRouter model identifiers.                                 | OpenRouter **Models**                    |
+| BASEROW\_ANTHROPIC\_API\_KEY      | The Anthropic API key.                                                        | Anthropic **API key**                    |
+| BASEROW\_ANTHROPIC\_MODELS        | Comma-separated Anthropic model identifiers.                                  | Anthropic **Models**                     |
+| BASEROW\_MISTRAL\_API\_KEY        | The Mistral API key.                                                          | Mistral **API key**                      |
+| BASEROW\_MISTRAL\_MODELS          | Comma-separated Mistral model identifiers.                                    | Mistral **Models**                       |
+| BASEROW\_OLLAMA\_HOST             | The Ollama server host.                                                       | Ollama **Host**                          |
+| BASEROW\_OLLAMA\_MODELS           | Comma-separated Ollama model identifiers.                                     | Ollama **Models**                        |
+
+Kuma's `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is not imported and keeps working
+until you make a model available to Kuma and select it under **AI features**; see the
+[AI assistant guide](ai-assistant.md).
 
 ### Backend Misc Configuration
 | Name                                                                | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Defaults               |
@@ -276,7 +280,7 @@ temperature, file limits, and embeddings configuration remain supported.
 | Name                                       | Description                                                                                                                                                                                                                                                                                                                                           | Defaults          |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | BASEROW\_EMBEDDINGS\_API\_URL              | If not empty, the AI-assistant will use this as embedding server for the knowledge base lookup. Must point to a container running this image: https://hub.docker.com/r/baserow/embeddings                                                                                                                                                             | "" (empty string) |
-| BASEROW\_ENTERPRISE\_ASSISTANT\_LLM\_MODEL | If not empty, then this model will be used for the AI-assistant. Provide in pydantic-ai format like `groq:openai/gpt-oss-120b` or `bedrock:openai.gpt-oss-120b-1:0`. Note that additional API keys must be provided as environment variable depending on the provider. Instructions can be found at https://baserow.io/docs/installation/ai-assistant | "" (empty string) |
+| BASEROW\_ENTERPRISE\_ASSISTANT\_LLM\_MODEL | **Deprecated.** The AI-assistant uses this model until you select one under **AI features** in AI providers. Provide in pydantic-ai format like `groq:openai/gpt-oss-120b` or `bedrock:openai.gpt-oss-120b-1:0`. Note that additional API keys must be provided as environment variable depending on the provider. Instructions can be found at https://baserow.io/docs/installation/ai-assistant | "" (empty string) |
 | AWS\_BEARER\_TOKEN\_BEDROCK                | If the BASEROW\_ENTERPRISE\_ASSISTANT\_LLM\_MODEL uses a bedrock provider, then this environment variable must be set. Instructions on how to obtain: https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys-use.html                                                                                                                          | "" (empty string) |
 | AWS\_REGION\_NAME                          | If the BASEROW\_ENTERPRISE\_ASSISTANT\_LLM\_MODEL uses a bedrock provider, then the AWS region for the AI-assistant can be provided here.                                                                                                                                                                                                             | us-east-1         |
 | GROQ\_API\_KEY                             | If the BASEROW\_ENTERPRISE\_ASSISTANT\_LLM\_MODEL uses a groq provider (e.g. `groq:openai/gpt-oss-120b`), then the Groq API key must be provided here.                                                                                                                                                                                                | "" (empty string) |

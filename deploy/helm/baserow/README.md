@@ -98,22 +98,24 @@ Baserow supports multiple AI providers for generative AI features and the AI ass
 
 ### Configure providers and models
 
-After deployment, configure shared connections under **Admin > AI providers**, or
-workspace connections under **Settings > AI providers**. Add models, select their
-available features, and run **Test model**. Choose Kuma's default under
-**AI features**; AI Fields and AI Agent actions keep their own model selections.
+After deployment, configure shared connections under **Admin tools > AI providers**,
+or workspace connections under the workspace's **Settings > AI providers**. Add
+models, select their available features, and run **Test model**. Choose Kuma's
+default under **AI features**; AI Fields and AI Agent actions keep their own model
+selections.
 
-The provider connection/model environment variables and
-`global.baserow.assistantLLMModel` are **deprecated**. Upgrading imports them into
-**Admin > AI providers**, which then takes precedence: editing a variable afterwards
-has no effect on a provider type configured there. See
-[AI providers](/docs/installation/ai-providers.md#environment-variables). The migrate
-job must carry the same AI variables as the backend, which it does by default through
-the shared backend config map and secret. Kuma's model selection and native
-credentials are not imported and require separate configuration. Keep existing
-settings until the imported configuration is verified, including the rollback window.
-Providers without an equivalent database configuration can continue using the
-compatibility fallback described in the [AI assistant guide](/docs/installation/ai-assistant.md).
+The provider connection/model environment variables are **deprecated**. Upgrading to
+Baserow 2.4 imports them once into **Admin tools > AI providers**, and after that
+Baserow no longer reads them. See
+[Upgrading to Baserow 2.4](/docs/installation/ai-providers.md#upgrading-to-baserow-24).
+The migrate job must carry the same AI variables as the backend, which it does by
+default through the shared backend config map and secret.
+`global.baserow.assistantLLMModel` is also deprecated but is not imported: Kuma keeps
+using it until you make a model available to Kuma and select it under
+**AI features**. Keep existing settings until the imported configuration is verified,
+including the rollback window. Bedrock and Vertex AI have no equivalent in AI
+providers; keep their environment configuration for Kuma, as described in the
+[AI assistant guide](/docs/installation/ai-assistant.md).
 
 ### Enable Embeddings Service
 
@@ -249,7 +251,7 @@ caddy:
 | `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`         |
 | `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`     |
 | `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
-| `global.baserow.assistantLLMModel`                                 | Deprecated. Select the Kuma model under Admin > AI providers > AI features. Retained as an environment fallback; explicit disables prevent fallback. | `""`                    |
+| `global.baserow.assistantLLMModel`                                 | Deprecated. Select the Kuma model under Admin tools > AI providers > AI features. Retained as an environment fallback; explicit disables prevent fallback. | `""`                    |
 | `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                 |
 | `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                    |
 | `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                    |

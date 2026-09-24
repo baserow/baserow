@@ -176,9 +176,10 @@ helm rollback my-baserow 1 -n baserow
 
 Baserow supports multiple providers for AI Fields, AI Agent actions, formula
 suggestions, and the AI assistant. Configure provider connections and models under
-**Admin → AI providers** or workspace **Settings → AI providers**. Choose each
-model's feature availability and run **Test model**. Kuma also requires a selected
-model under **AI features**; see [AI assistant setup](ai-assistant.md).
+**Admin tools → AI providers** or a workspace's **Settings → AI providers**; see
+[where to configure them](https://baserow.io/docs/installation%2Fai-providers#where-to-configure-them).
+Choose each model's feature availability and run **Test model**. Kuma also requires
+a selected model under **AI features**; see [AI assistant setup](ai-assistant.md).
 
 #### Enable AI Assistant with Embeddings
 
@@ -195,21 +196,22 @@ or generate AI Field values.
 
 #### Migrate Existing Environment Configuration
 
-The `BASEROW_*` provider connection and model-list variables, and the Helm
-`global.baserow.assistantLLMModel` setting, are **deprecated**. Their compatibility
-behavior is retained. Upgrading imports them into **Admin → AI providers**, which
-then takes precedence over the variables. See
-[AI providers](ai-providers.md#environment-variables).
+The `BASEROW_*` provider connection and model-list variables are **deprecated**.
+Upgrading to Baserow 2.4 imports them once into **Admin tools → AI providers**, and
+after that Baserow no longer reads them. See
+[Upgrading to Baserow 2.4](https://baserow.io/docs/installation%2Fai-providers#upgrading-to-baserow-24).
 
-The migrate job must carry the same AI variables as the backend, or nothing is
-imported. It shares the backend config map and secret by default.
+The migrate job must carry the same AI variables as the backend. Otherwise they are
+not imported, and the backend keeps reading them. It shares the backend config map
+and secret by default.
 
-Kuma's environment model and provider-native credentials are not imported. Configure
-and test its connection and model, then explicitly select that model under
+The Helm `global.baserow.assistantLLMModel` setting is also deprecated, but Kuma's
+environment model and provider-native credentials are not imported. Kuma keeps using
+them until you make a tested model available to Kuma and select it under
 **AI features**. Keep a verified fallback for native providers or authentication
 without an equivalent database configuration, such as Bedrock or Vertex AI. Their
 SDK credentials remain supported; see the
-[fallback presets](ai-assistant.md#3-legacy-fallback-provider-presets).
+[fallback presets](https://baserow.io/docs/installation%2Fai-assistant#3-legacy-fallback-provider-presets).
 Retain legacy values needed by remaining consumers and the rollback window.
 
 See the [official Helm chart documentation](https://github.com/baserow/baserow/blob/develop/deploy/helm/baserow/README.md) for detailed AI configuration options.
