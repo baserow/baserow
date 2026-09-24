@@ -2,6 +2,7 @@ import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 import ABChart from '@baserow_enterprise/builder/components/elements/ABChart'
 import GraphElement from '@baserow_enterprise/builder/components/elements/GraphElement'
 import GraphElementForm from '@baserow_enterprise/builder/components/elements/GraphElementForm'
+import { FileInputElementType } from '@baserow_enterprise/builder/elementTypes'
 
 describe('Enterprise builder element types', () => {
   describe('Auth form error message', () => {
@@ -167,6 +168,37 @@ describe('Enterprise builder element types', () => {
     expect(elementType.getDeactivatedClickModal({ workspace: undefined })).toBe(
       null
     )
+  })
+
+  describe('File input validation', () => {
+    test('required multiple input rejects an undefined value', () => {
+      const element = { required: true, multiple: true }
+
+      expect(FileInputElementType.getError(element, undefined, {})).toBe(
+        'required'
+      )
+    })
+
+    test('optional multiple input accepts an undefined value', () => {
+      const element = { required: false, multiple: true }
+
+      expect(FileInputElementType.getError(element, undefined, {})).toBeNull()
+    })
+
+    test('multiple input treats a non-array value as empty', () => {
+      const element = { required: true, multiple: true }
+
+      expect(FileInputElementType.getError(element, {}, {})).toBe('required')
+    })
+
+    test.each([
+      ['single', false, { size: 2 * 1024 * 1024 }],
+      ['multiple', true, [{ size: 2 * 1024 * 1024 }]],
+    ])('%s input validates file size', (_name, multiple, value) => {
+      const element = { required: false, multiple, max_filesize: 1 }
+
+      expect(FileInputElementType.getError(element, value, {})).toBe('fileSize')
+    })
   })
 
   test('graph element is an advanced paid feature', () => {
