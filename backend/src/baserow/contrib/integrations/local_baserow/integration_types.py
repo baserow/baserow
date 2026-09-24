@@ -17,6 +17,7 @@ from baserow.contrib.integrations.api.local_baserow.serializers import (
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.agents.exceptions import AgentDoesNotExist
 from baserow.core.agents.handler import AgentHandler
+from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
@@ -189,9 +190,15 @@ class LocalBaserowIntegrationType(IntegrationType):
             workspace = Workspace.objects.get(id=id_mapping["import_workspace_id"])
             agent_handler = AgentHandler()
             agents = agent_handler.get_queryset(workspace).filter(trashed=False)
-            serialized_values["authorized_agent"] = agent_handler.get_agent(
-                agent_id, agents
-            )
+            try:
+                serialized_values["authorized_agent"] = agent_handler.get_agent(
+                    agent_id, agents
+                )
+            except AgentDoesNotExist as exc:
+                raise IntegrationImproperlyConfigured(
+                    "The Local Baserow integration's authorized agent is missing or "
+                    "trashed."
+                ) from exc
 
         return super().import_serialized(
             application,
