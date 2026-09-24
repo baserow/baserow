@@ -2261,6 +2261,14 @@ class CoreResponseServiceType(CoreServiceType):
 
         return formulas
 
+    def should_resolve_service_formula(
+        self,
+        service: CoreResponseService,
+        formula: FormulaToResolve,
+        resolved_values: Dict[str, Any],
+    ) -> bool:
+        return not (formula.key == "body" and resolved_values.get("status_code") == 204)
+
     def _normalize_response_body(
         self,
         body_type: str,

@@ -319,6 +319,22 @@ class ServiceType(
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         return []
 
+    def should_resolve_service_formula(
+        self,
+        service: ServiceSubClass,
+        formula: FormulaToResolve,
+        resolved_values: Dict[str, Any],
+    ) -> bool:
+        """
+        Return whether the formula should be resolved given earlier resolved values.
+
+        Formulas are evaluated in the order returned by `formulas_to_resolve`, so a
+        service type can use this hook to skip a later formula based on an earlier
+        result.
+        """
+
+        return True
+
     def _get_validation_details(self, error):
         detail = error.detail
 
@@ -350,7 +366,13 @@ class ServiceType(
         """
 
         resolved_values = {}
-        for key, formula_ctx, ensurer, label in self.formulas_to_resolve(service):
+        for formula in self.formulas_to_resolve(service):
+            if not self.should_resolve_service_formula(
+                service, formula, resolved_values
+            ):
+                continue
+
+            key, formula_ctx, ensurer, label = formula
             try:
                 resolved_values[key] = ensurer(
                     resolve_formula(

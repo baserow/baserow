@@ -105,6 +105,31 @@ def test_response_service_dispatch_drops_body_for_204(data_fixture):
     assert response.body_type == RESPONSE_BODY_TYPE.EMPTY
 
 
+@pytest.mark.django_db
+def test_response_service_does_not_resolve_body_for_204(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_core_response_action_node(
+        workflow=workflow,
+        service_kwargs={
+            "status_code": BaserowFormulaObject.create(
+                "204", mode=BASEROW_FORMULA_MODE_RAW
+            ),
+            "body_type": RESPONSE_BODY_TYPE.TEXT,
+            "body": "get('unavailable.value')",
+        },
+    )
+    history = data_fixture.create_automation_workflow_history(workflow=workflow)
+    dispatch_context = AutomationDispatchContext(workflow, history)
+
+    result = node.get_type().dispatch(node, dispatch_context)
+
+    response = AutomationWorkflowHistoryResponse.objects.get(workflow_history=history)
+    assert result.data["body"] is None
+    assert result.data["body_type"] == RESPONSE_BODY_TYPE.EMPTY
+    assert response.body is None
+    assert response.body_type == RESPONSE_BODY_TYPE.EMPTY
+
+
 @pytest.mark.parametrize("value", [99, 600, "not-a-status-code"])
 def test_ensure_http_status_code_rejects_invalid_values(value):
     with pytest.raises(ValidationError):
