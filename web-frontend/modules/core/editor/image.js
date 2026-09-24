@@ -1,13 +1,17 @@
+import { InputRule } from '@tiptap/core'
 import { Image } from '@tiptap/extension-image'
 import { isAllowedUri } from '@tiptap/extension-link'
 
 import { LINK_PROTOCOLS } from '@baserow/modules/core/editor/linkProtocols'
+import { isTrustedImageUrl } from '@baserow/modules/core/editor/trustedImageUrls'
 
 // `![alt][userFileName](url)`: alt allows backslash escapes (linear, ReDoS-safe),
-// the name may not contain path separators, the URL is optional because the
-// backend strips it on write and re-appends it on read.
+// the name may not contain path separators and its extension may be empty, the
+// URL is optional because the backend strips it on write and re-appends it on
+// read. The URL excludes `(` and whitespace so a missing `)` stops the scan at
+// the next `(` rather than at the end of the input.
 const IMAGE_REF_REGEX =
-  /^!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]+)\](?:\(([^)]+)\))?/
+  /^!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]*)\](?:\(([^()\s]+)\))?/
 
 const escapeAlt = (s) => s.replace(/[\\[\]]/g, '\\$&')
 const unescapeAlt = (s) => s.replace(/\\([\\[\]])/g, '$1')
@@ -39,11 +43,13 @@ export const ScalableImage = Image.extend({
     if (node.attrs.userFileName) {
       attrs['data-user-file-name'] = node.attrs.userFileName
     }
-    // A reference the backend has not resolved yet has no URL. Rendering an
-    // `<img>` with an empty `src` shows a broken image, so show the alt text
-    // instead. The node keeps `userFileName`, so serializing it back still
-    // produces the reference: the placeholder is display only.
-    if (node.attrs.userFileName && !node.attrs.src) {
+    // Only a URL Baserow handed out (see `trustedImageUrls`) is loaded. A
+    // reference the backend has not resolved yet has no URL, and one pasted as
+    // HTML may carry any `src`; both show the alt text instead. The node keeps
+    // `userFileName` and `src`, so serializing it back still produces the
+    // reference, which the backend resolves on save: the placeholder is
+    // display only.
+    if (!isTrustedImageUrl(node.attrs.src)) {
       const { src, ...rest } = attrs
       // The icon is a child element rather than the U+1F5BC glyph: Inter does
       // not cover that codepoint, so the browser picked the colour emoji font
@@ -100,6 +106,27 @@ export const ScalableImage = Image.extend({
           }
         },
       },
+    ]
+  },
+  addInputRules() {
+    // The base rule turns a typed `![alt](url)` into an image loaded from any
+    // host. Rich text images are Baserow uploads only, so the typed syntax
+    // degrades to a link, like a plain markdown image does on parse.
+    return [
+      new InputRule({
+        find: /(?:^|\s)(!\[([^[\]\n]*)\]\((\S+)\))$/,
+        handler: ({ state, range, match }) => {
+          const [, token, alt, src] = match
+          const start = range.from + match[0].indexOf(token)
+          const text = alt || src
+          const link = state.schema.marks.link
+          const marks =
+            link && isAllowedUri(src, LINK_PROTOCOLS)
+              ? [link.create({ href: src })]
+              : []
+          state.tr.replaceWith(start, range.to, state.schema.text(text, marks))
+        },
+      }),
     ]
   },
   markdownTokenName: 'image',

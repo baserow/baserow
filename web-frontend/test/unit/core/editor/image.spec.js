@@ -1,6 +1,10 @@
 import { Editor } from '@tiptap/vue-3'
 
 import { createRichTextEditorExtensions } from '@baserow/modules/core/editor/richTextExtensions'
+import {
+  clearTrustedImageUrls,
+  registerTrustedImageUrl,
+} from '@baserow/modules/core/editor/trustedImageUrls'
 
 function createEditor(content = '', enableImages = false) {
   return new Editor({
@@ -21,6 +25,10 @@ function findImageNodes(editor) {
   })
   return images
 }
+
+afterEach(() => {
+  clearTrustedImageUrls()
+})
 
 describe('ScalableImage extension', () => {
   test('stores userFileName attribute on image node', () => {
@@ -107,6 +115,7 @@ describe('ScalableImage extension', () => {
   })
 
   test('renders userFileName as a data attribute so HTML round-trips keep it', () => {
+    registerTrustedImageUrl('https://example.com/img.png')
     const editor = createEditor('', true)
     editor.commands.setImage({
       src: 'https://example.com/img.png',
@@ -124,6 +133,7 @@ describe('ScalableImage extension', () => {
   })
 
   test('keeps userFileName through an HTML copy/paste round trip', () => {
+    registerTrustedImageUrl('https://example.com/user_files/abc_def.png')
     const source = createEditor('', true)
     source.commands.setImage({
       src: 'https://example.com/user_files/abc_def.png',
@@ -267,6 +277,95 @@ describe('ScalableImage HTML parsing', () => {
     expect(images).toHaveLength(1)
     expect(images[0].attrs.userFileName).toBe('abc_def.png')
     expect(images[0].attrs.src).toBe('https://example.com/f.png')
+
+    editor.destroy()
+  })
+})
+
+describe('ScalableImage only loads trusted URLs', () => {
+  test('pasted HTML with a user file name and a foreign src renders a placeholder', () => {
+    const editor = createEditor('', true)
+    editor.commands.insertContent(
+      '<img src="https://evil.example.com/pixel.png" alt="x" data-user-file-name="abc_def.png">'
+    )
+
+    const images = findImageNodes(editor)
+    expect(images).toHaveLength(1)
+    expect(images[0].attrs.userFileName).toBe('abc_def.png')
+    expect(editor.view.dom.querySelector('img')).toBeNull()
+    const placeholder = editor.view.dom.querySelector(
+      '.rich-text-editor__image-placeholder'
+    )
+    expect(placeholder).not.toBeNull()
+    expect(placeholder.getAttribute('data-user-file-name')).toBe('abc_def.png')
+    expect(editor.getHTML()).not.toContain('evil.example.com')
+    // The reference is kept, so the backend resolves it on save.
+    expect(editor.getMarkdown()).toContain('![x][abc_def.png]')
+
+    editor.destroy()
+  })
+
+  test('a registered src renders an img', () => {
+    registerTrustedImageUrl(
+      'https://baserow.example.com/user_files/abc_def.png'
+    )
+    const editor = createEditor(
+      '![x][abc_def.png](https://baserow.example.com/user_files/abc_def.png)',
+      true
+    )
+
+    const img = editor.view.dom.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img.getAttribute('src')).toBe(
+      'https://baserow.example.com/user_files/abc_def.png'
+    )
+
+    editor.destroy()
+  })
+
+  test('a Markdown reference with an unregistered URL renders a placeholder', () => {
+    const editor = createEditor(
+      '![x][abc_def.png](https://evil.example.com/pixel.png)',
+      true
+    )
+
+    expect(findImageNodes(editor)).toHaveLength(1)
+    expect(editor.view.dom.querySelector('img')).toBeNull()
+
+    editor.destroy()
+  })
+
+  test('typing ![x](url) creates a link, never an image', () => {
+    const editor = createEditor('', true)
+    editor.commands.insertContent('![x](https://example.com/a.png')
+    const { from, to } = editor.state.selection
+    const handled = editor.view.someProp('handleTextInput', (handler) =>
+      handler(editor.view, from, to, ')')
+    )
+
+    expect(handled).toBe(true)
+    expect(findImageNodes(editor)).toHaveLength(0)
+    expect(editor.getText()).toBe('x')
+    expect(editor.getJSON().content[0].content[0].marks).toEqual([
+      expect.objectContaining({
+        type: 'link',
+        attrs: expect.objectContaining({ href: 'https://example.com/a.png' }),
+      }),
+    ])
+
+    editor.destroy()
+  })
+
+  test('typing ![x](url) with a disallowed protocol leaves plain text', () => {
+    const editor = createEditor('', true)
+    editor.commands.insertContent('![x](javascript:alert(1)')
+    const { from, to } = editor.state.selection
+    editor.view.someProp('handleTextInput', (handler) =>
+      handler(editor.view, from, to, ')')
+    )
+
+    expect(findImageNodes(editor)).toHaveLength(0)
+    expect(editor.getHTML()).not.toContain('javascript:')
 
     editor.destroy()
   })
