@@ -14,3 +14,7 @@ class IntegrationCredentialRequired(Exception):
     Raised when a field that controls where a request goes is changed without the
     credential it protects being re-supplied in the same request.
     """
+
+
+class IntegrationImproperlyConfigured(Exception):
+    """Raised when an integration cannot be used with its saved configuration."""

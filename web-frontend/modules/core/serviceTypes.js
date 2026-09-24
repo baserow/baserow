@@ -86,11 +86,27 @@ export class ServiceType extends Registerable {
    * @param service - The service object.
    * @returns {String} - The error message
    */
-  getErrorMessage({ service, workspace = null }) {
+  getErrorMessage({ service, workspace = null, application = null }) {
     const deactivatedReason =
       workspace && this.isDeactivatedReason({ workspace })
     if (deactivatedReason) {
       return deactivatedReason
+    }
+
+    if (application && service?.integration_id) {
+      const integration = this.app.$store.getters[
+        'integration/getIntegrationById'
+      ](application, service.integration_id)
+      if (integration) {
+        const integrationType = this.app.$registry.get(
+          'integration',
+          integration.type
+        )
+        const integrationError = integrationType.getErrorMessage(integration)
+        if (integrationError) {
+          return integrationError
+        }
+      }
     }
 
     return null

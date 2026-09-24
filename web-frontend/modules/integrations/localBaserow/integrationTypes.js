@@ -54,6 +54,13 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     }
   }
 
+  getErrorMessage(integration) {
+    if (integration.authorized_agent?.trashed) {
+      return this.app.$i18n.t('localBaserowIntegrationType.errorTrashedAgent')
+    }
+    return super.getErrorMessage(integration)
+  }
+
   getOrder() {
     return 10
   }

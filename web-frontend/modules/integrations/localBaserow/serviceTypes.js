@@ -90,6 +90,10 @@ export class LocalBaserowTableServiceType extends ServiceType {
           return this.app.$i18n.t('serviceType.errorMisconfiguredIntegration')
         }
       }
+      const inheritedError = super.getErrorMessage({ service, application })
+      if (inheritedError) {
+        return inheritedError
+      }
       if (!service.table_id) {
         return this.app.$i18n.t('serviceType.errorNoTableSelected')
       }

@@ -125,14 +125,27 @@ def test_create_and_update_local_baserow_integration_with_agent(
     assert response.json()["authorized_agent"] == {
         "id": agent.id,
         "name": "Row writer",
+        "trashed": False,
     }
 
     integration = Integration.objects.get(id=response.json()["id"]).specific
     assert integration.authorized_subject == agent
 
+    agent.trashed = True
+    agent.save(update_fields=["trashed"])
     item_url = reverse(
         "api:integrations:item", kwargs={"integration_id": integration.id}
     )
+    response = api_client.get(
+        item_url,
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["authorized_agent"]["trashed"] is True
+
+    agent.trashed = False
+    agent.save(update_fields=["trashed"])
+
     response = api_client.patch(
         item_url,
         {"authorized_agent_id": None},
