@@ -1426,3 +1426,53 @@ def test_create_data_sync_personal_access_token(enterprise_data_fixture, api_cli
         "jira_project_key": "",
         "jira_username": "",
     }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_data_sync_table_description_with_reference_text_is_escaped(
+    enterprise_data_fixture,
+):
+    issue = deepcopy(SINGLE_ISSUE)
+    issue["fields"]["description"] = "Before ![before][shot_v2.png]"
+    _mock_server_info_cloud()
+    responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 1},
+    )
+    responses.add(
+        responses.GET,
+        "https://test.atlassian.net/rest/api/2/search/jql",
+        status=200,
+        json={**SINGLE_ISSUE_RESPONSE, "issues": [issue]},
+    )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="jira_issues",
+        synced_properties=["jira_id", "description"],
+        jira_url="https://test.atlassian.net",
+        jira_project_key="",
+        jira_username="test@test.nl",
+        jira_api_token="test_token",
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    description_field = specific_iterator(
+        data_sync.table.field_set.all().order_by("id")
+    )[1]
+    model = data_sync.table.get_model()
+    assert (
+        getattr(model.objects.get(), f"field_{description_field.id}")
+        == "Before !\\[before][shot_v2.png]"
+    )

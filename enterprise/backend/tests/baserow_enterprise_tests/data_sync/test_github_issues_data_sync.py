@@ -899,3 +899,61 @@ def test_sync_data_sync_table_body_with_image_is_stable(enterprise_data_fixture)
 
     update_rows.assert_not_called()
     assert model.objects.get().updated_on == updated_on
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@responses.activate
+def test_sync_data_sync_table_body_with_reference_text_is_escaped(
+    enterprise_data_fixture,
+):
+    """A body can't point at this instance's user files, so text shaped like a
+    reference is escaped instead of failing the field's validation and the sync."""
+
+    issue = deepcopy(SINGLE_ISSUE)
+    issue["body"] = "Before ![before][shot_v2.png] " + " ".join(
+        "![i][shot_v2.png]" for _ in range(101)
+    )
+    for _ in range(2):
+        responses.add(
+            responses.GET,
+            "https://api.github.com/repos/baserow_owner/baserow_repo/issues?page=1&per_page=50&state=all",
+            status=200,
+            json=[issue],
+        )
+        responses.add(
+            responses.GET,
+            "https://api.github.com/repos/baserow_owner/baserow_repo/issues?page=2&per_page=50&state=all",
+            status=200,
+            json=NO_ISSUES_RESPONSE,
+        )
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="github_issues",
+        synced_properties=["id", "body"],
+        github_issues_owner="baserow_owner",
+        github_issues_repo="baserow_repo",
+        github_issues_api_token="test",
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    body_field = specific_iterator(data_sync.table.field_set.all().order_by("id"))[1]
+    model = data_sync.table.get_model()
+    assert getattr(model.objects.get(), f"field_{body_field.id}") == issue[
+        "body"
+    ].replace("![", "!\\[")
+
+    with patch(
+        "baserow.contrib.database.data_sync.handler.RowHandler.update_rows"
+    ) as update_rows:
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    update_rows.assert_not_called()

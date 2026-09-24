@@ -6,6 +6,7 @@ import pytest
 from baserow.contrib.database.fields.rich_text_utils import (
     append_user_file_urls,
     count_image_references,
+    escape_user_file_references,
     extract_user_file_names,
     is_renderable_user_file,
     iter_code_segments,
@@ -259,6 +260,23 @@ class TestPatternsMatchTheFrontend:
     def test_only_spaces_and_tabs_may_follow_a_closing_fence(self, char):
         content = f"```\ncode\n```{char}\n![a][abc_def.png](https://e.com/p.png)"
         assert list(iter_code_segments(content)) == [(content, True)]
+
+
+class TestEscapeUserFileReferences:
+    def test_escapes_references_outside_code(self):
+        content = "![a][abc_def.png] `![b][abc_def.png]` ![c][abc_def.png](http://h/x)"
+        escaped = escape_user_file_references(content)
+        assert escaped == (
+            "!\\[a][abc_def.png] `![b][abc_def.png]` !\\[c][abc_def.png](http://h/x)"
+        )
+        assert extract_user_file_names(escaped) == set()
+        assert strip_user_file_urls(escaped) == escaped
+        assert escape_user_file_references(escaped) == escaped
+
+    def test_keeps_everything_else(self):
+        content = "![x](https://e.com/p.png) [link](x)"
+        assert escape_user_file_references(content) == content
+        assert escape_user_file_references(None) is None
 
 
 class TestReplaceUserFileImagesWithAlt:

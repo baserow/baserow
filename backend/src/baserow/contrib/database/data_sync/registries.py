@@ -14,8 +14,7 @@ from baserow.contrib.database.data_sync.export_serialized import (
     DataSyncExportSerializedStructure,
 )
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
-from baserow.contrib.database.fields.models import Field, LongTextField
-from baserow.contrib.database.fields.rich_text_utils import strip_user_file_urls
+from baserow.contrib.database.fields.models import Field
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -92,18 +91,6 @@ class DataSyncProperty(ABC):
 
         return None
 
-    def normalize_value(self, data_sync_row_value: Any) -> Any:
-        """
-        Called on every value from `get_all_rows` before it's compared with the
-        Baserow value and written. Can adapt a value the field would otherwise
-        reject, because one bad value must not fail the whole sync.
-
-        :param data_sync_row_value: The row value from the data sync.
-        :return: The value to compare and write.
-        """
-
-        return data_sync_row_value
-
     def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
         """
         Checks if the provided cell value is equal. This is used to check if the
@@ -116,27 +103,6 @@ class DataSyncProperty(ABC):
         """
 
         return baserow_row_value == data_sync_row_value
-
-
-class RichTextDataSyncProperty(DataSyncProperty):
-    """
-    A property synced into a rich text long text field. The field strips resolved
-    URLs from user file references, so the remote value must be compared in that
-    same form or every sync would see a difference and rewrite the row.
-    """
-
-    def to_baserow_field(self) -> LongTextField:
-        return LongTextField(name=self.name, long_text_enable_rich_text=True)
-
-    def normalize_value(self, data_sync_row_value: Any) -> Any:
-        if not isinstance(data_sync_row_value, str) or not data_sync_row_value:
-            return data_sync_row_value
-        return strip_user_file_urls(data_sync_row_value)
-
-    def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
-        return strip_user_file_urls(baserow_row_value) == strip_user_file_urls(
-            data_sync_row_value
-        )
 
 
 class DataSyncType(

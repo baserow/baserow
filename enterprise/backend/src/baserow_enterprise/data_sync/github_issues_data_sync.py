@@ -5,18 +5,16 @@ import requests
 from requests.exceptions import JSONDecodeError, RequestException
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
-from baserow.contrib.database.data_sync.registries import (
-    DataSyncProperty,
-    DataSyncType,
-    RichTextDataSyncProperty,
-)
+from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
 from baserow.contrib.database.data_sync.utils import compare_date
 from baserow.contrib.database.fields.models import (
     DateField,
+    LongTextField,
     NumberField,
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.rich_text_utils import escape_user_file_references
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
@@ -41,8 +39,11 @@ class GitHubTitleDataSyncProperty(DataSyncProperty):
         return TextField(name=self.name)
 
 
-class GitHubBodyDataSyncProperty(RichTextDataSyncProperty):
+class GitHubBodyDataSyncProperty(DataSyncProperty):
     immutable_properties = True
+
+    def to_baserow_field(self) -> LongTextField:
+        return LongTextField(name=self.name, long_text_enable_rich_text=True)
 
 
 class GitHubUserDataSyncProperty(DataSyncProperty):
@@ -308,7 +309,9 @@ class GitHubIssuesDataSyncType(DataSyncType):
                 {
                     "id": issue_id,
                     "title": get_value_at_path(issue, "title", ""),
-                    "body": get_value_at_path(issue, "body", ""),
+                    "body": escape_user_file_references(
+                        get_value_at_path(issue, "body", "")
+                    ),
                     "user": get_value_at_path(issue, "user.login", ""),
                     "assignee": get_value_at_path(issue, "assignee.login", ""),
                     "assignees": assignees,

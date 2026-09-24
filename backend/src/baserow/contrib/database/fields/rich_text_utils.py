@@ -272,6 +272,28 @@ def strip_user_file_urls(content: Optional[str]) -> str:
     )
 
 
+def escape_user_file_references(content: Optional[str]) -> Optional[str]:
+    """
+    Escapes every ``![alt][name]`` reference so it is stored and shown as literal
+    text. For content from outside Baserow, such as a synced issue body, which can
+    never point at one of this instance's user files and must not fail their
+    validation.
+
+    :param content: Markdown text from an external source.
+    :return: The content without user file references, or an empty value as is.
+    """
+
+    if not content:
+        return content
+
+    return map_outside_code(
+        content,
+        lambda segment: MARKDOWN_IMAGE_REGEX.sub(
+            lambda match: "!\\" + match.group(0)[1:], segment
+        ),
+    )
+
+
 def replace_user_file_images_with_alt(content: Optional[str]) -> str:
     """
     Replace all user file image references — ``![alt][name]`` and

@@ -2,17 +2,15 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
-from baserow.contrib.database.data_sync.registries import (
-    DataSyncProperty,
-    DataSyncType,
-    RichTextDataSyncProperty,
-)
+from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
 from baserow.contrib.database.data_sync.utils import compare_date
 from baserow.contrib.database.fields.models import (
     DateField,
+    LongTextField,
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.rich_text_utils import escape_user_file_references
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
@@ -36,8 +34,11 @@ class JiraSummaryDataSyncProperty(DataSyncProperty):
         return TextField(name=self.name)
 
 
-class JiraDescriptionDataSyncProperty(RichTextDataSyncProperty):
+class JiraDescriptionDataSyncProperty(DataSyncProperty):
     immutable_properties = True
+
+    def to_baserow_field(self) -> LongTextField:
+        return LongTextField(name=self.name, long_text_enable_rich_text=True)
 
 
 class JiraAssigneeDataSyncProperty(DataSyncProperty):
@@ -258,7 +259,7 @@ class JiraIssuesDataSyncType(DataSyncType):
             issue_dict = {
                 "jira_id": jira_id,
                 "summary": summary,
-                "description": convert(description),
+                "description": escape_user_file_references(convert(description)),
                 "assignee": assignee,
                 "reporter": reporter,
                 "labels": labels,
