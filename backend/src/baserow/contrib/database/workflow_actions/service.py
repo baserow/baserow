@@ -29,7 +29,10 @@ from baserow.contrib.database.workflow_actions.exceptions import (
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
-from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
+from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
+    DatabaseWorkflowAction,
+)
 from baserow.contrib.database.workflow_actions.operations import (
     DispatchDatabaseWorkflowActionOperationType,
 )
@@ -57,6 +60,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
+from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     DoesNotExist,
@@ -597,6 +601,20 @@ class DatabaseWorkflowActionService:
         """
 
         return list(self.handler.get_workflow_actions(field))
+
+    def has_click_in_flight(self, field: ButtonField, row_id: int) -> bool:
+        """
+        Whether a click on this cell is still waiting for, or running in, a
+        job. A second click is refused while one is.
+
+        :param field: The clicked button field.
+        :param row_id: The clicked row.
+        :return: True when a pending or started job exists for the cell.
+        """
+
+        return ButtonFieldDispatchJob.objects.filter(
+            field=field, row_id=row_id, state__in=[JOB_PENDING, JOB_STARTED]
+        ).exists()
 
     def _remember_nothing_was_captured(
         self, workflow_action: DatabaseWorkflowAction, reason: str

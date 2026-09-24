@@ -7,6 +7,7 @@ from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchError,
 )
 from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
@@ -24,6 +25,12 @@ from baserow.contrib.database.workflow_actions.signals import (
 )
 from baserow.core.action.signals import action_done
 from baserow.core.exceptions import PermissionException
+from baserow.core.jobs.constants import (
+    JOB_FAILED,
+    JOB_FINISHED,
+    JOB_PENDING,
+    JOB_STARTED,
+)
 from baserow.core.services.models import Service
 
 
@@ -302,3 +309,31 @@ def test_dispatch_positions_count_every_action_from_one(data_fixture):
     positions = DatabaseWorkflowActionService().dispatch_positions([first, second])
 
     assert positions == {first.id: 1, second.id: 2}
+
+
+@pytest.mark.django_db
+def test_has_click_in_flight_sees_only_pending_and_started_jobs(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    service = DatabaseWorkflowActionService()
+
+    assert not service.has_click_in_flight(button_field, 1)
+
+    for state in (JOB_FINISHED, JOB_FAILED):
+        ButtonFieldDispatchJob.objects.create(
+            user=user, field=button_field, row_id=1, state=state
+        )
+    assert not service.has_click_in_flight(button_field, 1)
+
+    ButtonFieldDispatchJob.objects.create(
+        user=user, field=button_field, row_id=1, state=JOB_PENDING
+    )
+    assert service.has_click_in_flight(button_field, 1)
+    # Another cell of the same button is free.
+    assert not service.has_click_in_flight(button_field, 2)
+
+    ButtonFieldDispatchJob.objects.create(
+        user=user, field=button_field, row_id=2, state=JOB_STARTED
+    )
+    assert service.has_click_in_flight(button_field, 2)

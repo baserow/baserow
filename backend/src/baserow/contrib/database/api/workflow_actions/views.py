@@ -78,10 +78,7 @@ from baserow.contrib.database.workflow_actions.handler import (
 from baserow.contrib.database.workflow_actions.job_types import (
     ButtonFieldDispatchJobType,
 )
-from baserow.contrib.database.workflow_actions.models import (
-    ButtonFieldDispatchJob,
-    DatabaseWorkflowAction,
-)
+from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
@@ -97,7 +94,6 @@ from baserow.contrib.database.workflow_actions.telemetry import (
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
@@ -682,9 +678,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
 
         try:
             # A click already waiting or running on this cell.
-            if ButtonFieldDispatchJob.objects.filter(
-                field=field, row_id=row.id, state__in=[JOB_PENDING, JOB_STARTED]
-            ).exists():
+            if service.has_click_in_flight(field, row.id):
                 raise WorkflowActionDispatchInProgress()
 
             reservations = self._reserve_dispatch_budget(
