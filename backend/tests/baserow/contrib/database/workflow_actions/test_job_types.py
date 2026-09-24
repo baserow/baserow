@@ -42,7 +42,7 @@ from baserow.contrib.database.workflow_actions.signals import (
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.signals import action_done
 from baserow.core.exceptions import PermissionException
-from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
+from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.tasks import run_async_job
@@ -600,3 +600,41 @@ def test_denied_message_reads_the_detail_of_an_api_error():
     assert denied_message(PermissionException()) == (
         "You don't have the required permission to execute this operation."
     )
+
+
+@pytest.mark.django_db
+def test_a_click_cancelled_while_running_starts_no_further_action(
+    data_fixture, dispatched_clicks
+):
+    """The owner can cancel a running job. The action running then finishes,
+    but no later one starts."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    _add_row_action(data_fixture, button_field, table, name_field, "later")
+
+    with patch("baserow.core.jobs.handler.run_async_job"):
+        job = JobHandler().create_and_start_job(
+            user,
+            ButtonFieldDispatchJobType.type,
+            field=button_field,
+            row_id=row.id,
+            accepted_actions=_accepted_ids(button_field),
+        )
+
+    with mock_advocate_request({"ok": True}) as request:
+        answer = request.side_effect
+
+        def cancel_while_sending(*args, **kwargs):
+            JobHandler.cancel_job(ButtonFieldDispatchJob.objects.get(id=job.id))
+            return answer(*args, **kwargs)
+
+        request.side_effect = cancel_while_sending
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert request.called
+    assert job.state == JOB_CANCELLED
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+    assert dispatched_clicks == []

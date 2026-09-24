@@ -2,7 +2,10 @@ import { vi } from 'vitest'
 import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
-import { DISPATCH_JOB_DEADLINE_MS } from '@baserow/modules/database/mixins/buttonField'
+import {
+  DISPATCH_JOB_DEADLINE_MS,
+  DISPATCH_JOB_LAST_CHECK_MS,
+} from '@baserow/modules/database/mixins/buttonField'
 
 describe('GridViewFieldButtonField', () => {
   let testApp = null
@@ -487,5 +490,37 @@ describe('GridViewFieldButtonField', () => {
     expect(wrapper.vm.dispatching).toBe(false)
     expect(execute).toHaveBeenCalledTimes(1)
     expect(toast).not.toHaveBeenCalledWith('toast/error', expect.anything())
+  })
+
+  test('a last check that never answers still clears the spinner', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const client = wrapper.vm.$client
+    const originalGet = client.get
+    client.get = vi.fn((url, ...args) =>
+      url === `/jobs/${acceptedJob().id}/`
+        ? new Promise(() => {})
+        : originalGet.call(client, url, ...args)
+    )
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_DEADLINE_MS + 1)
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_LAST_CHECK_MS + 1)
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.stillRunningTitle',
+      message: 'buttonField.stillRunningMessage',
+    })
   })
 })

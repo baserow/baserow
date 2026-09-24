@@ -18,6 +18,7 @@ const DISPATCH_OPERATION = 'database.table.field.workflow_action.dispatch'
 // attempt cap, or one poll that never lands) would otherwise leave the
 // button spinning and refusing clicks until the page is reloaded.
 export const DISPATCH_JOB_DEADLINE_MS = 5 * 60 * 1000
+export const DISPATCH_JOB_LAST_CHECK_MS = 10 * 1000
 
 /**
  * Dispatches a cell's actions on click and runs the ones the backend hands
@@ -159,7 +160,17 @@ export default {
           // Asked once more before giving up on it.
           let job = null
           try {
-            const { data } = await JobService(this.$client).get(tracked.id)
+            // Bounded, so a request that never answers cannot keep the
+            // button spinning past its deadline.
+            const { data } = await Promise.race([
+              JobService(this.$client).get(tracked.id),
+              new Promise((resolve, reject) =>
+                setTimeout(
+                  () => reject(new Error('Timed out')),
+                  DISPATCH_JOB_LAST_CHECK_MS
+                )
+              ),
+            ])
             job = data
           } catch {
             // Treated as still running: the message says as much.

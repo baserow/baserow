@@ -42,6 +42,7 @@ from baserow.contrib.database.workflow_actions.telemetry import (
 )
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import JobType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
@@ -195,6 +196,12 @@ class ButtonFieldDispatchJobType(JobType):
                 duration_ms=(perf_counter() - started) * 1000,
             )
 
+        def stop_if_cancelled():
+            # The owner can cancel a running job. Checked between actions, so
+            # none starts after that, while the ones that ran stay.
+            if job.cancelled:
+                raise JobCancelled()
+
         try:
             row = RowHandler().get_row(user, field.table, job.row_id)
             workflow_actions = service.get_dispatch_snapshot(field)
@@ -209,12 +216,14 @@ class ButtonFieldDispatchJobType(JobType):
                 row,
                 workflow_actions=workflow_actions,
                 on_action_failed=failed_positions.append,
+                before_action=stop_if_cancelled,
             )
         except Exception as exc:
             # Anyone could send a click that fails this way, so it must not
             # tag another workspace's ids in the event (mirrors the inline
             # dispatch view).
-            if not isinstance(exc, UserNotInWorkspace):
+            # A cancelled click is the clicker's choice, not an outcome.
+            if not isinstance(exc, (UserNotInWorkspace, JobCancelled)):
                 outcome, failed_position = outcome_for(exc)
                 send_dispatched(
                     outcome, failed_position or next(iter(failed_positions), None)

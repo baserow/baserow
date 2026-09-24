@@ -773,6 +773,7 @@ class DatabaseWorkflowActionService:
         row: Any,
         workflow_actions: Optional[List[DatabaseWorkflowAction]] = None,
         on_action_failed: Optional[Callable[[int], None]] = None,
+        before_action: Optional[Callable[[], None]] = None,
     ) -> WorkflowActionsDispatchResult:
         """
         Runs the server-side actions in order as the given user, and hands the
@@ -789,6 +790,8 @@ class DatabaseWorkflowActionService:
             `get_dispatch_snapshot`. Read here when the caller has none.
         :param on_action_failed: Called with the position of the action that
             failed, whatever it raised.
+        :param before_action: Called before each server action. It may raise to
+            stop the click there, keeping what already ran.
         :raises WorkflowActionDispatchInProgress: When a click is already running
             for this field and row.
         :raises WorkflowActionDispatchError: When an action fails with a message
@@ -903,6 +906,8 @@ class DatabaseWorkflowActionService:
             # (ADR 006 section 8), while still firing `action_done`.
             with without_undo_redo_registration(user):
                 for workflow_action in server_actions:
+                    if before_action:
+                        before_action()
                     # Each action reads the clicked row itself, so it sees what
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
