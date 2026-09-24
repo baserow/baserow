@@ -68,8 +68,7 @@ def dynamic_pending_mode_calls(ctx: RunContext[AssistantDeps]) -> str:
             if isinstance(part, UserPromptPart):
                 pending.clear()
             elif (
-                isinstance(part, RetryPromptPart)
-                and isinstance(part.content, str)
+                isinstance(part, (RetryPromptPart, ToolReturnPart))
                 and is_mode_redirect(part.content)
                 and part.tool_name
             ):
@@ -81,7 +80,8 @@ def dynamic_pending_mode_calls(ctx: RunContext[AssistantDeps]) -> str:
     return (
         "\n<pending_mode_calls>\n"
         f"These calls switched modes but were not executed: {', '.join(sorted(pending))}. "
-        "Reissue the needed calls with their full schemas before moving on. "
+        f"First complete the pending calls active in {ctx.deps.mode.value} mode "
+        "using their full schemas, before switching to another mode. "
         "An intervening lookup or another successful change does not complete them. "
         "Do not claim their effects unless their execution succeeds.\n"
         "</pending_mode_calls>"

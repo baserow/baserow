@@ -12,7 +12,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
 from opentelemetry.trace import StatusCode
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import gitinfo, registry
@@ -605,7 +605,7 @@ class TestRunExperimentForFullDataset:
         assert call_kwargs["experiment_name"] == "exp-name"
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 4,
+            "harness_version": 5,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": "local-run",
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -649,7 +649,7 @@ class TestRunExperimentForFullDataset:
         call_kwargs = client.experiments.run_experiment_calls[0]
         assert call_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 4,
+            "harness_version": 5,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -1101,7 +1101,7 @@ class TestRunExperimentForCaseSubset:
         assert create_kwargs["repetitions"] == 1
         assert create_kwargs["experiment_metadata"] == {
             "model": "groq:test-model",
-            "harness_version": 4,
+            "harness_version": 5,
             "evaluator_source_hash": gitinfo.get_evaluator_source_hash(),
             "runner_run_id": None,
             "model_settings": _expected_model_settings("groq:test-model"),
@@ -2152,11 +2152,12 @@ class TestTimeoutIsRecordedNotRaised:
 
 
 class TestUsageLimitIsRecordedNotRaised:
-    def test_failure_is_scored_without_inventing_unavailable_counts(self):
+    @pytest.mark.parametrize(
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
+    )
+    def test_failure_is_scored_without_inventing_unavailable_counts(self, error_type):
         case = _make_case("docs/exhausted", requires_knowledge_base=True)
-        error = UsageLimitExceeded(
-            "The next request would exceed the request_limit of 15"
-        )
+        error = error_type("The next request would exceed the request_limit of 15")
         reason = str(error)
         with patch(
             "baserow_enterprise.assistant.evals.run.run_case",
@@ -2164,7 +2165,7 @@ class TestUsageLimitIsRecordedNotRaised:
         ):
             result = run_case_for_experiment(case, "groq:test-model", True)
 
-        assert result["usage_limit_exceeded"] is True
+        assert result["usage_limit_exceeded"] is (error_type is UsageLimitExceeded)
         assert result["passed"] is False
         assert result["score"] == 0.0
         assert result["judge_docs"] is False
@@ -2174,14 +2175,23 @@ class TestUsageLimitIsRecordedNotRaised:
         assert result["duration_s"] >= 0
         assert result["checks"] == [
             {
-                "name": "completed_within_request_limit",
+                "name": (
+                    "completed_within_request_limit"
+                    if error_type is UsageLimitExceeded
+                    else "completed_without_model_error"
+                ),
                 "passed": False,
                 "hint": reason,
             }
         ]
         assert "skipped" not in result
 
-    def test_subset_records_error_trace_and_continues_without_retrying(self):
+    @pytest.mark.parametrize(
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
+    )
+    def test_subset_records_error_trace_and_continues_without_retrying(
+        self, error_type
+    ):
         client = _two_case_client()
         control = RunControl()
         exporter = InMemorySpanExporter()
@@ -2192,7 +2202,7 @@ class TestUsageLimitIsRecordedNotRaised:
         def exhaust_first(case, *args, **kwargs):
             calls.append((case.id, case.max_iters))
             if len(calls) == 1:
-                raise UsageLimitExceeded("request_limit of 15 exceeded")
+                raise error_type("request or tool retry limit exceeded")
             return _make_output(), []
 
         with (

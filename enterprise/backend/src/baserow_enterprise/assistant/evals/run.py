@@ -25,7 +25,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.control import RunControl
@@ -72,7 +72,8 @@ UI_CASE_PREFIX = "ui:"
 # Version 1 recorded production settings without applying them to the agent.
 # Version 3 excludes required mode redirects from the tool-error budget.
 # Version 4 checks saved Builder behavior and records request-budget failures.
-HARNESS_VERSION = 4
+# Version 5 also records exhausted model/tool retries as failed cases.
+HARNESS_VERSION = 5
 
 _PROMPT_INPUT_KEYS = ("prompt", "question", "input", "message")
 
@@ -278,9 +279,13 @@ def _failed_execution_result(
 
     timed_out = isinstance(error, EvalCaseTimeout)
     reason = str(error)
-    check_name = (
-        "completed_within_timeout" if timed_out else "completed_within_request_limit"
-    )
+    usage_limit_exceeded = isinstance(error, UsageLimitExceeded)
+    if timed_out:
+        check_name = "completed_within_timeout"
+    elif usage_limit_exceeded:
+        check_name = "completed_within_request_limit"
+    else:
+        check_name = "completed_without_model_error"
     span = trace.get_current_span()
     span.record_exception(error)
     span.set_status(Status(StatusCode.ERROR, reason))
@@ -296,7 +301,7 @@ def _failed_execution_result(
         "score": 0.0,
         "passed": False,
         "timed_out": timed_out,
-        "usage_limit_exceeded": not timed_out,
+        "usage_limit_exceeded": usage_limit_exceeded,
         "execution_error": reason,
         "execution_error_type": type(error).__name__,
         "sources": [],
@@ -328,7 +333,7 @@ def run_case_for_experiment(
     try:
         with override_assistant_prompts(prompt_texts or {}):
             output, checks = run_case(case, model)
-    except (EvalCaseTimeout, UsageLimitExceeded) as exc:
+    except (EvalCaseTimeout, UsageLimitExceeded, UnexpectedModelBehavior) as exc:
         # Preserve the original failed attempt and trace, then continue the
         # suite. There is no final result from which to infer tool counts.
         logger.warning("FAILED EXECUTION {}: {}", case.id, exc)

@@ -291,7 +291,7 @@ def test_list_tables_tool(data_fixture):
             table_ids_or_names=None,
         ),
     )
-    assert response == [
+    assert response["tables"] == [
         {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
         {"id": table_2.id, "name": "Table 2", "database_id": database_1.id},
     ]
@@ -305,7 +305,7 @@ def test_list_tables_tool(data_fixture):
             table_ids_or_names=None,
         ),
     )
-    assert response == [
+    assert response["tables"] == [
         {"id": table_3.id, "name": "Table 3", "database_id": database_2.id},
     ]
 
@@ -318,7 +318,7 @@ def test_list_tables_tool(data_fixture):
             table_ids_or_names=[table_1.id, table_2.id],
         ),
     )
-    assert response == [
+    assert response["tables"] == [
         {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
         {"id": table_2.id, "name": "Table 2", "database_id": database_1.id},
     ]
@@ -332,7 +332,7 @@ def test_list_tables_tool(data_fixture):
             table_ids_or_names=["Table 1"],
         ),
     )
-    assert response == [
+    assert response["tables"] == [
         {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
     ]
 
@@ -345,7 +345,7 @@ def test_list_tables_tool(data_fixture):
             table_ids_or_names=["Table 2"],
         ),
     )
-    assert response == [
+    assert response["tables"] == [
         {"id": table_2.id, "name": "Table 2", "database_id": database_1.id},
     ]
 
@@ -358,6 +358,7 @@ def test_list_tables_tool(data_fixture):
             table_ids_or_names=["Nonexistent Table"],
         ),
     )
+    assert "unrelated tables exist" in response["next_steps"]
     info = response["_info"]
     assert "no tables matching" in info or "No tables found" in info
 

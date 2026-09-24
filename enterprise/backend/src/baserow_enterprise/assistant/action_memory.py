@@ -15,6 +15,8 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from baserow_enterprise.assistant.tools.routing import is_mode_redirect
+
 MAX_VERIFIED_TOOL_OUTCOMES = 12
 MAX_VERIFIED_TOOL_OUTCOMES_CHARS = 4000
 
@@ -116,6 +118,8 @@ def _returned_executions(
             continue
         pending_call = pending_calls.pop(part.tool_call_id, None)
         if pending_call is None:
+            continue
+        if is_mode_redirect(part.content):
             continue
         tool_name, arguments = pending_call
         yield _ToolExecution(
