@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent, NativeOutput, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
@@ -252,6 +252,15 @@ async def _search_user_docs_impl(
 
     model_profile = ctx.deps.tool_helpers.model_profile
     model_settings = model_profile.get_settings(SUBAGENT)
+    output_type = SearchDocsResult
+    if model_profile.model_string in {
+        "groq:openai/gpt-oss-120b",
+        "groq:openai/gpt-oss-20b",
+    }:
+        # This non-streaming agent has no action tools. Groq's strict native
+        # schema prevents synthesis from inventing an output tool such as `json`.
+        # Pydantic validation and the source checks below still apply.
+        output_type = NativeOutput(SearchDocsResult, strict=True)
     available_urls = {chunk.source_document.source_url for chunk in relevant_chunks}
     # A synthesis focused on an undocumented capability can overlook useful
     # partial evidence. Reconsider the same passages once, without substituting
@@ -262,6 +271,7 @@ async def _search_user_docs_impl(
             synthesis_prompt,
             model=model_profile.create_model(),
             model_settings=model_settings,
+            output_type=output_type,
         )
         prediction = agent_result.output
 

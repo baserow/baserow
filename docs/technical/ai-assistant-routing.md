@@ -97,6 +97,9 @@ Groq GPT-OSS 120B uses high reasoning effort for documentation synthesis.
 This can increase latency and token usage; output-token, timeout, request, and
 error limits remain unchanged. Orchestration, other models, and utility roles keep
 their settings.
+Docs synthesis on Groq GPT-OSS 20B and 120B uses strict native JSON output, avoiding
+invented output-tool names. Typed result validation and retrieved-source checks
+still apply. Other models retain their existing output protocol.
 
 ## Verification
 
