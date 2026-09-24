@@ -1,8 +1,12 @@
 from datetime import datetime, timezone
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.database.views.models import View
+from baserow.core.cache import local_cache
 from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.last_viewed.models import UserLastViewedItem
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -67,16 +71,16 @@ def test_list_items_excludes_items_the_role_hides(
     _record(user, "database_view", view, database, workspace, "2026-01-02 10:00")
     _record(user, "builder_page", page, builder, workspace, "2026-01-01 10:00")
 
-    items, has_more = LastViewedHandler.list_items(user, limit=20)
+    items, cursor = LastViewedHandler.list_items(user, limit=20)
 
     assert [(item.item_type.type, item.instance.id) for item in items] == [
         ("database_view", view.id),
         ("builder_page", page.id),
     ]
-    assert has_more is False
+    assert cursor is None
 
     # The admin is not restricted and sees nothing of the other user's history.
-    assert LastViewedHandler.list_items(admin, limit=20) == ([], False)
+    assert LastViewedHandler.list_items(admin, limit=20) == ([], None)
 
 
 @pytest.mark.django_db
@@ -162,3 +166,42 @@ def test_list_items_respects_a_role_on_a_single_view(data_fixture):
     items, _ = LastViewedHandler.list_items(user, limit=20)
 
     assert [item.instance.id for item in items] == [allowed_view.id]
+
+
+@pytest.mark.django_db
+def test_list_items_query_count_is_independent_of_workspaces_with_a_license(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+
+    def add_workspaces(count):
+        for _ in range(count):
+            workspace = data_fixture.create_workspace(user=user)
+            database = data_fixture.create_database_application(workspace=workspace)
+            table = data_fixture.create_database_table(database=database)
+            # Personal views make the view ownership manager resolve the tables in
+            # which the user may use them, which involves their roles.
+            view = data_fixture.create_grid_view(
+                table=table, owned_by=user, ownership_type=OWNERSHIP_TYPE_PERSONAL
+            )
+            _record(user, "database_view", view, database, workspace, "2026-01-01")
+
+    def count_queries():
+        # Like at the start of a request, with a freshly loaded user and an empty
+        # request cache. The per workspace role and license lookups this guards
+        # against are hidden once either of them holds them.
+        request_user = type(user).objects.get(id=user.id)
+        local_cache.clear()
+        with CaptureQueriesContext(connection) as ctx:
+            items, _ = LastViewedHandler.list_items(request_user, limit=100)
+        return len(items), len(ctx.captured_queries)
+
+    add_workspaces(2)
+    # Fills what stays cached for the lifetime of the process.
+    count_queries()
+    few_items, few_queries = count_queries()
+    add_workspaces(10)
+    many_items, many_queries = count_queries()
+
+    assert (few_items, many_items) == (2, 12)
+    assert many_queries == few_queries

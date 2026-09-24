@@ -15,7 +15,7 @@
       :count="skeletonCount"
     ></RecentlyViewedSkeleton>
 
-    <template v-else-if="presentedItems.length > 0">
+    <template v-else-if="presentedItems.length > 0 || hasMore">
       <RecentlyViewedTable
         v-if="viewMode !== 'cards'"
         :items="presentedItems"
@@ -144,6 +144,7 @@ function presentEntry(entry) {
     key,
     entry,
     name: entry.item.name,
+    route: itemType.getRoute(entry),
     typeName: itemType.getName(entry),
     iconClass: itemType.getIconClass(entry),
     iconColor: itemType.getIconColor(entry),
@@ -176,10 +177,9 @@ async function open(item) {
   if (openingKey.value !== null) {
     return
   }
-  const itemType = $registry.get('lastViewedItem', item.entry.type)
   openingKey.value = item.key
   try {
-    await router.push(itemType.getRoute(item.entry))
+    await router.push(item.route)
     await pageFinished(nuxtApp)
   } finally {
     openingKey.value = null

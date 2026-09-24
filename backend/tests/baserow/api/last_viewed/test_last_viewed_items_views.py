@@ -61,7 +61,7 @@ def test_list_last_viewed_items_returns_every_type(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "has_more": False,
+        "next_cursor": None,
         "results": [
             {
                 "type": "database_view",
@@ -132,26 +132,25 @@ def test_list_last_viewed_items_pagination_and_filters(api_client, data_fixture)
         data = response.json()
         return [
             (result["type"], result["item"]["id"]) for result in data["results"]
-        ], data["has_more"]
+        ], data["next_cursor"]
 
-    assert get(limit=2) == (
-        [("database_view", grid.id), ("database_view", form.id)],
-        True,
-    )
-    assert get(limit=2, offset=2) == ([("dashboard", dashboard.id)], False)
+    items, cursor = get(limit=2)
+    assert items == [("database_view", grid.id), ("database_view", form.id)]
+    assert isinstance(cursor, str)
+    assert get(limit=2, cursor=cursor) == ([("dashboard", dashboard.id)], None)
     assert get(workspace_ids=str(workspace_2.id)) == (
         [("dashboard", dashboard.id)],
-        False,
+        None,
     )
-    assert get(types="database_view:form") == ([("database_view", form.id)], False)
+    assert get(types="database_view:form") == ([("database_view", form.id)], None)
     assert get(types="database_view:form,dashboard") == (
         [("database_view", form.id), ("dashboard", dashboard.id)],
-        False,
+        None,
     )
     # Mentioning the whole type wins over one of its sub types.
     assert get(types="database_view:form,database_view") == (
         [("database_view", grid.id), ("database_view", form.id)],
-        False,
+        None,
     )
 
 
@@ -163,8 +162,10 @@ def test_list_last_viewed_items_validates_query_parameters(api_client, data_fixt
     for params in [
         {"limit": 101},
         {"limit": 0},
-        {"offset": -1},
-        {"offset": 401},
+        {"cursor": "abc"},
+        {"cursor": "1_"},
+        {"cursor": "-1_1"},
+        {"cursor": "99999999999999999999_1"},
         {"workspace_ids": "1,a"},
         {"types": "unknown"},
         {"types": "database_view:unknown"},

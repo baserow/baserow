@@ -10,8 +10,9 @@ from baserow.api.last_viewed.serializers import (
     LastViewedItemsQuerySerializer,
     LastViewedItemsResponseSerializer,
 )
+from baserow.api.pagination import encode_keyset_cursor
 from baserow.api.schemas import get_error_schema
-from baserow.core.last_viewed.handler import MAX_LISTED_ITEMS, LastViewedHandler
+from baserow.core.last_viewed.handler import LastViewedHandler
 
 
 class LastViewedItemsView(APIView):
@@ -42,12 +43,12 @@ class LastViewedItemsView(APIView):
                 "100 at most.",
             ),
             OpenApiParameter(
-                name="offset",
+                name="cursor",
                 location=OpenApiParameter.QUERY,
-                type=OpenApiTypes.INT,
-                description=f"Number of items to skip. The listing pages through at most "
-                f"{MAX_LISTED_ITEMS} items, and reports no more items once it "
-                f"reaches that depth.",
+                type=OpenApiTypes.STR,
+                description="The `next_cursor` of the previous page, omitted for "
+                "the first page. The next page continues after the last item of "
+                "the previous one, even when items were viewed in between.",
             ),
         ],
         tags=["Last viewed"],
@@ -64,18 +65,18 @@ class LastViewedItemsView(APIView):
     )
     @validate_query_parameters(LastViewedItemsQuerySerializer, return_validated=True)
     def get(self, request, query_params):
-        items, has_more = LastViewedHandler.list_items(
+        items, next_cursor = LastViewedHandler.list_items(
             request.user,
             workspace_ids=query_params.get("workspace_ids"),
             type_filters=query_params.get("types"),
             limit=query_params["limit"],
-            offset=query_params["offset"],
+            cursor=query_params.get("cursor"),
         )
         return Response(
             {
                 "results": LastViewedItemSerializer(
                     items, many=True, context={"request": request}
                 ).data,
-                "has_more": has_more,
+                "next_cursor": encode_keyset_cursor(next_cursor),
             }
         )

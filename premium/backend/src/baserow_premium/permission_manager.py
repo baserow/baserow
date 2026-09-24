@@ -66,7 +66,11 @@ from baserow.contrib.database.views.operations import (
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied, PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.registries import PermissionManagerType, object_scope_type_registry
+from baserow.core.registries import (
+    PermissionManagerType,
+    WorkspaceFilterDecision,
+    object_scope_type_registry,
+)
 from baserow.core.types import Actor, PermissionCheck
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
@@ -76,8 +80,6 @@ User = get_user_model()
 
 
 if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractUser
-
     from baserow.core.models import Workspace
 
 
@@ -295,54 +297,79 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
 
     def filter_queryset(
         self,
-        actor: "AbstractUser",
+        actor: Actor,
         operation_name: str,
         queryset: QuerySet,
         workspace: Optional["Workspace"] = None,
     ) -> QuerySet:
         """
-        filter_queryset() impl for view ownership filtering.
-
-        :param actor: The actor whom we want to filter the queryset for.
-            Generally a `User` but can be a Token.
-        :param operation: The operation name for which we want to filter the queryset
-            for.
-        :param workspace: An optional workspace into which the operation takes place.
-        :param context: An optional context object related to the current operation.
-        :return: The queryset potentially filtered.
+        Delegates to `filter_queryset_for_workspaces`, so filtering one workspace
+        can never differ from filtering it together with others. Nothing is filtered
+        without a workspace.
         """
 
-        if not isinstance(actor, User):
-            if operation_name == ListViewsOperationType.type and workspace:
-                return queryset.exclude(ownership_type=OWNERSHIP_TYPE_PERSONAL)
+        if workspace is None:
             return queryset
+
+        decisions = self.filter_queryset_for_workspaces(
+            actor, operation_name, queryset, [workspace]
+        )
+        decision = (decisions or {}).get(workspace.id)
+        if decision is None or decision.q is None:
+            return queryset
+        return queryset.filter(decision.q)
+
+    def filter_queryset_for_workspaces(
+        self,
+        actor: Actor,
+        operation_name: str,
+        queryset: QuerySet,
+        workspaces: List["Workspace"],
+    ) -> Optional[Dict[int, WorkspaceFilterDecision]]:
+        """
+        Hides the personal views of other users, and the user's own when they have
+        no premium license or may no longer use personal views in their table. The
+        tables in which they may are resolved for all premium workspaces at once,
+        because resolving them per workspace costs the role lookups of every
+        workspace when listing views across many of them, like the recently viewed
+        listing does.
+        """
 
         if operation_name != ListViewsOperationType.type:
-            return queryset
+            return None
 
-        if not workspace:
-            return queryset
-
-        premium = local_cache.get(
-            f"has_premium_permission_{actor.id}_{workspace.id}",
-            lambda: LicenseHandler.user_has_feature(PREMIUM, actor, workspace),
+        without_personal = WorkspaceFilterDecision(
+            q=~Q(ownership_type=OWNERSHIP_TYPE_PERSONAL)
         )
+        decisions = {workspace.id: without_personal for workspace in workspaces}
+        if not isinstance(actor, User):
+            return decisions
 
-        if premium:
-            allowed_tables = CoreHandler().filter_queryset(
-                actor,
-                CreateAndUsePersonalViewOperationType.type,
-                Table.objects.filter(database__workspace=workspace),
-                workspace=workspace,
+        premium_workspaces = [
+            workspace
+            for workspace in workspaces
+            if local_cache.get(
+                f"has_premium_permission_{actor.id}_{workspace.id}",
+                partial(LicenseHandler.user_has_feature, PREMIUM, actor, workspace),
             )
+        ]
+        if not premium_workspaces:
+            return decisions
 
-            return queryset.filter(
-                ~Q(ownership_type=OWNERSHIP_TYPE_PERSONAL)
-                | (
-                    Q(ownership_type=OWNERSHIP_TYPE_PERSONAL)
-                    & Q(owned_by=actor)
-                    & Q(table__in=allowed_tables)
-                )
+        allowed_tables = CoreHandler().filter_queryset_for_workspaces(
+            actor,
+            CreateAndUsePersonalViewOperationType.type,
+            Table.objects.filter(database__workspace__in=premium_workspaces),
+            premium_workspaces,
+        )
+        with_own_personal = WorkspaceFilterDecision(
+            q=~Q(ownership_type=OWNERSHIP_TYPE_PERSONAL)
+            | (
+                Q(ownership_type=OWNERSHIP_TYPE_PERSONAL)
+                & Q(owned_by=actor)
+                & Q(table__in=allowed_tables)
             )
-        else:
-            return queryset.exclude(ownership_type=OWNERSHIP_TYPE_PERSONAL)
+        )
+        for workspace in premium_workspaces:
+            decisions[workspace.id] = with_own_personal
+        return decisions

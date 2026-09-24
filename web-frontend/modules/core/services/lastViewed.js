@@ -1,7 +1,10 @@
 export default (client) => {
   return {
-    fetchItems({ workspaceIds = [], types = [], limit, offset = 0 }) {
-      const params = { limit, offset }
+    fetchItems({ workspaceIds = [], types = [], limit, cursor = null }) {
+      const params = { limit }
+      if (cursor !== null) {
+        params.cursor = cursor
+      }
       if (workspaceIds.length > 0) {
         params.workspace_ids = workspaceIds.join(',')
       }

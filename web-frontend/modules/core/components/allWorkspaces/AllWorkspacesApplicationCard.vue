@@ -8,15 +8,16 @@
   >
     <template #name>
       <SearchHighlight
-        v-if="highlight !== ''"
+        v-if="!showEditable"
         :text="application.name"
         :query="highlight"
       ></SearchHighlight>
       <Editable
-        v-else
+        v-show="showEditable"
         ref="rename"
         :value="application.name"
-        @change="renameApplication(application, $event)"
+        @editing="editing = $event"
+        @change="rename($event)"
       ></Editable>
     </template>
 

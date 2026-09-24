@@ -95,6 +95,11 @@
     display: none;
   }
 
+  // It's a link, which the global styles underline on hover.
+  &:hover {
+    text-decoration: none;
+  }
+
   &:hover::before,
   &:focus-visible::before {
     background-color: $palette-neutral-25;

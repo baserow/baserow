@@ -438,17 +438,17 @@ def test_list_items_orders_newest_first_and_paginates(data_fixture):
     _record(user, "database_view", view_2, database, workspace, "2026-01-03 10:00")
     _record(user, "database_view", view_3, database, workspace, "2026-01-02 10:00")
 
-    items, has_more = LastViewedHandler.list_items(user, limit=2)
+    items, cursor = LastViewedHandler.list_items(user, limit=2)
     assert _ids(items) == [("database_view", view_2.id), ("database_view", view_3.id)]
-    assert has_more is True
+    assert cursor is not None
 
-    items, has_more = LastViewedHandler.list_items(user, limit=2, offset=2)
+    items, cursor = LastViewedHandler.list_items(user, limit=2, cursor=cursor)
     assert _ids(items) == [("database_view", view_1.id)]
-    assert has_more is False
+    assert cursor is None
 
-    items, has_more = LastViewedHandler.list_items(user, limit=3)
+    items, cursor = LastViewedHandler.list_items(user, limit=3)
     assert len(items) == 3
-    assert has_more is False
+    assert cursor is None
 
 
 @pytest.mark.django_db
@@ -471,9 +471,9 @@ def test_list_items_resolves_every_item_type(data_fixture):
         user, "automation_workflow", workflow, automation, workspace, "2026-01-01 10:00"
     )
 
-    items, has_more = LastViewedHandler.list_items(user, limit=20)
+    items, cursor = LastViewedHandler.list_items(user, limit=20)
 
-    assert has_more is False
+    assert cursor is None
     assert [
         (item.item_type.type, item.instance.id, item.sub_type, item.row.application_id)
         for item in items
@@ -523,18 +523,18 @@ def test_list_items_filters_by_workspace(data_fixture):
     )
     assert _ids(items) == [("dashboard", dashboard_1.id)]
 
-    items, has_more = LastViewedHandler.list_items(
+    items, cursor = LastViewedHandler.list_items(
         user, workspace_ids=[other_workspace.id], limit=20
     )
     assert items == []
-    assert has_more is False
+    assert cursor is None
 
 
 @pytest.mark.django_db
 def test_list_items_returns_nothing_for_a_user_without_workspaces(data_fixture):
     user = data_fixture.create_user()
 
-    assert LastViewedHandler.list_items(user, limit=20) == ([], False)
+    assert LastViewedHandler.list_items(user, limit=20) == ([], None)
 
 
 @pytest.mark.django_db
@@ -622,13 +622,13 @@ def test_list_items_excludes_trashed_items_without_leaving_gaps(data_fixture):
     TrashHandler.trash(user, workspace, automation, trashed_workflow)
 
     # The trashed rows are newer, but they must not consume a slot of the page.
-    items, has_more = LastViewedHandler.list_items(user, limit=1)
+    items, cursor = LastViewedHandler.list_items(user, limit=1)
     assert _ids(items) == [("database_view", view.id)]
-    assert has_more is True
+    assert cursor is not None
 
-    items, has_more = LastViewedHandler.list_items(user, limit=1, offset=1)
+    items, cursor = LastViewedHandler.list_items(user, limit=1, cursor=cursor)
     assert _ids(items) == [("builder_page", page.id)]
-    assert has_more is False
+    assert cursor is None
 
 
 @pytest.mark.django_db
@@ -726,44 +726,80 @@ def test_list_items_scans_past_items_that_are_gone_in_growing_batches(data_fixtu
     _record(user, "database_view", view, database, workspace, "2026-01-01 10:00")
 
     with CaptureQueriesContext(connection) as ctx:
-        items, has_more = LastViewedHandler.list_items(user, limit=20)
+        items, cursor = LastViewedHandler.list_items(user, limit=20)
 
     assert _ids(items) == [("database_view", view.id)]
-    assert has_more is False
+    assert cursor is None
     # Each batch is twice the size of the one before, so looking past 700 rows
     # takes a handful of queries instead of one per row.
     assert len(ctx.captured_queries) == 13
 
 
 @pytest.mark.django_db
-def test_list_items_stops_paging_at_the_maximum_depth(data_fixture):
+def test_list_items_reads_a_bounded_number_of_rows_per_request(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
-    views = [data_fixture.create_grid_view(table=table) for _ in range(5)]
-    for index, view in enumerate(views):
-        _record(
-            user,
-            "database_view",
-            view,
-            database,
-            workspace,
-            f"2026-01-0{index + 1} 10:00",
-        )
+    view = data_fixture.create_grid_view(table=table)
+    # Rows of items that no longer exist, all viewed more recently than the only
+    # one that is left.
+    UserLastViewedItem.objects.bulk_create(
+        [
+            UserLastViewedItem(
+                user=user,
+                item_type="database_view",
+                item_id=1_000_000 + i,
+                application=database,
+                workspace=workspace,
+                last_viewed=datetime(2026, 2, 1, tzinfo=timezone.utc)
+                + timedelta(minutes=i),
+            )
+            for i in range(500)
+        ]
+    )
+    _record(user, "database_view", view, database, workspace, "2026-01-01 10:00")
 
-    with patch("baserow.core.last_viewed.handler.MAX_LISTED_ITEMS", 4):
-        items, has_more = LastViewedHandler.list_items(user, limit=2)
-        assert len(items) == 2
-        assert has_more is True
-
-        # The last page the listing pages to does not invite another one, even
-        # though a row follows it, so the caller is never refused.
-        items, has_more = LastViewedHandler.list_items(user, limit=2, offset=2)
-        assert len(items) == 2
-        assert has_more is False
-
-        # Asking past the depth is empty rather than an error.
-        items, has_more = LastViewedHandler.list_items(user, limit=2, offset=4)
+    with patch("baserow.core.last_viewed.handler.MAX_SCANNED_ROWS", 300):
+        # Nothing visible within the rows read, but the cursor continues after them
+        # instead of claiming the history is done.
+        items, cursor = LastViewedHandler.list_items(user, limit=20)
         assert items == []
-        assert has_more is False
+        assert cursor is not None
+
+        items, cursor = LastViewedHandler.list_items(user, limit=20, cursor=cursor)
+        assert _ids(items) == [("database_view", view.id)]
+        assert cursor is None
+
+
+@pytest.mark.django_db
+def test_list_items_cursor_neither_repeats_nor_skips_when_the_history_changes(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    views = [data_fixture.create_grid_view(table=table) for _ in range(6)]
+    rows = [
+        _record(user, "database_view", view, database, workspace, f"2026-01-0{9 - i}")
+        for i, view in enumerate(views)
+    ]
+    ids = [("database_view", view.id) for view in views]
+
+    items, cursor = LastViewedHandler.list_items(user, limit=2)
+    assert _ids(items) == ids[0:2]
+
+    # Opening the oldest item moves it above the loaded page, which would make an
+    # offset repeat the last item of the first page.
+    UserLastViewedItem.objects.filter(id=rows[5].id).update(
+        last_viewed=datetime(2026, 2, 1, tzinfo=timezone.utc)
+    )
+    items, cursor = LastViewedHandler.list_items(user, limit=2, cursor=cursor)
+    assert _ids(items) == ids[2:4]
+
+    # Trashing an item of a loaded page would make an offset skip the next one.
+    TrashHandler.trash(user, workspace, database, views[2])
+    items, cursor = LastViewedHandler.list_items(user, limit=2, cursor=cursor)
+    assert _ids(items) == ids[4:5]
+    assert cursor is None

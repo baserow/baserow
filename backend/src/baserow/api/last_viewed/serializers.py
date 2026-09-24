@@ -4,8 +4,9 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema_field
 from rest_framework import serializers
 
+from baserow.api.pagination import KeysetCursorField
 from baserow.api.serializers import CommaSeparatedIntegerValuesField
-from baserow.core.last_viewed.handler import MAX_LISTED_ITEMS, LastViewedListItem
+from baserow.core.last_viewed.handler import LastViewedListItem
 from baserow.core.registries import (
     application_type_registry,
     last_viewed_item_type_registry,
@@ -34,11 +35,9 @@ class LastViewedItemsQuerySerializer(serializers.Serializer):
         max_value=MAX_LIMIT,
         help_text="Maximum number of items to return.",
     )
-    offset = serializers.IntegerField(
-        default=0,
-        min_value=0,
-        max_value=MAX_LISTED_ITEMS,
-        help_text="Number of items to skip.",
+    cursor = KeysetCursorField(
+        required=False,
+        help_text="The `next_cursor` of the previous page, omitted for the first page.",
     )
 
     def validate_workspace_ids(self, value):
@@ -144,6 +143,8 @@ class LastViewedItemSerializer(serializers.Serializer):
 
 class LastViewedItemsResponseSerializer(serializers.Serializer):
     results = LastViewedItemSerializer(many=True)
-    has_more = serializers.BooleanField(
-        help_text="Whether more items follow the returned page."
+    next_cursor = serializers.CharField(
+        allow_null=True,
+        help_text="Pass as `cursor` to get the next page, `null` when no more "
+        "items follow.",
     )

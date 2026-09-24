@@ -74,10 +74,10 @@ describe('RecentlyViewed', () => {
     await testApp.afterEach()
   })
 
-  function mockItems(results, hasMore = false) {
+  function mockItems(results, nextCursor = null) {
     testApp.mock
       .onGet('/last-viewed/items/')
-      .reply(200, { results, has_more: hasMore })
+      .reply(200, { results, next_cursor: nextCursor })
   }
 
   async function mount(props = {}) {
@@ -127,7 +127,7 @@ describe('RecentlyViewed', () => {
     expect(wrapper.find('.recently-viewed__footer').exists()).toBe(false)
 
     const request = testApp.mock.history.get[0]
-    expect(request.params).toEqual({ limit: 20, offset: 0 })
+    expect(request.params).toEqual({ limit: 20 })
   })
 
   test('scopes to the given workspace and hides its column and filter', async () => {
@@ -144,7 +144,6 @@ describe('RecentlyViewed', () => {
     )
     expect(testApp.mock.history.get[0].params).toEqual({
       limit: 20,
-      offset: 0,
       workspace_ids: '1',
     })
   })
@@ -169,8 +168,8 @@ describe('RecentlyViewed', () => {
     )
   })
 
-  test('loads more pages while the backend has more', async () => {
-    mockItems(entries, true)
+  test('loads more pages from where the previous one ended', async () => {
+    mockItems(entries, '1767225600000000_4')
     const wrapper = await mount()
 
     const button = wrapper.find('.recently-viewed__footer .button')
@@ -179,13 +178,36 @@ describe('RecentlyViewed', () => {
     testApp.mock.reset()
     testApp.mock.onGet('/last-viewed/items/').reply(200, {
       results: [{ ...entries[0], item: { ...entries[0].item, id: 200 } }],
-      has_more: false,
+      next_cursor: null,
     })
     await button.trigger('click')
     await flushPromises()
 
-    expect(testApp.mock.history.get[0].params).toEqual({ limit: 20, offset: 4 })
+    expect(testApp.mock.history.get[0].params).toEqual({
+      limit: 20,
+      cursor: '1767225600000000_4',
+    })
     expect(wrapper.findAll('.recently-viewed__row')).toHaveLength(5)
+    expect(wrapper.find('.recently-viewed__footer').exists()).toBe(false)
+  })
+
+  test('offers to continue when a page is empty but more follows', async () => {
+    mockItems([], '1767225600000000_4')
+    const wrapper = await mount()
+
+    expect(wrapper.find('.recently-viewed__empty').exists()).toBe(false)
+    expect(wrapper.find('.recently-viewed__footer .button').exists()).toBe(true)
+
+    testApp.mock.reset()
+    mockItems(entries)
+    await wrapper.find('.recently-viewed__footer .button').trigger('click')
+    await flushPromises()
+
+    expect(testApp.mock.history.get[0].params).toEqual({
+      limit: 20,
+      cursor: '1767225600000000_4',
+    })
+    expect(wrapper.findAll('.recently-viewed__row')).toHaveLength(4)
     expect(wrapper.find('.recently-viewed__footer').exists()).toBe(false)
   })
 
@@ -203,7 +225,6 @@ describe('RecentlyViewed', () => {
     const last = testApp.mock.history.get.at(-1)
     expect(last.params).toEqual({
       limit: 20,
-      offset: 0,
       workspace_ids: '2',
       types: 'database_view:grid,builder_page',
     })
@@ -217,7 +238,6 @@ describe('RecentlyViewed', () => {
     await flushPromises()
     expect(testApp.mock.history.get.at(-1).params).toEqual({
       limit: 20,
-      offset: 0,
     })
     expect(wrapper.findAll('.recently-viewed__row')).toHaveLength(4)
   })
@@ -232,7 +252,8 @@ describe('RecentlyViewed', () => {
     testApp.mock.onGet('/last-viewed/items/').reply(
       () =>
         new Promise((resolve) => {
-          respond = () => resolve([200, { results: entries, has_more: false }])
+          respond = () =>
+            resolve([200, { results: entries, next_cursor: null }])
         })
     )
     header.vm.$emit('update:types', ['builder_page'])

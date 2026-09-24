@@ -32,12 +32,12 @@ export async function useRecentlyViewedItems({
   const nextPages = ref([])
   const loadingMore = ref(false)
 
-  async function fetchPage(offset) {
+  async function fetchPage(cursor) {
     const { data } = await service.fetchItems({
       workspaceIds: toValue(workspaceIds),
       types: toValue(types),
       limit: pageSize,
-      offset,
+      cursor,
     })
     // The moment of the request travels with the page, so the relative dates
     // don't move while it is on screen.
@@ -46,7 +46,7 @@ export async function useRecentlyViewedItems({
 
   const { data, loading, refresh } = await usePageAsyncData(
     key,
-    () => fetchPage(0),
+    () => fetchPage(null),
     { watch: [() => toValue(workspaceIds), () => toValue(types)] }
   )
 
@@ -59,7 +59,10 @@ export async function useRecentlyViewedItems({
     data.value ? [data.value, ...nextPages.value] : []
   )
   const items = computed(() => pages.value.flatMap((page) => page.results))
-  const hasMore = computed(() => pages.value.at(-1)?.has_more ?? false)
+  // Continuing from where the last page ended rather than counting loaded
+  // items, because the history reorders whenever something is viewed.
+  const nextCursor = computed(() => pages.value.at(-1)?.next_cursor ?? null)
+  const hasMore = computed(() => nextCursor.value !== null)
   const fetchedAt = computed(() => data.value?.fetched_at ?? null)
 
   async function loadMore() {
@@ -71,7 +74,7 @@ export async function useRecentlyViewedItems({
     const requestedFor = data.value
     loadingMore.value = true
     try {
-      const page = await fetchPage(items.value.length)
+      const page = await fetchPage(nextCursor.value)
       if (data.value === requestedFor) {
         nextPages.value = [...nextPages.value, page]
       }

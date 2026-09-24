@@ -6,13 +6,14 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import connection, transaction
-from django.db.models import Exists, Max, OuterRef, Q, QuerySet
+from django.db.models import Exists, Max, OuterRef, QuerySet
 from django.utils import timezone
 
 from loguru import logger
 from rest_framework import serializers
 
 from baserow.core.handler import CoreHandler
+from baserow.core.pagination import KeysetCursor
 from baserow.core.psycopg import sql
 from baserow.core.registries import (
     LastViewedItemType,
@@ -32,11 +33,11 @@ DELETE_BATCH_SIZE = 10_000
 SCAN_BATCH_SIZE = 200
 MAX_SCAN_BATCH_SIZE = 5_000
 
-# How deep the listing pages. Every item before the offset has to be resolved to
-# know which ones follow it, so paging on forever would let one request walk an
-# entire history. The listing reports no more items once this depth is reached,
-# which is far beyond what answering "what was I working on" needs.
-MAX_LISTED_ITEMS = 400
+# How many history rows one request reads at most. A long run of items the user
+# can no longer open, like the views of a trashed database, would otherwise be
+# read in full before a page could be returned. The page then comes back short,
+# with a cursor that continues where the reading stopped.
+MAX_SCANNED_ROWS = 10_000
 
 # Stateless for `to_representation`, so one instance serves every caller.
 _LAST_VIEWED_FIELD = serializers.DateTimeField()
@@ -242,8 +243,8 @@ class LastViewedHandler:
         workspace_ids: Optional[Iterable[int]] = None,
         type_filters: Optional[LastViewedTypeFilters] = None,
         limit: int,
-        offset: int = 0,
-    ) -> Tuple[List[LastViewedListItem], bool]:
+        cursor: Optional[KeysetCursor] = None,
+    ) -> Tuple[List[LastViewedListItem], Optional[KeysetCursor]]:
         """
         Lists the items the user opened most recently, newest first.
 
@@ -260,8 +261,9 @@ class LastViewedHandler:
         :param type_filters: Limits the result to these item types, each optionally
             limited to sub types. Every registered type when omitted.
         :param limit: The maximum number of items to return.
-        :param offset: The number of visible items to skip.
-        :return: The items of the page and whether more items follow.
+        :param cursor: Where the previous page ended, `None` for the first page.
+        :return: The items of the page and the cursor of the next page, `None`
+            when no more items follow.
         """
 
         core_handler = CoreHandler()
@@ -274,7 +276,7 @@ class LastViewedHandler:
         # Without workspaces the permission filtering would run globally instead of
         # denying everything, so it must not be reached.
         if not workspaces:
-            return [], False
+            return [], None
 
         if type_filters is None:
             type_filters = {
@@ -289,25 +291,28 @@ class LastViewedHandler:
         ).order_by("-last_viewed", "-id")
 
         # One more than requested tells whether a next page exists without a count.
-        end = min(offset + limit, MAX_LISTED_ITEMS)
-        wanted = end + 1
-        visible: List[Tuple[int, str, int]] = []
-        cursor = None
+        wanted = limit + 1
+        visible: List[Tuple[int, str, int, datetime]] = []
+        # Items viewed, trashed or hidden since the previous page neither repeat
+        # nor skip an item, because the scan continues after its last item.
+        position = cursor
         batch_size = SCAN_BATCH_SIZE
-        while len(visible) < wanted:
+        scanned = 0
+        exhausted = False
+        while len(visible) < wanted and scanned < MAX_SCANNED_ROWS:
             batch_queryset = candidates
-            if cursor is not None:
-                last_viewed, row_id = cursor
+            if position is not None:
                 batch_queryset = batch_queryset.filter(
-                    Q(last_viewed__lt=last_viewed)
-                    | Q(last_viewed=last_viewed, id__lt=row_id)
+                    position.get_filter("last_viewed")
                 )
             batch = list(
                 batch_queryset.values_list(
                     "id", "item_type", "item_id", "workspace_id", "last_viewed"
                 )[:batch_size]
             )
+            scanned += len(batch)
             if not batch:
+                exhausted = True
                 break
 
             visible.extend(
@@ -316,28 +321,38 @@ class LastViewedHandler:
                 )
             )
             if len(batch) < batch_size:
+                exhausted = True
                 break
 
-            cursor = (batch[-1][4], batch[-1][0])
+            position = KeysetCursor(value=batch[-1][4], id=batch[-1][0])
             # Most pages are served by the first batch. Growing the next ones keeps
             # the number of round trips low when a user has many items they can no
             # longer see, without reading far ahead for everyone else.
-            batch_size = min(batch_size * 2, MAX_SCAN_BATCH_SIZE)
+            batch_size = min(
+                batch_size * 2, MAX_SCAN_BATCH_SIZE, MAX_SCANNED_ROWS - scanned
+            )
 
-        page = visible[offset:end]
-        # Nothing follows the last item the listing pages to, so the caller is not
-        # invited to ask for a page it would be refused.
-        has_more = len(visible) > end and end < MAX_LISTED_ITEMS
+        page = visible[:limit]
+        next_cursor = None
+        if len(visible) > limit:
+            # The last item of the page rather than the last row that was read,
+            # so the rows read past the page are not skipped by the next one.
+            row_id, _, _, last_viewed = page[-1]
+            next_cursor = KeysetCursor(value=last_viewed, id=row_id)
+        elif not exhausted:
+            # Stopped by `MAX_SCANNED_ROWS`. Every visible row read is in the page,
+            # so continuing after the last row read skips nothing.
+            next_cursor = position
         if not page:
-            return [], has_more
+            return [], next_cursor
 
         rows = UserLastViewedItem.objects.filter(
-            id__in=[row_id for row_id, _, _ in page]
+            id__in=[row_id for row_id, _, _, _ in page]
         ).select_related("application", "workspace")
         rows_by_id = {row.id: row for row in rows}
 
         item_ids_per_type = defaultdict(list)
-        for _, type_name, item_id in page:
+        for _, type_name, item_id, _ in page:
             item_ids_per_type[type_name].append(item_id)
 
         instances = {}
@@ -350,7 +365,7 @@ class LastViewedHandler:
                 instances[(type_name, instance.id)] = instance
 
         items = []
-        for row_id, type_name, item_id in page:
+        for row_id, type_name, item_id, _ in page:
             row = rows_by_id.get(row_id)
             instance = instances.get((type_name, item_id))
             # Gone between the queries, which the next page load corrects.
@@ -365,7 +380,7 @@ class LastViewedHandler:
                     sub_type=item_type.get_sub_type(instance),
                 )
             )
-        return items, has_more
+        return items, next_cursor
 
     @classmethod
     def _filter_visible_rows(
@@ -375,7 +390,7 @@ class LastViewedHandler:
         batch: List[Tuple],
         type_filters: LastViewedTypeFilters,
         workspaces: Dict[int, Any],
-    ) -> List[Tuple[int, str, int]]:
+    ) -> List[Tuple[int, str, int, datetime]]:
         """
         Resolves which rows of one batch point at an item the user can still open, in
         one query per item type of the batch. Items that were trashed or that
@@ -387,7 +402,8 @@ class LastViewedHandler:
             newest first.
         :param type_filters: The requested types and sub types.
         :param workspaces: The workspaces of the user, keyed by id.
-        :return: The `(id, item_type, item_id)` of the visible rows, in batch order.
+        :return: The `(id, item_type, item_id, last_viewed)` of the visible rows,
+            in batch order.
         """
 
         item_ids_per_type = defaultdict(list)
@@ -410,8 +426,8 @@ class LastViewedHandler:
             visible_ids_per_type[type_name] = set(queryset.values_list("id", flat=True))
 
         return [
-            (row_id, type_name, item_id)
-            for row_id, type_name, item_id, _, _ in batch
+            (row_id, type_name, item_id, last_viewed)
+            for row_id, type_name, item_id, _, last_viewed in batch
             if item_id in visible_ids_per_type[type_name]
         ]
 
