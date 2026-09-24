@@ -5,10 +5,6 @@ The implementation lives in `baserow_enterprise.assistant`. Modes control tool
 discovery and schema size; the domain services still enforce the acting user's
 permissions and workspace boundaries.
 
-The main agent uses high reasoning effort for Groq's GPT-OSS 120B model. Helper
-agents retain their role defaults. The output-token and timeout limits are
-unchanged; eval metadata records the effective model settings.
-
 ## Tool discovery
 
 `AssistantToolRegistry` first filters tool groups through `can_use`. The permitted
