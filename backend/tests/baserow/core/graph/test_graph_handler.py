@@ -1311,3 +1311,21 @@ def test_reattach_unreachable_points_breaks_detached_cycle():
         "7": {"next": {"": [8]}},
         "8": {},
     }
+
+
+def test_migrate_graph_preserves_outputs_when_they_have_no_id_mapping():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"0": [2]}},
+            "2": {},
+        }
+    )
+
+    model.get_graph().migrate_graph({"": {1: 41, 2: 42}})
+
+    assert model.graph == {
+        "0": 41,
+        "41": {"next": {"0": [42]}},
+        "42": {},
+    }
