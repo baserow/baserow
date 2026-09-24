@@ -61,8 +61,12 @@ def resume_deferred_node_celery_task(
 
     history_handler = AutomationHistoryHandler()
     deferred_history = history_handler.get_workflow_history(deferred_history_id)
-    response = history_handler.get_workflow_history_response(deferred_history)
     timed_out = time.time() >= deadline
+    response = (
+        None
+        if timed_out
+        else history_handler.get_workflow_history_response(deferred_history)
+    )
     if (
         response is None
         and deferred_history.status == HistoryStatusChoices.STARTED

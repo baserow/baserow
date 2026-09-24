@@ -698,8 +698,10 @@ class AutomationNodeHandler:
             "node__workflow", "workflow_history"
         ).get(id=node_history_id)
         deferred_history = history_handler.get_workflow_history(deferred_history_id)
-        workflow_response = history_handler.get_workflow_history_response(
-            deferred_history
+        workflow_response = (
+            None
+            if timed_out
+            else history_handler.get_workflow_history_response(deferred_history)
         )
         if workflow_response is None and not timed_out:
             workflow_response = history_handler.ensure_default_response(

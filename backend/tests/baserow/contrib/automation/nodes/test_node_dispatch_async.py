@@ -58,6 +58,33 @@ def test_resume_deferred_node_retries_with_response_poll_interval():
     retry.assert_called_once_with(countdown=0.1)
 
 
+@pytest.mark.django_db
+def test_resume_deferred_node_does_not_load_response_after_timeout():
+    """An expired poll completes as timed out without loading a late response."""
+
+    deferred_history = SimpleNamespace(status=HistoryStatusChoices.STARTED)
+    with (
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history",
+            return_value=deferred_history,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler."
+            "AutomationHistoryHandler.get_workflow_history_response"
+        ) as get_response,
+        patch(
+            "baserow.contrib.automation.nodes.handler."
+            "AutomationNodeHandler.complete_deferred_node",
+            return_value=None,
+        ) as complete_deferred_node,
+    ):
+        resume_deferred_node_celery_task.run(1, 2, "", time.time() - 1)
+
+    get_response.assert_not_called()
+    complete_deferred_node.assert_called_once_with(1, 2, "", True, None)
+
+
 def assert_dispatches_next_node(result, *expected_tasks):
     """
     Helper to assert that the correct signature is returned.

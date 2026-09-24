@@ -179,7 +179,32 @@ def test_start_workflow_service_waits_for_response_node(data_fixture):
 
 
 @pytest.mark.django_db
-def test_start_workflow_automation_node_waits_for_response_node(data_fixture):
+@pytest.mark.parametrize(
+    "timed_out,expected_response",
+    [
+        (
+            False,
+            {
+                "status_code": 200,
+                "headers": {},
+                "body": "Child response",
+                "body_type": RESPONSE_BODY_TYPE.TEXT,
+            },
+        ),
+        (
+            True,
+            {
+                "status_code": 504,
+                "headers": {},
+                "body": None,
+                "body_type": RESPONSE_BODY_TYPE.EMPTY,
+            },
+        ),
+    ],
+)
+def test_start_workflow_automation_node_deferred_response(
+    data_fixture, timed_out, expected_response
+):
     user = data_fixture.create_user()
     child_workflow = data_fixture.create_automation_workflow(
         user=user,
@@ -240,15 +265,14 @@ def test_start_workflow_automation_node_waits_for_response_node(data_fixture):
             node_history.id,
             child_history.id,
             "",
+            timed_out=timed_out,
         )
         is None
     )
-    assert AutomationHistoryHandler().get_node_result(history, start_node, "") == {
-        "status_code": 200,
-        "headers": {},
-        "body": "Child response",
-        "body_type": RESPONSE_BODY_TYPE.TEXT,
-    }
+    assert (
+        AutomationHistoryHandler().get_node_result(history, start_node, "")
+        == expected_response
+    )
 
 
 @pytest.mark.django_db
