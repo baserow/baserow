@@ -103,6 +103,41 @@ def mock_formula_generator(request, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_create_workflow_defaults_optional_display_labels(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    request = WorkflowCreate.model_validate(
+        {
+            "name": "Daily reminder",
+            "trigger": {
+                "ref": "trigger",
+                "type": "periodic",
+                "periodic_interval": {"interval": "DAY"},
+            },
+            "nodes": [
+                {
+                    "ref": "message",
+                    "type": "slack_write_message",
+                    "previous_node_ref": "trigger",
+                    "channel": "#general",
+                    "text": "Time for the daily update",
+                }
+            ],
+        }
+    )
+    result = create_workflows(
+        make_test_ctx(user, workspace), automation.id, [request], "Add a reminder"
+    )
+    workflow = automation.workflows.get(id=result["created_workflows"][0]["id"])
+    assert workflow.get_trigger().label == "Periodic"
+    assert set(workflow.automation_workflow_nodes.values_list("label", flat=True)) == {
+        "Periodic",
+        "Slack write message",
+    }
+
+
+@pytest.mark.django_db
 def test_list_workflows(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

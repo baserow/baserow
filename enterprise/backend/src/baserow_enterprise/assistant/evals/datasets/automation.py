@@ -12,6 +12,8 @@ from __future__ import annotations
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.harness import tool_called
 from baserow_enterprise.assistant.evals.registry import (
@@ -25,6 +27,7 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
+from baserow_enterprise.assistant.tools.automation.agents import AssistantFormulaContext
 
 # Names the automation instead of a live DB id, since prompts are fixed before creation.
 PROMPT_LISTS_WORKFLOWS = "List the workflows in automation '{automation_name}'."
@@ -512,74 +515,67 @@ def _check_creates_row_with_field_values(
     source_table = scenario.refs["source_table"]
     log_table = scenario.refs["log_table"]
 
-    call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[0] if call_args_list else {}
-    wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger", {})
-    nodes_args = wf_args.get("nodes", [])
-    create_row_nodes_args = [n for n in nodes_args if n.get("type") == "create_row"]
-    cr_values = (
-        create_row_nodes_args[0].get("values", []) if create_row_nodes_args else []
-    )
+    _, trigger, action_nodes = _get_workflow_nodes(automation)
+    trigger_service = trigger.service.specific if trigger else None
+    create_services = [
+        node.service.specific
+        for node in action_nodes
+        if node.get_type().type == "local_baserow_create_row"
+    ]
+    target_services = [s for s in create_services if s.table_id == log_table.id]
+    name_field = source_table.field_set.get(name="Name")
+    entry_field = log_table.field_set.get(name="Entry")
+    source_field = log_table.field_set.get(name="Source")
 
-    db_ok = AutomationWorkflow.objects.filter(automation=automation).exists()
-    if db_ok:
-        _, trigger_node, action_nodes = _get_workflow_nodes(automation)
-        db_trigger_type = trigger_node.service.get_type().type
-        db_create_actions = [
-            n
-            for n in action_nodes
-            if n.service.get_type().type == "local_baserow_upsert_row"
-        ]
-    else:
-        db_trigger_type = None
-        db_create_actions = []
+    def mappings_match(service):
+        mappings = {
+            mapping.field_id: mapping.value
+            for mapping in service.field_mappings.filter(enabled=True)
+        }
+        if not trigger or not {entry_field.id, source_field.id} <= mappings.keys():
+            return False
+        # Resolve against two different trigger rows, so a literal name or a
+        # reference to an unrelated field cannot masquerade as a dynamic binding.
+        for name in ("Ada Lovelace", "Grace Hopper"):
+            context = AssistantFormulaContext()
+            context.add_node_context(trigger.id, [{name_field.db_column: name}])
 
-    trigger_table_id = trigger_args.get("rows_triggers_settings", {}).get("table_id")
-    cr_node = create_row_nodes_args[0] if create_row_nodes_args else {}
-    cr_table_id = cr_node.get("table_id")
-    cr_has_literal_automation = any(
-        "automation" in str(v.get("value", "")).lower() for v in cr_values
-    )
+            def resolve(formula):
+                return resolve_formula(
+                    formula, formula_runtime_function_registry, context
+                )
+
+            try:
+                if (
+                    resolve(service.row_id) not in (None, "")
+                    or resolve(mappings[entry_field.id]) != name
+                    or resolve(mappings[source_field.id]) != "automation"
+                ):
+                    return False
+            except Exception:
+                return False
+        return True
 
     return [
-        CheckResult("called create_workflows", len(call_args_list) >= 1),
         CheckResult(
-            "trigger is rows_created",
-            trigger_args.get("type") == "rows_created",
-            hint=f"got {trigger_args.get('type')}",
-        ),
-        CheckResult(
-            "trigger table is Contacts (source_table)",
-            trigger_table_id == source_table.id,
-            hint=f"got table_id={trigger_table_id}, expected={source_table.id}",
-        ),
-        CheckResult(
-            "create_row node in args",
-            len(create_row_nodes_args) >= 1,
-            hint=f"node types: {[n.get('type') for n in nodes_args]}",
-        ),
-        CheckResult(
-            "create_row targets Log table",
-            cr_table_id == log_table.id,
-            hint=f"got table_id={cr_table_id}, expected={log_table.id}",
-        ),
-        CheckResult(
-            "create_row has >=1 field value",
-            len(cr_values) >= 1,
-            hint=f"got {len(cr_values)}",
-        ),
-        CheckResult(
-            "create_row has 'automation' literal value (Source field)",
-            cr_has_literal_automation,
-            hint=f"values: {cr_values}",
+            "called create_workflows", bool(tool_called(output, "create_workflows"))
         ),
         CheckResult(
             "DB trigger is rows_created",
-            db_trigger_type == "local_baserow_rows_created",
-            hint=f"got {db_trigger_type}",
+            trigger_service is not None
+            and trigger_service.get_type().type == "local_baserow_rows_created",
         ),
-        CheckResult("create_row action in DB", len(db_create_actions) >= 1),
+        CheckResult(
+            "DB trigger table is Contacts",
+            trigger_service is not None
+            and getattr(trigger_service, "table_id", None) == source_table.id,
+        ),
+        CheckResult("create_row action in DB", bool(create_services)),
+        CheckResult("create_row targets Log table", bool(target_services)),
+        CheckResult(
+            "saved Entry follows trigger Name and Source is automation",
+            any(mappings_match(service) for service in target_services),
+        ),
     ]
 
 

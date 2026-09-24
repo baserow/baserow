@@ -202,7 +202,17 @@ def list_tables(
     )
 
     if len(databases) == 0:
-        return {"tables": [], "_info": _no_tables_found_hint(user, workspace, filters)}
+        return {
+            "tables": [],
+            "_info": _no_tables_found_hint(user, workspace, filters),
+            "next_steps": (
+                "If the user wants an app to show or list these records, ask_user "
+                "where that data should come from before building. No matching "
+                "table was found; do not invent records or create replacement "
+                "storage. Create tables only if the user requested new data "
+                "storage or sample records."
+            ),
+        }
     elif len(databases) == 1:
         # Return just the tables array when there's only one database
         return list(databases.values())[0]["tables"]
@@ -1227,6 +1237,8 @@ def _build_row_tools(
         description=(
             f"WHEN: Creating new rows in '{table.name}' (ID: {table.id}). "
             f"WHAT: Inserts rows with field values matching the table schema. "
+            f"Use property names exactly as listed in the schema, including spaces; "
+            f"do not include extra quote characters in the property names. "
             f"Keep batches to at most 20 rows to avoid oversized generated arguments; "
             f"for more rows, call this tool again with the next batch. "
             f"RETURNS: Created row IDs. "
