@@ -16,7 +16,7 @@
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
-      :upload-file="readOnly ? null : uploadUserFile"
+      :upload-file="readOnly || !allowImageUpload ? null : uploadUserFile"
       @focus="select()"
       @blur="unselect()"
     ></RichTextEditor>
@@ -38,6 +38,13 @@ import { getRichTextClipboardContent } from '@baserow/modules/database/utils/cli
 export default {
   components: { RichTextEditor },
   mixins: [rowEditField, rowEditFieldInput],
+  props: {
+    allowImageUpload: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+  },
   data() {
     return {
       // local copy of the value storing the JSON representation of the rich text editor

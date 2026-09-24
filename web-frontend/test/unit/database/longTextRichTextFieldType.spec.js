@@ -58,6 +58,15 @@ describe('LongTextFieldType rich text switching', () => {
     expect(defaultComponent.component).toBe(RowEditFieldRichText)
   })
 
+  test('forms do not offer image upload, which needs a signed in user', () => {
+    const components = fieldType.getFormViewFieldComponents(richField)
+    expect(Object.values(components)[0].properties).toEqual({
+      allowImageUpload: false,
+    })
+    const plain = fieldType.getFormViewFieldComponents(plainField)
+    expect(Object.values(plain)[0].properties).toEqual({})
+  })
+
   test('rich text fields cannot be grouped by', () => {
     expect(fieldType.getCanGroupByInView(richField)).toBe(false)
     expect(fieldType.getCanGroupByInView(plainField)).toBe(true)

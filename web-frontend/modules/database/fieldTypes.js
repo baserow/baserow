@@ -1374,6 +1374,17 @@ export class LongTextFieldType extends FieldType {
     }
   }
 
+  getFormViewFieldComponents(field) {
+    const components = super.getFormViewFieldComponents(field)
+    if (field?.long_text_enable_rich_text) {
+      // The upload endpoint needs a signed in user, so an anonymous respondent can't use it.
+      components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].properties = {
+        allowImageUpload: false,
+      }
+    }
+    return components
+  }
+
   getCardComponent(field) {
     if (field?.long_text_enable_rich_text) {
       return RowCardFieldRichText
