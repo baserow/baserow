@@ -47,6 +47,71 @@ def test_create_rows_rejects_empty_payload_and_accepts_corrected_call(data_fixtu
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("operation", ["create", "update"])
+@pytest.mark.parametrize("multiple", [False, True])
+def test_invalid_link_values_do_not_silently_clear_relationships(
+    data_fixture, operation, multiple
+):
+    user = data_fixture.create_user()
+    table, linked_table, link = data_fixture.create_two_linked_tables(user=user)
+    link.link_row_multiple_relationships = multiple
+    link.save()
+    primary = table.get_primary_field()
+    linked_primary = linked_table.get_primary_field()
+    linked_row = RowHandler().create_row(
+        user, linked_table, {linked_primary.db_column: "Existing category"}
+    )
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], [operation], thought="Prepare rows")
+    tool = ctx.deps.dynamic_tools[0]
+    model = table.get_model()
+    valid_link = [linked_row.id] if multiple else linked_row.id
+    invalid_link = (
+        [linked_row.id, "Unknown category"] if multiple else "Unknown category"
+    )
+    rows = [
+        {primary.name: "First", link.name: valid_link},
+        {primary.name: "Second", link.name: invalid_link},
+    ]
+    original_rows = []
+    if operation == "update":
+        for i, values in enumerate(rows):
+            row = RowHandler().create_row(
+                user,
+                table,
+                {primary.db_column: f"Original {i}", link.db_column: [linked_row.id]},
+            )
+            values["id"] = row.id
+            original_rows.append(row)
+
+    arguments = tool.function_schema.validator.validate_python(
+        {"rows": rows, "thought": "Write the rows"}
+    )
+    with pytest.raises(ModelRetry, match="Unknown category"):
+        tool.function(**arguments)
+
+    assert model.objects.count() == len(original_rows)
+    for i, row in enumerate(original_rows):
+        row.refresh_from_db()
+        assert getattr(row, primary.db_column) == f"Original {i}"
+        assert list(getattr(row, link.db_column).values_list("id", flat=True)) == [
+            linked_row.id
+        ]
+
+    rows[1][link.name] = ["Existing category"] if multiple else "Existing category"
+    arguments = tool.function_schema.validator.validate_python(
+        {"rows": rows, "thought": "Use existing linked rows"}
+    )
+    result = tool.function(**arguments)
+    row_ids = result[f"{operation}d_row_ids"]
+    assert len(row_ids) == 2
+    for row in model.objects.filter(id__in=row_ids):
+        assert list(getattr(row, link.db_column).values_list("id", flat=True)) == [
+            linked_row.id
+        ]
+
+
+@pytest.mark.django_db
 def test_reload_row_tools_uses_new_schema_without_duplicate_tools(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
