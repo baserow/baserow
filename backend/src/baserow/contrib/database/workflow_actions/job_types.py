@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
+from celery.exceptions import SoftTimeLimitExceeded
 from rest_framework import serializers
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.utils.encoders import JSONEncoder
@@ -122,6 +123,12 @@ class ButtonFieldDispatchJobType(JobType):
         RowDoesNotExist: "The clicked row no longer exists.",
         UserNotInWorkspace: "The clicker is no longer a member of the workspace.",
         WorkflowActionTypeDeactivated: _own_message,
+        # The framework's own wording names the job type, which means nothing
+        # to the clicker.
+        SoftTimeLimitExceeded: (
+            "The button's actions took too long and were stopped. Actions that "
+            "had already finished were kept."
+        ),
         WorkflowActionClickExpired: (
             "The click waited too long to run and was dropped. Click again."
         ),

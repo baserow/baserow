@@ -143,6 +143,14 @@ export default {
      */
     async awaitDispatchJob(job) {
       const tracked = await this.$store.dispatch('job/create', job)
+      try {
+        return await this.settleDispatchJob(tracked)
+      } finally {
+        // Settled or given up on either way, so the store stops polling it.
+        this.$store.dispatch('job/forceDelete', tracked)
+      }
+    },
+    async settleDispatchJob(tracked) {
       // Eager backends can answer with a job that is already final, in
       // which case nothing is worth waiting or polling for.
       if (tracked.state === 'finished') {
@@ -192,21 +200,18 @@ export default {
         throw failed instanceof Error ? failed : this.dispatchJobError(failed)
       } finally {
         clearTimeout(deadlineTimer)
-        // Settled or given up on either way, so the store stops polling it.
-        this.$store.dispatch('job/forceDelete', tracked)
       }
     },
     dispatchJobError(failed) {
-      const error = new Error(
-        failed.human_readable_error || 'Button click failed'
-      )
+      // A failure the job type did not map carries no error code, and the
+      // framework's own wording for it, which names the job type.
+      const message = failed.error_code ? failed.human_readable_error : ''
+      const error = new Error(message || 'Button click failed')
       error.handler = {
         notifyIf: () => {
           this.$store.dispatch('toast/error', {
             title: this.$t('buttonField.dispatchErrorTitle'),
-            message:
-              failed.human_readable_error ||
-              this.$t('buttonField.dispatchErrorMessage'),
+            message: message || this.$t('buttonField.dispatchErrorMessage'),
           })
         },
       }

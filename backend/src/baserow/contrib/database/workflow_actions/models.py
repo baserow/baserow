@@ -171,3 +171,16 @@ class ButtonFieldDispatchJob(
         null=True,
         help_text="The frontend-only actions the browser runs after the click.",
     )
+
+    def save(self, *args, **kwargs):
+        # The field is written once, on creation. A retype while the click runs
+        # empties it in the database, and the worker's later saves still hold
+        # the old id in memory: writing it back would point at a button that
+        # no longer exists and fail the save.
+        if not self._state.adding and kwargs.get("update_fields") is None:
+            kwargs["update_fields"] = [
+                field.name
+                for field in self._meta.concrete_fields
+                if not field.primary_key and field.name != "field"
+            ]
+        super().save(*args, **kwargs)

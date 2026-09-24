@@ -638,3 +638,43 @@ def test_a_click_cancelled_while_running_starts_no_further_action(
     assert job.state == JOB_CANCELLED
     assert table.get_model().objects.exclude(id=row.id).count() == 0
     assert dispatched_clicks == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_button_retyped_while_its_click_runs_still_finishes_the_job(data_fixture):
+    """The retype empties the job's field in the database while the worker
+    still holds the old id; saving the finished job must not write it back."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    with patch("baserow.core.jobs.handler.run_async_job"):
+        job = JobHandler().create_and_start_job(
+            user,
+            ButtonFieldDispatchJobType.type,
+            field=button_field,
+            row_id=row.id,
+            accepted_actions=_accepted_ids(button_field),
+        )
+
+    with mock_advocate_request({"ok": True}) as request:
+        answer = request.side_effect
+
+        def retype_while_sending(*args, **kwargs):
+            FieldHandler().update_field(user, button_field, new_type_name="text")
+            return answer(*args, **kwargs)
+
+        request.side_effect = retype_while_sending
+        run_async_job(job.id)
+
+    job = ButtonFieldDispatchJob.objects.get(id=job.id)
+    assert job.state == JOB_FINISHED
+    assert job.field_id is None
+
+
+def test_a_click_that_ran_too_long_says_so_without_the_job_type():
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    message = ButtonFieldDispatchJobType.job_exceptions_map[SoftTimeLimitExceeded]
+    assert "button_field_dispatch" not in message

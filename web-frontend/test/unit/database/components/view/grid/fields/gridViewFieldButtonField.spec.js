@@ -368,6 +368,7 @@ describe('GridViewFieldButtonField', () => {
     await flushPromises()
     await finishJob(wrapper, {
       state: 'failed',
+      error_code: 'WorkflowActionDispatchError',
       human_readable_error:
         'Action 1 ran before action 2 failed: No table selected',
     })
@@ -378,6 +379,47 @@ describe('GridViewFieldButtonField', () => {
       title: 'buttonField.dispatchErrorTitle',
       message: 'Action 1 ran before action 2 failed: No table selected',
     })
+  })
+
+  test('a failure the job type did not map shows the generic message', async () => {
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await finishJob(wrapper, {
+      state: 'failed',
+      error_code: '',
+      human_readable_error:
+        'Something went wrong during the button_field_dispatch job execution.',
+    })
+
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.dispatchErrorTitle',
+      message: 'buttonField.dispatchErrorMessage',
+    })
+  })
+
+  test('a job that is already final is not left in the store', async () => {
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi.fn().mockResolvedValue({
+      status: 202,
+      data: {
+        ...acceptedJob(),
+        state: 'finished',
+        results: [],
+        client_actions: [],
+      },
+    })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(wrapper.vm.$store.getters['job/get'](acceptedJob().id)).toBeFalsy()
   })
 
   test('the spinner survives a remount while the job polls', async () => {
