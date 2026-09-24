@@ -1,11 +1,17 @@
+import json
+import math
 from contextlib import nullcontext
+from datetime import timedelta
 from time import perf_counter
 from typing import Any, Dict, List
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 
 from rest_framework import serializers
 from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.utils.encoders import JSONEncoder
 
 from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.contrib.database.api.workflow_actions.serializers import (
@@ -15,6 +21,7 @@ from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionClickExpired,
     WorkflowActionDispatchDenied,
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
@@ -51,9 +58,38 @@ def denied_message(exc: Exception) -> str:
     :return: The message for the clicker.
     """
 
-    if isinstance(exc, APIException) and isinstance(exc.detail, str):
-        return str(exc.detail)
+    if isinstance(exc, APIException):
+        detail = exc.detail
+        # Baserow's own API errors carry `{"error": ..., "detail": ...}`.
+        if isinstance(detail, dict):
+            detail = detail.get("detail")
+        if isinstance(detail, str) and detail:
+            return str(detail)
     return ERROR_PERMISSION_DENIED[2]
+
+
+def jsonb_safe(value: Any) -> Any:
+    """
+    The click's payload as Postgres can store it. The inline response was
+    rendered by DRF, which accepts what a jsonb column refuses: a NUL
+    character in an endpoint's answer, a float that is not a number, a date.
+
+    :param value: The payload.
+    :return: The same payload with those replaced.
+    """
+
+    def clean(item):
+        if isinstance(item, str):
+            return item.replace("\x00", "")
+        if isinstance(item, float) and not math.isfinite(item):
+            return None
+        if isinstance(item, dict):
+            return {clean(key): clean(val) for key, val in item.items()}
+        if isinstance(item, (list, tuple)):
+            return [clean(val) for val in item]
+        return item
+
+    return clean(json.loads(json.dumps(clean(value), cls=JSONEncoder)))
 
 
 def _own_message(exc: Exception) -> str:
@@ -85,6 +121,9 @@ class ButtonFieldDispatchJobType(JobType):
         RowDoesNotExist: "The clicked row no longer exists.",
         UserNotInWorkspace: "The clicker is no longer a member of the workspace.",
         WorkflowActionTypeDeactivated: _own_message,
+        WorkflowActionClickExpired: (
+            "The click waited too long to run and was dropped. Click again."
+        ),
         WorkflowActionsChangedSinceClick: (
             "The button's actions changed while the click was waiting. "
             "Click again to run the new ones."
@@ -112,7 +151,7 @@ class ButtonFieldDispatchJobType(JobType):
         return {
             "field": values["field"],
             "row_id": values["row_id"],
-            "workflow_action_ids": values.get("workflow_action_ids", []),
+            "accepted_actions": values.get("accepted_actions", []),
         }
 
     def transaction_atomic_context(self, job: ButtonFieldDispatchJob):
@@ -122,6 +161,12 @@ class ButtonFieldDispatchJobType(JobType):
     def run(self, job: ButtonFieldDispatchJob, progress: Progress) -> None:
         # Reading `job.user` restores the clicker's websocket id on it.
         user = job.user
+        # The cleanup fails a job this old and frees its cell, so another click
+        # may already be running the same actions.
+        if job.created_on < timezone.now() - timedelta(
+            seconds=settings.BASEROW_JOB_SOFT_TIME_LIMIT
+        ):
+            raise WorkflowActionClickExpired()
         field = job.field
         # Retyped or trashed while the job waited on the queue, the field or
         # anything above it. Refused before the click event, as the view
@@ -156,7 +201,7 @@ class ButtonFieldDispatchJobType(JobType):
             # The request checked and charged the list it accepted. An action
             # added, removed or reordered while the job waited would run
             # unchecked, and an added external one without a slot reserved.
-            if [wa.id for wa in workflow_actions] != job.workflow_action_ids:
+            if service.accepted_actions(workflow_actions) != job.accepted_actions:
                 raise WorkflowActionsChangedSinceClick()
             dispatch = service.dispatch_workflow_actions(
                 user,
@@ -195,7 +240,7 @@ class ButtonFieldDispatchJobType(JobType):
             and result_label(True, dispatched.result) == "error_status"
         )
 
-        payload = dispatch_result_payload(dispatch, user)
+        payload = jsonb_safe(dispatch_result_payload(dispatch, user))
         job.results = payload["results"]
         job.client_actions = payload["client_actions"]
         job.save(update_fields=["results", "client_actions"])

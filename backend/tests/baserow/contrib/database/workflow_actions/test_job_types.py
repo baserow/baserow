@@ -1,7 +1,11 @@
+import json
 from contextlib import nullcontext
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
+
+from django.utils import timezone
 
 import pytest
 from rest_framework.exceptions import APIException, ValidationError
@@ -19,6 +23,7 @@ from baserow.contrib.database.workflow_actions.actions import (
 )
 from baserow.contrib.database.workflow_actions.job_types import (
     ButtonFieldDispatchJobType,
+    denied_message,
 )
 from baserow.contrib.database.workflow_actions.models import (
     ButtonFieldDispatchJob,
@@ -108,20 +113,20 @@ def _add_http_action(data_fixture, button_field):
 
 
 def _accepted_ids(button_field):
-    snapshot = DatabaseWorkflowActionService().get_dispatch_snapshot(button_field)
-    return [wa.id for wa in snapshot]
+    service = DatabaseWorkflowActionService()
+    return service.accepted_actions(service.get_dispatch_snapshot(button_field))
 
 
-def _run(user, button_field, row, workflow_action_ids=None):
-    if workflow_action_ids is None:
-        workflow_action_ids = _accepted_ids(button_field)
+def _run(user, button_field, row, accepted_actions=None):
+    if accepted_actions is None:
+        accepted_actions = _accepted_ids(button_field)
     job = JobHandler().create_and_start_job(
         user,
         ButtonFieldDispatchJobType.type,
         sync=True,
         field=button_field,
         row_id=row.id,
-        workflow_action_ids=workflow_action_ids,
+        accepted_actions=accepted_actions,
     )
     job.refresh_from_db()
     return job
@@ -191,7 +196,7 @@ def test_an_action_added_after_the_click_fails_the_job_without_running(
     _add_row_action(data_fixture, button_field, table, name_field, "late")
 
     with mock_advocate_request({"ok": True}) as request:
-        job = _run(user, button_field, row, workflow_action_ids=accepted)
+        job = _run(user, button_field, row, accepted_actions=accepted)
 
     assert job.state == JOB_FAILED
     assert job.error_code == "WorkflowActionsChangedSinceClick"
@@ -212,7 +217,7 @@ def test_a_reordered_list_fails_the_job_the_same_way(data_fixture):
     _add_http_action(data_fixture, button_field)
     accepted = _accepted_ids(button_field)
 
-    job = _run(user, button_field, row, workflow_action_ids=list(reversed(accepted)))
+    job = _run(user, button_field, row, accepted_actions=list(reversed(accepted)))
 
     assert job.state == JOB_FAILED
     assert job.error_code == "WorkflowActionsChangedSinceClick"
@@ -494,7 +499,7 @@ def test_a_button_retyped_while_its_click_waits_fails_the_job(
             ButtonFieldDispatchJobType.type,
             field=button_field,
             row_id=row.id,
-            workflow_action_ids=_accepted_ids(button_field),
+            accepted_actions=_accepted_ids(button_field),
         )
     FieldHandler().update_field(user, button_field, new_type_name="text")
 
@@ -508,3 +513,90 @@ def test_a_button_retyped_while_its_click_waits_fails_the_job(
     assert job.human_readable_error == "The button no longer exists."
     assert not request.called
     assert dispatched_clicks == []
+
+
+@pytest.mark.django_db
+def test_an_action_retyped_to_external_after_the_click_fails_the_job(data_fixture):
+    """A retype keeps the id, so the ids alone would not tell. The click was
+    charged for one external action and must not send two."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    row_action = _add_row_action(data_fixture, button_field, table, name_field, "a")
+    _add_http_action(data_fixture, button_field)
+    accepted = _accepted_ids(button_field)
+    DatabaseWorkflowActionService().update_workflow_action(
+        user, row_action, type="http_request"
+    )
+
+    with mock_advocate_request({"ok": True}) as request:
+        job = _run(user, button_field, row, accepted_actions=accepted)
+
+    assert job.state == JOB_FAILED
+    assert job.error_code == "WorkflowActionsChangedSinceClick"
+    assert not request.called
+
+
+@pytest.mark.django_db
+def test_a_click_older_than_the_job_cleanup_does_not_run(data_fixture, settings):
+    """The cleanup fails a job this old and frees its cell, so a retry may
+    already have sent the same request. Consumed late, it must not send it
+    again."""
+
+    settings.BASEROW_JOB_SOFT_TIME_LIMIT = 1800
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    with patch("baserow.core.jobs.handler.run_async_job"):
+        job = JobHandler().create_and_start_job(
+            user,
+            ButtonFieldDispatchJobType.type,
+            field=button_field,
+            row_id=row.id,
+            accepted_actions=_accepted_ids(button_field),
+        )
+    ButtonFieldDispatchJob.objects.filter(id=job.id).update(
+        created_on=timezone.now() - timedelta(seconds=1801)
+    )
+
+    with mock_advocate_request({"ok": True}) as request:
+        run_async_job(job.id)
+
+    job.refresh_from_db()
+    assert job.state == JOB_FAILED
+    assert job.error_code == "WorkflowActionClickExpired"
+    assert not request.called
+
+
+@pytest.mark.django_db
+def test_an_answer_postgres_cannot_store_still_finishes_the_click(data_fixture):
+    """A NUL character in an endpoint's answer was fine in an inline response
+    but is refused by a jsonb column."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with mock_advocate_request({"text": "a\x00b", "ratio": float("nan")}):
+        job = _run(user, button_field, row)
+
+    assert job.state == JOB_FINISHED, job.error
+    assert "\x00" not in json.dumps(job.results)
+
+
+def test_denied_message_reads_the_detail_of_an_api_error():
+    class Quota(APIException):
+        status_code = 403
+
+    assert denied_message(Quota(detail="Quota exceeded.")) == "Quota exceeded."
+    assert (
+        denied_message(Quota(detail={"error": "ERROR_QUOTA", "detail": "Upgrade."}))
+        == "Upgrade."
+    )
+    assert denied_message(PermissionException()) == (
+        "You don't have the required permission to execute this operation."
+    )

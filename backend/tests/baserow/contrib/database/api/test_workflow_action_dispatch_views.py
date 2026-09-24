@@ -708,7 +708,10 @@ def test_a_click_with_an_external_action_is_accepted_as_a_job(api_client, data_f
     assert job.field_id == button_field.id
     assert job.row_id == row.id
     # The list the click was checked and charged for, in its order.
-    assert job.workflow_action_ids == [create_action.id, http_action.id]
+    assert job.accepted_actions == [
+        [create_action.id, "local_baserow_create_row"],
+        [http_action.id, "http_request"],
+    ]
     # Nothing ran in the request.
     assert table.get_model().objects.exclude(id=row.id).count() == 0
 

@@ -21,6 +21,14 @@ class WorkflowActionDispatchDenied(Exception):
     """A receiver of `workflow_actions_before_dispatch` refused the click."""
 
 
+class WorkflowActionClickExpired(Exception):
+    """
+    The click's job waited longer than the job cleanup allows. The cleanup may
+    already have failed it and freed the cell for another click, so it does
+    not run late.
+    """
+
+
 class WorkflowActionsChangedSinceClick(Exception):
     """
     The button's action list is not the one the click was accepted with. The

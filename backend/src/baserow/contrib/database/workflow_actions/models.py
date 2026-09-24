@@ -158,10 +158,10 @@ class ButtonFieldDispatchJob(
         help_text="The clicked button field. Empty once it is no longer a button.",
     )
     row_id = models.PositiveIntegerField(help_text="The clicked row.")
-    workflow_action_ids = models.JSONField(
+    accepted_actions = models.JSONField(
         default=list,
-        help_text="The ids of the actions the click was accepted with, in order. "
-        "The job refuses to run a list that differs from it.",
+        help_text="The [id, type] of each action the click was accepted with, in "
+        "order. The job refuses to run a list that differs from it.",
     )
     results = models.JSONField(
         null=True,

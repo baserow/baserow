@@ -26,6 +26,7 @@ from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchInProgress,
 )
 from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
@@ -802,17 +803,11 @@ class _PluginRefusal(APIException):
 
 
 @pytest.mark.django_db
-def test_a_click_a_plugin_would_refuse_is_still_enqueued_and_charged(
+def test_a_click_a_plugin_refuses_is_refused_before_it_is_enqueued_or_charged(
     api_client, data_fixture, settings
 ):
-    """The plugin connects to `workflow_actions_before_dispatch`, which now
-    only fires inside the job, once it runs; the click itself is accepted at
-    once and sends no signal of its own. The DENIED mapping for a refusal
-    like this is exercised where the job actually runs it
-    (`test_job_types.py::test_a_plugin_refusal_sends_denied_and_fails_the_job`
-    and `telemetry.py`'s own tests); here only the enqueue and its budget are
-    in scope.
-    """
+    """A plugin (a SaaS quota) refuses a click with an external action in the
+    request, as it does an inline one: no job, no slot spent."""
 
     settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = (
         RateLimit(period_in_seconds=60, number_of_calls=1),
@@ -831,17 +826,14 @@ def test_a_click_a_plugin_would_refuse_is_still_enqueued_and_charged(
     finally:
         workflow_actions_before_dispatch.disconnect(refuse)
 
-    assert response.status_code == HTTP_202_ACCEPTED
-    # Nothing ran in the request, so the plugin never got to refuse it yet.
-    assert calls == []
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert [call["outcome"] for call in calls] == [DispatchOutcome.DENIED]
+    assert not ButtonFieldDispatchJob.objects.exists()
 
-    # The slot was already spent when the click was enqueued, ahead of
-    # whatever the job goes on to do with it.
-    row_two = table.get_model().objects.create()
-    with mock_advocate_request({"ok": True}):
-        second_response = _click(api_client, token, button_field, row_two.id)
-
-    assert second_response.status_code == HTTP_429_TOO_MANY_REQUESTS
+    # The one click the budget allows is still there.
+    assert _click(api_client, token, button_field, row.id).status_code == (
+        HTTP_202_ACCEPTED
+    )
 
 
 @pytest.mark.django_db

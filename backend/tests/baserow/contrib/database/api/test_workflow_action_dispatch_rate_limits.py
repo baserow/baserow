@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.db import DatabaseError
 from django.urls import reverse
 
 import pytest
@@ -446,4 +447,30 @@ def test_a_click_whose_job_fails_still_keeps_its_slot(
 
     assert _click(api_client, token, button_field, row_two).status_code == (
         HTTP_429_TOO_MANY_REQUESTS
+    )
+
+
+@pytest.mark.django_db
+def test_a_click_whose_job_row_cannot_be_written_spends_nothing(
+    api_client, data_fixture, settings
+):
+    """No job was created to charge the slots to, so they go back, as they do
+    when the per-user job cap refuses the click."""
+
+    settings.DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS = ONE_PER_MINUTE
+    user, token = data_fixture.create_user_and_token()
+    table, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    api_client.raise_request_exception = False
+
+    with patch(
+        "baserow.contrib.database.api.workflow_actions.views.JobHandler"
+        ".create_and_start_job",
+        side_effect=DatabaseError("read-only replica"),
+    ):
+        failed = _click(api_client, token, button_field, row)
+
+    assert failed.status_code == 500
+    assert _click(api_client, token, button_field, row).status_code == (
+        HTTP_202_ACCEPTED
     )

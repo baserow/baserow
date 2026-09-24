@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -567,6 +567,20 @@ class DatabaseWorkflowActionService:
 
         return list(self.handler.get_workflow_actions(field))
 
+    def accepted_actions(
+        self, workflow_actions: List[DatabaseWorkflowAction]
+    ) -> List[List]:
+        """
+        What a click was accepted with, to tell later whether it still runs
+        the same actions. The type is part of it: a retype keeps the id, and
+        can turn an action the click was not charged for into an external one.
+
+        :param workflow_actions: The actions of the click, in order.
+        :return: One [id, type] pair per action.
+        """
+
+        return [[wa.id, wa.get_type().type] for wa in workflow_actions]
+
     @contextmanager
     def cell_lock(self, prefix: str, field: ButtonField, row_id: int, timeout: int):
         """
@@ -629,8 +643,11 @@ class DatabaseWorkflowActionService:
             seconds=self._lock_ttl_for(server_actions, services)
         )
         pending_since = now - timedelta(seconds=settings.BASEROW_JOB_SOFT_TIME_LIMIT)
+        # On the primary: a replica a moment behind would miss the job a click
+        # just created, and let a second one through.
         return (
-            ButtonFieldDispatchJob.objects.filter(field=field, row_id=row_id)
+            ButtonFieldDispatchJob.objects.using(DEFAULT_DB_ALIAS)
+            .filter(field=field, row_id=row_id)
             .filter(
                 Q(state=JOB_STARTED, updated_on__gte=started_since)
                 | Q(state=JOB_PENDING, updated_on__gte=pending_since)
