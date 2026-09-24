@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
+import jsonschema
 from loguru import logger
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
@@ -279,13 +280,18 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         routed_mode = _routed_mode(tool)
         if routed_mode is not None:
             self._deps.mode = routed_mode
-            # Routing is control flow, not invalid input. It must not consume
-            # the retry budget used for actual schema or execution failures.
-            return {
-                "changed": False,
-                "mode": routed_mode.value,
-                "next_steps": mode_redirect_message(name, routed_mode),
-            }
+            try:
+                jsonschema.validate(tool_args, tool.tool_def.parameters_json_schema)
+            except jsonschema.ValidationError:
+                # An incomplete discovery call only reveals the full schema.
+                # It must not consume the execution-error retry budget.
+                return {
+                    "changed": False,
+                    "mode": routed_mode.value,
+                    "next_steps": mode_redirect_message(name, routed_mode),
+                }
+            # Complete calls can use the normal validated execution path now.
+            # Requiring a second model call can lose an already requested step.
 
         try:
             return await self._inner.call_tool(name, tool_args, ctx, tool)
