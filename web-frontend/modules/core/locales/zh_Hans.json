@@ -581,7 +581,7 @@
         }
     },
     "changeUserPasswordModal": {
-      "changePassword": "为{usermane}更改密码"
+        "changePassword": "为{usermane}更改密码"
     },
     "deleteUserModal": {
         "title": "删除{username}",
