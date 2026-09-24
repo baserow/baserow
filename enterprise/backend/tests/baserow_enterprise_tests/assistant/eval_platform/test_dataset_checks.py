@@ -10,9 +10,11 @@ from baserow.core.graph.types import GraphPointPosition
 from baserow_enterprise.assistant.evals.datasets.automation import (
     _check_creates_row_with_field_values,
     _check_creates_update_row_workflow,
+    _check_creates_weekly_slack_reminder,
     _check_creates_workflow,
     _creates_row_with_field_values_scenario,
     _creates_update_row_workflow_scenario,
+    _creates_weekly_slack_reminder_scenario,
     _creates_workflow_scenario,
 )
 from baserow_enterprise.assistant.evals.datasets.builder import (
@@ -43,6 +45,97 @@ def _output(**overrides):
         "duration_s": 0,
     }
     return EvalRunOutput(**(values | overrides))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "defect",
+    [
+        None,
+        "interval",
+        "day_of_week",
+        "hour",
+        "minute",
+        "timezone",
+        "channel",
+        "text",
+        "blank_text",
+        "missing_workflow",
+        "missing_slack",
+        "missing_call",
+    ],
+)
+def test_slack_reminder_check_uses_saved_schedule_and_message(data_fixture, defect):
+    scenario = _creates_weekly_slack_reminder_scenario(data_fixture)
+    schedule = {
+        "interval": "WEEK",
+        "day_of_week": 1,
+        "hour": 9,
+        "minute": 0,
+        "timezone": "UTC",
+    }
+    wrong_schedule = {
+        "interval": "DAY",
+        "day_of_week": 2,
+        "hour": 10,
+        "minute": 30,
+        "timezone": "Europe/Rome",
+    }
+    saved_schedule = schedule.copy()
+    if defect in wrong_schedule:
+        saved_schedule[defect] = wrong_schedule[defect]
+    message = "Is there anything to demo this week?"
+    if defect != "missing_workflow":
+        workflow = data_fixture.create_automation_workflow(
+            automation=scenario.refs["automation"],
+            trigger_type="periodic",
+            trigger_service_kwargs=saved_schedule,
+        )
+        if defect != "missing_slack":
+            text = "Other demo message" if defect == "text" else message
+            if defect == "blank_text":
+                text = ""
+            data_fixture.create_automation_node(
+                workflow=workflow,
+                type="slack_write_message",
+                service_kwargs={
+                    "channel": "general-other" if defect == "channel" else "general",
+                    "text": f"'{text}'",
+                },
+            )
+
+    # The real argument fixer moved `body` to `text` before saving. Keep the
+    # original model payload here, as recorded in the eval trace.
+    output = _output(
+        tool_calls=[] if defect == "missing_call" else ["create_workflows"],
+        messages=[]
+        if defect == "missing_call"
+        else [
+            {
+                "role": "assistant",
+                "tool_name": "create_workflows",
+                "args": {
+                    "workflows": [
+                        {
+                            "trigger": {
+                                "type": "periodic",
+                                "periodic_interval": schedule,
+                            },
+                            "nodes": [
+                                {
+                                    "type": "slack_write_message",
+                                    "channel": "#general",
+                                    "body" if defect is None else "text": message,
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        ],
+    )
+    checks = _check_creates_weekly_slack_reminder(None, scenario, output)
+    assert all(check.passed for check in checks) == (defect is None), checks
 
 
 @pytest.mark.django_db

@@ -288,74 +288,65 @@ def _creates_weekly_slack_reminder_scenario(fx: Fixtures) -> EvalScenario:
 def _check_creates_weekly_slack_reminder(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    automation = scenario.refs["automation"]
+    _, trigger, action_nodes = _get_workflow_nodes(scenario.refs["automation"])
+    trigger_type = trigger.get_type().type if trigger else None
+    periodic = trigger.service.specific if trigger_type == "periodic" else None
+    slack_services = [
+        node.service.specific
+        for node in action_nodes
+        if node.service.get_type().type == "slack_write_message"
+    ]
+    target_services = [
+        service
+        for service in slack_services
+        if service.channel.lstrip("#") == "general"
+    ]
 
-    call_args_list = _get_create_workflows_args(output)
-    args = call_args_list[0] if call_args_list else {}
-    wf_args = args.get("workflows", [{}])[0] if args.get("workflows") else {}
-    trigger_args = wf_args.get("trigger", {})
-    interval_args = trigger_args.get("periodic_interval", {})
-    nodes_args = wf_args.get("nodes", [])
-    slack_nodes_args = [n for n in nodes_args if n.get("type") == "slack_write_message"]
+    def message_matches(service):
+        try:
+            text = resolve_formula(
+                service.text,
+                formula_runtime_function_registry,
+                AssistantFormulaContext(),
+            )
+        except Exception:
+            return False
+        return text == "Is there anything to demo this week?"
 
-    db_ok = AutomationWorkflow.objects.filter(automation=automation).exists()
-    if db_ok:
-        # Deliberately trigger_node.get_type() here (not .service.get_type()),
-        # unlike every other case in this dataset — ported as-is from the legacy test.
-        _, trigger_node, action_nodes = _get_workflow_nodes(automation)
-        db_trigger_type = trigger_node.get_type().type
-        db_slack_actions = [
-            n
-            for n in action_nodes
-            if n.service.get_type().type == "slack_write_message"
-        ]
-    else:
-        db_trigger_type = None
-        db_slack_actions = []
-
-    slack_node = slack_nodes_args[0] if slack_nodes_args else {}
-    slack_channel = slack_node.get("channel", "")
-    slack_text = slack_node.get("text", "")
-
-    return [
-        CheckResult("called create_workflows", len(call_args_list) >= 1),
+    # The tool's argument fixer can repair a payload before saving it. Inspect
+    # the saved schedule/message, not the original uncorrected model arguments.
+    checks = [
         CheckResult(
-            "trigger type is periodic",
-            trigger_args.get("type") == "periodic",
-            hint=f"got {trigger_args.get('type')}",
+            "called create_workflows", bool(tool_called(output, "create_workflows"))
         ),
-        CheckResult(
-            "interval is WEEK",
-            interval_args.get("interval") == "WEEK",
-            hint=f"got {interval_args.get('interval')}",
-        ),
-        CheckResult(
-            "day_of_week is 1 (Tuesday)",
-            interval_args.get("day_of_week") == 1,
-            hint=f"got {interval_args.get('day_of_week')}",
-        ),
-        CheckResult(
-            "slack_write_message node in args",
-            len(slack_nodes_args) >= 1,
-            hint=f"node types: {[n.get('type') for n in nodes_args]}",
-        ),
-        CheckResult(
-            "workflow created in DB with periodic trigger",
-            db_trigger_type == "periodic",
-            hint=f"got {db_trigger_type}",
-        ),
-        CheckResult("Slack action exists in DB", len(db_slack_actions) >= 1),
+        CheckResult("workflow created with periodic trigger", periodic is not None),
+        CheckResult("Slack action exists in DB", bool(slack_services)),
         CheckResult(
             "Slack channel is #general",
-            "general" in slack_channel.lower(),
-            hint=f"got channel: '{slack_channel}'",
+            bool(target_services),
+            hint=f"saved channels: {[service.channel for service in slack_services]}",
         ),
         CheckResult(
-            "Slack message mentions demo",
-            "demo" in slack_text.lower(),
-            hint=f"got text: '{slack_text}'",
+            "Slack action sends the exact requested message to #general",
+            any(message_matches(service) for service in target_services),
         ),
     ]
+    for name, expected in (
+        ("interval", "WEEK"),
+        ("day_of_week", 1),
+        ("hour", 9),
+        ("minute", 0),
+        ("timezone", "UTC"),
+    ):
+        actual = getattr(periodic, name, None)
+        checks.append(
+            CheckResult(
+                f"saved {name} is {expected}",
+                actual == expected,
+                hint=f"got {actual}",
+            )
+        )
+    return checks
 
 
 register_case(
