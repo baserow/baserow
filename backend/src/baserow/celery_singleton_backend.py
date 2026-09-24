@@ -44,6 +44,18 @@ class RedisBackendForSingleton(RedisBackend):
 
         return bool(self.redis.eval(_EXTEND_IF_SCRIPT, 1, lock, task_id, expiry))
 
+    def release_lock_if(self, lock: str, task_id: str) -> bool:
+        """
+        Releases a lock only while this task still holds it. A task whose lease
+        expired must not remove the lock a newer task acquired since.
+
+        :param lock: The key returned by `Singleton.generate_lock`.
+        :param task_id: The id of the task that acquired the lock.
+        :return: Whether the lock was still held and released.
+        """
+
+        return bool(self.redis.eval(_CLEAR_IF_SCRIPT, 1, lock, task_id))
+
 
 class SingletonAutoRescheduleFlag:
     """

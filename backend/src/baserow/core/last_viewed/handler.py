@@ -24,8 +24,10 @@ DELETE_BATCH_SIZE = 10_000
 # Stateless for `to_representation`, so one instance serves every caller.
 _LAST_VIEWED_FIELD = serializers.DateTimeField()
 
-# The floor is applied by the database itself, so refreshing a fresh row costs a
-# single statement that touches nothing.
+# The floor is applied by the database itself, so refreshing a fresh row is a
+# single statement. A rejected update is not free though: it still locks the
+# row and consumes a transaction id and a sequence value, which is why the task
+# keeps its lock for the whole interval and such runs stay rare.
 UPSERT_SQL = sql.SQL(
     """
     INSERT INTO {table}
@@ -80,11 +82,14 @@ class LastViewedHandler:
             return
 
         user_id = user.id
+        # Captured here rather than in the worker, so a queue delay can't make an
+        # earlier visit look more recent than a later one.
+        viewed_at = timezone.now().isoformat()
 
         def enqueue():
             try:
                 mark_item_viewed.apply_async(
-                    args=(user_id, item_type, item_id),
+                    args=(user_id, item_type, item_id, viewed_at),
                     countdown=settings.BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS,
                 )
             except Exception:
@@ -96,17 +101,20 @@ class LastViewedHandler:
 
     @classmethod
     def mark_viewed(
-        cls, user_id: int, item_type: str, item_id: int
+        cls, user_id: int, item_type: str, item_id: int, viewed_at: datetime
     ) -> Optional[LastViewedUpdate]:
         """
-        Stores `now` as the last viewed timestamp in two queries: one resolving the
-        item through the type's queryset, which also enforces that the user may see
-        it, and one upsert that only writes when the stored value is older than
-        `BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS`.
+        Stores the moment of the visit in two queries: one resolving the item
+        through the type's queryset, which also enforces that the user may see it,
+        and one upsert that only writes when the stored value is older than
+        `BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS` before the visit. A visit
+        that arrives late for an item that was opened again since is left out by
+        that same condition.
 
         :param user_id: The id of the user that opened the item.
         :param item_type: The type of a registered `LastViewedItemType`.
         :param item_id: The id of the item that was opened.
+        :param viewed_at: When the item was opened.
         :return: What was stored, or `None` when nothing changed because the item
             is gone, not visible to the user, or was viewed recently enough.
         """
@@ -121,7 +129,7 @@ class LastViewedHandler:
         update = LastViewedUpdate(
             application_id=item_type_obj.get_application_id(instance),
             workspace_id=item_type_obj.get_workspace_id(instance),
-            last_viewed=timezone.now(),
+            last_viewed=viewed_at,
         )
         with connection.cursor() as cursor:
             cursor.execute(

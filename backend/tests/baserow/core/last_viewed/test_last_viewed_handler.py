@@ -26,11 +26,12 @@ def test_schedule_mark_viewed_defers_task_until_commit(
         override_settings(BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS=7),
     ):
         with django_capture_on_commit_callbacks(execute=True):
-            LastViewedHandler.schedule_mark_viewed(user, "database_view", 1)
+            with freeze_time("2026-01-01 12:00:00"):
+                LastViewedHandler.schedule_mark_viewed(user, "database_view", 1)
             assert mock_apply_async.call_count == 0
 
     mock_apply_async.assert_called_once_with(
-        args=(user.id, "database_view", 1), countdown=7
+        args=(user.id, "database_view", 1, "2026-01-01T12:00:00+00:00"), countdown=7
     )
 
 
@@ -57,7 +58,9 @@ def test_mark_viewed_creates_then_respects_update_interval(data_fixture):
     view = data_fixture.create_grid_view(table=table)
 
     with freeze_time("2026-01-01 12:00:00"):
-        row = LastViewedHandler.mark_viewed(user.id, "database_view", view.id)
+        row = LastViewedHandler.mark_viewed(
+            user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+        )
 
     assert row is not None
     assert row.application_id == database.id
@@ -70,13 +73,20 @@ def test_mark_viewed_creates_then_respects_update_interval(data_fixture):
 
     # Fresher than the interval: nothing changes and nothing is reported.
     with freeze_time("2026-01-01 12:00:30"):
-        assert LastViewedHandler.mark_viewed(user.id, "database_view", view.id) is None
+        assert (
+            LastViewedHandler.mark_viewed(
+                user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+            )
+            is None
+        )
     assert UserLastViewedItem.objects.get().last_viewed == datetime(
         2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc
     )
 
     with freeze_time("2026-01-01 12:01:30"):
-        row = LastViewedHandler.mark_viewed(user.id, "database_view", view.id)
+        row = LastViewedHandler.mark_viewed(
+            user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+        )
 
     assert row is not None
     assert row.last_viewed == datetime(2026, 1, 1, 12, 1, 30, tzinfo=timezone.utc)
@@ -92,10 +102,20 @@ def test_mark_viewed_is_noop_for_missing_or_trashed_item(data_fixture):
     table = data_fixture.create_database_table(database=database)
     view = data_fixture.create_grid_view(table=table)
 
-    assert LastViewedHandler.mark_viewed(user.id, "database_view", 0) is None
+    assert (
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", 0, datetime.now(tz=timezone.utc)
+        )
+        is None
+    )
 
     TrashHandler.trash(user, workspace, database, view)
-    assert LastViewedHandler.mark_viewed(user.id, "database_view", view.id) is None
+    assert (
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+        )
+        is None
+    )
     assert UserLastViewedItem.objects.count() == 0
 
 
@@ -108,7 +128,12 @@ def test_mark_viewed_ignores_users_outside_the_workspace(data_fixture):
     table = data_fixture.create_database_table(database=database)
     view = data_fixture.create_grid_view(table=table)
 
-    assert LastViewedHandler.mark_viewed(user.id, "database_view", view.id) is None
+    assert (
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+        )
+        is None
+    )
     assert UserLastViewedItem.objects.count() == 0
 
 
@@ -121,7 +146,12 @@ def test_mark_viewed_ignores_items_of_trashed_parents(data_fixture):
     view = data_fixture.create_grid_view(table=table)
 
     TrashHandler.trash(user, workspace, database, table)
-    assert LastViewedHandler.mark_viewed(user.id, "database_view", view.id) is None
+    assert (
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+        )
+        is None
+    )
     assert UserLastViewedItem.objects.count() == 0
 
 
@@ -149,7 +179,9 @@ def test_mark_viewed_resolves_parents_for_every_item_type(data_fixture):
         ("automation_workflow", workflow.id): automation.id,
     }
     for (item_type, item_id), application_id in expected.items():
-        row = LastViewedHandler.mark_viewed(user.id, item_type, item_id)
+        row = LastViewedHandler.mark_viewed(
+            user.id, item_type, item_id, datetime.now(tz=timezone.utc)
+        )
         assert row.application_id == application_id
         assert row.workspace_id == workspace.id
 
@@ -169,12 +201,20 @@ def test_get_last_viewed_per_application(data_fixture, django_assert_num_queries
     never_viewed = data_fixture.create_builder_application(workspace=workspace)
 
     with freeze_time("2026-01-01 12:00:00"):
-        LastViewedHandler.mark_viewed(user.id, "database_view", view_1.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view_1.id, datetime.now(tz=timezone.utc)
+        )
     with freeze_time("2026-01-02 12:00:00"):
-        LastViewedHandler.mark_viewed(user.id, "database_view", view_2.id)
-        LastViewedHandler.mark_viewed(other_user.id, "dashboard", dashboard.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view_2.id, datetime.now(tz=timezone.utc)
+        )
+        LastViewedHandler.mark_viewed(
+            other_user.id, "dashboard", dashboard.id, datetime.now(tz=timezone.utc)
+        )
     with freeze_time("2026-01-03 12:00:00"):
-        LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "dashboard", dashboard.id, datetime.now(tz=timezone.utc)
+        )
 
     ids = [database.id, dashboard.id, never_viewed.id]
     with django_assert_num_queries(1):
@@ -197,10 +237,17 @@ def test_mark_viewed_costs_two_queries(data_fixture, django_assert_num_queries):
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
 
     with django_assert_num_queries(2):
-        assert LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
+        assert LastViewedHandler.mark_viewed(
+            user.id, "dashboard", dashboard.id, datetime.now(tz=timezone.utc)
+        )
     # A fresh row is skipped by the upsert itself, without any extra query.
     with django_assert_num_queries(2):
-        assert LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id) is None
+        assert (
+            LastViewedHandler.mark_viewed(
+                user.id, "dashboard", dashboard.id, datetime.now(tz=timezone.utc)
+            )
+            is None
+        )
 
 
 @pytest.mark.django_db
@@ -215,9 +262,15 @@ def test_get_last_viewed_per_user_and_application(
     dashboard_2 = data_fixture.create_dashboard_application(workspace=workspace)
 
     with freeze_time("2026-01-01 12:00:00"):
-        LastViewedHandler.mark_viewed(user_1.id, "dashboard", dashboard_1.id)
-        LastViewedHandler.mark_viewed(user_2.id, "dashboard", dashboard_1.id)
-        LastViewedHandler.mark_viewed(user_2.id, "dashboard", dashboard_2.id)
+        LastViewedHandler.mark_viewed(
+            user_1.id, "dashboard", dashboard_1.id, datetime.now(tz=timezone.utc)
+        )
+        LastViewedHandler.mark_viewed(
+            user_2.id, "dashboard", dashboard_1.id, datetime.now(tz=timezone.utc)
+        )
+        LastViewedHandler.mark_viewed(
+            user_2.id, "dashboard", dashboard_2.id, datetime.now(tz=timezone.utc)
+        )
 
     expected_time = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     with django_assert_num_queries(1):
@@ -245,7 +298,9 @@ def test_delete_stale_items(data_fixture):
     deleted_view = data_fixture.create_grid_view(table=table)
 
     for view in (kept_view, trashed_view, deleted_view):
-        LastViewedHandler.mark_viewed(user.id, "database_view", view.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+        )
     UserLastViewedItem.objects.create(
         user=user,
         item_type="unknown_type",
@@ -270,7 +325,9 @@ def test_delete_stale_items_keeps_recent_rows_untouched(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
-    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
+    LastViewedHandler.mark_viewed(
+        user.id, "dashboard", dashboard.id, datetime.now(tz=timezone.utc)
+    )
 
     assert LastViewedHandler.delete_stale_items() == 0
     assert UserLastViewedItem.objects.count() == 1
@@ -287,9 +344,13 @@ def test_delete_stale_items_deletes_in_batches(data_fixture):
     table = data_fixture.create_database_table(database=database)
     views = [data_fixture.create_grid_view(table=table) for _ in range(5)]
     for view in views:
-        LastViewedHandler.mark_viewed(user.id, "database_view", view.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view.id, datetime.now(tz=timezone.utc)
+        )
     kept_view = data_fixture.create_grid_view(table=table)
-    LastViewedHandler.mark_viewed(user.id, "database_view", kept_view.id)
+    LastViewedHandler.mark_viewed(
+        user.id, "database_view", kept_view.id, datetime.now(tz=timezone.utc)
+    )
 
     View.objects_and_trash.filter(id__in=[view.id for view in views]).delete()
 
@@ -299,3 +360,32 @@ def test_delete_stale_items_deletes_in_batches(data_fixture):
     assert list(UserLastViewedItem.objects.values_list("item_id", flat=True)) == [
         kept_view.id
     ]
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS=60)
+def test_mark_viewed_stores_the_visit_moment_regardless_of_processing_order(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    dashboard_a = data_fixture.create_dashboard_application(workspace=workspace)
+    dashboard_b = data_fixture.create_dashboard_application(workspace=workspace)
+    visit_a = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+    visit_b = datetime(2026, 1, 1, 12, 5, 0, tzinfo=timezone.utc)
+
+    # B's task runs before the delayed task of A: A must not look newer than B.
+    with freeze_time("2026-01-01 12:10:00"):
+        LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard_b.id, visit_b)
+        LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard_a.id, visit_a)
+
+    assert LastViewedHandler.get_last_viewed_per_application(
+        user, [dashboard_a.id, dashboard_b.id]
+    ) == {dashboard_a.id: visit_a, dashboard_b.id: visit_b}
+
+    # A late visit of an item that was opened again since must not go back.
+    assert (
+        LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard_b.id, visit_a)
+        is None
+    )
+    assert UserLastViewedItem.objects.get(item_id=dashboard_b.id).last_viewed == visit_b

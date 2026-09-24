@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import patch
 
 from django.conf import settings
@@ -18,7 +19,9 @@ def scheduled_views(django_capture_on_commit_callbacks):
 
     def record(args, countdown):
         assert countdown == settings.BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS
-        scheduled.append(args[1:])
+        # The visit moment is captured in the request, as an ISO 8601 string.
+        assert datetime.fromisoformat(args[3]).tzinfo is not None
+        scheduled.append(args[1:3])
 
     with patch(
         "baserow.core.last_viewed.tasks.mark_item_viewed.apply_async",

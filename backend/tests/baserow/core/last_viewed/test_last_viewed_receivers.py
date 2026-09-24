@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 import pytest
 
 from baserow.core.handler import CoreHandler
@@ -19,8 +21,10 @@ def test_rows_removed_when_view_permanently_deleted(data_fixture):
     table = data_fixture.create_database_table(database=database)
     view = data_fixture.create_grid_view(table=table)
     other_view = data_fixture.create_grid_view(table=table)
-    LastViewedHandler.mark_viewed(user.id, "database_view", view.id)
-    LastViewedHandler.mark_viewed(user.id, "database_view", other_view.id)
+    LastViewedHandler.mark_viewed(user.id, "database_view", view.id, timezone.now())
+    LastViewedHandler.mark_viewed(
+        user.id, "database_view", other_view.id, timezone.now()
+    )
 
     TrashHandler.trash(user, workspace, database, view)
     assert _item_keys() == {
@@ -41,8 +45,10 @@ def test_rows_removed_when_table_permanently_deleted(data_fixture):
     other_table = data_fixture.create_database_table(database=database)
     view = data_fixture.create_grid_view(table=table)
     other_view = data_fixture.create_grid_view(table=other_table)
-    LastViewedHandler.mark_viewed(user.id, "database_view", view.id)
-    LastViewedHandler.mark_viewed(user.id, "database_view", other_view.id)
+    LastViewedHandler.mark_viewed(user.id, "database_view", view.id, timezone.now())
+    LastViewedHandler.mark_viewed(
+        user.id, "database_view", other_view.id, timezone.now()
+    )
 
     TrashHandler.trash(user, workspace, database, table)
     TrashHandler.permanently_delete(table)
@@ -57,8 +63,10 @@ def test_rows_removed_when_page_permanently_deleted(data_fixture):
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
     other_page = data_fixture.create_builder_page(builder=builder)
-    LastViewedHandler.mark_viewed(user.id, "builder_page", page.id)
-    LastViewedHandler.mark_viewed(user.id, "builder_page", other_page.id)
+    LastViewedHandler.mark_viewed(user.id, "builder_page", page.id, timezone.now())
+    LastViewedHandler.mark_viewed(
+        user.id, "builder_page", other_page.id, timezone.now()
+    )
 
     TrashHandler.trash(user, workspace, builder, page)
     TrashHandler.permanently_delete(page)
@@ -73,8 +81,12 @@ def test_rows_removed_when_workflow_permanently_deleted(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(automation=automation)
     other_workflow = data_fixture.create_automation_workflow(automation=automation)
-    LastViewedHandler.mark_viewed(user.id, "automation_workflow", workflow.id)
-    LastViewedHandler.mark_viewed(user.id, "automation_workflow", other_workflow.id)
+    LastViewedHandler.mark_viewed(
+        user.id, "automation_workflow", workflow.id, timezone.now()
+    )
+    LastViewedHandler.mark_viewed(
+        user.id, "automation_workflow", other_workflow.id, timezone.now()
+    )
 
     TrashHandler.trash(user, workspace, automation, workflow)
     TrashHandler.permanently_delete(workflow)
@@ -89,8 +101,8 @@ def test_rows_removed_by_cascade_when_application_permanently_deleted(data_fixtu
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
     builder = data_fixture.create_builder_application(workspace=workspace)
     page = data_fixture.create_builder_page(builder=builder)
-    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
-    LastViewedHandler.mark_viewed(user.id, "builder_page", page.id)
+    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id, timezone.now())
+    LastViewedHandler.mark_viewed(user.id, "builder_page", page.id, timezone.now())
 
     TrashHandler.trash(user, workspace, None, dashboard)
     TrashHandler.permanently_delete(dashboard)
@@ -110,9 +122,11 @@ def test_rows_removed_by_cascade_when_workspace_permanently_deleted(data_fixture
     other_dashboard = data_fixture.create_dashboard_application(
         workspace=other_workspace
     )
-    LastViewedHandler.mark_viewed(user.id, "database_view", view.id)
-    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
-    LastViewedHandler.mark_viewed(user.id, "dashboard", other_dashboard.id)
+    LastViewedHandler.mark_viewed(user.id, "database_view", view.id, timezone.now())
+    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id, timezone.now())
+    LastViewedHandler.mark_viewed(
+        user.id, "dashboard", other_dashboard.id, timezone.now()
+    )
 
     TrashHandler.trash(user, workspace, None, workspace)
     TrashHandler.permanently_delete(workspace)
@@ -126,8 +140,10 @@ def test_rows_removed_by_cascade_when_user_deleted(data_fixture):
     other_user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(users=[user, other_user])
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
-    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
-    LastViewedHandler.mark_viewed(other_user.id, "dashboard", dashboard.id)
+    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id, timezone.now())
+    LastViewedHandler.mark_viewed(
+        other_user.id, "dashboard", dashboard.id, timezone.now()
+    )
 
     user.delete()
 
@@ -146,9 +162,11 @@ def test_rows_removed_when_user_is_removed_from_workspace(data_fixture):
     other_dashboard = data_fixture.create_dashboard_application(
         workspace=other_workspace
     )
-    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
-    LastViewedHandler.mark_viewed(admin.id, "dashboard", dashboard.id)
-    LastViewedHandler.mark_viewed(user.id, "dashboard", other_dashboard.id)
+    LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id, timezone.now())
+    LastViewedHandler.mark_viewed(admin.id, "dashboard", dashboard.id, timezone.now())
+    LastViewedHandler.mark_viewed(
+        user.id, "dashboard", other_dashboard.id, timezone.now()
+    )
 
     CoreHandler().delete_workspace_user(
         admin, WorkspaceUser.objects.get(user=user, workspace=workspace)

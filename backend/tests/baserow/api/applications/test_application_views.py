@@ -4,6 +4,7 @@ from django.db import connection
 from django.db.models import QuerySet
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
@@ -773,10 +774,16 @@ def test_applications_expose_last_viewed_of_requesting_user(api_client, data_fix
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
 
     with freeze_time("2026-01-01T12:00:00Z"):
-        LastViewedHandler.mark_viewed(user.id, "database_view", view_1.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view_1.id, timezone.now()
+        )
     with freeze_time("2026-01-02T12:00:00Z"):
-        LastViewedHandler.mark_viewed(user.id, "database_view", view_2.id)
-        LastViewedHandler.mark_viewed(other_user.id, "dashboard", dashboard.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "database_view", view_2.id, timezone.now()
+        )
+        LastViewedHandler.mark_viewed(
+            other_user.id, "dashboard", dashboard.id, timezone.now()
+        )
 
     def last_viewed_by_id(response):
         return {app["id"]: app["last_viewed"] for app in response.json()}

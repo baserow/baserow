@@ -285,7 +285,9 @@ def test_workspace_restored_carries_the_users_last_viewed(
     workspace = data_fixture.create_workspace(user=user)
     dashboard = data_fixture.create_dashboard_application(workspace=workspace)
     with freeze_time("2026-01-01T12:00:00Z"):
-        LastViewedHandler.mark_viewed(user.id, "dashboard", dashboard.id)
+        LastViewedHandler.mark_viewed(
+            user.id, "dashboard", dashboard.id, datetime.now(tz=timezone.utc)
+        )
     TrashHandler.trash(user, workspace, None, workspace)
 
     TrashHandler.restore_item(user, "workspace", workspace.id)

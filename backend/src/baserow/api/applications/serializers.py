@@ -21,9 +21,9 @@ class LastViewedField(serializers.DateTimeField):
     def __init__(self, **kwargs):
         super().__init__(required=False, allow_null=True, source="*", **kwargs)
 
-    def to_representation(self, instance):
-        value = self.context.get("last_viewed_per_application", {}).get(instance.id)
-        return super().to_representation(value) if value else None
+    def to_representation(self, value):
+        last_viewed = self.context.get("last_viewed_per_application", {}).get(value.id)
+        return super().to_representation(last_viewed) if last_viewed else None
 
 
 class ApplicationSerializer(serializers.ModelSerializer):

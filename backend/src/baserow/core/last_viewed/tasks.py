@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.conf import settings
 
@@ -21,13 +21,19 @@ class KeepLockSingleton(Singleton):
     """
 
     def on_success(self, retval, task_id, args, kwargs):
+        lock = self.generate_lock(self.name, args, kwargs)
         if self.request.is_eager or not retval:
-            self.release_lock(task_args=args, task_kwargs=kwargs)
+            self.singleton_backend.release_lock_if(lock, task_id)
             return
         self.singleton_backend.extend_lock_if(
-            self.generate_lock(self.name, args, kwargs),
-            task_id,
-            settings.BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS,
+            lock, task_id, settings.BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS
+        )
+
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        # Fenced like the success path: a task that outlived its lease must leave
+        # the lock of the task that replaced it alone.
+        self.singleton_backend.release_lock_if(
+            self.generate_lock(self.name, args, kwargs), task_id
         )
 
 
@@ -42,13 +48,17 @@ class KeepLockSingleton(Singleton):
     # and a result subscription in the web worker that published it.
     ignore_result=True,
     # Bounds how long a crashed worker keeps the (user, item) locked; a completed
-    # write re-arms the lock for the floor itself.
-    lock_expiry=(
+    # write re-arms the lock for the floor itself. At least one second, because
+    # Redis rejects a zero expiry and both settings may be disabled.
+    lock_expiry=max(
+        1,
         settings.BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS
-        + settings.BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS
+        + settings.BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS,
     ),
 )
-def mark_item_viewed(user_id: int, item_type: str, item_id: int) -> bool:
+def mark_item_viewed(
+    user_id: int, item_type: str, item_id: int, viewed_at: str
+) -> bool:
     """
     Stores that the user viewed the item and, when the stored value changed, tells
     the user's connected clients about it.
@@ -56,13 +66,16 @@ def mark_item_viewed(user_id: int, item_type: str, item_id: int) -> bool:
     :param user_id: The id of the user that opened the item.
     :param item_type: The type of a registered `LastViewedItemType`.
     :param item_id: The id of the item that was opened.
+    :param viewed_at: When the item was opened, in ISO 8601.
     :return: Whether a value was written, which decides if the lock is kept.
     """
 
     # The handler imports this module for `schedule_mark_viewed`.
     from .handler import LastViewedHandler
 
-    update = LastViewedHandler.mark_viewed(user_id, item_type, item_id)
+    update = LastViewedHandler.mark_viewed(
+        user_id, item_type, item_id, datetime.fromisoformat(viewed_at)
+    )
     if update is None:
         return False
 
@@ -81,7 +94,11 @@ def mark_item_viewed(user_id: int, item_type: str, item_id: int) -> bool:
                     update.last_viewed
                 ),
             },
-        )
+        ),
+        # Not recorded for replay: a reconnecting client reloads the value with the
+        # applications anyway, and every recorded event brings it closer to the
+        # replay limit that forces a full refresh.
+        {"record": False},
     )
     return True
 
