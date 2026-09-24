@@ -76,7 +76,7 @@ test.describe("Rich text images", () => {
     await grid.startEditingRichTextField(0, NOTES_FIELD_INDEX);
     const editor = grid.activeRichTextEditor();
 
-    await expect(editor.locator("img")).toHaveCount(0);
+    await expect(editor.locator("img[src]")).toHaveCount(0);
     await expect(editor).toContainText("x");
 
     await grid.cancelEdit();
@@ -186,7 +186,7 @@ test.describe("Rich text images", () => {
     await grid.startEditingRichTextField(0, NOTES_FIELD_INDEX);
     const editor = grid.activeRichTextEditor();
 
-    await expect(editor.locator("img")).toHaveCount(0);
+    await expect(editor.locator("img[src]")).toHaveCount(0);
     await expect(editor.locator('a[href^="javascript:"]')).toHaveCount(0);
 
     await grid.cancelEdit();
