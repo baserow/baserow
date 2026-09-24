@@ -6,8 +6,13 @@ Defines ``PageCreate`` for creating pages and ``PageItem`` for reading them back
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
+from baserow.contrib.builder.pages.constants import (
+    PAGE_PATH_PARAM_PREFIX,
+    PATH_PARAM_REGEX,
+)
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow_enterprise.assistant.types import BaseModel
 
 RoleType = Literal["allow_all", "allow_all_except", "disallow_all_except"]
@@ -33,7 +38,8 @@ class PageCreate(BaseModel):
     name: str = Field(..., description="Page name (unique in app).")
     path: str = Field(..., description="URL path, e.g. '/products/:id'.")
     path_params: list[PagePathParam] = Field(
-        default_factory=list, description="Path parameters."
+        default_factory=list,
+        description="Path parameters. Omitted parameters in the URL default to text.",
     )
     query_params: list[PageQueryParam] = Field(
         default_factory=list, description="Query parameters."
@@ -52,6 +58,19 @@ class PageCreate(BaseModel):
         default_factory=list,
         description="Role names for the access strategy.",
     )
+
+    @model_validator(mode="after")
+    def _default_path_parameters(self):
+        names = {parameter.name for parameter in self.path_params}
+        for token in dict.fromkeys(PATH_PARAM_REGEX.findall(self.path)):
+            name = token.removeprefix(PAGE_PATH_PARAM_PREFIX)
+            if name not in names:
+                self.path_params.append(PagePathParam(name=name))
+        if not PageHandler().is_page_path_valid(
+            self.path, [parameter.model_dump() for parameter in self.path_params]
+        ):
+            raise ValueError("Path parameters must match unique parameters in the URL.")
+        return self
 
 
 class PageUpdate(BaseModel):

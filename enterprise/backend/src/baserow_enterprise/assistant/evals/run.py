@@ -25,7 +25,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry import trace
 from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode
-from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.control import RunControl
@@ -72,7 +72,7 @@ UI_CASE_PREFIX = "ui:"
 # Version 1 recorded production settings without applying them to the agent.
 # Version 3 excludes required mode redirects from the tool-error budget.
 # Version 4 checks saved Builder behavior and records request-budget failures.
-# Version 5 also records exhausted model/tool retries as failed cases.
+# Version 5 also records model/tool and other execution errors as failed cases.
 HARNESS_VERSION = 5
 
 _PROMPT_INPUT_KEYS = ("prompt", "question", "input", "message")
@@ -285,7 +285,7 @@ def _failed_execution_result(
     elif usage_limit_exceeded:
         check_name = "completed_within_request_limit"
     else:
-        check_name = "completed_without_model_error"
+        check_name = "completed_without_execution_error"
     span = trace.get_current_span()
     span.record_exception(error)
     span.set_status(Status(StatusCode.ERROR, reason))
@@ -333,7 +333,7 @@ def run_case_for_experiment(
     try:
         with override_assistant_prompts(prompt_texts or {}):
             output, checks = run_case(case, model)
-    except (EvalCaseTimeout, UsageLimitExceeded, UnexpectedModelBehavior) as exc:
+    except Exception as exc:
         # Preserve the original failed attempt and trace, then continue the
         # suite. There is no final result from which to infer tool counts.
         logger.warning("FAILED EXECUTION {}: {}", case.id, exc)

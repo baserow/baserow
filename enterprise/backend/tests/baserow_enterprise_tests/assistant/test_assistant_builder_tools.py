@@ -6,6 +6,7 @@ the RunContext + FunctionToolset pattern.
 """
 
 import pytest
+from pydantic import ValidationError
 from pydantic_ai import ModelRetry
 
 from baserow.contrib.builder.elements.models import ButtonElement, HeadingElement
@@ -243,6 +244,38 @@ def test_create_pages(data_fixture):
     assert result["created_pages"][0]["name"] == "Home"
     assert result["created_pages"][1]["name"] == "Product Detail"
     assert result["created_pages"][1]["path"] == "/products/:id"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "parameters", [None, [PagePathParam(name="id", type="numeric")]]
+)
+def test_create_page_derives_omitted_path_parameters(data_fixture, parameters):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    request = {"name": "Edit", "path": "/edit/:id"}
+    if parameters is not None:
+        request["path_params"] = parameters
+    result = create_pages(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        pages=[PageCreate(**request)],
+        thought="Create the editing page",
+    )
+    page = result["created_pages"][0]
+    assert page["path_params"] == [
+        {"name": "id", "type": "text" if parameters is None else "numeric"}
+    ]
+
+
+@pytest.mark.parametrize(
+    "path, parameters",
+    [("/edit/:id/:id", []), ("/edit/:id", [PagePathParam(name="other")])],
+)
+def test_create_page_still_rejects_inconsistent_path_parameters(path, parameters):
+    with pytest.raises(ValidationError, match="Path parameters must match"):
+        PageCreate(name="Edit", path=path, path_params=parameters)
 
 
 @pytest.mark.django_db(transaction=True)

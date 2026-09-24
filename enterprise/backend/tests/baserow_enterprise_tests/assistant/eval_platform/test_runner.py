@@ -18,7 +18,7 @@ from baserow_enterprise.assistant.evals import registry, runner
 from baserow_enterprise.assistant.evals.types import EvalCase
 
 
-@pytest.mark.parametrize("version", [1, 2, 3, 4])
+@pytest.mark.parametrize("version", range(1, runner.HARNESS_VERSION + 1))
 def test_model_settings_remain_verified_after_scoring_version_change(version):
     label = runner._settings_label(
         {"harness_version": version, "model_settings": {"temperature": 0.3}}

@@ -2153,7 +2153,7 @@ class TestTimeoutIsRecordedNotRaised:
 
 class TestUsageLimitIsRecordedNotRaised:
     @pytest.mark.parametrize(
-        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior, RuntimeError]
     )
     def test_failure_is_scored_without_inventing_unavailable_counts(self, error_type):
         case = _make_case("docs/exhausted", requires_knowledge_base=True)
@@ -2178,7 +2178,7 @@ class TestUsageLimitIsRecordedNotRaised:
                 "name": (
                     "completed_within_request_limit"
                     if error_type is UsageLimitExceeded
-                    else "completed_without_model_error"
+                    else "completed_without_execution_error"
                 ),
                 "passed": False,
                 "hint": reason,
@@ -2187,7 +2187,7 @@ class TestUsageLimitIsRecordedNotRaised:
         assert "skipped" not in result
 
     @pytest.mark.parametrize(
-        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior]
+        "error_type", [UsageLimitExceeded, UnexpectedModelBehavior, RuntimeError]
     )
     def test_subset_records_error_trace_and_continues_without_retrying(
         self, error_type
