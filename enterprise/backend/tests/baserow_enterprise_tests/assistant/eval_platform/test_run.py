@@ -541,6 +541,27 @@ class _ExampleStub:
 
 
 class TestRunExperimentForFullDataset:
+    @pytest.mark.parametrize("case_ids", [None, ["docs/example"]])
+    def test_docs_without_knowledge_base_fails_before_creating_experiment(
+        self, case_ids
+    ):
+        client = _FakeClient(_FakeDataset([]))
+        with (
+            patch(
+                "baserow_enterprise.assistant.evals.run.get_phoenix_client",
+                return_value=client,
+            ),
+            patch(
+                "baserow_enterprise.assistant.evals.run.KnowledgeBaseHandler"
+            ) as mock_kb_cls,
+        ):
+            mock_kb_cls.return_value.can_search.return_value = False
+            with pytest.raises(ValueError, match="sync_knowledge_base"):
+                run_experiment_for("kuma-docs", "groq:test-model", case_ids=case_ids)
+
+        assert not client.experiments.run_experiment_calls
+        assert not client.experiments.create_calls
+
     def test_calls_run_experiment_with_dataset_and_evaluators(self):
         registry.register_case(_make_case("db/case-1"))
         dataset = _FakeDataset([])

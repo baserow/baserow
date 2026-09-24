@@ -473,6 +473,13 @@ def run_experiment_for(
     control = control or RunControl()
     client = get_phoenix_client()
     kb_available = KnowledgeBaseHandler().can_search()
+    if dataset_name == "kuma-docs" and not kb_available:
+        raise ValueError(
+            "Docs evals require a searchable knowledge base in the eval database. "
+            "Configure BASEROW_EMBEDDINGS_API_URL and pgvector, then run "
+            "`just dc-dev exec assistant-eval-runner just b manage "
+            "sync_knowledge_base` and wait for indexing to finish."
+        )
     prompt_texts = _fetch_prompt_overrides(client, prompt_overrides)
 
     if case_ids:
