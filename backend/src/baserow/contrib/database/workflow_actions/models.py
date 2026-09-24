@@ -148,11 +148,14 @@ class ButtonFieldDispatchJob(
     the shape the inline response has.
     """
 
+    # Set null rather than cascaded: changing the field's type deletes the
+    # button row, and a job deleted under its worker could not report back.
     field = models.ForeignKey(
         "database.ButtonField",
-        on_delete=models.CASCADE,
+        null=True,
+        on_delete=models.SET_NULL,
         related_name="dispatch_jobs",
-        help_text="The clicked button field.",
+        help_text="The clicked button field. Empty once it is no longer a button.",
     )
     row_id = models.PositiveIntegerField(help_text="The clicked row.")
     workflow_action_ids = models.JSONField(

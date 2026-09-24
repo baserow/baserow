@@ -1,6 +1,7 @@
 import json
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from dataclasses import fields as dataclass_fields
+from datetime import timedelta
 from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional
 
@@ -8,6 +9,8 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from loguru import logger
 from opentelemetry import trace
@@ -62,13 +65,10 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
 from baserow.core.services.exceptions import (
-    AddressNotAllowedDispatchException,
     DoesNotExist,
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
     PermissionDeniedDispatchException,
-    RemoteRefusedDispatchException,
-    ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
     UnexpectedDispatchException,
@@ -95,42 +95,7 @@ ADDRESS_BEARING_DISPATCH_EXCEPTIONS = (
     UnreachableAddressDispatchException,
 )
 
-# Failures a service raises before it can send anything: a formula it could not
-# resolve, or a body it refused to build. Nothing left the instance, so a click
-# that ends on one of these is not charged for outbound traffic.
-DID_NOT_REACH_OUT_EXCEPTIONS = (
-    InvalidContextDispatchException,
-    InvalidContextContentDispatchException,
-    ServiceImproperlyConfiguredDispatchException,
-    # The address itself was refused, by Advocate rather than by the endpoint,
-    # so nothing was sent even though the message names where it was going.
-    AddressNotAllowedDispatchException,
-)
-
 tracer = trace.get_tracer(__name__)
-
-
-def reached_outside(exc: Exception) -> bool:
-    """
-    Whether a failed external action had already sent its request.
-
-    :param exc: What the action failed with.
-    :return: True when the request went out, so the click owes for it.
-    """
-
-    # Subclasses of the failures above, but raised once the instance had
-    # already reached out, so they are charged like any other.
-    if isinstance(
-        exc,
-        (
-            ResponseTooLargeDispatchException,
-            UnreachableAddressDispatchException,
-            RemoteRefusedDispatchException,
-        ),
-    ):
-        return True
-
-    return not isinstance(exc, DID_NOT_REACH_OUT_EXCEPTIONS)
 
 
 USER_FACING_DISPATCH_EXCEPTIONS = (
@@ -602,19 +567,76 @@ class DatabaseWorkflowActionService:
 
         return list(self.handler.get_workflow_actions(field))
 
-    def has_click_in_flight(self, field: ButtonField, row_id: int) -> bool:
+    @contextmanager
+    def cell_lock(self, prefix: str, field: ButtonField, row_id: int, timeout: int):
+        """
+        Holds a lock on one cell of the button for the length of the block.
+        Never waits: a second click is refused rather than queued behind one
+        that still holds it. Released by a script that checks ownership first,
+        so a click whose TTL ran out cannot drop a later click's lock. Keyed on
+        field and row together, so two buttons on one row do not block each
+        other.
+
+        :param prefix: What the lock guards, so two locks on a cell can coexist.
+        :param field: The clicked button field.
+        :param row_id: The clicked row.
+        :param timeout: Seconds after which the lock frees itself.
+        :raises WorkflowActionDispatchInProgress: When the cell is already held.
+        """
+
+        lock = cache.lock(f"{prefix}_{field.id}_{row_id}", timeout=timeout)
+        if not lock.acquire(blocking=False):
+            raise WorkflowActionDispatchInProgress()
+        try:
+            yield
+        finally:
+            try:
+                lock.release()
+            except LockNotOwnedError:
+                # The TTL ran out inside the block, so the key is a later
+                # click's to release.
+                pass
+
+    def has_click_in_flight(
+        self,
+        field: ButtonField,
+        row_id: int,
+        workflow_actions: List[DatabaseWorkflowAction],
+    ) -> bool:
         """
         Whether a click on this cell is still waiting for, or running in, a
         job. A second click is refused while one is.
 
+        A job whose worker died never leaves its state, so each state counts
+        only for as long as it can legitimately last: a started click for the
+        TTL its row lock would have, a pending one until the job cleanup fails
+        it. Past that the cell is free again, as it was when the row lock
+        alone guarded it.
+
         :param field: The clicked button field.
         :param row_id: The clicked row.
-        :return: True when a pending or started job exists for the cell.
+        :param workflow_actions: The actions of the new click, which bound how
+            long a started click on the cell can be running.
+        :return: True when a live pending or started job exists for the cell.
         """
 
-        return ButtonFieldDispatchJob.objects.filter(
-            field=field, row_id=row_id, state__in=[JOB_PENDING, JOB_STARTED]
-        ).exists()
+        server_actions = [
+            wa for wa in workflow_actions if not wa.get_type().is_frontend_only
+        ]
+        services = [wa.service.specific for wa in server_actions]
+        now = timezone.now()
+        started_since = now - timedelta(
+            seconds=self._lock_ttl_for(server_actions, services)
+        )
+        pending_since = now - timedelta(seconds=settings.BASEROW_JOB_SOFT_TIME_LIMIT)
+        return (
+            ButtonFieldDispatchJob.objects.filter(field=field, row_id=row_id)
+            .filter(
+                Q(state=JOB_STARTED, updated_on__gte=started_since)
+                | Q(state=JOB_PENDING, updated_on__gte=pending_since)
+            )
+            .exists()
+        )
 
     def _remember_nothing_was_captured(
         self, workflow_action: DatabaseWorkflowAction, reason: str
@@ -733,7 +755,6 @@ class DatabaseWorkflowActionService:
         field: ButtonField,
         row: Any,
         workflow_actions: Optional[List[DatabaseWorkflowAction]] = None,
-        on_external_dispatch: Optional[Callable[[DatabaseWorkflowAction], None]] = None,
         on_action_failed: Optional[Callable[[int], None]] = None,
     ) -> WorkflowActionsDispatchResult:
         """
@@ -749,9 +770,6 @@ class DatabaseWorkflowActionService:
         :param row: The clicked row.
         :param workflow_actions: The actions to run, from
             `get_dispatch_snapshot`. Read here when the caller has none.
-        :param on_external_dispatch: Called just before each action that
-            reaches outside Baserow, so the caller learns what the click really
-            sent rather than what the button is configured to send.
         :param on_action_failed: Called with the position of the action that
             failed, whatever it raised.
         :raises WorkflowActionDispatchInProgress: When a click is already running
@@ -815,11 +833,6 @@ class DatabaseWorkflowActionService:
                 client_actions=client_actions, positions=positions
             )
 
-        # Taken only when the key is absent, so a double click cannot run the
-        # sequence twice, and released by a script that checks ownership first,
-        # so a click whose TTL ran out cannot drop a later click's lock. Keyed
-        # on field and row together, so two buttons on one row do not block
-        # each other.
         # Resolved once for both: `specific` caches on the instance, but only
         # while these are the objects the dispatch goes on to use.
         services = [
@@ -828,16 +841,13 @@ class DatabaseWorkflowActionService:
         # Before the lock: it holds nothing the lock protects.
         self._resolve_integrations(services)
 
-        lock = cache.lock(
-            f"button_dispatch_{field.id}_{row.id}",
-            timeout=self._lock_ttl_for(server_actions, services),
-        )
-        # Never waits: a second click is refused rather than queued behind one
-        # that is still running.
-        if not lock.acquire(blocking=False):
-            raise WorkflowActionDispatchInProgress()
-
-        try:
+        # So a double click cannot run the sequence twice.
+        with self.cell_lock(
+            "button_dispatch",
+            field,
+            row.id,
+            self._lock_ttl_for(server_actions, services),
+        ):
             # With the lock held, so a receiver only sees a click that goes on
             # to run, and before the audit entry, so a receiver that refuses
             # the click (SaaS quota) leaves nothing behind. A copy: a receiver
@@ -921,12 +931,6 @@ class DatabaseWorkflowActionService:
                     if exc is not None:
                         if on_action_failed:
                             on_action_failed(positions[workflow_action.id])
-                        if (
-                            is_external
-                            and on_external_dispatch
-                            and reached_outside(exc)
-                        ):
-                            on_external_dispatch(workflow_action)
                         names_an_address = is_external and isinstance(
                             exc, ADDRESS_BEARING_DISPATCH_EXCEPTIONS
                         )
@@ -982,18 +986,9 @@ class DatabaseWorkflowActionService:
                                 ],
                             ) from exc
                         raise exc
-                    if is_external and on_external_dispatch:
-                        on_external_dispatch(workflow_action)
                     if may_configure:
                         self._remember_result_shape(workflow_action, result)
 
                     dispatched.append(DispatchedWorkflowAction(workflow_action, result))
 
             return WorkflowActionsDispatchResult(dispatched, client_actions, positions)
-        finally:
-            try:
-                lock.release()
-            except LockNotOwnedError:
-                # The TTL ran out mid-sequence, so the key is a later click's
-                # to release.
-                pass

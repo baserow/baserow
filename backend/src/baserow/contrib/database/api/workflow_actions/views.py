@@ -1,12 +1,10 @@
 from time import perf_counter
 from typing import Dict, List
 
-from django.core.cache import cache
 from django.db import transaction
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from redis.exceptions import LockNotOwnedError
 from rest_framework import status as http_status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -671,14 +669,10 @@ class DispatchDatabaseWorkflowActionsView(APIView):
 
         # Two requests could otherwise both see the cell free and both create
         # a job, which a single worker would then run one after the other,
-        # sending every request twice. Never waits: the loser is refused.
-        enqueue_lock = cache.lock(f"button_enqueue_{field.id}_{row.id}", timeout=10)
-        if not enqueue_lock.acquire(blocking=False):
-            raise WorkflowActionDispatchInProgress()
-
-        try:
+        # sending every request twice.
+        with service.cell_lock("button_enqueue", field, row.id, timeout=10):
             # A click already waiting or running on this cell.
-            if service.has_click_in_flight(field, row.id):
+            if service.has_click_in_flight(field, row.id, workflow_actions):
                 raise WorkflowActionDispatchInProgress()
 
             reservations = self._reserve_dispatch_budget(
@@ -699,12 +693,6 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 # No job was created to charge these slots to.
                 self._release_dispatch_budget(reservations)
                 raise
-        finally:
-            try:
-                enqueue_lock.release()
-            except LockNotOwnedError:
-                # Held past its timeout, so the key is a later click's.
-                pass
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=http_status.HTTP_202_ACCEPTED)

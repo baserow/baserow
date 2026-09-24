@@ -5,8 +5,9 @@ from typing import Any, Dict, List
 from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 
+from baserow.api.errors import ERROR_PERMISSION_DENIED
 from baserow.contrib.database.api.workflow_actions.serializers import (
     dispatch_result_payload,
 )
@@ -35,7 +36,24 @@ from baserow.contrib.database.workflow_actions.telemetry import (
 from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.registries import JobType
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import Progress
+
+
+def denied_message(exc: Exception) -> str:
+    """
+    What the clicker reads when the click was refused while its job waited.
+    A plugin's `APIException` carries a message meant for them, a SaaS quota
+    for instance. A core permission refusal carries internal wording, or
+    none, so it gets the one the refused request would have answered with.
+
+    :param exc: What refused the click.
+    :return: The message for the clicker.
+    """
+
+    if isinstance(exc, APIException) and isinstance(exc.detail, str):
+        return str(exc.detail)
+    return ERROR_PERMISSION_DENIED[2]
 
 
 def _own_message(exc: Exception) -> str:
@@ -105,9 +123,12 @@ class ButtonFieldDispatchJobType(JobType):
         # Reading `job.user` restores the clicker's websocket id on it.
         user = job.user
         field = job.field
-        # Trashed while the job waited on the queue. Refused before the click
-        # event, as the view refuses a missing field before it sends one.
-        if field.trashed or field.table.trashed:
+        # Retyped or trashed while the job waited on the queue, the field or
+        # anything above it. Refused before the click event, as the view
+        # refuses a missing field before it sends one.
+        if field is None or TrashHandler.item_has_a_trashed_parent(
+            field, check_item_also=True
+        ):
             raise FieldDoesNotExist()
         service = DatabaseWorkflowActionService()
 
@@ -154,13 +175,12 @@ class ButtonFieldDispatchJobType(JobType):
                     outcome, failed_position or next(iter(failed_positions), None)
                 )
                 if outcome == DispatchOutcome.DENIED:
-                    # A plugin's refusal can be any exception type: a
+                    # A refusal can be any exception type: a
                     # `PermissionException`, Django's `PermissionDenied`, or
                     # any `APIException` with a 403 status. None of those is
                     # one `job_exceptions_map` can list by class alone, so it
-                    # is re-raised as one that is, with the plugin's own
-                    # message.
-                    raise WorkflowActionDispatchDenied(str(exc)) from exc
+                    # is re-raised as one that is.
+                    raise WorkflowActionDispatchDenied(denied_message(exc)) from exc
             raise
         except BaseException:
             send_dispatched(DispatchOutcome.ERROR, next(iter(failed_positions), None))

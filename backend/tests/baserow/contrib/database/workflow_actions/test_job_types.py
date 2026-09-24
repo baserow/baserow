@@ -12,6 +12,7 @@ from baserow.api.sessions import (
     set_untrusted_client_session_id,
     set_user_remote_addr_ip,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.actions import (
     DispatchButtonFieldActionType,
@@ -20,6 +21,7 @@ from baserow.contrib.database.workflow_actions.job_types import (
     ButtonFieldDispatchJobType,
 )
 from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
@@ -337,6 +339,11 @@ def test_a_plugin_refusal_with_permission_exception_fails_the_job_the_same_way(
 
     assert job.state == JOB_FAILED
     assert job.error_code == "WorkflowActionDispatchDenied"
+    # Core wording is internal; the clicker gets what the refused request
+    # would have said.
+    assert job.human_readable_error == (
+        "You don't have the required permission to execute this operation."
+    )
 
 
 @pytest.mark.django_db
@@ -441,7 +448,7 @@ def test_a_click_run_by_the_job_does_not_enter_the_undo_stack(data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("trash", ["field", "table"])
+@pytest.mark.parametrize("trash", ["field", "table", "database"])
 def test_a_trashed_button_fails_the_job_with_a_readable_message(
     data_fixture, dispatched_clicks, trash
 ):
@@ -454,7 +461,7 @@ def test_a_trashed_button_fails_the_job_with_a_readable_message(
             user, ButtonFieldDispatchJobType.type, field=button_field, row_id=row.id
         )
     # Trashed while the job waited on the queue.
-    trashed = button_field if trash == "field" else table
+    trashed = {"field": button_field, "table": table, "database": table.database}[trash]
     trashed.trashed = True
     trashed.save()
 
@@ -462,6 +469,40 @@ def test_a_trashed_button_fails_the_job_with_a_readable_message(
         run_async_job(job.id)
 
     job.refresh_from_db()
+    assert job.state == JOB_FAILED
+    assert job.error_code == "FieldDoesNotExist"
+    assert job.human_readable_error == "The button no longer exists."
+    assert not request.called
+    assert dispatched_clicks == []
+
+
+@pytest.mark.django_db
+def test_a_button_retyped_while_its_click_waits_fails_the_job(
+    data_fixture, dispatched_clicks
+):
+    """Changing the type deletes the button row. The job outlives it, so the
+    worker can still say what happened instead of crashing on a missing
+    row."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    with patch("baserow.core.jobs.handler.run_async_job"):
+        job = JobHandler().create_and_start_job(
+            user,
+            ButtonFieldDispatchJobType.type,
+            field=button_field,
+            row_id=row.id,
+            workflow_action_ids=_accepted_ids(button_field),
+        )
+    FieldHandler().update_field(user, button_field, new_type_name="text")
+
+    with mock_advocate_request({"ok": True}) as request:
+        run_async_job(job.id)
+
+    job = ButtonFieldDispatchJob.objects.get(id=job.id)
+    assert job.field_id is None
     assert job.state == JOB_FAILED
     assert job.error_code == "FieldDoesNotExist"
     assert job.human_readable_error == "The button no longer exists."

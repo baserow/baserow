@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('workflow_action_ids', models.JSONField(default=list, help_text='The ids of the actions the click was accepted with, in order. The job refuses to run a list that differs from it.')),
                 ('results', models.JSONField(help_text='One result per server action that ran, once the click finished.', null=True)),
                 ('client_actions', models.JSONField(help_text='The frontend-only actions the browser runs after the click.', null=True)),
-                ('field', models.ForeignKey(help_text='The clicked button field.', on_delete=django.db.models.deletion.CASCADE, related_name='dispatch_jobs', to='database.buttonfield')),
+                ('field', models.ForeignKey(help_text='The clicked button field. Empty once it is no longer a button.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='dispatch_jobs', to='database.buttonfield')),
             ],
             options={
                 'abstract': False,
