@@ -4,7 +4,6 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.db.models import Case, CharField, F, IntegerField, Q, Value, When
 from django.db.models.functions import Cast
-from django.utils.translation import gettext_lazy as _
 
 from baserow.core.models import User, Workspace, WorkspaceUser
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
@@ -50,7 +49,7 @@ class UserSubjectType(SubjectType):
         )
 
     def get_type_display_name(self):
-        return _("User")
+        return "User"
 
     def get_display_name(self, subject: AbstractUser) -> str:
         return subject.first_name
@@ -193,7 +192,7 @@ class AnonymousUserSubjectType(SubjectType):
     model_class = AnonymousUser
 
     def get_type_display_name(self):
-        return _("Anonymous user")
+        return "Anonymous user"
 
     def get_display_name(self, subject: AnonymousUser) -> str:
         # Row history persists this as a stable fallback. Clients translate the
