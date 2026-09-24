@@ -45,7 +45,7 @@ describe('builder preview request headers', () => {
     expect(client.post).toHaveBeenCalledWith(
       'builder/preview/123/grant/',
       { path: '/products' },
-      { skipBuilderPreviewAuth: true }
+      { skipBuilderPreviewRequestHandling: true }
     )
   })
 
@@ -114,14 +114,12 @@ describe('builder preview request headers', () => {
         'auth/token': 'editor-token',
         'auth/getUntrustedClientSessionId': 'client-session',
       },
-      { skipBuilderPreviewAuth: true }
+      { skipBuilderPreviewRequestHandling: true }
     )
 
     expect(config.withCredentials).toBe(false)
     expect(config.headers.Authorization).toBe('JWT editor-token')
-    expect(config.headers.UserSourceAuthorization).toBe(
-      'JWT user-source-token'
-    )
+    expect(config.headers.UserSourceAuthorization).toBe('JWT user-source-token')
     expect(config.headers.ClientSessionId).toBe('client-session')
   })
 

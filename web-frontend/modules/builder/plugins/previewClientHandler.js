@@ -50,7 +50,7 @@ export const makeBuilderPreviewSessionErrorInterceptor = (
  */
 export const prepareBuilderPreviewRequest = (previewSsrAuth) => (config) => {
   if (
-    config.skipBuilderPreviewAuth ||
+    config.skipBuilderPreviewRequestHandling ||
     getBuilderPreviewIdFromApiUrl(config.url) === null
   ) {
     return config

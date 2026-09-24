@@ -43,9 +43,11 @@ describe('PreviewPageActionType', () => {
     grant.resolve({ data: { url: 'https://preview.example.com/grant' } })
     await clickPromise
 
-    expect(client.post).toHaveBeenCalledWith('builder/preview/7/grant/', {
-      path: '/products/42',
-    })
+    expect(client.post).toHaveBeenCalledWith(
+      'builder/preview/7/grant/',
+      { path: '/products/42' },
+      { skipBuilderPreviewRequestHandling: true }
+    )
     expect(previewWindow.location.replace).toHaveBeenCalledWith(
       'https://preview.example.com/grant'
     )

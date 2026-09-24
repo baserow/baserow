@@ -23,10 +23,11 @@ export default (client) => {
       return client.get(getBuilderPreviewApiPath(builderId, 'current/'))
     },
     createPreviewGrant(builderId, path) {
+      // Keep the editor JWT as primary by skipping preview request handling.
       return client.post(
         `builder/preview/${builderId}/grant/`,
         { path },
-        { skipBuilderPreviewAuth: true }
+        { skipBuilderPreviewRequestHandling: true }
       )
     },
     fetchElements(page, builderId = null) {
