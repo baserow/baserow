@@ -237,13 +237,13 @@ def test_0120_makes_existing_ai_provider_models_available_to_ai_agents_and_rever
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0121_imports_legacy_ai_provider_settings(
+def test_0122_imports_legacy_ai_provider_settings(
     migrator, teardown_table_metadata, settings
 ):
     settings.BASEROW_OPENAI_API_KEY = "environment-key"
     settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
 
-    old_state = migrator.migrate([("core", "0120_add_ai_agent_provider_model_feature")])
+    old_state = migrator.migrate([("core", "0121_agent")])
     Workspace = old_state.apps.get_model("core", "Workspace")
     workspace = Workspace.objects.create(
         name="with legacy settings",
@@ -254,7 +254,7 @@ def test_0121_imports_legacy_ai_provider_settings(
     Workspace.objects.create(name="without legacy settings")
 
     new_state = migrator.migrate(
-        [("core", "0121_import_legacy_ai_provider_settings")]
+        [("core", "0122_import_legacy_ai_provider_settings")]
     )
     AIProviderConfig = new_state.apps.get_model("core", "AIProviderConfig")
     AIProviderWorkspaceOverride = new_state.apps.get_model(

@@ -59,7 +59,7 @@ def _report_skipped(plan, scope):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0120_add_ai_agent_provider_model_feature"),
+        ("core", "0121_agent"),
     ]
 
     operations = [

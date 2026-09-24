@@ -748,7 +748,7 @@ Verify:
 
 - Migration `core.0120` adds `ai_agent` once to existing provider models, including
   models with an empty feature list, preserving other features and enabled states.
-- Migration `core.0121` imports legacy instance and workspace settings into providers
+- Migration `core.0122` imports legacy instance and workspace settings into providers
   with `ai_fields` and `ai_agent` eligibility, leaves existing providers unchanged,
   skips settings it cannot store, and switches each imported workspace off the
   instance provider of the same type. Re-running it imports nothing further.
