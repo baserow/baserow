@@ -24,7 +24,7 @@ LOOP
     BEGIN
         RETURN QUERY EXECUTE
             'SELECT SPLIT_PART((regexp_matches(field_' || field.id || ','
-            ' ''!\\[[^\\[\\]\\\\]*(?:\\\\.[^\\[\\]\\\\]*)*\\]\\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\\.[^\\]\\s/\\\\()]*)\\]'', ''g''))[1], ''_'', 1),'
+            ' ''!\\[[^\\[\\]\\\\]*(?:\\\\[^\\n][^\\[\\]\\\\]*)*\\]\\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\\.[^\\] \\t\\n\\r\\f\\v/\\\\()]*)\\]'', ''g''))[1], ''_'', 1),'
             ' ' || field.id || ', ' || field.table_id ||
             ' FROM database_table_' || field.table_id ||
             ' WHERE field_' || field.id || ' IS NOT NULL'
