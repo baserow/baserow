@@ -97,8 +97,8 @@ record the source revision, model settings, case population, and failures.
 Eval harness version 5 preserves version 3's exclusion of required mode-switch
 redirects from the tool-error budget. Genuine argument and output-validation
 failures still count. It also matches production's sequential tool execution,
-records request-limit and model/tool retry exhaustion without retrying or
-aborting the suite, and checks
+records request-limit, model/tool retry exhaustion, and other case errors as
+failures without retrying or aborting the suite, and checks
 saved Builder navigation and card values across multiple records. Metadata records
 the evaluator source hash. Older score totals must be interpreted with their
 recorded checks, harness version, and configuration.
