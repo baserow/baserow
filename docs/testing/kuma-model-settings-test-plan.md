@@ -265,9 +265,10 @@ Verify:
 1. Set **Kuma** to **Disabled**.
 
 Verify:
-- The **Kuma AI** sidebar item disappears in every workspace that *inherits* the
-  instance setting, without a reload; an open Kuma panel closes on its own. A
-  workspace with its own model selection keeps Kuma — that is tested in 3.4.
+- In the admin's own tab, the **Kuma AI** sidebar item disappears in every workspace
+  that *inherits* the instance setting, without a reload; an open Kuma panel closes
+  on its own. Other sessions only see it after a reload (7.1). A workspace with its
+  own model selection keeps Kuma — that is tested in 3.4.
 - `GET /api/settings/` returns `kuma.is_enabled: false`.
 - The helper raises `AssistantModelDisabledError` for the instance and for every
   inheriting workspace — no legacy fallback.
@@ -291,8 +292,8 @@ Verify:
 
 1. Set **Kuma** back to **Use environment model (deprecated): `<env model>`**.
 
-Verify: the sidebar item returns without a reload, `kuma.is_enabled` is `true`
-again, and the helper prints `source=legacy`.
+Verify: in the admin's own tab the sidebar item returns without a reload,
+`kuma.is_enabled` is `true` again, and the helper prints `source=legacy`.
 
 ---
 
@@ -589,19 +590,22 @@ with the shared workspace open.
 
 ### 7.1 Instance change
 
+Instance changes are deliberately not pushed to non-staff users: notifying every
+workspace would cost work per workspace on each admin click.
+
 1. In A, set the instance Kuma row to **Disabled**, then back to a model.
 
-Verify in B, without reloading:
-- The Kuma sidebar item disappears and reappears.
-- An open Kuma panel closes when it disappears.
-- B never receives provider state. Check the `ai_provider_updated` websocket frames in
-  B: a non-admin member gets only `generative_ai_models_enabled_by_workspace` and
-  `ai_features_by_workspace`, plus the instance-wide `instance_ai_features`. The keys
-  carrying provider rows are scoped:
+Verify in B:
+- B receives no `ai_provider_updated` websocket frame for either change.
+- The Kuma sidebar item only disappears, and later reappears, after B reloads.
+- Using the stale item before reloading fails with `ERROR_ASSISTANT_MODEL_DISABLED`
+  instead of reaching a disabled model.
+- B never receives provider rows. On workspace changes (7.2) its `ai_provider_updated`
+  frames carry only `generative_ai_models_enabled_by_workspace` and
+  `ai_features_by_workspace`. The keys are scoped:
 
   | key | recipients |
   |---|---|
-  | `instance_ai_features` | every user |
   | `generative_ai_models_enabled_by_workspace`, `ai_features_by_workspace` | every member of the workspace |
   | `ai_providers_by_workspace`, `ai_provider_feature_settings_by_workspace` | workspace admins |
   | `instance_ai_providers`, `instance_ai_provider_feature_settings` | staff |

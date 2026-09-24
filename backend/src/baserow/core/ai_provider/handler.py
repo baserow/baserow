@@ -584,33 +584,6 @@ class AIProviderHandler:
         )
 
     @staticmethod
-    def _prune_orphaned_feature_settings(
-        settings: list[AIProviderFeatureSetting],
-        registered_feature_types: set[str],
-    ) -> list[AIProviderFeatureSetting]:
-        """
-        Delete selections for unloaded features and return active selections.
-
-        :param settings: Feature-setting rows considered by a mutation.
-        :param registered_feature_types: Feature identifiers active in this process.
-        :return: Settings belonging to currently registered features.
-        """
-
-        active_settings = [
-            setting
-            for setting in settings
-            if setting.feature_type in registered_feature_types
-        ]
-        orphan_ids = [
-            setting.id
-            for setting in settings
-            if setting.feature_type not in registered_feature_types
-        ]
-        if orphan_ids:
-            AIProviderFeatureSetting.objects.filter(id__in=orphan_ids).delete()
-        return active_settings
-
-    @staticmethod
     def _feature_types_using_model(
         model: AIProviderModel,
         prune_orphans: bool = False,
@@ -632,14 +605,12 @@ class AIProviderHandler:
         )
         queryset = AIProviderFeatureSetting.objects.filter(model=model, is_enabled=True)
         if prune_orphans:
-            active_settings = AIProviderHandler._prune_orphaned_feature_settings(
-                list(queryset), registered_feature_types
-            )
-            return {setting.feature_type for setting in active_settings}
+            queryset.exclude(feature_type__in=registered_feature_types).delete()
         return set(
-            queryset.filter(feature_type__in=registered_feature_types).values_list(
-                "feature_type", flat=True
-            )
+            queryset.filter(feature_type__in=registered_feature_types)
+            .order_by()
+            .values_list("feature_type", flat=True)
+            .distinct()
         )
 
     @classmethod
@@ -664,21 +635,9 @@ class AIProviderHandler:
             model__provider_config=provider,
             is_enabled=True,
         )
-        if workspace is not None and provider.workspace_id is None:
-            used_settings = used_settings.filter(
-                Q(workspace=workspace) | Q(workspace__isnull=True)
-            )
         registered_feature_types = cls._registered_default_model_feature_types()
-        settings = list(used_settings.select_related("model").order_by("id"))
         if prune_orphans:
-            settings = cls._prune_orphaned_feature_settings(
-                settings, registered_feature_types
-            )
-        provider_settings = [
-            setting
-            for setting in settings
-            if setting.feature_type in registered_feature_types
-        ]
+            used_settings.exclude(feature_type__in=registered_feature_types).delete()
         if workspace is not None and provider.workspace_id is None:
             used_models = {
                 resolution["feature_type"]: resolution["model"]
@@ -687,8 +646,15 @@ class AIProviderHandler:
                 and resolution["model"].provider_config_id == provider.id
             }
         else:
+            # The newest selection of each feature names the model in the error.
             used_models = {
-                setting.feature_type: setting.model for setting in provider_settings
+                setting.feature_type: setting.model
+                for setting in used_settings.filter(
+                    feature_type__in=registered_feature_types
+                )
+                .select_related("model")
+                .order_by("feature_type", "-id")
+                .distinct("feature_type")
             }
         if used_models:
             model = used_models[sorted(used_models)[0]]

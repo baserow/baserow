@@ -607,7 +607,7 @@ describe('RealTimeHandler AI provider updates', () => {
     ])
   })
 
-  test('recovers settings and providers from an oversized instance marker', async () => {
+  test('recovers only the providers from an oversized instance marker', async () => {
     const { handler, store } = makeHandler()
 
     await fire(handler, 'ai_provider_updated', {
@@ -619,13 +619,11 @@ describe('RealTimeHandler AI provider updates', () => {
       refresh_provider_settings: true,
     })
 
-    expect(store._dispatched).toContainEqual([
-      'settings/load',
-      { realtimeRecovery: true },
-    ])
-    expect(store._dispatched).toContainEqual([
-      'aiProvider/fetchInitial',
-      { workspaceId: null, realtimeRecovery: true },
+    expect(store._dispatched).toEqual([
+      [
+        'aiProvider/fetchInitial',
+        { workspaceId: null, realtimeRecovery: true },
+      ],
     ])
   })
 
@@ -651,11 +649,10 @@ describe('RealTimeHandler AI provider updates', () => {
     ).toBe(false)
   })
 
-  test('retries a failed instance settings recovery once and consumes the failure', async () => {
+  test('retries a failed instance provider recovery once and consumes the failure', async () => {
     vi.useFakeTimers()
     try {
       const { handler, store } = makeHandler()
-      store.getters['aiProvider/hasLoaded'] = false
       store.dispatch = vi.fn().mockRejectedValue(new Error('offline'))
 
       const recovery = fire(handler, 'ai_provider_updated', {
@@ -670,12 +667,22 @@ describe('RealTimeHandler AI provider updates', () => {
       await expect(recovery).resolves.toEqual([undefined])
 
       expect(store.dispatch).toHaveBeenCalledTimes(2)
-      expect(store.dispatch).toHaveBeenNthCalledWith(1, 'settings/load', {
-        realtimeRecovery: true,
-      })
-      expect(store.dispatch).toHaveBeenNthCalledWith(2, 'settings/load', {
-        realtimeRecovery: true,
-      })
+      expect(store.dispatch).toHaveBeenNthCalledWith(
+        1,
+        'aiProvider/fetchInitial',
+        {
+          workspaceId: null,
+          realtimeRecovery: true,
+        }
+      )
+      expect(store.dispatch).toHaveBeenNthCalledWith(
+        2,
+        'aiProvider/fetchInitial',
+        {
+          workspaceId: null,
+          realtimeRecovery: true,
+        }
+      )
     } finally {
       vi.useRealTimers()
     }
@@ -731,15 +738,10 @@ describe('RealTimeHandler AI provider updates', () => {
         42: { kuma: { is_enabled: true, state: 'configured' } },
         43: { kuma: { is_enabled: false, state: 'disabled' } },
       },
-      instance_ai_features: { kuma: { is_enabled: true } },
       instance_ai_providers: instanceProviders,
       instance_ai_provider_feature_settings: instanceFeatureSettings,
     })
 
-    expect(store._dispatched).toContainEqual([
-      'settings/forceUpdateAIFeatures',
-      { kuma: { is_enabled: true } },
-    ])
     expect(store._dispatched).toContainEqual([
       'workspace/forceUpdateGenerativeAIModels',
       {
@@ -869,20 +871,6 @@ describe('RealTimeHandler AI provider updates', () => {
         providers,
         featureSettings: undefined,
       },
-    ])
-  })
-
-  test('updates instance AI feature settings whenever the payload provides them', () => {
-    const { handler, store } = makeHandler()
-
-    fire(handler, 'ai_provider_updated', {
-      type: 'ai_provider_updated',
-      instance_ai_features: { kuma: { is_enabled: false } },
-    })
-
-    expect(store._dispatched).toContainEqual([
-      'settings/forceUpdateAIFeatures',
-      { kuma: { is_enabled: false } },
     ])
   })
 })

@@ -1,6 +1,8 @@
+from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import pytest
@@ -971,6 +973,81 @@ def test_get_model_usage_passes_the_provider_scope(monkeypatch, data_fixture):
 
     assert AIProviderHandler.get_model_usage(model) == {"recording_feature": 0}
     assert calls == [("openai", "gpt-4o", workspace)]
+
+
+def _select_model_for_kuma_in_new_workspaces(
+    data_fixture, model: AIProviderModel, count: int
+) -> None:
+    for _ in range(count):
+        AIProviderFeatureSetting.objects.create(
+            workspace=data_fixture.create_workspace(),
+            feature_type=AI_PROVIDER_FEATURE_KUMA,
+            model=model,
+            is_enabled=True,
+        )
+
+
+def _run_refused_mutation(
+    mutation: Callable[[], object],
+) -> tuple[AIProviderModelInUse, int, int]:
+    feature_setting_rows_read = []
+
+    def count_feature_setting_rows(
+        execute: Callable, sql: str, params: object, many: bool, context: dict
+    ) -> object:
+        result = execute(sql, params, many, context)
+        if sql.startswith("SELECT") and '"core_aiproviderfeaturesetting"' in sql:
+            feature_setting_rows_read.append(context["cursor"].rowcount)
+        return result
+
+    with (
+        CaptureQueriesContext(connection) as queries,
+        connection.execute_wrapper(count_feature_setting_rows),
+        pytest.raises(AIProviderModelInUse) as exc_info,
+    ):
+        mutation()
+    return (
+        exc_info.value,
+        len(queries.captured_queries),
+        sum(feature_setting_rows_read),
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "mutation",
+    ["disable_provider", "delete_provider", "disable_model", "delete_model"],
+)
+def test_instance_in_use_guard_does_not_scale_with_selecting_workspaces(
+    data_fixture, mutation
+):
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="kuma-model",
+        feature_types=[AI_PROVIDER_FEATURE_KUMA],
+    )
+    mutations = {
+        "disable_provider": lambda: AIProviderHandler.update_provider(
+            provider, is_active=False
+        ),
+        "delete_provider": lambda: AIProviderHandler.delete_provider(provider),
+        "disable_model": lambda: AIProviderHandler.update_model(
+            model, is_enabled=False
+        ),
+        "delete_model": lambda: AIProviderHandler.delete_model(model),
+    }
+
+    _select_model_for_kuma_in_new_workspaces(data_fixture, model, 1)
+    one_error, one_queries, one_rows = _run_refused_mutation(mutations[mutation])
+    _select_model_for_kuma_in_new_workspaces(data_fixture, model, 4)
+    five_error, five_queries, five_rows = _run_refused_mutation(mutations[mutation])
+
+    for error in (one_error, five_error):
+        assert error.model_identifier == "kuma-model"
+        assert error.feature_types == [AI_PROVIDER_FEATURE_KUMA]
+    assert one_queries == five_queries
+    assert one_rows == five_rows
 
 
 @pytest.mark.django_db
