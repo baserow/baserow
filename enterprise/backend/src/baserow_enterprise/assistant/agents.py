@@ -1,11 +1,13 @@
 import json
 
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import RetryPromptPart, ToolReturnPart, UserPromptPart
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
+from baserow_enterprise.assistant.tools.routing import is_mode_redirect
 
 FREE_LICENSE_TIER = "free"
 _CANONICAL_LICENSE_TIERS = {
@@ -54,6 +56,36 @@ def dynamic_mode(ctx) -> str:
     """Inject the current agent mode into the system prompt."""
 
     return f"\n<mode>{ctx.deps.mode.value}</mode>"
+
+
+@main_agent.instructions
+def dynamic_pending_mode_calls(ctx: RunContext[AssistantDeps]) -> str:
+    """Keep deferred operations visible until the model actually reissues them."""
+
+    pending = set()
+    for message in ctx.messages:
+        for part in message.parts:
+            if isinstance(part, UserPromptPart):
+                pending.clear()
+            elif (
+                isinstance(part, RetryPromptPart)
+                and isinstance(part.content, str)
+                and is_mode_redirect(part.content)
+                and part.tool_name
+            ):
+                pending.add(part.tool_name)
+            elif isinstance(part, ToolReturnPart):
+                pending.discard(part.tool_name)
+    if not pending:
+        return ""
+    return (
+        "\n<pending_mode_calls>\n"
+        f"These calls switched modes but were not executed: {', '.join(sorted(pending))}. "
+        "Reissue the needed calls with their full schemas before moving on. "
+        "An intervening lookup or another successful change does not complete them. "
+        "Do not claim their effects unless their execution succeeds.\n"
+        "</pending_mode_calls>"
+    )
 
 
 @main_agent.instructions

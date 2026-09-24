@@ -201,8 +201,11 @@ def create_pages(
         result["existing_pages"] = [p.model_dump() for p in skipped_pages]
     if created_pages:
         result["next_steps"] = (
-            "Pages created. Next: create data sources (create_data_sources), "
-            "then elements (create_display_elements, create_layout_elements, "
+            "Pages created. Add the requested content now. Draft sensible headings, "
+            "descriptions, and button labels rather than asking for this copy. "
+            "Add data sources only for content backed by existing records "
+            "(create_data_sources). Then add elements "
+            "(create_display_elements, create_layout_elements, "
             "create_form_elements, create_collection_elements), "
             "then actions for buttons/forms (create_actions)."
         )

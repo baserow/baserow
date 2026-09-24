@@ -36,6 +36,62 @@ from .utils import make_test_ctx
 
 
 @pytest.mark.asyncio
+async def test_routed_call_remains_in_instructions_until_reissued():
+    from baserow_enterprise.assistant.agents import dynamic_pending_mode_calls
+
+    deps = SimpleNamespace(mode=AgentMode.DATABASE)
+    executed = []
+    step = 0
+
+    def create_workflows(name: str):
+        executed.append(name)
+        return {"created_workflows": [{"id": 1, "name": name}]}
+
+    def list_tables():
+        return []
+
+    def respond(messages, info):
+        nonlocal step
+        step += 1
+        if step == 1:
+            part = ToolCallPart("search_tools", {"queries": ["create_workflows"]})
+        elif step == 2:
+            part = ToolCallPart("create_workflows", {"name": "Process Orders"})
+        elif step in (3, 4):
+            assert executed == []
+            assert "create_workflows" in info.instructions
+            assert "not executed" in info.instructions
+            # An intervening lookup must not discard the unfinished operation.
+            part = (
+                ToolCallPart("list_tables", {})
+                if step == 3
+                else ToolCallPart("create_workflows", {"name": "Process Orders"})
+            )
+        else:
+            assert step == 5
+            assert "pending_mode_calls" not in info.instructions
+            part = TextPart("Created Process Orders.")
+        return ModelResponse(parts=[part])
+
+    model = FunctionModel(respond, profile={"supported_native_tools": frozenset()})
+    toolset = ModeAwareToolset(
+        InlineRefsToolset(
+            FunctionToolset([create_workflows, list_tables]),
+            model=model,
+            model_profile=MagicMock(),
+        ),
+        deps,
+    )
+    result = await Agent(
+        model=model,
+        toolsets=[toolset],
+        instructions=["Complete the user's request.", dynamic_pending_mode_calls],
+    ).run("Create a workflow", deps=deps)
+    assert result.output == "Created Process Orders."
+    assert executed == ["Process Orders"]
+
+
+@pytest.mark.asyncio
 async def test_deferred_tool_switches_modes_then_executes_once():
     executed = []
     requests = []

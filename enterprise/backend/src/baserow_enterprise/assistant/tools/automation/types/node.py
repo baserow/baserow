@@ -204,7 +204,7 @@ class TriggerNodeCreate(BaseModel):
     """Create a trigger node in a workflow."""
 
     ref: str = Field(..., description="Temporary reference ID for creation.")
-    label: str = Field(..., description="Display name.")
+    label: str = Field("", description="Display name. Defaults to the node type.")
     # Registered names are accepted too: the model echoes what list_nodes returned.
     type: Literal[
         "periodic",
@@ -247,6 +247,8 @@ class TriggerNodeCreate(BaseModel):
 
     @model_validator(mode="after")
     def _validate_trigger_settings(self):
+        if not self.label:
+            self.label = self.type.replace("_", " ").capitalize()
         if self.type == "periodic" and self.periodic_interval is None:
             raise ValueError("periodic trigger requires periodic_interval")
         if self.type in ROW_TRIGGER_TYPES:
@@ -313,7 +315,7 @@ class ActionNodeCreate(BaseModel):
         return _fold_type_alias(data)
 
     ref: str = Field(..., description="Temporary reference ID for creation.")
-    label: str = Field(..., description="Display name.")
+    label: str = Field("", description="Display name. Defaults to the node type.")
     type: ActionNodeType
     previous_node_ref: str = Field(..., description="Ref of the preceding node.")
     router_edge_label: str = Field(
@@ -398,6 +400,8 @@ class ActionNodeCreate(BaseModel):
 
     @model_validator(mode="after")
     def _validate_required_for_type(self):
+        if not self.label:
+            self.label = self.type.replace("_", " ").capitalize()
         required = self._REQUIRED_FIELDS.get(self.type)
         if required:
             missing = [

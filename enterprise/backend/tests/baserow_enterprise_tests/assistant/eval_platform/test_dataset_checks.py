@@ -2,7 +2,14 @@
 
 import pytest
 
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowTableServiceFieldMapping,
+)
 from baserow.core.graph.types import GraphPointPosition
+from baserow_enterprise.assistant.evals.datasets.automation import (
+    _check_creates_row_with_field_values,
+    _creates_row_with_field_values_scenario,
+)
 from baserow_enterprise.assistant.evals.datasets.builder import (
     _check_creates_app_when_table_exists,
     _check_creates_contact_form,
@@ -29,6 +36,97 @@ def _output(**overrides):
         "duration_s": 0,
     }
     return EvalRunOutput(**(values | overrides))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("node_type", ["create_row", "local_baserow_create_row"])
+@pytest.mark.parametrize(
+    "defect",
+    [
+        None,
+        "wrong_trigger_table",
+        "wrong_target_table",
+        "update_row",
+        "disabled",
+        "constant_name",
+        "wrong_source",
+        "swapped_fields",
+    ],
+)
+def test_automation_row_check_uses_saved_configuration(data_fixture, defect, node_type):
+    scenario = _creates_row_with_field_values_scenario(data_fixture)
+    source, log = scenario.refs["source_table"], scenario.refs["log_table"]
+    workflow = data_fixture.create_automation_workflow(
+        automation=scenario.refs["automation"],
+        trigger_type="rows_created",
+        trigger_service_kwargs={
+            "table": log if defect == "wrong_trigger_table" else source
+        },
+    )
+    trigger = workflow.get_trigger()
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="create_row",
+        service_kwargs={"table": source if defect == "wrong_target_table" else log},
+    )
+    service = node.service.specific
+    if defect == "update_row":
+        service.row_id = "1"
+        service.save()
+    name_field = source.field_set.get(name="Name")
+    entry_field = log.field_set.get(name="Entry")
+    source_field = log.field_set.get(name="Source")
+    name_formula = f"get('previous_node.{trigger.id}[0].{name_field.db_column}')"
+    LocalBaserowTableServiceFieldMapping.objects.create(
+        service=service,
+        field=source_field if defect == "swapped_fields" else entry_field,
+        enabled=defect != "disabled",
+        value="'Contact'" if defect == "constant_name" else name_formula,
+    )
+    LocalBaserowTableServiceFieldMapping.objects.create(
+        service=service,
+        field=entry_field if defect == "swapped_fields" else source_field,
+        value="'manual'" if defect == "wrong_source" else "'automation'",
+    )
+    # The tool accepts registered aliases. The raw payload alone cannot prove
+    # that a formula or field mapping was saved correctly.
+    output = _output(
+        tool_calls=["create_workflows"],
+        messages=[
+            {
+                "role": "assistant",
+                "tool_name": "create_workflows",
+                "args": {
+                    "workflows": [
+                        {
+                            "trigger": {
+                                "type": "rows_created",
+                                "rows_triggers_settings": {"table_id": source.id},
+                            },
+                            "nodes": [
+                                {
+                                    "type": node_type,
+                                    "table_id": log.id,
+                                    "values": [
+                                        {
+                                            "field_id": entry_field.id,
+                                            "value": "$formula: trigger Name",
+                                        },
+                                        {
+                                            "field_id": source_field.id,
+                                            "value": "automation",
+                                        },
+                                    ],
+                                }
+                            ],
+                        }
+                    ]
+                },
+            }
+        ],
+    )
+    checks = _check_creates_row_with_field_values(None, scenario, output)
+    assert all(check.passed for check in checks) == (defect is None), checks
 
 
 @pytest.mark.parametrize("space", [" ", "\u202f", "\u00a0", "\n", "\t"])
