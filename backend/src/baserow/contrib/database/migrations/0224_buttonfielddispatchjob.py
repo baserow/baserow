@@ -21,6 +21,7 @@ class Migration(migrations.Migration):
                 ('user_session_id', models.CharField(help_text='The user session uuid needed for undo/redo functionality.', max_length=36, null=True)),
                 ('user_action_group_id', models.CharField(help_text='The user session uuid needed for undo/redo action group functionality.', max_length=36, null=True)),
                 ('row_id', models.PositiveIntegerField(help_text='The clicked row.')),
+                ('workflow_action_ids', models.JSONField(default=list, help_text='The ids of the actions the click was accepted with, in order. The job refuses to run a list that differs from it.')),
                 ('results', models.JSONField(help_text='One result per server action that ran, once the click finished.', null=True)),
                 ('client_actions', models.JSONField(help_text='The frontend-only actions the browser runs after the click.', null=True)),
                 ('field', models.ForeignKey(help_text='The clicked button field.', on_delete=django.db.models.deletion.CASCADE, related_name='dispatch_jobs', to='database.buttonfield')),

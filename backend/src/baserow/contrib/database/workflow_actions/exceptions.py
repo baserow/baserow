@@ -21,6 +21,13 @@ class WorkflowActionDispatchDenied(Exception):
     """A receiver of `workflow_actions_before_dispatch` refused the click."""
 
 
+class WorkflowActionsChangedSinceClick(Exception):
+    """
+    The button's action list is not the one the click was accepted with. The
+    click was checked and charged for that list, so it does not run another.
+    """
+
+
 class WorkflowActionTypeDeactivated(Exception):
     """
     The action type cannot be used here. Carries a reason for the person

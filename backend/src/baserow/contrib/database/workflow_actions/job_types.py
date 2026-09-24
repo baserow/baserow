@@ -17,6 +17,7 @@ from baserow.contrib.database.workflow_actions.exceptions import (
     WorkflowActionDispatchDenied,
     WorkflowActionDispatchError,
     WorkflowActionDispatchInProgress,
+    WorkflowActionsChangedSinceClick,
     WorkflowActionTypeDeactivated,
 )
 from baserow.contrib.database.workflow_actions.models import (
@@ -66,6 +67,10 @@ class ButtonFieldDispatchJobType(JobType):
         RowDoesNotExist: "The clicked row no longer exists.",
         UserNotInWorkspace: "The clicker is no longer a member of the workspace.",
         WorkflowActionTypeDeactivated: _own_message,
+        WorkflowActionsChangedSinceClick: (
+            "The button's actions changed while the click was waiting. "
+            "Click again to run the new ones."
+        ),
         # A plugin refusing the click (a SaaS quota, for instance) gets its
         # own message too, and does not raise out of the task: the refusal is
         # not a bug to alert on.
@@ -86,7 +91,11 @@ class ButtonFieldDispatchJobType(JobType):
         # of these; only the dispatch view can, after its own checks.
         if "field" not in values or "row_id" not in values:
             raise ValidationError("A button click job is started by clicking a button.")
-        return {"field": values["field"], "row_id": values["row_id"]}
+        return {
+            "field": values["field"],
+            "row_id": values["row_id"],
+            "workflow_action_ids": values.get("workflow_action_ids", []),
+        }
 
     def transaction_atomic_context(self, job: ButtonFieldDispatchJob):
         # Completed actions stay when a later one fails (ADR 006 section 3).
@@ -123,6 +132,11 @@ class ButtonFieldDispatchJobType(JobType):
         try:
             row = RowHandler().get_row(user, field.table, job.row_id)
             workflow_actions = service.get_dispatch_snapshot(field)
+            # The request checked and charged the list it accepted. An action
+            # added, removed or reordered while the job waited would run
+            # unchecked, and an added external one without a slot reserved.
+            if [wa.id for wa in workflow_actions] != job.workflow_action_ids:
+                raise WorkflowActionsChangedSinceClick()
             dispatch = service.dispatch_workflow_actions(
                 user,
                 field,

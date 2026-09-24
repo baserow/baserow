@@ -25,6 +25,9 @@ from baserow.contrib.database.workflow_actions.models import (
     LocalBaserowDeleteRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
+from baserow.contrib.database.workflow_actions.service import (
+    DatabaseWorkflowActionService,
+)
 from baserow.contrib.database.workflow_actions.signals import (
     button_field_dispatched,
     workflow_actions_before_dispatch,
@@ -102,13 +105,21 @@ def _add_http_action(data_fixture, button_field):
     return action
 
 
-def _run(user, button_field, row):
+def _accepted_ids(button_field):
+    snapshot = DatabaseWorkflowActionService().get_dispatch_snapshot(button_field)
+    return [wa.id for wa in snapshot]
+
+
+def _run(user, button_field, row, workflow_action_ids=None):
+    if workflow_action_ids is None:
+        workflow_action_ids = _accepted_ids(button_field)
     job = JobHandler().create_and_start_job(
         user,
         ButtonFieldDispatchJobType.type,
         sync=True,
         field=button_field,
         row_id=row.id,
+        workflow_action_ids=workflow_action_ids,
     )
     job.refresh_from_db()
     return job
@@ -162,6 +173,48 @@ def test_a_failing_action_keeps_what_ran_and_names_the_failure(data_fixture):
         for r in table.get_model().objects.exclude(id=row.id).order_by("id")
     ]
     assert created == ["first", "second"]
+
+
+@pytest.mark.django_db
+def test_an_action_added_after_the_click_fails_the_job_without_running(
+    data_fixture, dispatched_clicks
+):
+    """The request checked and charged the list it accepted. An action added
+    while the job waited on the queue has had neither, so nothing runs."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    accepted = _accepted_ids(button_field)
+    _add_row_action(data_fixture, button_field, table, name_field, "late")
+
+    with mock_advocate_request({"ok": True}) as request:
+        job = _run(user, button_field, row, workflow_action_ids=accepted)
+
+    assert job.state == JOB_FAILED
+    assert job.error_code == "WorkflowActionsChangedSinceClick"
+    assert job.human_readable_error == (
+        "The button's actions changed while the click was waiting. "
+        "Click again to run the new ones."
+    )
+    assert not request.called
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
+    assert [c["outcome"] for c in dispatched_clicks] == [DispatchOutcome.ERROR]
+
+
+@pytest.mark.django_db
+def test_a_reordered_list_fails_the_job_the_same_way(data_fixture):
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_row_action(data_fixture, button_field, table, name_field, "first")
+    _add_http_action(data_fixture, button_field)
+    accepted = _accepted_ids(button_field)
+
+    job = _run(user, button_field, row, workflow_action_ids=list(reversed(accepted)))
+
+    assert job.state == JOB_FAILED
+    assert job.error_code == "WorkflowActionsChangedSinceClick"
+    assert table.get_model().objects.exclude(id=row.id).count() == 0
 
 
 @pytest.mark.django_db

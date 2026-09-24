@@ -686,11 +686,14 @@ class DispatchDatabaseWorkflowActionsView(APIView):
             )
 
             try:
+                # The job runs this list and no other: it was checked and
+                # charged for exactly these actions.
                 job = JobHandler().create_and_start_job(
                     request.user,
                     ButtonFieldDispatchJobType.type,
                     field=field,
                     row_id=row.id,
+                    workflow_action_ids=[wa.id for wa in workflow_actions],
                 )
             except MaxJobCountExceeded:
                 # No job was created to charge these slots to.

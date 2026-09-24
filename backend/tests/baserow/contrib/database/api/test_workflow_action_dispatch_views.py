@@ -691,10 +691,10 @@ def _click(api_client, token, button_field, row):
 @pytest.mark.django_db
 def test_a_click_with_an_external_action_is_accepted_as_a_job(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    table, name_field, button_field, row, _ = _button_with_create_action(
+    table, name_field, button_field, row, create_action = _button_with_create_action(
         data_fixture, user
     )
-    _add_http_action(data_fixture, button_field)
+    http_action = _add_http_action(data_fixture, button_field)
 
     response = _click(api_client, token, button_field, row)
 
@@ -707,6 +707,8 @@ def test_a_click_with_an_external_action_is_accepted_as_a_job(api_client, data_f
     job = ButtonFieldDispatchJob.objects.get(id=body["id"])
     assert job.field_id == button_field.id
     assert job.row_id == row.id
+    # The list the click was checked and charged for, in its order.
+    assert job.workflow_action_ids == [create_action.id, http_action.id]
     # Nothing ran in the request.
     assert table.get_model().objects.exclude(id=row.id).count() == 0
 
