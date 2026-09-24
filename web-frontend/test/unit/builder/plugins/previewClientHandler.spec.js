@@ -1,8 +1,9 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
 import { prepareRequestHeaders } from '@baserow/modules/core/plugins/clientHandler'
 import { prepareUserSourceRequestHeaders } from '@baserow/modules/core/plugins/userSourceClientHandler'
 import { prepareBuilderPreviewRequest } from '@baserow/modules/builder/plugins/previewClientHandler'
+import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 
 const makeStore = (getterOverrides = {}) => ({
   getters: {
@@ -15,12 +16,18 @@ const makeStore = (getterOverrides = {}) => ({
   },
 })
 
-const prepareConfig = (url, previewSsrAuth = {}, getterOverrides = {}) => {
+const prepareConfig = (
+  url,
+  previewSsrAuth = {},
+  getterOverrides = {},
+  configOverrides = {}
+) => {
   const store = makeStore(getterOverrides)
   let config = {
     headers: {},
     url,
     withCredentials: false,
+    ...configOverrides,
   }
 
   // Axios executes request interceptors in reverse registration order.
@@ -30,6 +37,18 @@ const prepareConfig = (url, previewSsrAuth = {}, getterOverrides = {}) => {
 }
 
 describe('builder preview request headers', () => {
+  test('exempts preview grant creation from preview authentication', () => {
+    const client = { post: vi.fn() }
+
+    PublishedBuilderService(client).createPreviewGrant(123, '/products')
+
+    expect(client.post).toHaveBeenCalledWith(
+      'builder/preview/123/grant/',
+      { path: '/products' },
+      { skipBuilderPreviewAuth: true }
+    )
+  })
+
   test('sends credentials for builder preview API URLs', () => {
     const config = prepareConfig('builder/preview/123/pages/456/elements/')
 
@@ -79,6 +98,30 @@ describe('builder preview request headers', () => {
 
     expect(config.headers.Authorization).toBe('JWT editor-token')
     expect(config.headers.UserSourceAuthorization).toBe('JWT user-source-token')
+    expect(config.headers.ClientSessionId).toBe('client-session')
+  })
+
+  test('keeps editor authentication primary when creating a preview grant', () => {
+    const application = { id: 123 }
+    const config = prepareConfig(
+      'builder/preview/123/grant/',
+      {},
+      {
+        'userSourceUser/getCurrentApplication': application,
+        'userSourceUser/isAuthenticated': () => true,
+        'userSourceUser/accessToken': () => 'user-source-token',
+        'auth/isAuthenticated': true,
+        'auth/token': 'editor-token',
+        'auth/getUntrustedClientSessionId': 'client-session',
+      },
+      { skipBuilderPreviewAuth: true }
+    )
+
+    expect(config.withCredentials).toBe(false)
+    expect(config.headers.Authorization).toBe('JWT editor-token')
+    expect(config.headers.UserSourceAuthorization).toBe(
+      'JWT user-source-token'
+    )
     expect(config.headers.ClientSessionId).toBe('client-session')
   })
 

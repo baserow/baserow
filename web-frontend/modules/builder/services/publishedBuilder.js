@@ -23,7 +23,11 @@ export default (client) => {
       return client.get(getBuilderPreviewApiPath(builderId, 'current/'))
     },
     createPreviewGrant(builderId, path) {
-      return client.post(`builder/preview/${builderId}/grant/`, { path })
+      return client.post(
+        `builder/preview/${builderId}/grant/`,
+        { path },
+        { skipBuilderPreviewAuth: true }
+      )
     },
     fetchElements(page, builderId = null) {
       return client.get(
