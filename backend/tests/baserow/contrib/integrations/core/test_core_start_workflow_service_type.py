@@ -2,6 +2,7 @@ from collections import defaultdict
 from unittest.mock import patch
 
 import pytest
+from celery.canvas import Signature
 from rest_framework import serializers
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -235,6 +236,7 @@ def test_start_workflow_automation_node_deferred_response(
         type="start_workflow",
         service_kwargs={"workflow": child_workflow},
     )
+    data_fixture.create_core_response_action_node(workflow=parent_workflow)
     published_parent = AutomationWorkflowHandler().publish(parent_workflow)
 
     history = AutomationWorkflowHandler().async_start_workflow(
@@ -243,6 +245,9 @@ def test_start_workflow_automation_node_deferred_response(
     )
     start_node = published_parent.automation_workflow_nodes.get(
         service__content_type__model="corestartworkflowservice"
+    )
+    next_node = published_parent.automation_workflow_nodes.get(
+        service__content_type__model="coreresponseservice"
     )
     canvas = AutomationNodeHandler().dispatch_node(start_node.id, history.id)
     child_history = AutomationWorkflowHistory.objects.filter(
@@ -260,15 +265,17 @@ def test_start_workflow_automation_node_deferred_response(
     )
 
     assert canvas is not None
-    assert (
-        AutomationNodeHandler().complete_deferred_node(
-            node_history.id,
-            child_history.id,
-            "",
-            timed_out=timed_out,
-        )
-        is None
+    result = AutomationNodeHandler().complete_deferred_node(
+        node_history.id,
+        child_history.id,
+        "",
+        timed_out=timed_out,
     )
+    assert isinstance(result, Signature)
+    successor_task = result.tasks[0]
+    if hasattr(successor_task, "tasks"):
+        successor_task = successor_task.tasks[0]
+    assert successor_task.args == (next_node.id, history.id, None)
     assert (
         AutomationHistoryHandler().get_node_result(history, start_node, "")
         == expected_response
