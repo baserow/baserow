@@ -397,6 +397,42 @@ def test_column_width_check_keeps_other_requirements(defect):
     assert not all(check.passed for check in checks)
 
 
+@pytest.mark.parametrize("negation", ["doesn't", "does not"])
+def test_address_check_accepts_contracted_and_uncontracted_negation(negation):
+    case = get_case("docs/address-autocomplete-field")
+    checks = case.checks(
+        case,
+        None,
+        _output(
+            answer=f"Baserow {negation} have a dedicated address field with autocomplete.",
+            tool_calls=["search_user_docs"],
+            sources=["https://baserow.io/user-docs/single-line-text-field"],
+        ),
+    )
+    assert all(check.passed for check in checks)
+
+
+@pytest.mark.parametrize("defect", ["wrong_answer", "missing_source", "missing_search"])
+def test_address_check_keeps_other_requirements(defect):
+    case = get_case("docs/address-autocomplete-field")
+    checks = case.checks(
+        case,
+        None,
+        _output(
+            answer=(
+                "Baserow does have a dedicated address field with autocomplete."
+                if defect == "wrong_answer"
+                else "Baserow does not have a dedicated address field with autocomplete."
+            ),
+            tool_calls=[] if defect == "missing_search" else ["search_user_docs"],
+            sources=[]
+            if defect == "missing_source"
+            else ["https://baserow.io/user-docs/single-line-text-field"],
+        ),
+    )
+    assert not all(check.passed for check in checks)
+
+
 def _element_call(elements):
     return {
         "role": "assistant",

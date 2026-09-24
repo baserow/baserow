@@ -1101,7 +1101,7 @@ _register_docs_case(
         "suggests addresses while I type?"
     ),
     ["single-line-text-field"],
-    ["doesn't", "text field"],
+    ["doesn't", "does not", "text field"],
     reference_answer=(
         "Baserow doesn't have an address field type or any address "
         "autocomplete. Store addresses in a single line text field, or "
