@@ -1,10 +1,10 @@
 <template>
   <div class="page-editor">
-    <PageHeader :loading="loading" />
+    <PageHeader :loading="pageLoading" />
     <div class="layout__col-2-2 page-editor__content">
       <div :style="{ width: `calc(100% - ${panelWidth}px)` }">
         <div
-          v-if="loading"
+          v-if="pageLoading"
           class="skeleton page-preview__wrapper"
           aria-hidden="true"
         >
@@ -63,6 +63,12 @@ const mode = 'editing'
 const { $store, $registry } = useNuxtApp()
 
 const panelWidth = ref(360)
+
+const pageLoading = computed(
+  () =>
+    props.loading ||
+    $store.getters['dataSource/getLoading'](props.page) === true
+)
 
 // The preview of the skeleton is the same width as the device that's selected,
 // so that it doesn't resize when the elements arrive.
