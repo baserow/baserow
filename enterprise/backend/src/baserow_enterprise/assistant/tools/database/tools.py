@@ -522,6 +522,16 @@ def _create_sample_rows(
             "[assistant] generate_sample_rows raised unexpectedly: {}", exc
         )
         return {}, [f"Error creating sample rows: {exc}"]
+    missing = [
+        f"{table.name} (table_{table.id})" for table in tables if not rows.get(table.id)
+    ]
+    if missing:
+        return rows, [
+            f"Sample rows are still missing for {', '.join(missing)}. "
+            "The tables were created, but the sample-data request is incomplete. "
+            "Use load_row_tools for those table IDs, inspect existing rows, and "
+            "add the missing samples before finishing the request."
+        ]
     return rows, []
 
 
