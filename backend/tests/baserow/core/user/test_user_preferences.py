@@ -77,3 +77,21 @@ def test_preferences_work_for_users_without_a_profile():
     )
     assert result["all_workspaces_view_mode"] == "compact"
     assert user.profile.preferences == {"all_workspaces_view_mode": "compact"}
+
+
+@pytest.mark.django_db
+def test_get_user_preferences_falls_back_to_the_default_for_invalid_values(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    # A choice that was renamed or removed after the value was stored.
+    user.profile.preferences = {
+        "all_workspaces_sort_by": "renamed_choice",
+        "all_workspaces_view_mode": "compact",
+    }
+    user.profile.save()
+
+    assert UserHandler().get_user_preferences(user) == {
+        "all_workspaces_sort_by": "last_viewed",
+        "all_workspaces_view_mode": "compact",
+    }

@@ -22,6 +22,21 @@ class UserPreferenceType(Instance):
 
         raise NotImplementedError
 
+    def get_value(self, stored: dict[str, Any]) -> Any:
+        """
+        :param stored: The preferences as stored on the user's profile.
+        :return: The stored value when it is still valid for this type, otherwise
+            the default. A choice can have been renamed or removed since the
+            value was stored.
+        """
+
+        if self.type not in stored:
+            return self.default
+        try:
+            return self.get_serializer_field().run_validation(stored[self.type])
+        except serializers.ValidationError:
+            return self.default
+
 
 class ChoiceUserPreferenceType(UserPreferenceType):
     """

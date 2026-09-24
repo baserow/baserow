@@ -28,7 +28,7 @@ describe('Auth store', () => {
     testApp.afterEach()
   })
 
-  test('updating user preferences is optimistic and merges the response', async () => {
+  test('updating user preferences is optimistic and keeps the local value', async () => {
     store.dispatch('auth/forceUpdateUserData', {
       user: { preferences: { sort: 'created', mode: 'expanded' } },
     })
@@ -47,10 +47,9 @@ describe('Auth store', () => {
     })
   })
 
-  test('updating user preferences rolls back to the confirmed value', async () => {
-    store.dispatch('auth/forceSetUserData', {
-      ...fakeUserData,
-      user: { id: 256, preferences: { sort: 'created' } },
+  test('updating user preferences rolls back when the request fails', async () => {
+    store.dispatch('auth/forceUpdateUserData', {
+      user: { preferences: { sort: 'created' } },
     })
     testApp.mock.onPatch('/user/preferences/').reply(400, {
       error: 'ERROR_REQUEST_BODY_VALIDATION',
@@ -62,62 +61,71 @@ describe('Auth store', () => {
     expect(store.getters['auth/getUserPreference']('sort')).toBe('created')
   })
 
-  test('preference writes are sent in order and superseded ones skipped', async () => {
+  test('a failed write does not undo a newer change of the same key', async () => {
+    store.dispatch('auth/forceUpdateUserData', {
+      user: { preferences: { sort: 'created' } },
+    })
+    testApp.mock.onPatch('/user/preferences/').reply((config) => {
+      const values = JSON.parse(config.data)
+      return values.sort === 'name_asc' ? [500, {}] : [200, values]
+    })
+
+    const failing = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_asc',
+    })
+    const newer = store.dispatch('auth/updateUserPreferences', {
+      sort: 'name_desc',
+    })
+    await expect(failing).rejects.toBeTruthy()
+    await newer
+    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_desc')
+  })
+
+  test('a token refresh during a write does not undo it', async () => {
+    const oldUser = { id: 256, preferences: { sort: 'created' } }
+    store.dispatch('auth/forceSetUserData', { ...fakeUserData, user: oldUser })
+    testApp.mock.onPatch('/user/preferences/').reply(async (config) => {
+      // The client refreshes the access token before a request once it nears
+      // expiry; that response carries the user as the backend still knows it.
+      await store.dispatch('auth/forceSetUserData', {
+        ...fakeUserData,
+        user: { id: 256, preferences: { sort: 'created' } },
+      })
+      return [200, JSON.parse(config.data)]
+    })
+
+    await store.dispatch('auth/updateUserPreferences', { sort: 'name_asc' })
+    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_asc')
+  })
+
+  test('a preference response for a previous user does not touch the next', async () => {
     store.dispatch('auth/forceSetUserData', {
       ...fakeUserData,
       user: { id: 256, preferences: { sort: 'created' } },
     })
-    testApp.mock.onPatch('/user/preferences/').reply((config) => {
-      return [200, JSON.parse(config.data)]
+    let resolveResponse
+    let requestSent
+    const sent = new Promise((resolve) => (requestSent = resolve))
+    testApp.mock.onPatch('/user/preferences/').reply(() => {
+      requestSent()
+      return new Promise((resolve) => (resolveResponse = resolve))
     })
 
-    const first = store.dispatch('auth/updateUserPreferences', {
+    const promise = store.dispatch('auth/updateUserPreferences', {
       sort: 'name_asc',
     })
-    const second = store.dispatch('auth/updateUserPreferences', {
-      sort: 'name_desc',
-    })
-    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_desc')
-    await Promise.all([first, second])
-
-    // The first change was superseded before it was sent.
-    expect(testApp.mock.history.patch.map((r) => r.data)).toEqual([
-      JSON.stringify({ sort: 'name_desc' }),
-    ])
-    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_desc')
-  })
-
-  test('a superseded key does not drop the other keys of its change', async () => {
+    await sent
+    // Another account signs in while the request of the first is still out.
+    await store.dispatch('auth/forceLogoff')
     store.dispatch('auth/forceSetUserData', {
       ...fakeUserData,
-      user: { id: 256, preferences: { sort: 'created', mode: 'expanded' } },
+      user: { id: 257, preferences: { sort: 'name_desc' } },
     })
-    testApp.mock.onPatch('/user/preferences/').reply((config) => {
-      return [200, JSON.parse(config.data)]
-    })
+    resolveResponse([200, { sort: 'name_asc' }])
+    await promise
 
-    const first = store.dispatch('auth/updateUserPreferences', {
-      sort: 'name_asc',
-      mode: 'compact',
-    })
-    const second = store.dispatch('auth/updateUserPreferences', {
-      sort: 'name_desc',
-    })
-    await Promise.all([first, second])
-
-    // Only the sort of the first change was superseded, its mode was not.
-    expect(testApp.mock.history.patch.map((r) => r.data)).toEqual([
-      JSON.stringify({ mode: 'compact' }),
-      JSON.stringify({ sort: 'name_desc' }),
-    ])
-    expect(store.getters['auth/getUserPreferences']).toStrictEqual({
-      sort: 'name_desc',
-      mode: 'compact',
-    })
-    expect(store.state.auth.confirmedPreferences).toStrictEqual({
-      sort: 'name_desc',
-      mode: 'compact',
-    })
+    expect(store.getters['auth/getUserId']).toBe(257)
+    expect(store.getters['auth/getUserPreference']('sort')).toBe('name_desc')
   })
 
   test('a preference response after a logout is ignored', async () => {
@@ -133,9 +141,6 @@ describe('Auth store', () => {
     await store.dispatch('auth/forceLogoff')
     await promise
     expect(store.getters['auth/isAuthenticated']).toBe(false)
-    // The late response must not leak into the confirmed values that a next
-    // session, possibly of another user, rolls back to.
-    expect(store.state.auth.confirmedPreferences).toStrictEqual({})
   })
 
   test('can update a users additional data', () => {

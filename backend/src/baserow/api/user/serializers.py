@@ -70,20 +70,29 @@ class SubjectUserSerializer(serializers.ModelSerializer):
         }
 
 
-class UserPreferencesSerializer(
-    UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
-):
+class UserPreferencesSerializer(serializers.Serializer):
     """
-    One optional field per registered user preference type, so a PATCH can change
-    any subset while every value is validated by the type that owns it.
+    One field per registered user preference type; every value is always present
+    in a response, validated by the type that owns it.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for preference_type in user_preference_type_registry.get_all():
-            field = preference_type.get_serializer_field()
+            self.fields[preference_type.type] = preference_type.get_serializer_field()
+
+
+class UpdateUserPreferencesSerializer(
+    UnknownFieldRaisesExceptionSerializerMixin, UserPreferencesSerializer
+):
+    """
+    The same fields, all optional, so a PATCH can change any subset.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
             field.required = False
-            self.fields[preference_type.type] = field
 
 
 class UserSerializer(serializers.ModelSerializer):

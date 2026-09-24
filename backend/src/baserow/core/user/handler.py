@@ -391,8 +391,9 @@ class UserHandler:
         """
         :param user: The user to get the preferences of.
         :return: A value for every registered preference type: the stored one when
-            the user changed it, the type's default otherwise. Stored keys whose
-            type is no longer registered are left out.
+            the user changed it and it is still valid, the type's default
+            otherwise. Stored keys whose type is no longer registered are left
+            out.
         """
 
         try:
@@ -401,8 +402,8 @@ class UserHandler:
             # Users created outside `create_user`, like with `createsuperuser`.
             stored = {}
         return {
-            key: stored.get(key, default)
-            for key, default in user_preference_type_registry.get_defaults().items()
+            preference_type.type: preference_type.get_value(stored)
+            for preference_type in user_preference_type_registry.get_all()
         }
 
     def update_user_preferences(

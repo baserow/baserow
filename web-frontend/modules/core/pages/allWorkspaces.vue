@@ -121,6 +121,7 @@ import {
   sortWorkspaces,
 } from '@baserow/modules/core/utils/allWorkspaces'
 import { useUserPreference } from '@baserow/modules/core/composables/useUserPreference'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
 
 // Role uids meaning the user only has access through a lower scope. Showing them
 // as a badge next to a workspace the user can open would be misleading.
@@ -225,7 +226,7 @@ const workspaces = computed(() =>
   sortWorkspaces(
     store.getters['workspace/getAllSorted'],
     sortBy.value,
-    applicationsOf
+    filteredApplicationsOf
   )
 )
 
@@ -306,6 +307,9 @@ function keydownCapture(event) {
     header.value?.focusSearch()
   }
 }
+
+// The cards show relative dates that must keep ageing while the page is open.
+provideNow()
 
 onMounted(() => {
   document.addEventListener('keydown', keydownCapture, true)

@@ -14,8 +14,8 @@ export function isValidDatetimeFormat(value) {
   return !/[a-zA-Z]/.test(value.replace(SUPPORTED_MOMENT_TOKEN_RE, ''))
 }
 
-export const getHumanPeriodAgoCount = (dateTime) => {
-  const now = moment()
+export const getHumanPeriodAgoCount = (dateTime, nowValue = undefined) => {
+  const now = moment(nowValue)
   const d = moment(dateTime)
 
   const diffYears = now.diff(d, 'years')

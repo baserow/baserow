@@ -35,7 +35,6 @@ export const state = () => ({
   workspaceInvitations: [],
   umreadUserNotificationCount: 0,
   // What the backend last confirmed, so a failed change can be undone.
-  confirmedPreferences: {},
 })
 
 export const mutations = {
@@ -63,7 +62,6 @@ export const mutations = {
     state.permissions = permissions
 
     state.user = user
-    state.confirmedPreferences = { ...(user?.preferences ?? {}) }
     // Additional entries in the response payload could have been added via the
     // backend user data registry. We want to store them in the `additional` state so
     // that it can be used by other modules.
@@ -85,13 +83,9 @@ export const mutations = {
   SET_ADDITIONAL_DATA(state, additional) {
     state.additional = additional
   },
-  SET_CONFIRMED_PREFERENCES(state, values) {
-    state.confirmedPreferences = { ...state.confirmedPreferences, ...values }
-  },
   LOGOFF(state) {
     state.token = null
     state.refreshToken = null
-    state.confirmedPreferences = {}
     state.tokenUpdatedAt = 0
     state.tokenPayload = null
     state.refreshTokenPayload = null
@@ -293,57 +287,46 @@ export const actions = {
     this.app.$bus.$emit('user-data-updated', data)
   },
   /**
-   * Changes one or more user preferences. The store is updated optimistically,
-   * requests are sent one at a time in dispatch order so the backend ends up
-   * with the latest value, and a request whose values were superseded before it
-   * was sent is skipped. A failed request rolls its keys back to the last value
-   * the backend confirmed, unless a newer change already replaced them.
+   * Changes one or more user preferences. The store is updated right away and
+   * the response is not applied, so nothing that arrives late can overwrite a
+   * newer choice. The last value chosen per key is remembered, so a finished
+   * request only touches keys the user hasn't changed since, and a session
+   * change makes the outcome irrelevant.
    */
-  async updateUserPreferences({ state, getters, commit, dispatch }, values) {
+  async updateUserPreferences({ getters, dispatch }, values) {
     const userId = getters.getUserId
-    const pick = (source, keys) =>
-      Object.fromEntries(keys.map((key) => [key, source[key]]))
-    // A response must not touch the store, nor the confirmed values, of another
-    // session.
-    const sessionApplies = () =>
-      getters.isAuthenticated && getters.getUserId === userId
-    // Tracked per key, so that one value being superseded by a newer change
-    // doesn't drop the other keys of the same change from the request.
-    const applyingKeys = (keys = Object.keys(values)) =>
-      keys.filter((key) => getters.getUserPreference(key) === values[key])
-    const apply = (source, keys) =>
+    const keys = Object.keys(values)
+    const latest = (this._latestPreferences ??= {})
+    const previous = Object.fromEntries(
+      keys.map((key) => [key, getters.getUserPreference(key)])
+    )
+    keys.forEach((key) => (latest[key] = values[key]))
+    const stillMine = (key) =>
+      getters.isAuthenticated &&
+      getters.getUserId === userId &&
+      latest[key] === values[key]
+    const apply = (source, applyTo) =>
       dispatch('forceUpdateUserData', {
         user: {
-          preferences: { ...getters.getUserPreferences, ...pick(source, keys) },
+          preferences: {
+            ...getters.getUserPreferences,
+            ...Object.fromEntries(applyTo.map((key) => [key, source[key]])),
+          },
         },
       })
 
-    apply(values, Object.keys(values))
-    const write = (this._preferenceWrite ?? Promise.resolve())
-      .catch(() => {})
-      .then(async () => {
-        const keys = sessionApplies() ? applyingKeys() : []
-        if (keys.length === 0) {
-          return null
-        }
-        try {
-          const { data } = await AuthService(this.$client).updatePreferences(
-            pick(values, keys)
-          )
-          if (sessionApplies()) {
-            commit('SET_CONFIRMED_PREFERENCES', pick(data, keys))
-            apply(data, applyingKeys(keys))
-          }
-          return data
-        } catch (error) {
-          if (sessionApplies()) {
-            apply(state.confirmedPreferences, applyingKeys(keys))
-          }
-          throw error
-        }
-      })
-    this._preferenceWrite = write
-    return await write
+    apply(values, keys)
+    try {
+      await AuthService(this.$client).updatePreferences(values)
+      // A token refresh that ran before this request replaced the store with
+      // the snapshot from before the write, so the value is applied again.
+      apply(values, keys.filter(stillMine))
+    } catch (error) {
+      const mine = keys.filter(stillMine)
+      mine.forEach((key) => (latest[key] = previous[key]))
+      apply(previous, mine)
+      throw error
+    }
   },
   setUserData({ commit, dispatch }, data) {
     commit('SET_USER_DATA', data)

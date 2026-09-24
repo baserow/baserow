@@ -45,6 +45,21 @@ describe('Dropdown server side rendering', () => {
     expect(html).not.toContain('dropdown__selected-placeholder')
   })
 
+  test('renders the selected name of an item with slotted content', async () => {
+    const html = await render(
+      { modelValue: 'viewer', showSearch: false },
+      () => [
+        h(
+          DropdownItem,
+          { value: 'viewer', name: 'Viewer' },
+          { default: () => [h('span', 'Can only read')] }
+        ),
+      ]
+    )
+    expect(html).toContain('Viewer')
+    expect(html).not.toContain('dropdown__selected-placeholder')
+  })
+
   test('renders every selected name of a multiple dropdown', async () => {
     const html = await render({
       modelValue: ['created', 'last_viewed'],

@@ -59,6 +59,7 @@
 import application from '@baserow/modules/core/mixins/application'
 import SearchHighlight from '@baserow/modules/core/components/SearchHighlight'
 import { getHumanPeriodAgoCount } from '@baserow/modules/core/utils/date'
+import { injectNow } from '@baserow/modules/core/composables/useNow'
 import {
   SORT_BY_CREATED,
   SORT_BY_LAST_VIEWED,
@@ -89,6 +90,9 @@ export default {
     },
   },
   emits: ['click'],
+  setup() {
+    return { now: injectNow() }
+  },
   data() {
     return {
       editing: false,
@@ -117,7 +121,11 @@ export default {
   },
   methods: {
     humanAgo(dateTime) {
-      const { period, count } = getHumanPeriodAgoCount(dateTime)
+      // Reading the shared clock makes `dateMeta` re-evaluate as time passes.
+      const { period, count } = getHumanPeriodAgoCount(
+        dateTime,
+        this.now ?? undefined
+      )
       // Same wording as the `timeAgo` mixin for moments that are seconds old,
       // which a just opened application always is.
       if (period === 'seconds') {

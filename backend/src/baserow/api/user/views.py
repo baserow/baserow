@@ -132,6 +132,7 @@ from .serializers import (
     TokenObtainPairWithUserSerializer,
     TokenRefreshWithUserSerializer,
     TokenVerifyWithUserSerializer,
+    UpdateUserPreferencesSerializer,
     UserPreferencesSerializer,
     UserSerializer,
     VerifyEmailAddressSerializer,
@@ -638,7 +639,7 @@ class UserPreferencesView(APIView):
 
     @extend_schema(
         tags=["User"],
-        request=UserPreferencesSerializer,
+        request=UpdateUserPreferencesSerializer,
         operation_id="update_user_preferences",
         description=(
             "Changes one or more preferences of the authenticated user, such as "
@@ -651,7 +652,7 @@ class UserPreferencesView(APIView):
         },
     )
     @transaction.atomic
-    @validate_body(UserPreferencesSerializer)
+    @validate_body(UpdateUserPreferencesSerializer)
     def patch(self, request, data):
         preferences = UserHandler().update_user_preferences(request.user, data)
         return Response(preferences)

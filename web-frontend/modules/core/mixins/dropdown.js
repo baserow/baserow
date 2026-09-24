@@ -221,6 +221,11 @@ export default {
       }
       const flatten = (vnodes) =>
         vnodes.flatMap((vnode) => {
+          // An item is recognised by its value, before looking at its children:
+          // an item with slotted content must not be replaced by that content.
+          if (vnode.props?.value !== undefined) {
+            return [vnode.props]
+          }
           if (Array.isArray(vnode.children)) {
             return flatten(vnode.children)
           }
@@ -229,12 +234,9 @@ export default {
           if (typeof vnode.children?.default === 'function') {
             return flatten(vnode.children.default())
           }
-          return [vnode]
+          return []
         })
-      const vnodes = this.$slots.default ? flatten(this.$slots.default()) : []
-      return vnodes
-        .filter((vnode) => vnode.props?.value !== undefined)
-        .map((vnode) => vnode.props)
+      return this.$slots.default ? flatten(this.$slots.default()) : []
     },
     selectedName() {
       return this.getSelectedProperty(this.currentValue, 'name')
