@@ -2088,6 +2088,8 @@ class TestFinalAnswerValidation:
             "Deleted rows go to the trash and can be restored within the 3-day retention period.",
             "Deleted rows aren't removed permanently right away—they go to the trash.",
             "Deleted rows aren’t removed permanently right away—they go to the trash.",
+            "Deleted items stay in the trash for a limited grace period.",
+            "Deleted items remain in the trash for a limited retention period.",
             "Updated data isn't visible until the page refreshes.",
             "Updated data isn’t visible until the page refreshes.",
             "Updated fields are saved automatically.",
