@@ -177,6 +177,12 @@ export const mutations = {
     state.userIdsInSelected.delete(user.user_id)
     state.items[workspaceIndex].users.splice(usersIndex, 1)
   },
+  UPDATE_AGENTS_COUNT(state, { workspaceId, delta }) {
+    const workspace = state.items.find((item) => item.id === workspaceId)
+    if (workspace !== undefined && workspace.agents_count !== undefined) {
+      workspace.agents_count = Math.max(0, workspace.agents_count + delta)
+    }
+  },
   SET_PERMISSIONS(state, { workspaceId, permissions }) {
     const workspaceIndex = state.items.findIndex(
       (item) => item.id === workspaceId
@@ -629,6 +635,9 @@ export const actions = {
     } else {
       commit('DELETE_WORKSPACE_USER', { workspaceId, id })
     }
+  },
+  updateAgentsCount({ commit }, { workspaceId, delta }) {
+    commit('UPDATE_AGENTS_COUNT', { workspaceId, delta })
   },
   /**
    * Forcefully deletes a user by deleting various user workspace instances
