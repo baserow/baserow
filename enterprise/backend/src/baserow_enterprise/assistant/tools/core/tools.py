@@ -266,6 +266,8 @@ def ask_user(
     WHAT it does: Records the question; you deliver it as your final answer.
     RETURNS: Instructions for delivering the question.
     DO NOT USE when: The user asks a product/how-to question (answer it using search_user_docs), a sensible first version can be built with defaults (see `<intent>`), a list_* tool can answer it, or you only want permission to continue.
+    Before asking about a CTA destination, inspect the app's pages: use an existing Home page as the default and state that choice. Draft presentation copy yourself.
+    Before asking for a tool prerequisite, inspect its schema with search_tools. Never ask for an integration ID that the workflow tool does not accept; it handles integration references itself.
     """
 
     ctx.deps.pending_question = question
