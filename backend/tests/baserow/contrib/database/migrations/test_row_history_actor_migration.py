@@ -1,11 +1,17 @@
 from datetime import datetime, timezone
+from importlib import import_module
 
 import pytest
 
 
 @pytest.mark.once_per_day_in_ci
-def test_row_history_actor_types_are_backfilled(migrator):
+def test_row_history_actor_types_are_backfilled_in_batches(migrator, monkeypatch):
     """Existing row history keeps users and identifies anonymous actors."""
+
+    migration = import_module(
+        "baserow.contrib.database.migrations.0224_rowhistory_actor"
+    )
+    monkeypatch.setattr(migration, "ROW_HISTORY_BACKFILL_BATCH_SIZE", 2)
 
     old_state = migrator.migrate([("database", "0223_gridview_group_by_layout")])
 
@@ -41,12 +47,21 @@ def test_row_history_actor_types_are_backfilled(migrator):
     user_entry = RowHistory.objects.create(
         user_id=1, user_name="User", **common_values
     )
-    anonymous_entry = RowHistory.objects.create(
-        user_id=None, user_name="Anonymous User", **common_values
-    )
+    anonymous_entries = [
+        RowHistory.objects.create(
+            user_id=None,
+            user_name=f"Anonymous User {index}",
+            **common_values,
+        )
+        for index in range(3)
+    ]
 
     new_state = migrator.migrate([("database", "0224_rowhistory_actor")])
     RowHistory = new_state.apps.get_model("database", "RowHistory")
 
     assert RowHistory.objects.get(id=user_entry.id).actor_type == "auth.User"
-    assert RowHistory.objects.get(id=anonymous_entry.id).actor_type == "anonymous"
+    assert list(
+        RowHistory.objects.filter(
+            id__in=[entry.id for entry in anonymous_entries]
+        ).values_list("actor_type", flat=True)
+    ) == ["anonymous"] * 3
