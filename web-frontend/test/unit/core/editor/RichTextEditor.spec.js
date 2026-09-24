@@ -332,6 +332,18 @@ describe('RichTextEditor images', () => {
     await settleUploads()
   }
 
+  test('focus after a trailing image does not select it', async () => {
+    const wrapper = await mountEditor(
+      '![photo][abc_def.png](https://example.com/abc_def.png)'
+    )
+
+    wrapper.vm.focus()
+    wrapper.vm.editor.commands.insertContent('tail')
+
+    expect(wrapper.vm.serializeToMarkdown()).toContain('![photo][abc_def.png]')
+    expect(wrapper.vm.serializeToMarkdown()).toContain('tail')
+  })
+
   test('renders image markdown as text unless enableImages is set', async () => {
     const wrapper = await mountEditor(
       'see ![photo](https://example.com/photo.png) here',
@@ -634,6 +646,81 @@ describe('RichTextEditor images', () => {
     )
   })
 
+  test('uploads a dropped image whose extension the browser did not recognise', async () => {
+    const uploadFile = vi.fn().mockResolvedValue({
+      data: {
+        name: 'abc123_def456.jpg',
+        original_name: 'photo.jpg',
+        original_extension: 'jpg',
+        is_image: true,
+        url: 'https://example.com/user_files/abc123_def456.jpg',
+      },
+    })
+    const wrapper = await mountEditor('', { uploadFile })
+
+    // A real browser gives `photo.jpg)` an empty type.
+    await dropFiles(wrapper, [new File(['jpg'], 'photo.jpg)', { type: '' })])
+    await settleUploads()
+
+    expect(uploadFile).toHaveBeenCalledOnce()
+    const uploaded = uploadFile.mock.calls[0][0]
+    expect(uploaded.name).toBe('photo.jpg')
+    expect(uploaded.type).toBe('image/jpeg')
+    expect(wrapper.find('.tiptap img').exists()).toBe(true)
+  })
+
+  test('uploads a pasted image file with an empty type', async () => {
+    const uploadFile = vi.fn().mockResolvedValue({
+      data: {
+        name: 'abc123_def456.png',
+        original_name: 'shot.png',
+        original_extension: 'png',
+        is_image: true,
+        url: 'https://example.com/user_files/abc123_def456.png',
+      },
+    })
+    const wrapper = await mountEditor('', { uploadFile })
+
+    await pasteFile(wrapper, new File(['png'], 'shot.png)', { type: '' }))
+
+    expect(uploadFile).toHaveBeenCalledOnce()
+    expect(uploadFile.mock.calls[0][0].name).toBe('shot.png')
+  })
+
+  test('uploads a dropped file without an extension', async () => {
+    const uploadFile = vi.fn().mockResolvedValue({
+      data: {
+        name: 'abc123_def456.',
+        original_name: 'photo',
+        original_extension: '',
+        is_image: true,
+        url: 'https://example.com/user_files/abc123_def456.',
+      },
+    })
+    const wrapper = await mountEditor('', { uploadFile })
+
+    await dropFiles(wrapper, [new File(['jpg'], 'photo', { type: '' })])
+    await settleUploads()
+
+    expect(uploadFile).toHaveBeenCalledOnce()
+    expect(wrapper.find('.tiptap img').exists()).toBe(true)
+    expect(wrapper.vm.serializeToMarkdown()).toContain(
+      '![photo][abc123_def456.]'
+    )
+  })
+
+  test('ignores a dropped file typed as a non-image', async () => {
+    const uploadFile = vi.fn()
+    const wrapper = await mountEditor('', { uploadFile })
+
+    await dropFiles(wrapper, [
+      new File(['x'], 'notes.txt', { type: 'text/plain' }),
+    ])
+    await settleUploads()
+
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
+
   test('shows an error toast instead of embedding a non-image upload', async () => {
     const uploadFile = vi.fn().mockResolvedValue({
       data: {
@@ -758,6 +845,77 @@ describe('RichTextEditor images', () => {
 
     expect(uploadFile).not.toHaveBeenCalled()
     expect(wrapper.find('.tiptap img').exists()).toBe(false)
+  })
+
+  // The upload is asynchronous. The image belongs where it was pasted, not
+  // wherever the selection is when the upload finishes: otherwise selecting
+  // text meanwhile would get it replaced by the image.
+  test('inserts a pasted image at the paste position', async () => {
+    let resolveUpload
+    const uploadFile = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveUpload = resolve
+        })
+    )
+    const wrapper = await mountEditor('AAA BBB', { uploadFile })
+    const { editor } = wrapper.vm
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1)
+
+    await pasteFile(wrapper, new File(['1'], 'shot.png', { type: 'image/png' }))
+    // Select `AAA` while the upload is pending.
+    editor.commands.setTextSelection({ from: 1, to: 4 })
+    resolveUpload({
+      data: {
+        name: 'aaa_111.png',
+        original_name: 'shot.png',
+        original_extension: 'png',
+        is_image: true,
+        url: 'https://example.com/user_files/aaa_111.png',
+      },
+    })
+    await settleUploads()
+
+    const markdown = wrapper.vm.serializeToMarkdown()
+    expect(markdown).toContain('AAA BBB')
+    expect(markdown.indexOf('BBB')).toBeLessThan(
+      markdown.indexOf('[aaa_111.png]')
+    )
+  })
+
+  test('drops characters the reference cannot carry from the extension', async () => {
+    const uploadFile = vi.fn().mockResolvedValue({
+      data: {
+        name: 'aaa_111.jpg',
+        original_name: 'a.jpg',
+        original_extension: 'jpg',
+        is_image: true,
+        url: 'https://example.com/user_files/aaa_111.jpg',
+      },
+    })
+    const wrapper = await mountEditor('', { uploadFile })
+
+    await pasteFile(wrapper, new File(['1'], 'a.jpg)', { type: 'image/jpeg' }))
+
+    expect(uploadFile).toHaveBeenCalledOnce()
+    const uploaded = uploadFile.mock.calls[0][0]
+    expect(uploaded.name).toBe('a.jpg')
+    expect(uploaded.type).toBe('image/jpeg')
+  })
+
+  test('shows a placeholder for pasted HTML whose src Baserow did not hand out', async () => {
+    const wrapper = await mountEditor('', { uploadFile: vi.fn() })
+
+    wrapper.vm.editor.commands.insertContent(
+      '<img src="https://evil.example.com/p.png" alt="x" data-user-file-name="abc_def.png">'
+    )
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.tiptap img').exists()).toBe(false)
+    expect(
+      wrapper.find('.tiptap .rich-text-editor__image-placeholder').exists()
+    ).toBe(true)
+    expect(wrapper.vm.serializeToMarkdown()).toContain('![x][abc_def.png]')
   })
 
   test('uploads an image pasted from the clipboard', async () => {

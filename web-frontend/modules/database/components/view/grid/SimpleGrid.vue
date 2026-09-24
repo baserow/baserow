@@ -81,7 +81,11 @@
             class="simple-grid__cell"
             :style="{ width: Math.max(getFieldWidth(field), 150) + 'px' }"
           >
-            <SimpleGridField :field="field" :row="row" />
+            <SimpleGridField
+              :field="field"
+              :row="row"
+              :workspace-id="workspaceId"
+            />
           </div>
         </div>
         <div
@@ -159,7 +163,11 @@
                 class="simple-grid__cell"
                 :style="{ width: getFieldWidth(field) + 'px' }"
               >
-                <SimpleGridField :field="field" :row="row" />
+                <SimpleGridField
+                  :field="field"
+                  :row="row"
+                  :workspace-id="workspaceId"
+                />
               </div>
             </div>
             <div
@@ -200,6 +208,13 @@ export default {
     rows: {
       type: Array,
       required: true,
+    },
+    // Needed by field components that resolve workspace data, e.g. rich text
+    // mentions. Previews of a table that does not exist yet have none.
+    workspaceId: {
+      type: Number,
+      required: false,
+      default: null,
     },
     fixedFields: {
       type: Array,

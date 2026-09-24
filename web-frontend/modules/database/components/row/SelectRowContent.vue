@@ -45,6 +45,7 @@
       <SimpleGrid
         v-if="metaDataLoaded && firstPageLoaded"
         :fixed-fields="[primary]"
+        :workspace-id="database?.workspace.id"
         :fields="fields"
         :field-options="fieldOptionsIncludingOverride"
         :rows="rows"

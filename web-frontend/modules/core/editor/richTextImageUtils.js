@@ -1,53 +1,67 @@
+import Markdown from 'markdown-it'
+
 // Alt text: anything except unescaped `[`/`]`, allowing backslash escapes.
 // Deliberately linear (no nested quantifiers) to stay ReDoS-safe. The name must
 // look like `<name>_<hash>.<ext>` and may not contain path separators, so it can
-// never escape the user files directory.
+// never escape the user files directory. The extension may be empty: the backend
+// names an upload without one `<name>_<hash>.`. The URL excludes parentheses and
+// whitespace, so a scan for the closing `)` stops at the next `(` instead of
+// running to the end of the input on every `![` (quadratic on `![x][a_b.png](`
+// repeated). An empty `()` still matches so `stripImageUrls` removes it.
 const IMAGE_WITH_URL_REGEX =
-  /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]+)\]\(([^)]*)\)/g
+  /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[([a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]*)\]\(([^()\s]*)\)/g
 
-// A fenced code block opens with three or more backticks or tildes, indented
-// by up to three spaces (CommonMark 4.5).
-const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/
 const BACKTICK_RUN_REGEX = /`+/g
 
-function* iterFenceSegments(content) {
-  const lines = content.split(/(?<=\n)/)
-  let text = []
-  let code = []
-  let fenceChar = null
-  let fenceLength = 0
+// Same block configuration as `parseMarkdown` in `markdown.js`, which decides
+// what renders as code. Only the block structure is needed, so the inline rules
+// are skipped.
+const blockMarkdown = new Markdown({ html: false })
+blockMarkdown.core.ruler.disable(
+  ['inline', 'linkify', 'replacements', 'smartquotes', 'text_join'],
+  true
+)
 
-  for (const line of lines) {
-    const match = FENCE_REGEX.exec(line)
-    if (fenceChar === null) {
-      if (match) {
-        if (text.length) {
-          yield [text.join(''), false]
-          text = []
-        }
-        fenceChar = match[1][0]
-        fenceLength = match[1].length
-        code.push(line)
-      } else {
-        text.push(line)
-      }
-    } else {
-      code.push(line)
-      if (
-        match &&
-        match[1][0] === fenceChar &&
-        match[1].length >= fenceLength &&
-        line.slice(match[0].length).trim() === ''
-      ) {
-        yield [code.join(''), true]
-        code = []
-        fenceChar = null
-      }
+// markdown-it normalises `\r\n` and `\r` to `\n` before numbering lines, so the
+// lines are split the same way to keep its line map aligned.
+const LINE_REGEX = /[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+$/g
+
+let lastBlockSegments = { content: null, segments: null }
+
+/**
+ * Splits `content` into `[segment, isCode]` pairs by line, using the
+ * `code_block` (indented) and `fence` tokens markdown-it finds at any nesting
+ * level (lists, blockquotes). Mirrors the backend, which uses markdown-it-py.
+ */
+function blockSegments(content) {
+  if (lastBlockSegments.content === content) {
+    return lastBlockSegments.segments
+  }
+  const lines = content.match(LINE_REGEX) || []
+  const isCodeLine = new Uint8Array(lines.length)
+  for (const token of blockMarkdown.parse(content, {})) {
+    if ((token.type === 'code_block' || token.type === 'fence') && token.map) {
+      const [startLine, endLine] = token.map
+      isCodeLine.fill(1, startLine, Math.min(endLine, lines.length))
     }
   }
 
-  if (text.length) yield [text.join(''), false]
-  if (code.length) yield [code.join(''), true]
+  const segments = []
+  let current = ''
+  let currentIsCode = null
+  lines.forEach((line, index) => {
+    const isCode = isCodeLine[index] === 1
+    if (currentIsCode !== null && isCode !== currentIsCode) {
+      segments.push([current, currentIsCode])
+      current = ''
+    }
+    current += line
+    currentIsCode = isCode
+  })
+  if (current) segments.push([current, currentIsCode])
+
+  lastBlockSegments = { content, segments }
+  return segments
 }
 
 /**
@@ -98,13 +112,13 @@ function* iterInlineCodeSegments(content) {
 }
 
 /**
- * Yields `[segment, isCode]` pairs covering `content` in order. Inside a fenced
- * block or an inline code span, image syntax is literal text: it must not be
+ * Yields `[segment, isCode]` pairs covering `content` in order. Inside a code
+ * block (fenced or indented) or an inline code span, image syntax is literal text: it must not be
  * rewritten, resolved or replaced by a placeholder. Mirrors
  * `iter_code_segments` on the backend.
  */
 export function* iterCodeSegments(content) {
-  for (const [segment, isCode] of iterFenceSegments(content)) {
+  for (const [segment, isCode] of blockSegments(content)) {
     if (isCode) {
       yield [segment, true]
     } else {
@@ -148,7 +162,7 @@ export function stripImageUrls(content) {
 }
 
 const IMAGE_REF_REGEX =
-  /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]+\]/g
+  /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\[[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]*\]/g
 
 // A sentinel standing in for an image on the surfaces that render none. It is a
 // single character so it survives slicing and length maths as one unit, and
@@ -197,14 +211,24 @@ export function replaceImagesWithPlaceholder(content) {
 
 // Plain markdown images `![alt](url)` that are not Baserow uploads. Cannot
 // match the Baserow form because there `]` is followed by `[name]`, not `(`.
-const PLAIN_IMAGE_REGEX = /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\(([^)]*)\)/g
+// The destination allows one level of balanced parentheses
+// (`https://x/a_(b).png`) but no unbalanced `(`, so the scan for `)` cannot run
+// to the end of the input on every `![` (quadratic on `![x](` repeated).
+// Whitespace stays allowed so a titled image `![a](url "title")` is still
+// matched. Deeper nesting is not matched here; `parseMarkdown` refuses to render
+// any image it did not resolve, so such an image still never loads.
+const PLAIN_IMAGE_REGEX =
+  /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\(((?:[^()]|\([^()]*\))*)\)/g
 
 // An image token that starts but never closes before the end of the input, e.g.
 // `![alt` or `![alt][name](url`. A complete token followed by anything does not
-// match because the anchors require the end.
+// match because the anchors require the end. The URL tails stop at an
+// unbalanced `(` for the same reason as the regexes above: otherwise every `![`
+// would scan to the end of the input.
 const ALT_TAIL = String.raw`[^[\]\\\n]*(?:\\.[^[\]\\\n]*)*`
+const PLAIN_URL_TAIL = String.raw`(?:[^()\n]|\([^()\n]*\))*(?:\([^()\n]*)?`
 const UNFINISHED_IMAGE_TAIL_REGEX = new RegExp(
-  String.raw`!\[${ALT_TAIL}(?:\]\[[^\]\n]*(?:\]\([^)\n]*)?|\]\([^)\n]*)?$`
+  String.raw`!\[${ALT_TAIL}(?:\]\[[^\]\n]*(?:\]\([^()\n]*)?|\]\(${PLAIN_URL_TAIL})?$`
 )
 
 /**
@@ -247,4 +271,59 @@ export function isRenderableUserFile(userFile) {
   if (userFile.is_image) return true
   const extension = (userFile.original_extension || '').toLowerCase()
   return SVG_EXTENSIONS.includes(extension)
+}
+
+// Characters a user file name's extension cannot contain for the stored
+// reference `![alt][<name>_<hash>.<ext>]` to match.
+const UNSAFE_EXTENSION_CHARS_REGEX = /[\]()\s/\\]/g
+
+/**
+ * Drops the characters the reference cannot carry from the extension of an
+ * upload's name, e.g. `photo.png)` becomes `photo.png`. The backend derives the
+ * stored extension from this name.
+ */
+export function sanitizeUploadFileName(name) {
+  if (!name) return name || ''
+  const dot = name.lastIndexOf('.')
+  if (dot === -1) return name
+  return (
+    name.slice(0, dot + 1) +
+    name.slice(dot + 1).replace(UNSAFE_EXTENSION_CHARS_REGEX, '')
+  )
+}
+
+const IMAGE_TYPES_BY_EXTENSION = {
+  apng: 'image/apng',
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+  gif: 'image/gif',
+  ico: 'image/x-icon',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+}
+
+/**
+ * The image MIME type to upload `file` as, or `null` when it is not an image.
+ * The browser derives `file.type` from the extension, so `photo.png)` arrives
+ * with an empty type; the sanitized extension decides then.
+ */
+export function imageUploadType(file) {
+  if (!file) return null
+  if (file.type) return file.type.startsWith('image/') ? file.type : null
+  const name = sanitizeUploadFileName(file.name || '')
+  const dot = name.lastIndexOf('.')
+  if (dot === -1) return null
+  return IMAGE_TYPES_BY_EXTENSION[name.slice(dot + 1).toLowerCase()] || null
+}
+
+/**
+ * Whether a dropped or pasted file is worth uploading as an image. A file the
+ * browser could not type (no extension, or `photo.png)`) may still be one, so
+ * it is uploaded and the backend's `is_image` decides, like a misleading type.
+ */
+export function isImageUploadCandidate(file) {
+  return Boolean(file) && (!file.type || file.type.startsWith('image/'))
 }

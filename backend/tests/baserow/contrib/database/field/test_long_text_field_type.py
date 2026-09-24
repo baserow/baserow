@@ -5,8 +5,11 @@ from zipfile import ZipFile
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
+from django.db import transaction
+from django.urls import reverse
 
 import pytest
+from rest_framework.status import HTTP_400_BAD_REQUEST
 
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
@@ -15,8 +18,12 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.export.table_exporters.csv_table_exporter import (
     CsvQuerysetSerializer,
 )
-from baserow.contrib.database.fields.exceptions import IncompatiblePrimaryFieldTypeError
+from baserow.contrib.database.fields.exceptions import (
+    IncompatiblePrimaryFieldTypeError,
+    RichTextImageLimitExceeded,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import Field, TextField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.rich_text_utils import (
     MAX_RICH_TEXT_IMAGES,
@@ -1206,3 +1213,147 @@ def test_max_length_ignores_resolved_image_urls(data_fixture, api_client, settin
     )
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+PIXEL_REFERENCE = "![logo][remote]\n\n[remote]: https://example.com/p.gif"
+
+
+def _hijacking_definition(name):
+    # Shadows a real user file reference, case-insensitively, from a blockquote.
+    return f"![a][{name}]\n\n> [{name.upper()}]: https://example.com/p.gif"
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_rejects_markdown_rendered_images(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+
+    for value in [PIXEL_REFERENCE, _hijacking_definition(user_file.name)]:
+        with pytest.raises(ValidationError) as exc:
+            field_type.prepare_value_for_db(field, value)
+        assert exc.value.code == "external_image_not_supported"
+
+    # Code stays literal, so an example of the syntax is fine.
+    value = f"```\n{PIXEL_REFERENCE}\n```"
+    assert field_type.prepare_value_for_db(field, value) == value
+
+
+@pytest.mark.django_db
+def test_prepare_value_for_db_in_bulk_rejects_markdown_rendered_images(data_fixture):
+    _, _, field, field_type = _rich_text_field(data_fixture)
+    values_by_row = {0: "text", 1: PIXEL_REFERENCE}
+
+    with pytest.raises(ValidationError):
+        field_type.prepare_value_for_db_in_bulk(field, dict(values_by_row))
+
+    result = field_type.prepare_value_for_db_in_bulk(
+        field, dict(values_by_row), continue_on_error=True
+    )
+    assert result[0] == "text"
+    assert result[1].code == "external_image_not_supported"
+
+
+@pytest.mark.django_db
+def test_import_serialized_value_escapes_markdown_rendered_images(data_fixture):
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    model = table.get_model()
+
+    row = model()
+    field_type.set_import_serialized_value(
+        row, field.db_column, PIXEL_REFERENCE, {}, {}, None, None
+    )
+    assert getattr(row, field.db_column) == "\\" + PIXEL_REFERENCE
+
+    row = model()
+    field_type.set_import_serialized_value(
+        row, field.db_column, _hijacking_definition(user_file.name), {}, {}, None, None
+    )
+    stored = getattr(row, field.db_column)
+    # The definition is escaped, the user file reference is kept.
+    assert stored == (
+        f"![a][{user_file.name}]\n\n> \\[{user_file.name.upper()}]: "
+        "https://example.com/p.gif"
+    )
+    assert extract_user_file_names(stored) == {user_file.name}
+
+
+def _over_limit_value():
+    return " ".join(
+        f"![x][{'a' * 8}{i:04d}_hash.png]" for i in range(MAX_RICH_TEXT_IMAGES + 1)
+    )
+
+
+@pytest.mark.django_db
+def test_enabling_rich_text_rejects_values_over_image_limit(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    RowHandler().create_row(user, table, {field.db_column: _over_limit_value()})
+
+    # The API wraps the update in a transaction, which the error rolls back.
+    with pytest.raises(RichTextImageLimitExceeded), transaction.atomic():
+        FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
+
+    field.refresh_from_db()
+    assert not field.long_text_enable_rich_text
+
+
+@pytest.mark.django_db
+def test_enabling_rich_text_ignores_code_and_values_within_limit(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {field.db_column: f"```\n{_over_limit_value()}\n```"},
+            {field.db_column: "![x][abc_def.png] " * MAX_RICH_TEXT_IMAGES},
+        ],
+    )
+
+    field = FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
+
+    assert field.long_text_enable_rich_text
+
+
+@pytest.mark.django_db
+def test_converting_text_to_rich_text_rejects_values_over_image_limit(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    RowHandler().create_row(user, table, {field.db_column: _over_limit_value()})
+
+    with pytest.raises(RichTextImageLimitExceeded), transaction.atomic():
+        FieldHandler().update_field(
+            user, field, new_type_name="long_text", long_text_enable_rich_text=True
+        )
+
+    assert isinstance(Field.objects.get(id=field.id).specific, TextField)
+
+
+@pytest.mark.django_db
+def test_enabling_rich_text_over_image_limit_is_a_400(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    RowHandler().create_row(user, table, {field.db_column: _over_limit_value()})
+
+    response = api_client.patch(
+        reverse("api:database:fields:item", kwargs={"field_id": field.id}),
+        {"long_text_enable_rich_text": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED"
+    field.refresh_from_db()
+    assert not field.long_text_enable_rich_text

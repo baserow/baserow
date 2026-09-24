@@ -702,6 +702,27 @@ describe('parseMarkdown external image handling', () => {
     expect(link.getAttribute('href')).toBe('https://example.com/photo.png')
   })
 
+  // The demotion regex allows one level of parentheses only. Any image it
+  // misses is still not loaded: the renderer only emits `<img>` for a resolved
+  // Baserow reference.
+  test.each([
+    ['![photo](https://example.com/a((b)).png)'],
+    ['![photo](https://example.com/a((b)).png "t")'],
+  ])('never renders an img for an unresolved image %s', (markdown) => {
+    const document = parse(`see ${markdown} here`, true)
+
+    expect(document.querySelector('img')).toBeNull()
+    expect(document.body.textContent).not.toContain('example.com')
+    expect(document.body.textContent).toContain('photo')
+  })
+
+  test('renders a titled plain image as a link', () => {
+    const document = parse('![photo](https://example.com/a.png "t")', true)
+
+    expect(document.querySelector('img')).toBeNull()
+    expect(document.querySelector('a')).not.toBeNull()
+  })
+
   test('renders a plain markdown image as a link when enableImages=false', () => {
     const html = parseMarkdown(
       'see ![photo](https://example.com/photo.png) here',

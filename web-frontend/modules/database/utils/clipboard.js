@@ -1,3 +1,5 @@
+import { registerTrustedImageUrlsFromMarkdown } from '@baserow/modules/core/editor/trustedImageUrls'
+
 /**
  * Copies the given text to the clipboard by temporarily creating a textarea and
  * using the documents `copy` command.
@@ -56,9 +58,13 @@ export const getRichTextClipboardContent = (textRawData) => {
   }
 
   const richValue = richClipboardData[0][0]
-  return richValue?.richText && typeof richValue.value === 'string'
-    ? richValue.value
-    : null
+  if (!richValue?.richText || typeof richValue.value !== 'string') {
+    return null
+  }
+  // The value is a grid cell the backend resolved, so its image URLs may be
+  // loaded by the editor it is pasted into.
+  registerTrustedImageUrlsFromMarkdown(richValue.value)
+  return richValue.value
 }
 
 /**

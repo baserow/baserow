@@ -5370,3 +5370,29 @@ def test_rich_text_image_limit_is_a_400_not_a_500(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_rich_text_markdown_rendered_image_is_a_400(api_client, data_fixture):
+    """A reference definition can make markdown render ``![x][ref]`` as a remote
+    image, which a public view would then load for every reader."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+
+    for value in [
+        "![logo][remote]\n\n[remote]: https://example.com/p.gif",
+        f"![a][{user_file.name}]\n\n[{user_file.name}]: https://example.com/p.gif",
+    ]:
+        response = api_client.post(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+            {f"field_{field.id}": value},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

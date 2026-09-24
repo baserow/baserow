@@ -616,7 +616,9 @@ class DataSyncHandler:
                     continue
                 rows_to_create.append(
                     {
-                        f"field_{property.field_id}": data[property.key]
+                        f"field_{property.field_id}": key_to_property[
+                            property.key
+                        ].normalize_value(data[property.key])
                         for property in enabled_properties
                     }
                 )
@@ -660,10 +662,10 @@ class DataSyncHandler:
                     changed_values = {}
                     for enabled_property in enabled_properties:
                         key = enabled_property.key
-                        value = new_record_data[key]
+                        data_sync_property = key_to_property[key]
+                        value = data_sync_property.normalize_value(new_record_data[key])
                         field_name = key_to_field_id[key]
                         baserow_row_value = existing_record[field_name]
-                        data_sync_property = key_to_property[key]
                         if data_sync_property.is_equal(baserow_row_value, value):
                             continue
 

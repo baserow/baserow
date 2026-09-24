@@ -112,6 +112,7 @@
           <SimpleGrid
             class="import-modal__preview"
             :rows="previewImportData"
+            :workspace-id="database.workspace.id"
             :fields="sortedFields"
             :field-options="importFieldOptions"
           />
@@ -120,6 +121,7 @@
           <SimpleGrid
             class="import-modal__preview"
             :rows="previewFileData"
+            :workspace-id="database.workspace.id"
             :fields="fileFields"
             :field-options="fileFieldOptions"
           />

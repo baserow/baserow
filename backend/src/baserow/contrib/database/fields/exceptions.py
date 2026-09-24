@@ -269,6 +269,17 @@ class FailedToLockFieldDueToConflict(LockConflict):
     """
 
 
+class RichTextImageLimitExceeded(Exception):
+    """
+    Raised when rich text is enabled on a field whose existing values reference
+    more images than a rich text value may.
+    """
+
+    def __init__(self, limit, *args, **kwargs):
+        self.limit = limit
+        super().__init__(*args, **kwargs)
+
+
 class DateForceTimezoneOffsetValueError(ValueError):
     """
     Raised when the force_timezone_offset value offset cannot be set.

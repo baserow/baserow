@@ -199,6 +199,12 @@ ERROR_FIELD_CONSTRAINT = (
     HTTP_400_BAD_REQUEST,
     "Cannot apply field constraint due to existing data conflicts.",
 )
+ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED = (
+    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+    HTTP_400_BAD_REQUEST,
+    "Cannot enable rich text because an existing value references more than "
+    "{e.limit} images.",
+)
 ERROR_FIELD_DATA_CONSTRAINT = (
     "ERROR_FIELD_DATA_CONSTRAINT",
     HTTP_400_BAD_REQUEST,
