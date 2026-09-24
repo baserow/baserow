@@ -163,6 +163,7 @@ import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/W
 import CreateApplicationContext from '@baserow/modules/core/components/application/CreateApplicationContext'
 import SearchHighlight from '@baserow/modules/core/components/SearchHighlight'
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
+import { getWorkspaceMembersCount } from '@baserow/modules/core/utils/workspace'
 
 const COMPACT_APPLICATION_LIMIT = 3
 
@@ -236,7 +237,14 @@ export default {
       return this.workspace.name.trim().charAt(0).toUpperCase()
     },
     memberCount() {
-      return this.workspace.users?.length ?? 0
+      return getWorkspaceMembersCount(
+        this.workspace,
+        this.$hasPermission(
+          'workspace.list_agents',
+          this.workspace,
+          this.workspace.id
+        )
+      )
     },
     hasUnreadNotifications() {
       return this.$store.getters['notification/workspaceHasUnread'](

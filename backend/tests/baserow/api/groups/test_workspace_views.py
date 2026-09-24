@@ -19,7 +19,7 @@ from baserow.core.ai_provider.models import (
     AIProviderWorkspaceOverride,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Agent, Workspace, WorkspaceUser
 from baserow.test_utils.helpers import is_dict_subset
 
 
@@ -265,6 +265,22 @@ def test_list_workspaces(api_client, data_fixture):
     assert response_json[1]["name"] == user_workspace_2.workspace.name
     assert response_json[1]["permissions"] == "ADMIN"
     assert response_json[0]["unread_notifications_count"] == 0
+
+
+@pytest.mark.django_db
+def test_list_workspaces_includes_agent_count(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    data_fixture.create_user_workspace(workspace=workspace)
+    Agent.objects.create(workspace=workspace, name="Writer")
+
+    response = api_client.get(
+        reverse("api:workspaces:list"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[0]["agents_count"] == 1
 
 
 @pytest.mark.django_db
