@@ -1,27 +1,41 @@
+import time
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Union
 
+from django.contrib.auth.models import AbstractUser
+from django.db import IntegrityError, transaction
 from django.db.models import Prefetch, QuerySet
+from django.utils import timezone
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
+    AutomationWorkflowHistoryCancellationAlreadyRequested,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
+    AutomationWorkflowHistoryNotRunning,
 )
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
     AutomationNodeResult,
     AutomationWorkflowHistory,
+    AutomationWorkflowHistoryResponse,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.core.db import specific_iterator
+from baserow.core.registries import subject_type_registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
+from baserow.core.types import Subject
 
 
 class AutomationHistoryHandler:
+    RESPONSE_POLL_INITIAL_INTERVAL_SECONDS = 0.1
+    RESPONSE_POLL_MAX_INTERVAL_SECONDS = 1.0
+    RESPONSE_POLL_BACKOFF_MULTIPLIER = 2
+
     def get_workflow_histories(
         self, workflow: AutomationWorkflow, base_queryset: Optional[QuerySet] = None
     ) -> QuerySet[AutomationWorkflowHistory]:
@@ -56,9 +70,9 @@ class AutomationHistoryHandler:
             base_queryset = AutomationWorkflowHistory.objects.all()
 
         try:
-            return base_queryset.select_related("workflow__automation__workspace").get(
-                id=history_id
-            )
+            return base_queryset.select_related(
+                "workflow__automation__workspace", "cancellation_requested_by"
+            ).get(id=history_id)
         except AutomationWorkflowHistory.DoesNotExist:
             raise AutomationWorkflowHistoryDoesNotExist(history_id)
 
@@ -73,8 +87,25 @@ class AutomationHistoryHandler:
         status: HistoryStatusChoices = HistoryStatusChoices.STARTED,
         completed_on: Optional[datetime] = None,
         message: str = "",
+        triggered_by: Optional[Subject] = None,
     ) -> AutomationWorkflowHistory:
-        """Creates a history entry for a Workflow run."""
+        """
+        Creates a history entry for a Workflow run.
+
+        :param triggered_by: The subject who deliberately started the run, when
+            one did. An event-started run has none.
+        """
+
+        triggered_by_values = {}
+        if triggered_by is not None:
+            subject_type = subject_type_registry.get_by_model(triggered_by)
+            triggered_by_values = {
+                "triggered_by_id": triggered_by.id,
+                "triggered_by_type": subject_type.type,
+                # TODO: use `subject_type.get_display_name` once agents are
+                #  subjects (#6064). Users are the only subject starting a run.
+                "triggered_by_name": triggered_by.first_name,
+            }
 
         return AutomationWorkflowHistory.objects.create(
             workflow=workflow,
@@ -86,7 +117,86 @@ class AutomationHistoryHandler:
             status=status,
             completed_on=completed_on,
             message=message,
+            **triggered_by_values,
         )
+
+    def request_workflow_history_cancellation(
+        self, workflow_history: AutomationWorkflowHistory, user: AbstractUser
+    ) -> AutomationWorkflowHistory:
+        """
+        Records that `user` asked for the given run to be cancelled.
+
+        This is the first phase of a cooperative cancellation: nothing is stopped
+        here. The runner reads the request fields before dispatching every node and
+        finalizes the run itself, see `finalize_workflow_history_cancellation`.
+
+        The update is conditional so that it never clobbers a run that has just
+        reached a terminal status, and so that only the first request is recorded:
+        a later one is refused and keeps the attribution of the first requester,
+        which tells that later requester somebody else asked before them.
+
+        :param workflow_history: The run to cancel.
+        :param user: The user requesting the cancellation.
+        :raises AutomationWorkflowHistoryNotRunning: If the run already resolved.
+        :raises AutomationWorkflowHistoryCancellationAlreadyRequested: If the
+            cancellation of the run was already requested.
+        :return: The refreshed workflow history.
+        """
+
+        updated = AutomationWorkflowHistory.objects.filter(
+            id=workflow_history.id,
+            status=HistoryStatusChoices.STARTED,
+            cancellation_requested_on__isnull=True,
+        ).update(
+            cancellation_requested_by=user,
+            cancellation_requested_on=timezone.now(),
+        )
+
+        # Whether we won the update or not, the row decides the outcome: a run that
+        # already resolved is an error even if our request landed first. A run that
+        # is still running but wasn't updated was already flagged by someone else.
+        workflow_history = self.get_workflow_history(workflow_history.id)
+        if workflow_history.status != HistoryStatusChoices.STARTED:
+            raise AutomationWorkflowHistoryNotRunning(workflow_history.id)
+        if not updated:
+            raise AutomationWorkflowHistoryCancellationAlreadyRequested(
+                workflow_history.id
+            )
+
+        return workflow_history
+
+    def finalize_workflow_history_cancellation(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> bool:
+        """
+        Marks a run whose cancellation was requested as `CANCELLED`.
+
+        Called by the runner when it notices the cancellation request before
+        dispatching a node. The update is guarded on the run still being `STARTED`
+        so that it is idempotent: it never overwrites a run that was resolved in
+        the meantime (e.g. by the timeout sweep or the dispatch-done handler), and
+        it stays safe if dispatches within a run ever execute concurrently.
+
+        :param workflow_history: The run to finalize.
+        :return: True if this call performed the finalization.
+        """
+
+        # requester can be None if the user's account was deleted.
+        requester = workflow_history.cancellation_requested_by
+        if requester is not None:
+            message = f"Cancelled by {requester.first_name} ({requester.id})."
+        else:
+            message = "Cancelled."
+
+        updated = AutomationWorkflowHistory.objects.filter(
+            id=workflow_history.id,
+            status=HistoryStatusChoices.STARTED,
+        ).update(
+            status=HistoryStatusChoices.CANCELLED,
+            completed_on=timezone.now(),
+            message=message,
+        )
+        return updated == 1
 
     def create_node_history(
         self,
@@ -148,6 +258,100 @@ class AutomationHistoryHandler:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
 
         return node_result.result
+
+    def create_workflow_history_response(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        status_code: int,
+        headers: Optional[Dict[str, str]] = None,
+        body=None,
+        body_type: str = RESPONSE_BODY_TYPE.EMPTY,
+        source_node: Optional[AutomationNode] = None,
+        is_default: bool = False,
+    ) -> tuple[AutomationWorkflowHistoryResponse, bool]:
+        """
+        Creates the workflow response if one doesn't already exist.
+        """
+
+        try:
+            with transaction.atomic():
+                return (
+                    AutomationWorkflowHistoryResponse.objects.create(
+                        workflow_history=workflow_history,
+                        status_code=status_code,
+                        headers=headers or {},
+                        body=body,
+                        body_type=body_type,
+                        source_node=source_node,
+                        is_default=is_default,
+                    ),
+                    True,
+                )
+        except IntegrityError:
+            return (
+                AutomationWorkflowHistoryResponse.objects.get(
+                    workflow_history=workflow_history
+                ),
+                False,
+            )
+
+    def ensure_default_response(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> AutomationWorkflowHistoryResponse:
+        """
+        Ensures the workflow history has a default empty 204 response.
+        """
+
+        response, _ = self.create_workflow_history_response(
+            workflow_history,
+            status_code=204,
+            headers={},
+            body=None,
+            body_type=RESPONSE_BODY_TYPE.EMPTY,
+            is_default=True,
+        )
+        return response
+
+    def get_workflow_history_response(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> Optional[AutomationWorkflowHistoryResponse]:
+        try:
+            return AutomationWorkflowHistoryResponse.objects.get(
+                workflow_history=workflow_history
+            )
+        except AutomationWorkflowHistoryResponse.DoesNotExist:
+            return None
+
+    def wait_for_workflow_response(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        timeout_seconds: int,
+    ) -> Optional[AutomationWorkflowHistoryResponse]:
+        """
+        Polls with bounded backoff until a response exists or the timeout expires.
+        """
+
+        deadline = time.monotonic() + timeout_seconds
+        poll_interval = self.RESPONSE_POLL_INITIAL_INTERVAL_SECONDS
+        while time.monotonic() < deadline:
+            workflow_history.refresh_from_db(fields=["status", "completed_on"])
+            if response := self.get_workflow_history_response(workflow_history):
+                return response
+
+            if workflow_history.status != HistoryStatusChoices.STARTED:
+                return self.ensure_default_response(workflow_history)
+
+            remaining_seconds = deadline - time.monotonic()
+            if remaining_seconds <= 0:
+                break
+
+            time.sleep(min(poll_interval, remaining_seconds))
+            poll_interval = min(
+                poll_interval * self.RESPONSE_POLL_BACKOFF_MULTIPLIER,
+                self.RESPONSE_POLL_MAX_INTERVAL_SECONDS,
+            )
+
+        return None
 
     def get_node_history(
         self,

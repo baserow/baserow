@@ -46,7 +46,7 @@ def test_enforce_sso_ssrf_protection_disabled_when_private_addresses_allowed():
 
 
 def test_get_valid_front_url():
-    assert get_valid_frontend_url() == "http://localhost:3000/dashboard"
+    assert get_valid_frontend_url() == "http://localhost:3000/all-workspaces"
     assert (
         get_valid_frontend_url("http://localhost:3000/dashboard")
         == "http://localhost:3000/dashboard"
@@ -61,20 +61,20 @@ def test_get_valid_front_url():
     )
     assert (
         get_valid_frontend_url("http://localhost:3000/other", allow_any_path=False)
-        == "http://localhost:3000/dashboard"
+        == "http://localhost:3000/all-workspaces"
     )
     assert (
         get_valid_frontend_url("http://localhost:3000/")
-        == "http://localhost:3000/dashboard"
+        == "http://localhost:3000/all-workspaces"
     )
 
     assert (
         get_valid_frontend_url("http://something.com/")
-        == "http://localhost:3000/dashboard"
+        == "http://localhost:3000/all-workspaces"
     )
     assert (
         get_valid_frontend_url("http://something.com/dashboard/test")
-        == "http://localhost:3000/dashboard"
+        == "http://localhost:3000/all-workspaces"
     )
 
 
@@ -134,7 +134,7 @@ def test_get_valid_front_url_with_defaults():
 def test_get_valid_front_url_w_params():
     assert (
         get_valid_frontend_url(query_params={"test": "value"})
-        == "http://localhost:3000/dashboard?test=value"
+        == "http://localhost:3000/all-workspaces?test=value"
     )
     assert (
         get_valid_frontend_url(

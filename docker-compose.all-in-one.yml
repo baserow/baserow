@@ -3,7 +3,7 @@
 services:
   baserow:
     container_name: baserow
-    image: baserow/baserow:${BASEROW_VERSION:-2.3.3}
+    image: baserow/baserow:${BASEROW_VERSION:-2.3.4}
     environment:
       BASEROW_PUBLIC_URL: 'http://localhost'
       BASEROW_FRONTEND_COOKIE_PREFIX:

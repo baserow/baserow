@@ -1,7 +1,9 @@
 from collections import defaultdict
 from unittest.mock import MagicMock, Mock, patch
 
+from django.db import connection
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
@@ -116,7 +118,6 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
                 "field_id": service_filter.field_id,
                 "type": service_filter.type,
                 "value": service_filter.value,
-                "value_is_formula": service_filter.value_is_formula,
                 "group": service_filter.group_id,
             }
         ],
@@ -149,7 +150,7 @@ def test_export_import_local_baserow_list_rows_service(data_fixture):
     assert service_filter.type == exported["filters"][0]["type"]
     assert service_filter.value == exported["filters"][0]["value"]
     assert service_filter.field_id == exported["filters"][0]["field_id"]
-    assert service_filter.value_is_formula == exported["filters"][0]["value_is_formula"]
+    assert service_filter.value["mode"] == exported["filters"][0]["value"]["mode"]
 
     assert service.service_sorts.count() == 1
     service_sort = service.service_sorts.get()
@@ -350,6 +351,35 @@ def test_local_baserow_list_rows_service_before_dispatch_validation_error(data_f
     service = data_fixture.create_local_baserow_list_rows_service(
         integration=integration, table=None
     )
+
+    dispatch_context = FakeDispatchContext()
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
+        LocalBaserowListRowsUserServiceType().resolve_service_formulas(
+            service, dispatch_context
+        )
+
+
+@pytest.mark.django_db
+def test_local_baserow_list_rows_service_dispatch_with_trashed_integration(
+    data_fixture,
+):
+    # Dispatching a service whose integration has been trashed must raise a handled
+    # configuration error rather than dereferencing the (now None) integration.
+    from baserow.core.trash.handler import TrashHandler
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table, _, _ = data_fixture.build_table(
+        user=user, columns=[("Name", "text")], rows=[["A"]]
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration, table=table
+    )
+
+    TrashHandler.trash(user, page.builder.workspace, page.builder, integration)
 
     dispatch_context = FakeDispatchContext()
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
@@ -814,11 +844,11 @@ def test_import_formula_local_baserow_list_rows_user_service_type(data_fixture):
         imported_service_filter_0.value["formula"]
         == f"get('data_source.{data_source2.id}.0.{text_field.db_column}')"
     )
-    assert imported_service_filter_0.value_is_formula is True
+    assert imported_service_filter_0.value["mode"] == "simple"
 
     imported_service_filter_1 = imported_service.service_filters.get(order=1)
     assert imported_service_filter_1.value["formula"] == "fooValue"
-    assert imported_service_filter_1.value_is_formula is False
+    assert imported_service_filter_1.value["mode"] == "raw"
 
 
 @pytest.mark.django_db
@@ -1271,3 +1301,43 @@ def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
     result = service_type.extract_properties(service, [])
 
     assert result == ["id", field_1.db_column, field_2.db_column]
+
+
+@pytest.mark.django_db
+def test_generating_a_schema_does_not_query_per_button_field(data_fixture):
+    """
+    A button's `has_workflow_actions` and `requires_reconfiguration` describe
+    its actions, not the table's data, and each would cost a query.
+    """
+
+    service_type = LocalBaserowListRowsUserServiceType()
+
+    def schema_queries(button_count):
+        table = data_fixture.create_database_table()
+        data_fixture.create_text_field(table=table, name="Name", primary=True)
+        # Every field reads its constraints, so the field count stays the same.
+        for _ in range(3 - button_count):
+            data_fixture.create_text_field(table=table)
+        for _ in range(button_count):
+            data_fixture.create_button_field(table=table)
+        service = data_fixture.create_local_baserow_list_rows_service(table=table)
+        # Only the schema is measured, not the table model it reads.
+        table.get_model()
+
+        with CaptureQueriesContext(connection) as captured:
+            schema = service_type.generate_schema(service)
+
+        buttons = [
+            prop["metadata"]
+            for prop in schema["items"]["properties"].values()
+            if prop.get("original_type") == "button"
+        ]
+        assert len(buttons) == button_count
+        for metadata in buttons:
+            assert "has_workflow_actions" not in metadata
+            assert "requires_reconfiguration" not in metadata
+        return len(captured)
+
+    schema_queries(1)
+
+    assert schema_queries(3) == schema_queries(1)

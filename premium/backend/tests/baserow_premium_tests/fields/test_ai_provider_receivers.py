@@ -38,6 +38,9 @@ def test_disabling_model_broadcasts_updated_ai_field_error(
         patch(
             "baserow_premium.fields.receivers.page_registry.get"
         ) as page_registry_get,
+        patch(
+            "baserow.ws.signals.broadcast_ai_provider_update.delay"
+        ) as broadcast_ai_provider_update,
         django_capture_on_commit_callbacks(execute=True),
     ):
         AIProviderService.update_model(user, provider.models.get().id, is_enabled=False)
@@ -51,6 +54,45 @@ def test_disabling_model_broadcasts_updated_ai_field_error(
         "The selected AI model is disabled or no longer available."
     )
     assert broadcast.call_args.args[1] is None
+    broadcast_ai_provider_update.assert_called_once_with(None, True)
+
+
+@pytest.mark.django_db
+def test_provider_metadata_update_does_not_broadcast_ai_field_error(
+    settings, premium_data_fixture, django_capture_on_commit_callbacks
+):
+    settings.FEATURE_FLAGS = ["ai-providers"]
+    user = premium_data_fixture.create_user(is_staff=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="old-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+    premium_data_fixture.create_ai_field(
+        table=table,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-5",
+        ai_prompt="'Valid prompt'",
+    )
+
+    with (
+        patch(
+            "baserow_premium.fields.receivers.page_registry.get"
+        ) as page_registry_get,
+        patch(
+            "baserow.ws.signals.broadcast_ai_provider_update.delay"
+        ) as broadcast_ai_provider_update,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        AIProviderService.update_provider(
+            user,
+            provider.id,
+            api_key="new-secret",
+        )
+
+    page_registry_get.assert_not_called()
+    broadcast_ai_provider_update.assert_called_once_with(None, False)
 
 
 @pytest.mark.django_db

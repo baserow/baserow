@@ -9,12 +9,10 @@ from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from pydantic import Field, PrivateAttr, model_serializer, model_validator
 
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
-)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
+    formula_object,
     literal_or_placeholder,
     needs_formula,
 )
@@ -29,7 +27,18 @@ if TYPE_CHECKING:
 # Data source sort
 # ---------------------------------------------------------------------------
 
-DataSourceType = Literal["list_rows", "get_row"]
+DataSourceType = Literal[
+    "list_rows",
+    "get_row",
+    "local_baserow_list_rows",
+    "local_baserow_get_row",
+]
+
+# list_data_sources reports registered names; the tables below key on short forms.
+_CANONICAL_TO_SHORT_TYPE = {
+    "local_baserow_list_rows": "list_rows",
+    "local_baserow_get_row": "get_row",
+}
 
 
 class DataSourceSort(BaseModel):
@@ -77,6 +86,21 @@ class DataSourceCreate(BaseModel):
     Type-specific fields are optional — a ``@model_validator`` enforces
     the correct required fields per type.
     """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_registered_type(cls, data):
+        """Normalize source aliases while leaving malformed types for validation.
+
+        :param data: The raw data source payload before model validation.
+        :return: The payload with any registered type replaced by its short alias.
+        """
+
+        if isinstance(data, dict):
+            source_type = data.get("type")
+            if isinstance(source_type, str) and source_type in _CANONICAL_TO_SHORT_TYPE:
+                data["type"] = _CANONICAL_TO_SHORT_TYPE[source_type]
+        return data
 
     ref: str = Field(..., description="Reference ID for this data source.")
     name: str = Field(..., description="Human-readable name.")
@@ -128,7 +152,8 @@ class DataSourceCreate(BaseModel):
         Delegates to a per-type matcher in ``_STRUCTURAL_MATCH``.
         """
 
-        if self.type != existing.type:
+        existing_type = _CANONICAL_TO_SHORT_TYPE.get(existing.type, existing.type)
+        if self.type != existing_type:
             return False
         matcher = _STRUCTURAL_MATCH.get(self.type)
         return matcher(self, existing) if matcher else False
@@ -145,13 +170,13 @@ class DataSourceCreate(BaseModel):
         kwargs: dict[str, Any] = {"table": table}
 
         if self.type == "get_row" and self.row_id is not None:
-            kwargs["row_id"] = BaserowFormulaObject.create(
+            kwargs["row_id"] = formula_object(
                 literal_or_placeholder(self.row_id),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
 
         if self.type == "list_rows" and self.search_query:
-            kwargs["search_query"] = BaserowFormulaObject.create(
+            kwargs["search_query"] = formula_object(
                 literal_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
@@ -212,12 +237,12 @@ class DataSourceCreate(BaseModel):
         service_kwargs: dict[str, Any] = {}
 
         if "row_id" in formulas:
-            service_kwargs["row_id"] = BaserowFormulaObject.create(
+            service_kwargs["row_id"] = formula_object(
                 formulas["row_id"], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
         if "search_query" in formulas:
-            service_kwargs["search_query"] = BaserowFormulaObject.create(
+            service_kwargs["search_query"] = formula_object(
                 formulas["search_query"], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
@@ -287,13 +312,13 @@ class DataSourceUpdate(BaseModel):
             kwargs["table"] = table
 
         if self.row_id is not None:
-            kwargs["row_id"] = BaserowFormulaObject.create(
+            kwargs["row_id"] = formula_object(
                 literal_or_placeholder(self.row_id),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )
 
         if self.search_query is not None:
-            kwargs["search_query"] = BaserowFormulaObject.create(
+            kwargs["search_query"] = formula_object(
                 literal_or_placeholder(self.search_query),
                 mode=BASEROW_FORMULA_MODE_ADVANCED,
             )

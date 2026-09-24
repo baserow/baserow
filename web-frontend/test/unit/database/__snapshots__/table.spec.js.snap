@@ -4,7 +4,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
 "<div>
   <div>
     <header class="layout__col-2-1 header header--dark-border">
-      <div class="header__loading" style="display: none;"></div>
+      <!--v-if-->
       <ul class="header__filter">
         <!--v-if-->
         <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>
@@ -120,7 +120,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <!--v-if-->
         </li>
         <!--v-if-->
-        <li class="header__filter-item">
+        <li class="header__filter-item header__filter-item--only-margin-right">
           <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a><a class="header__search-clear" aria-label="viewSearch.clearSearch" style="display: none;"><i class="iconoir-cancel"></i></a>
             <teleport-stub to="body">
               <div class="context visibility-hidden context--overflow-scroll">
@@ -155,8 +155,9 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             <div class="grid-view__body">
               <div class="grid-view__body-inner">
                 <div class="grid-view__placeholder" style="height: 33px; width: 72px;">
-                  <div class="grid-view__placeholder-groups" style="width: 0px;"></div>
+                  <!--v-if-->
                 </div>
+                <!--v-if-->
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
                   <div class="grid-view__row">
                     <!--v-if-->
@@ -177,6 +178,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               </div>
             </div>
             <div class="grid-view__foot">
+              <!--v-if-->
               <div class="grid-view__foot-info">gridView.rowCount - 1</div>
             </div>
           </div>
@@ -253,6 +255,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   <div class="grid-view__placeholder-column" style="left: 399px;"></div>
                   <div class="grid-view__placeholder-column" style="left: 599px;"></div>
                 </div>
+                <!--v-if-->
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
                   <div class="grid-view__row">
                     <!--v-if-->
@@ -281,6 +284,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               </div>
             </div>
             <div class="grid-view__foot">
+              <!--v-if-->
               <!--v-if-->
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
@@ -321,7 +325,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         </div>
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
-          <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 672px; top: 0px; display: none;"></div>
         </div>
         <teleport-stub to="body">
           <div class="context visibility-hidden context--overflow-scroll">
@@ -343,7 +347,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
 "<div>
   <div>
     <header class="layout__col-2-1 header header--dark-border">
-      <div class="header__loading" style="display: none;"></div>
+      <!--v-if-->
       <ul class="header__filter">
         <!--v-if-->
         <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>
@@ -459,7 +463,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <!--v-if-->
         </li>
         <!--v-if-->
-        <li class="header__filter-item">
+        <li class="header__filter-item header__filter-item--only-margin-right">
           <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a><a class="header__search-clear" aria-label="viewSearch.clearSearch" style="display: none;"><i class="iconoir-cancel"></i></a>
             <teleport-stub to="body">
               <div class="context visibility-hidden context--overflow-scroll">
@@ -494,8 +498,9 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             <div class="grid-view__body">
               <div class="grid-view__body-inner">
                 <div class="grid-view__placeholder" style="height: 66px; width: 72px;">
-                  <div class="grid-view__placeholder-groups" style="width: 0px;"></div>
+                  <!--v-if-->
                 </div>
+                <!--v-if-->
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
                   <div class="grid-view__row">
                     <!--v-if-->
@@ -516,6 +521,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               </div>
             </div>
             <div class="grid-view__foot">
+              <!--v-if-->
               <div class="grid-view__foot-info">gridView.rowCount - 2</div>
             </div>
           </div>
@@ -592,6 +598,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   <div class="grid-view__placeholder-column" style="left: 399px;"></div>
                   <div class="grid-view__placeholder-column" style="left: 599px;"></div>
                 </div>
+                <!--v-if-->
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
                   <div class="grid-view__row">
                     <!--v-if-->
@@ -620,6 +627,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               </div>
             </div>
             <div class="grid-view__foot">
+              <!--v-if-->
               <!--v-if-->
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
@@ -660,7 +668,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         </div>
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
-          <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 672px; top: 0px; display: none;"></div>
         </div>
         <teleport-stub to="body">
           <div class="context visibility-hidden context--overflow-scroll">

@@ -297,8 +297,10 @@ def update_data_source(
     )
     kwargs = ds_update.to_update_kwargs(user, workspace)
     if kwargs:
-        ds = DataSourceService().update_data_source(
-            user, ds, service_type=service_type, **kwargs
+        ds = (
+            DataSourceService()
+            .update_data_source(user, ds, service_type=service_type, **kwargs)
+            .data_source
         )
 
     ds_type = ds.service.get_type().type if ds.service else ""
@@ -763,10 +765,8 @@ def add_field_mapping_to_action(
     from baserow.contrib.integrations.local_baserow.models import (
         LocalBaserowTableServiceFieldMapping,
     )
-    from baserow.core.formula.types import (
-        BASEROW_FORMULA_MODE_ADVANCED,
-        BaserowFormulaObject,
-    )
+    from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+    from baserow_enterprise.assistant.tools.shared.formula_utils import formula_object
 
     action = BuilderWorkflowActionService().get_workflow_action(user, action_id)
     action_type = action.get_type().type
@@ -784,7 +784,7 @@ def add_field_mapping_to_action(
     ).first()
 
     if existing:
-        existing.value = BaserowFormulaObject.create(
+        existing.value = formula_object(
             value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED
         )
         existing.enabled = True
@@ -794,9 +794,7 @@ def add_field_mapping_to_action(
         LocalBaserowTableServiceFieldMapping.objects.create(
             service=service,
             field_id=field_id,
-            value=BaserowFormulaObject.create(
-                value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED
-            ),
+            value=formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED),
             enabled=True,
         )
         status = "created"

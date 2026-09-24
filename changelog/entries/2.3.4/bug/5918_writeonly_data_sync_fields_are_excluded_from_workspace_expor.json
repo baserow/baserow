@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Write-only data sync fields are excluded from workspace exports",
+    "issue_origin": "github",
+    "issue_number": 5918,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-18"
+}

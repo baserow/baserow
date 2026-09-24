@@ -264,7 +264,7 @@ class DurationFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
   }
 
   _parseDuration(value, field, fieldType) {
-    if (String(value === null ? '' : value).trim() === '') {
+    if (String(value == null ? '' : value).trim() === '') {
       return null
     }
 
@@ -294,11 +294,11 @@ class TextLikeFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
   }
 
   parseRowValue(value, field, fieldType) {
-    return (value === null ? '' : value).toString().toLowerCase().trim()
+    return (value == null ? '' : value).toString().toLowerCase().trim()
   }
 
   parseFilterValue(value, field, fieldType) {
-    return (value === null ? '' : value).toString().toLowerCase().trim()
+    return (value == null ? '' : value).toString().toLowerCase().trim()
   }
 }
 
@@ -308,14 +308,14 @@ class RatingFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
   }
 
   parseRowValue(value, field, fieldType) {
-    if (value === '' || value === null) {
+    if (value === '' || value == null) {
       return NaN
     }
     return Number(value.toString().toLowerCase().trim())
   }
 
   parseFilterValue(value, field, fieldType) {
-    if (value === '' || value === null) {
+    if (value === '' || value == null) {
       return NaN
     }
     return Number(value.toString().toLowerCase().trim())
@@ -328,7 +328,7 @@ class NumberFieldViewFilterHandler extends SpecificFieldViewFilterHandler {
   }
 
   _parseNumberValue(value) {
-    if (value === '' || value === null) {
+    if (value === '' || value == null) {
       return NaN
     }
     return Number(value.toString().toLowerCase().trim())
@@ -424,7 +424,7 @@ export class EqualViewFilterType extends SpecificFieldFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue === null) {
+    if (rowValue == null) {
       rowValue = ''
     }
     const { rowVal, filterVal } = this.getMatchesParsedValues(
@@ -474,7 +474,7 @@ export class NotEqualViewFilterType extends SpecificFieldFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue === null) {
+    if (rowValue == null) {
       rowValue = ''
     }
 
@@ -517,6 +517,9 @@ export class FilenameContainsViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
+    if (rowValue == null) {
+      return filterValue === ''
+    }
     return fieldType.containsFilter(rowValue, filterValue, field)
   }
 }
@@ -556,6 +559,10 @@ export class HasFileTypeViewFilterType extends ViewFilterType {
       return true
     }
 
+    if (rowValue == null) {
+      return false
+    }
+
     for (let i = 0; i < rowValue.length; i++) {
       if (rowValue[i].is_image === isImage) {
         return true
@@ -589,7 +596,7 @@ export class FilesLowerThanViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    return rowValue.length < parseInt(filterValue)
+    return (rowValue ?? []).length < parseInt(filterValue)
   }
 }
 
@@ -815,7 +822,7 @@ export class LengthIsLowerThanViewFilterType extends ViewFilterType {
   matches(rowValue, filterValue, field, fieldType) {
     return (
       isNaN(filterValue) ||
-      rowValue === null ||
+      rowValue == null ||
       filterValue === 0 ||
       rowValue.toString().length < filterValue
     )
@@ -886,7 +893,7 @@ export class BaseDateMultiStepViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue === null) {
+    if (rowValue == null) {
       return false
     }
 
@@ -1125,7 +1132,7 @@ export class DateEqualViewFilterType extends LocalizedDateViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue === null) {
+    if (rowValue == null) {
       return false
     }
 
@@ -1178,7 +1185,7 @@ export class DateNotEqualViewFilterType extends LocalizedDateViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue === null) {
+    if (rowValue == null) {
       return true
     }
 
@@ -1242,7 +1249,7 @@ export class DateBeforeViewFilterType extends LocalizedDateViewFilterType {
     }
 
     // an invalid date will be filtered out
-    if (rowValue === null || !rowDate.isValid()) {
+    if (rowValue == null || !rowDate.isValid()) {
       return false
     }
 
@@ -1302,7 +1309,7 @@ export class DateBeforeOrEqualViewFilterType extends LocalizedDateViewFilterType
     }
 
     // an invalid date will be filtered out
-    if (rowValue === null || !rowDate.isValid()) {
+    if (rowValue == null || !rowDate.isValid()) {
       return false
     }
 
@@ -1366,7 +1373,7 @@ export class DateAfterViewFilterType extends LocalizedDateViewFilterType {
     }
 
     // an invalid date will be filtered out
-    if (rowValue === null || !rowDate.isValid()) {
+    if (rowValue == null || !rowDate.isValid()) {
       return false
     }
     return rowDate.isAfter(filterDate, 'day')
@@ -1410,7 +1417,7 @@ export class DateAfterDaysAgoViewFilterType extends LocalizedDateViewFilterType 
   }
 
   matches(rowValue, filterValue) {
-    if (rowValue === null || !moment.utc(rowValue).isValid()) {
+    if (rowValue == null || !moment.utc(rowValue).isValid()) {
       return false
     }
 
@@ -1492,7 +1499,7 @@ export class DateAfterOrEqualViewFilterType extends LocalizedDateViewFilterType 
     }
 
     // an invalid date will be filtered out
-    if (rowValue === null || !rowDate.isValid()) {
+    if (rowValue == null || !rowDate.isValid()) {
       return false
     }
     return rowDate.isSameOrAfter(filterDate, 'day')
@@ -1539,7 +1546,7 @@ export class DateCompareTodayViewFilterType extends LocalizedDateViewFilterType 
   }
 
   matches(rowValue, filterValue, field) {
-    if (rowValue === null || !moment.utc(rowValue).isValid()) {
+    if (rowValue == null || !moment.utc(rowValue).isValid()) {
       return false
     }
 
@@ -1799,7 +1806,7 @@ export class LocalizedDateCompareViewFilterType extends LocalizedDateViewFilterT
   }
 
   matches(rowValue, filterValue, field) {
-    if (rowValue === null) {
+    if (rowValue == null) {
       rowValue = ''
     }
 
@@ -2069,7 +2076,7 @@ export class DateEqualsDayOfMonthViewFilterType extends LocalizedDateViewFilterT
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (rowValue === null) {
+    if (rowValue == null) {
       rowValue = ''
     }
 
@@ -2295,7 +2302,7 @@ export class SingleSelectEqualViewFilterType extends ViewFilterType {
       return null
     }
 
-    return rowValue !== null && rowValue.id === parseInt(filterValue)
+    return rowValue != null && rowValue.id === parseInt(filterValue)
   }
 }
 
@@ -2329,10 +2336,7 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
       return null
     }
 
-    return (
-      rowValue === null ||
-      (rowValue !== null && rowValue.id !== parseInt(filterValue))
-    )
+    return rowValue == null || rowValue.id !== parseInt(filterValue)
   }
 }
 
@@ -2498,7 +2502,8 @@ export class MultipleSelectHasNotFilterType extends ViewFilterType {
     const parsedValue = this._prepareValue(filterValue)
     return (
       parsedValue === null ||
-      rowValue?.length === 0 ||
+      rowValue == null ||
+      rowValue.length === 0 ||
       rowValue.every((opt) => !_.includes(parsedValue, opt?.id))
     )
   }
@@ -2534,6 +2539,10 @@ export class MultipleCollaboratorsHasFilterType extends ViewFilterType {
       return true
     }
 
+    if (rowValue == null) {
+      return false
+    }
+
     const filterValueId = parseInt(filterValue)
     return rowValue.some((user) => user.id === filterValueId)
   }
@@ -2566,6 +2575,10 @@ export class MultipleCollaboratorsHasNotFilterType extends ViewFilterType {
 
   matches(rowValue, filterValue, field, fieldType) {
     if (!isInteger(filterValue)) {
+      return true
+    }
+
+    if (rowValue == null) {
       return true
     }
 
@@ -2669,14 +2682,14 @@ export class BooleanViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    if (filterValue === null) {
+    if (filterValue == null) {
       filterValue = false
     }
     filterValue = trueValues.includes(
       filterValue.toString().toLowerCase().trim()
     )
 
-    if (rowValue === null) {
+    if (rowValue == null) {
       rowValue = false
     } else {
       rowValue = trueValues.includes(rowValue.toString().toLowerCase().trim())
@@ -2712,6 +2725,10 @@ export class LinkRowHasFilterType extends ViewFilterType {
       return true
     }
 
+    if (rowValue == null) {
+      return false
+    }
+
     const filterValueId = parseInt(filterValue)
     return rowValue.some((relation) => relation.id === filterValueId)
   }
@@ -2741,6 +2758,10 @@ export class LinkRowHasNotFilterType extends ViewFilterType {
 
   matches(rowValue, filterValue, field, fieldType) {
     if (!isInteger(filterValue)) {
+      return true
+    }
+
+    if (rowValue == null) {
       return true
     }
 
@@ -2776,6 +2797,10 @@ export class LinkRowContainsFilterType extends ViewFilterType {
       return true
     }
 
+    if (rowValue == null) {
+      return false
+    }
+
     return rowValue.some(
       ({ value }) => value.search(new RegExp(filterValue, 'i')) !== -1
     )
@@ -2806,6 +2831,10 @@ export class LinkRowNotContainsFilterType extends ViewFilterType {
 
   matches(rowValue, filterValue, field, fieldType) {
     if (filterValue === '') {
+      return true
+    }
+
+    if (rowValue == null) {
       return true
     }
 

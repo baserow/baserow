@@ -29,3 +29,5 @@ urlpatterns = (
 
 if settings.DEBUG and "silk" in settings.INSTALLED_APPS:
     urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
+
+handler400 = "baserow.api.exceptions.bad_request"

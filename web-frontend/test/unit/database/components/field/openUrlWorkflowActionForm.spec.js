@@ -1,0 +1,133 @@
+import { TestApp } from '@baserow/test/helpers/testApp'
+import OpenUrlWorkflowActionForm from '@baserow/modules/database/components/field/OpenUrlWorkflowActionForm'
+import SegmentControl from '@baserow/modules/core/components/SegmentControl'
+import DatabaseFormulaInput from '@baserow/modules/database/components/field/DatabaseFormulaInput'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Read rather than imported: the i18n loader turns an imported locale file
+// into compiled message ASTs, which the copy below can't be read off of.
+const en = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'modules/database/locales/en.json'),
+    'utf8'
+  )
+)
+
+describe('OpenUrlWorkflowActionForm', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const mountForm = async (defaultValues = {}) =>
+    testApp.mount(OpenUrlWorkflowActionForm, {
+      propsData: { defaultValues },
+    })
+
+  test('a missing target reports Same tab as selected', async () => {
+    const wrapper = await mountForm({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+    })
+
+    expect(wrapper.findComponent(SegmentControl).vm.activeIndex).toBe(0)
+  })
+
+  // The design puts the control at 36px, which only the `small` size gives.
+  // The default one is 44px.
+  test('the segmented control is the 36px small size', async () => {
+    const wrapper = await mountForm({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+    })
+
+    expect(wrapper.findComponent(SegmentControl).props('size')).toBe('small')
+  })
+
+  test('a blank target selects New tab', async () => {
+    const wrapper = await mountForm({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+      target: 'blank',
+    })
+
+    const segmentControl = wrapper.findComponent(SegmentControl)
+    expect(segmentControl.vm.activeIndex).toBe(1)
+    // Translations resolve to their key in the test environment, so the copy
+    // the design asks for is asserted on the locale file itself.
+    expect(segmentControl.vm.segments.map((s) => s.label)).toEqual([
+      'openUrlWorkflowActionForm.sameTab',
+      'openUrlWorkflowActionForm.newTab',
+    ])
+    expect(en.openUrlWorkflowActionForm.sameTab).toBe('Same tab')
+    expect(en.openUrlWorkflowActionForm.newTab).toBe('New tab')
+  })
+
+  test('switching back to Same tab emits the self target', async () => {
+    const wrapper = await mountForm({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+      target: 'blank',
+    })
+
+    await wrapper
+      .findComponent(SegmentControl)
+      .findAll('.segment-control__button')[0]
+      .trigger('click')
+
+    const emitted = wrapper.emitted('values-changed')
+    expect(emitted[emitted.length - 1][0].target).toBe('self')
+  })
+
+  test('the url input resolves fields and earlier action results', async () => {
+    const wrapper = await mountForm({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+    })
+
+    const input = wrapper.findComponent(DatabaseFormulaInput)
+    // The prop overrides what the sub-form injects, so `previous_action` has
+    // to be named here or a URL cannot reference an earlier action at all.
+    // `row` is absent on purpose: a URL wants the stringified value.
+    expect(input.props('dataProvidersAllowed')).toEqual([
+      'fields',
+      'previous_action',
+    ])
+    expect(input.vm.$attrs.placeholder).toBe(
+      'openUrlWorkflowActionForm.urlPlaceholder'
+    )
+    expect(en.openUrlWorkflowActionForm.urlPlaceholder).toBe('URL...')
+  })
+
+  test('an unparseable formula blocks submission', async () => {
+    const wrapper = await mountForm({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+    })
+    expect(wrapper.vm.isFormValid()).toBe(true)
+
+    // The formula input only emits `input` for parseable formulas, so an
+    // invalid one is only ever reported through `update:invalid`.
+    await wrapper
+      .findComponent(DatabaseFormulaInput)
+      .vm.$emit('update:invalid', true)
+
+    expect(wrapper.vm.isFormValid()).toBe(false)
+  })
+
+  test('it only submits its own values', async () => {
+    const wrapper = await mountForm({
+      id: 7,
+      order: 1,
+      field_id: 3,
+      type: 'open_url',
+      url: { formula: "'https://x.test'", mode: 'simple' },
+      target: 'blank',
+    })
+
+    expect(wrapper.vm.getFormValues()).toEqual({
+      url: { formula: "'https://x.test'", mode: 'simple' },
+      target: 'blank',
+    })
+  })
+})

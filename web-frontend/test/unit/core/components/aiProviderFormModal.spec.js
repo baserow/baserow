@@ -71,6 +71,12 @@ describe('AIProviderFormModal', () => {
     })
     await wrapper.vm.show()
 
+    const removeModelButton = wrapper.find(
+      '.ai-provider-form__model-row .button'
+    )
+    expect(removeModelButton.classes()).toContain('button--regular')
+    expect(removeModelButton.classes()).not.toContain('button--small')
+
     const helperText = wrapper
       .findAll('.control__helper-text')
       .map((helper) => helper.text())
@@ -120,7 +126,12 @@ describe('AIProviderFormModal', () => {
       extra_settings: {},
       provider_type: 'openai',
       api_key: 'temporary-secret',
-      models: [{ model_identifier: 'gpt-5.6' }],
+      models: [
+        {
+          model_identifier: 'gpt-5.6',
+          feature_types: ['ai_agent', 'ai_fields', 'kuma'],
+        },
+      ],
     })
     expect(
       dispatch.mock.calls.filter(

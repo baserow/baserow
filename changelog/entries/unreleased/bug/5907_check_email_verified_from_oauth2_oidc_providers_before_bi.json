@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Check email verification status from OAuth2/OIDC providers before binding a provider identity to an existing Baserow account, preventing account takeover via unverified provider emails.",
+    "issue_origin": "github",
+    "issue_number": 5907,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-24"
+}

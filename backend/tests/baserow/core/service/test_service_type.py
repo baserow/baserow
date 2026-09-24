@@ -1,12 +1,35 @@
 from unittest.mock import MagicMock, Mock, PropertyMock
 
 import pytest
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow_premium.integrations.local_baserow.service_types import DispatchResult
+
+
+def test_service_type_is_active_by_default(mocker):
+    mocker.patch.object(ServiceType, "model_class", Service, create=True)
+    service_type = ServiceType()
+    workspace = Mock()
+
+    assert service_type.is_deactivated(workspace) is False
+    service_type.raise_if_deactivated(workspace)
+
+
+def test_service_type_raise_if_deactivated(mocker):
+    mocker.patch.object(ServiceType, "model_class", Service, create=True)
+    service_type = ServiceType()
+    workspace = Mock()
+    is_deactivated = mocker.patch.object(
+        service_type, "is_deactivated", return_value=True
+    )
+
+    with pytest.raises(PermissionDenied, match="This service type is deactivated"):
+        service_type.raise_if_deactivated(workspace)
+
+    is_deactivated.assert_called_once_with(workspace)
 
 
 def test_service_type_get_schema_name():
@@ -215,6 +238,23 @@ def test_get_sample_data():
     assert result == {"foo": "bar"}
 
 
+def test_get_sample_data_with_error_sentinel():
+    """
+    The `{"_error": ...}` sentinel stored by a failed simulated dispatch is not
+    replayable sample data, so `get_sample_data` should return `None`.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+    service = MagicMock()
+    service.sample_data = {"_error": "Something went wrong"}
+
+    dispatch_context = FakeDispatchContext()
+
+    assert service_type.get_sample_data(service, dispatch_context) is None
+
+
 def test_dispatch_returns_sample_data_when_simulated():
     """
     Ensure that when dispatch_context.is_simulated is True, the cached sample
@@ -302,3 +342,70 @@ def test_dispatch_even_if_simulated_without_sample_data():
     service_type.get_sample_data.assert_called_once()
 
     assert result.data == {"someother": "data"}
+
+
+@pytest.mark.django_db
+def test_dispatch_even_if_simulated_with_error_sample_data():
+    """
+    Ensure that when the stored sample data is the `{"_error": ...}` sentinel
+    from a previously failed simulated dispatch, the service is dispatched
+    again instead of replaying the sentinel (which would raise a TypeError).
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.dispatch_data = MagicMock(return_value={"data": {"other": "data"}})
+    service_type.dispatch_transform = MagicMock(
+        return_value=DispatchResult(data={"someother": "data"})
+    )
+
+    mock_service = MagicMock()
+    mock_service.sample_data = {"_error": "Something went wrong"}
+
+    dispatch_context = FakeDispatchContext(use_sample_data=True)
+
+    result = service_type.dispatch(mock_service, dispatch_context)
+
+    service_type.dispatch_data.assert_called()
+    service_type.dispatch_transform.assert_called()
+
+    assert result.data == {"someother": "data"}
+
+
+def test_dispatch_context_actor_defaults_to_none():
+    from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+    assert FakeDispatchContext().actor is None
+
+
+@pytest.mark.django_db
+def test_dispatch_context_actor_survives_clone(data_fixture):
+    from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+    user = data_fixture.create_user()
+    dispatch_context = FakeDispatchContext(actor=user)
+
+    assert dispatch_context.actor == user
+    assert dispatch_context.clone().actor == user
+
+
+@pytest.mark.django_db
+def test_dispatch_context_without_actor_in_own_properties_clones_without_one(
+    data_fixture,
+):
+    from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+    class StrictDispatchContext(FakeDispatchContext):
+        """A context that neither lists `actor` nor accepts it as a kwarg."""
+
+        own_properties = ["context"]
+
+        def __init__(self, context=None):
+            super().__init__(context=context or {})
+
+    dispatch_context = StrictDispatchContext()
+    dispatch_context.actor = data_fixture.create_user()
+
+    assert dispatch_context.clone().actor is None

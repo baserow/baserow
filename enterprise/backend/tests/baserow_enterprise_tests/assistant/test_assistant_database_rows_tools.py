@@ -1,12 +1,221 @@
 import pytest
+from pydantic import ValidationError
+from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow_enterprise.assistant.agents import dynamic_toolset
+from baserow_enterprise.assistant.tools.database import tools as database_tools
 from baserow_enterprise.assistant.tools.database.tools import (
+    create_fields,
+    delete_fields,
     list_rows,
     load_row_tools,
+    update_fields,
+)
+from baserow_enterprise.assistant.tools.database.types import (
+    FieldItemCreate,
+    FieldItemUpdate,
 )
 
 from .utils import make_test_ctx
+
+
+@pytest.mark.django_db
+def test_create_rows_rejects_empty_payload_and_accepts_corrected_call(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare row creation")
+    tool = ctx.deps.dynamic_tools[0]
+    model = table.get_model()
+
+    with pytest.raises(ModelRetry, match="Nothing was changed"):
+        tool.function(rows=[], thought="Create rows")
+
+    assert model.objects.count() == 0
+
+    arguments = tool.function_schema.validator.validate_python(
+        {"rows": [{"Name": "Created after retry"}], "thought": "Create the row"}
+    )
+    result = tool.function(**arguments)
+
+    assert list(model.objects.values_list("id", name_field.db_column)) == [
+        (result["created_row_ids"][0], "Created after retry")
+    ]
+
+
+@pytest.mark.django_db
+def test_reload_row_tools_uses_new_schema_without_duplicate_tools(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create", "delete"], thought="Prepare rows")
+    old_create, delete = ctx.deps.dynamic_tools
+    arguments = {
+        "rows": [{"Name": "Batch 46", "Status": "Reviewed"}],
+        "thought": "Create a row with its status",
+    }
+
+    with pytest.raises(ValidationError, match="Status"):
+        old_create.function_schema.validator.validate_python(arguments)
+
+    create_fields(
+        ctx,
+        table_id=table.id,
+        fields=[FieldItemCreate(name="Status", type="text")],
+        thought="Add a status field",
+    )
+    load_row_tools(ctx, [table.id], ["create"], thought="Refresh row creation")
+    toolset = dynamic_toolset(ctx)
+    create = toolset.tools[f"create_rows_in_table_{table.id}"]
+
+    assert len(toolset.tools) == 2
+    assert toolset.tools[delete.name] is delete
+    assert create is not old_create
+    result = create.function(
+        **create.function_schema.validator.validate_python(arguments)
+    )
+
+    status_field = table.field_set.get(name="Status")
+    assert list(
+        table.get_model().objects.values_list("id", status_field.db_column)
+    ) == [(result["created_row_ids"][0], "Reviewed")]
+
+
+@pytest.mark.django_db
+def test_create_fields_refreshes_loaded_row_tools(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create", "delete"], thought="Prepare rows")
+    stale_create, delete = ctx.deps.dynamic_tools
+
+    create_fields(
+        ctx,
+        table_id=table.id,
+        fields=[FieldItemCreate(name="Status", type="text")],
+        thought="Add a status field",
+    )
+
+    create, unchanged_delete = ctx.deps.dynamic_tools
+    assert create is not stale_create
+    assert unchanged_delete is delete
+    result = create.function(
+        **create.function_schema.validator.validate_python(
+            {
+                "rows": [{"Name": "Batch 46", "Status": "Reviewed"}],
+                "thought": "Create a row with its status",
+            }
+        )
+    )
+
+    status_field = table.field_set.get(name="Status")
+    assert list(
+        table.get_model().objects.values_list("id", status_field.db_column)
+    ) == [(result["created_row_ids"][0], "Reviewed")]
+
+
+@pytest.mark.django_db
+def test_update_fields_refreshes_loaded_row_tools(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["update"], thought="Prepare updates")
+
+    update_fields(
+        ctx,
+        fields=[FieldItemUpdate(field_id=field.id, name="Title")],
+        thought="Rename the field",
+    )
+
+    update = ctx.deps.dynamic_tools[0]
+    with pytest.raises(ValidationError, match="Name"):
+        update.function_schema.validator.validate_python(
+            {"rows": [{"id": 1, "Name": "Renamed"}], "thought": "Update the row"}
+        )
+    assert update.function_schema.validator.validate_python(
+        {"rows": [{"id": 1, "Title": "Renamed"}], "thought": "Update the row"}
+    )
+
+
+@pytest.mark.django_db
+def test_delete_fields_refreshes_loaded_row_tools(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    notes = data_fixture.create_long_text_field(table=table, name="Notes")
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare rows")
+
+    delete_fields(ctx, field_ids=[notes.id], thought="Drop the notes field")
+
+    create = ctx.deps.dynamic_tools[0]
+    with pytest.raises(ValidationError, match="Notes"):
+        create.function_schema.validator.validate_python(
+            {
+                "rows": [{"Name": "Batch 46", "Notes": "Gone"}],
+                "thought": "Create a row",
+            }
+        )
+
+
+@pytest.mark.django_db
+def test_create_fields_refreshes_row_tools_of_the_linked_table(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_a = data_fixture.create_database_table(user=user, database=database)
+    table_b = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table_a, name="Name", primary=True)
+    data_fixture.create_text_field(table=table_b, name="Title", primary=True)
+    ctx = make_test_ctx(user, database.workspace)
+    load_row_tools(ctx, [table_b.id], ["create"], thought="Prepare rows in B")
+
+    create_fields(
+        ctx,
+        table_id=table_a.id,
+        fields=[
+            FieldItemCreate(name="B rows", type="link_row", linked_table=table_b.id)
+        ],
+        thought="Link A to B",
+    )
+
+    reverse_field = table_b.field_set.exclude(primary=True).get()
+    create_b = ctx.deps.dynamic_tools[0]
+    assert create_b.function_schema.validator.validate_python(
+        {
+            "rows": [{"Title": "Row B", reverse_field.name: []}],
+            "thought": "Create a row in B",
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_field_change_survives_a_failing_row_tool_refresh(data_fixture, monkeypatch):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare rows")
+    stale_create = ctx.deps.dynamic_tools[0]
+
+    def _raise(*args, **kwargs):
+        raise RuntimeError("cannot build row tools")
+
+    monkeypatch.setattr(database_tools, "_build_row_tools", _raise)
+    result = create_fields(
+        ctx,
+        table_id=table.id,
+        fields=[FieldItemCreate(name="Status", type="text")],
+        thought="Add a status field",
+    )
+
+    assert result["created_fields"][0]["name"] == "Status"
+    assert table.field_set.filter(name="Status").exists()
+    assert ctx.deps.dynamic_tools[0] is stale_create
 
 
 def _create_simple_database_with_linked_tables_and_rows(data_fixture):

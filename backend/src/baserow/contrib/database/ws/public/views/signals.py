@@ -102,3 +102,8 @@ def public_view_group_by_deleted(
 @receiver(view_signals.view_field_options_updated)
 def public_view_field_options_updated(sender, view, user, **kwargs):
     _send_force_view_refresh_if_view_public(view)
+
+
+@receiver(view_signals.view_configuration_changed)
+def public_view_configuration_changed(sender, view, user, **kwargs):
+    _send_force_view_refresh_if_view_public(view)

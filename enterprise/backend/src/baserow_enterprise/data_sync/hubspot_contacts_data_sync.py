@@ -183,6 +183,7 @@ class HubspotContactsDataSyncType(DataSyncType):
     allowed_fields = [
         "hubspot_access_token",
     ]
+    sensitive_fields = ["hubspot_access_token"]
     request_serializer_field_names = [
         "hubspot_access_token",
     ]

@@ -40,6 +40,7 @@ class DashboardConfig(AppConfig):
             ListWidgetsOperationType,
             ReadWidgetOperationType,
             RestoreWidgetOperationType,
+            UpdateWidgetLayoutOperationType,
             UpdateWidgetOperationType,
         )
 
@@ -47,6 +48,7 @@ class DashboardConfig(AppConfig):
         operation_type_registry.register(ReadWidgetOperationType())
         operation_type_registry.register(CreateWidgetOperationType())
         operation_type_registry.register(UpdateWidgetOperationType())
+        operation_type_registry.register(UpdateWidgetLayoutOperationType())
         operation_type_registry.register(DeleteWidgetOperationType())
         operation_type_registry.register(RestoreWidgetOperationType())
 
@@ -102,6 +104,7 @@ class DashboardConfig(AppConfig):
             CreateWidgetActionType,
             DeleteWidgetActionType,
             UpdateWidgetActionType,
+            UpdateWidgetLayoutActionType,
         )
 
         from .ws.receivers import (  # noqa: F401
@@ -109,10 +112,12 @@ class DashboardConfig(AppConfig):
             widget_created,
             widget_deleted,
             widget_updated,
+            widgets_layout_updated,
         )
 
         action_type_registry.register(CreateWidgetActionType())
         action_type_registry.register(UpdateWidgetActionType())
+        action_type_registry.register(UpdateWidgetLayoutActionType())
         action_type_registry.register(DeleteWidgetActionType())
         action_type_registry.register(UpdateDashboardDataSourceActionType())
 

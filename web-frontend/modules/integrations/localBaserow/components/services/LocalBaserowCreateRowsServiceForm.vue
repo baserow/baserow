@@ -4,6 +4,7 @@
       :service-type="serviceType"
       :application="application"
       :enable-view-picker="false"
+      :databases="databases"
       :default-values="defaultValues"
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
@@ -65,6 +66,14 @@ export default {
       type: Object,
       required: false,
       default: () => ({}),
+    },
+    /**
+     * The databases to choose a table from, forwarded to the service form.
+     */
+    databases: {
+      type: Array,
+      required: false,
+      default: () => [],
     },
   },
   emits: ['values-changed'],

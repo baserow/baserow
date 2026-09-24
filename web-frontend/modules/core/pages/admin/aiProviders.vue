@@ -15,12 +15,13 @@
         </Button>
       </header>
 
-      <div
+      <AIProviderFeatureSettings
+        v-if="loaded && !loading && !initialLoadFailed"
+      />
+
+      <AIProviderAdminSkeleton
         v-if="loading || (!loaded && !initialLoadFailed)"
-        class="ai-provider-admin__loading"
-      >
-        <div class="loading" />
-      </div>
+      />
       <div v-else-if="initialLoadFailed && !loaded" class="placeholder">
         <div class="placeholder__icon">
           <i class="iconoir-warning-circle" />
@@ -98,22 +99,33 @@
 import { useHead } from '#imports'
 import { useNuxtApp } from '#app'
 
+import AIProviderAdminSkeleton from '@baserow/modules/core/components/ai/AIProviderAdminSkeleton'
 import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
 import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
+import aiProviderModelUsage from '@baserow/modules/core/mixins/aiProviderModelUsage'
+import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 
 export default {
   name: 'AdminAIProviders',
   components: {
+    AIProviderAdminSkeleton,
     AIProviderConfirmModal,
+    AIProviderFeatureSettings,
     AIProviderFormModal,
     AIProviderItem,
     AIProviderModelFormModal,
   },
-  layout: 'app',
-  middleware: ['staff', 'aiProvidersFeatureFlag'],
+  mixins: [aiProviderModelUsage],
   setup() {
+    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
+    // `layout` and `middleware` component options.
+    definePageMeta({
+      layout: 'app',
+      middleware: ['staff', 'aiProvidersFeatureFlag'],
+    })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('aiProviderAdmin.title') })
   },
@@ -132,16 +144,16 @@ export default {
   },
   computed: {
     providers() {
-      return this.$store.getters['aiProvider/getAll']
+      return this.$store.getters['aiProvider/getAll'](null)
     },
     providerTypes() {
-      return this.$store.getters['aiProvider/getTypes']
+      return this.$store.getters['aiProvider/getTypes'](null)
     },
     loading() {
       return this.$store.getters['aiProvider/isLoading']
     },
     loaded() {
-      return this.$store.getters['aiProvider/isLoaded']
+      return this.$store.getters['aiProvider/isLoaded'](null)
     },
     availableProviderTypes() {
       const configuredTypes = new Set(
@@ -215,19 +227,38 @@ export default {
       })
     },
     async toggleModel(model) {
-      return await this.runAction(
-        model.is_enabled ? 'model-disable' : 'model-enable',
-        model
-      )
+      if (!model.is_enabled) {
+        return await this.runAction('model-enable', model)
+      }
+      const usage = await this.lookupModelUsage(model.id)
+      if (!this.modelHasDependents(usage)) {
+        return await this.runAction('model-disable', model)
+      }
+      this.openConfirmation({
+        kind: 'model-disable',
+        resource: model,
+        title: this.$t('aiProviderAdmin.disableModelTitle', {
+          name: model.model_identifier,
+        }),
+        message: this.modelUsageMessage(
+          usage,
+          this.$t('aiProviderAdmin.disableModelDescription')
+        ),
+        confirmLabel: this.$t('aiProviderAdmin.disable'),
+      })
     },
-    deleteModel(model) {
+    async deleteModel(model) {
+      const usage = await this.lookupModelUsage(model.id)
       this.openConfirmation({
         kind: 'model-delete',
         resource: model,
         title: this.$t('aiProviderAdmin.deleteModelTitle', {
           name: model.model_identifier,
         }),
-        message: this.$t('aiProviderAdmin.deleteModelDescription'),
+        message: this.modelUsageMessage(
+          usage,
+          this.$t('aiProviderAdmin.deleteModelDescription')
+        ),
         confirmLabel: this.$t('action.delete'),
         danger: true,
       })
@@ -308,8 +339,7 @@ export default {
     showActionError(error) {
       this.$store.dispatch('toast/error', {
         title: this.$t('aiProviderAdmin.actionError'),
-        message:
-          error.response?.data?.detail?.message || error.response?.data?.detail,
+        message: aiProviderErrorMessage(error),
       })
     },
   },

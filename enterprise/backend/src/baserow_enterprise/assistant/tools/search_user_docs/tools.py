@@ -10,6 +10,7 @@ from pydantic import Field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
+from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.models import KnowledgeBaseChunk
 
@@ -168,13 +169,21 @@ async def _search_user_docs_impl(
     ctx: RunContext[AssistantDeps],
     question: str,
 ) -> dict[str, Any]:
-    """Inner implementation of search_user_docs, separated for error handling."""
+    """Search documentation and ask the request model to synthesize an answer.
 
-    from baserow_enterprise.assistant.model_profiles import get_model_string
-    from baserow_enterprise.assistant.retrying_model import _resolve_model
+    :param ctx: The assistant run context containing the user and model profile.
+    :param question: The documentation question to answer.
+    :return: The answer, confidence metadata, and verified source URLs.
+    """
 
     @sync_to_async
     def _search(question: str) -> list[KnowledgeBaseChunk]:
+        """Load the documentation chunks matching a question.
+
+        :param question: The query passed to the knowledge-base search.
+        :return: The matching chunks as an evaluated list.
+        """
+
         chunks = KnowledgeBaseHandler().search(question, 15)
         return list(chunks)
 
@@ -202,8 +211,12 @@ async def _search_user_docs_impl(
         f"Documentation context (source URL -> content):\n{context}"
     )
 
-    agent_result = await search_docs_agent.run(
-        prompt, model=_resolve_model(get_model_string())
+    model_profile = ctx.deps.tool_helpers.model_profile
+    model = model_profile.create_model()
+    agent_result = await run_agent_with_model(
+        search_docs_agent,
+        prompt,
+        model=model,
     )
     prediction = agent_result.output
 

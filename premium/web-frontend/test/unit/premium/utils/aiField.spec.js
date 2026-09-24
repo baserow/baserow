@@ -8,15 +8,22 @@ describe('AI field generation error handling', () => {
       response: {
         data: {
           error: 'ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE',
-          detail: 'The selected AI model is disabled or no longer available.',
+          detail: 'Untranslated backend detail',
         },
       },
     }
 
-    expect(setAIFieldErrorFromGenerationError(store, field, error)).toBe(true)
+    expect(
+      setAIFieldErrorFromGenerationError(
+        store,
+        field,
+        error,
+        'Translated model unavailable message'
+      )
+    ).toBe(true)
     expect(store.dispatch).toHaveBeenCalledWith('field/setItemError', {
       field,
-      value: 'The selected AI model is disabled or no longer available.',
+      value: 'Translated model unavailable message',
     })
   })
 

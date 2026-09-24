@@ -1,6 +1,6 @@
 import re
 from functools import lru_cache
-from typing import Dict, Optional, Union
+from typing import Dict, Union
 
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.core.cache import local_cache
@@ -11,7 +11,6 @@ from baserow.core.formula import (
     BaserowFormulaVisitor,
 )
 from baserow.core.formula.parser.exceptions import (
-    BaserowFormulaException,
     FieldByIdReferencesAreDeprecated,
 )
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
@@ -259,30 +258,3 @@ def get_table_field_ids(table_id: int) -> set[int]:
             )
         ),
     )
-
-
-def get_formula_field_error(
-    formula: Union[str, BaserowFormulaObject], table_id: int
-) -> Optional[str]:
-    """
-    Returns an error message when the formula cannot be parsed or references a
-    field that does not exist (non-trashed) in the given table, else None.
-    """
-
-    formula_str = formula if isinstance(formula, str) else formula["formula"]
-    if not formula_str:
-        return None
-
-    # Raw formulas are literal text and are never parsed, so they can't error.
-    if not isinstance(formula, str) and formula["mode"] == BASEROW_FORMULA_MODE_RAW:
-        return None
-
-    try:
-        referenced_ids = extract_field_id_dependencies(formula)
-    except BaserowFormulaException:
-        return "The formula could not be parsed."
-
-    if referenced_ids and referenced_ids - get_table_field_ids(table_id):
-        return "The formula references a field that no longer exists."
-
-    return None

@@ -55,6 +55,14 @@
         {{ $t('viewFilterContext.addFilterGroup') }}</ButtonText
       >
 
+      <ButtonText
+        v-if="canCopyConfiguration"
+        icon="iconoir-copy"
+        @click.prevent="$refs.copyViewConfigurationModal.show(['filters'])"
+      >
+        {{ $t('viewFilterContext.copyFromView') }}</ButtonText
+      >
+
       <div v-if="view.filters.length > 0" class="margin-left-auto">
         <SwitchInput
           small
@@ -64,6 +72,11 @@
         >
       </div>
     </div>
+    <CopyViewConfigurationModal
+      ref="copyViewConfigurationModal"
+      :view="view"
+      :database="database"
+    ></CopyViewConfigurationModal>
   </div>
 </template>
 
@@ -71,6 +84,8 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ulid } from 'ulid'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
+import CopyViewConfigurationModal from '@baserow/modules/database/components/view/CopyViewConfigurationModal'
+import { getCompatibleSourceViews } from '@baserow/modules/database/utils/copyViewConfiguration'
 import { hasCompatibleFilterTypes } from '@baserow/modules/database/utils/field'
 import viewFilterTypes from '@baserow/modules/database/mixins/viewFilterTypes'
 
@@ -78,6 +93,7 @@ export default {
   name: 'ViewFilterForm',
   components: {
     ViewFieldConditionsForm,
+    CopyViewConfigurationModal,
   },
   mixins: [viewFilterTypes],
   props: {
@@ -109,6 +125,23 @@ export default {
   },
   emits: ['changed'],
   computed: {
+    canCopyConfiguration() {
+      return (
+        !this.readOnly &&
+        !this.isPublicView &&
+        this.$hasPermission(
+          'database.table.view.update',
+          this.view,
+          this.database.workspace.id
+        ) &&
+        getCompatibleSourceViews(
+          this.$registry,
+          this.$store.getters['view/getAll'],
+          this.view,
+          this.database.workspace.id
+        ).length > 0
+      )
+    },
     filterContextComponent() {
       if (!this.view.ownership_type || !this.database) return null
       const ownershipType = this.$registry.get(

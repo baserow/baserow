@@ -13,6 +13,7 @@ from baserow.contrib.database.rows.signals import (
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.signals import (
+    view_configuration_changed,
     view_filter_created,
     view_filter_deleted,
     view_filter_group_created,
@@ -67,6 +68,12 @@ def notify_view_updated(sender, view, user, old_view, **kwargs):
 @receiver([view_filter_created, view_filter_updated, view_filter_deleted])
 def notify_view_filter_created_or_updated(sender, view_filter, user, **kwargs):
     _notify_view_results_updated(view_filter.view)
+
+
+@receiver(view_configuration_changed)
+def notify_view_configuration_changed(sender, view, user, categories, **kwargs):
+    if "filters" in categories:
+        _notify_view_results_updated(view)
 
 
 @receiver(

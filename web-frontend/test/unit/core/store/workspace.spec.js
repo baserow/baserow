@@ -1,7 +1,7 @@
 import workspaceStore from '@baserow/modules/core/store/workspace'
 import authStore from '@baserow/modules/core/store/auth'
 import { TestApp } from '@baserow/test/helpers/testApp'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 describe('Workspace store', () => {
   let testApp = null
@@ -97,6 +97,173 @@ describe('Workspace store', () => {
       _: {
         permissions: { role: 'ADMIN' },
       },
+    })
+  })
+
+  test('AI model recovery requests primary-backed workspace data', async () => {
+    await store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Workspace 1',
+      generative_ai_models_enabled: {},
+    })
+    let requestHeaders
+    testApp.mock.onGet('/workspaces/').reply((config) => {
+      requestHeaders = config.headers
+      return [
+        200,
+        [
+          {
+            id: 1,
+            name: 'Workspace 1',
+            generative_ai_models_enabled: { openai: ['gpt-5'] },
+          },
+        ],
+      ]
+    })
+
+    await store.dispatch('workspace/refreshAllGenerativeAIModels', {
+      realtimeRecovery: true,
+    })
+
+    expect(requestHeaders['X-Baserow-Realtime-Recovery']).toBe('true')
+  })
+
+  test('a stale AI refresh cannot overwrite newer realtime workspace features', async () => {
+    await store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Workspace 1',
+      generative_ai_models_enabled: {},
+      ai_features: { kuma: { is_enabled: false } },
+    })
+    await store.dispatch('workspace/forceCreate', {
+      id: 2,
+      name: 'Workspace 2',
+      generative_ai_models_enabled: {},
+      ai_features: { kuma: { is_enabled: false } },
+    })
+    let resolveRefresh
+    testApp.mock.onGet('/workspaces/').reply(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve
+        })
+    )
+
+    const staleRefresh = store.dispatch(
+      'workspace/refreshAllGenerativeAIModels'
+    )
+    await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
+    await store.dispatch('workspace/forceUpdateGenerativeAIModels', {
+      workspaceId: 1,
+      generativeAIModelsEnabled: { openai: ['realtime-model'] },
+      aiFeatures: { kuma: { is_enabled: true } },
+    })
+    resolveRefresh([
+      200,
+      [
+        {
+          id: 1,
+          generative_ai_models_enabled: { openai: ['stale-model'] },
+          ai_features: { kuma: { is_enabled: false } },
+        },
+        {
+          id: 2,
+          generative_ai_models_enabled: { openai: ['fresh-model'] },
+          ai_features: { kuma: { is_enabled: true } },
+        },
+      ],
+    ])
+    await staleRefresh
+
+    expect(store.getters['workspace/get'](1)).toMatchObject({
+      generative_ai_models_enabled: { openai: ['realtime-model'] },
+      ai_features: { kuma: { is_enabled: true } },
+    })
+    expect(store.getters['workspace/get'](2)).toMatchObject({
+      generative_ai_models_enabled: { openai: ['fresh-model'] },
+      ai_features: { kuma: { is_enabled: true } },
+    })
+  })
+
+  test('fetchAll preserves newer realtime workspace features', async () => {
+    await store.dispatch('workspace/forceCreate', {
+      id: 1,
+      name: 'Old workspace name',
+      generative_ai_models_enabled: {},
+      ai_features: { kuma: { is_enabled: false } },
+    })
+    let resolveFetch
+    testApp.mock.onGet('/workspaces/').reply(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve
+        })
+    )
+
+    const staleFetch = store.dispatch('workspace/fetchAll')
+    await vi.waitFor(() => expect(resolveFetch).toBeTypeOf('function'))
+    await store.dispatch('workspace/forceUpdateGenerativeAIModels', {
+      workspaceId: 1,
+      generativeAIModelsEnabled: { openai: ['realtime-model'] },
+      aiFeatures: { kuma: { is_enabled: true } },
+    })
+    resolveFetch([
+      200,
+      [
+        {
+          id: 1,
+          name: 'Fresh workspace name',
+          generative_ai_models_enabled: { openai: ['stale-model'] },
+          ai_features: { kuma: { is_enabled: false } },
+        },
+      ],
+    ])
+    await staleFetch
+
+    expect(store.getters['workspace/get'](1)).toMatchObject({
+      name: 'Fresh workspace name',
+      generative_ai_models_enabled: { openai: ['realtime-model'] },
+      ai_features: { kuma: { is_enabled: true } },
+    })
+  })
+
+  test('a rolling realtime payload only supersedes workspace models', async () => {
+    await store.dispatch('workspace/forceCreate', {
+      id: 1,
+      generative_ai_models_enabled: {},
+      ai_features: { kuma: { is_enabled: false } },
+    })
+    let resolveRefresh
+    testApp.mock.onGet('/workspaces/').reply(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve
+        })
+    )
+
+    const staleRefresh = store.dispatch(
+      'workspace/refreshAllGenerativeAIModels'
+    )
+    await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
+    await store.dispatch('workspace/forceUpdateGenerativeAIModels', {
+      workspaceId: 1,
+      generativeAIModelsEnabled: { openai: ['realtime-model'] },
+    })
+    resolveRefresh([
+      200,
+      [
+        {
+          id: 1,
+          generative_ai_models_enabled: { openai: ['stale-model'] },
+          ai_features: { kuma: { is_enabled: true } },
+        },
+      ],
+    ])
+    await staleRefresh
+
+    expect(store.getters['workspace/get'](1)).toMatchObject({
+      generative_ai_models_enabled: { openai: ['realtime-model'] },
+      ai_features: { kuma: { is_enabled: true } },
     })
   })
 

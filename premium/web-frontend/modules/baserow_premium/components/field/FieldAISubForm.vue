@@ -3,6 +3,7 @@
     <SelectAIModelForm
       :default-values="defaultValues"
       :database="database"
+      feature-type="ai_fields"
       @ai-type-changed="setFileFieldSupported"
     ></SelectAIModelForm>
 

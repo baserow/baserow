@@ -1,0 +1,118 @@
+// Only hidden visually so it stays in the tab order, and always shown where
+// there is no hover state to reveal it, like on touch screens.
+.application-card__more {
+  flex: 0 0 auto;
+  opacity: 0;
+
+  @media (hover: none) {
+    opacity: 1;
+  }
+}
+
+.application-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $palette-neutral-25;
+  cursor: pointer;
+
+  @include rounded($rounded-lg);
+
+  &:hover {
+    border-color: $palette-neutral-400;
+    background-color: $palette-neutral-100;
+  }
+
+  &:hover .application-card__more,
+  &:focus-within .application-card__more {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+.application-card--more {
+  justify-content: center;
+  background-color: $white;
+
+  &:hover {
+    background-color: $palette-neutral-25;
+  }
+}
+
+.application-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid $palette-neutral-200;
+  background-color: $white;
+  font-size: 18px;
+  color: $palette-neutral-1200;
+
+  @include rounded($rounded-lg);
+  @include elevation($elevation-low);
+
+  &.application-card__icon--database {
+    color: $palette-green-600;
+  }
+
+  &.application-card__icon--builder {
+    color: $palette-blue-600;
+  }
+
+  &.application-card__icon--dashboard {
+    color: $palette-magenta-600;
+  }
+
+  &.application-card__icon--automation {
+    color: $palette-yellow-600;
+  }
+}
+
+.application-card__details {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.application-card__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+
+  @extend %ellipsis;
+}
+
+.application-card__meta {
+  margin-top: 7px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+
+  @extend %ellipsis;
+}
+
+.application-card__meta-separator {
+  margin: 0 2px;
+  color: $palette-neutral-400;
+}
+
+.application-card__more-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+
+  @include flex-align-items(6px);
+}
+
+.application-card__more-arrow {
+  color: $palette-neutral-700;
+}

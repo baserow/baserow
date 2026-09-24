@@ -1,6 +1,7 @@
 import json
+import time
 from contextlib import contextmanager
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 from requests import exceptions as request_exceptions
@@ -8,6 +9,7 @@ from requests import exceptions as request_exceptions
 from baserow.contrib.integrations.core.models import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
 from baserow.core.services.exceptions import (
+    ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
@@ -16,7 +18,7 @@ from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
-# Custom context manager
+# Answers the service's outbound call, so nothing here reaches the network.
 @contextmanager
 def mock_advocate_request(
     body=None, headers=None, status_code=200, raise_exception=None
@@ -41,8 +43,11 @@ def mock_advocate_request(
     mock_response.headers = headers
     mock_response.status_code = status_code
 
-    # Use the patch context manager to mock `advocate.request`
-    with patch("advocate.request", return_value=mock_response) as mock_request:
+    # Use the patch context manager to mock `send_http_request`
+    with patch(
+        "baserow.contrib.integrations.core.service_types.send_http_request",
+        return_value=mock_response,
+    ) as mock_request:
 
         def side_effect(*args, **kwargs):
             if raise_exception is not None:
@@ -64,7 +69,7 @@ def test_core_http_request_basic(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request(
         {"raw_body": "body"}, status_code=204, headers={"test": "header"}
     ) as mock_request:
@@ -75,7 +80,8 @@ def test_core_http_request_basic(
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.POST,
                 "params": {},
-                "timeout": 15,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -91,6 +97,52 @@ def test_core_http_request_basic(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "header_name",
+    [
+        "X-Workflow-Result",
+        "x-workflow-result",
+        "X-WORKFLOW-RESULT",
+        "x-WoRkFlOw-ReSuLt",
+    ],
+)
+def test_core_http_request_preserves_and_normalizes_response_headers(
+    data_fixture, header_name
+):
+    """Existing formula keys remain valid alongside stable lowercase aliases."""
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'"
+    )
+    service_type = service.get_type()
+    with mock_advocate_request(
+        {"message": "Created"},
+        headers={header_name: "First", "Content-Type": "application/json"},
+    ):
+        result = service_type.dispatch(service, FakeDispatchContext())
+
+    # Normalization must survive serialization to browser formula contexts.
+    data = json.loads(json.dumps(result.data))
+    expected_headers = {
+        header_name: "First",
+        header_name.lower(): "First",
+        "Content-Type": "application/json",
+        "content-type": "application/json",
+    }
+    assert data["headers"] == expected_headers
+    service.sample_data = {"data": data}
+    header_schema = service_type.generate_schema(service)["properties"]["headers"]
+    expected_schema = {key: {"type": "string"} for key in expected_headers}
+    for key in expected_headers:
+        if key != key.lower():
+            expected_schema[key].update(
+                deprecated=True,
+                description=f"Deprecated: use the lowercase `{key.lower()}` key instead.",
+            )
+    assert header_schema["properties"] == expected_schema
+
+
+@pytest.mark.django_db
 def test_core_http_request_request_error(
     data_fixture,
 ):
@@ -101,7 +153,7 @@ def test_core_http_request_request_error(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     from requests.exceptions import InvalidHeader
 
     with pytest.raises(UnexpectedDispatchException):
@@ -155,7 +207,7 @@ def test_core_http_request_basic_body_raw(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -165,7 +217,8 @@ def test_core_http_request_basic_body_raw(
                 "data": "test",
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -184,7 +237,7 @@ def test_core_http_request_basic_body_json(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -194,7 +247,8 @@ def test_core_http_request_basic_body_json(
                 "json": {"test": "2"},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -294,7 +348,8 @@ def test_core_http_request_body_json_with_to_json_escapes_data_source(data_fixtu
                 "json": {"value1": 'foo "bar"'},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -323,7 +378,7 @@ def test_core_http_request_basic_body_json_with_control_characters(
 
     dispatch_context = FakeDispatchContext()
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -333,7 +388,8 @@ def test_core_http_request_basic_body_json_with_control_characters(
                 "json": {"test": value},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -353,7 +409,7 @@ def test_core_http_request_with_formulas(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -363,7 +419,8 @@ def test_core_http_request_with_formulas(
                 "json": {"test": "2"},
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/2",
             }
         )
@@ -386,7 +443,7 @@ def test_core_http_request_with_headers(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -399,7 +456,8 @@ def test_core_http_request_with_headers(
                 },
                 "method": HTTP_METHOD.GET,
                 "params": {},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -422,7 +480,7 @@ def test_core_http_request_with_query_params(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -431,7 +489,8 @@ def test_core_http_request_with_query_params(
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.GET,
                 "params": {"test": "test__2", "test2": "value"},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -454,7 +513,7 @@ def test_core_http_request_with_form_data(
     formula_context = {"page_parameter": {"id": 2}}
     dispatch_context = FakeDispatchContext(context=formula_context)
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request({"foo": "bar"}) as mock_request:
         service_type.dispatch(service, dispatch_context)
 
@@ -464,7 +523,8 @@ def test_core_http_request_with_form_data(
                 "method": HTTP_METHOD.GET,
                 "data": {"test": "test__2", "test2": "value"},
                 "params": {},
-                "timeout": 30,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -638,14 +698,29 @@ def test_core_http_request_generate_schema():
             "headers": {
                 "properties": {
                     "Content-Length": {
+                        "deprecated": True,
+                        "description": "Deprecated: use the lowercase `content-length` key instead.",
+                        "type": "number",
+                    },
+                    "content-length": {
                         "description": "The length of the response body in octets (8-bit bytes)",
                         "type": "number",
                     },
                     "Content-Type": {
+                        "deprecated": True,
+                        "description": "Deprecated: use the lowercase `content-type` key instead.",
+                        "type": "string",
+                    },
+                    "content-type": {
                         "description": "The MIME type of the response body",
                         "type": "string",
                     },
                     "ETag": {
+                        "deprecated": True,
+                        "description": "Deprecated: use the lowercase `etag` key instead.",
+                        "type": "string",
+                    },
+                    "etag": {
                         "description": "An identifier for a specific version of a resource",
                         "type": "string",
                     },
@@ -752,7 +827,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     if content_type is not None:
         headers["Content-Type"] = content_type
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request(
         {"fighters": {"Ryu": {"power": "Hadogen"}}},
         status_code=204,
@@ -765,7 +840,8 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.POST,
                 "params": {},
-                "timeout": 15,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -773,7 +849,10 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": {"fighters": {"Ryu": {"power": "Hadogen"}}},
         "raw_body": '{"fighters": {"Ryu": {"power": "Hadogen"}}}',
-        "headers": headers,
+        "headers": {
+            "Content-Type": content_type,
+            "content-type": content_type,
+        },
         "status_code": 204,
     }
 
@@ -806,7 +885,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
     if content_type is not None:
         headers["Content-Type"] = content_type
 
-    # Use the patch context manager to mock `advocate.request`
+    # Use the patch context manager to mock `send_http_request`
     with mock_advocate_request(
         "Hello world!",
         status_code=204,
@@ -819,7 +898,8 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
                 "headers": {"user-agent": AnyStr()},
                 "method": HTTP_METHOD.POST,
                 "params": {},
-                "timeout": 15,
+                "deadline": ANY,
+                "operation_timeout": ANY,
                 "url": "http://example.notexist/",
             }
         )
@@ -827,6 +907,97 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
     assert dispatch_data.data == {
         "body": "Hello world!",
         "raw_body": "Hello world!",
-        "headers": headers,
+        "headers": {
+            "Content-Type": content_type,
+            "content-type": content_type,
+        },
         "status_code": 204,
     }
+
+
+@pytest.mark.django_db
+def test_a_response_bigger_than_the_ceiling_is_refused(data_fixture):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.GET
+    )
+
+    with mock_advocate_request(
+        raise_exception=ResponseTooLargeDispatchException(
+            "The response is larger than the 1024 bytes this installation accepts."
+        )
+    ):
+        with pytest.raises(ServiceImproperlyConfiguredDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert "larger than the 1024 bytes" in str(raised.value)
+
+
+@pytest.mark.django_db
+def test_a_request_past_its_deadline_is_answered_with_a_504(data_fixture):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=1, http_method=HTTP_METHOD.GET
+    )
+
+    with mock_advocate_request(
+        raise_exception=request_exceptions.Timeout("The request did not finish.")
+    ):
+        dispatch_data = service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert dispatch_data.data["status_code"] == 504
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("timeouts", [1, 2])
+def test_the_request_gets_as_many_timeouts_as_its_context_allows(
+    data_fixture, timeouts
+):
+    """
+    A click gets exactly its timeout; builder and automation keep the two they
+    always had, one for the answer and one for the body. No single wait gets
+    more than one.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.GET
+    )
+
+    before = time.monotonic()
+    with (
+        patch.object(FakeDispatchContext, "external_request_timeouts", timeouts),
+        mock_advocate_request({"foo": "bar"}) as mock_request,
+    ):
+        service.get_type().dispatch(service, FakeDispatchContext())
+    after = time.monotonic()
+
+    deadline = mock_request.call_args.kwargs["deadline"]
+    assert before + 15 * timeouts <= deadline <= after + 15 * timeouts
+    assert mock_request.call_args.kwargs["operation_timeout"] == 15
+
+
+@pytest.mark.django_db
+def test_too_many_redirects_is_an_unexpected_dispatch_error(data_fixture):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.GET
+    )
+
+    with mock_advocate_request(
+        raise_exception=request_exceptions.TooManyRedirects("Exceeded 10 redirects.")
+    ):
+        with pytest.raises(UnexpectedDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_the_lock_budget_covers_a_read_already_waiting_at_the_deadline(
+    data_fixture,
+):
+    """
+    The request is hung up on at its deadline. The budget is doubled as headroom
+    for the hang-up's own scheduling and a slow address lookup.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=30, http_method=HTTP_METHOD.GET
+    )
+
+    assert service.get_type().max_dispatch_seconds(service) == 60

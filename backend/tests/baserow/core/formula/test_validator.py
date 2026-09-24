@@ -328,3 +328,45 @@ def test_ensure_string_with_timedelta(value, expected):
 )
 def test_ensure_integer_with_timedelta(value, expected):
     assert ensure_integer(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (-1, -1),
+        ("-1", -1),
+        ("+1", 1),
+        (1.0, 1),
+        ("001", 1),
+    ],
+)
+def test_ensure_integer(value, expected):
+    assert ensure_integer(value) == expected
+
+
+@pytest.mark.parametrize("value", [1.2, "1.2", True, False, "a"])
+def test_ensure_integer_throws_exception_for_invalid_value(value):
+    with pytest.raises(ValidationError):
+        ensure_integer(value)
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (0, 0),
+        (1, 1),
+        ("0", 0),
+        ("1", 1),
+        ("001", 1),
+    ],
+)
+def test_ensure_integer_disallowing_negative_values(value, expected):
+    assert ensure_integer(value, allow_negative=False) == expected
+
+
+@pytest.mark.parametrize(
+    "value", [None, "", -1, "-1", "+1", 1.2, "1.2", True, False, "a"]
+)
+def test_ensure_integer_disallowing_negative_values_throws_exception(value):
+    with pytest.raises(ValidationError):
+        ensure_integer(value, allow_negative=False)

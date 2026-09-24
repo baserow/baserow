@@ -31,6 +31,7 @@ from baserow.contrib.builder.data_sources.operations import (
     ListDataSourcesPageOperationType,
     OrderDataSourcesPageOperationType,
     ReadDataSourceOperationType,
+    RestoreDataSourceOperationType,
     UpdateDataSourceOperationType,
 )
 from baserow.contrib.builder.domains.operations import (
@@ -72,6 +73,7 @@ from baserow.contrib.builder.workflow_actions.operations import (
     ListBuilderWorkflowActionsPageOperationType,
     OrderBuilderWorkflowActionOperationType,
     ReadBuilderWorkflowActionOperationType,
+    RestoreBuilderWorkflowActionOperationType,
     UpdateBuilderWorkflowActionOperationType,
 )
 from baserow.contrib.dashboard.data_sources.operations import (
@@ -88,6 +90,7 @@ from baserow.contrib.dashboard.widgets.operations import (
     ListWidgetsOperationType,
     ReadWidgetOperationType,
     RestoreWidgetOperationType,
+    UpdateWidgetLayoutOperationType,
     UpdateWidgetOperationType,
 )
 from baserow.contrib.database.airtable.operations import (
@@ -217,12 +220,22 @@ from baserow.contrib.database.webhooks.operations import (
     TestTriggerWebhookOperationType,
     UpdateWebhookOperationType,
 )
+from baserow.contrib.database.workflow_actions.operations import (
+    DispatchDatabaseWorkflowActionOperationType,
+)
+from baserow.core.agents.operations import (
+    CreateAgentOperationType,
+    DeleteAgentOperationType,
+    ListAgentsWorkspaceOperationType,
+    UpdateAgentOperationType,
+)
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,
     DeleteIntegrationOperationType,
     ListIntegrationsApplicationOperationType,
     OrderIntegrationsOperationType,
     ReadIntegrationOperationType,
+    RestoreIntegrationOperationType,
     UpdateIntegrationOperationType,
 )
 from baserow.core.mcp.operations import (
@@ -274,6 +287,7 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
     OrderUserSourcesOperationType,
     ReadUserSourceOperationType,
+    RestoreUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
@@ -289,6 +303,8 @@ from baserow_enterprise.role.constants import (
     BUILDER_ROLE_UID,
     COMMENTER_ROLE_UID,
     EDITOR_ROLE_UID,
+    FIELD_PERMISSION_EDITOR_ROLE_UID,
+    INTERNAL_ROLE_UIDS,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
     READ_ONLY_ROLE_UID,
@@ -336,16 +352,20 @@ default_roles = {
     READ_ONLY_ROLE_UID: [],
     NO_ACCESS_ROLE_UID: [],
     NO_ROLE_LOW_PRIORITY_ROLE_UID: [],
+    FIELD_PERMISSION_EDITOR_ROLE_UID: [],
 }
+
+# Internal roles must be persisted, but they can never become a user's effective role.
+user_role_uids = [uid for uid in default_roles if uid not in INTERNAL_ROLE_UIDS]
 # Virtual roles are only used in-code, and it's not possible for the user to use these.
 # The READ_ONLY role is used give to the user when they don't have access to a lower
 # level object scope, but have access a higher one.
-hidden_roles = [READ_ONLY_ROLE_UID]
+hidden_roles = [READ_ONLY_ROLE_UID, *INTERNAL_ROLE_UIDS]
 
-if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in default_roles:
+if settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED not in user_role_uids:
     raise ImproperlyConfigured(
         f"The env var BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED must be set to one of "
-        f"the following values: {default_roles.keys()} but instead it is "
+        f"the following values: {user_role_uids} but instead it is "
         f"{settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED}. "
     )
 
@@ -453,11 +473,13 @@ default_roles[EDITOR_ROLE_UID].extend(
         MoveViewRowOperationType,
         DeleteViewRowOperationType,
         ReadViewDefaultValuesOperationType,
+        DispatchDatabaseWorkflowActionOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
     default_roles[EDITOR_ROLE_UID]
     + [
+        ListAgentsWorkspaceOperationType,
         CreatePageOperationType,
         DeletePageOperationType,
         UpdatePageOperationType,
@@ -539,12 +561,14 @@ default_roles[BUILDER_ROLE_UID].extend(
         PublishDomainOperationType,
         CreateIntegrationOperationType,
         DeleteIntegrationOperationType,
+        RestoreIntegrationOperationType,
         ListIntegrationsApplicationOperationType,
         OrderIntegrationsOperationType,
         ReadIntegrationOperationType,
         UpdateIntegrationOperationType,
         CreateDataSourceOperationType,
         DeleteDataSourceOperationType,
+        RestoreDataSourceOperationType,
         ListDataSourcesPageOperationType,
         OrderDataSourcesPageOperationType,
         ReadDataSourceOperationType,
@@ -552,9 +576,11 @@ default_roles[BUILDER_ROLE_UID].extend(
         DispatchDataSourceOperationType,
         DispatchBuilderWorkflowActionOperationType,
         DeleteBuilderWorkflowActionOperationType,
+        RestoreBuilderWorkflowActionOperationType,
         CreateBuilderWorkflowActionOperationType,
         CreateUserSourceOperationType,
         DeleteUserSourceOperationType,
+        RestoreUserSourceOperationType,
         ListUserSourcesApplicationOperationType,
         ReadUserSourceOperationType,
         UpdateUserSourceOperationType,
@@ -574,6 +600,8 @@ default_roles[BUILDER_ROLE_UID].extend(
         GetIncludingPublicValuesOperationType,
         CreateWidgetOperationType,
         UpdateWidgetOperationType,
+        # A layout mutation can reposition every widget after a collision.
+        UpdateWidgetLayoutOperationType,
         DeleteWidgetOperationType,
         RestoreWidgetOperationType,
         CreateDashboardDataSourceOperationType,
@@ -604,6 +632,9 @@ default_roles[BUILDER_ROLE_UID].extend(
 default_roles[ADMIN_ROLE_UID].extend(
     default_roles[BUILDER_ROLE_UID]
     + [
+        CreateAgentOperationType,
+        UpdateAgentOperationType,
+        DeleteAgentOperationType,
         UpdateWorkspaceOperationType,
         DeleteWorkspaceOperationType,
         DeleteDatabaseRowOperationType,

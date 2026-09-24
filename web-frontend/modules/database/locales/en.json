@@ -583,7 +583,30 @@
     "relatedFieldNotFound": "The related field is not found.",
     "filterTypeNotFound": "The filter type is not compatible.",
     "noCompatibleFilterTypesErrorTitle": "No compatible filter types",
-    "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types"
+    "noCompatibleFilterTypesErrorMessage": "None of your fields have any compatible filter types",
+    "copyFromView": "Copy from another view"
+  },
+  "copyViewConfigurationModal": {
+    "title": "Copy configuration to {name}",
+    "sourceView": "Copy from view",
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "copy": "Copy configuration"
+  },
+  "copyViewConfigurationOption": {
+    "fieldVisibility": "Field visibility",
+    "fieldOrder": "Field order",
+    "fieldWidths": "Field widths",
+    "viewSettings": "Settings ({settings})",
+    "viewSettingsRowHeightSize": "row height",
+    "viewSettingsFrozenColumnCount": "frozen columns",
+    "viewSettingsRowIdentifierType": "row identifier",
+    "viewSettingsGroupByLayout": "group layout",
+    "filters": "Filters",
+    "sorts": "Sorts",
+    "groupBys": "Groups",
+    "decorations": "Decorations",
+    "defaultRowValues": "Default row values"
   },
   "viewFilterTypeFileTypeDropdown": {
     "image": "image",
@@ -621,6 +644,9 @@
     "maxGroupBysReached": "You can group by up to {count} fields.",
     "collapseAllGroups": "Collapse all",
     "expandAllGroups": "Expand all",
+    "layout": "Group layout",
+    "layoutSection": "Sections",
+    "layoutColumn": "Columns",
     "hiddenFieldWarning": "One or more group bys reference hidden fields that won't be visible to editors and lower roles."
   },
   "viewGroupBy": {
@@ -698,6 +724,7 @@
   "viewContext": {
     "exportView": "Export view",
     "duplicateView": "Duplicate view",
+    "copyConfiguration": "Copy configuration from view",
     "defaultRowValues": "Default row values",
     "renameView": "Rename view",
     "toPersonal": "To personal",
@@ -834,7 +861,7 @@
   },
   "apiDocsDatabase": {
     "pageTitle": "{name} database API documentation",
-    "back": "Back to dashboard",
+    "back": "Back to overview",
     "openDatabase": "open database"
   },
   "apiDocsComponent": {
@@ -843,7 +870,7 @@
     "settings": "settings",
     "selectApplicationTitle": "For which database do you want to see the documentation?",
     "signIn": "Sign in to get started",
-    "back": "Back to dashboard"
+    "back": "Back to overview"
   },
   "viewAggregationType": {
     "count": "Count",
@@ -1058,7 +1085,11 @@
     "passwordDeleted": "The password was deleted"
   },
   "dataProviderTypes": {
-    "fieldsName": "Fields"
+    "fieldsName": "Fields",
+    "rowName": "Clicked row",
+    "rowId": "Row ID",
+    "previousActionName": "Previous action",
+    "previousActionRowId": "Id"
   },
   "userMentionInRichTextFieldNotification": {
     "title": "{sender} mentioned you in field {fieldName} of row {rowId} in {tableName}",
@@ -1278,9 +1309,65 @@
   "fieldButtonSubForm": {
     "label": "Label",
     "labelPlaceholder": "Open",
+    "unresolvedReferenceTitle": "Action not saved",
+    "unresolvedReferenceMessage": "An action uses a result from an action that does not run before it. Move it back or remove the reference, then save again."
+  },
+  "databaseWorkflowActionWithService": {
+    "nothingCapturedYet": "Click this button on a row to capture what the endpoint answers, so the actions after it can use its fields. The button's other actions run as well.",
+    "payloadModalTitle": "Captured response for {actionLabel}",
+    "payloadModalSubTitle": "JSON payload"
+  },
+  "databaseWorkflowActionType": {
+    "openUrl": "Open URL",
+    "sendEmail": "Send email",
+    "deleteRow": "Delete a row",
+    "noUrl": "Enter a URL to open.",
+    "staleReference": "This action uses a result from an action that no longer runs before it.",
+    "unreadableReference": "This action uses a result from an action that no longer returns one.",
+    "writesToTrashedField": "This action writes to a field that is in the trash. Restore the field to run the action again.",
+    "tableTrashed": "This action uses a table that is in the trash or no longer exists. Restore the table or pick another one.",
+    "requiresReconfiguration": "This action points at a table, field or integration that is in the trash or gone.",
+    "noInstanceSmtp": "This Baserow instance has no SMTP server configured, so a button cannot send email.",
+    "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email.",
+    "slackOk": "OK",
+    "slackChannel": "Channel",
+    "slackTs": "Message timestamp",
+    "slackTokenMissing": "This bot has no token. Add a new bot with its token, or paste one into this bot, before the button can post.",
+    "slackData": "Data",
+    "startWorkflowMissing": "This action's workflow can't be found. It may have been deleted, or you may not have access to it. Pick another workflow, or ask someone who can see this one.",
+    "startWorkflowUnpublished": "This workflow hasn't been published yet. Publish it before the button can start it.",
+    "startWorkflowNotLive": "This workflow is paused or disabled. Resume it before the button can start it."
+  },
+  "openUrlWorkflowActionForm": {
     "url": "URL",
-    "urlPlaceholder": "e.g. concat('https://example.com/', get('fields.field_1'))",
-    "invalidUrl": "The URL formula is invalid."
+    "urlPlaceholder": "URL...",
+    "openIn": "Open in",
+    "sameTab": "Same tab",
+    "newTab": "New tab"
+  },
+  "openUrlWorkflowAction": {
+    "invalidUrlTitle": "Could not open the URL",
+    "invalidUrlMessage": "The URL could not be resolved for this row, or it uses a protocol that is not allowed."
+  },
+  "buttonFieldActionList": {
+    "actions": "Actions",
+    "addAction": "Add action",
+    "chooseAction": "Choose action...",
+    "searchActions": "Search actions",
+    "misconfigured": "At least one action is misconfigured",
+    "toggleAction": "Show or hide this action",
+    "moveAction": "Move action, use the arrow keys to reorder"
+  },
+  "buttonField": {
+    "dispatchErrorTitle": "Could not run the actions",
+    "dispatchErrorMessage": "Something went wrong while running the button's actions. Please try again.",
+    "rateLimitedTitle": "Too many clicks",
+    "rateLimitedMessage": "This button has been clicked too often. Wait a moment and try again.",
+    "requiresReconfiguration": "This button needs to be reconfigured before it can be clicked.",
+    "noPermission": "You don't have permission to click this button."
+  },
+  "rowEditFieldButtonField": {
+    "createRowBefore": "The actions can be run after the row has been created."
   },
   "editRowLink": {
     "editRow": "Edit row"

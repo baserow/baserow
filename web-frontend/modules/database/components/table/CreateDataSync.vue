@@ -278,7 +278,11 @@ export default {
     },
     async submitted(formValues) {
       this.formValues = formValues
-      await this.fetchNonExistingProperties(this.chosenType, formValues)
+      await this.fetchNonExistingProperties(
+        this.chosenType,
+        formValues,
+        this.database.id
+      )
     },
     async create() {
       this.hideError()

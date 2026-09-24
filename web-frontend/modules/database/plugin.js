@@ -14,6 +14,17 @@ import {
   FormViewType,
 } from '@baserow/modules/database/viewTypes'
 import {
+  DecorationsCopyOptionType,
+  DefaultRowValuesCopyOptionType,
+  FieldOrderCopyOptionType,
+  FieldVisibilityCopyOptionType,
+  FieldWidthsCopyOptionType,
+  FiltersCopyOptionType,
+  GroupBysCopyOptionType,
+  ViewSettingsCopyOptionType,
+  SortsCopyOptionType,
+} from '@baserow/modules/database/copyViewConfigurationOptionTypes'
+import {
   TextFieldType,
   LongTextFieldType,
   URLFieldType,
@@ -334,7 +345,11 @@ import {
   WebhookPayloadTooLargedNotificationType,
 } from '@baserow/modules/database/notificationTypes'
 import { HistoryRowModalSidebarType } from '@baserow/modules/database/rowModalSidebarTypes'
-import { FieldsDataProviderType } from '@baserow/modules/database/dataProviderTypes'
+import {
+  FieldsDataProviderType,
+  RowDataProviderType,
+  PreviousActionDataProviderType,
+} from '@baserow/modules/database/dataProviderTypes'
 
 import {
   DatabaseOnboardingType,
@@ -370,6 +385,16 @@ import {
   DatabaseRowSearchType,
 } from '@baserow/modules/database/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
+import {
+  OpenUrlWorkflowActionType,
+  LocalBaserowCreateRowWorkflowActionType,
+  LocalBaserowUpdateRowWorkflowActionType,
+  LocalBaserowDeleteRowWorkflowActionType,
+  CoreHTTPRequestWorkflowActionType,
+  CoreSMTPEmailWorkflowActionType,
+  SlackWriteMessageWorkflowActionType,
+  CoreStartWorkflowWorkflowActionType,
+} from '@baserow/modules/database/workflowActionTypes'
 
 export default defineNuxtPlugin({
   name: 'database',
@@ -395,10 +420,12 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('viewAggregation')
     $registry.registerNamespace('formViewMode')
     $registry.registerNamespace('databaseDataProvider')
+    $registry.registerNamespace('databaseWorkflowActionType')
     $registry.registerNamespace('rowModalSidebar')
     $registry.registerNamespace('onboardingTrackFields')
     $registry.registerNamespace('configureDataSync')
     $registry.registerNamespace('databaseOnboardingStep')
+    $registry.registerNamespace('copyViewConfigurationOption')
 
     $registry.register('plugin', new DatabasePlugin(context))
     $registry.register('application', new DatabaseApplicationType(context))
@@ -413,6 +440,43 @@ export default defineNuxtPlugin({
     $registry.register('view', new GridViewType(context))
     $registry.register('view', new GalleryViewType(context))
     $registry.register('view', new FormViewType(context))
+
+    $registry.register(
+      'copyViewConfigurationOption',
+      new FieldVisibilityCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new FieldOrderCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new FieldWidthsCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new ViewSettingsCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new FiltersCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new SortsCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new GroupBysCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new DecorationsCopyOptionType(context)
+    )
+    $registry.register(
+      'copyViewConfigurationOption',
+      new DefaultRowValuesCopyOptionType(context)
+    )
     $registry.register('viewFilter', new EqualViewFilterType(context))
     $registry.register('viewFilter', new NotEqualViewFilterType(context))
     $registry.register(
@@ -989,6 +1053,11 @@ export default defineNuxtPlugin({
       'databaseDataProvider',
       new FieldsDataProviderType(context)
     )
+    $registry.register('databaseDataProvider', new RowDataProviderType(context))
+    $registry.register(
+      'databaseDataProvider',
+      new PreviousActionDataProviderType(context)
+    )
 
     // notifications
     $registry.register(
@@ -1080,6 +1149,39 @@ export default defineNuxtPlugin({
     )
 
     $registry.register('guidedTour', new DatabaseGuidedTourType(context))
+
+    $registry.register(
+      'databaseWorkflowActionType',
+      new OpenUrlWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new LocalBaserowCreateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new LocalBaserowUpdateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new LocalBaserowDeleteRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new CoreHTTPRequestWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new CoreSMTPEmailWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new SlackWriteMessageWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new CoreStartWorkflowWorkflowActionType(context)
+    )
 
     $registry.registerNamespace('fieldContextItem')
 

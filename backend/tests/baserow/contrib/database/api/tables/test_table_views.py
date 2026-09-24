@@ -11,6 +11,7 @@ from rest_framework.status import (
     HTTP_202_ACCEPTED,
     HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
     HTTP_403_FORBIDDEN,
     HTTP_404_NOT_FOUND,
 )
@@ -939,8 +940,8 @@ def test_import_table_call(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(database=database)
-    data_fixture.create_text_field(table=table, user=user)
-    data_fixture.create_number_field(table=table, user=user)
+    text_field = data_fixture.create_text_field(table=table, user=user)
+    number_field = data_fixture.create_number_field(table=table, user=user)
 
     url = reverse("api:database:tables:import_async", kwargs={"table_id": table.id})
 
@@ -959,7 +960,12 @@ def test_import_table_call(api_client, data_fixture):
     assert rdata.get("type") == "file_import"
     Job.objects.all().delete()
 
-    valid_data_with_configuration = {"data": [["1", 1], ["2", 1]], "configuration": {}}
+    valid_data_with_configuration = {
+        "data": [["1", 1], ["2", 1]],
+        "configuration": {
+            "import_fields": [text_field.id, number_field.id],
+        },
+    }
     response = api_client.post(
         url,
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1093,3 +1099,81 @@ def test_import_table_with_invalid_data_shape(api_client, data_fixture, invalid_
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_import_table_upsert_checks_update_permission(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, user=user)
+
+    url = reverse("api:database:tables:import_async", kwargs={"table_id": table.id})
+
+    from baserow.contrib.database.rows.operations import (
+        UpdateDatabaseRowOperationType,
+    )
+    from baserow.core.exceptions import PermissionDenied
+
+    def deny_update(actor, operation_name, **kwargs):
+        if operation_name == UpdateDatabaseRowOperationType.type:
+            raise PermissionDenied(actor)
+        return True
+
+    with patch(
+        "baserow.contrib.database.api.tables.views.CoreHandler.check_permissions",
+        side_effect=deny_update,
+    ):
+        response = api_client.post(
+            url,
+            HTTP_AUTHORIZATION=f"JWT {token}",
+            data={
+                "data": [["Alice"]],
+                "configuration": {
+                    "upsert_fields": [name_field.id],
+                    "upsert_values": [["Alice"]],
+                },
+            },
+            format="json",
+        )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+    assert Job.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_import_table_without_upsert_ignores_update_permission(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=table, user=user)
+
+    url = reverse("api:database:tables:import_async", kwargs={"table_id": table.id})
+
+    from baserow.contrib.database.rows.operations import (
+        UpdateDatabaseRowOperationType,
+    )
+    from baserow.core.exceptions import PermissionDenied
+
+    def deny_update(actor, operation_name, **kwargs):
+        if operation_name == UpdateDatabaseRowOperationType.type:
+            raise PermissionDenied(actor)
+        return True
+
+    with patch(
+        "baserow.contrib.database.api.tables.views.CoreHandler.check_permissions",
+        side_effect=deny_update,
+    ):
+        response = api_client.post(
+            url,
+            HTTP_AUTHORIZATION=f"JWT {token}",
+            data={"data": [["Alice"]]},
+            format="json",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert Job.objects.count() == 1
+    Job.objects.all().delete()

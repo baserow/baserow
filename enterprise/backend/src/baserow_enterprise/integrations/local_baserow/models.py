@@ -50,3 +50,11 @@ class LocalBaserowPasswordAppAuthProvider(AppAuthProvider):
         related_name="+",
         help_text="The Baserow field that contains the password of the user.",
     )
+
+    @property
+    def is_configured(self) -> bool:
+        """
+        Returns whether the authentication provider is configured properly.
+        """
+
+        return self.get_type().is_configured(self)

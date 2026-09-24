@@ -24,9 +24,17 @@ class WidgetTrashableItemType(TrashableItemType):
         super().trash(item_to_trash, requesting_user, trash_entry)
 
     def restore(self, trashed_item: Widget, trash_entry: TrashEntry):
+        # Widget placement is shared by all dashboard mutations, including a generic
+        # trash restore which does not otherwise go through WidgetService.
+        from baserow.contrib.dashboard.models import Dashboard
+
+        Dashboard.objects.select_for_update(of=("self",)).get(
+            id=trashed_item.dashboard_id
+        )
         widget_type = widget_type_registry.get_by_model(trashed_item.specific)
         widget_type.before_restore(trashed_item.specific)
         super().restore(trashed_item, trash_entry)
+        WidgetHandler().place_restored_widget_at_bottom(trashed_item)
         widget_created.send(self, widget=trashed_item)
 
     def permanently_delete_item(

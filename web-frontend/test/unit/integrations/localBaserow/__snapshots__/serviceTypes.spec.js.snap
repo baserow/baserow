@@ -1,0 +1,88 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Local baserow service types > List service preserves specialized default Table columns 1`] = `
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000001",
+    "name": "boolean",
+    "type": "boolean",
+    "value": {
+      "formula": "get('current_record.field_0')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000002",
+    "name": "rating",
+    "type": "rating",
+    "value": {
+      "formula": "get('current_record.field_1')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000003",
+    "link_name": {
+      "formula": "get('current_record.field_2')",
+    },
+    "name": "url",
+    "navigate_to_page_id": null,
+    "navigate_to_url": {
+      "formula": "get('current_record.field_2')",
+    },
+    "navigation_type": "custom",
+    "page_parameters": [],
+    "target": "blank",
+    "type": "link",
+  },
+  {
+    "alt": {
+      "formula": "get('current_record.field_3.*.visible_name')",
+    },
+    "id": "00000000-0000-0000-0000-000000000004",
+    "name": "file",
+    "src": {
+      "formula": "get('current_record.field_3.*.url')",
+    },
+    "type": "image",
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000005",
+    "name": "created_by",
+    "type": "text",
+    "value": {
+      "formula": "get('current_record.field_4.name')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000006",
+    "name": "last_modified_by",
+    "type": "text",
+    "value": {
+      "formula": "get('current_record.field_5.name')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000007",
+    "name": "single_select",
+    "type": "text",
+    "value": {
+      "formula": "get('current_record.field_6.value')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000008",
+    "name": "multiple_select",
+    "type": "text",
+    "value": {
+      "formula": "get('current_record.field_7.*.value')",
+    },
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000009",
+    "name": "multiple_collaborators",
+    "type": "text",
+    "value": {
+      "formula": "get('current_record.field_8.*.name')",
+    },
+  },
+]
+`;

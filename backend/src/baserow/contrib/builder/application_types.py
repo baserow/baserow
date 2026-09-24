@@ -20,7 +20,13 @@ from baserow.contrib.builder.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
-from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.models import (
+    LEGACY_BUILDER_BREAKPOINTS,
+    MAX_BUILDER_BREAKPOINT,
+    MIN_BUILDER_BREAKPOINT,
+    Builder,
+    validate_builder_breakpoints,
+)
 from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
@@ -59,16 +65,22 @@ class BuilderApplicationType(ApplicationType):
     supports_actions = False
     supports_integrations = True
     supports_user_sources = True
-    allowed_fields = ["favicon_file", "login_page_id"]
+    allowed_fields = [
+        "favicon_file",
+        "login_page_id",
+        "breakpoints",
+    ]
     serializer_field_names = [
         "favicon_file",
         "login_page_id",
+        "breakpoints",
         "pages",
         "theme",
     ]
     public_serializer_field_names = [
         "favicon_file",
         "login_page_id",
+        "breakpoints",
         "pages",
         "theme",
         "user_sources",
@@ -76,6 +88,7 @@ class BuilderApplicationType(ApplicationType):
     request_serializer_field_names = [
         "favicon_file",
         "login_page_id",
+        "breakpoints",
     ]
 
     serializer_mixins = [lazy_get_instance_serializer_class]
@@ -90,6 +103,7 @@ class BuilderApplicationType(ApplicationType):
     def serializer_field_overrides(self):
         from baserow.api.user_files.serializers import UserFileField
         from baserow.contrib.builder.api.validators import (
+            breakpoints_validator,
             image_file_validation,
             login_page_id_validator,
         )
@@ -108,6 +122,20 @@ class BuilderApplicationType(ApplicationType):
                 default=None,
                 help_text=Builder._meta.get_field("login_page").help_text,
                 validators=[login_page_id_validator],
+            ),
+            "breakpoints": serializers.DictField(
+                child=serializers.IntegerField(
+                    min_value=MIN_BUILDER_BREAKPOINT,
+                    max_value=MAX_BUILDER_BREAKPOINT,
+                ),
+                validators=[breakpoints_validator],
+                required=False,
+                help_text=(
+                    "The maximum widths in pixels for the responsive layouts, "
+                    f"between {MIN_BUILDER_BREAKPOINT} and "
+                    f"{MAX_BUILDER_BREAKPOINT} pixels. Mobile and tablet "
+                    "breakpoints are required."
+                ),
             ),
         }
 
@@ -258,6 +286,7 @@ class BuilderApplicationType(ApplicationType):
             user_sources=serialized_user_sources,
             favicon_file=serialized_favicon_file,
             login_page=serialized_login_page,
+            breakpoints=builder.breakpoints,
             **serialized_builder,
         )
 
@@ -366,6 +395,9 @@ class BuilderApplicationType(ApplicationType):
         serialized_integrations = serialized_values.pop("integrations")
         serialized_user_sources = serialized_values.pop("user_sources")
         serialized_theme = serialized_values.pop("theme")
+        breakpoints = validate_builder_breakpoints(
+            serialized_values.pop("breakpoints", LEGACY_BUILDER_BREAKPOINTS.copy())
+        )
 
         (
             builder_progress,
@@ -394,6 +426,18 @@ class BuilderApplicationType(ApplicationType):
         )
 
         builder = application.specific
+        # Breakpoints were added after builder applications already existed. An
+        # export without them is therefore a legacy configuration, not a newly
+        # created builder application that should receive the new defaults.
+        builder.breakpoints = breakpoints
+        builder.save(update_fields=["breakpoints"])
+
+        # Always initialize the integrations mapping, even when the export
+        # contains none (e.g. they were all trashed). Downstream importers
+        # (data sources, workflow actions, user sources) resolve dangling
+        # integration references through this mapping and expect the key to
+        # exist.
+        id_mapping.setdefault("integrations", {})
 
         if not serialized_integrations:
             progress.increment(
@@ -433,6 +477,7 @@ class BuilderApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 progress.create_child_builder(represents_progress=page_progress),
+                import_export_config=import_export_config,
             )
 
         if serialized_favicon_file := serialized_values.pop("favicon_file", None):
@@ -465,57 +510,42 @@ class BuilderApplicationType(ApplicationType):
         from baserow.contrib.builder.domains.handler import DomainHandler
 
         domain = DomainHandler().get_domain_for_builder(application)
+        preview_builder_id = domain.builder_id if domain is not None else application.id
+        preview_url = urljoin(
+            settings.BUILDER_PREVIEW_URL,
+            f"/builder/preview/{preview_builder_id}/",
+        )
 
         if domain is not None:
-            # Let's also return the preview url so that it's easier to test
-            preview_url = urljoin(
-                settings.PUBLIC_WEB_FRONTEND_URL,
-                f"/builder/{domain.builder_id}/preview/",
-            )
             return [domain.get_public_url(), preview_url]
 
-        preview_url = urljoin(
-            settings.PUBLIC_WEB_FRONTEND_URL,
-            f"/builder/{application.id}/preview/",
-        )
         # It's an unpublished version let's return to the home preview page
         return [preview_url]
 
     @classmethod
-    def _extract_builder_id_from_path(cls, url_path):
-        # Define the regex pattern with a capturing group for the integer
-        pattern = r"^/builder/(\d+)/preview/.*$"
+    def _extract_builder_id_from_preview_path(cls, url_path: str) -> int | None:
+        """Extract the draft builder ID from a fixed preview URL."""
 
-        # Use re.match to find the match
-        match = re.match(pattern, url_path)
-
-        if match:
-            # Extract the integer from the first capturing group
-            return int(match.group(1))
-        return None
+        match = re.match(r"^/builder/preview/(\d+)(?:/.*)?$", url_path)
+        return int(match.group(1)) if match else None
 
     @classmethod
     def get_application_id_for_url(cls, url: str) -> int | None:
         """
-        If the given URL is relative to the PUBLIC_WEB_FRONTEND_URL, we try to match
-        the preview path and to extract the builder id from it.
-
-        Otherwise, we try to match a published domain and return the related
-        application id.
+        Preview URLs identify their draft builder in the fixed path. Otherwise,
+        try to match a published domain and return the published application ID.
         """
 
         from baserow.contrib.builder.domains.models import Domain
 
         parsed_url = urlparse(url)
-        parsed_frontend_url = urlparse(settings.PUBLIC_WEB_FRONTEND_URL)
+        parsed_preview_url = urlparse(settings.BUILDER_PREVIEW_URL)
 
-        if (parsed_url.scheme, parsed_url.hostname) == (
-            parsed_frontend_url.scheme,
-            parsed_frontend_url.hostname,
-        ):
-            # It's an unpublished app and we try to access the preview
-            url_path = parsed_url.path
-            return cls._extract_builder_id_from_path(url_path)
+        parsed_origin = parsed_url.scheme, parsed_url.netloc
+        preview_origin = parsed_preview_url.scheme, parsed_preview_url.netloc
+
+        if parsed_origin == preview_origin:
+            return cls._extract_builder_id_from_preview_path(parsed_url.path)
 
         try:
             # Let's search for a published app
@@ -536,21 +566,21 @@ class BuilderApplicationType(ApplicationType):
         enhanced_queryset = self._get_base_enhanced_queryset(queryset)
         return enhanced_queryset.prefetch_related("page_set")
 
-    def enhance_and_filter_queryset(
+    def enhance_and_filter_queryset_for_workspaces(
         self,
         queryset: QuerySet[Builder],
         user: AbstractUser,
-        workspace: Workspace,
+        workspaces: List[Workspace],
     ) -> QuerySet[Builder]:
         enhanced_queryset = self._get_base_enhanced_queryset(queryset)
         return enhanced_queryset.prefetch_related(
             Prefetch(
                 "page_set",
-                queryset=CoreHandler().filter_queryset(
+                queryset=CoreHandler().filter_queryset_for_workspaces(
                     user,
                     ListPagesBuilderOperationType.type,
                     Page.objects.select_related("builder__workspace").all(),
-                    workspace=workspace,
+                    workspaces,
                 ),
                 to_attr="pages",
             ),
@@ -572,8 +602,8 @@ class BuilderApplicationType(ApplicationType):
 
         base_queryset = Builder.objects.filter(id=builder.id)
         if user:
-            instance = self.enhance_and_filter_queryset(
-                base_queryset, user, builder.workspace
+            instance = self.enhance_and_filter_queryset_for_workspaces(
+                base_queryset, user, [builder.workspace]
             ).first()
             return instance and instance.pages or []
         else:

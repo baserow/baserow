@@ -4,25 +4,6 @@
   display: flex;
   flex-direction: column;
   background-color: $white;
-
-  &--loading {
-    &::before {
-      content: '';
-      z-index: 5;
-      background-color: rgba(0, 0, 0, 0.2);
-
-      @include absolute(0, 0, 0, 0);
-    }
-
-    &::after {
-      content: '';
-      z-index: 6;
-      margin: -7px auto auto -7px;
-
-      @include loading(14px);
-      @include absolute(50%, auto, auto, 50%);
-    }
-  }
 }
 
 .data-table__header {

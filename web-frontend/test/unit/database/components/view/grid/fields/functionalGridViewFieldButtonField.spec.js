@@ -1,29 +1,33 @@
+import { vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FunctionalGridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/FunctionalGridViewFieldButtonField'
 
 describe('FunctionalGridViewFieldButtonField', () => {
   let testApp = null
+  let openUrlType = null
 
   beforeAll(() => {
     testApp = new TestApp()
+    openUrlType = testApp._app.$registry.get(
+      'databaseWorkflowActionType',
+      'open_url'
+    )
   })
 
   afterEach(() => {
     testApp.afterEach()
+    vi.restoreAllMocks()
   })
 
   const field = {
     id: 2,
     type: 'button',
     label: 'Open',
-    url_formula: {
-      formula: "concat('https://example.com/', get('fields.field_1'))",
-      mode: 'simple',
-    },
+    has_workflow_actions: true,
   }
 
-  const mountCell = async (props = {}) =>
-    testApp.mount(FunctionalGridViewFieldButtonField, {
+  const mountCell = async (props = {}, responseData = {}) => {
+    const wrapper = await testApp.mount(FunctionalGridViewFieldButtonField, {
       propsData: {
         field,
         value: null,
@@ -31,21 +35,60 @@ describe('FunctionalGridViewFieldButtonField', () => {
         ...props,
       },
     })
+    wrapper.vm.$client.post = vi.fn().mockResolvedValue({
+      data: { results: [], client_actions: [], ...responseData },
+    })
+    return wrapper
+  }
 
-  test('resolves the URL through the field store when allFieldsInTable is absent', async () => {
-    testApp.store.commit('field/SET_ITEMS', [
-      { id: 1, type: 'text', name: 'Slug' },
-      field,
-    ])
-    const wrapper = await mountCell()
-    const anchor = wrapper.find('a')
-    expect(anchor.attributes('href')).toBe('https://example.com/ada')
-    expect(anchor.text()).toBe('Open')
+  test('a field without actions renders a disabled button and no link', async () => {
+    const wrapper = await mountCell({
+      field: { ...field, has_workflow_actions: false },
+    })
+
+    expect(wrapper.find('a').exists()).toBe(false)
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('button').text()).toBe('Open')
   })
 
-  test('renders a disabled button when the store has no fields to resolve against', async () => {
-    testApp.store.commit('field/SET_ITEMS', [])
-    const wrapper = await mountCell()
-    expect(wrapper.find('a').attributes('href')).toBeUndefined()
+  test('a field that needs reconfiguring renders a disabled button with a warning', async () => {
+    const wrapper = await mountCell({
+      field: { ...field, requires_reconfiguration: true },
+    })
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.iconoir-warning-triangle').exists()).toBe(true)
+    // Nothing in between, or the button's max width shrinks with the label.
+    expect(wrapper.find('.grid-field-button > button').exists()).toBe(true)
+
+    await button.trigger('click')
+
+    expect(wrapper.vm.$client.post).not.toHaveBeenCalled()
+  })
+
+  test('resolves the client action fields from the field store', async () => {
+    const storeFields = [{ id: 1, type: 'text', name: 'Slug' }, field]
+    testApp.store.commit('field/SET_ITEMS', storeFields)
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const action = {
+      id: 1,
+      type: 'open_url',
+      url: { formula: "'https://example.com'", mode: 'simple', version: 1 },
+      target: 'blank',
+    }
+    const wrapper = await mountCell({}, { client_actions: [action] })
+
+    await wrapper.find('button').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(execute).toHaveBeenCalledWith({
+      workflowAction: action,
+      applicationContext: {
+        row: { id: 1, field_1: 'ada' },
+        fields: storeFields,
+        previousActionResults: {},
+      },
+    })
   })
 })

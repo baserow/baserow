@@ -184,6 +184,10 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
                 "order": "1.00000000000000000000",
                 "title": "Pie chart",
                 "type": "pie_chart",
+                "grid_x": 0,
+                "grid_y": 0,
+                "grid_width": 3,
+                "grid_height": 9,
                 "series_config": [
                     {"series_chart_type": "PIE", "series_id": series_1.id},
                     {"series_chart_type": "DOUGHNUT", "series_id": series_2.id},
@@ -319,6 +323,10 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
     assert widget1.description == "Description 1"
     assert widget1.order == Decimal("1.0")
     assert widget1.data_source.id == ds1.id
+    assert widget1.grid_x == 0
+    assert widget1.grid_y == 0
+    assert widget1.grid_width == 3
+    assert widget1.grid_height == 9
 
     series_configs = PieChartSeriesConfig.objects.filter(widget=widget1)
     assert series_configs.count() == 2

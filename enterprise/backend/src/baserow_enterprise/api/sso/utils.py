@@ -23,8 +23,10 @@ class SsoErrorCode(Enum):
     PROVIDER_DOES_NOT_EXIST = "errorProviderDoesNotExist"
     AUTH_FLOW_ERROR = "errorAuthFlowError"
     DIFFERENT_PROVIDER = "errorDifferentProvider"
+    UNVERIFIED_EMAIL = "errorUnverifiedEmail"
     GROUP_INVITATION_EMAIL_MISMATCH = "errorWorkspaceInvitationEmailMismatch"
     SIGNUP_DISABLED = "errorSignupDisabled"
+    APPLICATION_USER_LIMIT_REACHED = "errorApplicationUserLimitReached"
 
 
 class map_sso_exceptions(ContextDecorator):
@@ -236,7 +238,7 @@ def get_frontend_default_redirect_url() -> str:
     :return: The absolute url to the Baserow dashboard.
     """
 
-    return urljoin(settings.PUBLIC_WEB_FRONTEND_URL, "/dashboard")
+    return urljoin(settings.PUBLIC_WEB_FRONTEND_URL, "/all-workspaces")
 
 
 def get_frontend_login_error_url() -> str:

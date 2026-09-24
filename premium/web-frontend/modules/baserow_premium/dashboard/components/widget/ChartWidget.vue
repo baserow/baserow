@@ -1,68 +1,42 @@
 <template>
-  <div
-    class="dashboard-chart-widget"
-    :class="{
-      'dashboard-chart-widget--with-header-description': widget.description,
-    }"
-  >
-    <template v-if="!loading">
+  <div class="dashboard-chart-widget">
+    <template v-if="!isDataLoading">
       <div
-        class="widget__header"
-        :class="{
-          'widget__header--edit-mode': editMode,
-        }"
+        class="dashboard-chart-widget__content widget__content"
+        :class="{ 'loading-spinner': isChartLoading }"
       >
-        <div class="widget__header-main">
-          <div class="widget__header-title-wrapper">
-            <div class="widget__header-title">{{ widget.title }}</div>
-
-            <Badge
-              v-if="dataSourceMisconfigured"
-              color="red"
-              size="small"
-              indicator
-              rounded
-              >{{ $t('widget.fixConfiguration') }}</Badge
-            >
-          </div>
-          <div v-if="widget.description" class="widget__header-description">
-            {{ widget.description }}
-          </div>
-        </div>
-        <WidgetContextMenu
-          v-if="isEditMode"
-          :widget="widget"
-          :dashboard="dashboard"
-          @delete-widget="$emit('delete-widget', $event)"
-        ></WidgetContextMenu>
-      </div>
-
-      <div class="dashboard-chart-widget__content widget__content">
-        <Chart
-          :data-source="dataSource"
-          :data-source-data="dataForDataSource"
-          :series-config="widget.series_config"
+        <div
+          class="dashboard-chart-widget__chart"
+          :class="{
+            'dashboard-chart-widget__chart--hidden': isChartLoading,
+          }"
         >
-        </Chart>
+          <Chart
+            v-if="chartReady"
+            :key="chartKey"
+            :data="chartData"
+            @rendered="chartRendered = true"
+          >
+          </Chart>
+        </div>
       </div>
     </template>
-    <div v-else class="dashboard-chart-widget__loading loading-spinner"></div>
   </div>
 </template>
 
 <script>
-import WidgetContextMenu from '@baserow/modules/dashboard/components/widget/WidgetContextMenu'
-import Chart from '@baserow_premium/dashboard/components/widget/Chart'
+import Chart from '@baserow_premium/components/Chart'
+import { getDashboardChartData } from '@baserow_premium/dashboard/chartData'
 
 export default {
   name: 'ChartWidget',
-  emits: ['delete-widget'],
-  components: { WidgetContextMenu, Chart },
+  components: { Chart },
+  data() {
+    return {
+      chartRendered: false,
+    }
+  },
   props: {
-    dashboard: {
-      type: Object,
-      required: true,
-    },
     widget: {
       type: Object,
       required: true,
@@ -73,11 +47,6 @@ export default {
       default: '',
     },
     loading: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    editMode: {
       type: Boolean,
       required: false,
       default: false,
@@ -94,17 +63,33 @@ export default {
         `${this.storePrefix}dashboardApplication/getDataForDataSource`
       ](this.dataSource?.id)
     },
-    isEditMode() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/isEditMode`
-      ]
+    chartReady() {
+      return Boolean(this.dataSource && this.dataForDataSource)
     },
-    dataSourceMisconfigured() {
-      const data = this.dataForDataSource
-      if (data) {
-        return !!data._error
-      }
-      return false
+    isDataLoading() {
+      return this.loading || !this.chartReady
+    },
+    isChartLoading() {
+      return !this.chartRendered
+    },
+    chartKey() {
+      return `${this.dataSource?.id}-${JSON.stringify(
+        this.dataForDataSource?.results || []
+      )}`
+    },
+    chartData() {
+      return getDashboardChartData({
+        dataSource: this.dataSource || {},
+        dataSourceData: this.dataForDataSource,
+        seriesConfig: this.widget.series_config || [],
+        $registry: this.$registry,
+        $t: (...args) => this.$t(...args),
+      })
+    },
+  },
+  watch: {
+    chartKey() {
+      this.chartRendered = false
     },
   },
 }

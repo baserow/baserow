@@ -8,6 +8,7 @@ from django.db.models import QuerySet
 from baserow.contrib.database.exceptions import (
     DatabaseSnapshotMaxLocksExceededException,
 )
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     ApplicationOperationNotSupported,
@@ -416,15 +417,16 @@ class SnapshotHandler:
         # we set the source snapshot so that `get_root()` can be called
         # on this application.
         exported_application["snapshot_from"] = snapshot
-        application_type.import_serialized(
-            None,
-            exported_application,
-            snapshot_import_export_config,
-            id_mapping,
-            None,
-            storage,
-            progress_builder=progress.create_child_builder(represents_progress=50),
-        )
+        with deferred_callback_context():
+            application_type.import_serialized(
+                None,
+                exported_application,
+                snapshot_import_export_config,
+                id_mapping,
+                None,
+                storage,
+                progress_builder=progress.create_child_builder(represents_progress=50),
+            )
 
     def perform_restore(self, snapshot: Snapshot, progress: Progress) -> Application:
         """
@@ -469,15 +471,16 @@ class SnapshotHandler:
         )
         progress.increment(by=50)
 
-        imported_application = application_type.import_serialized(
-            snapshot.snapshot_from_application.workspace,
-            exported_application,
-            restore_snapshot_import_export_config,
-            {},
-            None,
-            storage,
-            progress_builder=progress.create_child_builder(represents_progress=50),
-        )
+        with deferred_callback_context():
+            imported_application = application_type.import_serialized(
+                snapshot.snapshot_from_application.workspace,
+                exported_application,
+                restore_snapshot_import_export_config,
+                {},
+                None,
+                storage,
+                progress_builder=progress.create_child_builder(represents_progress=50),
+            )
         imported_application.name = CoreHandler().find_unused_application_name(
             snapshot.snapshot_from_application.workspace, snapshot.name
         )

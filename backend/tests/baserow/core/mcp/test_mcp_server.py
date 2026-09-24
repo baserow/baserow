@@ -431,6 +431,51 @@ def test_call_tool_without_endpoint_key(data_fixture):
                 # tools.
                 result = await client.call_tool("list_tables", {})
                 assert result.content[0].text == "Endpoint not found."
+                assert result.isError is True
+
+        with transaction.atomic():
+            async_to_sync(inner)()
+    finally:
+        current_key.reset(key_token)
+
+
+@pytest.mark.django_db
+def test_call_tool_unknown_tool_name(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint()
+    mcp = BaserowMCPServer()
+
+    key_token = current_key.set(endpoint.key)
+
+    try:
+
+        async def inner():
+            async with client_session(mcp._mcp_server) as client:
+                result = await client.call_tool("nonexistent_tool", {})
+                assert result.content[0].text == "Tool 'nonexistent_tool' not found."
+                assert result.isError is True
+
+        with transaction.atomic():
+            async_to_sync(inner)()
+    finally:
+        current_key.reset(key_token)
+
+
+@pytest.mark.django_db
+def test_call_tool_exception_returns_is_error_true(data_fixture):
+    endpoint = data_fixture.create_mcp_endpoint()
+    mcp = BaserowMCPServer()
+
+    key_token = current_key.set(endpoint.key)
+
+    try:
+
+        async def inner():
+            async with client_session(mcp._mcp_server) as client:
+                result = await client.call_tool(
+                    "update_rows", {"table_id": 999999, "rows": []}
+                )
+                assert result.isError is True
+                assert "Error:" in result.content[0].text
 
         with transaction.atomic():
             async_to_sync(inner)()

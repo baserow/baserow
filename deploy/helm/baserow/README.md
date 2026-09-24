@@ -103,7 +103,7 @@ To enable the AI assistant, you need to configure the LLM model and provide the 
 ```yaml
 global:
   baserow:
-    assistantLLMModel: "groq/openai/gpt-oss-120b"
+    assistantLLMModel: "groq:openai/gpt-oss-120b"
 
 backendSecrets:
   GROQ_API_KEY: "your-groq-api-key"
@@ -232,7 +232,7 @@ caddy:
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
 | `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
 | `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.3.3`                |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.3.4`                |
 | `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
 | `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
 | `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |
@@ -246,6 +246,7 @@ caddy:
 | `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`         |
 | `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`     |
 | `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
+| `global.baserow.assistantLLMModel`                                 | Configure the environment-based model for the AI assistant. When database-backed AI providers are enabled, it is the fallback. | `""`                    |
 | `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                 |
 | `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                    |
 | `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                    |
@@ -460,7 +461,6 @@ caddy:
 | Name                                                            | Description                                                     | Value                      |
 | --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------- |
 | `baserow-embeddings.enabled`                                    | Set to true to enable the Baserow Embeddings service.           | `false`                    |
-| `baserow-embeddings.assistantLLMModel`                          | The LLM model to use for the Embeddings service.                | `groq/openai/gpt-oss-120b` |
 | `baserow-embeddings.image.repository`                           | Docker image repository for the Embeddings service.             | `embeddings`               |
 | `baserow-embeddings.resources`                                  | Resource requests and limits for the Embeddings service.        |                            |
 | `baserow-embeddings.autoscaling.enabled`                        | Enable autoscaling for the Embeddings service.                  | `false`                    |

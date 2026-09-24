@@ -10,7 +10,11 @@
     :validation-context="{ dataProviderRegistry: dataProviders }"
     @input="updatedFormulaStr"
     @update:mode="updateMode"
-  />
+  >
+    <template v-if="$slots['raw-input']" #raw-input="slotProps">
+      <slot name="raw-input" v-bind="slotProps"></slot>
+    </template>
+  </FormulaInputField>
 </template>
 
 <script setup>
@@ -111,7 +115,9 @@ const nodesHierarchy = computed(() => {
  * @returns {String} The expression string.
  */
 const formulaStr = computed(() => {
-  return currentValue.value.formula
+  // Legacy stored values can contain `formula: null`; `FormulaInputField`
+  // expects a string.
+  return currentValue.value.formula || ''
 })
 
 const dataSourceLoading = computed(() => {

@@ -22,6 +22,7 @@ import {
   LocalBaserowRowsDeletedTriggerNodeType,
   LocalBaserowFieldsUpdatedTriggerNodeType,
   CoreHTTPTriggerNodeType,
+  CoreInboundEmailTriggerNodeType,
   LocalBaserowAggregateRowsActionNodeType,
   CoreCSVFileReaderNodeType,
   CoreHttpRequestNodeType,
@@ -30,6 +31,7 @@ import {
   CoreRouterNodeType,
   CoreGotoNodeType,
   CorePeriodicTriggerNodeType,
+  CoreResponseNodeType,
   CoreStartWorkflowNodeType,
   CoreManualTriggerNodeType,
   AIAgentActionNodeType,
@@ -109,6 +111,7 @@ export default defineNuxtPlugin({
       new LocalBaserowFieldsUpdatedTriggerNodeType(context)
     )
     $registry.register('node', new CoreHTTPTriggerNodeType(context))
+    $registry.register('node', new CoreInboundEmailTriggerNodeType(context))
     $registry.register('node', new LocalBaserowCreateRowActionNodeType(context))
     $registry.register(
       'node',
@@ -123,6 +126,7 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreSMTPEmailNodeType(context))
     $registry.register('node', new CoreRouterNodeType(context))
     $registry.register('node', new CoreGotoNodeType(context))
+    $registry.register('node', new CoreResponseNodeType(context))
     $registry.register('node', new CoreIteratorNodeType(context))
     $registry.register('node', new CoreCSVFileReaderNodeType(context))
     $registry.register('node', new CoreStartWorkflowNodeType(context))

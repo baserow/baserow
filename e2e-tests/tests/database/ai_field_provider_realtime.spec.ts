@@ -83,7 +83,7 @@ test("AI field availability stays synchronized while visiting admin settings", a
     );
     const workspace = await createWorkspace(
       staffUser,
-      `AI realtime ${Date.now()}`,
+      `AI realtime ${Date.now().toString(36)}`,
     );
     workspaceId = workspace.id;
     const database = await createDatabase(

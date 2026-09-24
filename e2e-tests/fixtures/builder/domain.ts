@@ -10,10 +10,10 @@ export class PublishedBuilder {
     public userSourceId: number,
   ) {}
 
-  // URL path of the preview route that renders the published, visibility
-  // filtered page without needing a real domain to resolve.
-  previewPath(): string {
-    return `/builder/${this.id}/preview${this.pagePath}`;
+  // URL path that renders the published, visibility-filtered page by ID without
+  // needing the custom domain to resolve in the e2e environment.
+  renderPath(): string {
+    return `/builder/published/${this.id}${this.pagePath}`;
   }
 }
 

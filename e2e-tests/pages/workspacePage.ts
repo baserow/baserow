@@ -17,8 +17,7 @@ export class WorkspacePage extends BaserowPage {
   }
 
   async authenticate() {
-    await this.page.goto(`${this.baseUrl}?token=${this.user.refreshToken}`);
-    await this.recoverFromNuxtError();
+    return super.authenticate(this.user);
   }
 
   getFullUrl() {

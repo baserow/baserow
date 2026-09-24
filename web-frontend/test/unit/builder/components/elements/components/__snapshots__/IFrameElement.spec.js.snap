@@ -35,13 +35,3 @@ exports[`IFrameElement > does not sandbox user-provided content in preview mode 
   srcdoc="<script>window.parent.document.cookie</script>"
 />
 `;
-
-exports[`IFrameElement > fully sandboxes external URLs in editing mode 1`] = `
-<iframe
-  class="iframe-element__iframe"
-  height="300"
-  sandbox=""
-  src="https://example.com"
-  style="pointer-events: none;"
-/>
-`;

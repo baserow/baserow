@@ -5,4 +5,20 @@
 
 .padding-selector__input {
   flex: 1;
+  min-width: 0;
+
+  .form-input__input {
+    padding-left: 8px;
+    padding-right: 28px;
+  }
+
+  .form-input__icon-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    padding-right: 0;
+  }
 }

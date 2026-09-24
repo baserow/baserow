@@ -19,6 +19,7 @@ from baserow.api.decorators import (
     validate_body_custom_fields,
 )
 from baserow.api.integrations.errors import (
+    ERROR_INTEGRATION_CREDENTIAL_REQUIRED,
     ERROR_INTEGRATION_DOES_NOT_EXIST,
     ERROR_INTEGRATION_NOT_IN_SAME_APPLICATION,
 )
@@ -40,7 +41,14 @@ from baserow.core.exceptions import (
     ApplicationOperationNotSupported,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.actions import (
+    CreateIntegrationActionType,
+    DeleteIntegrationActionType,
+    MoveIntegrationActionType,
+    UpdateIntegrationActionType,
+)
 from baserow.core.integrations.exceptions import (
+    IntegrationCredentialRequired,
     IntegrationDoesNotExist,
     IntegrationNotInSameApplication,
 )
@@ -124,6 +132,7 @@ class IntegrationsView(APIView):
         request=DiscriminatorCustomFieldsMappingSerializer(
             integration_type_registry,
             CreateIntegrationSerializer,
+            request=True,
         ),
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(
@@ -158,7 +167,7 @@ class IntegrationsView(APIView):
         before = IntegrationHandler().get_integration(before_id) if before_id else None
 
         integration_type = integration_type_registry.get(type_name)
-        integration = IntegrationService().create_integration(
+        integration = CreateIntegrationActionType.do(
             request.user, integration_type, application, before=before, **data
         )
 
@@ -185,6 +194,8 @@ class IntegrationView(APIView):
         request=CustomFieldRegistryMappingSerializer(
             integration_type_registry,
             UpdateIntegrationSerializer,
+            request=True,
+            partial_request=True,
         ),
         responses={
             200: DiscriminatorCustomFieldsMappingSerializer(
@@ -193,6 +204,7 @@ class IntegrationView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_INTEGRATION_CREDENTIAL_REQUIRED",
                 ]
             ),
             404: get_error_schema(
@@ -206,6 +218,7 @@ class IntegrationView(APIView):
     @map_exceptions(
         {
             IntegrationDoesNotExist: ERROR_INTEGRATION_DOES_NOT_EXIST,
+            IntegrationCredentialRequired: ERROR_INTEGRATION_CREDENTIAL_REQUIRED,
         }
     )
     @require_request_data_type(dict)
@@ -223,9 +236,11 @@ class IntegrationView(APIView):
             integration_type_registry,
             request.data,
             base_serializer_class=UpdateIntegrationSerializer,
+            partial=True,
+            return_validated=True,
         )
 
-        integration_updated = IntegrationService().update_integration(
+        integration_updated = UpdateIntegrationActionType.do(
             request.user, integration, **data
         )
 
@@ -271,7 +286,7 @@ class IntegrationView(APIView):
 
         integration = IntegrationHandler().get_integration_for_update(integration_id)
 
-        IntegrationService().delete_integration(request.user, integration)
+        DeleteIntegrationActionType.do(request.user, integration)
 
         return Response(status=204)
 
@@ -334,7 +349,7 @@ class MoveIntegrationView(APIView):
         if before_id:
             before = IntegrationHandler().get_integration(before_id)
 
-        moved_integration = IntegrationService().move_integration(
+        moved_integration = MoveIntegrationActionType.do(
             request.user, integration, before
         )
 

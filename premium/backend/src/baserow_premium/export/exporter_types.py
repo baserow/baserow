@@ -43,7 +43,7 @@ class PremiumTableExporter(TableExporter):
 class JSONQuerysetSerializer(QuerysetSerializer):
     can_handle_rich_value = True
 
-    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8"):
+    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8", **kwargs):
         """
         Writes the queryset to the provided file in json format. Will generate
         semi-structured json based on the fields in the queryset.
@@ -103,7 +103,7 @@ class JSONTableExporter(PremiumTableExporter):
 class XMLQuerysetSerializer(QuerysetSerializer):
     can_handle_rich_value = True
 
-    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8"):
+    def write_to_file(self, file_writer: FileWriter, export_charset="utf-8", **kwargs):
         """
         Writes the queryset to the provided file in xml format. Will generate
         semi-structured xml based on the fields in the queryset. Each separate row in
@@ -183,6 +183,7 @@ class ExcelQuerysetSerializer(QuerysetSerializer):
         file_writer: FileWriter,
         export_charset: Optional[str] = None,
         excel_include_header: bool = False,
+        **kwargs,
     ):
         """
         :param file_writer: The FileWriter instance to write to.
@@ -257,6 +258,7 @@ class FileQuerysetSerializer(QuerysetSerializer):
         file_writer: FileWriter,
         export_charset: str = "utf-8",
         organize_files: bool = True,
+        **kwargs,
     ):
         """
         Writes files from the queryset to a zip archive. Will create a directory

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Reduced WebSocket row update payload size by serializing only changed fields instead of all fields.",
+    "issue_origin": "github",
+    "issue_number": 5927,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-19"
+}

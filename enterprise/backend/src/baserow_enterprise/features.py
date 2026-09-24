@@ -14,6 +14,8 @@ BUILDER_SSO = "application_user_sso"
 BUILDER_NO_BRANDING = "application_no_branding"
 BUILDER_FILE_INPUT = "builder_file_input"
 BUILDER_CUSTOM_CODE = "builder_custom_code"
+BUILDER_GROUPED_AGGREGATE_ROWS = "builder_grouped_aggregate_rows"
+BUILDER_GRAPH_ELEMENT = "builder_graph_element"
 CODE_RUNNER = "code_runner"
 XLS_FILE_READER = "xls_file_reader"
 

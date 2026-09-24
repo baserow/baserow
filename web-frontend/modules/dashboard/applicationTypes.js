@@ -68,7 +68,12 @@ export class DashboardApplicationType extends ApplicationType {
   }
 
   delete(application, { $router }) {
-    $router.push({ name: 'dashboard' })
+    if (application._.selected) {
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
+    }
   }
 
   async select(application, { $router }) {

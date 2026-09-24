@@ -193,7 +193,6 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
         {
             "field_id": sf.field_id,
             "value": sf.value,
-            "value_is_formula": sf.value_is_formula,
         }
         for sf in imported_datasource.service.service_filters.all()
     ]
@@ -202,21 +201,18 @@ def test_local_baserow_table_service_filterable_mixin_import_export(data_fixture
         {
             "field_id": imported_text_field.id,
             "value": {"mode": "simple", "version": "0.1", "formula": "'foobar'"},
-            "value_is_formula": True,
         },
         {
             "field_id": imported_text_field.id,
             "value": {"mode": "simple", "version": "0.1", "formula": "123"},
-            "value_is_formula": True,
         },
         {
             "field_id": imported_single_select_field.id,
             "value": {
-                "mode": "simple",
+                "mode": "raw",
                 "version": "0.1",
                 "formula": str(imported_select_option.id),
             },
-            "value_is_formula": False,
         },
     ]
 
@@ -227,7 +223,7 @@ def test_local_baserow_table_service_filterable_mixin_compat():
 
     id_mapping = {
         "database_field_select_options": {1: 42},
-        "database_fields": {1: 41, 2: 42, 3: 43, 4: 44},
+        "database_fields": {1: 41, 2: 42, 3: 43, 4: 44, 5: 45},
     }
 
     value_to_test = [
@@ -238,6 +234,10 @@ def test_local_baserow_table_service_filterable_mixin_compat():
             "field_id": 4,
             "value": {"mode": "simple", "version": "0.1", "formula": "'foobar'"},
             "value_is_formula": True,
+        },
+        {
+            "field_id": 5,
+            "value": {"mode": "raw", "version": "0.1", "formula": "1"},
         },
     ]
 
@@ -253,22 +253,22 @@ def test_local_baserow_table_service_filterable_mixin_compat():
                 "mode": "simple",
                 "version": "0.1",
             },
-            "value_is_formula": True,
         },
         {
             "field_id": 42,
-            "value": {"formula": "42", "mode": "simple", "version": "0.1"},
-            "value_is_formula": False,
+            "value": {"formula": "42", "mode": "raw", "version": "0.1"},
         },
         {
             "field_id": 43,
             "value": {"formula": "", "mode": "simple", "version": "0.1"},
-            "value_is_formula": True,
         },
         {
             "field_id": 44,
             "value": {"mode": "simple", "version": "0.1", "formula": "'foobar'"},
-            "value_is_formula": True,
+        },
+        {
+            "field_id": 45,
+            "value": {"mode": "raw", "version": "0.1", "formula": "42"},
         },
     ]
 

@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { getBuilderBreakpoints } from '@baserow/modules/builder/utils/breakpoints'
 
 export class DeviceType extends Registerable {
   get iconClass() {
@@ -9,12 +10,46 @@ export class DeviceType extends Registerable {
     return null
   }
 
+  /**
+   * @deprecated Implement `getPreviewWidth(builder)` instead.
+   */
   get minWidth() {
     return 0
   }
 
+  /**
+   * @deprecated Implement `getMaxWidth(builder)` instead.
+   */
   get maxWidth() {
     return 0
+  }
+
+  /**
+   * Returns the width used for this device in the editor preview.
+   *
+   * @param {Object} builder The application builder being previewed.
+   * @returns {number}
+   */
+  getPreviewWidth(builder) {
+    return this.getMinWidth(builder)
+  }
+
+  /**
+   * @deprecated Implement `getPreviewWidth(builder)` instead.
+   */
+  getMinWidth() {
+    return this.minWidth
+  }
+
+  /**
+   * Returns the maximum viewport width represented by this device, or `null`
+   * when it has no upper bound.
+   *
+   * @param {Object} builder The application builder being previewed.
+   * @returns {number|null}
+   */
+  getMaxWidth() {
+    return this.maxWidth
   }
 }
 
@@ -31,12 +66,12 @@ export class DesktopDeviceType extends DeviceType {
     return 1
   }
 
-  get minWidth() {
-    return 1100
+  getPreviewWidth(builder) {
+    return getBuilderBreakpoints(builder).tablet + 1
   }
 
-  get maxWidth() {
-    return null // Can be as wide as you want
+  getMaxWidth() {
+    return null
   }
 }
 
@@ -53,12 +88,12 @@ export class TabletDeviceType extends DeviceType {
     return 2
   }
 
-  get minWidth() {
-    return 768
+  getPreviewWidth(builder) {
+    return getBuilderBreakpoints(builder).tablet
   }
 
-  get maxWidth() {
-    return 768
+  getMaxWidth(builder) {
+    return getBuilderBreakpoints(builder).tablet
   }
 }
 
@@ -75,11 +110,11 @@ export class SmartphoneDeviceType extends DeviceType {
     return 3
   }
 
-  get minWidth() {
-    return 500
+  getPreviewWidth(builder) {
+    return getBuilderBreakpoints(builder).mobile
   }
 
-  get maxWidth() {
-    return 500
+  getMaxWidth(builder) {
+    return getBuilderBreakpoints(builder).mobile
   }
 }

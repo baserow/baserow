@@ -16,6 +16,13 @@
           : $t('iframeElementForm.missingValue')
       }}
     </p>
+    <p
+      v-else-if="shouldShowEditorURLPlaceholder"
+      class="iframe-element__empty iframe-element__editor-placeholder"
+      :style="{ height: `${element.height}px` }"
+    >
+      {{ $t('iframeElementForm.editorPreviewPlaceholder') }}
+    </p>
     <template v-else>
       <client-only
         ><iframe
@@ -71,6 +78,13 @@ export default {
     },
     resolvedEmbed() {
       return ensureString(this.resolveFormula(this.element.embed))
+    },
+    shouldShowEditorURLPlaceholder() {
+      return (
+        this.element.source_type === IFRAME_SOURCE_TYPES.URL &&
+        Boolean(this.resolvedURL) &&
+        (this.isEditMode || this.applicationContext.mode === 'editing')
+      )
     },
     sandboxPermissions() {
       if (this.isEditMode) {

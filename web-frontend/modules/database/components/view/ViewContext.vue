@@ -63,6 +63,25 @@
         </a>
       </li>
       <li
+        v-if="
+          canCopyConfiguration &&
+          $hasPermission(
+            'database.table.view.update',
+            view,
+            database.workspace.id
+          )
+        "
+        class="context__menu-item"
+      >
+        <a
+          class="context__menu-item-link"
+          @click="openCopyConfigurationModal()"
+        >
+          <i class="context__menu-item-icon iconoir-multiple-pages"></i>
+          {{ $t('viewContext.copyConfiguration') }}
+        </a>
+      </li>
+      <li
         v-for="(
           changeViewOwnershipTypeComponent, index
         ) in changeViewOwnershipTypeMenuItems"
@@ -166,6 +185,11 @@
       :database="database"
       :store-prefix="storePrefix"
     />
+    <CopyViewConfigurationModal
+      ref="copyViewConfigurationModal"
+      :view="view"
+      :database="database"
+    />
   </Context>
 </template>
 
@@ -178,6 +202,8 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportTableModal from '@baserow/modules/database/components/export/ExportTableModal'
 import WebhookModal from '@baserow/modules/database/components/webhook/WebhookModal.vue'
 import DefaultValuesModal from '@baserow/modules/database/components/view/DefaultValuesModal.vue'
+import CopyViewConfigurationModal from '@baserow/modules/database/components/view/CopyViewConfigurationModal.vue'
+import { getCompatibleSourceViews } from '@baserow/modules/database/utils/copyViewConfiguration'
 
 export default {
   name: 'ViewContext',
@@ -186,6 +212,7 @@ export default {
     WebhookModal,
     ImportFileModal,
     DefaultValuesModal,
+    CopyViewConfigurationModal,
   },
   mixins: [context],
   props: {
@@ -224,7 +251,21 @@ export default {
     },
     ...mapGetters({
       fields: 'field/getAll',
+      allViews: 'view/getAll',
     }),
+    canCopyConfiguration() {
+      // Without a compatible source view, a form view or a table with a
+      // single view for example, the copy configuration modal would be a dead
+      // end.
+      return (
+        getCompatibleSourceViews(
+          this.$registry,
+          this.allViews,
+          this.view,
+          this.database.workspace.id
+        ).length > 0
+      )
+    },
     changeViewOwnershipTypeMenuItems() {
       const activeOwnershipTypes = Object.values(
         this.$registry.getAll('viewOwnershipType')
@@ -311,6 +352,10 @@ export default {
     openDefaultValuesModal() {
       this.$refs.context.hide()
       this.$refs.defaultValuesModal.show()
+    },
+    openCopyConfigurationModal() {
+      this.$refs.context.hide()
+      this.$refs.copyViewConfigurationModal.show()
     },
   },
 }

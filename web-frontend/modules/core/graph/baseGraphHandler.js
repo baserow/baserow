@@ -74,6 +74,11 @@ export default class BaseGraphHandler {
         : Object.entries(childrenDict)
 
     const result = []
+    // Seeded with the container itself and shared across all slots so that
+    // even on a corrupted (cyclic) graph no point is ever walked twice and
+    // the walk always terminates. Termination only — repairing corruption is
+    // the backend heal's responsibility.
+    const seen = new Set([String(targetPoint?.id ?? targetPoint)])
     for (const [, headIds] of slotEntries) {
       if (!headIds.length) continue
       if (!followChains) {
@@ -81,7 +86,8 @@ export default class BaseGraphHandler {
         if (point) result.push(point)
       } else {
         let currentId = headIds[0]
-        while (currentId) {
+        while (currentId != null && !seen.has(String(currentId))) {
+          seen.add(String(currentId))
           const point = this.getPoint(currentId)
           if (!point && !skipMissing) break
           if (point) result.push(point)
@@ -186,12 +192,17 @@ export default class BaseGraphHandler {
   }
 
   getPreviousPositions(target) {
+    // A corrupted graph can make a point (transitively) its own successor;
+    // stop exploring instead of recursing forever.
+    const visitedPointIds = new Set()
     const explore = (currentPosition, path) => {
       const point = this.getPointAtPosition(...currentPosition)
       if (point === null) return null
 
       const pointId = String(point.id)
       if (pointId === String(target.id)) return path
+      if (visitedPointIds.has(pointId)) return null
+      visitedPointIds.add(pointId)
 
       const info = this.getInfo(pointId)
       const nextPositions = []
@@ -376,30 +387,34 @@ export default class BaseGraphHandler {
     const info = this.graph[pointId]
     if (!info || typeof info !== 'object') return result
     const childrenDict = this._getChildrenAsDict(info.children)
+    // Shared across the whole collection so that a corrupted (cyclic) graph
+    // can never be walked twice, mirroring the backend's termination guards.
+    const seen = new Set([String(pointId)])
     for (const headIds of Object.values(childrenDict)) {
       for (const cid of headIds) {
-        this._collectChainAndDescendants(cid, result)
+        this._collectChainAndDescendants(cid, result, seen)
       }
     }
     return result
   }
 
-  _collectChainAndDescendants(pointId, acc) {
+  _collectChainAndDescendants(pointId, acc, seen = new Set()) {
     let currentId = pointId
-    while (currentId != null) {
+    while (currentId != null && !seen.has(String(currentId))) {
+      seen.add(String(currentId))
       const info = this.graph[currentId]
       if (!info || typeof info !== 'object') break
       acc.push(currentId)
       const childrenDict = this._getChildrenAsDict(info.children)
       for (const headIds of Object.values(childrenDict)) {
         for (const cid of headIds) {
-          this._collectChainAndDescendants(cid, acc)
+          this._collectChainAndDescendants(cid, acc, seen)
         }
       }
       const allNext = Object.values(info.next || {}).flat()
       currentId = allNext[0] ?? null
       for (const nid of allNext.slice(1)) {
-        this._collectChainAndDescendants(nid, acc)
+        this._collectChainAndDescendants(nid, acc, seen)
       }
     }
   }
@@ -463,13 +478,17 @@ export default class BaseGraphHandler {
   getLastPosition() {
     if (!this.graph['0']) return [null, 'south', '']
 
-    const searchLast = (pointId) => {
-      const next = this.graph[pointId]?.next?.[''] ?? []
-      if (!next.length) return [this.getPoint(pointId), 'south', '']
-      return searchLast(next[0])
+    // Iterative with a seen set so a corrupted next-chain loop terminates
+    // at the last unseen point instead of recursing forever.
+    let currentId = this.graph['0']
+    const seen = new Set([String(currentId)])
+    for (;;) {
+      const next = this.graph[currentId]?.next?.[''] ?? []
+      const unseen = next.filter((id) => !seen.has(String(id)))
+      if (!unseen.length) return [this.getPoint(currentId), 'south', '']
+      currentId = unseen[0]
+      seen.add(String(currentId))
     }
-
-    return searchLast(this.graph['0'])
   }
 
   // When targetHandler is supplied (and differs from this handler) the point is

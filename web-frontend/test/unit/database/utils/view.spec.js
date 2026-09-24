@@ -2,7 +2,9 @@ import {
   TreeGroupNode,
   canRowsBeOptimisticallyUpdatedInView,
   createFiltersTree,
+  getOrderBy,
   matchSearchFilters,
+  serializeGroupBys,
 } from '@baserow/modules/database/utils/view'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import _ from 'lodash'
@@ -324,5 +326,63 @@ describe('canRowsBeOptimisticallyUpdatedInView', () => {
         null
       )
     ).toBe(false)
+  })
+})
+
+describe('getOrderBy', () => {
+  it('returns null when adhocSorting is false', () => {
+    const view = { sortings: [{ field: 1, order: 'ASC', type: 'default' }] }
+    expect(getOrderBy(view, false)).toBeNull()
+  })
+
+  it('returns only sortings, not group_bys', () => {
+    const view = {
+      sortings: [{ field: 2, order: 'ASC', type: 'default' }],
+      group_bys: [{ field: 1, order: 'DESC', type: 'default' }],
+    }
+    expect(getOrderBy(view, true)).toBe('field_2')
+  })
+
+  it('returns empty string when no sortings exist', () => {
+    const view = {
+      sortings: [],
+      group_bys: [{ field: 1, order: 'ASC', type: 'default' }],
+    }
+    expect(getOrderBy(view, true)).toBe('')
+  })
+
+  it('serializes DESC and non-default sort type', () => {
+    const view = {
+      sortings: [
+        { field: 3, order: 'DESC', type: 'default' },
+        { field: 4, order: 'ASC', type: 'numeric' },
+      ],
+      group_bys: [],
+    }
+    expect(getOrderBy(view, true)).toBe('-field_3,field_4[numeric]')
+  })
+})
+
+describe('serializeGroupBys', () => {
+  it('returns empty string when no group_bys', () => {
+    expect(serializeGroupBys({ group_bys: [] })).toBe('')
+    expect(serializeGroupBys({})).toBe('')
+  })
+
+  it('serializes group_bys correctly', () => {
+    const view = {
+      group_bys: [
+        { field: 1, order: 'ASC', type: 'default' },
+        { field: 2, order: 'DESC', type: 'default' },
+      ],
+    }
+    expect(serializeGroupBys(view)).toBe('field_1,-field_2')
+  })
+
+  it('includes non-default sort type', () => {
+    const view = {
+      group_bys: [{ field: 5, order: 'ASC', type: 'numeric' }],
+    }
+    expect(serializeGroupBys(view)).toBe('field_5[numeric]')
   })
 })

@@ -3,8 +3,11 @@ from typing import TYPE_CHECKING, Any, Callable, List, Tuple, Type, Union
 
 from django.contrib.auth.models import AbstractUser
 
+from loguru import logger
+
 from baserow.core.app_auth_providers.exceptions import IncompatibleUserSourceType
 from baserow.core.app_auth_providers.types import AppAuthProviderTypeDict
+from baserow.core.auth_provider.exceptions import UnverifiedEmailFromProvider
 from baserow.core.auth_provider.registries import BaseAuthProviderType
 from baserow.core.auth_provider.types import AuthProviderModelSubClass, UserInfo
 from baserow.core.registry import EasyImportExportMixin, PublicCustomFieldsInstanceMixin
@@ -37,6 +40,18 @@ class AppAuthProviderType(
     or a callable which takes the user source being checked and returns True if
     compatible or False if not.
     """
+
+    def export_prepared_values(self, instance: AuthProviderModelSubClass) -> dict:
+        """
+        Returns a serializable dict of this auth provider's values in the
+        `prepare_values` shape, so they can be re-created - e.g. to capture a user
+        source's auth providers for undo/redo, since the generic
+        `extract_undo_redo_values` cannot serialise related models. This is the
+        counterpart of `prepare_values` (mirroring `ServiceType.export_prepared_values`);
+        types with foreign-key fields override this to emit the `_id` form.
+        """
+
+        return {key: getattr(instance, key) for key in self.allowed_fields}
 
     def check_user_source_compatibility(self, user_source):
         """
@@ -80,7 +95,18 @@ class AppAuthProviderType(
         """
         Get or create a user for the given UserInfo. Calls the related userSource
         get_or_create_user.
+
+        :raises UnverifiedEmailFromProvider: If the provider reports the
+            email as unverified.
         """
+
+        if not user_info.email_verified:
+            logger.warning(
+                "Rejecting Builder SSO login — provider reported email as "
+                "unverified (provider_id={})",
+                auth_provider.id,
+            )
+            raise UnverifiedEmailFromProvider()
 
         user_source = auth_provider.user_source.specific
         return user_source.get_type().get_or_create_user(

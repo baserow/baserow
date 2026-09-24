@@ -1,10 +1,15 @@
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from abc import ABC
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from django.contrib.auth.models import AbstractUser
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
 from baserow.core.services.models import Service
 from baserow.core.services.types import RuntimeFormulaContextSubClass
 from baserow.core.services.utils import ServiceAdhocRefinements
+
+if TYPE_CHECKING:
+    from baserow.core.models import Workspace
 
 
 class DispatchContext(RuntimeFormulaContext, ABC):
@@ -14,6 +19,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         "use_sample_data",
         "force_outputs",
         "event_payload",
+        "actor",
+        "workspace",
     ]
 
     """
@@ -23,13 +30,30 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     """
     only_record_id = None
 
+    # Whether this context's caller dispatches outside of the savepoint the
+    # dispatch itself opens. An external service then sends its request after
+    # that savepoint closes, rather than inside it, so a slow endpoint holds
+    # no connection open for its wait; if the caller already had a
+    # transaction open of its own, it stays open regardless. False by
+    # default: builder, automation and dashboard dispatch inside a
+    # transaction of their own, where leaving the savepoint gains nothing.
+    sends_external_calls_outside_transaction = False
+
+    # How many of its timeouts an external request may take in all, from
+    # connecting to the last byte of the body. Builder and automation set two:
+    # they have always given the answer and the body a whole timeout each, and
+    # endpoints that use both keep working.
+    external_request_timeouts = 1
+
     def __init__(
         self,
+        workspace: Optional["Workspace"] = None,
         only_record_id=None,
         event_payload: Any = None,
         update_sample_data_for: Optional[List[Service]] = None,
         use_sample_data: bool = False,
         force_outputs: Dict[int, str] = None,
+        actor: Optional[AbstractUser] = None,
     ):
         """
         This abstract base class provides context needed by specific
@@ -42,6 +66,9 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         :param use_sample_data: Whether to use or update the sample_data.
         :param force_outputs: Mapping of service IDs and previous service
             outputs. Can be used to force a specific service to be dispatched.
+        :param actor: The user this dispatch acts as, for services that have no
+            integration to supply one.
+        :param workspace: The workspace this dispatch is running in.
         """
 
         self.cache = {}  # can be used by data providers to save queries
@@ -50,18 +77,23 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.use_sample_data = use_sample_data
         self.force_outputs = force_outputs
         self.event_payload = event_payload
+        self.actor = actor
+        self.workspace = workspace
         super().__init__()
 
-    @abstractmethod
     def range(self, service: Service) -> tuple[int, int | None]:
         """
-        Should return the pagination requested for the given service.
+        Should return the pagination requested for the given service. Defaults to
+        the first page at the service's own default size, which suits every
+        context that has no pagination surface of its own.
 
         :params service: The service we want the pagination for.
         :return: a tuple were the first value is the offset to apply and the second
           value is the count of records to return. The count can be None it which case
           the default number of record should be returned.
         """
+
+        return 0, None
 
     def clone(self, **kwargs) -> RuntimeFormulaContextSubClass:
         """
@@ -96,22 +128,24 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         return True
 
     @property
-    @abstractmethod
     def is_publicly_searchable(self) -> bool:
         """
         Responsible for returning whether external service visitors
-        can apply search or not.
+        can apply search or not. Defaults to False, only contexts with a public
+        surface can opt in.
         """
 
-    @abstractmethod
+        return False
+
     def search_query(self) -> Optional[str]:
         """
         Responsible for returning the on-demand search query, depending
         on which module the `DispatchContext` is used by.
         """
 
-    @abstractmethod
-    def searchable_fields(self) -> Optional[List[str]]:
+        return None
+
+    def searchable_fields(self) -> List[str]:
         """
         Responsible for returning the on-demand searchable fields, depending
         on which module the `DispatchContext` is used by.
@@ -120,37 +154,42 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         return []
 
     @property
-    @abstractmethod
     def is_publicly_filterable(self) -> bool:
         """
         Responsible for returning whether external service visitors
-        can apply filters or not.
+        can apply filters or not. Defaults to False, only contexts with a public
+        surface can opt in.
         """
 
-    @abstractmethod
+        return False
+
     def filters(self) -> Optional[str]:
         """
         Responsible for returning the on-demand filters, depending
         on which module the `DispatchContext` is used by.
         """
 
+        return None
+
     @property
-    @abstractmethod
     def is_publicly_sortable(self) -> bool:
         """
         Responsible for returning whether external service visitors
-        can apply sortings or not.
+        can apply sortings or not. Defaults to False, only contexts with a public
+        surface can opt in.
         """
 
-    @abstractmethod
+        return False
+
     def sortings(self) -> Optional[str]:
         """
         Responsible for returning the on-demand sortings, depending
         on which module the `DispatchContext` is used by.
         """
 
+        return None
+
     @property
-    @abstractmethod
     def public_allowed_properties(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
         """
         Return a Dict where keys are ["all", "external", "internal"] and values
@@ -168,7 +207,8 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         sensitive (required only by the backend).
         """
 
-    @abstractmethod
+        return None
+
     def validate_filter_search_sort_fields(
         self, fields: List[str], refinement: ServiceAdhocRefinements
     ):
@@ -178,6 +218,16 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         if the `refinement` is `FILTER`, then all fields in `fields` need
         to be filterable.
 
+        Only reachable when the context declares itself publicly filterable,
+        sortable or searchable, so the default raises: a context that opts into
+        ad hoc refinements has to say which fields are allowed rather than
+        silently accepting every field.
+
         :param fields: The fields to validate.
         :param refinement: The refinement to validate.
         """
+
+        raise NotImplementedError(
+            f"{self.__class__.__name__} allows ad hoc refinements but doesn't "
+            "validate the fields they point at."
+        )

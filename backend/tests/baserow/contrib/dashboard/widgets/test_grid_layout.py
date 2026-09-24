@@ -1,0 +1,260 @@
+import pytest
+
+from baserow.contrib.dashboard.widgets.grid_layout import (
+    DASHBOARD_GRID_COLUMNS,
+    compact_widget_layout,
+    fits_within_grid_columns,
+    get_first_available_grid_position,
+    layouts_overlap,
+    resolve_widget_layout_collisions,
+)
+
+
+def test_layouts_overlap_only_when_rectangles_share_area():
+    layout = {
+        "id": 1,
+        "grid_x": 0,
+        "grid_y": 0,
+        "grid_width": 2,
+        "grid_height": 4,
+    }
+
+    assert layouts_overlap(
+        layout,
+        {
+            "id": 2,
+            "grid_x": 1,
+            "grid_y": 3,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+    )
+    assert not layouts_overlap(
+        layout,
+        {
+            "id": 2,
+            "grid_x": 2,
+            "grid_y": 0,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+    )
+    assert not layouts_overlap(
+        layout,
+        {
+            "id": 2,
+            "grid_x": 0,
+            "grid_y": 4,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    "layout, fits",
+    [
+        ({"grid_x": 0, "grid_width": DASHBOARD_GRID_COLUMNS}, True),
+        ({"grid_x": 4, "grid_width": 2}, True),
+        ({"grid_x": 5, "grid_width": 2}, False),
+        ({"grid_x": -1, "grid_width": 1}, False),
+        ({"grid_x": 0, "grid_width": 0}, False),
+    ],
+)
+def test_fits_within_grid_columns(layout, fits):
+    assert fits_within_grid_columns(layout) is fits
+
+
+def test_compact_widget_layout_is_deterministic_and_does_not_mutate_inputs():
+    layouts = [
+        {
+            "id": 1,
+            "grid_x": 0,
+            "grid_y": 8,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+        {
+            "id": 2,
+            "grid_x": 2,
+            "grid_y": 4,
+            "grid_width": 4,
+            "grid_height": 4,
+        },
+        {
+            "id": 3,
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": 2,
+            "grid_height": 4,
+        },
+    ]
+
+    assert compact_widget_layout(layouts) == [
+        {"id": 3, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 2, "grid_x": 2, "grid_y": 0, "grid_width": 4, "grid_height": 4},
+        {"id": 1, "grid_x": 0, "grid_y": 4, "grid_width": 2, "grid_height": 4},
+    ]
+    assert [layout["grid_y"] for layout in layouts] == [8, 4, 0]
+
+
+def test_compact_widget_layout_fills_holes_across_overlapping_column_ranges():
+    layouts = [
+        {"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 3, "grid_height": 8},
+        {"id": 2, "grid_x": 3, "grid_y": 0, "grid_width": 3, "grid_height": 4},
+        {"id": 3, "grid_x": 3, "grid_y": 12, "grid_width": 3, "grid_height": 4},
+        {"id": 4, "grid_x": 0, "grid_y": 20, "grid_width": 6, "grid_height": 4},
+        {"id": 5, "grid_x": 0, "grid_y": 28, "grid_width": 3, "grid_height": 4},
+    ]
+
+    assert compact_widget_layout(layouts) == [
+        {"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 3, "grid_height": 8},
+        {"id": 2, "grid_x": 3, "grid_y": 0, "grid_width": 3, "grid_height": 4},
+        {"id": 3, "grid_x": 3, "grid_y": 4, "grid_width": 3, "grid_height": 4},
+        {"id": 4, "grid_x": 0, "grid_y": 8, "grid_width": 6, "grid_height": 4},
+        {"id": 5, "grid_x": 0, "grid_y": 12, "grid_width": 3, "grid_height": 4},
+    ]
+
+
+@pytest.mark.parametrize("fixed_row", [False, True])
+def test_compact_widget_layout_keeps_widgets_below_a_full_width_row(fixed_row):
+    layouts = [
+        {"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 2, "grid_x": 0, "grid_y": 4, "grid_width": 6, "grid_height": 4},
+        {"id": 3, "grid_x": 2, "grid_y": 12, "grid_width": 2, "grid_height": 4},
+    ]
+
+    # The gap above widget 2 is wide enough for widget 3, but reaching it would
+    # cross the full-width row the user deliberately placed widget 3 below.
+    if fixed_row:
+        assert compact_widget_layout(
+            [layouts[0], layouts[2]], fixed_layouts=[layouts[1]]
+        ) == [layouts[0], {**layouts[2], "grid_y": 8}]
+    else:
+        assert compact_widget_layout(layouts) == [
+            layouts[0],
+            layouts[1],
+            {**layouts[2], "grid_y": 8},
+        ]
+
+
+def test_compact_widget_layout_treats_fixed_layouts_as_immutable_obstacles():
+    fixed_layout = [
+        {"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4}
+    ]
+    movable_layout = [
+        {"id": 2, "grid_x": 0, "grid_y": 4, "grid_width": 2, "grid_height": 4},
+        {"id": 3, "grid_x": 2, "grid_y": 4, "grid_width": 2, "grid_height": 4},
+    ]
+
+    assert compact_widget_layout(movable_layout, fixed_layouts=fixed_layout) == [
+        {"id": 2, "grid_x": 0, "grid_y": 4, "grid_width": 2, "grid_height": 4},
+        {"id": 3, "grid_x": 2, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+    ]
+
+
+def test_compact_widget_layout_handles_a_large_stack():
+    layouts = [
+        {
+            "id": index,
+            "grid_x": 0,
+            "grid_y": index * 12,
+            "grid_width": DASHBOARD_GRID_COLUMNS,
+            "grid_height": 4,
+        }
+        for index in range(800)
+    ]
+
+    compacted = compact_widget_layout(layouts)
+
+    assert len(compacted) == 800
+    assert [layout["grid_y"] for layout in compacted] == [
+        index * 4 for index in range(800)
+    ]
+
+
+def test_get_first_available_grid_position_fills_compatible_gaps():
+    layouts = [
+        {"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 2, "grid_x": 4, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+    ]
+
+    assert get_first_available_grid_position(layouts, 2, 4) == (2, 0)
+
+
+def test_get_first_available_grid_position_skips_to_collision_bottom_edges():
+    layouts = [
+        {
+            "id": 1,
+            "grid_x": 0,
+            "grid_y": 0,
+            "grid_width": DASHBOARD_GRID_COLUMNS,
+            "grid_height": 1_000_000_000,
+        },
+        {
+            "id": 2,
+            "grid_x": 0,
+            "grid_y": 1_000_000_000,
+            "grid_width": DASHBOARD_GRID_COLUMNS,
+            "grid_height": 4,
+        },
+    ]
+
+    assert get_first_available_grid_position(layouts, 2, 4) == (0, 1_000_000_004)
+
+
+@pytest.mark.parametrize("grid_width, grid_height", [(0, 4), (7, 4), (2, 0)])
+def test_get_first_available_grid_position_rejects_invalid_dimensions(
+    grid_width, grid_height
+):
+    with pytest.raises(ValueError, match="dimensions"):
+        get_first_available_grid_position([], grid_width, grid_height)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_resolve_collisions_pushes_a_chain_without_reordering_or_compacting(reverse):
+    fixed = [
+        {"id": 1, "grid_x": 0, "grid_y": 4, "grid_width": 6, "grid_height": 4},
+        {"id": 2, "grid_x": 0, "grid_y": 12, "grid_width": 6, "grid_height": 4},
+    ]
+    current = [
+        {"id": 3, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 8},
+        {"id": 4, "grid_x": 0, "grid_y": 8, "grid_width": 2, "grid_height": 4},
+        {"id": 5, "grid_x": 2, "grid_y": 8, "grid_width": 4, "grid_height": 4},
+        {"id": 6, "grid_x": 0, "grid_y": 40, "grid_width": 2, "grid_height": 4},
+    ]
+    original = [dict(item) for item in [*fixed, *current]]
+
+    # Widget 4 could fit in the gap at row 8, but must remain below widget 3.
+    resolved = resolve_widget_layout_collisions(
+        reversed(current) if reverse else current,
+        reversed(fixed) if reverse else fixed,
+    )
+
+    assert resolved == [
+        {**current[0], "grid_y": 16},
+        {**current[1], "grid_y": 24},
+        current[2],
+        current[3],
+    ]
+    assert [*fixed, *current] == original
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_resolve_collisions_moves_a_row_right_before_falling_back_down(reverse):
+    fixed = [{"id": 1, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4}]
+    current = [
+        {"id": 2, "grid_x": 0, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 3, "grid_x": 2, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+        {"id": 4, "grid_x": 4, "grid_y": 0, "grid_width": 2, "grid_height": 4},
+    ]
+
+    resolved = resolve_widget_layout_collisions(
+        reversed(current) if reverse else current, fixed
+    )
+
+    assert resolved == [
+        {**current[0], "grid_x": 2},
+        {**current[1], "grid_x": 4},
+        {**current[2], "grid_y": 4},
+    ]

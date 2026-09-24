@@ -1,7 +1,7 @@
 class DatabaseExportSerializedStructure:
     @staticmethod
-    def database(tables):
-        return {"tables": tables}
+    def database(tables, integrations=None):
+        return {"tables": tables, "integrations": integrations or []}
 
     @staticmethod
     def table(id, name, order, fields, views, rows, data_sync, field_rules):

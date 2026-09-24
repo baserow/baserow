@@ -31,7 +31,7 @@ export default {
       default: false,
     },
   },
-  emits: ['move', 'update'],
+  emits: ['move', 'update', 'dragging'],
   data() {
     return {
       dragging: false,
@@ -55,6 +55,7 @@ export default {
       window.addEventListener('mousemove', this.$el.moveEvent)
       window.addEventListener('mouseup', this.$el.upEvent)
       document.body.classList.add('resizing-horizontal')
+      this.$emit('dragging', true)
     },
     move(event) {
       event.preventDefault()
@@ -79,6 +80,7 @@ export default {
       window.removeEventListener('mousemove', this.$el.moveEvent)
       window.removeEventListener('mouseup', this.$el.upEvent)
       document.body.classList.remove('resizing-horizontal')
+      this.$emit('dragging', false)
 
       if (newWidth === this.startWidth) {
         return

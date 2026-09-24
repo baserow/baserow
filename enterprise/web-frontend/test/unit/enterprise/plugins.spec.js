@@ -1,4 +1,5 @@
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
+import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 
 describe('Test enterprise Baserow plugin', () => {
   const app = {
@@ -10,6 +11,21 @@ describe('Test enterprise Baserow plugin', () => {
     scripts: [],
     custom_code: { css: '', js: '' },
     ...overrides,
+  })
+
+  test('only mounts the assistant panel where Kuma is effectively enabled', () => {
+    const plugin = new EnterprisePlugin({ app })
+
+    expect(
+      plugin.getRightSidebarWorkspaceComponents({
+        ai_features: { kuma: { is_enabled: true } },
+      })
+    ).toEqual([AssistantPanel])
+    expect(
+      plugin.getRightSidebarWorkspaceComponents({
+        ai_features: { kuma: { is_enabled: false } },
+      })
+    ).toEqual([])
   })
 
   // Regression test for the custom CSS/JS injection ordering. unhead v2 (pulled
@@ -37,6 +53,27 @@ describe('Test enterprise Baserow plugin', () => {
       const jsScript = script.find((s) => s.src.endsWith('/js/public/'))
       expect(jsScript.tagPosition).toBe('bodyClose')
       expect(jsScript.body).toBeUndefined()
+    })
+
+    test('preview custom CSS and JS include preview credentials', () => {
+      const plugin = new EnterprisePlugin({ app })
+      const builder = makeBuilder({
+        custom_code: { css: '.ab-text { color: red }', js: 'console.log(1)' },
+      })
+
+      const { link, script } = plugin.getBuilderApplicationHeaderAddition({
+        builder,
+        mode: 'preview',
+      })
+
+      expect(link[0].crossorigin).toBe('use-credentials')
+      expect(link[0].href).toBe(
+        'http://localhost:8000/api/builder/preview/42/custom-code/css/'
+      )
+      expect(script[0].crossorigin).toBe('use-credentials')
+      expect(script[0].src).toBe(
+        'http://localhost:8000/api/builder/preview/42/custom-code/js/'
+      )
     })
 
     test('external scripts and stylesheets are injected at body close', () => {

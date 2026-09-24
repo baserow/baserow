@@ -198,4 +198,296 @@ describe('FormulaInputField validates on display', () => {
     const wrapper = await mountField('$formula: now()')
     expect(wrapper.emitted('update:invalid').at(-1)).toEqual([true])
   })
+
+  it('does not flag an incomplete formula in a read-only field', async () => {
+    // Read-only fields display snippets such as the help tooltip's `get()`
+    // example, which is deliberately missing its path.
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'get()', mode: 'advanced', readOnly: true },
+    })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.isFormulaInvalid).toBe(false)
+    expect(wrapper.find('.formula-input-field--error').exists()).toBe(false)
+    expect(wrapper.emitted('update:invalid')).toBeUndefined()
+  })
+})
+
+describe('FormulaInputField mode changes', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  it('keeps an expert formula empty after switching to basic mode', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'now()', mode: 'advanced' },
+    })
+
+    wrapper.vm.handleModeChange('simple')
+    await wrapper.setProps({ mode: 'simple' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.formula-input-field--formula-empty').exists()).toBe(
+      true
+    )
+    expect(wrapper.emitted('input').at(-1)).toEqual([''])
+  })
+
+  it('keeps a basic formula when switching to expert mode', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'now()', mode: 'simple' },
+    })
+
+    wrapper.vm.handleModeChange('advanced')
+    await wrapper.setProps({ mode: 'advanced' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('.formula-input-field--formula-empty').exists()).toBe(
+      false
+    )
+    expect(wrapper.emitted('input').at(-1)).toEqual(['now()'])
+  })
+
+  async function mountField(props = {}, slots = {}) {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: {
+        value: '',
+        mode: 'simple',
+        allowRawValues: true,
+        ...props,
+      },
+      slots,
+    })
+    await wrapper.vm.$nextTick()
+    return wrapper
+  }
+
+  it('does not show the raw mode toggle unless raw values are allowed', async () => {
+    const wrapper = await mountField({ allowRawValues: false })
+
+    expect(wrapper.find('.formula-input-field__mode-toggle').exists()).toBe(
+      false
+    )
+  })
+
+  it.each([
+    ['raw', false],
+    ['simple', true],
+    ['advanced', true],
+  ])(
+    'shows the formula toggle active state in %s mode',
+    async (mode, active) => {
+      const wrapper = await mountField({ mode })
+
+      expect(
+        wrapper
+          .find('.formula-input-field__mode-toggle')
+          .classes('formula-input-field__mode-toggle--active')
+      ).toBe(active)
+    }
+  )
+
+  it('renders a default form input in raw mode', async () => {
+    const wrapper = await mountField({
+      value: '#acc8f8',
+      mode: 'raw',
+    })
+
+    const input = wrapper.find('.form-input__input')
+    expect(input.exists()).toBe(true)
+    expect(input.element.value).toBe('#acc8f8')
+
+    await input.setValue('#ffffff')
+    expect(wrapper.emitted('input').at(-1)).toEqual(['#ffffff'])
+  })
+
+  it('renders the raw input slot when provided', async () => {
+    const wrapper = await mountField(
+      {
+        value: 'primary',
+        mode: 'raw',
+      },
+      {
+        'raw-input': `
+          <template #raw-input="{ value, input }">
+            <textarea
+              class="custom-raw-input"
+              :value="value"
+              @input="input($event.target.value)"
+            />
+          </template>
+        `,
+      }
+    )
+
+    const input = wrapper.find('.custom-raw-input')
+    const rawInputContainer = wrapper.find('.formula-input-field__raw-input')
+    expect(input.exists()).toBe(true)
+    expect(rawInputContainer.find('.custom-raw-input').exists()).toBe(true)
+    expect(input.element.value).toBe('primary')
+
+    await input.setValue('secondary')
+    expect(wrapper.emitted('input').at(-1)).toEqual(['secondary'])
+  })
+
+  it('switches from raw mode to simple mode without changing the value', async () => {
+    const wrapper = await mountField({
+      value: "#acc'8f8",
+      mode: 'raw',
+    })
+
+    await wrapper.find('.formula-input-field__mode-toggle').trigger('click')
+
+    expect(wrapper.emitted('update:mode').at(-1)).toEqual(['simple'])
+    expect(wrapper.emitted('input').at(-1)).toEqual(["#acc'8f8"])
+  })
+
+  it('asks for confirmation before switching a populated simple formula to raw mode', async () => {
+    const wrapper = await mountField({
+      value: "'#acc8f8'",
+      mode: 'simple',
+    })
+
+    await wrapper.find('.formula-input-field__mode-toggle').trigger('click')
+
+    expect(wrapper.vm.$refs.rawModeModal.$refs.modal.open).toBe(true)
+    expect(wrapper.emitted('update:mode')).toBeUndefined()
+    expect(wrapper.emitted('input')).toBeUndefined()
+  })
+
+  it('clears a simple formula when confirming the switch to raw mode', async () => {
+    const wrapper = await mountField({
+      value: "'#acc8f8'",
+      mode: 'simple',
+    })
+
+    await wrapper.find('.formula-input-field__mode-toggle').trigger('click')
+    wrapper.vm.$refs.rawModeModal.confirm()
+
+    expect(wrapper.emitted('update:mode').at(-1)).toEqual(['raw'])
+    expect(wrapper.emitted('input').at(-1)).toEqual([''])
+  })
+
+  it('switches an empty simple formula to raw mode without confirmation', async () => {
+    const wrapper = await mountField()
+
+    await wrapper.find('.formula-input-field__mode-toggle').trigger('click')
+
+    expect(wrapper.vm.$refs.rawModeModal.$refs.modal.open).toBe(false)
+    expect(wrapper.emitted('update:mode').at(-1)).toEqual(['raw'])
+    expect(wrapper.emitted('input').at(-1)).toEqual([''])
+  })
+})
+
+// ── Help tooltip example insertion ──────────────────────────────────
+// Clicking an example in the Data Explorer's help tooltip inserts that
+// example's formula into the editor at the cursor.
+
+describe('FormulaInputField example insertion', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  const example = { formula: "upper('hello')", result: "'HELLO'" }
+
+  /** The editor text without the zero-width spaces used for cursor slots. */
+  function editorText(wrapper) {
+    return wrapper
+      .find('.formula-input-field')
+      .text()
+      .replace(/\u200b/g, '')
+  }
+
+  it('inserts the example into an empty advanced-mode field', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: '', mode: 'advanced' },
+    })
+    expect(wrapper.emitted('input')).toBeUndefined()
+
+    wrapper.vm.handleExampleSelected(example)
+    await wrapper.vm.$nextTick()
+
+    expect(editorText(wrapper)).toBe("upper('hello')")
+    expect(wrapper.emitted('input').at(-1)).toEqual(["upper('hello')"])
+  })
+
+  it('inserts the example at the cursor', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: 'lower()', mode: 'advanced' },
+    })
+    // Place the cursor in the (empty) argument slot of `lower(`: ZWS (1),
+    // function node (1), so position 3 sits right after the function name.
+    wrapper.vm.editor.commands.setTextSelection(3)
+
+    wrapper.vm.handleExampleSelected(example)
+    await wrapper.vm.$nextTick()
+
+    expect(editorText(wrapper)).toBe("lower(upper('hello'))")
+    expect(wrapper.emitted('input').at(-1)).toEqual(["lower(upper('hello'))"])
+  })
+
+  it('ignores examples in simple mode', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: '', mode: 'simple' },
+    })
+
+    wrapper.vm.handleExampleSelected(example)
+    await wrapper.vm.$nextTick()
+
+    expect(editorText(wrapper)).toBe('')
+    expect(wrapper.emitted('input')).toBeUndefined()
+  })
+})
+
+// ── Null value tolerance ────────────────────────────────────────────
+// Legacy stored data can contain `formula: null`, which parents used to pass
+// straight through as the `value` prop. Focusing the field then rendered the
+// explorer context, whose `:has-value="value.length > 0"` binding threw
+// "Cannot read properties of null (reading 'length')".
+
+describe('FormulaInputField tolerates a null value', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  it('opens the explorer context on focus instead of crashing', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: null, mode: 'simple' },
+    })
+    wrapper.vm.isFocused = true
+    await wrapper.vm.$nextTick()
+
+    expect(
+      wrapper.findComponent({ name: 'FormulaInputExplorerContext' }).exists()
+    ).toBe(true)
+  })
+
+  it('emits an empty string instead of null when serialization fails', async () => {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value: '', mode: 'simple' },
+    })
+    vi.spyOn(wrapper.vm, 'toFormula').mockReturnValue(null)
+
+    wrapper.vm.emitChange()
+
+    expect(wrapper.emitted('input').at(-1)).toEqual([''])
+  })
 })

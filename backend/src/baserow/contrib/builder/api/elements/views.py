@@ -66,8 +66,12 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist, PageNotInBuilder
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.pages.service import PageService
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
-from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
+from baserow.core.graph.exceptions import (
+    GraphPointNotFoundInGraph,
+    GraphPointReferencePointInvalid,
+)
 
 
 class ElementsView(APIView):
@@ -119,10 +123,10 @@ class ElementsView(APIView):
 
         service = ElementService()
 
-        # Repair the graph if any elements are missing from it (orphans). The patch
+        # Repair the graph if it has drifted or been corrupted. The patch
         # is returned so the requesting client can apply it to its already-loaded
         # graph in-band — connected clients are updated via the realtime broadcast.
-        graph_patch = service.heal_orphan_elements(request.user, page)
+        graph_patch = PageService().heal_corrupted_graph(request.user, page)
 
         elements = service.get_elements(request.user, page)
 
@@ -181,6 +185,7 @@ class ElementsView(APIView):
             ElementTypeDeactivated: ERROR_ELEMENT_TYPE_DEACTIVATED,
             InvalidRuntimeFormula: ERROR_ELEMENT_INVALID_FORMULA,
             GraphPointReferencePointInvalid: ERROR_ELEMENT_DOES_NOT_EXIST,
+            GraphPointNotFoundInGraph: ERROR_ELEMENT_DOES_NOT_EXIST,
         }
     )
     @validate_body_custom_fields(
@@ -357,6 +362,7 @@ class MoveElementView(APIView):
             ElementMoveNotAllowed: ERROR_ELEMENT_MOVE_NOT_ALLOWED,
             ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
             GraphPointReferencePointInvalid: ERROR_ELEMENT_DOES_NOT_EXIST,
+            GraphPointNotFoundInGraph: ERROR_ELEMENT_DOES_NOT_EXIST,
         }
     )
     @validate_body(MoveElementSerializer)
@@ -366,18 +372,17 @@ class MoveElementView(APIView):
         """
 
         element = ElementHandler().get_element_for_update(element_id)
-        reference_element_id = data.get("reference_element_id")
         target_page_id = data.pop("target_page_id", None)
 
-        reference_element = None
-        if reference_element_id is not None:
-            reference_element = ElementHandler().get_element(reference_element_id)
-
+        # The target page follows the client's *stated* intent: an explicit
+        # target_page_id for a cross-page move, otherwise the element's own
+        # page. It must never be derived from the reference element — if the
+        # reference was concurrently moved to another page, a same-page move
+        # would silently teleport the element there. With the intent pinned,
+        # the service rejects a reference on another page instead.
         try:
             target_page = (
-                reference_element.page
-                if reference_element
-                else PageHandler().get_page(target_page_id)
+                PageHandler().get_page(target_page_id)
                 if target_page_id
                 else element.page
             )

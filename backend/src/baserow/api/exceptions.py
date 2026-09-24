@@ -1,5 +1,6 @@
 from django.conf import settings
-from django.http import JsonResponse
+from django.core.exceptions import RequestDataTooBig
+from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from rest_framework import status
 from rest_framework.exceptions import APIException, Throttled, ValidationError
@@ -22,12 +23,47 @@ def api_exception_to_json_response(exc: APIException) -> JsonResponse:
     return response
 
 
+def bad_request(request: HttpRequest, exception: Exception) -> HttpResponse:
+    """
+    ``handler400`` replacement returning JSON instead of Django's ``400.html``.
+    """
+
+    if isinstance(exception, RequestDataTooBig):
+        return api_exception_to_json_response(RequestBodyTooLargeException())
+
+    return JsonResponse(
+        {
+            "error": "ERROR_BAD_REQUEST",
+            "detail": "The request could not be processed.",
+        },
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
 class RequestBodyValidationException(APIException):
     def __init__(self, detail=None, code=None):
         super().__init__(
             {"error": "ERROR_REQUEST_BODY_VALIDATION", "detail": detail}, code=code
         )
         self.status_code = 400
+
+
+class RequestBodyTooLargeException(APIException):
+    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    default_code = "ERROR_REQUEST_BODY_TOO_LARGE"
+
+    def __init__(self, detail=None, code=None):
+        super().__init__(
+            {
+                "error": "ERROR_REQUEST_BODY_TOO_LARGE",
+                "detail": detail
+                or (
+                    "The request body is larger than the configured limit and was "
+                    "rejected before it could be parsed."
+                ),
+            },
+            code=code,
+        )
 
 
 class UnknownFieldProvided(ValidationError):

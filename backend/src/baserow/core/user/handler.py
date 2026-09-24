@@ -187,6 +187,7 @@ class UserHandler:
         workspace_invitation_token: Optional[str] = None,
         template: Template = None,
         auth_provider: Optional[AuthProviderModel] = None,
+        email_verified: bool = False,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -204,6 +205,8 @@ class UserHandler:
         :param auth_provider: If provided, a reference to the authentication
             provider will be stored in order to be able to provide different options
             for the user to login.
+        :param email_verified: Whether the auth provider confirmed the email as
+            verified. When True, the profile is marked verified at creation time.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
@@ -251,6 +254,11 @@ class UserHandler:
         if instance_settings.show_admin_signup_page:
             instance_settings.show_admin_signup_page = False
             instance_settings.save()
+
+        if email_verified:
+            profile = user.profile
+            profile.email_verified = True
+            profile.save(update_fields=["email_verified"])
 
         # If we have an invitation to a workspace, then accept it.
         if workspace_invitation_token:

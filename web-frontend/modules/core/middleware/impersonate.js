@@ -16,10 +16,9 @@ export const impersonateMiddleware = async (to, { nuxtApp }) => {
 
   const userId = to.query['__impersonate-user']
 
-  // Already impersonating this user. A redirect after impersonation (e.g.
-  // `dashboardRedirect`) makes Nuxt re-run middlewares with the impersonated
-  // user in the store; without this guard we'd call the endpoint again as
-  // that user.
+  // Already impersonating this user. A redirect after impersonation makes Nuxt
+  // re-run middlewares with the impersonated user in the store; without this
+  // guard we'd call the endpoint again as that user.
   if (String(store.getters['auth/getUserId']) === String(userId)) {
     return
   }

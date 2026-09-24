@@ -43,6 +43,22 @@ class AnthropicSettingsSerializer(GenerativeAIModelsSerializer):
     )
 
 
+class GoogleSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The Google AI Studio API key used to authenticate with Gemini.",
+    )
+
+
+class GroqSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The Groq API key used to authenticate with the Groq API.",
+    )
+
+
 class MistralSettingsSerializer(GenerativeAIModelsSerializer):
     api_key = serializers.CharField(
         allow_blank=True,

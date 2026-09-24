@@ -2,7 +2,7 @@
 
 This document defines the **language and conceptual model** of Baserow's presence feature.
 
-Presence is built on Baserow's WebSocket infrastructure; see [realtime-reliability.md](realtime-reliability.md) for connection lifecycle, reconnection, and event durability. This document reuses its terms (web socket ID, page subscriptions, channel groups) without re-defining them.
+Presence is built on Baserow's WebSocket infrastructure; see [websockets.md](websockets.md) for connection lifecycle, reconnection, and event durability. This document reuses its terms (web socket ID, page subscriptions, channel groups) without re-defining them. Presence events are ephemeral and bypass the PostgreSQL replay log.
 
 Presence answers one question for people working in the same place: **who else is here, and what are they doing?** — bounded by what each viewer is permitted to see.
 
@@ -61,7 +61,14 @@ A presence space is a logical location, not a transport channel. The same place 
 
 A connection becomes present when it subscribes to a presence-enabled place, and is removed when it unsubscribes or disconnects. A connection can be present in several spaces at once (e.g. a grid and an expanded-row modal), each tracked independently; a disconnect clears all of them.
 
-Cleanup leans on the **disconnect signal**, which is reliable because both runtime stacks run a server-side WebSocket keepalive that closes connections which stop responding — so a dead client is detected and removed within seconds, while a merely idle-but-connected client (whose browser keeps answering keepalives automatically) correctly stays present. Any further cleanup is a best-effort backstop, never the primary mechanism: a space's stored record carries a coarse expiry, and a focus update rewrites the member's full entry in one atomic step, so an entry dropped by that expiry is recreated on the next focus without a resubscribe. Because presence is best-effort, a connection's mere presence is not guaranteed to be complete or permanent.
+Cleanup primarily uses the **disconnect signal**. Server-side WebSocket keepalives
+detect unresponsive clients; an idle browser that still answers keepalives remains
+connected and present. A worker crash can prevent disconnect cleanup from running.
+The Redis presence hash has a coarse 12-hour expiry for the whole space, refreshed
+by member activity. It is not an individual member's liveness deadline: activity
+can keep abandoned entries in a busy space. A focus update rewrites the member's
+full entry atomically, recreating it if the space expired. Presence remains
+best-effort, so neither completeness nor permanent membership is guaranteed.
 
 ### Two-axis visibility
 
@@ -110,6 +117,26 @@ Presence uses **one** space per place and enforces visibility *within* it, per r
 - **Focus emission is debounced per space.** Navigation focus (cell/row selection changes) is debounced at 150ms — others see where you land, not each step. Editing state transitions (start/stop editing) send immediately, without debounce. When a user is alone in a space, focus sends are skipped — except **clears**: once a focus has actually been transmitted, its clear always goes out, so the server never holds stale focus that a later joiner would receive. When another member joins, the sender re-emits its current focus so the joiner sees it without waiting for the next change.
 - **When several users focus the same target**, one label is shown — an actively editing user wins — plus a counter for the rest.
 
+## Runtime and scaling
+
+Presence membership and current focus live in Redis; their broadcasts go directly
+through the channel layer. They have no replay event IDs and are not retained or
+replayed with database changes. Reconnection rebuilds presence through subscriptions
+and member snapshots. Disabling replay recording does not disable presence.
+
+Presence uses async Redis calls. Database-backed presence-space resolution, such
+as a public-view lookup, uses the measured ORM adapter described in
+[WebSocket concurrency](websockets.md#concurrency-and-database-access). Current focus
+validation and recipient filtering are small, database-free functions; keep this
+frequent delivery path nonblocking.
+
+Snapshot reads and decoding grow with a space's membership. Broadcast processing
+grows with its channel recipients, even when some consumers subsequently discard
+the payload. A UI avatar limit does not cap either cost. Preserve recipient
+visibility, visitor counts, and `presence.editors_active` signaling when changing
+fanout. Use [queue and event-loop metrics](../installation/monitoring.md#websocket-and-realtime-metrics)
+to separate shared-thread waits from Redis work and CPU pressure.
+
 ---
 
 ## Future capabilities (permitted, not built)
@@ -119,5 +146,3 @@ The model deliberately *reserves room for* these without building them now; each
 - **Filtered focus on restricted views** — showing a viewer only the focus on rows/fields they may see. The host's per-recipient focus rule is the reserved seam, already applied to live broadcasts and the members snapshot alike; today the only presence-enabled host (the table page) grants everything, because its subscribers have full table visibility anyway.
 - **Entry-point-aware presence visibility** — visibility rules that depend on how each party entered the space (e.g. restricted viewers not seeing full-access users, admins seeing anonymous public-view users). The evaluated presence-visibility model is the reserved seam. In V1, restricted views are excluded from presence entirely; in V2 they will join with asymmetric visibility (full-access sees restricted users, not vice versa).
 - **Stronger cleanup of abandoned entries** — a backstop for the rare case where a disconnect signal is lost. Disconnect remains the primary mechanism either way.
-
-

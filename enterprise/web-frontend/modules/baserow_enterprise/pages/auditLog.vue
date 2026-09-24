@@ -313,10 +313,11 @@ const selectedWorkspaceId = computed(() => {
 // Watch
 watch(selectedWorkspaceId, (newValue, oldValue) => {
   if (newValue !== oldValue && workspaceId) {
-    router.push({
-      name: newValue ? 'workspace-audit-log' : 'dashboard',
-      params: { workspaceId: newValue },
-    })
+    router.push(
+      newValue
+        ? { name: 'workspace-audit-log', params: { workspaceId: newValue } }
+        : { name: 'all-workspaces' }
+    )
   }
 })
 

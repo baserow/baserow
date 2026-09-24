@@ -7,7 +7,7 @@
     <div class="margin-bottom-2">
       <SegmentControl
         v-model:active-index="selectedTypeIndex"
-        :segments="types"
+        :segments="visibleTypes"
         :initial-active-index="0"
         @update:active-index="updateValue"
       ></SegmentControl>
@@ -21,7 +21,7 @@
       >
         <FormInput
           ref="nameInput"
-          v-model="name"
+          v-model="values.name"
           :placeholder="$t('databaseStep.databaseNameLabel')"
           :label="$t('databaseStep.databaseNameLabel')"
           size="large"
@@ -45,8 +45,10 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
+import { ref, reactive, computed } from 'vue'
+import { useStore } from 'vuex'
 import { useI18n } from 'vue-i18n'
-import { DatabaseOnboardingType } from '@baserow/modules/database/onboardingTypes'
+import { useNuxtApp } from '#imports'
 
 export default {
   name: 'DatabaseStep',
@@ -58,43 +60,59 @@ export default {
   },
   emits: ['update-data', 'next-step'],
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
-  },
-  data() {
     const { t } = useI18n()
-    const name = this.$store.getters['auth/getName']
+    const { $registry } = useNuxtApp()
+    const store = useStore()
 
-    return {
-      selectedTypeIndex: 0,
-      name: t('databaseStep.databaseNamePrefill', { name }),
-    }
-  },
-  computed: {
-    allStepTypes() {
-      return this.$registry.getOrderedList('databaseOnboardingStep')
-    },
-    visibleTypes() {
-      return this.allStepTypes
+    const selectedTypeIndex = ref(0)
+
+    const allStepTypes = computed(() =>
+      $registry.getOrderedList('databaseOnboardingStep')
+    )
+    const visibleTypes = computed(() =>
+      allStepTypes.value
         .filter((stepType) => stepType.isVisible())
         .map((stepType) => ({
           type: stepType.getType(),
           label: stepType.getLabel(),
         }))
-    },
-    types() {
-      return this.visibleTypes
-    },
-    selectedType() {
-      return this.visibleTypes[this.selectedTypeIndex].type
-    },
-    selectedStepType() {
-      return this.allStepTypes.find(
-        (stepType) => stepType.getType() === this.selectedType
+    )
+    const selectedType = computed(
+      () => visibleTypes.value[selectedTypeIndex.value].type
+    )
+    const selectedStepType = computed(() =>
+      allStepTypes.value.find(
+        (stepType) => stepType.getType() === selectedType.value
       )
-    },
-    hasName() {
-      return this.selectedStepType.hasNameInput()
-    },
+    )
+    const hasName = computed(() => selectedStepType.value.hasNameInput())
+
+    const values = reactive({
+      name: t('databaseStep.databaseNamePrefill', {
+        name: store.getters['auth/getName'],
+      }),
+    })
+    const rules = computed(() =>
+      hasName.value
+        ? {
+            name: {
+              required: helpers.withMessage(t('error.requiredField'), required),
+            },
+          }
+        : {}
+    )
+
+    return {
+      // Rules declared through the `validations()` option are only registered in
+      // `onBeforeMount`, which server-side rendering never runs, leaving `v$` empty.
+      v$: useVuelidate(rules, values, { $lazy: true }),
+      values,
+      selectedTypeIndex,
+      visibleTypes,
+      selectedType,
+      selectedStepType,
+      hasName,
+    }
   },
   watch: {
     hasName: {
@@ -130,7 +148,7 @@ export default {
     updateValue(params = {}) {
       this.$nextTick(() => {
         this.$emit('update-data', {
-          name: this.name,
+          name: this.values.name,
           type: this.selectedType,
           ...params,
         })
@@ -144,15 +162,6 @@ export default {
         })
       })
     },
-  },
-  validations() {
-    const rules = {}
-    if (this.hasName) {
-      rules.name = {
-        required: helpers.withMessage(this.$t('error.requiredField'), required),
-      }
-    }
-    return rules
   },
 }
 </script>

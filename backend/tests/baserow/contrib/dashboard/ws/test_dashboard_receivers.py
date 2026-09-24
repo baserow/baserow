@@ -12,6 +12,7 @@ from baserow.contrib.dashboard.widgets.signals import (
     widget_created,
     widget_deleted,
     widget_updated,
+    widgets_layout_updated,
 )
 from baserow.core.services.registries import service_type_registry
 
@@ -72,6 +73,29 @@ def test_widget_deleted_ws_receiver(mock_broadcast_to_channel_group, data_fixtur
     assert args[0][1]["type"] == "widget_deleted"
     assert args[0][1]["dashboard_id"] == dashboard.id
     assert args[0][1]["widget"]["id"] == widget.id
+    assert args[0][2] == "test_websocket_id"
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_widgets_layout_updated_ws_receiver(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user(web_socket_id="test_websocket_id")
+    dashboard = data_fixture.create_dashboard_application()
+
+    widgets_layout_updated.send(
+        None,
+        user=user,
+        dashboard=dashboard,
+    )
+
+    mock_broadcast_to_channel_group.delay.assert_called_once()
+    args = mock_broadcast_to_channel_group.delay.call_args
+    assert args[0][0] == f"dashboard-{dashboard.id}"
+    assert args[0][1]["type"] == "widgets_layout_updated"
+    assert args[0][1]["dashboard_id"] == dashboard.id
+    assert "widgets" not in args[0][1]
     assert args[0][2] == "test_websocket_id"
 
 

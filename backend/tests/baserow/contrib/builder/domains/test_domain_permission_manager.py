@@ -7,14 +7,20 @@ from baserow.contrib.builder.data_sources.operations import (
     ListDataSourcesPageOperationType,
 )
 from baserow.contrib.builder.domains.permission_manager import (
+    AllowBuilderPreviewPermissionManagerType,
     AllowPublicBuilderManagerType,
 )
-from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
+from baserow.contrib.builder.elements.operations import (
+    ListElementsPageOperationType,
+    ReadElementOperationType,
+)
 from baserow.contrib.builder.pages.operations import UpdatePageOperationType
+from baserow.contrib.builder.preview import BuilderPreviewActor
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
 )
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.operations import (
     ReadApplicationOperationType,
     UpdateApplicationOperationType,
@@ -25,6 +31,34 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
 )
 from baserow.core.user_sources.user_source_user import UserSourceUser
+
+
+@pytest.mark.django_db
+def test_builder_preview_actor_can_only_read_elements_from_its_builder(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    other_builder = data_fixture.create_builder_application(user=user)
+    element = data_fixture.create_builder_heading_element(
+        page=data_fixture.create_builder_page(builder=builder)
+    )
+    other_element = data_fixture.create_builder_heading_element(
+        page=data_fixture.create_builder_page(builder=other_builder)
+    )
+    actor = BuilderPreviewActor(
+        builder_id=builder.id,
+        workspace_id=builder.workspace_id,
+        grant_id=1,
+        issued_by_user_id=user.id,
+    )
+    allowed_check = PermissionCheck(actor, ReadElementOperationType.type, element)
+    denied_check = PermissionCheck(actor, ReadElementOperationType.type, other_element)
+
+    result = AllowBuilderPreviewPermissionManagerType().check_multiple_permissions(
+        [allowed_check, denied_check], builder.workspace
+    )
+
+    assert result[allowed_check] is True
+    assert isinstance(result[denied_check], PermissionDenied)
 
 
 @pytest.mark.django_db

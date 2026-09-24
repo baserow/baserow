@@ -352,15 +352,16 @@ export const buildFormulaFunctionNodes = (app) => {
 
         // Get description and examples
         let description = null
-        let example = null
+        let examples = null
         try {
           description = instance.getDescription()
         } catch (e) {
           // Method not implemented
         }
         try {
-          const examples = instance.getExamples()
-          example = examples && examples.length > 0 ? examples[0] : null
+          const typeExamples = instance.getExamples()
+          examples =
+            typeExamples && typeExamples.length > 0 ? typeExamples : null
         } catch (e) {
           // Method not implemented
         }
@@ -369,7 +370,7 @@ export const buildFormulaFunctionNodes = (app) => {
           name: func.name,
           type: 'function',
           description,
-          example,
+          examples,
           highlightingColor: 'blue',
           icon: func.icon,
           identifier: null,
@@ -384,7 +385,7 @@ export const buildFormulaFunctionNodes = (app) => {
         order: null,
         signature: null,
         description: null,
-        example: null,
+        examples: null,
         highlightingColor: null,
         icon: null,
         nodes: categoryNodes,
@@ -401,7 +402,7 @@ export const buildFormulaFunctionNodes = (app) => {
       order: null,
       signature: null,
       description: null,
-      example: null,
+      examples: null,
       highlightingColor: 'blue',
       icon: null,
       nodes: functionCategories,
@@ -468,14 +469,15 @@ export const buildFormulaFunctionNodes = (app) => {
         }
 
         const description = instance.getDescription()
-        const examples = instance.getExamples()
-        const example = examples && examples.length > 0 ? examples[0] : null
+        const typeExamples = instance.getExamples()
+        const examples =
+          typeExamples && typeExamples.length > 0 ? typeExamples : null
 
         categoryNodes.push({
           name: op.name,
           type: 'operator',
           description,
-          example,
+          examples,
           highlightingColor: 'green',
           icon: op.icon,
           identifier: null,
@@ -486,7 +488,7 @@ export const buildFormulaFunctionNodes = (app) => {
 
       operatorCategories.push({
         name: category.name,
-        example: null,
+        examples: null,
         signature: null,
         highlightingColor: null,
         icon: null,

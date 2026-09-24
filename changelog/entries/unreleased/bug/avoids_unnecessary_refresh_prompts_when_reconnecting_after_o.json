@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Avoids unnecessary refresh prompts when reconnecting after old real-time history expired",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-14"
+}

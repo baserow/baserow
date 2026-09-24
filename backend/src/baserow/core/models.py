@@ -21,7 +21,11 @@ from baserow.core.user_files.models import UserFile
 
 from .abuse_reports.models import AbuseReport
 from .action.models import Action
-from .ai_provider.models import AIProviderConfig, AIProviderModel
+from .ai_provider.models import (
+    AIProviderConfig,
+    AIProviderFeatureSetting,
+    AIProviderModel,
+)
 from .integrations.models import Integration
 from .mixins import (
     CreatedAndUpdatedOnMixin,
@@ -40,6 +44,7 @@ __all__ = [
     "Workspace",
     "WorkspaceUser",
     "WorkspaceInvitation",
+    "Agent",
     "Application",
     "TemplateCategory",
     "Template",
@@ -55,6 +60,7 @@ __all__ = [
     "Notification",
     "BlacklistedToken",
     "AIProviderConfig",
+    "AIProviderFeatureSetting",
     "AIProviderModel",
     "ExportApplicationsJob",
     "ImportApplicationsJob",
@@ -366,6 +372,34 @@ class WorkspaceUser(
     def get_last_order(cls, user):
         queryset = cls.objects.filter(user=user)
         return cls.get_highest_order_of_queryset(queryset) + 1
+
+
+class Agent(
+    HierarchicalModelMixin,
+    TrashableModelMixin,
+    CreatedAndUpdatedOnMixin,
+    models.Model,
+):
+    """A non-authenticating subject owned by a workspace."""
+
+    workspace = models.ForeignKey(
+        Workspace,
+        related_name="agents",
+        on_delete=models.CASCADE,
+    )
+    name = models.CharField(max_length=160)
+    role_uid = models.CharField(
+        max_length=32,
+        default=WORKSPACE_USER_PERMISSION_MEMBER,
+        db_default=WORKSPACE_USER_PERMISSION_MEMBER,
+    )
+    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
+
+    def get_parent(self):
+        return self.workspace
+
+    class Meta:
+        ordering = ("name", "id")
 
 
 class WorkspaceInvitation(

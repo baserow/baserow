@@ -5,25 +5,33 @@
       :enable-row-id="enableRowId"
       :application="application"
       :enable-view-picker="false"
+      :databases="databases"
       :default-values="defaultValues"
       @table-changed="handleTableChange"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
     <div v-if="tableLoading" class="loading-spinner margin-bottom-1"></div>
-    <p v-if="values.integration_id && !values.table_id">
+    <p v-if="!service?.table_id">
       {{ $t('localBaserowUpsertRowServiceForm.noTableSelectedMessage') }}
     </p>
-    <FieldMappingsForm
-      v-if="!tableLoading"
-      v-model="values.field_mappings"
-      :fields="writableSchemaFields"
-    ></FieldMappingsForm>
-    <Alert
-      v-if="!tableLoading && service?.table_id && !writableSchemaFields.length"
-      type="warning"
-    >
-      <p>{{ $t('localBaserowUpsertRowServiceForm.noWritableFields') }}</p>
+    <Alert v-if="tableInaccessible" type="warning">
+      <p>{{ $t('localBaserowUpsertRowServiceForm.noTableAccess') }}</p>
     </Alert>
+    <template v-else>
+      <FieldMappingsForm
+        v-if="!tableLoading"
+        v-model="values.field_mappings"
+        :fields="writableSchemaFields"
+      ></FieldMappingsForm>
+      <Alert
+        v-if="
+          !tableLoading && service?.table_id && !writableSchemaFields.length
+        "
+        type="warning"
+      >
+        <p>{{ $t('localBaserowUpsertRowServiceForm.noWritableFields') }}</p>
+      </Alert>
+    </template>
   </form>
 </template>
 
@@ -69,6 +77,32 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * The databases to choose a table from, forwarded to the service form.
+     */
+    databases: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    /**
+     * Whether the parent saves on a table change. A caller that makes no round
+     * trip must pass false, or the spinner it raises is never lowered.
+     */
+    savesOnTableChange: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+    /**
+     * The fields to offer as mappings, for a caller whose service is unsaved
+     * and so carries no schema. Null derives them from the schema instead.
+     */
+    mappableFields: {
+      type: Array,
+      required: false,
+      default: null,
+    },
   },
   emits: ['values-changed'],
   data() {
@@ -84,10 +118,20 @@ export default {
   },
   computed: {
     /**
+     * The backend leaves the schema out for a table the reader may not see,
+     * so there are no mappings to offer and saying why beats an empty list.
+     */
+    tableInaccessible() {
+      return this.service?.table_accessible === false
+    },
+    /**
      * Returns the writable fields in the schema, which the
      * `FieldMappingForm` can use to display the field mapping options.
      */
     writableSchemaFields() {
+      if (this.mappableFields !== null) {
+        return this.mappableFields
+      }
       if (
         this.service == null ||
         this.service.schema == null // have service, no table
@@ -107,6 +151,10 @@ export default {
       handler(value) {
         if (!value) {
           this.tableLoading = false
+        } else if (!this.savesOnTableChange) {
+          // A caller that saves nothing raises no spinner of its own, so
+          // `loading` is the only thing that can stand for one.
+          this.tableLoading = true
         }
       },
     },
@@ -117,9 +165,14 @@ export default {
      * has changed, we'll flag our `tableLoading` boolean as true.
      * We want to display a loading spinner between the `table_id`
      * changing, and the `field_mappings` being loaded.
+     *
+     * Only the `loading` prop going false lowers the spinner again, so a
+     * caller that never saves on a table change must opt out of raising it.
      */
     handleTableChange(newValue) {
-      this.tableLoading = true
+      if (this.savesOnTableChange) {
+        this.tableLoading = true
+      }
     },
     /**
      * When `LocalBaserowServiceForm` informs us that service specific

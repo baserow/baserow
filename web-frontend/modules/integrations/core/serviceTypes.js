@@ -1,4 +1,6 @@
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
+import CoreInboundEmailTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreInboundEmailTriggerServiceForm'
+import CoreManualTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreManualTriggerServiceForm'
 import {
   DataSourceServiceTypeMixin,
   getFilesGroup,
@@ -17,6 +19,7 @@ import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/com
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
 import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/components/services/CoreStartWorkflowServiceForm.vue'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
+import CoreResponseServiceForm from '@baserow/modules/integrations/core/components/services/CoreResponseServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -120,8 +123,25 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
     return super.getErrorMessage({ service })
   }
 
+  /**
+   * An email answers with whether it went out and nothing else, so the shape
+   * is known before the service is saved. Without it an action added in an
+   * editor is missing from the next action's explorer until a save and
+   * reopen. Matches what the backend builds for the saved service.
+   */
   getDataSchema(service) {
-    return service.schema
+    return (
+      service.schema || {
+        type: 'object',
+        properties: {
+          success: {
+            type: 'boolean',
+            title: 'Success',
+            description: 'Whether the email was sent successfully',
+          },
+        },
+      }
+    )
   }
 
   get formComponent() {
@@ -280,6 +300,58 @@ export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
   }
 }
 
+export class CoreInboundEmailTriggerServiceType extends TriggerServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.inboundEmailTriggerDescription')
+  }
+
+  get formComponent() {
+    return CoreInboundEmailTriggerServiceForm
+  }
+
+  get icon() {
+    return 'iconoir-mail'
+  }
+
+  getErrorMessage({ service }) {
+    if (service === undefined) {
+      return null
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  /**
+   * The sample data is a received email, so the sample data modal offers an
+   * HTML preview tab next to the JSON payload.
+   */
+  getSampleDataContentType(service) {
+    return 'html'
+  }
+
+  getSampleDataHtml(service) {
+    return service.sample_data?.data?.body_html || null
+  }
+
+  getOrder() {
+    return 8.5
+  }
+}
+
 export class CoreManualTriggerServiceType extends TriggerServiceTypeMixin(
   ServiceType
 ) {
@@ -297,6 +369,10 @@ export class CoreManualTriggerServiceType extends TriggerServiceTypeMixin(
 
   get icon() {
     return 'iconoir-play'
+  }
+
+  get formComponent() {
+    return CoreManualTriggerServiceForm
   }
 
   canBeImmediatelyDispatched(service) {
@@ -392,7 +468,7 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
   }
 
   getIdProperty(service, record) {
-    return record?.id || record?._id
+    return record?.id != null ? 'id' : '_id'
   }
 
   getResult(service, data) {
@@ -452,9 +528,10 @@ export class CoreStartWorkflowServiceType extends WorkflowActionServiceTypeMixin
     return getWorkflowGroup(this.app)
   }
 
-  getWorkflow(workflowId) {
-    const workspace = this.app.$store.getters['workspace/getSelected']
-
+  getWorkflow(
+    workflowId,
+    workspace = this.app.$store.getters['workspace/getSelected']
+  ) {
     if (!workspace?.id || !workflowId) {
       return null
     }
@@ -493,6 +570,38 @@ export class CoreStartWorkflowServiceType extends WorkflowActionServiceTypeMixin
 
   getOrder() {
     return 8
+  }
+}
+
+export class CoreResponseServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'response'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreResponse')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreResponseDescription')
+  }
+
+  get icon() {
+    return 'iconoir-reply'
+  }
+
+  get formComponent() {
+    return CoreResponseServiceForm
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getOrder() {
+    return 9
   }
 }
 

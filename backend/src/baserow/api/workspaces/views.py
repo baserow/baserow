@@ -28,6 +28,7 @@ from baserow.api.import_export.errors import (
 from baserow.api.import_export.serializers import ImportResourceSerializer
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
+from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -46,6 +47,7 @@ from baserow.core.actions import (
     OrderWorkspacesActionType,
     UpdateWorkspaceActionType,
 )
+from baserow.core.ai_provider.resolution import load_ai_provider_state
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     UserInvalidWorkspacePermissionsError,
@@ -53,6 +55,7 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceUserIsLastAdmin,
 )
+from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
@@ -89,7 +92,7 @@ class ListExportWorkspaceApplicationsSerializer(serializers.Serializer):
     results = ExportApplicationsJobType().response_serializer_class(many=True)
 
 
-class WorkspacesView(APIView):
+class WorkspacesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -120,8 +123,17 @@ class WorkspacesView(APIView):
             )
         )
 
+        workspaceuser_workspaces = list(workspaceuser_workspaces)
+        ai_provider_states = None
+        if feature_flag_is_enabled(FF_AI_PROVIDERS):
+            ai_provider_states = load_ai_provider_state(
+                workspaceuser.workspace for workspaceuser in workspaceuser_workspaces
+            )
+
         serializer = WorkspaceUserWorkspaceSerializer(
-            workspaceuser_workspaces, many=True
+            workspaceuser_workspaces,
+            many=True,
+            context={"ai_provider_states": ai_provider_states},
         )
         return Response(serializer.data)
 

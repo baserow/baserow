@@ -21,6 +21,7 @@ from baserow.contrib.database.export.models import (
 )
 from baserow.contrib.database.export.operations import ExportTableOperationType
 from baserow.contrib.database.export.tasks import run_export_job
+from baserow.contrib.database.fields.field_sortings import serialize_sorts_to_string
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.exceptions import ViewNotInTable
 from baserow.contrib.database.views.filters import AdHocFilters
@@ -266,9 +267,12 @@ def _raise_if_invalid_order_by_or_filters(
     # Validate the sort object before the job start, so that the validation error
     # can be shown to the user.
     order_by = export_options.get("order_by", None)
-    if order_by is not None:
+    group_by = export_options.get("group_by", None)
+    if order_by is not None or group_by is not None:
         queryset.order_by_fields_string(
-            order_by, only_order_by_field_ids=only_by_field_ids
+            order_by or "",
+            only_order_by_field_ids=only_by_field_ids,
+            group_by_string=group_by,
         )
 
 
@@ -358,6 +362,7 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
 
     filters = job.export_options.pop("filters", None)
     order_by = job.export_options.pop("order_by", None)
+    group_by = job.export_options.pop("group_by", None)
     visible_fields_in_order = job.export_options.pop("fields", None)
     include_row_id = job.export_options.pop("include_row_id", True)
     include_primary_field = job.export_options.pop("include_primary_field", True)
@@ -385,9 +390,26 @@ def _open_file_and_run_export(job: ExportJob) -> ExportJob:
                 filters, only_by_field_ids=only_by_field_ids
             )
 
-        if order_by is not None:
-            serializer.add_add_hoc_order_by_to_queryset(
-                order_by, only_by_field_ids=only_by_field_ids
+        if order_by is not None or group_by is not None:
+            effective_order_by = order_by or ""
+            effective_group_by = group_by or ""
+
+            if job.view is not None:
+                if order_by is None:
+                    effective_order_by = serialize_sorts_to_string(
+                        job.view.viewsort_set.all()
+                    )
+                if group_by is None:
+                    vt = view_type_registry.get_by_model(job.view.specific_class)
+                    if vt.can_group_by:
+                        effective_group_by = serialize_sorts_to_string(
+                            job.view.viewgroupby_set.all()
+                        )
+
+            serializer.add_ad_hoc_order_by_to_queryset(
+                effective_order_by,
+                only_by_field_ids=only_by_field_ids,
+                group_by_string=effective_group_by or None,
             )
 
         serializer.write_to_file(

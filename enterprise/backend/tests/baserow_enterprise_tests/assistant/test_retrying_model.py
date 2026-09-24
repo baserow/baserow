@@ -1,8 +1,10 @@
 """Unit tests for RetryingModel."""
 
 import os
+from datetime import datetime, timezone
 
 import pytest
+from pydantic_ai.models import ModelRequestParameters, StreamedResponse
 
 from baserow_enterprise.assistant.retrying_model import (
     RetryingModel,
@@ -29,6 +31,17 @@ class TestIsTransientProviderError:
         exc = ValueError("something went wrong")
         assert _is_transient_provider_error(exc) is False
 
+    def test_rate_limit_http_error_is_retryable(self):
+        from pydantic_ai.exceptions import ModelHTTPError
+
+        exc = ModelHTTPError(
+            status_code=429,
+            model_name="test-model",
+            body={"error": {"message": "Rate limit exceeded"}},
+        )
+
+        assert _is_transient_provider_error(exc) is True
+
 
 def _make_retrying(inner_mock, **kwargs):
     """Create a RetryingModel with a pre-resolved mock as the wrapped model."""
@@ -42,6 +55,13 @@ def _make_retrying(inner_mock, **kwargs):
     return model
 
 
+def _assert_balanced_model_scope(inner_mock, expected_count=1):
+    """Assert every model-client scope entered by a test was closed."""
+
+    assert inner_mock.__aenter__.await_count == expected_count
+    assert inner_mock.__aexit__.await_count == expected_count
+
+
 @pytest.mark.asyncio
 async def test_request_retries_on_transient_error():
     """RetryingModel.request should retry transient errors."""
@@ -49,7 +69,6 @@ async def test_request_retries_on_transient_error():
     from unittest.mock import AsyncMock, MagicMock
 
     from pydantic_ai.messages import ModelResponse, TextPart
-    from pydantic_ai.models import ModelRequestParameters
 
     inner = MagicMock()
     response = ModelResponse(parts=[TextPart(content="hello")])
@@ -67,6 +86,38 @@ async def test_request_retries_on_transient_error():
 
     assert result == response
     assert inner.request.call_count == 2
+    _assert_balanced_model_scope(inner)
+
+
+@pytest.mark.asyncio
+async def test_request_uses_provider_retry_after_for_rate_limit():
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from pydantic_ai.exceptions import ModelHTTPError
+    from pydantic_ai.messages import ModelResponse, TextPart
+
+    rate_limit_error = ModelHTTPError(
+        status_code=429,
+        model_name="test-model",
+        body={"error": {"message": "Rate limit exceeded"}},
+        headers={"Retry-After": "2"},
+    )
+    response = ModelResponse(parts=[TextPart(content="hello")])
+    inner = MagicMock()
+    inner.request = AsyncMock(side_effect=[rate_limit_error, response])
+    model = _make_retrying(inner, base_delay=0.01, max_delay=1.0)
+
+    with patch(
+        "baserow_enterprise.assistant.retrying_model.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as mock_sleep:
+        result = await model.request(
+            [], None, ModelRequestParameters(function_tools=[], output_tools=[])
+        )
+
+    assert result == response
+    assert inner.request.call_count == 2
+    mock_sleep.assert_awaited_once_with(1.0)
 
 
 @pytest.mark.asyncio
@@ -74,8 +125,6 @@ async def test_request_raises_non_transient_error():
     """RetryingModel.request should not retry non-transient errors."""
 
     from unittest.mock import AsyncMock, MagicMock
-
-    from pydantic_ai.models import ModelRequestParameters
 
     inner = MagicMock()
     inner.request = AsyncMock(side_effect=ValueError("bad input"))
@@ -87,6 +136,7 @@ async def test_request_raises_non_transient_error():
         )
 
     assert inner.request.call_count == 1
+    _assert_balanced_model_scope(inner)
 
 
 @pytest.mark.asyncio
@@ -94,8 +144,6 @@ async def test_request_exhausts_retries():
     """RetryingModel should raise after exhausting max_attempts."""
 
     from unittest.mock import AsyncMock, MagicMock
-
-    from pydantic_ai.models import ModelRequestParameters
 
     inner = MagicMock()
     inner.request = AsyncMock(
@@ -109,6 +157,7 @@ async def test_request_exhausts_retries():
         )
 
     assert inner.request.call_count == 2
+    _assert_balanced_model_scope(inner)
 
 
 def test_deferred_model_resolution():
@@ -253,8 +302,6 @@ async def test_request_recovers_tool_use_failed():
 
     from unittest.mock import AsyncMock, MagicMock
 
-    from pydantic_ai.models import ModelRequestParameters
-
     inner = MagicMock()
     inner.request = AsyncMock(
         side_effect=_make_tool_use_failed_error(
@@ -282,8 +329,6 @@ async def test_request_stream_recovers_tool_use_failed():
     """request_stream() should recover tool_use_failed into a PreFetchedResponse."""
 
     from unittest.mock import MagicMock
-
-    from pydantic_ai.models import ModelRequestParameters
 
     inner = MagicMock()
 
@@ -316,6 +361,72 @@ async def test_request_stream_recovers_tool_use_failed():
     start_events = [e for e in events if isinstance(e, PartStartEvent)]
     assert len(start_events) == 1
     assert start_events[0].part.tool_name == "list_rows"
+    _assert_balanced_model_scope(inner)
+
+
+@pytest.mark.asyncio
+async def test_request_stream_closes_model_when_consumer_exits_early():
+    """Leaving a stream without consuming it must still close both scopes."""
+
+    from contextlib import asynccontextmanager
+    from unittest.mock import MagicMock
+
+    inner = MagicMock()
+    stream_events = []
+
+    @asynccontextmanager
+    async def tracked_request_stream(*args, **kwargs):
+        stream_events.append("enter")
+        try:
+            yield MagicMock()
+        finally:
+            stream_events.append("exit")
+
+    inner.request_stream = tracked_request_stream
+    model = _make_retrying(inner)
+
+    async with model.request_stream(
+        [], None, ModelRequestParameters(function_tools=[], output_tools=[])
+    ):
+        pass
+
+    assert stream_events == ["enter", "exit"]
+    _assert_balanced_model_scope(inner)
+
+
+@pytest.mark.asyncio
+async def test_request_stream_retry_fallback_closes_nested_model_scopes():
+    """A setup failure and fallback request must leave no model scope open."""
+
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock, MagicMock
+
+    from pydantic_ai.messages import ModelResponse, TextPart
+
+    inner = MagicMock()
+
+    @asynccontextmanager
+    async def failing_request_stream(*args, **kwargs):
+        raise Exception("Failed to parse tool call arguments as JSON")
+        yield  # pragma: no cover
+
+    response = ModelResponse(parts=[TextPart(content="fallback")])
+    inner.request_stream = failing_request_stream
+    inner.request = AsyncMock(return_value=response)
+    model = _make_retrying(inner)
+
+    async with model.request_stream(
+        [], None, ModelRequestParameters(function_tools=[], output_tools=[])
+    ) as stream:
+        events = [event async for event in stream]
+
+    from pydantic_ai.models import PartStartEvent
+
+    start_events = [event for event in events if isinstance(event, PartStartEvent)]
+    assert [event.part.content for event in start_events] == ["fallback"]
+    assert inner.request.await_count == 1
+    # request_stream owns the outer scope and request() owns its nested scope.
+    _assert_balanced_model_scope(inner, expected_count=2)
 
 
 @pytest.mark.asyncio
@@ -326,8 +437,7 @@ async def test_request_stream_recovers_mid_stream_api_error():
     from contextlib import asynccontextmanager
     from unittest.mock import MagicMock
 
-    from pydantic_ai._parts_manager import ModelResponsePartsManager
-    from pydantic_ai.models import ModelRequestParameters, PartStartEvent
+    from pydantic_ai.models import PartStartEvent
     from pydantic_ai.usage import RequestUsage
 
     # Simulate a real StreamedResponse whose _get_event_iterator raises APIError
@@ -338,26 +448,32 @@ async def test_request_stream_recovers_mid_stream_api_error():
             super().__init__(message)
             self.body = body
 
-    class FakeStreamedResponse:
-        """Minimal fake that raises during iteration."""
+    class FakeStreamedResponse(StreamedResponse):
+        """Fake that raises during iteration.
 
-        _cancelled = False
-        _finished = False
-        _usage = RequestUsage()
-        model_name = "test-model"
-        provider_name = "test"
-        provider_url = "http://test"
-        timestamp = None
-        model_request_parameters = ModelRequestParameters(
-            function_tools=[], output_tools=[]
-        )
-        _parts_manager = ModelResponsePartsManager(
-            model_request_parameters=model_request_parameters
-        )
-        final_result_event = None
-        provider_response_id = None
-        provider_details = None
-        finish_reason = None
+        Subclasses the real base so the proxy's attribute resolution matches
+        production; a plain class cannot reproduce class-attribute shadowing.
+        """
+
+        def __init__(self):
+            super().__init__(model_request_parameters=ModelRequestParameters())
+            self._usage = RequestUsage(input_tokens=7, output_tokens=13)
+
+        @property
+        def model_name(self) -> str:
+            return "test-model"
+
+        @property
+        def provider_name(self) -> str | None:
+            return "test"
+
+        @property
+        def provider_url(self) -> str | None:
+            return "http://test"
+
+        @property
+        def timestamp(self) -> datetime:
+            return datetime(2026, 8, 12, tzinfo=timezone.utc)
 
         async def _get_event_iterator(self):
             raise FakeAPIError(
@@ -405,30 +521,41 @@ async def test_request_stream_recovers_mid_stream_malformed_json():
     from contextlib import asynccontextmanager
     from unittest.mock import MagicMock
 
-    from pydantic_ai._parts_manager import ModelResponsePartsManager
     from pydantic_ai.messages import ToolCallPart
-    from pydantic_ai.models import ModelRequestParameters, PartStartEvent
+    from pydantic_ai.models import PartStartEvent
+    from pydantic_ai.usage import RequestUsage
 
     class FakeAPIError(Exception):
         def __init__(self, message, body=None):
             super().__init__(message)
             self.body = body
 
-    class FakeStreamedResponse:
-        model_name = "test-model"
-        provider_name = "test"
-        provider_url = "http://test"
-        timestamp = None
-        model_request_parameters = ModelRequestParameters(
-            function_tools=[], output_tools=[]
-        )
-        _parts_manager = ModelResponsePartsManager(
-            model_request_parameters=model_request_parameters
-        )
-        final_result_event = None
-        provider_response_id = None
-        provider_details = None
-        finish_reason = None
+    class FakeStreamedResponse(StreamedResponse):
+        """Fake that raises during iteration.
+
+        Subclasses the real base so the proxy's attribute resolution matches
+        production; a plain class cannot reproduce class-attribute shadowing.
+        """
+
+        def __init__(self):
+            super().__init__(model_request_parameters=ModelRequestParameters())
+            self._usage = RequestUsage(input_tokens=7, output_tokens=13)
+
+        @property
+        def model_name(self) -> str:
+            return "test-model"
+
+        @property
+        def provider_name(self) -> str | None:
+            return "test"
+
+        @property
+        def provider_url(self) -> str | None:
+            return "http://test"
+
+        @property
+        def timestamp(self) -> datetime:
+            return datetime(2026, 8, 12, tzinfo=timezone.utc)
 
         async def _get_event_iterator(self):
             raise FakeAPIError(
@@ -470,8 +597,6 @@ async def test_request_stream_reraises_after_yield():
     from contextlib import asynccontextmanager
     from unittest.mock import MagicMock
 
-    from pydantic_ai.models import ModelRequestParameters
-
     inner = MagicMock()
 
     @asynccontextmanager
@@ -486,7 +611,7 @@ async def test_request_stream_reraises_after_yield():
     with pytest.raises(Exception, match="some unrelated error"):
         async with model.request_stream(
             [], None, ModelRequestParameters(function_tools=[], output_tools=[])
-        ) as stream:
+        ):
             pass  # stream consumed, then __aexit__ raises
 
 
@@ -511,6 +636,18 @@ class TestResolveCredentials:
 
         creds = _resolve_credentials("groq")
         assert creds["api_key"] == "udspy-key"
+
+    @pytest.mark.parametrize(
+        "provider", ["google", "google-gla", "google-cloud", "google-vertex"]
+    )
+    def test_google_key_takes_precedence_over_udspy(self, monkeypatch, provider):
+        """Without an explicit entry a stale UDSPY_LM_API_KEY (e.g. a Groq key)
+        would be handed to Google instead of GOOGLE_API_KEY."""
+
+        monkeypatch.setenv("GOOGLE_API_KEY", "google-key")
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+
+        assert _resolve_credentials(provider)["api_key"] == "google-key"
 
     def test_provider_specific_base_url_takes_precedence(self, monkeypatch):
         monkeypatch.setenv("OPENAI_BASE_URL", "https://custom.openai.com")
@@ -599,3 +736,60 @@ class TestResolveModel:
         snapshot = dict(os.environ)
         _resolve_model("openai:gpt-4o")
         assert dict(os.environ) == snapshot
+
+    def test_google_cloud_prefix_still_routes_through_the_vertex_factory(
+        self, monkeypatch
+    ):
+        """resolve_assistant_model() normalises "google-vertex" to "google-cloud";
+        _resolve_model must keep routing it to Baserow's own
+        _make_google_vertex factory (with its per-call httpx client) rather
+        than falling through to pydantic-ai's infer_model."""
+
+        monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+        from pydantic_ai.models.google import GoogleModel
+        from pydantic_ai.providers.google_cloud import GoogleCloudProvider
+
+        model = _resolve_model("google-cloud:gemini-2.0-flash")
+        assert isinstance(model, GoogleModel)
+        assert isinstance(model._provider, GoogleCloudProvider)
+
+    def test_legacy_google_vertex_prefix_still_resolves(self, monkeypatch):
+        """A model string that was never re-normalised by resolve_assistant_model()
+        (e.g. one saved before this fix) must keep working."""
+
+        monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+        from pydantic_ai.models.google import GoogleModel
+        from pydantic_ai.providers.google_cloud import GoogleCloudProvider
+
+        model = _resolve_model("google-vertex:gemini-2.0-flash")
+        assert isinstance(model, GoogleModel)
+        assert isinstance(model._provider, GoogleCloudProvider)
+
+    def test_google_gla_and_google_prefixes_resolve_to_the_same_factory(
+        self, monkeypatch
+    ):
+        monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+        from pydantic_ai.models.google import GoogleModel
+        from pydantic_ai.providers.google import GoogleProvider
+
+        for prefix in ("google-gla", "google"):
+            model = _resolve_model(f"{prefix}:gemini-2.0-flash")
+            assert isinstance(model, GoogleModel)
+            assert isinstance(model._provider, GoogleProvider)
+
+    @pytest.mark.parametrize("prefix", ["google", "google-cloud"])
+    def test_google_client_deadline_clears_the_api_minimum(self, monkeypatch, prefix):
+        """Each Google model gets a safe provider-owned HTTP client."""
+
+        monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+        model = _resolve_model(f"{prefix}:gemini-2.0-flash")
+        second_model = _resolve_model(f"{prefix}:gemini-2.0-flash")
+        api_client = model._provider.client._api_client
+        http_options = api_client._http_options
+
+        assert http_options.timeout >= 10_000
+        assert model._provider._own_http_client is api_client._async_httpx_client
+        assert (
+            api_client._async_httpx_client
+            is not second_model._provider.client._api_client._async_httpx_client
+        )

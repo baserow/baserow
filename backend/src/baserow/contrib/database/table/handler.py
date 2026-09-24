@@ -35,6 +35,7 @@ from baserow.contrib.database.table.expressions import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.view_types import GridViewType
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.telemetry.utils import baserow_trace_handler
@@ -765,6 +766,8 @@ class TableHandler:
             include_permission_data=True,
             reduce_disk_space_usage=False,
             is_duplicate=True,
+            exclude_sensitive_data=False,
+            copied_by=user,
         )
 
         serialized_tables = database_type.export_tables_serialized([table], config)
@@ -819,16 +822,17 @@ class TableHandler:
         )
         progress.increment(by=export_progress)
 
-        imported_tables = database_type.import_tables_serialized(
-            database,
-            [exported_table],
-            id_mapping,
-            config,
-            external_table_fields_to_import=link_fields_to_import_to_existing_tables,
-            progress_builder=progress.create_child_builder(
-                represents_progress=import_progress
-            ),
-        )
+        with deferred_callback_context():
+            imported_tables = database_type.import_tables_serialized(
+                database,
+                [exported_table],
+                id_mapping,
+                config,
+                external_table_fields_to_import=link_fields_to_import_to_existing_tables,
+                progress_builder=progress.create_child_builder(
+                    represents_progress=import_progress
+                ),
+            )
 
         new_table_clone = imported_tables[0]
 

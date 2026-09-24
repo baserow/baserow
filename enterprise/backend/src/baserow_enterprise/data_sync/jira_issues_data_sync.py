@@ -156,6 +156,7 @@ class JiraIssuesDataSyncType(DataSyncType):
         "jira_username",
         "jira_api_token",
     ]
+    sensitive_fields = ["jira_api_token"]
     request_serializer_field_names = [
         "jira_url",
         "jira_project_key",
@@ -171,6 +172,9 @@ class JiraIssuesDataSyncType(DataSyncType):
         "jira_authentication",
         "jira_username",
     ]
+    secret_field_dependencies = {
+        "jira_api_token": ["jira_url"],
+    }
 
     def prepare_sync_job_values(self, instance):
         # Raise the error so that the job doesn't start and the user is informed with

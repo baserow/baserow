@@ -61,6 +61,10 @@ class DatabaseConfig(AppConfig):
 
         action_type_registry.register(ExportTableActionType())
 
+        from .workflow_actions.actions import DispatchButtonFieldActionType
+
+        action_type_registry.register(DispatchButtonFieldActionType())
+
         from .airtable.actions import ImportDatabaseFromAirtableActionType
 
         action_type_registry.register(ImportDatabaseFromAirtableActionType())
@@ -100,6 +104,7 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateRowsActionType())
 
         from baserow.contrib.database.views.actions import (
+            CopyViewConfigurationActionType,
             CreateDecorationActionType,
             CreateViewActionType,
             CreateViewFilterActionType,
@@ -131,6 +136,7 @@ class DatabaseConfig(AppConfig):
 
         action_type_registry.register(CreateViewActionType())
         action_type_registry.register(DuplicateViewActionType())
+        action_type_registry.register(CopyViewConfigurationActionType())
         action_type_registry.register(DeleteViewActionType())
         action_type_registry.register(OrderViewsActionType())
         action_type_registry.register(UpdateViewActionType())
@@ -259,9 +265,42 @@ class DatabaseConfig(AppConfig):
         field_type_registry.register(AutonumberFieldType())
         field_type_registry.register(PasswordFieldType())
         field_type_registry.register(FormViewEditRowFieldType())
-        # Always registered so tables with existing button fields keep working
-        # when the flag is off; creation is gated in ButtonFieldType.
         field_type_registry.register(ButtonFieldType())
+
+        from .workflow_actions.registries import database_workflow_action_type_registry
+        from .workflow_actions.workflow_action_types import (
+            CoreHTTPRequestWorkflowActionType,
+            CoreSMTPEmailWorkflowActionType,
+            CoreStartWorkflowWorkflowActionType,
+            LocalBaserowCreateRowWorkflowActionType,
+            LocalBaserowDeleteRowWorkflowActionType,
+            LocalBaserowUpdateRowWorkflowActionType,
+            OpenUrlWorkflowActionType,
+            SlackWriteMessageWorkflowActionType,
+        )
+
+        database_workflow_action_type_registry.register(
+            LocalBaserowCreateRowWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            LocalBaserowUpdateRowWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            LocalBaserowDeleteRowWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(OpenUrlWorkflowActionType())
+        database_workflow_action_type_registry.register(
+            CoreHTTPRequestWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            CoreSMTPEmailWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            SlackWriteMessageWorkflowActionType()
+        )
+        database_workflow_action_type_registry.register(
+            CoreStartWorkflowWorkflowActionType()
+        )
 
         from .fields.field_aggregations import (
             AverageFieldAggregationType,
@@ -351,11 +390,64 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(DuplicateFieldActionType())
         action_type_registry.register(ChangePrimaryFieldActionType())
 
+        from .workflow_actions.actions import (
+            CreateDatabaseWorkflowActionActionType,
+            DeleteDatabaseWorkflowActionActionType,
+            OrderDatabaseWorkflowActionsActionType,
+            UpdateDatabaseWorkflowActionActionType,
+        )
+
+        action_type_registry.register(CreateDatabaseWorkflowActionActionType())
+        action_type_registry.register(UpdateDatabaseWorkflowActionActionType())
+        action_type_registry.register(DeleteDatabaseWorkflowActionActionType())
+        action_type_registry.register(OrderDatabaseWorkflowActionsActionType())
+
         from .views.view_types import FormViewType, GalleryViewType, GridViewType
 
         view_type_registry.register(GridViewType())
         view_type_registry.register(GalleryViewType())
         view_type_registry.register(FormViewType())
+
+        from .views.configuration_copy import (
+            DecorationsViewConfigurationCopyCategoryType,
+            DefaultRowValuesViewConfigurationCopyCategoryType,
+            FieldOrderViewConfigurationCopyCategoryType,
+            FieldVisibilityViewConfigurationCopyCategoryType,
+            FieldWidthsViewConfigurationCopyCategoryType,
+            FiltersViewConfigurationCopyCategoryType,
+            GroupBysViewConfigurationCopyCategoryType,
+            SortsViewConfigurationCopyCategoryType,
+            ViewSettingsViewConfigurationCopyCategoryType,
+            view_configuration_copy_category_type_registry,
+        )
+
+        view_configuration_copy_category_type_registry.register(
+            FieldVisibilityViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            FieldOrderViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            FieldWidthsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            ViewSettingsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            FiltersViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            SortsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            GroupBysViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            DecorationsViewConfigurationCopyCategoryType()
+        )
+        view_configuration_copy_category_type_registry.register(
+            DefaultRowValuesViewConfigurationCopyCategoryType()
+        )
 
         from .views.view_filters import (
             BooleanViewFilterType,
@@ -628,6 +720,12 @@ class DatabaseConfig(AppConfig):
         trash_item_type_registry.register(RowTrashableItemType())
         trash_item_type_registry.register(RowsTrashableItemType())
         trash_item_type_registry.register(ViewTrashableItemType())
+
+        from .workflow_actions.trash_types import (
+            DatabaseWorkflowActionTrashableItemType,
+        )
+
+        trash_item_type_registry.register(DatabaseWorkflowActionTrashableItemType())
 
         from .formula.ast.function_defs import register_formula_functions
 
@@ -933,6 +1031,9 @@ class DatabaseConfig(AppConfig):
             TestTriggerWebhookOperationType,
             UpdateWebhookOperationType,
         )
+        from .workflow_actions.operations import (
+            DispatchDatabaseWorkflowActionOperationType,
+        )
 
         operation_type_registry.register(ReadViewRowOperationType())
         operation_type_registry.register(ReadAdjacentViewRowOperationType())
@@ -1043,6 +1144,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(ListDataSyncJobsOperationType())
         operation_type_registry.register(ListPropertiesOperationType())
         operation_type_registry.register(GetIncludingPublicValuesOperationType())
+        operation_type_registry.register(DispatchDatabaseWorkflowActionOperationType())
 
         from baserow.core.registries import permission_manager_type_registry
 
@@ -1071,11 +1173,17 @@ class DatabaseConfig(AppConfig):
             database_data_provider_type_registry,
         )
 
-        from .rows.data_providers import HumanReadableFieldsDataProviderType
+        from .rows.data_providers import (
+            HumanReadableFieldsDataProviderType,
+            RowDataProviderType,
+        )
+        from .workflow_actions.data_providers import PreviousActionDataProviderType
 
         database_data_provider_type_registry.register(
             HumanReadableFieldsDataProviderType()
         )
+        database_data_provider_type_registry.register(RowDataProviderType())
+        database_data_provider_type_registry.register(PreviousActionDataProviderType())
 
         # notification_types
         from baserow.contrib.database.fields.notification_types import (
@@ -1240,6 +1348,14 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
         import baserow.contrib.database.ws.rows.tasks  # noqa: F401
+        from baserow.contrib.database.workflow_actions.receivers import (
+            connect_to_database_workflow_action_pre_delete_signal,
+            connect_to_database_workflow_action_signals,
+        )
+
+        connect_to_database_workflow_action_pre_delete_signal()
+        connect_to_database_workflow_action_signals()
+
         from baserow.contrib.database.fields.models import SelectOption
 
         # Make sure that from now on, no model can make the User cache to expire,

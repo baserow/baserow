@@ -5,6 +5,7 @@ from queue import Empty, Queue
 from typing import Any, NamedTuple, Type
 
 from django.contrib.auth.models import AbstractUser
+from django.db import DEFAULT_DB_ALIAS
 from django.db.models import Exists, OuterRef, QuerySet
 
 from loguru import logger
@@ -12,6 +13,7 @@ from rest_framework import serializers
 
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.api.generative_ai.errors import ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE
+from baserow.config.db_routers import set_db_alias
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
@@ -23,6 +25,10 @@ from baserow.contrib.database.rows.signals import rows_ai_values_generation_erro
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.core.ai_provider.resolution import (
+    clear_ai_provider_state_cache,
+    get_ai_provider_state,
+)
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
@@ -237,6 +243,9 @@ class GenerateAIValuesJobType(JobType):
         return GenerateAIValuesJobFiltersSerializer
 
     def run(self, job: GenerateAIValuesJob, progress):
+        set_db_alias(DEFAULT_DB_ALIAS)
+        clear_ai_provider_state_cache()
+
         user = job.user
 
         ai_field = self._get_field(job.field_id)
@@ -369,6 +378,9 @@ class AIValueGenerator:
         self.model = table.get_model()
         self.signal_sender = signal_sender
         self.workspace = table.database.workspace
+        # Rows are generated on worker threads, so resolve the provider state
+        # once here rather than letting every row resolve it again.
+        self.ai_provider_state = get_ai_provider_state(self.workspace)
         self.max_concurrency = self.ai_field.ai_max_concurrent_generations
 
         # A counter of processed rows. This doesn't include rows being still processed.
@@ -401,7 +413,9 @@ class AIValueGenerator:
         """
 
         try:
-            AIFieldHandler.get_valid_model_type_or_raise(self.ai_field)
+            AIFieldHandler.get_valid_model_type_or_raise(
+                self.ai_field, self.ai_provider_state
+            )
         except ModelDoesNotBelongToType as exc:
             rows_ai_values_generation_error.send(
                 self.signal_sender,
@@ -426,7 +440,9 @@ class AIValueGenerator:
 
         start = datetime.now(tz=timezone.utc)
         try:
-            result = AIFieldHandler.generate_value_with_ai(self.ai_field, row)
+            result = AIFieldHandler.generate_value_with_ai(
+                self.ai_field, row, self.ai_provider_state
+            )
         except AIFieldEmptyPromptError:
             # Empty prompt — preserve existing value.
             result = getattr(row, self.ai_field.db_column, None)

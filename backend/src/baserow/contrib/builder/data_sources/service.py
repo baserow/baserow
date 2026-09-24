@@ -20,18 +20,21 @@ from baserow.contrib.builder.data_sources.operations import (
 )
 from baserow.contrib.builder.data_sources.signals import (
     data_source_created,
-    data_source_deleted,
     data_source_moved,
     data_source_orders_recalculated,
     data_source_updated,
 )
-from baserow.contrib.builder.data_sources.types import DataSourceForUpdate
+from baserow.contrib.builder.data_sources.types import (
+    DataSourceForUpdate,
+    UpdatedDataSource,
+)
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.registries import DispatchTypes, ServiceType
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck
 
 if TYPE_CHECKING:
@@ -41,13 +44,6 @@ if TYPE_CHECKING:
 class DataSourceService:
     def __init__(self):
         self.handler = DataSourceHandler()
-
-    def _raise_if_service_type_deactivated(
-        self, service_type: ServiceType, page: Page
-    ) -> None:
-        raise_if_deactivated = getattr(service_type, "raise_if_deactivated", None)
-        if raise_if_deactivated:
-            raise_if_deactivated(page.builder.workspace)
 
     def get_data_source(self, user: AbstractUser, data_source_id: int) -> DataSource:
         """
@@ -163,7 +159,7 @@ class DataSourceService:
             # Verify the `service_type` is dispatch-able as DATA.
             if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
                 raise InvalidServiceTypeDispatchSource()
-            self._raise_if_service_type_deactivated(service_type, page)
+            service_type.raise_if_deactivated(page.builder.workspace)
             prepared_values = service_type.prepare_values(kwargs, user)
         else:
             prepared_values = kwargs
@@ -211,7 +207,7 @@ class DataSourceService:
         data_source: DataSourceForUpdate,
         service_type: Optional[ServiceType] = None,
         **kwargs,
-    ) -> DataSource:
+    ) -> UpdatedDataSource:
         """
         Updates and data_source with values. Will also check if the values are allowed
         to be set on the data_source first.
@@ -220,7 +216,7 @@ class DataSourceService:
         :param data_source: The data_source that should be updated.
         :param service_type: The type of the related service.
         :param kwargs: Additional attributes of the data_source and the service.
-        :return: The updated data_source.
+        :return: The updated data_source together with the values that changed.
         """
 
         CoreHandler().check_permissions(
@@ -252,8 +248,8 @@ class DataSourceService:
             service_type_for_preparation = new_service_type
 
         if service_type_for_preparation:
-            self._raise_if_service_type_deactivated(
-                service_type_for_preparation, page or data_source.page
+            service_type_for_preparation.raise_if_deactivated(
+                (page or data_source.page).builder.workspace
             )
             service = data_source.service.specific if data_source.service_id else None
             prepared_values = service_type_for_preparation.prepare_values(
@@ -265,13 +261,13 @@ class DataSourceService:
         if page is not None:
             prepared_values["page"] = page
 
-        data_source = self.handler.update_data_source(
+        updated = self.handler.update_data_source(
             data_source, service_type, **prepared_values
         )
 
-        data_source_updated.send(self, data_source=data_source, user=user)
+        data_source_updated.send(self, data_source=updated.data_source, user=user)
 
-        return data_source
+        return updated
 
     def delete_data_source(self, user: AbstractUser, data_source: DataSourceForUpdate):
         """
@@ -290,12 +286,9 @@ class DataSourceService:
             context=data_source,
         )
 
-        data_source_id = data_source.id
-        self.handler.delete_data_source(data_source)
-
-        data_source_deleted.send(
-            self, data_source_id=data_source_id, page=page, user=user
-        )
+        # Soft-delete (trash) the data source so it can be restored via undo. The
+        # `data_source_deleted` realtime signal is emitted by the trashable item type.
+        TrashHandler.trash(user, page.builder.workspace, page.builder, data_source)
 
     def dispatch_data_sources(
         self,

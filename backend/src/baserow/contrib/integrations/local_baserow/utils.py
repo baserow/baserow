@@ -9,7 +9,6 @@ from rest_framework.serializers import Serializer
 from baserow.contrib.database.fields.utils import (
     guess_json_type_from_response_serializer_field,
 )
-from baserow.contrib.integrations.local_baserow.models import LocalBaserowUpsertRow
 from baserow.core.formula.service_file import ServiceFile
 from baserow.core.formula.validator import (
     ensure_array,
@@ -92,12 +91,13 @@ def prepare_files_for_db(
 
 
 def guess_cast_function_from_response_serializer_field(
-    serializer_field: Union[Field, Serializer], service: LocalBaserowUpsertRow
+    serializer_field: Union[Field, Serializer], user: AbstractUser
 ) -> Optional[Callable]:
     """
     Return the appropriate cast function for a serializer type.
 
     :param serializer_field: The serializer field.
+    :param user: The user the uploaded files are attributed to.
     :return: A function that can be used to cast a value to this serializer field type.
     """
 
@@ -109,9 +109,7 @@ def guess_cast_function_from_response_serializer_field(
         # Special case for file field serializer, we want to convert files data to
         # match expected value. We have to upload the files first before we can
         # includes them in the row.
-        return lambda value: prepare_files_for_db(
-            value, service.integration.authorized_user
-        )
+        return lambda value: prepare_files_for_db(value, user)
 
     json_type = guess_json_type_from_response_serializer_field(serializer_field)
 

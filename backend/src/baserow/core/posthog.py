@@ -114,12 +114,11 @@ def capture_event_action_done(
 ):
     # Only capture do commands for now because the undo might make it more difficult
     # to do analytics on the data.
-    if action_command_type == ActionCommandType.DO:
-        action_params_copy = deepcopy(action_params)
-        properties = {
-            key: action_params_copy.get(key, None)
-            for key in action_type.analytics_params
-        }
+    if (
+        action_command_type == ActionCommandType.DO
+        and action_type.capture_analytics_event
+    ):
+        properties = action_type.get_analytics_properties(deepcopy(action_params))
         capture_user_event(
             user, action_type.type, properties, workspace=workspace, session=session
         )

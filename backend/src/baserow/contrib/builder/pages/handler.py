@@ -49,6 +49,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
 from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.psycopg import is_unique_violation_error
+from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -199,7 +200,7 @@ class PageHandler:
             self.is_page_path_unique(
                 page.builder,
                 path,
-                base_queryset=Page.objects.exclude(
+                base_queryset=Page.objects_and_trash.exclude(
                     id=page.id
                 ),  # We don't want to conflict with the current page
                 raises=True,
@@ -359,6 +360,16 @@ class PageHandler:
             exported_page,
             progress=progress.create_child_builder(represents_progress=import_progress),
             id_mapping=id_mapping,
+            # Service types read `is_duplicate` to keep ids the mapping does
+            # not remap, such as the workflow an action starts or the table it
+            # writes to. A duplicate stays on this instance, so those ids still
+            # refer to the right objects; a file import would drop them.
+            import_export_config=ImportExportConfig(
+                include_permission_data=True,
+                reduce_disk_space_usage=False,
+                exclude_sensitive_data=False,
+                is_duplicate=True,
+            ),
         )
 
         return new_page_clone
@@ -372,7 +383,11 @@ class PageHandler:
         :return: A unique name to use.
         """
 
-        existing_pages_names = list(builder.page_set.values_list("name", flat=True))
+        existing_pages_names = list(
+            Page.objects_and_trash.filter(builder=builder).values_list(
+                "name", flat=True
+            )
+        )
         return find_unused_name([proposed_name], existing_pages_names, max_length=255)
 
     def find_unused_page_path(self, builder: Builder, proposed_path: str) -> str:
@@ -388,7 +403,11 @@ class PageHandler:
         if page_path.endswith("/"):
             page_path = page_path[:-1]
 
-        existing_paths = list(builder.page_set.values_list("path", flat=True))
+        existing_paths = list(
+            Page.objects_and_trash.filter(builder=builder).values_list(
+                "path", flat=True
+            )
+        )
         return find_unused_name(
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
@@ -499,7 +518,7 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects if base_queryset is None else base_queryset
+        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
 
         existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
 
@@ -610,6 +629,27 @@ class PageHandler:
             + 1
         )
 
+    def heal_corrupted_graph(self, page: Page) -> Dict[str, Any]:
+        """
+        Reconcile ``page.graph`` with the element rows that actually exist,
+        repairing every known graph corruption class (orphans, stale points,
+        self-references, dangling references, cycles, converging references,
+        invalid children edges and detached points). The page owns the graph,
+        so this is the single healing entry point; the element-aware logic
+        lives in `PageHealingHandler`.
+
+        :param page: The page whose graph should be reconciled.
+        :return: A graph "patch" — the top-level graph entries that changed,
+            keyed by point id — empty when nothing changed. See
+            `PageHealingHandler.heal_corrupted_graph`.
+        """
+
+        from baserow.contrib.builder.pages.healing_handler import (
+            PageHealingHandler,
+        )
+
+        return PageHealingHandler().heal_corrupted_graph(page)
+
     def import_pages(
         self,
         builder: Builder,
@@ -619,6 +659,7 @@ class PageHandler:
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, Any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         """
         Import multiple pages at once. Especially useful when we have dependencies
@@ -633,6 +674,8 @@ class PageHandler:
         :param storage: Storage to get the files from.
         :param progress: A progress object that can be used to report progress.
         :param cache: A cache to use for the import.
+        :param import_export_config: What kind of import this is. The workflow
+            actions read it to know which of their references to keep.
         :return: the newly created instances.
         """
 
@@ -703,6 +746,7 @@ class PageHandler:
                 storage=storage,
                 progress=progress,
                 cache=cache,
+                import_export_config=import_export_config,
             )
 
         return [i[0] for i in imported_pages]
@@ -716,6 +760,7 @@ class PageHandler:
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         """
         Creates an instance using the serialized version previously exported with
@@ -729,6 +774,7 @@ class PageHandler:
         :param storage: Storage to get the files from.
         :param progress: A progress object that can be used to report progress.
         :param cache: A cache to use for the import.
+        :param import_export_config: What kind of import this is.
         :return: the newly created instance.
         """
 
@@ -740,6 +786,7 @@ class PageHandler:
             storage=storage,
             progress=progress,
             cache=cache,
+            import_export_config=import_export_config,
         )[0]
 
     def import_page_only(
@@ -766,6 +813,16 @@ class PageHandler:
             page_instance.path = serialized_page["path"]
             page_instance.path_params = serialized_page["path_params"]
             page_instance.graph = serialized_page.get("graph", {})
+            # Persist the serialized graph now. Unlike the non-shared branch
+            # (which saves via Page.objects.create), the shared page is only
+            # mutated in memory here — but import_elements' migrate_graph takes
+            # a row lock that refreshes the in-memory graph from the committed
+            # row, which would otherwise reset it to the empty graph the shared
+            # page was created with and drop the whole serialized structure
+            # (e.g. a multi-page header's children).
+            page_instance.save(
+                update_fields=["name", "order", "path", "path_params", "graph"]
+            )
         else:
             # Note: serialized pages exported before the page visibility feature
             # will not contain the `visibility`, `role_type` or `roles` keys,

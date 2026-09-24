@@ -1,11 +1,19 @@
+import logging
 from typing import Dict, Union
 
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
-from baserow.core.formula import BaserowFormulaObject, get_parse_tree_for_formula
+from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.core.formula import (
+    BaserowFormulaException,
+    BaserowFormulaObject,
+    get_parse_tree_for_formula,
+)
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.services.formula_importer import BaserowFormulaImporter
+
+logger = logging.getLogger(__name__)
 
 
 class BuilderFormulaImporter(BaserowFormulaImporter):
@@ -51,8 +59,25 @@ def import_formula(
     if formula["mode"] == BASEROW_FORMULA_MODE_RAW or not formula["formula"]:
         return formula
 
-    tree = get_parse_tree_for_formula(formula["formula"])
-    new_formula = BuilderFormulaImporter(id_mapping, **kwargs).visit(tree)
+    try:
+        tree = get_parse_tree_for_formula(formula["formula"])
+        new_formula = BuilderFormulaImporter(id_mapping, **kwargs).visit(tree)
+    except (
+        BaserowFormulaException,
+        RecursionError,
+        InstanceTypeDoesNotExist,
+        ValueError,
+    ) as exc:
+        # The formula can't be parsed, references an unknown data provider, or
+        # contains a bogus path, so there is nothing to migrate. It was already
+        # invalid before the import, and failing here would make the whole
+        # application impossible to duplicate, export or import.
+        logger.warning(
+            "Skipping the import of an invalid formula %r: %s",
+            formula["formula"],
+            exc,
+        )
+        return formula
 
     if new_formula != formula["formula"]:
         # We create a new instance to show it's a different formula

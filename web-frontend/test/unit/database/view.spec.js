@@ -8,6 +8,8 @@ import {
 } from '@baserow/modules/database/utils/view'
 import gallery from '~/modules/database/services/view/gallery'
 import { NuxtPage } from '#components'
+import { useError, clearError } from '#app'
+import flushPromises from 'flush-promises'
 
 // Mock out debounce so we don't have to wait or simulate waiting for the various
 // debounces in the search functionality.
@@ -24,7 +26,23 @@ describe('View Tests', () => {
 
   afterEach(async () => await testApp.afterEach())
 
-  const mountRoute = (route) => {
+  /**
+   * Without a view in the route params the page first has to fetch the views to
+   * know which one is the default, and only then redirects to it. That's another
+   * couple of ticks after mounting.
+   */
+  const waitFor = async (condition, timeout = 5000) => {
+    const start = Date.now()
+    while (!condition()) {
+      if (Date.now() - start > timeout) {
+        throw new Error('Timed out while waiting for the condition.')
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      await flushPromises()
+    }
+  }
+
+  const mountRoute = async (route) => {
     // Let's mount a NuxtPage component for the route.
     // It allow the router to work properly
     const App = defineComponent({
@@ -32,9 +50,18 @@ describe('View Tests', () => {
       template: '<NuxtPage />',
     })
 
-    return testApp.mount(App, {
+    const wrapper = await testApp.mount(App, {
       route,
     })
+
+    // The page renders before it has fetched the view, and when the route has no
+    // view it redirects to the default one first, so wait until it has settled.
+    await waitFor(() => {
+      const page = wrapper.findComponent(Table)
+      return page.exists() && !page.vm.loading
+    })
+
+    return wrapper
   }
 
   test('forceCreate view metadata mutations are idempotent', async () => {
@@ -301,7 +328,12 @@ describe('View Tests', () => {
 
     // The Default view is the Grid view and it should be set (appended) in the cookie
     await nextTick()
-    const cookieValue = decodeDefaultViewIdPerTable(cookie.value)
+    // With experimental.cookieStore the ref above is only refreshed by an async event.
+    const readCookie = () =>
+      decodeDefaultViewIdPerTable(
+        useCookie(DEFAULT_VIEW_ID_COOKIE_NAME, { path: '/' }).value
+      )
+    const cookieValue = readCookie()
     expect(cookieValue.length).toBeGreaterThan(0)
 
     const defaultViewIdObject = cookieValue[cookieValue.length - 1]
@@ -314,7 +346,7 @@ describe('View Tests', () => {
     )
 
     // Ensure that the first element is removed from the cookie array
-    const updatedCookieValue = decodeDefaultViewIdPerTable(cookie.value)
+    const updatedCookieValue = readCookie()
     expect(updatedCookieValue).not.toContainEqual(randomData[0])
     expect(updatedCookieValue.length).toBeLessThan(originalDataLength)
   })
@@ -327,14 +359,20 @@ describe('View Tests', () => {
       viewsError,
     })
 
-    await expect(
-      testApp.mount(Table, {
-        route: `/database/${application.id}/table/${table.id}/123?token=fake`,
-      })
-    ).rejects.toThrow('Request failed with status code 500')
+    // The views are fetched by the page itself now, so the error doesn't reject the
+    // navigation anymore, it's shown once the page has rendered.
+    const tableComponent = await testApp.mount(Table, {
+      route: `/database/${application.id}/table/${table.id}/123?token=fake`,
+    })
+
+    const error = useError()
+    await waitFor(() => error.value !== null)
+    expect(error.value.message).toContain('Request failed with status code 500')
+    clearError()
+    expect(tableComponent.find('div.grid-view').exists()).toBe(false)
   })
 
-  test.skip('API error during views loading is displayed correctly', async () => {
+  test('API error during views loading is displayed correctly', async () => {
     const viewsError = {
       statusCode: 400,
       data: {
@@ -347,16 +385,19 @@ describe('View Tests', () => {
       viewsError,
     })
 
-    await expect(
-      testApp.mount(Table, {
-        route: `/database/${application.id}/table/${table.id}/123?token=fake`,
-      })
-    ).rejects.toThrow('Request failed with status code 400')
+    const tableComponent = await testApp.mount(Table, {
+      route: `/database/${application.id}/table/${table.id}/123?token=fake`,
+    })
+
+    const error = useError()
+    await waitFor(() => error.value !== null)
+    expect(error.value.message).toContain('Request failed with status code 400')
+    clearError()
+    expect(tableComponent.find('div.grid-view').exists()).toBe(false)
   })
 
-  test.skip('API error during view rows loading', async () => {
+  test('API error during view rows loading', async () => {
     const rowsError = { statusCode: 500, data: { message: 'Unknown error' } }
-    const errorHandler = vi.fn()
 
     // views list readable, fields readable, rows not readable
     const { application, table, view } = await givenATableWithError({
@@ -365,19 +406,17 @@ describe('View Tests', () => {
 
     const tableComponent = await testApp.mount(Table, {
       route: `/database/${application.id}/table/${table.id}/${view.id}?token=fake`,
-      global: {
-        config: {
-          errorHandler,
-        },
-      },
     })
+    // The rows are fetched after the page has rendered, and their error is shown
+    // inside the table instead of replacing the page.
+    await waitFor(() => tableComponent.vm.dataError !== undefined)
 
     expect(tableComponent.vm.views).toMatchObject([view])
 
     // we're past views api call, so the table (with the error) and toolbar should be present
     expect(tableComponent.find('.header__filter-link').exists()).toBe(true)
 
-    expect(tableComponent.vm.error).toBeTruthy()
+    expect(tableComponent.vm.dataError).toBeTruthy()
 
     expect(tableComponent.find('.placeholder__title').exists()).toBe(true)
     expect(tableComponent.find('.placeholder__title').text()).toEqual(

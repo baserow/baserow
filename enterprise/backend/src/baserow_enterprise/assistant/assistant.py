@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import aclosing
+from dataclasses import dataclass
 from typing import Any, AsyncGenerator
 
 from django.contrib.auth.models import AbstractUser
@@ -19,7 +21,9 @@ from pydantic_ai.messages import (
     ThinkingPart,
     ThinkingPartDelta,
 )
+from pydantic_ai.models import Model
 from pydantic_ai.run import AgentRunResultEvent
+from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
@@ -38,10 +42,9 @@ from baserow_enterprise.assistant.history import compact_message_history
 from baserow_enterprise.assistant.model_profiles import (
     ORCHESTRATOR,
     TITLE,
-    get_model_settings,
-    get_model_string,
+    ResolvedAssistantModelProfile,
+    resolve_assistant_model,
 )
-from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.telemetry import (
     PosthogTracingCallback,
     setup_instrumentation,
@@ -136,6 +139,53 @@ def _get_workspace_license_type(
         return None
 
 
+@dataclass
+class AgentRunContext:
+    deps: AssistantDeps
+    toolset: AbstractToolset
+    model: Model
+
+
+def build_agent_run_context(
+    user: AbstractUser,
+    workspace: Workspace,
+    tool_helpers: ToolHelpers,
+    model: Model | None = None,
+) -> AgentRunContext:
+    """Build shared assistant and eval dependencies from one model profile.
+
+    :param user: The user running the assistant.
+    :param workspace: The workspace in which tools execute.
+    :param tool_helpers: Callbacks and the resolved model profile for this run.
+    :param model: An existing model, or None to create one from the profile.
+    :return: Dependencies, manifests, toolset, and the concrete model for the run.
+    """
+
+    model_profile = tool_helpers.model_profile
+    resolved_model = model if model is not None else model_profile.create_model()
+    deps = AssistantDeps(
+        user=user,
+        workspace=workspace,
+        tool_helpers=tool_helpers,
+        license_tier=_get_workspace_license_type(user, workspace),
+    )
+    toolset, db_manifest, app_manifest, auto_manifest, explain_manifest = (
+        assistant_tool_registry.build_toolset(
+            user=user,
+            workspace=workspace,
+            model=resolved_model,
+            model_profile=model_profile,
+            deps=deps,
+        )
+    )
+    deps.database_manifest = db_manifest
+    deps.application_manifest = app_manifest
+    deps.automation_manifest = auto_manifest
+    deps.explain_manifest = explain_manifest
+
+    return AgentRunContext(deps=deps, toolset=toolset, model=resolved_model)
+
+
 def _extract_tool_thought(event: FunctionToolCallEvent) -> str | None:
     """Extract the chain-of-thought ``thought`` argument from a tool call
     event, if present and non-empty."""
@@ -155,34 +205,34 @@ class Assistant:
     streaming, and message persistence for one ``AssistantChat``.
     """
 
-    def __init__(self, chat: AssistantChat):
+    def __init__(
+        self,
+        chat: AssistantChat,
+        model_profile: ResolvedAssistantModelProfile | None = None,
+    ):
+        """Initialize an assistant from one resolved model snapshot.
+
+        :param chat: The persisted chat this assistant will serve.
+        :param model_profile: The model profile already resolved for the request.
+        :return: None.
+        """
+
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
-        self._model_string = get_model_string()
-        self._model = RetryingModel(self._model_string)
+        self._model_profile = model_profile or resolve_assistant_model(
+            workspace=self._workspace
+        )
+        self._model = self._model_profile.create_model()
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
 
-        self._deps = AssistantDeps(
-            user=self._user,
-            workspace=self._workspace,
-            tool_helpers=self._tool_helpers,
-            license_tier=_get_workspace_license_type(self._user, self._workspace),
+        ctx = build_agent_run_context(
+            self._user, self._workspace, self._tool_helpers, model=self._model
         )
-        self._toolset, db_m, app_m, auto_m, explain_m = (
-            assistant_tool_registry.build_toolset(
-                user=self._user,
-                workspace=self._workspace,
-                model=self._model_string,
-                deps=self._deps,
-            )
-        )
-        self._deps.database_manifest = db_m
-        self._deps.application_manifest = app_m
-        self._deps.automation_manifest = auto_m
-        self._deps.explain_manifest = explain_m
+        self._deps = ctx.deps
+        self._toolset = ctx.toolset
 
         setup_instrumentation()
 
@@ -191,16 +241,25 @@ class Assistant:
     # ------------------------------------------------------------------
 
     def _build_tool_helpers(self) -> ToolHelpers:
-        """Create the ``ToolHelpers`` that tools use for status updates,
-        navigation, and cancellation during the agent run."""
+        """Create the helpers shared by every tool in this assistant run.
 
-        def update_status(status: str):
+        :return: Helpers carrying the request's callbacks and resolved model profile.
+        """
+
+        def update_status(status: str) -> None:
+            """Emit a localized assistant status update.
+
+            :param status: The translated status template to emit.
+            :return: None.
+            """
+
             with translation.override(self._user.profile.language):
                 self._event_bus.emit(AiThinkingMessage(content=status))
 
         return ToolHelpers(
             update_status=update_status,
             navigate_to=lambda loc: unsafe_navigate_to(loc, self._event_bus),
+            model_profile=self._model_profile,
             event_bus=self._event_bus,
         )
 
@@ -228,17 +287,37 @@ class Assistant:
     def list_chat_messages(
         self, last_message_id: int | None = None, limit: int = 100
     ) -> list[AssistantMessageUnion]:
+        """Return this chat's recent persisted messages, oldest-first.
+
+        :param last_message_id: An exclusive message-ID pagination cursor.
+        :param limit: The maximum number of messages to return.
+        :return: The projected assistant messages in chronological order.
+        """
+
+        return self.list_chat_messages_for_chat(
+            self._chat, last_message_id=last_message_id, limit=limit
+        )
+
+    @staticmethod
+    def list_chat_messages_for_chat(
+        chat: AssistantChat,
+        last_message_id: int | None = None,
+        limit: int = 100,
+    ) -> list[AssistantMessageUnion]:
         """Return recent chat messages, oldest-first.
 
+        This projection deliberately does not construct an ``Assistant`` or an
+        AI model, so loading chat history never allocates a provider client.
+
+        :param chat: The chat whose persisted messages should be projected.
         :param last_message_id: If set, only return messages with ``id``
             below this value (cursor-based pagination).
         :param limit: Maximum number of messages to return.
+        :return: The projected assistant messages in chronological order.
         """
 
         queryset = (
-            self._chat.messages.all()
-            .select_related("prediction")
-            .order_by("-created_on")
+            chat.messages.all().select_related("prediction").order_by("-created_on")
         )
         if last_message_id is not None:
             queryset = queryset.filter(id__lt=last_message_id)
@@ -284,7 +363,10 @@ class Assistant:
         await AssistantChatPrediction.objects.acreate(
             human_message=human_msg,
             ai_response=ai_msg,
-            prediction={"answer": answer},
+            prediction={
+                "answer": answer,
+                "posthog_trace_id": self._telemetry.trace_id,
+            },
         )
         return AiMessage(
             id=ai_msg.id,
@@ -325,13 +407,16 @@ class Assistant:
     # ------------------------------------------------------------------
 
     async def _generate_chat_title(self, user_message: str) -> str:
-        """Ask the title agent to summarise a user message into a short
-        chat title."""
+        """Ask the title agent to summarize a user message into a short title.
+
+        :param user_message: The user message to summarize.
+        :return: The generated chat title.
+        """
 
         result = await title_agent.run(
             user_message,
             model=self._model,
-            model_settings=get_model_settings(self._model_string, TITLE),
+            model_settings=self._model_profile.get_settings(TITLE),
         )
         return result.output
 
@@ -387,7 +472,11 @@ class Assistant:
         """
 
         try:
-            with self._telemetry.trace(self._chat, user_prompt) as tracer:
+            with self._telemetry.trace(
+                self._chat,
+                user_prompt,
+                cancelled_by_user=lambda: self._tool_helpers.is_cancelled,
+            ) as tracer:
                 answer, run_result = await self._run_agent_with_retries(
                     user_prompt, message_history, queue
                 )
@@ -472,46 +561,52 @@ class Assistant:
         Streams reasoning/text chunks to *queue* and returns
         ``(answer, run_result)`` when an ``AgentRunResultEvent`` is
         received, or ``None`` if the stream ends without one.
+
+        :param user_prompt: The prompt for this agent pass.
+        :param message_history: The compacted prior model messages, if any.
+        :param queue: The queue that receives streamed assistant events.
+        :return: The final answer and run result, or ``None`` if no result arrives.
         """
 
         reasoning_so_far = ""
 
-        async for event in main_agent.run_stream_events(
+        async with main_agent.run_stream_events(
             user_prompt=user_prompt,
             deps=self._deps,
             model=self._model,
             message_history=message_history,
             usage_limits=UsageLimits(request_limit=200),
             toolsets=[self._toolset],
-            model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
-        ):
-            if isinstance(event, AgentRunResultEvent):
-                answer = event.result.output
-                if isinstance(answer, str):
-                    answer = _strip_think_tags(answer)
-                return (answer, event.result)
+            model_settings=self._model_profile.get_settings(ORCHESTRATOR),
+        ) as events:
+            async for event in events:
+                if isinstance(event, AgentRunResultEvent):
+                    answer = event.result.output
+                    if isinstance(answer, str):
+                        answer = _strip_think_tags(answer)
+                    return (answer, event.result)
 
-            if isinstance(event, FunctionToolCallEvent):
-                thought = _extract_tool_thought(event)
-                if thought:
-                    reasoning_so_far += thought
+                if isinstance(event, FunctionToolCallEvent):
+                    thought = _extract_tool_thought(event)
+                    if thought:
+                        reasoning_so_far += thought
+                        cleaned = _strip_think_tags(reasoning_so_far)
+                        await self._enqueue_reasoning(queue, cleaned)
+                    continue
+
+                if isinstance(event, FunctionToolResultEvent):
+                    reasoning_so_far = ""  # reset on tool results, to show the reasoning leading up to the next tool call
+                    continue
+
+                # Accumulate text/thinking deltas and send full reasoning.
+                # The frontend replaces content on each chunk, so we must
+                # send the complete text every time.
+                content = self._get_content_delta(event)
+                if content:
+                    reasoning_so_far += content
                     cleaned = _strip_think_tags(reasoning_so_far)
-                    await self._enqueue_reasoning(queue, cleaned)
-                continue
-
-            if isinstance(event, FunctionToolResultEvent):
-                reasoning_so_far = ""  # reset on tool results, to show the reasoning leading up to the next tool call
-                continue
-
-            # Accumulate text/thinking deltas and send full reasoning.
-            # The frontend replaces content on each chunk, so we must
-            # send the complete text every time.
-            content = self._get_content_delta(event)
-            if content:
-                reasoning_so_far += content
-                cleaned = _strip_think_tags(reasoning_so_far)
-                if cleaned:
-                    await self._enqueue_reasoning(queue, cleaned)
+                    if cleaned:
+                        await self._enqueue_reasoning(queue, cleaned)
 
         return None
 
@@ -547,10 +642,16 @@ class Assistant:
         """Return True if *text* looks like a tool call dumped as JSON.
 
         Checks for ``{"name": ..., "arguments": ...}`` pattern in the first
-        200 chars. Does not require valid JSON (the output may be truncated).
+        200 chars after an optional code fence. Does not require valid JSON
+        because the output may be truncated.
+
+        :param text: The final text returned by the agent.
+        :return: Whether the text appears to contain an unexecuted tool call.
         """
 
         stripped = text.strip()
+        if stripped.startswith("```"):
+            stripped = stripped.split("\n", 1)[-1].strip()
         return (
             bool(stripped)
             and stripped[0] == "{"
@@ -582,6 +683,22 @@ class Assistant:
     async def astream_messages(
         self, message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
+        """Stream one assistant run and close its provider-owned client.
+
+        :param message: The new human message and its UI context.
+        :yield: Assistant events in response order.
+        """
+
+        async with self._model:
+            async with aclosing(
+                self._astream_messages_in_model_context(message)
+            ) as events:
+                async for event in events:
+                    yield event
+
+    async def _astream_messages_in_model_context(
+        self, message: HumanMessage
+    ) -> AsyncGenerator[AssistantMessageUnion, None]:
         """Stream the full response lifecycle for a user message.
 
         Yields events in order: ``AiStartedMessage``, zero or more
@@ -589,6 +706,12 @@ class Assistant:
         ``AiThinkingMessage``), and finally an ``AiMessage`` with the
         persisted answer. A ``ChatTitleMessage`` is appended on the first
         message in a chat.
+
+        :param message: The new human message and its UI context.
+        :yield: Assistant events in response order.
+        :return: An async generator of assistant events in response order.
+        :raises Exception: If the agent reports an execution error.
+        :raises AssistantMessageCancelled: If the assistant run is cancelled.
         """
 
         # Sticky task: capture on first message of the session

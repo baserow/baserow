@@ -1,5 +1,10 @@
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
 import { uuid } from '@baserow/modules/core/utils/string'
+import {
+  markRealtimeMetadata,
+  realtimeMetadata,
+} from '@baserow/modules/core/utils/realtime'
 
 import ElementService from '@baserow/modules/builder/services/element'
 import PublicBuilderService from '@baserow/modules/builder/services/publishedBuilder'
@@ -19,6 +24,7 @@ const populateElement = (element, registry) => {
     // It breaks collection element reload after authentication for instance
     // This uid is used as key in the PageElement component
     uid: uuid(),
+    ...realtimeMetadata(),
     ...elementType.getPopulateStoreProperties(),
   }
 
@@ -33,6 +39,17 @@ const updateContext = {
   lastUpdatedValues: null,
   valuesToUpdate: {},
   moveTimeout: null,
+  // The id of the element the pending debounced update belongs to, and a
+  // function that flushes that pending update immediately. Because this context
+  // is shared across all elements, these let `debouncedUpdate` persist a pending
+  // change before it starts debouncing a *different* element (otherwise the
+  // first element's save - and its undo action - would be silently dropped).
+  elementId: null,
+  flush: null,
+  // Same idea as `elementId`/`flush` above, but for the debounced `move`. Lets a
+  // pending move be persisted before a *different* element starts moving.
+  moveElementId: null,
+  moveFlush: null,
 }
 
 const updateCachedValues = (page) => {
@@ -71,8 +88,12 @@ const mutations = {
     }
     updateCachedValues(page)
   },
-  UPDATE_ITEM(state, { builder, page, element: elementToUpdate, values }) {
+  UPDATE_ITEM(
+    state,
+    { builder, page, element: elementToUpdate, values, viaRealtime = false }
+  ) {
     let updateCached = false
+    let markedElement = null
     page.elements.forEach((element) => {
       if (element.id === elementToUpdate.id) {
         if (
@@ -82,10 +103,17 @@ const mutations = {
           updateCached = true
         }
         Object.assign(element, values)
+        markRealtimeMetadata(element, viaRealtime)
+        markedElement = element
       }
     })
     if (builder.selectedElement?.id === elementToUpdate.id) {
       Object.assign(builder.selectedElement, values)
+      // `selectedElement` is usually the same object as the page element above;
+      // only mark it separately when it isn't, to avoid bumping the version twice.
+      if (builder.selectedElement !== markedElement) {
+        markRealtimeMetadata(builder.selectedElement, viaRealtime)
+      }
     }
     if (updateCached) {
       updateCachedValues(page)
@@ -145,9 +173,9 @@ const actions = {
       })
     }
   },
-  forceUpdate({ commit }, { builder, page, element, values }) {
+  forceUpdate({ commit }, { builder, page, element, values, viaRealtime }) {
     const { $registry } = this
-    commit('UPDATE_ITEM', { builder, page, element, values })
+    commit('UPDATE_ITEM', { builder, page, element, values, viaRealtime })
     const elementType = $registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },
@@ -348,6 +376,28 @@ const actions = {
     { builder, page, element, values }
   ) {
     const { $client } = this
+
+    // `updateContext` is shared across all elements. If there is a pending
+    // debounced update for a *different* element, flush it now so its change is
+    // persisted (and its undo action registered) before we start debouncing this
+    // element. Without this, editing a second element within the debounce window
+    // clears the first element's timer and discards its save, leaving the local
+    // state ahead of the backend and its undo action missing.
+    if (
+      updateContext.flush !== null &&
+      updateContext.elementId !== null &&
+      updateContext.elementId !== element.id
+    ) {
+      try {
+        await updateContext.flush()
+      } catch (error) {
+        // The pending update failed; `fire` already rolled it back. Continue
+        // with this element's update rather than failing it too.
+      }
+    }
+
+    updateContext.elementId = element.id
+
     const oldValues = {}
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
@@ -365,6 +415,13 @@ const actions = {
 
     return new Promise((resolve, reject) => {
       const fire = async () => {
+        // Reset the shared context synchronously (before the await) so that this
+        // update can no longer be coalesced with, or flushed by, a later one.
+        clearTimeout(updateContext.updateTimeout)
+        updateContext.updateTimeout = null
+        updateContext.promiseResolve = null
+        updateContext.flush = null
+        updateContext.elementId = null
         const toUpdate = updateContext.valuesToUpdate
         updateContext.valuesToUpdate = {}
         try {
@@ -398,6 +455,7 @@ const actions = {
 
       updateContext.updateTimeout = setTimeout(fire, 500)
       updateContext.promiseResolve = resolve
+      updateContext.flush = fire
     })
   },
   async delete({ dispatch, commit, getters }, { builder, page, elementId }) {
@@ -473,10 +531,12 @@ const actions = {
 
     return elements
   },
-  async fetchPublished({ dispatch, commit }, { builder, page }) {
+  async fetchPublished({ dispatch, commit, rootGetters }, { builder, page }) {
     const { $client } = this
-    const { data: elements } =
-      await PublicBuilderService($client).fetchElements(page)
+    const previewBuilderId = rootGetters['publicBuilder/getPreviewBuilderId']
+    const { data: elements } = await PublicBuilderService(
+      $client
+    ).fetchElements(page, previewBuilderId)
 
     commit('SET_ITEMS', { builder, page, elements })
 
@@ -627,6 +687,12 @@ const actions = {
     }
 
     const fire = async () => {
+      // Reset the shared move context synchronously (before the await) so this
+      // move can no longer be flushed or cancelled by a later one.
+      clearTimeout(updateContext.moveTimeout)
+      updateContext.moveTimeout = null
+      updateContext.moveElementId = null
+      updateContext.moveFlush = null
       try {
         const { data: elementUpdated } = await ElementService($client).move(
           elementId,
@@ -703,11 +769,46 @@ const actions = {
           }
           updateCachedValues(resolvedTargetPage)
         }
-        throw error
+
+        // The backend fails closed on moves it can't accept (graph write
+        // guards, stale references): fire() runs from a timeout, so a
+        // rethrow would be an unobserved rejection and the element would
+        // silently snap back with no explanation. Surface the error, then
+        // re-sync from the server (which also runs the graph heal) so the
+        // local state converges instead of staying diverged until a reload.
+        notifyIf(error)
+        try {
+          await dispatch('fetch', { builder, page })
+          if (isCrossPage) {
+            await dispatch('fetch', { builder, page: resolvedTargetPage })
+          }
+        } catch (refetchError) {
+          // Best-effort: the optimistic rollback above already restored a
+          // consistent local state.
+        }
+      }
+    }
+
+    // If a move for a *different* element is still pending, flush it first so its
+    // move is persisted (and its undo action registered) before this one is
+    // debounced. Done here - after this element's optimistic reposition - so the
+    // drag isn't blocked, and awaited so the two moves keep their order.
+    if (
+      updateContext.moveFlush !== null &&
+      updateContext.moveElementId !== null &&
+      updateContext.moveElementId !== elementId
+    ) {
+      try {
+        await updateContext.moveFlush()
+      } catch (error) {
+        // The pending move failed; `fire` already rolled it back. Continue with
+        // this move rather than failing it too.
       }
     }
 
     clearTimeout(updateContext.moveTimeout)
+    updateContext.moveElementId = elementId
+    updateContext.moveFlush = fire
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
   /**

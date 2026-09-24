@@ -19,8 +19,10 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import LocalBaserowNodeServiceForm from '@baserow/modules/automation/components/workflow/LocalBaserowNodeServiceForm'
 import {
   CoreCSVFileReaderServiceType,
+  CoreInboundEmailTriggerServiceType,
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreGotoServiceType,
@@ -28,6 +30,7 @@ import {
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
   CoreManualTriggerServiceType,
+  CoreResponseServiceType,
   CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
@@ -224,31 +227,37 @@ export class NodeType extends Registerable {
    * Returns whether the node is in-error or not.
    * By default, this is derived from the service type's `isInError`
    * method, but can be overridden by the node type.
+   * @param {object} context The node's service and application context.
+   * @param {object} context.service The service of the node.
+   * @param {object|null} [context.workspace=null] The owning workspace.
+   * @param {object|null} [context.application=null] The owning automation.
    * @returns {boolean} - Whether the properties are in-error.
    */
-  isInError({ service, workspace = null }) {
+  isInError({ service, workspace = null, application = null }) {
     if (workspace && this.isDeactivated({ workspace })) {
       return true
     }
-    return this.serviceType.isInError({ service })
+    return this.serviceType.isInError({ service, workspace, application })
   }
 
   /**
    * Returns the error message we should show when the node is in-error.
    * By default, this is derived from the service type's `getErrorMessage`
    * method, but can be overridden by the node type.
-   * @param {object} service - The service of the node.
-   * @param {object} node - The node for which the
-   *  error message is being retrieved.
-   * @returns {string} - The error message.
+   * @param {object} context The node and its service and application context.
+   * @param {object} context.service The service of the node.
+   * @param {object} context.node The node whose error is being retrieved.
+   * @param {object|null} [context.workspace=null] The owning workspace.
+   * @param {object|null} [context.application=null] The owning automation.
+   * @returns {string|null} The error message, or null when valid.
    */
-  getErrorMessage({ service, node, workspace = null }) {
+  getErrorMessage({ service, node, workspace = null, application = null }) {
     const deactivatedReason =
       workspace && this.isDeactivatedReason({ workspace })
     if (deactivatedReason) {
       return deactivatedReason
     }
-    return this.serviceType.getErrorMessage({ service })
+    return this.serviceType.getErrorMessage({ service, workspace, application })
   }
 
   /**
@@ -347,8 +356,40 @@ export class NodeType extends Registerable {
     return this.serviceType.getSampleData(service)
   }
 
+  /**
+   * The content type of this node's sample data. Nodes returning 'html' get
+   * an extra HTML preview tab in the sample data modal.
+   */
+  getSampleDataContentType({ service }) {
+    if (!service) {
+      return 'json'
+    }
+    return this.serviceType.getSampleDataContentType(service)
+  }
+
+  /**
+   * The HTML document rendered in the sample data modal's HTML tab.
+   */
+  getSampleDataHtml({ service }) {
+    if (!service) {
+      return null
+    }
+    return this.serviceType.getSampleDataHtml(service)
+  }
+
   getEdges({ node }) {
     return [{ uid: '', label: '' }]
+  }
+
+  /**
+   * Whether this node type is offered at all. Unlike `isDeactivated`, which
+   * keeps the entry in the add-node menu but disabled with a reason, a type
+   * that is not enabled is omitted from the menu entirely. Types that only make
+   * sense when the instance is configured for them override this.
+   * @returns {boolean}
+   */
+  isEnabled() {
+    return true
   }
 
   isDeactivatedReason({ workspace }) {
@@ -369,6 +410,14 @@ export class NodeType extends Registerable {
 }
 
 export class LocalBaserowNodeType extends NodeType {
+  /**
+   * A wrapper around the service form, so the node can pick its integration
+   * first and hand the form the databases it reaches.
+   */
+  get formComponent() {
+    return LocalBaserowNodeServiceForm
+  }
+
   /**
    * Responsible for returning contextual data for a node label template.
    * At the moment we only refer to the table name.
@@ -616,6 +665,52 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   }
 }
 
+export class CoreInboundEmailTriggerNodeType extends TriggerNodeTypeMixin(
+  NodeType
+) {
+  static getType() {
+    return 'email_trigger'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.inboundEmailTriggerDescription')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreInboundEmailTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 4.5
+  }
+
+  /**
+   * Only offered when the instance is configured for inbound email. The
+   * backend derives that from its environment (domain, webhook secret and the
+   * receiver URL its message sweep needs) and publishes the result in the
+   * public settings, so this mirrors the exact gate that would otherwise
+   * refuse to create the node. Without it the trigger is left out of the menu
+   * rather than shown deactivated, so instances that never use inbound email
+   * do not carry a dead entry.
+   */
+  isEnabled() {
+    return (
+      this.app.$store.getters['settings/get']?.inbound_email_enabled === true
+    )
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.$i18n.t('serviceType.inboundEmailTrigger')
+  }
+}
+
 export class CoreManualTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   static getType() {
     return 'manual'
@@ -854,6 +949,24 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
+export class CoreResponseNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'response'
+  }
+
+  getOrder() {
+    return 8
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.responseLabel')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreResponseServiceType.getType())
+  }
+}
+
 export class CoreIteratorNodeType extends containerNodeTypeMixin(
   ActionNodeTypeMixin(UtilityNodeMixin(NodeType))
 ) {
@@ -862,7 +975,7 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
   }
 
   getOrder() {
-    return 8
+    return 9
   }
 
   get name() {

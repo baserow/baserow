@@ -14,7 +14,7 @@ cat << EOF
 ██████╔╝██║  ██║███████║███████╗██║  ██║╚██████╔╝╚███╔███╔╝
 ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚══╝╚══╝
 
-Version 2.3.3
+Version 2.3.4
 
 =========================================================================================
 EOF
@@ -65,6 +65,21 @@ if [[ "$REDIS_HOST" == "localhost" && -z "${REDIS_URL:-}" ]]; then
 elif [ -f "$SUPERVISOR_ENABLED_CONF_DIR/embedded-redis.conf" ]; then
   # Disable the embedded redis if somehow the conf is in the enabled folder
   mv "$SUPERVISOR_ENABLED_CONF_DIR/embedded-redis.conf" "$SUPERVISOR_DISABLED_CONF_DIR/embedded-redis.conf" 2>/dev/null || true
+fi
+
+# ========================
+# = SETUP EMAIL RECEIVER IF TURNED ON
+# ========================
+if [[ -n "${BASEROW_INBOUND_EMAIL_DOMAIN:-}" && -n "${BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:-}" ]]; then
+  startup_echo "Enabling the email receiver for inbound domain $BASEROW_INBOUND_EMAIL_DOMAIN."
+  # Enable the email receiver by moving it into the directory from which
+  # supervisor includes all .conf files it finds.
+  if [ ! -f "$SUPERVISOR_ENABLED_CONF_DIR/email-receiver.conf" ]; then
+    mv "$SUPERVISOR_DISABLED_CONF_DIR/email-receiver.conf" "$SUPERVISOR_ENABLED_CONF_DIR/email-receiver.conf"
+  fi
+elif [ -f "$SUPERVISOR_ENABLED_CONF_DIR/email-receiver.conf" ]; then
+  # Disable the email receiver if somehow the conf is in the enabled folder
+  mv "$SUPERVISOR_ENABLED_CONF_DIR/email-receiver.conf" "$SUPERVISOR_DISABLED_CONF_DIR/email-receiver.conf" 2>/dev/null || true
 fi
 
 # ========================

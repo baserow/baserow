@@ -86,6 +86,7 @@
 @import 'array_field';
 @import 'views/form';
 @import 'loading';
+@import 'skeleton';
 @import 'nuxt_loading_indicator';
 @import 'toast';
 @import 'dashboard';
@@ -169,6 +170,7 @@
 @import 'integrations/all';
 @import 'services/service_form';
 @import 'services/webhook_service_form';
+@import 'services/inbound_email_trigger_service_form';
 @import 'editable';
 @import 'notification_panel';
 @import 'color_picker';
@@ -220,3 +222,7 @@
 @import 'formula_input_error_context';
 @import 'tabs_body';
 @import 'presence';
+@import 'search_highlight';
+@import 'application_card';
+@import 'workspace_box';
+@import 'all_workspaces';

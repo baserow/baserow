@@ -307,7 +307,6 @@ def construct_all_possible_field_kwargs(
             {
                 "name": "button",
                 "label": "Open",
-                "url_formula": "'https://example.com'",
             }
         ],
         "ai": [

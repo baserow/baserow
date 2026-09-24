@@ -153,6 +153,10 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
                 "order": "1.00000000000000000000",
                 "title": "Widget 1",
                 "type": "summary",
+                "grid_x": 0,
+                "grid_y": 0,
+                "grid_width": 2,
+                "grid_height": 4,
             },
             {
                 "data_source_id": dashboard_widget_2.data_source.id,
@@ -161,9 +165,59 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
                 "order": "2.00000000000000000000",
                 "title": "Widget 2",
                 "type": "summary",
+                "grid_x": 2,
+                "grid_y": 0,
+                "grid_width": 2,
+                "grid_height": 4,
             },
         ],
     }
+
+
+@pytest.mark.django_db
+def test_dashboard_current_export_import_roundtrip_preserves_widget_geometry(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    source_workspace = data_fixture.create_workspace(user=user)
+    target_workspace = data_fixture.create_workspace(user=user)
+    source_dashboard = cast(
+        Dashboard,
+        CoreHandler().create_application(
+            user,
+            source_workspace,
+            type_name="dashboard",
+            name="Source dashboard",
+            init_with_data=True,
+        ),
+    )
+    widget = WidgetService().create_widget(
+        user, "summary", source_dashboard.id, title="Widget"
+    )
+    Widget.objects.filter(id=widget.id).update(
+        grid_x=3,
+        grid_y=7,
+        grid_width=3,
+        grid_height=5,
+    )
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = DashboardApplicationType().export_serialized(source_dashboard, config)
+    serialized = json.loads(json.dumps(serialized))
+
+    imported_dashboard = DashboardApplicationType().import_serialized(
+        target_workspace,
+        serialized,
+        config,
+        id_mapping={},
+    )
+
+    imported_widget = Widget.objects.get(dashboard=imported_dashboard)
+    assert (
+        imported_widget.grid_x,
+        imported_widget.grid_y,
+        imported_widget.grid_width,
+        imported_widget.grid_height,
+    ) == (3, 7, 3, 5)
 
 
 @pytest.mark.django_db
@@ -195,7 +249,7 @@ def test_dashboard_import_serialized(data_fixture):
 
 
 @pytest.mark.django_db()
-def test_dashboard_import_serialized_with_widgets(data_fixture):
+def test_dashboard_import_serialized_with_legacy_widgets(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(user=user, workspace=workspace)
@@ -350,6 +404,8 @@ def test_dashboard_import_serialized_with_widgets(data_fixture):
     assert widget1.description == "Description 1"
     assert widget1.order == Decimal("1.0")
     assert widget1.data_source.id == ds1.id
+    assert (widget1.grid_x, widget1.grid_y) == (0, 0)
+    assert (widget1.grid_width, widget1.grid_height) == (2, 4)
 
     widget2 = widgets[1].specific
     assert widget1.content_type == ContentType.objects.get_for_model(SummaryWidget)
@@ -357,6 +413,8 @@ def test_dashboard_import_serialized_with_widgets(data_fixture):
     assert widget2.description == "Description 2"
     assert widget2.order == Decimal("2.0")
     assert widget2.data_source.id == ds2.id
+    assert (widget2.grid_x, widget2.grid_y) == (0, 4)
+    assert (widget2.grid_width, widget2.grid_height) == (2, 4)
 
     assert progress.progress == 100
 

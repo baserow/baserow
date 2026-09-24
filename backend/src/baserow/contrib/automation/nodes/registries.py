@@ -33,12 +33,14 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.mixins import ServiceBackedTypeMixin
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.trash.registries import TrashOperationType
 
 
 class AutomationNodeType(
+    ServiceBackedTypeMixin,
     PublicCustomFieldsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin,
@@ -48,6 +50,7 @@ class AutomationNodeType(
     display_name = _("Unnamed node")
 
     service_type = None
+    service_field_help_text = "The service associated with this automation node."
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
 
@@ -279,13 +282,28 @@ class AutomationNodeType(
                 integration_id = id_mapping["integrations"].get(
                     integration_id, integration_id
                 )
-                integration = Integration.objects.get(id=integration_id)
-                workflow = kwargs.get("workflow")
-                if (
-                    workflow is not None
-                    and integration.application_id != workflow.automation_id
-                ):
+                # Use the trash-inclusive manager: duplicating an automation
+                # preserves the `integration_id` of a service pointing at a
+                # trashed integration (so the copy reconnects when it is
+                # restored), and the default manager would raise `DoesNotExist`
+                # on that trashed row.
+                try:
+                    integration = Integration.objects_and_trash.get(id=integration_id)
+                except Integration.DoesNotExist:
                     integration = None
+                else:
+                    # Never reference an integration outside the target
+                    # application. On a cross-application import a trashed
+                    # integration is not part of the export (so it is absent
+                    # from `id_mapping`), and the unmapped id would otherwise
+                    # resolve to an unrelated integration in another
+                    # application.
+                    workflow = kwargs.get("workflow")
+                    if (
+                        workflow is not None
+                        and integration.application_id != workflow.automation_id
+                    ):
+                        integration = None
 
             return ServiceHandler().import_service(
                 integration,
@@ -402,6 +420,15 @@ class AutomationNodeType(
         return values
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]: ...
+
+    def raise_if_misconfigured(self, automation_node: AutomationNode) -> None:
+        """
+        Refuses a node whose saved configuration cannot run. Nothing to refuse by
+        default.
+
+        :param automation_node: The node to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When it cannot run.
+        """
 
     def dispatch(
         self,

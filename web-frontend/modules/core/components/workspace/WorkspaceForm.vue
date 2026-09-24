@@ -26,7 +26,10 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
-import { nameContainsNoUrl } from '@baserow/modules/core/validators'
+import {
+  nameContainsNoSpam,
+  nameContainsNoUrl,
+} from '@baserow/modules/core/validators'
 
 export default {
   name: 'WorkspaceForm',
@@ -59,6 +62,10 @@ export default {
           nameContainsNoUrl: helpers.withMessage(
             this.$t('error.nameContainsUrl'),
             nameContainsNoUrl
+          ),
+          nameContainsNoSpam: helpers.withMessage(
+            this.$t('error.nameContainsSpam'),
+            nameContainsNoSpam
           ),
         },
       },

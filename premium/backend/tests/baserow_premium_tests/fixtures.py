@@ -13,6 +13,9 @@ from baserow_premium.views.models import (
     TimelineViewFieldOptions,
 )
 
+# Every license below is signed with `public_key_debug.pem`, so a test that decodes one
+# (touching `payload`, `is_active`, `application_users`, ...) has to run under
+# `@override_settings(DEBUG=True)`. Merely creating the row does not decode it.
 VALID_ONE_SEAT_LICENSE = (
     # id: "1", instance_id: "1"
     b"eyJ2ZXJzaW9uIjogMSwgImlkIjogIjEiLCAidmFsaWRfZnJvbSI6ICIyMDIxLTA4LTI5VDE5OjUyOjU3"
@@ -39,6 +42,35 @@ VALID_100_SEAT_LICENSE_UNTIL_YEAR_2099 = (
     b"Qg0Qlgq0gB_7CoUulo73fhCjOZHoH1HAzxh77SbgXxJbDQOYlXqortVvl5vDpNcPTbar4IihBJRgaFTM"
     b"7DjR0On8GCX7j944VkXguiGPdglBXTcqRbPf1qqmZ8jaHrKX6wHYysBJs10OqWqT5p_s8cuRrr0IzLDz"
     b"Ss-q11zuFn-ekeJzo5A=="
+)
+
+# `application_users` is only carried by licenses issued from v1.32 onwards. The two
+# licenses above predate it, so their `application_users` resolves to None.
+VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE = (
+    # application_users: 10, valid from 2026-01-08 through 2050-01-08
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImM2MmQwNzdhLTg3YmEtNGM1ZS05Y2M5LTRhN2NhYzZiMmNjNyIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjYtMDEtMDhUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDUwLT"
+    b"AxLTA4VDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFwcGx"
+    b"pY2F0aW9uX3VzZXJzIjogMTAsICJpc3N1ZWRfb24iOiAiMjAyNi0wMS0wOFQwOToyNjo0OS43NzE3MTci"
+    b"LCAiaXNzdWVkX3RvX2VtYWlsIjogInBldGVyQGJhc2Vyb3cuaW8iLCAiaXNzdWVkX3RvX25hbWUiOiAiU"
+    b"GV0ZXIiLCAiaW5zdGFuY2VfaWQiOiAiMSJ9.WmuaTFYMXJF0DrJQVWZDUFRPMllYhuprbzAflf53_Etjc"
+    b"haiHztKAQrEM5OwOKHLuVI-V1wuiQOP2ClP339w_bruzhLjIPKhuo6rBsllZvRyfs0axo8bDJ5Ff0xKWz"
+    b"BEjOgndVKcFeWVcnhl3OE2cXQYMqcOapuaG3UTbwHa3G8n4TVYDv0Xtztfam9U9Tub8C_n9KBDbswS31Y"
+    b"XzBQW86xU-9uIvjq1rLbmSIto3FbSGNNR8GuEuQXe0LuoS5iLf_9B3qF8Rrn8cml5N_2c78K_NA0olHqy"
+    b"-ShSx0axC5OrwcpWhAwXccpB0X9VutE97_WtEikiQqhhCeNiyEy2_w=="
+)
+VALID_PREMIUM_5_SEAT_15_APP_USER_LICENSE = (
+    # application_users: 15, valid from 2026-01-08 through 2050-01-08
+    b"eyJ2ZXJzaW9uIjogMSwgImlkIjogImZmZjMyYTUwLTc4MzMtNDBmZS1iZjJhLTJjYWZkOWY0ZDdkMCIsI"
+    b"CJ2YWxpZF9mcm9tIjogIjIwMjYtMDEtMDhUMDA6MDA6MDAiLCAidmFsaWRfdGhyb3VnaCI6ICIyMDUwLT"
+    b"AxLTA4VDIzOjU5OjU5IiwgInByb2R1Y3RfY29kZSI6ICJwcmVtaXVtIiwgInNlYXRzIjogNSwgImFwcGx"
+    b"pY2F0aW9uX3VzZXJzIjogMTUsICJpc3N1ZWRfb24iOiAiMjAyNi0wMS0wOFQwOToyODowNC41MDQ3MDMi"
+    b"LCAiaXNzdWVkX3RvX2VtYWlsIjogInBldGVyQGJhc2Vyb3cuaW8iLCAiaXNzdWVkX3RvX25hbWUiOiAiU"
+    b"GV0ZXIiLCAiaW5zdGFuY2VfaWQiOiAiMSJ9.uAm7eoMn7LKA-edd10LISe0dkh_ocn-StgqNtGO5rEJRW"
+    b"Onwd5a7Nh611NMTq_yI0vSwZ4GjeSxHlkJv-GHZLB3sjdQ5BP6c7g1EFmbN4r4Usue0h1BFDRhLlSdNJa"
+    b"zU9nqo3AD6ym_j7cgIbdtNqIkhum9H1Cs73Gyaqh1Va_oQeLQRq7tTc3N8BlzuC6nIU68Cme8-oUhA-NI"
+    b"AaID2LDHRipWGKAv8EMbK45WOhrqNwesDOXHvwK8jDLKj2yO2QMN6BY1FxHSjd_kXxwlrzYTUov8sZpnt"
+    b"fORFtQyO_RfhBkq1HUjs_O44DObkxYqProsWM45LfasCdFcRZPDaLQ=="
 )
 
 

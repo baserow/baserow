@@ -1,21 +1,6 @@
 <template>
   <form @submit.prevent>
-    <FormGroup
-      v-if="enableIntegrationPicker"
-      :label="$t('localBaserowServiceForm.integrationDropdownLabel')"
-      small-label
-      required
-      class="margin-bottom-2"
-    >
-      <IntegrationDropdown
-        v-model="values.integration_id"
-        :application="application"
-        :integrations="integrations"
-        :integration-type="integrationType"
-      />
-    </FormGroup>
     <LocalBaserowTableSelector
-      v-if="selectedIntegration"
       v-model="fakeTableId"
       v-model:view-id="values.view_id"
       :databases="databases"
@@ -23,7 +8,7 @@
       :display-view-dropdown="enableViewPicker"
     />
     <FormGroup
-      v-if="enableRowId && values.integration_id"
+      v-if="enableRowId"
       small-label
       :label="$t(rowIdLabel)"
       :helper-text="rowIdHelperText"
@@ -41,21 +26,21 @@
 
 <script>
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
-import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
-import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import form from '@baserow/modules/core/mixins/form'
 
 /**
  * The purpose of this component is to reuse the concept of a "Local Baserow service form"
  * across our Local Baserow workflow action forms. Upsert (used by Create and Update)
- * and Delete need to be able to manage the integration, table, and optional row ID.
+ * and Delete need to be able to manage the table and optional row ID.
  * Rather than duplicate the form a few times, this component keeps things tidier.
+ *
+ * The databases to pick a table from are passed in: an integration's for the
+ * builder and automation, the workspace's for a button field.
  */
 export default {
   name: 'LocalBaserowServiceForm',
   components: {
-    IntegrationDropdown,
     LocalBaserowTableSelector,
     InjectedFormulaInput,
   },
@@ -100,20 +85,19 @@ export default {
       default: true,
     },
     /**
-     * Whether to show the integration picker or not.
-     * By default, we show it, but in some cases, we've
-     * already collected the integration ID.
+     * The databases to choose a table from, supplied by the wrapper of the
+     * application type this form is rendered in.
      */
-    enableIntegrationPicker: {
-      type: Boolean,
+    databases: {
+      type: Array,
       required: false,
-      default: true,
+      default: () => [],
     },
   },
   emits: ['table-changed'],
   data() {
-    const values = { table_id: null, integration_id: null }
-    const allowedValues = ['table_id', 'integration_id']
+    const values = { table_id: null }
+    const allowedValues = ['table_id']
     if (this.enableRowId) {
       values.row_id = {}
       allowedValues.push('row_id')
@@ -128,15 +112,6 @@ export default {
     }
   },
   computed: {
-    integrations() {
-      const allIntegrations = this.$store.getters[
-        'integration/getIntegrations'
-      ](this.application)
-      return allIntegrations.filter(
-        (integration) =>
-          integration.type === LocalBaserowIntegrationType.getType()
-      )
-    },
     fakeTableId: {
       get() {
         return this.values.table_id
@@ -148,21 +123,6 @@ export default {
         // e.g. showing a loading spinner.
         this.$emit('table-changed', newValue)
       },
-    },
-    integrationType() {
-      return this.$registry.get(
-        'integration',
-        LocalBaserowIntegrationType.getType()
-      )
-    },
-    selectedIntegration() {
-      return this.$store.getters['integration/getIntegrationById'](
-        this.application,
-        this.values.integration_id
-      )
-    },
-    databases() {
-      return this.selectedIntegration?.context_data?.databases || []
     },
   },
   watch: {

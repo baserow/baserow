@@ -8,7 +8,12 @@
         getViewHeaderClassNames(view),
       ]"
     >
-      <div v-show="tableLoading" class="header__loading"></div>
+      <SkeletonBlock
+        v-if="tableLoading"
+        class="header__loading"
+        width="140px"
+        height="12px"
+      ></SkeletonBlock>
       <ul v-if="!tableLoading" class="header__filter">
         <li v-if="showLogo" class="header__filter-item">
           <ExternalLinkBaserowLogo class="header__filter-logo" />
@@ -295,13 +300,6 @@ export default {
     ViewContext,
     PublicViewMenu,
   },
-  /**
-   * Because there is no hook that is called before the route changes, we need the
-   * tableLoading middleware to change the table loading state. This change will get
-   * rendered right away. This allows us to have a custom loading animation when
-   * switching views.
-   */
-  middleware: ['tableLoading'],
   props: {
     database: {
       type: Object,

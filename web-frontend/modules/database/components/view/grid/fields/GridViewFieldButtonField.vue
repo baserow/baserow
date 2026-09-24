@@ -1,19 +1,35 @@
 <template>
-  <div ref="cell" class="grid-view__cell">
-    <div class="grid-field-button">
+  <div ref="cell" class="grid-view__cell active">
+    <!-- A disabled button fires no mouse events, so the tooltip sits on the
+         wrapper. -->
+    <div
+      v-tooltip="
+        requiresReconfiguration
+          ? $t('buttonField.requiresReconfiguration')
+          : disabledReason
+      "
+      class="grid-field-button"
+    >
       <Button
-        v-if="isValid(resolvedButtonValue)"
-        tag="a"
+        v-if="requiresReconfiguration"
         size="tiny"
         type="secondary"
-        rel="nofollow noopener noreferrer"
-        :href="getHref(resolvedButtonValue)"
-        target="_blank"
+        icon="iconoir-warning-triangle"
+        disabled
       >
-        {{ resolvedButtonValue.label }}
+        {{ field.label }}
       </Button>
-      <Button v-else type="secondary" tag="a" size="tiny" disabled>
-        {{ resolvedButtonValue.label }}
+      <Button
+        v-else-if="canClick"
+        size="tiny"
+        type="secondary"
+        :loading="dispatching"
+        @click="dispatchWorkflowActions"
+      >
+        {{ field.label }}
+      </Button>
+      <Button v-else size="tiny" type="secondary" disabled>
+        {{ field.label }}
       </Button>
     </div>
   </div>
@@ -21,11 +37,10 @@
 
 <script>
 import gridField from '@baserow/modules/database/mixins/gridField'
-import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 import buttonField from '@baserow/modules/database/mixins/buttonField'
 
 export default {
   name: 'GridViewFieldButtonField',
-  mixins: [gridField, linkURLField, buttonField],
+  mixins: [gridField, buttonField],
 }
 </script>

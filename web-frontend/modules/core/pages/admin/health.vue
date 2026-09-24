@@ -9,6 +9,27 @@
           {{ $t('health.description') }}
         </div>
         <div>
+          <template v-if="loading">
+            <div
+              v-for="index in 8"
+              :key="`skeleton-${index}`"
+              class="skeleton admin-health__check-item"
+              aria-hidden="true"
+            >
+              <div class="admin-health__check-item-label">
+                <div class="admin-health__check-item-name">
+                  <SkeletonBlock width="160px"></SkeletonBlock>
+                </div>
+              </div>
+              <div class="admin-health__icon">
+                <SkeletonBlock
+                  width="18px"
+                  height="18px"
+                  shape="circle"
+                ></SkeletonBlock>
+              </div>
+            </div>
+          </template>
           <div
             v-for="(status, checkName) in healthChecks"
             :key="checkName"
@@ -42,7 +63,9 @@
             <div class="admin-health__check-item-label">
               <div class="admin-health__check-item-name">Celery queue size</div>
             </div>
-            {{ celeryQueueSize }}
+            <span v-skeleton="{ loading, width: '24px' }">{{
+              celeryQueueSize
+            }}</span>
           </div>
           <div class="admin-health__check-item">
             <div class="admin-health__check-item-label">
@@ -50,7 +73,9 @@
                 Celery export queue size
               </div>
             </div>
-            {{ celeryExportQueueSize }}
+            <span v-skeleton="{ loading, width: '24px' }">{{
+              celeryExportQueueSize
+            }}</span>
           </div>
         </div>
       </div>
@@ -68,6 +93,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import HealthService from '@baserow/modules/core/services/health'
 import EmailTester from '@baserow/modules/core/components/health/EmailTester.vue'
 
@@ -82,8 +108,7 @@ const { $client, $i18n } = useNuxtApp()
 
 useHead({ title: $i18n.t('health.title') })
 
-// Fetch data (equivalent to asyncData)
-const { data } = await useAsyncData('health', async () => {
+const { data, loading } = await usePageAsyncData('health', async () => {
   const res = await HealthService($client).getAll()
   return res.data
 })

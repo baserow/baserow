@@ -525,232 +525,6 @@ def test_move_orphan_element_makes_it_join_the_graph(data_fixture):
 
 
 @pytest.mark.django_db
-def test_heal_orphan_elements_appends_to_unshared_page_root(data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    element1 = data_fixture.create_builder_heading_element(page=page)
-
-    # An element in the DB but missing from the graph (created without a graph
-    # insert, mimicking an old-code write during a non-zero-downtime deploy).
-    orphan = ElementHandler().create_element(
-        element_type_registry.get("heading"), page=page
-    )
-    page.refresh_from_db(fields=["graph"])
-    assert str(orphan.id) not in page.graph
-
-    patch = ElementHandler().heal_orphan_elements(page)
-
-    # The patch contains only the entries that changed: the orphan's new entry and
-    # the element it was linked after.
-    assert patch == {
-        str(element1.id): {"next": {"": [orphan.id]}},
-        str(orphan.id): {},
-    }
-
-    page.refresh_from_db(fields=["graph"])
-    # The orphan is appended to the end of the (unshared) page's root chain.
-    assert page.graph == {
-        "0": element1.id,
-        str(element1.id): {"next": {"": [orphan.id]}},
-        str(orphan.id): {},
-    }
-
-
-@pytest.mark.django_db
-def test_heal_orphan_elements_is_a_noop_when_graph_is_consistent(data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    data_fixture.create_builder_heading_element(page=page)
-
-    page.refresh_from_db(fields=["graph"])
-    before = dict(page.graph)
-
-    assert ElementHandler().heal_orphan_elements(page) == {}
-
-    page.refresh_from_db(fields=["graph"])
-    assert page.graph == before
-
-
-@pytest.mark.django_db
-def test_heal_orphan_elements_appends_to_first_shared_element_on_shared_page(
-    data_fixture,
-):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    shared_page = page.builder.shared_page
-
-    # The first shared element (a Header container) lives at the root of the
-    # shared page.
-    header = ElementService().create_element(
-        user, element_type_registry.get("header"), page=shared_page
-    )
-
-    # A regular element on the shared page that's missing from the graph.
-    orphan = ElementHandler().create_element(
-        element_type_registry.get("heading"), page=shared_page
-    )
-    shared_page.refresh_from_db(fields=["graph"])
-    assert str(orphan.id) not in shared_page.graph
-
-    patch = ElementHandler().heal_orphan_elements(shared_page)
-
-    # The patch carries the orphan and the header (whose children changed).
-    assert str(orphan.id) in patch
-    assert str(header.id) in patch
-
-    shared_page.refresh_from_db(fields=["graph"])
-    # The orphan is appended to the end of the first shared element (the header).
-    assert shared_page.graph[str(header.id)]["children"][""] == [orphan.id]
-
-
-@pytest.mark.django_db
-def test_heal_orphan_elements_service_returns_patch_and_persists(data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    data_fixture.create_builder_heading_element(page=page)
-    orphan = ElementHandler().create_element(
-        element_type_registry.get("heading"), page=page
-    )
-
-    patch = ElementService().heal_orphan_elements(user, page)
-
-    assert str(orphan.id) in patch
-    page.refresh_from_db(fields=["graph"])
-    assert str(orphan.id) in page.graph
-
-
-@pytest.mark.django_db
-@patch("sentry_sdk.capture_message")
-def test_heal_orphan_elements_reports_to_sentry(capture_message_mock, data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    data_fixture.create_builder_heading_element(page=page)
-    ElementHandler().create_element(element_type_registry.get("heading"), page=page)
-
-    ElementHandler().heal_orphan_elements(page)
-
-    capture_message_mock.assert_called_once()
-    # The message reports how many elements were healed, at warning level.
-    assert "1 orphan" in capture_message_mock.call_args[0][0]
-    assert capture_message_mock.call_args.kwargs["level"] == "warning"
-
-
-@pytest.mark.django_db
-@patch("sentry_sdk.capture_message")
-def test_heal_orphan_elements_does_not_report_when_consistent(
-    capture_message_mock, data_fixture
-):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    data_fixture.create_builder_heading_element(page=page)
-
-    ElementHandler().heal_orphan_elements(page)
-
-    capture_message_mock.assert_not_called()
-
-
-@pytest.mark.django_db
-def test_heal_prunes_stale_point_for_hard_deleted_element(data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-
-    # A 3-element root chain through the graph: e1 → e2 → e3.
-    heading = element_type_registry.get("heading")
-    e1 = ElementService().create_element(user, heading, page=page)
-    e2 = ElementService().create_element(user, heading, page=page)
-    e3 = ElementService().create_element(user, heading, page=page)
-
-    page.refresh_from_db(fields=["graph"])
-    assert str(e2.id) in page.graph
-
-    # Simulate old code hard-deleting the middle element's row without touching
-    # the graph: the graph now references a point with no DB row ("stale point").
-    Element.objects.filter(id=e2.id).delete()
-
-    patch = ElementHandler().heal_orphan_elements(page)
-
-    page.refresh_from_db(fields=["graph"])
-    # The stale point is spliced out and the chain re-stitched: e1 → e3.
-    assert str(e2.id) not in page.graph
-    assert page.graph == {
-        "0": e1.id,
-        str(e1.id): {"next": {"": [e3.id]}},
-        str(e3.id): {},
-    }
-    # The relinked predecessor is carried in the patch.
-    assert patch == {str(e1.id): {"next": {"": [e3.id]}}}
-
-
-@pytest.mark.django_db
-def test_heal_prunes_stale_point_and_does_not_raise_on_traversal(data_fixture):
-    """A stale point would make graph traversal resolve a missing element and
-    raise; after healing, the ordered traversal succeeds."""
-
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-
-    heading = element_type_registry.get("heading")
-    e1 = ElementService().create_element(user, heading, page=page)
-    e2 = ElementService().create_element(user, heading, page=page)
-
-    Element.objects.filter(id=e1.id).delete()  # the root point is now stale
-
-    ElementHandler().heal_orphan_elements(page)
-
-    page.refresh_from_db(fields=["graph"])
-    # The surviving element is promoted to root; traversal resolves cleanly.
-    assert page.graph == {"0": e2.id, str(e2.id): {}}
-    graph = page.get_graph()
-    assert graph.get_point(e2.id).id == e2.id
-
-
-@pytest.mark.django_db
-def test_heal_reconciles_orphan_and_stale_point_together(data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-
-    heading = element_type_registry.get("heading")
-    e1 = ElementService().create_element(user, heading, page=page)
-    e2 = ElementService().create_element(user, heading, page=page)
-
-    # e2 was hard-deleted (stale), and a fresh row was written without a graph
-    # insert (orphan) — both at once, as can happen mid-deploy.
-    Element.objects.filter(id=e2.id).delete()
-    orphan = ElementHandler().create_element(heading, page=page)
-
-    page.refresh_from_db(fields=["graph"])
-    assert str(orphan.id) not in page.graph
-
-    ElementHandler().heal_orphan_elements(page)
-
-    page.refresh_from_db(fields=["graph"])
-    # Stale e2 pruned, orphan appended to the end of the (now single-element) chain.
-    assert page.graph == {
-        "0": e1.id,
-        str(e1.id): {"next": {"": [orphan.id]}},
-        str(orphan.id): {},
-    }
-
-
-@pytest.mark.django_db
-@patch("sentry_sdk.capture_message")
-def test_heal_reports_pruned_stale_points_to_sentry(capture_message_mock, data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-
-    heading = element_type_registry.get("heading")
-    e1 = ElementService().create_element(user, heading, page=page)
-    ElementService().create_element(user, heading, page=page)
-    Element.objects.filter(id=e1.id).delete()
-
-    ElementHandler().heal_orphan_elements(page)
-
-    capture_message_mock.assert_called_once()
-    assert "1 stale" in capture_message_mock.call_args[0][0]
-    assert capture_message_mock.call_args.kwargs["level"] == "warning"
-
-
-@pytest.mark.django_db
 def test_move_element_not_same_builder(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
@@ -1186,120 +960,110 @@ def test_move_element_cross_page_removes_entry_from_source_graph(data_fixture):
     }
 
 
-@pytest.mark.django_db
-def test_heal_strips_self_referencing_point(data_fixture):
+@pytest.mark.django_db(transaction=False)
+def test_graph_mutations_lock_the_page_row(data_fixture):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-
     heading = element_type_registry.get("heading")
-    e1 = ElementService().create_element(user, heading, page=page)
-    e2 = ElementService().create_element(user, heading, page=page)
 
-    # Simulate the real-world corruption: the tail element lists itself as its
-    # own `next`. There is no DB<->graph drift, so only the self-reference scan
-    # can detect this.
-    page.graph[str(e2.id)]["next"] = {"": [e2.id]}
-    page.save(update_fields=["graph"])
+    # Creating an element inserts into the page graph; the graph is a single
+    # JSON document written back whole, so the mutation must take a row lock
+    # on the page (concurrent read-modify-writes were the root cause of the
+    # graph corruption incidents).
+    with CaptureQueriesContext(connection) as ctx:
+        ElementService().create_element(user, heading, page=page)
 
-    patch = ElementHandler().heal_orphan_elements(page)
+    assert any(
+        "FOR UPDATE" in query["sql"] and "builder_page" in query["sql"]
+        for query in ctx.captured_queries
+    )
 
-    page.refresh_from_db(fields=["graph"])
-    assert page.graph == {
+
+@pytest.mark.django_db
+def test_write_through_stale_page_instance_does_not_lose_concurrent_update(
+    data_fixture,
+):
+    # Deterministic replay of the lost-update interleaving behind the graph
+    # corruption incidents: request 1 loads the page, request 2 commits a graph
+    # change, then request 1 writes through its now-stale page instance.
+    # The pre-lock read-modify-write overwrote the whole graph JSON and lost
+    # request 2's element; the lock + in-place refresh must preserve both.
+    from django.db import transaction
+
+    from baserow.contrib.builder.pages.models import Page
+    from baserow.core.cache import local_cache
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    heading = element_type_registry.get("heading")
+
+    # "Request 1" loads its page instance first...
+    stale_page = Page.objects.get(id=page.id)
+
+    # ...then "request 2" creates an element and commits.
+    with local_cache.context(), transaction.atomic():
+        e1 = ElementService().create_element(
+            user, heading, page=Page.objects.get(id=page.id)
+        )
+
+    # "Request 1" now creates an element through its stale instance.
+    with local_cache.context(), transaction.atomic():
+        e2 = ElementService().create_element(user, heading, page=stale_page)
+
+    final_graph = Page.objects.get(id=page.id).graph
+    assert final_graph == {
         "0": e1.id,
         str(e1.id): {"next": {"": [e2.id]}},
         str(e2.id): {},
     }
-    # The stripped entry is carried in the patch so clients can shallow-merge.
-    assert patch == {str(e2.id): {}}
 
 
-@pytest.mark.django_db
-def test_heal_strips_dangling_next_and_children_references(data_fixture):
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_element_creations_both_land_in_graph(data_fixture):
+    # True two-connection race: both transactions insert into the same page
+    # graph at the same time. The page row lock must serialise them so that
+    # neither write is lost and the resulting chain is consistent.
+    import threading
+
+    from django.db import connection, transaction
+
+    from baserow.contrib.builder.pages.models import Page
+    from baserow.core.cache import local_cache
+
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-
-    column = element_type_registry.get("column")
     heading = element_type_registry.get("heading")
-    container = ElementService().create_element(user, column, page=page)
-    child = ElementService().create_element(
-        user,
-        heading,
-        page=page,
-        reference_element_id=container.id,
-        position=GraphPointPosition.CHILD,
-        place_in_container="0",
-    )
 
-    page.refresh_from_db(fields=["graph"])
-    missing_next_id = max(container.id, child.id) + 1000
-    missing_child_id = missing_next_id + 1
-    page.graph[str(child.id)]["next"] = {"": [missing_next_id]}
-    page.graph[str(container.id)]["children"]["1"] = [missing_child_id]
-    page.save(update_fields=["graph"])
+    barrier = threading.Barrier(2)
+    created_ids = []
+    errors = []
 
-    patch = ElementHandler().heal_orphan_elements(page)
+    def worker():
+        try:
+            barrier.wait(timeout=10)
+            with local_cache.context(), transaction.atomic():
+                element = ElementService().create_element(
+                    user, heading, page=Page.objects.get(id=page.id)
+                )
+            created_ids.append(element.id)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+        finally:
+            connection.close()
 
-    page.refresh_from_db(fields=["graph"])
-    assert page.graph == {
-        "0": container.id,
-        str(container.id): {"children": {"0": [child.id]}},
-        str(child.id): {},
-    }
-    assert patch == {
-        str(container.id): {"children": {"0": [child.id]}},
-        str(child.id): {},
-    }
+    threads = [threading.Thread(target=worker) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
 
-
-@pytest.mark.django_db
-def test_heal_reattaches_detached_element(data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-
-    heading = element_type_registry.get("heading")
-    e1 = ElementService().create_element(user, heading, page=page)
-    e2 = ElementService().create_element(user, heading, page=page)
-
-    # Simulate the real-world "3311" corruption: e2 stays keyed in the graph
-    # and its row exists, but nothing references it. There is no DB<->graph
-    # drift, so only the reachability scan can detect it.
-    page.graph = {"0": e1.id, str(e1.id): {}, str(e2.id): {}}
-    page.save(update_fields=["graph"])
-
-    patch = ElementHandler().heal_orphan_elements(page)
-
-    page.refresh_from_db(fields=["graph"])
-    # e2 is re-attached as the last element of the page.
-    assert page.graph == {
-        "0": e1.id,
-        str(e1.id): {"next": {"": [e2.id]}},
-        str(e2.id): {},
-    }
-    assert patch == {str(e1.id): {"next": {"": [e2.id]}}}
-
-
-@pytest.mark.django_db
-def test_heal_reattaches_live_children_of_pruned_stale_container(data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-
-    column = element_type_registry.get("column")
-    heading = element_type_registry.get("heading")
-    container = ElementService().create_element(user, column, page=page)
-    child = ElementService().create_element(
-        user,
-        heading,
-        page=page,
-        parent_element_id=container.id,
-        place_in_container="0",
-    )
-
-    # Old code hard-deletes the container row without touching the graph. The
-    # stale container is pruned, which detaches its live child — the child must
-    # be re-attached in the same heal pass, not become a ghost.
-    Element.objects.filter(id=container.id).delete()
-
-    ElementHandler().heal_orphan_elements(page)
-
-    page.refresh_from_db(fields=["graph"])
-    assert page.graph == {"0": child.id, str(child.id): {}}
+    assert errors == []
+    graph = Page.objects.get(id=page.id).graph
+    root_id = graph["0"]
+    # Both elements landed: one is the root, the other its next, and nothing
+    # else is in the graph.
+    assert set(created_ids) == {root_id, graph[str(root_id)]["next"][""][0]}
+    assert set(graph) == {"0", *(str(element_id) for element_id in created_ids)}

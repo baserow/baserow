@@ -1,8 +1,9 @@
 from abc import ABC
-from typing import Any, Dict, Optional, Type, TypeVar
+from typing import Any, Dict, List, Optional, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.api.integrations.fields import HasSecretField
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -32,6 +33,30 @@ class IntegrationType(
     An integration type define a specific integration with a given external service.
     """
 
+    secret_fields: List[str] = []
+    """
+    Credentials that are write-only: they can be set and overwritten, but are
+    never serialized back to any user, the creator included.
+
+    This is deliberately narrower than `sensitive_fields`, which is stripped
+    from workspace exports and kept out of the action log, and which for some
+    types covers ordinary configuration such as the host and port.
+    """
+
+    secret_field_dependencies: Dict[str, List[str]] = {}
+    """
+    Maps a secret field to the request-target fields it protects. If any target
+    field changes value, the secret must be re-supplied in the same request,
+    otherwise the stored credential would be sent to a destination its owner
+    never chose.
+
+    Example: {"password": ["host", "port", "use_tls"]}
+
+    `DataSyncType.secret_field_dependencies` is the same concept for data syncs.
+    Unlike that check, this one skips a secret that is not stored, because an
+    integration may authenticate anonymously.
+    """
+
     def enhance_queryset(self, queryset):
         """
         Allow to enhance the queryset when querying the integration mainly to improve
@@ -56,6 +81,74 @@ class IntegrationType(
         """
 
         return values
+
+    def get_action_log_excluded_fields(self) -> List[str]:
+        """
+        Returns the fields kept out of the update action log. Undo and redo replay
+        the log without any credential, so a secret and every target it protects
+        stay out: replaying a host change would send a password stored later to a
+        host someone else chose. A type that declares no secrets keeps all its
+        sensitive fields out, because they may hold credentials of their own,
+        such as the AI integration's `ai_settings`.
+        """
+
+        if not self.secret_fields:
+            return self.sensitive_fields
+
+        targets = [
+            target
+            for targets in self.secret_field_dependencies.values()
+            for target in targets
+        ]
+        return [*self.secret_fields, *targets]
+
+    def get_field_names(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> List[str]:
+        """
+        Removes the secret fields from the response serializer and replaces each
+        with a `has_<name>` boolean. The request serializer keeps them, because
+        setting a credential is the only thing a user may do with it. A secret
+        the serializer does not list gets no flag.
+        """
+
+        field_names = super().get_field_names(
+            request_serializer, extra_params, **kwargs
+        )
+
+        if request_serializer or not self.secret_fields:
+            return field_names
+
+        serialised_secrets = [n for n in field_names if n in self.secret_fields]
+
+        return [name for name in field_names if name not in self.secret_fields] + [
+            f"has_{name}" for name in serialised_secrets
+        ]
+
+    def get_field_overrides(
+        self, request_serializer: bool, extra_params=None, **kwargs
+    ) -> Dict:
+        """
+        Declares the `has_<name>` booleans on the response serializer.
+        """
+
+        overrides = super().get_field_overrides(
+            request_serializer, extra_params, **kwargs
+        )
+
+        if request_serializer or not self.secret_fields:
+            return overrides
+
+        # DRF asserts if a declared field is missing from the name list.
+        field_names = self.get_field_names(request_serializer, extra_params, **kwargs)
+        return {
+            **overrides,
+            **{
+                f"has_{name}": HasSecretField(name)
+                for name in self.secret_fields
+                if f"has_{name}" in field_names
+            },
+        }
 
     def serialize_property(
         self,

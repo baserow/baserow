@@ -33,3 +33,10 @@ class CannotDisableLastAuthProvider(Exception):
     """
     Raised during an attempt to disable last enabled auth provider.
     """
+
+
+class UnverifiedEmailFromProvider(Exception):
+    """
+    Raised when an OAuth2/OIDC provider reports the user's email as unverified
+    and Baserow refuses to bind that identity to an existing account.
+    """

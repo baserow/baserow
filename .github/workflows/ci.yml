@@ -589,6 +589,17 @@ jobs:
           initialBuckets: testbucket
         ports:
           - 9090:9090
+      # Answers the requests a button field's HTTP action makes, so the suite
+      # never depends on reaching the internet. Pinned by digest, since httpbin
+      # publishes no tag but `latest`.
+      httpbin:
+        image: kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b
+      # Catches what a button field's email action sends, so a test can read
+      # it back over MailHog's HTTP API.
+      mailhog:
+        image: mailhog/mailhog:v1.0.1
+        ports:
+          - 8025:8025
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -646,6 +657,23 @@ jobs:
       - name: Start all services in parallel
         run: |
           # Start backend
+          # Answers the Slack API for the button field's Slack action, from
+          # e2e-tests/stubs/slack, since the job never reaches slack.com.
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name slack-stub \
+            -v "$GITHUB_WORKSPACE/e2e-tests/stubs/slack:/home/wiremock:ro" \
+            wiremock/wiremock:3.13.1
+
+          # Holds a button's request open until a test releases it, from
+          # e2e-tests/stubs/barrier, so the concurrency tests do not depend on
+          # an endpoint being slow enough.
+          docker run -d --network="${{ job.services.db.network }}" \
+            --name barrier-stub \
+            -p 8102:8080 \
+            -v "$GITHUB_WORKSPACE/e2e-tests/stubs/barrier:/stub:ro" \
+            node:24.18.0-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd \
+            node /stub/server.mjs
+
           docker run -d --network="${{ job.services.db.network }}" \
             --name backend \
             -e DATABASE_HOST=db \
@@ -664,6 +692,12 @@ jobs:
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e MIGRATE_ON_STARTUP=true \
+            -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=mailhog \
+            -e EMAIL_SMTP_PORT=1025 \
+            -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS=3/m \
             -e PRIVATE_BACKEND_URL=http://backend:8000 \
             -p 8000:8000 \
             ${{ needs.build-backend.outputs.image }} gunicorn &
@@ -686,6 +720,11 @@ jobs:
             -e AWS_S3_URL_PROTOCOL=http: \
             -e FEATURE_FLAGS="*" \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
+            -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://slack-stub:8080/api \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=mailhog \
+            -e EMAIL_SMTP_PORT=1025 \
             -e BASEROW_RUN_MINIMAL=yes \
             -e BASEROW_AMOUNT_OF_WORKERS=1 \
             ${{ needs.build-backend.outputs.image }} celery-worker &
@@ -708,16 +747,8 @@ jobs:
         run: |
           cd e2e-tests
           yarn install
-
-      # The browsers come from the runner's system Chrome
-      # (PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1), but video recording on retry
-      # (video: "on-first-retry") still needs Playwright's bundled ffmpeg.
-      - name: Install Playwright ffmpeg
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 0
-        run: |
-          cd e2e-tests
-          npx playwright install ffmpeg
+          # System Chrome handles browsing, but retry videos need Playwright's ffmpeg.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 yarn playwright install ffmpeg
 
       - name: Verify Google Chrome
         run: google-chrome --version
@@ -756,6 +787,16 @@ jobs:
           # tests that read/set cookies (e.g. the user_source_token) must use the
           # same empty prefix rather than playwright.config's baserow_e2e_ default.
           BASEROW_FRONTEND_COOKIE_PREFIX: ""
+          # The stub as the backend reaches it, on the job's own network, and
+          # the limit the backend above was started with.
+          E2E_HTTP_STUB_URL: http://httpbin:80
+          E2E_SLACK_STUB: "yes"
+          # MailHog as the tests reach it, from the runner.
+          E2E_MAIL_API_URL: http://localhost:8025
+          # The barrier as the backend reaches it, and as the tests reach it.
+          E2E_BARRIER_STUB_URL: http://barrier-stub:8080
+          E2E_BARRIER_CONTROL_URL: http://localhost:8102
+          E2E_BUTTON_RATE_LIMIT: "3"
           CI: 1
         run: |
           cd e2e-tests
@@ -833,6 +874,8 @@ jobs:
     name: Collect Backend Coverage
     runs-on: ubuntu-latest
     needs: [test-backend]
+    env:
+      COVERAGE_RCFILE: backend/.coveragerc
     permissions:
       contents: read
       pull-requests: write

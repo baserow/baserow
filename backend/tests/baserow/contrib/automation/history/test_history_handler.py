@@ -1,13 +1,19 @@
+from unittest.mock import MagicMock, patch
+
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import pytest
+from freezegun import freeze_time
 
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
+    AutomationWorkflowHistoryCancellationAlreadyRequested,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
+    AutomationWorkflowHistoryNotRunning,
 )
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
@@ -16,6 +22,73 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
+
+
+class FakeMonotonicClock:
+    def __init__(self):
+        self.now = 0.0
+        self.sleeps = []
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def test_wait_for_workflow_response_uses_bounded_incremental_backoff():
+    """The polling delay grows to its cap without exceeding the deadline."""
+
+    clock = FakeMonotonicClock()
+    history = MagicMock(status=HistoryStatusChoices.STARTED)
+    handler = AutomationHistoryHandler()
+
+    with (
+        patch.object(handler, "get_workflow_history_response", return_value=None),
+        patch(
+            "baserow.contrib.automation.history.handler.time.monotonic",
+            side_effect=clock.monotonic,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler.time.sleep",
+            side_effect=clock.sleep,
+        ),
+    ):
+        response = handler.wait_for_workflow_response(history, timeout_seconds=3)
+
+    assert response is None
+    assert clock.sleeps == pytest.approx([0.1, 0.2, 0.4, 0.8, 1.0, 0.5])
+
+
+def test_wait_for_workflow_response_returns_during_backoff():
+    """A response is returned on the first poll that observes it."""
+
+    clock = FakeMonotonicClock()
+    history = MagicMock(status=HistoryStatusChoices.STARTED)
+    expected_response = MagicMock()
+    handler = AutomationHistoryHandler()
+
+    with (
+        patch.object(
+            handler,
+            "get_workflow_history_response",
+            side_effect=[None, None, expected_response],
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler.time.monotonic",
+            side_effect=clock.monotonic,
+        ),
+        patch(
+            "baserow.contrib.automation.history.handler.time.sleep",
+            side_effect=clock.sleep,
+        ),
+    ):
+        response = handler.wait_for_workflow_response(history, timeout_seconds=3)
+
+    assert response is expected_response
+    assert clock.sleeps == pytest.approx([0.1, 0.2])
 
 
 @pytest.mark.django_db
@@ -78,6 +151,23 @@ def test_create_workflow_history(data_fixture):
 
 
 @pytest.mark.django_db
+def test_ensure_default_response_creates_empty_204_response(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    history = data_fixture.create_automation_workflow_history(workflow=workflow)
+
+    response = AutomationHistoryHandler().ensure_default_response(history)
+    second_response = AutomationHistoryHandler().ensure_default_response(history)
+
+    assert response.id == second_response.id
+    assert response.status_code == 204
+    assert response.body is None
+    assert response.body_type == RESPONSE_BODY_TYPE.EMPTY
+    assert response.headers == {}
+    assert response.source_node is None
+    assert response.is_default is True
+
+
+@pytest.mark.django_db
 def test_get_workflow_histories_excludes_simulation_histories(data_fixture):
     """
     Simulation histories are deleted by the dispatch_node() once the final
@@ -136,6 +226,201 @@ def test_get_workflow_history_respects_base_queryset(data_fixture):
             history_id=history.id,
             base_queryset=AutomationWorkflowHistory.objects.exclude(id=history.id),
         )
+
+
+@pytest.mark.django_db
+def test_get_workflow_history_prefetches_cancellation_requester(
+    data_fixture, django_assert_num_queries
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+
+    result = AutomationHistoryHandler().get_workflow_history(history_id=history.id)
+
+    with django_assert_num_queries(0):
+        assert result.cancellation_requested_by == user
+
+
+@pytest.mark.django_db
+def test_request_workflow_history_cancellation(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.STARTED
+    )
+
+    with freeze_time("2026-08-18 12:00:00"):
+        result = AutomationHistoryHandler().request_workflow_history_cancellation(
+            history, user
+        )
+
+    # Nothing is stopped yet: the run stays STARTED until the runner notices.
+    assert result.id == history.id
+    assert result.status == HistoryStatusChoices.STARTED
+    assert result.completed_on is None
+    assert result.cancellation_requested_by == user
+    assert result.cancellation_requested_on.isoformat() == "2026-08-18T12:00:00+00:00"
+
+    history.refresh_from_db()
+    assert history.cancellation_requested_by == user
+    assert history.cancellation_requested_on == result.cancellation_requested_on
+
+
+@pytest.mark.django_db
+def test_request_workflow_history_cancellation_already_requested(data_fixture):
+    """
+    A second request is refused so the requester knows somebody else asked
+    first, and it must not clobber the attribution of the first one.
+    """
+
+    user = data_fixture.create_user()
+    user_2 = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.STARTED
+    )
+    handler = AutomationHistoryHandler()
+
+    with freeze_time("2026-08-18 12:00:00"):
+        first = handler.request_workflow_history_cancellation(history, user)
+
+    with freeze_time("2026-08-18 12:05:00"):
+        with pytest.raises(AutomationWorkflowHistoryCancellationAlreadyRequested) as e:
+            handler.request_workflow_history_cancellation(history, user_2)
+
+    assert str(e.value) == (
+        f"The cancellation of the automation workflow history {history.id} "
+        "was already requested."
+    )
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.STARTED
+    assert history.cancellation_requested_by == user
+    assert history.cancellation_requested_on == first.cancellation_requested_on
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status",
+    [
+        HistoryStatusChoices.SUCCESS,
+        HistoryStatusChoices.ERROR,
+        HistoryStatusChoices.CANCELLED,
+    ],
+)
+def test_request_workflow_history_cancellation_not_running(data_fixture, status):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=status, completed_on=timezone.now()
+    )
+
+    with pytest.raises(AutomationWorkflowHistoryNotRunning) as e:
+        AutomationHistoryHandler().request_workflow_history_cancellation(history, user)
+
+    assert str(e.value) == (
+        f"The automation workflow history {history.id} is not running."
+    )
+
+    # The resolved run is left untouched.
+    history.refresh_from_db()
+    assert history.status == status
+    assert history.cancellation_requested_by is None
+    assert history.cancellation_requested_on is None
+
+
+@pytest.mark.django_db
+def test_finalize_workflow_history_cancellation(data_fixture):
+    user = data_fixture.create_user(first_name="Ada")
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+
+    with freeze_time("2026-08-18 12:00:00"):
+        finalized = AutomationHistoryHandler().finalize_workflow_history_cancellation(
+            history
+        )
+
+    assert finalized is True
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.CANCELLED
+    assert history.message == f"Cancelled by Ada ({user.id})."
+    assert history.completed_on.isoformat() == "2026-08-18T12:00:00+00:00"
+
+
+@pytest.mark.django_db
+def test_finalize_workflow_history_cancellation_without_requester(data_fixture):
+    """
+    The requester is `SET_NULL` so it can be gone if the account was deleted.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=None,
+        cancellation_requested_on=timezone.now(),
+    )
+
+    finalized = AutomationHistoryHandler().finalize_workflow_history_cancellation(
+        history
+    )
+
+    assert finalized is True
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.CANCELLED
+    assert history.message == "Cancelled."
+    assert history.completed_on is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "status",
+    [
+        HistoryStatusChoices.SUCCESS,
+        HistoryStatusChoices.ERROR,
+        HistoryStatusChoices.CANCELLED,
+    ],
+)
+def test_finalize_workflow_history_cancellation_already_resolved(data_fixture, status):
+    """
+    Finalizing is idempotent and never overwrites a run that resolved in the
+    meantime, e.g. by the timeout sweep or the dispatch-done handler.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    completed_on = timezone.now()
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=status,
+        message="original message",
+        completed_on=completed_on,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+
+    finalized = AutomationHistoryHandler().finalize_workflow_history_cancellation(
+        history
+    )
+
+    assert finalized is False
+
+    history.refresh_from_db()
+    assert history.status == status
+    assert history.message == "original message"
+    assert history.completed_on == completed_on
 
 
 @pytest.mark.django_db
@@ -559,3 +844,57 @@ def test_get_edge_labels_returns_expected_data(data_fixture):
         node_history_1.id: "foo label",
         node_history_2.id: "bar label",
     }
+
+
+@pytest.mark.django_db
+def test_create_workflow_history_records_who_triggered_it(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+        triggered_by=user,
+    )
+
+    history.refresh_from_db()
+    assert history.triggered_by_id == user.id
+    assert history.triggered_by_type == "auth.User"
+    assert history.triggered_by_name == user.first_name
+
+
+@pytest.mark.django_db
+def test_create_workflow_history_defaults_to_nobody(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+    )
+
+    assert history.triggered_by_id is None
+    assert history.triggered_by_name == ""
+
+
+@pytest.mark.django_db
+def test_deleting_the_user_keeps_who_started_the_run(data_fixture):
+    user = data_fixture.create_user(first_name="Ada")
+    workflow = data_fixture.create_automation_workflow()
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+        triggered_by=user,
+    )
+    user_id = user.id
+    user.delete()
+
+    history.refresh_from_db()
+    assert history.triggered_by_id == user_id
+    assert history.triggered_by_name == "Ada"

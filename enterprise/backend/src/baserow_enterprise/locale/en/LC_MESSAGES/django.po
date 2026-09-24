@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 14:48+0000\n"
+"POT-Creation-Date: 2026-09-11 12:44+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow_enterprise/assistant/tools/automation/agents.py:112
+#: src/baserow_enterprise/application_users/notification_types.py:49
+msgid "Application user limit reached"
+msgstr ""
+
+#: src/baserow_enterprise/application_users/notification_types.py:53
+#, python-format
+msgid "%(usage)s of %(limit)s application users used"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/agents.py:126
 #: src/baserow_enterprise/assistant/tools/automation/tools.py:128
 #: src/baserow_enterprise/assistant/tools/automation/tools.py:292
 #, python-format
@@ -57,27 +66,27 @@ msgstr ""
 msgid "Deleting node %(node_id)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:401
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:405
 #, python-format
 msgid "Generating formulas for element '%(ref)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:447
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:456
 #, python-format
 msgid "Generating formulas for data source '%(name)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:495
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:512
 #, python-format
 msgid "Generating formulas for data source %(id)d..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:575
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:603
 #, python-format
 msgid "Generating formulas for element %(id)d..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:644
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:679
 #, python-format
 msgid "Generating formulas for action on '%(ref)s'..."
 msgstr ""
@@ -195,12 +204,12 @@ msgstr ""
 msgid "Updating %(app_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/agents.py:126
+#: src/baserow_enterprise/assistant/tools/database/agents.py:140
 #, python-format
 msgid "Fixing formula for %(name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/agents.py:227
+#: src/baserow_enterprise/assistant/tools/database/agents.py:240
 msgid "Generating example rows for these new tables..."
 msgstr ""
 
@@ -209,66 +218,66 @@ msgstr ""
 msgid "Creating field %(field_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:195
+#: src/baserow_enterprise/assistant/tools/database/tools.py:196
 #, python-format
 msgid "Listing tables in %(database_names)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:247
+#: src/baserow_enterprise/assistant/tools/database/tools.py:248
 #, python-format
 msgid "Inspecting %(table_names)s schema..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:301
+#: src/baserow_enterprise/assistant/tools/database/tools.py:302
 #, python-format
 msgid "Listing rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:351
+#: src/baserow_enterprise/assistant/tools/database/tools.py:352
 #, python-format
 msgid "Listing views in %(table_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:385
+#: src/baserow_enterprise/assistant/tools/database/tools.py:386
 #, python-format
 msgid "Creating table %(table_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:641
+#: src/baserow_enterprise/assistant/tools/database/tools.py:642
 #, python-format
 msgid "Updating field %(field_id)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:697
+#: src/baserow_enterprise/assistant/tools/database/tools.py:698
 #, python-format
 msgid "Deleting field %(field_id)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:755
+#: src/baserow_enterprise/assistant/tools/database/tools.py:756
 #, python-format
 msgid "Creating %(view_type)s view %(view_name)s"
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:834
+#: src/baserow_enterprise/assistant/tools/database/tools.py:835
 #, python-format
 msgid "Creating filters in %(view_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:910
+#: src/baserow_enterprise/assistant/tools/database/tools.py:915
 msgid "Generating formula..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1038
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1045
 #, python-format
 msgid "Creating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1075
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1082
 #, python-format
 msgid "Updating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1111
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1118
 #, python-format
 msgid "Deleting rows in %(table_name)s "
 msgstr ""
@@ -278,7 +287,7 @@ msgstr ""
 msgid "Navigating to %(location)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:149
+#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:150
 msgid "Exploring the knowledge base..."
 msgstr ""
 
@@ -354,11 +363,11 @@ msgstr ""
 msgid "Code"
 msgstr ""
 
-#: src/baserow_enterprise/builder/elements/element_types.py:31
+#: src/baserow_enterprise/builder/elements/element_types.py:32
 msgid "Auth form"
 msgstr ""
 
-#: src/baserow_enterprise/builder/elements/element_types.py:139
+#: src/baserow_enterprise/builder/elements/element_types.py:156
 msgid "File input"
 msgstr ""
 
@@ -488,11 +497,11 @@ msgid ""
 "resolved."
 msgstr ""
 
-#: src/baserow_enterprise/field_permissions/actions.py:25
+#: src/baserow_enterprise/field_permissions/actions.py:26
 msgid "Update field permissions"
 msgstr ""
 
-#: src/baserow_enterprise/field_permissions/actions.py:27
+#: src/baserow_enterprise/field_permissions/actions.py:28
 #, python-format
 msgid ""
 "Field \"%(field_name)s\" (%(field_id)s): permissions updated to role "

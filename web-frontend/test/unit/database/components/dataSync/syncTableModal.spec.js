@@ -13,8 +13,8 @@ describe('SyncTableModal', () => {
     mockServer = testApp.mockServer
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const table = { id: 20, name: 'Synced', data_sync: { id: 42 } }

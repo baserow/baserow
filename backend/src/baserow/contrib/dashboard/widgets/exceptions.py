@@ -8,3 +8,7 @@ class WidgetTypeDoesNotExist(Exception):
 
 class WidgetImproperlyConfigured(Exception):
     """Raised when the widget settings is not allowed."""
+
+
+class WidgetLayoutInvalid(Exception):
+    """Raised when a dashboard widget layout is malformed or invalid."""

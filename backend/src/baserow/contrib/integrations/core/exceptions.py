@@ -17,3 +17,21 @@ class CoreHTTPTriggerServiceMethodNotAllowed(Exception):
     """When the specified method isn't allowed for the service."""
 
     pass
+
+
+class CoreInboundEmailTriggerServiceDoesNotExist(Exception):
+    """When no email trigger service matches the provided token."""
+
+    def __init__(self, token: str, *args, **kwargs):
+        self.token = token
+        super().__init__(
+            f"No email trigger service matches the token {token}.",
+            *args,
+            **kwargs,
+        )
+
+
+class InvalidInboundEmailPayload(Exception):
+    """When an inbound email webhook payload is malformed."""
+
+    pass

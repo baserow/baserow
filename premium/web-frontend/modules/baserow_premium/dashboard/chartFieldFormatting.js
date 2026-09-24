@@ -21,6 +21,10 @@ export class SingleSelectFormattingType extends ChartFieldFormattingType {
   }
 
   formatGroupByFieldValue(field, value) {
+    if (value && typeof value === 'object') {
+      return value.value ?? ''
+    }
+
     const selectOption = field.select_options.find((item) => item.id === value)
 
     if (selectOption) {

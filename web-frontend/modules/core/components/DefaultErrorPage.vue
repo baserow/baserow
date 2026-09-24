@@ -15,7 +15,7 @@
     <p v-else class="placeholder__content">{{ content }}</p>
     <div v-if="showBackButton" class="placeholder__action">
       <Button
-        v-if="isAuthenticated && currentRouteName === 'dashboard'"
+        v-if="isAuthenticated && currentRouteName === 'all-workspaces'"
         type="primary"
         icon="iconoir-redo"
         @click="refresh"
@@ -24,13 +24,13 @@
       </Button>
 
       <Button
-        v-else-if="isAuthenticated && currentRouteName !== 'dashboard'"
+        v-else-if="isAuthenticated && currentRouteName !== 'all-workspaces'"
         tag="a"
-        :href="$router.resolve({ name: 'dashboard' }).fullPath"
+        :href="$router.resolve({ name: 'all-workspaces' }).fullPath"
         type="primary"
         size="large"
         icon="iconoir-nav-arrow-left"
-        @click.prevent="clearAndNavigate({ name: 'dashboard' })"
+        @click.prevent="clearAndNavigate({ name: 'all-workspaces' })"
       >
         {{ $t('errorLayout.backDashboard') }}
       </Button>

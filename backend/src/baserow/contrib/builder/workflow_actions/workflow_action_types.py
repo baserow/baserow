@@ -6,7 +6,6 @@ from django.db.models import Prefetch
 from rest_framework import serializers
 
 from baserow.api.services.serializers import (
-    PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
     PublicPolymorphicServiceSerializer,
 )
@@ -43,6 +42,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.local_baserow.mixins import (
+    UpdateRowRequiresRowIdMixin,
+)
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
@@ -59,6 +61,7 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormu
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.mixins import ServiceBackedTypeMixin
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
@@ -244,16 +247,14 @@ class RefreshDataSourceWorkflowActionType(BuilderWorkflowActionType):
         )
 
 
-class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
+class BuilderWorkflowServiceActionType(
+    ServiceBackedTypeMixin, BuilderWorkflowActionType
+):
     service_type = None  # Must be implemented by subclasses.
+    service_field_help_text = (
+        "The service which this workflow action is associated with."
+    )
     serializer_field_names = ["service"]
-    request_serializer_field_overrides = {
-        "service": PolymorphicServiceRequestSerializer(
-            default=None,
-            required=False,
-            help_text="The service which this workflow action is associated with.",
-        )
-    }
     is_server_workflow = True
     serializer_field_overrides = {
         "service": PolymorphicServiceSerializer(
@@ -274,6 +275,15 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
     @property
     def allowed_fields(self):
         return super().allowed_fields + ["service"]
+
+    def export_prepared_values(self, instance: WorkflowAction) -> Dict[str, Any]:
+        # Replace the `service` model instance captured by the base implementation
+        # with the service's own JSON-serializable prepared values, so a config
+        # change can be undone/redone.
+        values = super().export_prepared_values(instance)
+        service = instance.service.specific
+        values["service"] = service.get_type().export_prepared_values(service)
+        return values
 
     def get_pytest_params_serialized(
         self, pytest_params: Dict[str, Any]
@@ -337,7 +347,28 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
                 integration_id = id_mapping["integrations"].get(
                     integration_id, integration_id
                 )
-                integration = Integration.objects.get(id=integration_id)
+                # Use the trash-inclusive manager: the service may reference an
+                # integration that has since been trashed (e.g. duplicating a page
+                # whose data source's integration was deleted). We keep the FK so
+                # the service is restored intact when the integration is. A
+                # genuinely missing integration falls back to `None` (the service
+                # becomes misconfigured) rather than crashing the import.
+                try:
+                    integration = Integration.objects_and_trash.get(id=integration_id)
+                except Integration.DoesNotExist:
+                    integration = None
+                else:
+                    # Never reference an integration outside the target application.
+                    # On a cross-application import a trashed integration is not part
+                    # of the export (so it is absent from `id_mapping`), and the
+                    # unmapped id would otherwise resolve to an unrelated integration
+                    # in another application. Same-builder duplication is unaffected.
+                    target_builder_id = kwargs.get("target_builder_id")
+                    if (
+                        target_builder_id is not None
+                        and integration.application_id != target_builder_id
+                    ):
+                        integration = None
 
             return ServiceHandler().import_service(
                 integration,
@@ -347,6 +378,7 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
                 cache=cache,
                 files_zip=files_zip,
                 import_formula=import_formula,
+                import_export_config=kwargs.get("import_export_config"),
             )
         return super().deserialize_property(
             prop_name,
@@ -423,10 +455,11 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
                     queryset=specific_queryset(
                         Service.objects.all(),
                         per_content_type_queryset_hook=(
-                            lambda service,
-                            queryset: service_type_registry.get_by_model(
-                                service
-                            ).enhance_queryset(queryset)
+                            lambda service, queryset: (
+                                service_type_registry.get_by_model(
+                                    service
+                                ).enhance_queryset(queryset)
+                            )
                         ),
                     ),
                 )
@@ -469,7 +502,9 @@ class LocalBaserowCreateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
         return {"service": service}
 
 
-class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
+class UpdateRowWorkflowActionType(
+    UpdateRowRequiresRowIdMixin, UpsertRowWorkflowActionType
+):
     type = "update_row"
     model_class = LocalBaserowUpdateRowWorkflowAction
 
@@ -528,6 +563,24 @@ class CoreStartWorkflowActionType(BuilderWorkflowServiceActionType):
     type = "start_workflow"
     model_class = CoreStartWorkflowWorkflowAction
     service_type = CoreStartWorkflowServiceType.type
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: CoreStartWorkflowWorkflowAction = None,
+    ) -> Dict[str, Any]:
+        service_values = values.get("service") or {}
+        if service_values.get("workflow_id") is not None:
+            page = values.get("page") or (instance.page if instance else None)
+            # Resolved here rather than by the service type, whose lookup
+            # accepts any workflow the user can read, in any workspace.
+            service_values["workflow"] = service_type_registry.get(
+                self.service_type
+            ).get_workflow_to_start(
+                user, service_values.pop("workflow_id"), page.builder.workspace_id
+            )
+        return super().prepare_values(values, user, instance)
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_core_start_workflow_service()

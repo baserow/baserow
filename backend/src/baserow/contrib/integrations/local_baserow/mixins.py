@@ -36,6 +36,7 @@ from baserow.core.services.exceptions import (
     ServiceSortPropertyDoesNotExist,
 )
 from baserow.core.services.types import (
+    DispatchResult,
     FormulaToResolve,
     ServiceDict,
     ServiceFilterDictSubClass,
@@ -46,10 +47,12 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.utils import atomic_if_not_already
 
 if TYPE_CHECKING:
+    from baserow.contrib.automation.nodes.models import AutomationNode
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
     from baserow.contrib.integrations.local_baserow.models import (
         LocalBaserowTableService,
     )
+    from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class LocalBaserowTableServiceFilterableMixin:
@@ -100,7 +103,6 @@ class LocalBaserowTableServiceFilterableMixin:
                 "field_id": f.field_id,
                 "type": f.type,
                 "value": f.value,
-                "value_is_formula": f.value_is_formula,
                 "group": f.group_id,
             }
             for f in service.service_filters_with_untrashed_fields
@@ -122,6 +124,36 @@ class LocalBaserowTableServiceFilterableMixin:
             }
             for g in service.service_filter_groups.all()
         ]
+
+    def export_prepared_values(self, instance):
+        values = super().export_prepared_values(instance)
+        # The service filters and filter groups live on related models (rebuilt in
+        # `after_update`), so the base export - which only reads `allowed_fields` -
+        # misses them. Capture them in the exact shapes `update_service_filters`
+        # restores them from. Note that these deliberately differ from the
+        # import/export shapes of `serialize_filters`/`serialize_filter_groups`:
+        # the restore path expects the API-validated keys (`group_id`,
+        # `parent_group_id`), and passing e.g. a `group` key alongside the
+        # explicit `group=` kwarg would crash the rebuild.
+        values["service_filter_groups"] = [
+            {
+                "id": g.id,
+                "filter_type": g.filter_type,
+                "parent_group_id": g.parent_group_id,
+            }
+            for g in instance.service_filter_groups.all()
+        ]
+        values["service_filters"] = [
+            {
+                "field_id": f.field_id,
+                "type": f.type,
+                "value": f.value,
+                "value_is_formula": f.value_is_formula,
+                "group_id": f.group_id,
+            }
+            for f in instance.service_filters_with_untrashed_fields
+        ]
+        return values
 
     def serialize_property(
         self,
@@ -164,12 +196,17 @@ class LocalBaserowTableServiceFilterableMixin:
 
         for f in value:
             formula = BaserowFormulaObject.to_formula(f["value"])
+            value_is_formula = f.get(
+                "value_is_formula", formula["mode"] != BASEROW_FORMULA_MODE_RAW
+            )
+            if not value_is_formula:
+                formula["mode"] = BASEROW_FORMULA_MODE_RAW
             field_id = id_mapping.get("database_fields", {}).get(
                 f["field_id"], f["field_id"]
             )
 
             if (
-                f["value_is_formula"]
+                value_is_formula
                 or not formula["formula"].isdigit()
                 or "database_field_select_options" not in id_mapping
             ):
@@ -185,7 +222,9 @@ class LocalBaserowTableServiceFilterableMixin:
                     version=formula["version"],
                 )
 
-            result.append({**f, "field_id": field_id, "value": val})
+            result_filter = {**f, "field_id": field_id, "value": val}
+            result_filter.pop("value_is_formula", None)
+            result.append(result_filter)
 
         return result
 
@@ -230,9 +269,11 @@ class LocalBaserowTableServiceFilterableMixin:
             new_group = LocalBaserowTableServiceFilterGroup.objects.create(
                 service=service,
                 filter_type=filter_group["filter_type"],
-                parent_group_id=group_id_mapping.get(parent_group_id)
-                if parent_group_id is not None
-                else None,
+                parent_group_id=(
+                    group_id_mapping.get(parent_group_id)
+                    if parent_group_id is not None
+                    else None
+                ),
             )
             group_id_mapping[filter_group["id"]] = new_group.id
 
@@ -241,9 +282,11 @@ class LocalBaserowTableServiceFilterableMixin:
             [
                 LocalBaserowTableServiceFilter(
                     **{k: v for k, v in service_filter.items() if k != "group"},
-                    group_id=group_id_mapping.get(service_filter.get("group"))
-                    if service_filter.get("group") is not None
-                    else None,
+                    group_id=(
+                        group_id_mapping.get(service_filter.get("group"))
+                        if service_filter.get("group") is not None
+                        else None
+                    ),
                     order=index,
                     service=service,
                 )
@@ -336,11 +379,7 @@ class LocalBaserowTableServiceFilterableMixin:
         yield from super().formula_generator(service)
 
         for service_filter in service.service_filters_with_untrashed_fields:
-            is_formula = service_filter.value_is_formula
             formula = BaserowFormulaObject.to_formula(service_filter.value)
-
-            if not is_formula:
-                formula["mode"] = BASEROW_FORMULA_MODE_RAW
 
             # Service types like LocalBaserowGetRow do not have a value attribute.
             new_formula = yield formula
@@ -544,6 +583,16 @@ class LocalBaserowTableServiceFilterableMixin:
             prefetch_cache.pop("service_filters", None)
             prefetch_cache.pop("service_filter_groups", None)
 
+    def after_create(self, instance: ServiceSubClass, values: Dict) -> None:
+        super().after_create(instance, values)
+
+        if "service_filters" in values or "service_filter_groups" in values:
+            self.update_service_filters(
+                instance,
+                values.get("service_filters"),
+                values.get("service_filter_groups"),
+            )
+
     def after_update(
         self,
         instance: ServiceSubClass,
@@ -629,6 +678,15 @@ class LocalBaserowTableServiceSortableMixin:
             }
             for s in service.service_sorts_with_untrashed_fields
         ]
+
+    def export_prepared_values(self, instance):
+        values = super().export_prepared_values(instance)
+        # The service sorts live on a related model (rebuilt in `after_update`), so the
+        # base export - which only reads `allowed_fields` - misses them. Capture them in
+        # the same shape `after_update` restores them from, so that changing a sort can
+        # be undone/redone.
+        values["service_sorts"] = self.serialize_sortings(instance)
+        return values
 
     def serialize_property(
         self,
@@ -1012,3 +1070,38 @@ class LocalBaserowTableServiceSpecificRowMixin:
         return super_formulas + [
             FormulaToResolve("row_id", service.row_id, ensure_integer, '"row_id"')
         ]
+
+
+class UpdateRowRequiresRowIdMixin:
+    """
+    For an action or node type that updates a row through the upsert row
+    service. That service creates a row when its row ID formula is empty, so an
+    update type refuses to dispatch without one. List it before the action or
+    node type base, so that its `dispatch` runs first.
+    """
+
+    def raise_if_misconfigured(
+        self, instance: "WorkflowAction | AutomationNode"
+    ) -> None:
+        """
+        Refuses an update that names no row.
+
+        :param instance: The action or node whose service is checked.
+        :raises ServiceImproperlyConfiguredDispatchException: When the row ID
+            formula is empty.
+        """
+
+        super().raise_if_misconfigured(instance)
+
+        if not instance.service.specific.row_id["formula"].strip():
+            raise ServiceImproperlyConfiguredDispatchException(
+                "A row ID is required to update a row."
+            )
+
+    def dispatch(
+        self,
+        instance: "WorkflowAction | AutomationNode",
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        self.raise_if_misconfigured(instance)
+        return super().dispatch(instance, dispatch_context)

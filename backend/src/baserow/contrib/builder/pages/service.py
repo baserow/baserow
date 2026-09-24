@@ -1,7 +1,10 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.builder.elements.operations import (
+    ListElementsPageOperationType,
+)
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import OrderPagesBuilderOperationType
 from baserow.contrib.builder.pages.exceptions import SharedPageIsReadOnly
@@ -28,6 +31,34 @@ from baserow.core.utils import ChildProgressBuilder, extract_allowed
 class PageService:
     def __init__(self):
         self.handler = PageHandler()
+
+    def heal_corrupted_graph(self, user: AbstractUser, page: Page) -> Dict[str, Any]:
+        """
+        Repair ``page``'s graph, reconciling it with the element rows that
+        actually exist (see `PageHandler.heal_corrupted_graph` for the
+        corruption classes covered). Intended to run on the editor's
+        element-list read so the graph stays the single source of truth — NOT
+        on the public/published read.
+
+        The returned patch is handed to the requesting client in-band (see the
+        elements view), so it sees the repair immediately. Other connected
+        clients converge on their next element fetch — which returns the
+        healed graph *and* the repaired elements' data together — so no
+        realtime broadcast is needed.
+
+        :param user: The user the heal is performed on behalf of.
+        :param page: The page whose graph should be healed.
+        :return: The graph patch (changed entries), empty when nothing healed.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            ListElementsPageOperationType.type,
+            workspace=page.builder.workspace,
+            context=page,
+        )
+
+        return self.handler.heal_corrupted_graph(page)
 
     def get_page(self, user: AbstractUser, page_id: int) -> Page:
         """

@@ -9,7 +9,7 @@ individual tool groups can be gated on permissions or feature flags.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
 
@@ -27,6 +27,9 @@ if TYPE_CHECKING:
 
     from baserow.core.models import Workspace
     from baserow_enterprise.assistant.deps import AssistantDeps
+    from baserow_enterprise.assistant.model_profiles import (
+        ResolvedAssistantModelProfile,
+    )
 
 
 class AssistantToolType(Instance):
@@ -78,7 +81,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         self,
         user: "AbstractUser",
         workspace: "Workspace",
-        model: str,
+        model: Any,
+        model_profile: "ResolvedAssistantModelProfile",
         deps: "AssistantDeps",
     ) -> tuple[AbstractToolset, str, str, str, str]:
         """
@@ -86,7 +90,8 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
 
         :param user: The requesting user.
         :param workspace: The current workspace.
-        :param model: The pydantic-ai model string.
+        :param model: The pydantic-ai model already created for this request.
+        :param model_profile: The frozen model resolution the request runs on.
         :param deps: The assistant deps (used for mode-aware filtering).
         :return: ``(toolset, database_manifest, application_manifest,
             automation_manifest, explain_manifest)``.
@@ -129,6 +134,11 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
                 AgentMode.AUTOMATION,
                 routing_rules_by_type.get("automation", ""),
             ),
+            (
+                "explain",
+                AgentMode.EXPLAIN,
+                routing_rules_by_type.get("search_user_docs", ""),
+            ),
         ]
 
         manifests = {}
@@ -140,30 +150,30 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
             ]
             manifest = generate_tool_manifest_compact(groups, routing_rules=rules)
 
-            # Append a compact cross-mode summary so the agent knows what
-            # capabilities exist in other modes (and can switch_mode to use them).
+            # Each gated tool is listed under a callable mode, never silently absent.
+            listed: set[str] = set()
             other_lines = []
             for other_key, other_mode, _ in _mode_config:
                 if other_key == mode_key:
                     continue
-                specific = mode_map[other_mode] - shared
-                other_lines.append(f"- {other_key}: {', '.join(sorted(specific))}")
+                elsewhere = sorted(mode_map[other_mode] - shared - allowed - listed)
+                if not elsewhere:
+                    continue
+                listed.update(elsewhere)
+                other_lines.append(
+                    f'- switch_mode("{other_key}") to call: {", ".join(elsewhere)}'
+                )
             if other_lines:
-                manifest += "\n\n## Other modes (switch_mode to access)\n" + "\n".join(
-                    other_lines
+                manifest += (
+                    "\n\n## Tools that exist but are not callable in this mode\n"
+                    "These tools are part of Baserow. To use one, call switch_mode "
+                    "for its mode first, then call the tool.\n" + "\n".join(other_lines)
                 )
 
             manifests[mode_key] = manifest
 
-        explain_allowed = mode_map[AgentMode.EXPLAIN]
-        explain_groups = [
-            (label, [f for f in funcs if f.__name__ in explain_allowed])
-            for label, funcs in module_groups
-        ]
-        manifests["explain"] = generate_tool_manifest_compact(explain_groups)
-
         return (
-            InlineRefsToolset(mode_aware, model=model),
+            InlineRefsToolset(mode_aware, model=model, model_profile=model_profile),
             manifests["database"],
             manifests["application"],
             manifests["automation"],

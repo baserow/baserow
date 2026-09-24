@@ -31,6 +31,7 @@ from baserow.core.actions import (
     OrderApplicationsActionType,
     UpdateApplicationActionType,
 )
+from baserow.core.ai_provider.resolution import load_ai_provider_state
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
@@ -81,23 +82,21 @@ class AllApplicationsView(APIView):
         returned.
         """
 
-        workspaces = CoreService().list_workspaces(request.user).order_by("id")
+        workspaces = list(CoreService().list_workspaces(request.user).order_by("id"))
 
-        all_applications = []
-        for workspace in workspaces:
-            workspace_applications_qs = CoreService().list_applications_in_workspace(
-                request.user, workspace
-            )
-            all_applications += list(workspace_applications_qs.order_by("order", "id"))
+        all_applications = list(
+            CoreService().list_applications_in_workspaces(request.user, workspaces)
+        )
 
-        data = [
+        context = {
+            "request": request,
+            "ai_provider_states": load_ai_provider_state(workspaces),
+        }
+        return Response(
             PolymorphicApplicationResponseSerializer(
-                application, context={"request": request}
+                all_applications, many=True, context=context
             ).data
-            for application in all_applications
-        ]
-
-        return Response(data)
+        )
 
 
 class ApplicationsView(APIView):
@@ -152,14 +151,15 @@ class ApplicationsView(APIView):
             request.user, workspace
         )
 
-        data = [
+        context = {
+            "request": request,
+            "ai_provider_states": load_ai_provider_state([workspace]),
+        }
+        return Response(
             PolymorphicApplicationResponseSerializer(
-                application, context={"request": request}
+                applications, many=True, context=context
             ).data
-            for application in applications
-        ]
-
-        return Response(data)
+        )
 
     @extend_schema(
         parameters=[

@@ -1,6 +1,6 @@
 <template>
   <Dropdown
-    :value="value"
+    :value="currentValue"
     fixed-items
     class="integration-dropdown"
     :size="size"
@@ -11,7 +11,7 @@
         : placeholder || $t('integrationDropdown.integrationPlaceholder')
     "
     show-footer
-    @input="$emit('input', $event)"
+    @input="select($event)"
   >
     <DropdownItem
       v-for="integrationItem in integrations"
@@ -24,20 +24,36 @@
       {{ $t('integrationDropdown.noIntegrations') }}
     </template>
     <template #footer>
-      <a
+      <button
+        v-if="allowEditing && selectedIntegration"
+        type="button"
+        class="select__footer-button"
+        @click="$refs.IntegrationEditModal.show()"
+      >
+        <i class="iconoir-edit-pencil"></i>
+        {{ $t('integrationDropdown.editIntegration') }}
+      </button>
+      <button
+        type="button"
         class="select__footer-button"
         @click="$refs.IntegrationCreateEditModal.show()"
       >
         <i class="iconoir-plus"></i>
         {{ $t('integrationDropdown.addIntegration') }}
-      </a>
+      </button>
       <IntegrationCreateEditModal
         v-if="integrationType"
         ref="IntegrationCreateEditModal"
         :application="application"
         :integration-type="integrationType"
         create
-        @created="$emit('input', $event.id)"
+        @created="select($event.id)"
+      />
+      <IntegrationCreateEditModal
+        v-if="allowEditing && selectedIntegration"
+        ref="IntegrationEditModal"
+        :application="application"
+        :integration="selectedIntegration"
       />
     </template>
   </Dropdown>
@@ -54,6 +70,16 @@ export default {
       type: Number,
       required: false,
       default: null,
+    },
+    /**
+     * What a `v-model` parent binds. Declared rather than read out of
+     * `$attrs`, so this component passes one resolved value down instead of
+     * relying on the attribute also falling through to the dropdown below.
+     */
+    modelValue: {
+      type: Number,
+      required: false,
+      default: undefined,
     },
     application: {
       type: Object,
@@ -84,6 +110,17 @@ export default {
       default: null,
     },
     /**
+     * Whether the selected integration can be edited from here. An imported
+     * integration arrives named but unusable, and a database has no
+     * integration settings page to repair it from. Everything else does, so
+     * they keep the one route.
+     */
+    allowEditing: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
      * If there is only one integration available, it will be
      * automatically selected if this property is true.
      */
@@ -93,21 +130,48 @@ export default {
       default: false,
     },
   },
-  emits: ['input'],
+  emits: ['input', 'update:modelValue'],
+  computed: {
+    /**
+     * What the parent has selected, whichever way it bound it: `v-model`
+     * sends `modelValue`, older callers send `value`.
+     */
+    currentValue() {
+      return this.modelValue === undefined ? this.value : this.modelValue
+    },
+    selectedIntegration() {
+      return this.integrations.find(({ id }) => id === this.currentValue)
+    },
+  },
   watch: {
     integrations: {
       handler(newValue) {
         if (
           this.autoSelectFirst &&
           newValue.length === 1 &&
-          this.value === null
+          this.currentValue === null
         ) {
           this.$nextTick(() => {
-            this.$emit('input', newValue[0].id)
+            this.select(newValue[0].id)
           })
         }
       },
       immediate: true,
+    },
+  },
+  methods: {
+    /**
+     * Every way of choosing one goes through here. Declaring
+     * `update:modelValue` keeps a parent's listener out of `$attrs`, so it no
+     * longer falls through to the dropdown below and this is the only thing
+     * that reaches a `v-model` parent. `input` is kept for anything still
+     * bound the Vue 2 way.
+     *
+     * @param {Number|null} integrationId The integration that was chosen.
+     */
+    select(integrationId) {
+      this.$emit('input', integrationId)
+      this.$emit('update:modelValue', integrationId)
     },
   },
 }

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed view filter crashes when row field values are undefined during collaborative editing.",
+    "issue_origin": "github",
+    "issue_number": 5925,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-08-19"
+}

@@ -3,12 +3,14 @@ from typing import Annotated, Any
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from loguru import logger
 from pydantic import Field
 from pydantic_ai import RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.shared import require_payload
 from baserow_enterprise.assistant.types import WorkflowNavigationType
 
 from . import agents, helpers
@@ -100,14 +102,14 @@ def add_nodes(
     RETURNS: Created nodes array with id, label, type.
     DO NOT USE when: You want to create an entirely new workflow — use create_workflows instead.
     HOW: Use list_nodes first to find the existing node IDs, then specify previous_node_ref to place new nodes. Use router_edge_label when attaching to a router branch.
+    REQUIRED: `workflow_id` and `nodes` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
     """
 
     user = ctx.deps.user
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not nodes:
-        return {"created_nodes": []}
+    require_payload("add_nodes", "nodes", nodes)
 
     tool_helpers.update_status(_("Adding nodes to workflow..."))
 
@@ -120,9 +122,9 @@ def add_nodes(
 
     # Generate formulas for nodes that need them
     for orm_node, node_create in [(n, nodes[i]) for i, n in enumerate(created_nodes)]:
+        node_create.apply_direct_values(orm_node.service)
         formulas = node_create.get_formulas_to_create(orm_node)
         if formulas:
-            node_create.apply_direct_values(orm_node.service)
             tool_helpers.update_status(
                 _(
                     "Generating formulas for node '%(label)s'..."
@@ -135,8 +137,6 @@ def add_nodes(
                         node_create, orm_node, tool_helpers
                     )
                 except Exception:
-                    from loguru import logger
-
                     logger.exception(
                         "Failed to generate formulas for node {}", orm_node.id
                     )
@@ -193,8 +193,7 @@ def create_workflows(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not workflows:
-        return {"created_workflows": []}
+    require_payload("create_workflows", "workflows", workflows)
 
     created = []
 
@@ -267,7 +266,7 @@ def update_nodes(
 
     updated = []
     errors = []
-    nodes_needing_formulas = []
+    updated_pairs = []
 
     with transaction.atomic():
         for node_update in nodes:
@@ -277,17 +276,16 @@ def update_nodes(
                     user, workspace, node_update, tool_helpers
                 )
                 updated.append({"node_id": orm_node.id, "label": orm_node.label})
-
-                # Check if any fields need formula generation
-                formulas = node_update.get_formulas_to_update(orm_node)
-                if formulas:
-                    nodes_needing_formulas.append((node_update, orm_node, formulas))
+                updated_pairs.append((node_update, orm_node))
             except Exception as e:
                 errors.append(f"Error updating node {node_update.node_id}: {e}")
 
     # Apply direct values and generate formulas outside the main transaction
-    for node_update, orm_node, formulas in nodes_needing_formulas:
+    for node_update, orm_node in updated_pairs:
+        # Literal values must be applied whether or not any formula follows.
         node_update.apply_direct_values(orm_node.service)
+        if not node_update.get_formulas_to_update(orm_node):
+            continue
         tool_helpers.update_status(
             _("Generating formulas for node '%(label)s'..." % {"label": orm_node.label})
         )
@@ -295,8 +293,6 @@ def update_nodes(
             try:
                 agents.update_single_node_formulas(node_update, orm_node, tool_helpers)
             except Exception as exc:
-                from loguru import logger
-
                 logger.exception(
                     "Failed to generate formulas for node {}: {}", orm_node.id, exc
                 )

@@ -28,11 +28,6 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'tableLoading',
-      path: resolve('./middleware/tableLoading'),
-    })
-
-    addRouteMiddleware({
       name: 'selectWorkspaceDatabaseTable',
       path: resolve('./middleware/selectWorkspaceDatabaseTable'),
     })
@@ -54,5 +49,10 @@ export default defineNuxtModule({
         locales,
       })
     })
+
+    // Database specific styles. Added as its own entry rather than replacing
+    // core's, so it lands after whichever default.scss premium or enterprise
+    // has put in first place.
+    nuxt.options.css.push(resolve('./assets/scss/default.scss'))
   },
 })

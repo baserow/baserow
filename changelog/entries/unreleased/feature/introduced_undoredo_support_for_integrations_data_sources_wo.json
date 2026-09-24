@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Introduced undo/redo support for integrations, data sources, workflow actions and pages",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-07-08"
+}

@@ -324,14 +324,14 @@ def test_multiple_collaborators_field_type_sorting(
 
     sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_1.id, row_4.id, row_3.id, row_2.id]
 
     sort.order = "DESC"
     sort.save()
 
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_2.id, row_3.id, row_4.id, row_1.id, row_5.id]
 
@@ -1057,11 +1057,12 @@ def test_multiple_collaborators_formula_field_cache_users_query(data_fixture):
                 getattr(row, field_object["name"]), field_object
             )
 
-    # Let's count the number of queries to export one row
+    # Creation prefetches the collaborators, so only the formula's user-details
+    # query is needed when exporting the first row.
     with CaptureQueriesContext(connection) as queries_for_first:
         export_row(first_row)
 
-    assert len(queries_for_first.captured_queries) == 2
+    assert len(queries_for_first.captured_queries) == 1
 
     other_rows = row_handler.force_create_rows(
         user=user,

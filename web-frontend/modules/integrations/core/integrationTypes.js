@@ -30,12 +30,13 @@ export class SMTPIntegrationType extends IntegrationType {
   }
 
   getDefaultValues() {
+    // No `password`: the form starts it at null to mean "untouched", and a
+    // default here would overwrite that sentinel on the create path.
     return {
       host: '',
       port: 587,
       use_tls: true,
       username: '',
-      password: '',
     }
   }
 

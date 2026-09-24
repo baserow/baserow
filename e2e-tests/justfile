@@ -1,6 +1,8 @@
 # E2E Tests Justfile
 # All E2E testing utilities: build, run, test, database dump/restore
 
+set dotenv-load := true
+
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -12,6 +14,17 @@ backend_image := "baserow/backend:ci"
 frontend_image := "baserow/web-frontend:ci"
 db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}"
 redis_image := "redis:6"
+# Answers the HTTP requests button field actions make, so nothing in the suite
+# depends on the internet. It is httpbin, the same service the tests can be
+# pointed at publicly when running against a dev stack.
+# Pinned by digest: httpbin publishes no tag but `latest`.
+http_stub_image := "kennethreitz/httpbin@sha256:599fe5e5073102dbb0ee3dbb65f049dab44fa9fc251f6835c9990f8fb196a72b"
+# Catches the mail the email action sends, so a test can read it back.
+mail_image := "mailhog/mailhog:v1.0.1"
+# Answers the Slack API for the button field's Slack action, from e2e-tests/stubs/slack.
+slack_stub_image := "wiremock/wiremock:3.13.1"
+# Holds a button's request open until a test releases it, from e2e-tests/stubs/barrier.
+barrier_stub_image := "node:24.18.0-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd"
 
 # Host ports (override with env vars to avoid collisions with a running dev stack).
 # Keep these well above the documented dev ranges so 8030-8060/3030-3060 stay
@@ -22,6 +35,16 @@ redis_image := "redis:6"
 backend_port := env_var_or_default("E2E_BACKEND_PORT", "8070")
 frontend_port := env_var_or_default("E2E_FRONTEND_PORT", "3070")
 frontend_cookie_prefix := env_var_or_default("E2E_FRONTEND_COOKIE_PREFIX", "baserow_e2e_")
+# MailHog's HTTP API, which the tests read sent mail from.
+mail_api_port := env_var_or_default("E2E_MAIL_API_PORT", "8075")
+# The barrier stub's control API, which the tests hold and release requests with.
+barrier_control_port := env_var_or_default("E2E_BARRIER_CONTROL_PORT", "8076")
+# How many external clicks one user gets per minute. Low so a test can reach it
+# in a few clicks; clicks that stay inside Baserow are not counted at all.
+button_rate_limit := env_var_or_default("E2E_BUTTON_RATE_LIMIT", "3")
+public_backend_url := env_var_or_default("PUBLIC_BACKEND_URL", "http://localhost:" + backend_port)
+public_frontend_url := env_var_or_default("PUBLIC_WEB_FRONTEND_URL", "http://localhost:" + frontend_port)
+builder_preview_url := env_var_or_default("BASEROW_BUILDER_PREVIEW_URL", public_frontend_url)
 
 # Database dump settings
 dump_file := "fixtures/e2e-db.dump"
@@ -120,7 +143,7 @@ up: _ensure-images
     fi
 
     # Clean up any stopped containers from previous runs
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-httpbin e2e-slack-stub e2e-barrier e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
 
     # Create network if it doesn't exist
@@ -143,6 +166,38 @@ up: _ensure-images
         docker run -d --network={{ network }} --name e2e-redis \
             --tmpfs /data:size=256m \
             {{ redis_image }}
+    fi
+
+    # Start the HTTP stub the button field's HTTP actions call
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-httpbin$"; then
+        echo "Starting HTTP stub..."
+        docker run -d --network={{ network }} --name e2e-httpbin \
+            {{ http_stub_image }}
+    fi
+
+    # Start the Slack stub the button field's Slack action posts to
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-slack-stub$"; then
+        echo "Starting Slack stub..."
+        docker run -d --network={{ network }} --name e2e-slack-stub \
+            -v "$(pwd)/e2e-tests/stubs/slack:/home/wiremock:ro" \
+            {{ slack_stub_image }}
+    fi
+
+    # Start the barrier stub the button field's concurrency tests hold requests on
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-barrier$"; then
+        echo "Starting barrier stub..."
+        docker run -d --network={{ network }} --name e2e-barrier \
+            -p {{ barrier_control_port }}:8080 \
+            -v "$(pwd)/e2e-tests/stubs/barrier:/stub:ro" \
+            {{ barrier_stub_image }} node /stub/server.mjs
+    fi
+
+    # Start MailHog, which catches what the email action sends
+    if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-mail$"; then
+        echo "Starting MailHog..."
+        docker run -d --network={{ network }} --name e2e-mail \
+            -p {{ mail_api_port }}:8025 \
+            {{ mail_image }}
     fi
 
     # Create shared tmpfs volume for user files (backend + celery)
@@ -199,8 +254,18 @@ up: _ensure-images
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e MIGRATE_ON_STARTUP=true \
             -e FEATURE_FLAGS="*" \
+            -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://e2e-slack-stub:8080/api \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=e2e-mail \
+            -e EMAIL_SMTP_PORT=1025 \
+            -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS={{ button_rate_limit }}/m \
             -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
+            -e PUBLIC_BACKEND_URL="{{ public_backend_url }}" \
+            -e PUBLIC_WEB_FRONTEND_URL="{{ public_frontend_url }}" \
+            -e BASEROW_BUILDER_PREVIEW_URL="{{ builder_preview_url }}" \
+            -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -p {{ backend_port }}:8000 \
             {{ backend_image }} gunicorn
     fi
@@ -218,6 +283,12 @@ up: _ensure-images
             -e SECRET_KEY=test \
             -e DJANGO_SETTINGS_MODULE=baserow.config.settings.e2e \
             -e FEATURE_FLAGS="*" \
+            -e BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS=true \
+            -e BASEROW_INTEGRATIONS_SLACK_API_URL=http://e2e-slack-stub:8080/api \
+            -e EMAIL_SMTP=yes \
+            -e EMAIL_SMTP_HOST=e2e-mail \
+            -e EMAIL_SMTP_PORT=1025 \
+            -e BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS={{ button_rate_limit }}/m \
             -e BASEROW_RUN_MINIMAL=yes \
             -e BASEROW_AMOUNT_OF_WORKERS=1 \
             {{ backend_image }} celery-worker
@@ -227,8 +298,9 @@ up: _ensure-images
     if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "^e2e-frontend$"; then
         echo "Starting frontend..."
         docker run -d --network={{ network }} --name e2e-frontend \
-            -e PUBLIC_BACKEND_URL=http://localhost:{{ backend_port }} \
-            -e PUBLIC_WEB_FRONTEND_URL=http://localhost:{{ frontend_port }} \
+            -e PUBLIC_BACKEND_URL="{{ public_backend_url }}" \
+            -e PUBLIC_WEB_FRONTEND_URL="{{ public_frontend_url }}" \
+            -e BASEROW_BUILDER_PREVIEW_URL="{{ builder_preview_url }}" \
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
             -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -e FEATURE_FLAGS="*" \
@@ -240,8 +312,9 @@ up: _ensure-images
     echo "E2E environment started. Containers:"
     docker ps --filter "name=e2e-" --format "table {{ '{{.Names}}\t{{.Status}}\t{{.Ports}}' }}"
     echo ""
-    echo "Frontend: http://localhost:{{ frontend_port }}"
-    echo "Backend:  http://localhost:{{ backend_port }}"
+    echo "Frontend: {{ public_frontend_url }}"
+    echo "Preview:  {{ builder_preview_url }}"
+    echo "Backend:  {{ public_backend_url }}"
     echo ""
     echo "View logs:  just e2e logs"
     echo "Run tests:  just e2e test"
@@ -252,7 +325,7 @@ up: _ensure-images
 down:
     #!/usr/bin/env bash
     echo "Stopping E2E containers..."
-    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock 2>/dev/null || true
+    docker rm -f e2e-frontend e2e-backend e2e-celery e2e-redis e2e-db e2e-s3mock e2e-httpbin e2e-slack-stub e2e-barrier e2e-mail 2>/dev/null || true
     docker volume rm e2e-media 2>/dev/null || true
     docker network rm {{ network }} 2>/dev/null || true
     echo "E2E environment stopped."
@@ -295,14 +368,23 @@ test *ARGS:
     }
     trap cleanup EXIT
 
-    export PUBLIC_BACKEND_URL=http://localhost:{{ backend_port }}
-    export PUBLIC_WEB_FRONTEND_URL=http://localhost:{{ frontend_port }}
+    export PUBLIC_BACKEND_URL="{{ public_backend_url }}"
+    export PUBLIC_WEB_FRONTEND_URL="{{ public_frontend_url }}"
+    export BASEROW_BUILDER_PREVIEW_URL="{{ builder_preview_url }}"
     export BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }}
+    # The stub as the backend reaches it, on the compose network, and MailHog
+    # as the tests reach it, from the host.
+    export E2E_HTTP_STUB_URL=http://e2e-httpbin:80
+    export E2E_SLACK_STUB=yes
+    export E2E_MAIL_API_URL=http://localhost:{{ mail_api_port }}
+    export E2E_BARRIER_STUB_URL=http://e2e-barrier:8080
+    export E2E_BARRIER_CONTROL_URL=http://localhost:{{ barrier_control_port }}
+    export E2E_BUTTON_RATE_LIMIT={{ button_rate_limit }}
 
     # Install dependencies if needed
     echo "Installing dependencies..."
     yarn install
-    yarn playwright install
+    yarn playwright install chromium firefox
 
     echo "Waiting for services to be ready..."
     ./wait-for-services.sh

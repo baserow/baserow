@@ -3,6 +3,7 @@ from django.urls import re_path
 from baserow.contrib.automation.api.history.views import (
     AutomationNodeHistoriesView,
     AutomationNodeResultView,
+    CancelAutomationWorkflowHistoryView,
 )
 
 app_name = "baserow.contrib.automation.api.history"
@@ -12,6 +13,11 @@ urlpatterns = [
         r"workflow_histories/(?P<workflow_history_id>[0-9]+)/node_histories/$",
         AutomationNodeHistoriesView.as_view(),
         name="node_histories",
+    ),
+    re_path(
+        r"workflow_histories/(?P<workflow_history_id>[0-9]+)/cancel/$",
+        CancelAutomationWorkflowHistoryView.as_view(),
+        name="cancel_workflow_history",
     ),
     re_path(
         r"node_histories/(?P<node_history_id>[0-9]+)/result/$",

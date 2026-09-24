@@ -85,7 +85,18 @@ class GridViewType(ViewType):
     has_public_info = True
     can_group_by = True
     when_shared_publicly_requires_realtime_events = True
-    allowed_fields = ["row_identifier_type", "row_height_size", "frozen_column_count"]
+    allowed_fields = [
+        "row_identifier_type",
+        "row_height_size",
+        "frozen_column_count",
+        "group_by_layout",
+    ]
+    copyable_view_attributes = [
+        "row_height_size",
+        "frozen_column_count",
+        "row_identifier_type",
+        "group_by_layout",
+    ]
     field_options_allowed_fields = [
         "width",
         "hidden",
@@ -97,6 +108,7 @@ class GridViewType(ViewType):
         "row_identifier_type",
         "row_height_size",
         "frozen_column_count",
+        "group_by_layout",
     ]
     serializer_field_overrides = {
         "frozen_column_count": serializers.IntegerField(
@@ -137,6 +149,7 @@ class GridViewType(ViewType):
         serialized["row_identifier_type"] = grid.row_identifier_type
         serialized["row_height_size"] = grid.row_height_size
         serialized["frozen_column_count"] = grid.frozen_column_count
+        serialized["group_by_layout"] = grid.group_by_layout
 
         serialized_field_options = []
         for field_option in grid.get_field_options():
@@ -673,6 +686,12 @@ class FormViewType(ViewType):
         FormViewFieldOptionsConditionGroupDoesNotExist: ERROR_FORM_VIEW_FIELD_OPTIONS_CONDITION_GROUP_DOES_NOT_EXIST,
         SelectOptionDoesNotBelongToField: ERROR_SELECT_OPTION_DOES_NOT_BELONG_TO_FIELD,
     }
+
+    def get_copyable_configuration_categories(self) -> Set[str]:
+        # Even though the form view has an `order` field option, none of its
+        # configuration is interchangeable with the other view types, its field
+        # options describe form fields instead of table columns.
+        return set()
 
     def get_api_urls(self):
         from baserow.contrib.database.api.views.form import urls as api_urls

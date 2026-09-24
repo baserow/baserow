@@ -12,6 +12,9 @@ data:
   PUBLIC_BACKEND_URL: https://{{ .Values.global.baserow.backendDomain }}
   PUBLIC_WEB_FRONTEND_URL: https://{{ .Values.global.baserow.domain }}
   PRIVATE_BACKEND_URL: http://{{ lower .Release.Name }}-baserow-backend-wsgi
+  {{- if .Values.global.baserow.assistantLLMModel }}
+  BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL: {{ .Values.global.baserow.assistantLLMModel | quote }}
+  {{- end }}
   {{- range $key, $val := .Values.sharedConfigMap }}
   {{ $key }}: {{ $val | quote }}
   {{- end }}

@@ -1,4 +1,5 @@
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
+from django.utils import timezone
 
 import pytest
 
@@ -81,3 +82,156 @@ def test_0082_remove_duplicate_workspace_invitation_forwards(
         NewWorkspaceInvitation.objects.create(
             email="a@baserow.io", workspace_id=1, invited_by_id=sender.id
         ),
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0119_initializes_ai_provider_model_features_and_capabilities(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate(
+        [("core", "0118_aiproviderworkspaceoverride_and_more")]
+    )
+    AIProviderConfig = old_state.apps.get_model("core", "AIProviderConfig")
+    AIProviderModel = old_state.apps.get_model("core", "AIProviderModel")
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="test-key"
+    )
+    tested_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="tested-model",
+        last_test_at=timezone.now(),
+        last_test_status="failure",
+        last_test_error="provider unavailable",
+    )
+    untested_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="untested-model",
+    )
+
+    new_state = migrator.migrate(
+        [("core", "0119_aiproviderfeaturesetting_and_more")]
+    )
+    NewAIProviderModel = new_state.apps.get_model("core", "AIProviderModel")
+    tested_model = NewAIProviderModel.objects.get(id=tested_model.id)
+    untested_model = NewAIProviderModel.objects.get(id=untested_model.id)
+
+    assert tested_model.feature_types == ["ai_fields"]
+    assert tested_model.last_test_capabilities == {
+        "text": {"status": "failure", "error": "provider unavailable"}
+    }
+    assert untested_model.feature_types == ["ai_fields"]
+    assert untested_model.last_test_capabilities == {}
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0120_makes_existing_ai_provider_models_available_to_ai_agents_and_reverses(
+    migrator, teardown_table_metadata, settings
+):
+    settings.FEATURE_FLAGS = []
+    old_state = migrator.migrate(
+        [("core", "0119_aiproviderfeaturesetting_and_more")]
+    )
+    AIProviderConfig = old_state.apps.get_model("core", "AIProviderConfig")
+    AIProviderModel = old_state.apps.get_model("core", "AIProviderModel")
+    provider = AIProviderConfig.objects.create(
+        provider_type="openai", api_key="test-key"
+    )
+    historical_default_model = AIProviderModel.objects.create(
+        provider_config=provider,
+        model_identifier="historical-default-model",
+        last_test_capabilities={
+            "text": {"status": "success", "error": ""}
+        },
+    )
+    assert historical_default_model.feature_types == ["ai_fields"]
+
+    models = {
+        feature_types[0] if feature_types else "none": AIProviderModel.objects.create(
+            provider_config=provider,
+            model_identifier=f"{index}-model",
+            feature_types=feature_types,
+            last_test_capabilities={
+                "text": {"status": "success", "error": ""}
+            },
+        )
+        for index, feature_types in enumerate(
+            (
+                ["ai_fields"],
+                ["kuma"],
+                [],
+                ["ai_agent", "ai_fields"],
+                ["extension_feature", "kuma"],
+            )
+        )
+    }
+    models["historical_default"] = historical_default_model
+
+    new_state = migrator.migrate(
+        [("core", "0120_add_ai_agent_provider_model_feature")]
+    )
+    NewAIProviderModel = new_state.apps.get_model("core", "AIProviderModel")
+
+    expected_features = {
+        "ai_fields": ["ai_fields", "ai_agent"],
+        "kuma": ["kuma", "ai_agent"],
+        "none": ["ai_agent"],
+        "ai_agent": ["ai_agent", "ai_fields"],
+        "extension_feature": ["extension_feature", "kuma", "ai_agent"],
+        "historical_default": ["ai_fields", "ai_agent"],
+    }
+    for key, model in models.items():
+        migrated_model = NewAIProviderModel.objects.get(id=model.id)
+        assert migrated_model.feature_types == expected_features[key]
+        assert migrated_model.last_test_capabilities == {
+            "text": {"status": "success", "error": ""}
+        }
+
+    default_model = NewAIProviderModel.objects.create(
+        provider_config_id=provider.id, model_identifier="new-orm-default"
+    )
+    assert default_model.feature_types == ["ai_fields", "ai_agent"]
+    # Bypass the ORM's Python default to verify the actual database default.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO core_aiprovidermodel (provider_config_id, model_identifier) "
+            "VALUES (%s, %s) RETURNING id",
+            [provider.id, "new-database-default"],
+        )
+        database_default_id = cursor.fetchone()[0]
+    database_default_model = NewAIProviderModel.objects.get(id=database_default_id)
+    assert database_default_model.feature_types == ["ai_fields", "ai_agent"]
+
+    rolled_back_state = migrator.migrate(
+        [("core", "0119_aiproviderfeaturesetting_and_more")]
+    )
+    RolledBackAIProviderModel = rolled_back_state.apps.get_model(
+        "core", "AIProviderModel"
+    )
+    expected_rolled_back_features = {
+        "ai_fields": ["ai_fields"],
+        "kuma": ["kuma"],
+        "none": [],
+        "ai_agent": ["ai_fields"],
+        "extension_feature": ["extension_feature", "kuma"],
+        "historical_default": ["ai_fields"],
+    }
+    for key, model in models.items():
+        rolled_back_model = RolledBackAIProviderModel.objects.get(id=model.id)
+        assert rolled_back_model.feature_types == expected_rolled_back_features[key]
+        assert rolled_back_model.last_test_capabilities == {
+            "text": {"status": "success", "error": ""}
+        }
+
+    default_model = RolledBackAIProviderModel.objects.create(
+        provider_config_id=provider.id, model_identifier="restored-orm-default"
+    )
+    assert default_model.feature_types == ["ai_fields"]
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO core_aiprovidermodel (provider_config_id, model_identifier) "
+            "VALUES (%s, %s) RETURNING id",
+            [provider.id, "restored-database-default"],
+        )
+        database_default_id = cursor.fetchone()[0]
+    database_default_model = RolledBackAIProviderModel.objects.get(id=database_default_id)
+    assert database_default_model.feature_types == ["ai_fields"]

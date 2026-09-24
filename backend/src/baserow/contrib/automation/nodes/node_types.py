@@ -25,9 +25,11 @@ from baserow.contrib.automation.nodes.models import (
     CoreGotoActionNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
+    CoreInboundEmailTriggerNode,
     CoreIteratorActionNode,
     CoreManualTriggerNode,
     CorePeriodicTriggerNode,
+    CoreResponseActionNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     CoreStartWorkflowActionNode,
@@ -50,18 +52,26 @@ from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
+from baserow.contrib.integrations.core.inbound_email import (
+    is_inbound_email_configured,
+)
 from baserow.contrib.integrations.core.models import CoreGotoService
 from baserow.contrib.integrations.core.service_types import (
     CoreCSVFileReaderServiceType,
     CoreGotoServiceType,
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
+    CoreInboundEmailTriggerServiceType,
     CoreIteratorServiceType,
     CoreManualTriggerServiceType,
     CorePeriodicServiceType,
+    CoreResponseServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
+)
+from baserow.contrib.integrations.local_baserow.mixins import (
+    UpdateRowRequiresRowIdMixin,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
@@ -78,6 +88,10 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
+)
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
 )
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance
@@ -166,7 +180,9 @@ class LocalBaserowCreateRowsNodeType(AutomationNodeActionNodeType):
         return {"service": service}
 
 
-class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
+class LocalBaserowUpdateRowNodeType(
+    UpdateRowRequiresRowIdMixin, LocalBaserowUpsertRowNodeType
+):
     display_name = _("Local Baserow update row")
     type = "local_baserow_update_row"
     compat_type = "update_row"
@@ -246,6 +262,52 @@ class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
     type = "start_workflow"
     model_class = CoreStartWorkflowActionNode
     service_type = CoreStartWorkflowServiceType.type
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CoreStartWorkflowActionNode] = None,
+    ) -> Dict[str, Any]:
+        service_values = values.get("service") or {}
+        if service_values.get("workflow_id") is not None:
+            workflow = instance.workflow if instance else values.get("workflow")
+            # Resolved here rather than by the service type, whose lookup
+            # accepts any workflow the user can read, in any workspace.
+            service_values["workflow"] = self.get_service_type().get_workflow_to_start(
+                user,
+                service_values.pop("workflow_id"),
+                workflow.automation.workspace_id,
+            )
+        return super().prepare_values(values, user, instance)
+
+
+class CoreResponseNodeType(AutomationNodeActionNodeType):
+    display_name = _("Response")
+    type = "response"
+    model_class = CoreResponseActionNode
+    service_type = CoreResponseServiceType.type
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """Default new response nodes to a raw 204 status-code formula."""
+
+        if instance is None:
+            service_values = values.get("service") or {}
+            values = {
+                **values,
+                "service": {
+                    "status_code": BaserowFormulaObject.create(
+                        "204", mode=BASEROW_FORMULA_MODE_RAW
+                    ),
+                    **service_values,
+                },
+            }
+        return super().prepare_values(values, user, instance)
 
 
 class AIAgentActionNodeType(AutomationNodeActionNodeType):
@@ -689,6 +751,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
         # For perf reasons, store the trigger<->service relationship.
         service_map = {service.id: service for service in services}
 
+        histories = []
         for trigger in triggers:
             # If we've received a callable payload, call it with the specific service,
             # this can give us a payload that is specific to the trigger's service.
@@ -699,13 +762,21 @@ class AutomationNodeTriggerType(AutomationNodeType):
             )
 
             workflow = trigger.workflow
-            AutomationWorkflowHandler().async_start_workflow(
+            history = AutomationWorkflowHandler().async_start_workflow(
                 workflow,
                 service_payload,
+                # Read before the reset below clears it.
+                triggered_by=AutomationWorkflowHandler().get_test_run_triggered_by(
+                    workflow
+                ),
             )
+            if history is not None:
+                histories.append(history)
 
             # We don't want subsequent events to trigger a new test run
             AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+        return histories
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
@@ -752,6 +823,19 @@ class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
+
+
+class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
+    display_name = _("Email trigger")
+    type = "email_trigger"
+    model_class = CoreInboundEmailTriggerNode
+    service_type = CoreInboundEmailTriggerServiceType.type
+
+    def is_deactivated(self, workspace) -> bool:
+        # Instance-wide (the workspace is irrelevant): the trigger is withheld
+        # until the domain, the webhook secret and the receiver URL are all
+        # configured. See `is_inbound_email_configured` for why each matters.
+        return not is_inbound_email_configured()
 
 
 class CoreManualTriggerNodeType(AutomationNodeTriggerType):

@@ -1,34 +1,49 @@
 <template>
   <div class="control__elements">
-    <Button
-      v-if="isValidLinkURL"
-      tag="a"
-      size="tiny"
-      type="secondary"
-      :href="getHref(resolvedButtonValue)"
-      target="_blank"
-      rel="nofollow noopener noreferrer"
+    <span
+      v-if="requiresReconfiguration"
+      v-tooltip="$t('buttonField.requiresReconfiguration')"
     >
-      {{ resolvedButtonValue.label }}
-    </Button>
-    <Button v-else tag="a" size="tiny" type="secondary" disabled>
-      {{ resolvedButtonValue.label }}
-    </Button>
+      <Button
+        size="tiny"
+        type="secondary"
+        icon="iconoir-warning-triangle"
+        disabled
+      >
+        {{ field.label }}
+      </Button>
+    </span>
+    <span
+      v-else-if="canClick"
+      v-tooltip="
+        rowIsCreated ? null : $t('rowEditFieldButtonField.createRowBefore')
+      "
+    >
+      <!-- The row create modal renders every field before the row exists. -->
+      <Button
+        size="tiny"
+        type="secondary"
+        :loading="dispatching"
+        :disabled="!rowIsCreated"
+        @click="dispatchWorkflowActions"
+      >
+        {{ field.label }}
+      </Button>
+    </span>
+    <span v-else v-tooltip="disabledReason">
+      <Button size="tiny" type="secondary" disabled>
+        {{ field.label }}
+      </Button>
+    </span>
   </div>
 </template>
 
 <script>
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
-import linkURLField from '@baserow/modules/database/mixins/linkURLField'
 import buttonField from '@baserow/modules/database/mixins/buttonField'
 
 export default {
   name: 'RowEditFieldButtonField',
-  mixins: [rowEditField, linkURLField, buttonField],
-  computed: {
-    isValidLinkURL() {
-      return this.resolvedButtonValue && this.isValid(this.resolvedButtonValue)
-    },
-  },
+  mixins: [rowEditField, buttonField],
 }
 </script>

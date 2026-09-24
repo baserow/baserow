@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Restricted ad hoc filters on publicly shared calendar views to the view's visible fields.",
+    "issue_origin": "github",
+    "issue_number": 6080,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-14"
+}

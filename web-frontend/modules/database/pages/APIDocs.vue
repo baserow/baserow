@@ -13,8 +13,11 @@
       <div class="select-application__title">
         {{ $t('apiDocsComponent.selectApplicationTitle') }}
       </div>
-      <APIDocsSelectDatabase />
-      <nuxt-link :to="{ name: 'dashboard' }" class="select-application__back">
+      <APIDocsSelectDatabase :loading="loading" />
+      <nuxt-link
+        :to="{ name: 'all-workspaces' }"
+        class="select-application__back"
+      >
         <i class="iconoir-arrow-left"></i>
         {{ $t('apiDocsComponent.back') }}
       </nuxt-link>
@@ -46,22 +49,38 @@
 <script setup>
 import { computed } from 'vue'
 import { useHead } from '#imports'
+import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import APIDocsSelectDatabase from '@baserow/modules/database/components/docs/APIDocsSelectDatabase'
+import { fetchWorkspacesAndApplications } from '@baserow/modules/core/utils/workspace'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const nuxtApp = useNuxtApp()
 
 const {
   $store,
   $config,
   $i18n: { t: $t },
-} = useNuxtApp()
+} = nuxtApp
 
 definePageMeta({
   layout: 'login',
-  middleware: ['workspacesAndApplications'],
 })
+
+// Not left to the `workspacesAndApplications` middleware, because that would
+// make the page wait for it.
+const { loading: fetching } = await usePageAsyncData(
+  'api-docs-databases',
+  async () => {
+    if ($store.getters['auth/isAuthenticated']) {
+      // This page has no workspace in the route, so only the workspaces and
+      // applications are fetched without selecting a workspace.
+      await fetchWorkspacesAndApplications(nuxtApp, null)
+    }
+    return true
+  }
+)
 
 useHead({
   title: 'REST API documentation',
@@ -78,4 +97,6 @@ useHead({
 const isAuthenticated = computed(() => {
   return $store.getters['auth/isAuthenticated']
 })
+
+const loading = computed(() => isAuthenticated.value && fetching.value)
 </script>

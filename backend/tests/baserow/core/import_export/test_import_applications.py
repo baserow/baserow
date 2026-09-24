@@ -7,8 +7,10 @@ from django.core.exceptions import SuspiciousOperation
 
 import pytest
 
+from baserow.core.deferred_callbacks import register_deferred_callback
 from baserow.core.import_export.exceptions import ImportExportResourceInvalidFile
 from baserow.core.import_export.handler import ImportExportHandler
+from baserow.core.models import Application
 from baserow.core.storage import get_default_storage
 from baserow.test_utils.zip_helpers import (
     add_file_to_zip,
@@ -289,6 +291,47 @@ def test_validate_checksums_rejects_traversal(tmp_path):
 
     with pytest.raises(SuspiciousOperation, match="path traversal"):
         handler.validate_checksums(manifest, str(tmp_path), get_default_storage())
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_import_cleans_up_when_a_deferred_callback_fails(
+    data_fixture, use_tmp_media_root, tmp_path
+):
+    # Deferred callbacks run once the import loop is over, so their failures
+    # have to reach the same cleanup.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    data_fixture.create_import_export_trusted_source()
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name="deferred_test.zip", is_valid=True
+    )
+    with open(INTERESTING_DB_EXPORT_PATH, "rb") as export_file:
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=export_file.read()
+        )
+
+    def boom():
+        raise RuntimeError("deferred boom")
+
+    real_import_application = ImportExportHandler.import_application
+
+    def import_and_defer_a_failure(self, *args, **kwargs):
+        application = real_import_application(self, *args, **kwargs)
+        register_deferred_callback(boom)
+        return application
+
+    with patch.object(
+        ImportExportHandler, "import_application", import_and_defer_a_failure
+    ):
+        with pytest.raises(RuntimeError, match="deferred boom"):
+            ImportExportHandler().import_workspace_applications(
+                user=user, workspace=workspace, resource=resource
+            )
+
+    assert Application.objects.filter(workspace=workspace).count() == 0
+    assert Application.trash.filter(workspace=workspace).count() > 0
 
 
 @pytest.mark.import_export_workspace

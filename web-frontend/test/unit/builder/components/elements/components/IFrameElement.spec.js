@@ -42,13 +42,34 @@ describe('IFrameElement', () => {
     expect(wrapper.find('iframe').element).toMatchSnapshot()
   })
 
-  test('fully sandboxes external URLs in editing mode', async () => {
+  test('shows an editor placeholder for resolved external URLs', async () => {
     const wrapper = await mountComponent('editing', {
       source_type: 'url',
       url: { formula: '"https://example.com"' },
     })
 
-    expect(wrapper.find('iframe').element).toMatchSnapshot()
+    const placeholder = wrapper.find('.iframe-element__editor-placeholder')
+
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(placeholder.attributes('style')).toBe('height: 300px;')
+    expect(placeholder.text()).toBe(
+      'iframeElementForm.editorPreviewPlaceholder'
+    )
+  })
+
+  test('keeps the existing empty state for unresolved external URLs', async () => {
+    const wrapper = await mountComponent('editing', {
+      source_type: 'url',
+      url: { formula: '""' },
+    })
+
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.find('.iframe-element__editor-placeholder').exists()).toBe(
+      false
+    )
+    expect(wrapper.find('.iframe-element__empty').text()).toBe(
+      'iframeElementForm.emptyValue'
+    )
   })
 
   test('does not sandbox user-provided content in preview mode', async () => {
@@ -81,17 +102,20 @@ describe('IFrameElement', () => {
     }
   )
 
-  test('keeps trusted URLs sandboxed in editing mode', async () => {
+  test('shows an editor placeholder for trusted URLs in editing mode', async () => {
     const wrapper = await mountComponent('editing', {
       source_type: 'url',
       url: { formula: '"https://example.com"' },
       allow_same_origin: true,
     })
 
-    expect(wrapper.find('iframe').attributes('sandbox')).toBe('')
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.find('.iframe-element__editor-placeholder').exists()).toBe(
+      true
+    )
   })
 
-  test('keeps trusted URLs sandboxed when the editor force-renders them in public mode', async () => {
+  test('shows an editor placeholder when the editor force-renders URLs in public mode', async () => {
     const wrapper = await mountComponent(
       'public',
       {
@@ -102,8 +126,9 @@ describe('IFrameElement', () => {
       'editing'
     )
 
-    expect(wrapper.find('iframe').attributes('sandbox')).toBe(
-      'allow-scripts allow-forms allow-popups'
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.find('.iframe-element__editor-placeholder').exists()).toBe(
+      true
     )
   })
 

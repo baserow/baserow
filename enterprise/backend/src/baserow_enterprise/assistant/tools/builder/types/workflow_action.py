@@ -9,12 +9,10 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field, model_validator
 
-from baserow.core.formula.types import (
-    BASEROW_FORMULA_MODE_ADVANCED,
-    BaserowFormulaObject,
-)
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
+    formula_object,
     literal_or_placeholder,
     needs_formula,
 )
@@ -68,6 +66,14 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "delete_row": ("table_id", "row_id"),
 }
 
+# Fields that carry a database ID when given as an int; refs stay strings.
+_ID_FIELDS: tuple[str, ...] = (
+    "element",
+    "navigate_to_page_id",
+    "table_id",
+    "data_source",
+)
+
 
 def _strip_formula_prefix(value: str) -> str:
     """
@@ -91,11 +97,11 @@ def _strip_formula_prefix(value: str) -> str:
 
 def _notification_orm_kwargs(action: "ActionCreate") -> dict:
     return {
-        "title": BaserowFormulaObject.create(
+        "title": formula_object(
             literal_or_placeholder(action.title),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
-        "description": BaserowFormulaObject.create(
+        "description": formula_object(
             literal_or_placeholder(action.description),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         ),
@@ -109,7 +115,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
         "page_parameters": [
             {
                 "name": p.name,
-                "value": BaserowFormulaObject.create(
+                "value": formula_object(
                     literal_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
@@ -119,7 +125,7 @@ def _open_page_orm_kwargs(action: "ActionCreate") -> dict:
         "query_parameters": [
             {
                 "name": p.name,
-                "value": BaserowFormulaObject.create(
+                "value": formula_object(
                     literal_or_placeholder(p.value),
                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                 ),
@@ -170,7 +176,7 @@ def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
     kwargs: dict[str, Any] = {"table": table}
 
     if action.type in ("update_row", "delete_row") and action.row_id:
-        kwargs["row_id"] = BaserowFormulaObject.create(
+        kwargs["row_id"] = formula_object(
             _strip_formula_prefix(action.row_id),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
@@ -198,7 +204,7 @@ def _field_mappings(action: "ActionCreate") -> list[dict] | None:
         mappings.append(
             {
                 "field_id": int(fv.field_id),
-                "value": BaserowFormulaObject.create(
+                "value": formula_object(
                     formula_value, mode=BASEROW_FORMULA_MODE_ADVANCED
                 ),
                 "enabled": True,
@@ -270,7 +276,7 @@ def _update_row_formulas(
 
     # Update row_id
     if "row_id" in formulas:
-        service.row_id = BaserowFormulaObject.create(
+        service.row_id = formula_object(
             formulas["row_id"], mode=BASEROW_FORMULA_MODE_ADVANCED
         )
         service.save(update_fields=["row_id"])
@@ -279,7 +285,7 @@ def _update_row_formulas(
     for mapping in service.field_mappings.all():
         key = f"field_{mapping.field_id}"
         if key in formulas:
-            mapping.value = BaserowFormulaObject.create(
+            mapping.value = formula_object(
                 formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
             mapping.save(update_fields=["value"])
@@ -302,14 +308,14 @@ def _update_open_page_formulas(
     for i, p in enumerate(page_params):
         key = f"page_param_{i}"
         if key in formulas:
-            p["value"] = BaserowFormulaObject.create(
+            p["value"] = formula_object(
                 formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
     for i, p in enumerate(query_params):
         key = f"query_param_{i}"
         if key in formulas:
-            p["value"] = BaserowFormulaObject.create(
+            p["value"] = formula_object(
                 formulas[key], mode=BASEROW_FORMULA_MODE_ADVANCED
             )
 
@@ -333,10 +339,29 @@ _UPDATE_FORMULAS: dict[str, Any] = {
 
 class ActionCreate(BaseModel):
     """
-    Flat model for creating a workflow action.
+    One workflow action, attached to an element (event "click") or to a form
+    container (event "submit").
 
-    All type-specific fields are optional — a ``@model_validator``
-    enforces the correct required fields per type.
+    ``type`` and ``element`` are always required. Each type also needs:
+    - notification: title
+    - open_page: navigate_to_page_id
+    - create_row: table_id, field_values
+    - update_row: table_id, row_id, field_values
+    - delete_row: table_id, row_id
+    - refresh_data_source: data_source
+    - logout: nothing more
+
+    Send all of them in the same call: a call missing any of them is rejected
+    in full, and every retry costs a round trip. Numeric IDs must come from a
+    tool result; string refs must name an item created in this same call.
+
+    The tag in parentheses on a field description names the types that field
+    applies to; leave every other field unset. No key outside this model is
+    accepted.
+
+    open_page navigates to a page of this application only — no action opens
+    an external URL. External navigation is a property of the link element
+    (navigation_type, navigate_to_url, link_variant), not of an action.
     """
 
     type: ActionType = Field(..., description="Action type.")
@@ -390,10 +415,30 @@ class ActionCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _check_required(self):
-        for field_name in _REQUIRED_FIELDS.get(self.type, ()):
-            if getattr(self, field_name) is None:
-                raise ValueError(f"'{field_name}' is required for type '{self.type}'.")
+    def _check_required(self) -> "ActionCreate":
+        required = _REQUIRED_FIELDS.get(self.type, ())
+        missing = [
+            name
+            for name in required
+            if getattr(self, name) is None
+            or (name == "row_id" and not getattr(self, name).strip())
+        ]
+        if missing:
+            raise ValueError(
+                f"Type '{self.type}' requires all of: {', '.join(required)}. "
+                f"Missing: {', '.join(missing)}. Send every required field in a "
+                f"single call. If a value is not known yet, create or look up the "
+                f"resource it refers to first, or choose a type that does not "
+                f"require it."
+            )
+        for name in _ID_FIELDS:
+            value = getattr(self, name, None)
+            if isinstance(value, int) and value <= 0:
+                raise ValueError(
+                    f"'{name}' is {value}, which is never a valid ID. Use an ID "
+                    f"returned by an earlier tool result, or a string ref to an "
+                    f"item created in this same call."
+                )
         return self
 
     # -- ORM helpers --------------------------------------------------------

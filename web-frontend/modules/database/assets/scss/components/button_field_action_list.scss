@@ -1,0 +1,112 @@
+.button-field-action-list__divider {
+  height: 1px;
+  margin-bottom: 20px;
+  background: $palette-neutral-200;
+}
+
+.button-field-action-list__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.button-field-action-list__title {
+  font-weight: 600;
+}
+
+// One card per action.
+.button-field-action-list__item {
+  background: $palette-neutral-50;
+  overflow: hidden;
+
+  @include rounded($rounded-md);
+}
+
+// Holds the drag handle, the type dropdown, the delete button and the
+// expand arrow. Clicking anywhere else on it toggles the card.
+.button-field-action-list__header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.button-field-action-list__toggle {
+  margin-left: 8px;
+  color: $palette-neutral-700;
+  font-size: 16px;
+}
+
+// A dot grid drawn with a gradient, the way the builder draws its handles.
+.button-field-action-list__handle {
+  flex: 0 0 10px;
+  height: 16px;
+  margin-right: 10px;
+  background-image: radial-gradient($palette-neutral-400 40%, transparent 40%);
+  background-size: 5px 5px;
+  background-repeat: repeat;
+  cursor: grab;
+
+  &:hover {
+    background-image: radial-gradient(
+      $palette-neutral-500 40%,
+      transparent 40%
+    );
+  }
+}
+
+.button-field-action-list__type {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-right: 8px;
+}
+
+.button-field-action-list__separator {
+  height: 1px;
+  background: $palette-neutral-200;
+}
+
+// The inset lives on the card so a service backed form, which brings no
+// padding of its own, does not run into the card's edges.
+.button-field-action-list__form {
+  padding: 12px;
+
+  // Same cap as the error and payload below: a service form's helper text is
+  // a full sentence, and the popup would otherwise grow to fit it on one line.
+  max-width: 390px;
+}
+
+// Without this the control's inactive fill disappears into the card behind it.
+// Scoped to the card, since SegmentControl is shared with other modules.
+.button-field-action-list__item .segment-control {
+  background: $palette-neutral-200;
+}
+
+.button-field-action-list__error {
+  // These are full sentences, and the popup has no max-width of its own, so
+  // one line would either stretch it or clip the message with no way back.
+  max-width: 366px;
+  color: $palette-red-600;
+  font-size: 12px;
+  line-height: 18px;
+  padding: 0 12px 8px;
+}
+
+// What a click remembered, or a note saying no click has answered yet. Sits
+// under the service's own form, which brings no bottom margin of its own.
+.button-field-action-form__payload {
+  margin-top: 12px;
+
+  // Same reason as the error above: the popup has no max-width of its own, and
+  // a payload's longest line would otherwise stretch the whole editor.
+  max-width: 366px;
+
+  .sample-data-viewer__code {
+    pre,
+    code {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  }
+}

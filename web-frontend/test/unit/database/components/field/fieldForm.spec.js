@@ -46,8 +46,7 @@ describe('FieldForm field type dropdown', () => {
 
   test('a hidden field type is still listed while editing a field of that type', async () => {
     // Otherwise the dropdown has no item matching its own value and renders
-    // blank, which is what happens to an existing button field once the
-    // feature flag is turned back off.
+    // blank. The button type is only a stand-in for any hidden type here.
     hideButtonType()
     const wrapper = await mountForm({ id: 5, type: 'button', label: 'Open' })
     expect(Object.keys(wrapper.vm.fieldTypes)).toContain('button')

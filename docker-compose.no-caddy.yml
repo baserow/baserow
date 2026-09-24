@@ -15,6 +15,11 @@
 #      to the URL the user's browser can access the files on.
 #   4. Ensure requests sent to the backend in /ws path are upgraded to websocket
 #      connections.
+#   5. (Optional) To use the "Start workflow by email" automation trigger, enable
+#      the "inbound-email" profile (COMPOSE_PROFILES=inbound-email) and set
+#      BASEROW_INBOUND_EMAIL_DOMAIN, BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET and
+#      BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP=0.0.0.0 so the email-receiver's SMTP
+#      port is reachable by sending mail servers. See the email-receiver service.
 #
 # See the following guides for more details and example configurations:
 #   1. https://baserow.io/docs/installation%2Finstall-behind-nginx
@@ -36,7 +41,10 @@ x-backend-variables:
 
   PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL-http://localhost:8000}
   PUBLIC_WEB_FRONTEND_URL: ${PUBLIC_WEB_FRONTEND_URL-http://localhost:3000}
+  BASEROW_BUILDER_PREVIEW_URL:
+  BASEROW_BUILDER_PREVIEW_GRANT_TTL_SECONDS:
   BASEROW_EMBEDDED_SHARE_URL:
+  BASEROW_FRONTEND_COOKIE_PREFIX:
 
   # Set these if you want to use an external postgres instead of the db service below.
   DATABASE_USER: ${DATABASE_USER:-baserow}
@@ -83,13 +91,16 @@ x-backend-variables:
   BATCH_ROWS_SIZE_LIMIT:
   INITIAL_TABLE_DATA_LIMIT:
   BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB:
+  BASEROW_REQUEST_BODY_SIZE_LIMIT_MB:
   BASEROW_FILE_UPLOAD_ACTIVE_CONTENT_POLICY:
   BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB:
   BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
   BASEROW_MAX_FIELD_TEXT_LENGTH:
   BASEROW_REALTIME_REPLAY_MAX_EVENTS:
+  BASEROW_REALTIME_REPLAY_RETENTION_HOURS:
 
   BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT:
+  BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
@@ -132,7 +143,7 @@ x-backend-variables:
   POSTHOG_PROJECT_API_KEY:
   POSTHOG_HOST:
 
-  PRIVATE_BACKEND_URL: http://backend:8000
+  PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
   BASEROW_PUBLIC_URL:
   MEDIA_URL:
   MEDIA_ROOT:
@@ -158,7 +169,6 @@ x-backend-variables:
   BASEROW_MAX_ROW_REPORT_ERROR_COUNT:
   BASEROW_JOB_SOFT_TIME_LIMIT:
   BASEROW_FRONTEND_JOBS_POLLING_TIMEOUT_MS:
-  BASEROW_FRONTEND_COOKIE_PREFIX:
   BASEROW_INITIAL_CREATE_SYNC_TABLE_DATA_LIMIT:
   BASEROW_WEBHOOKS_ALLOW_PRIVATE_ADDRESS:
   BASEROW_WEBHOOKS_IP_BLACKLIST:
@@ -171,8 +181,18 @@ x-backend-variables:
   BASEROW_WEBHOOKS_MAX_CALL_LOG_ENTRIES:
   BASEROW_WEBHOOKS_REQUEST_TIMEOUT_SECONDS:
   BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS:
+  BASEROW_INTEGRATIONS_HTTP_MAX_RESPONSE_BYTES:
+  BASEROW_INTEGRATIONS_SLACK_API_URL:
   BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
+  BASEROW_INBOUND_EMAIL_DOMAIN:
+  BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:
+  BASEROW_INBOUND_EMAIL_RECEIVER_URL: ${BASEROW_INBOUND_EMAIL_RECEIVER_URL:-http://email-receiver:8880}
+  BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD:
+  BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:
   BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS:
+  BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE:
+  BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST:
+  BASEROW_POSTGRESQL_DATA_SYNC_STATEMENT_TIMEOUT:
   BASEROW_SSO_ALLOW_PRIVATE_ADDRESS:
   BASEROW_ENTERPRISE_AUDIT_LOG_CLEANUP_INTERVAL_MINUTES:
   BASEROW_ENTERPRISE_AUDIT_LOG_RETENTION_DAYS:
@@ -203,7 +223,13 @@ x-backend-variables:
   BASEROW_CACHALOT_TIMEOUT:
   BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS:
   BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS:
+  BASEROW_DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS:
+  BASEROW_DATABASE_BUTTON_SAMPLE_DATA_MAX_BYTES:
+  BASEROW_DATABASE_BUTTON_DISPATCH_USER_RATE_LIMITS:
+  BASEROW_DATABASE_BUTTON_DISPATCH_WORKSPACE_RATE_LIMITS:
   BASEROW_AUTO_INDEX_VIEW_ENABLED:
+  BASEROW_APPLICATION_USER_LIMIT_ENFORCED:
+  BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS:
   BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED:
   BASEROW_DISABLE_LOCKED_MIGRATIONS:
   BASEROW_USE_PG_FULLTEXT_SEARCH:
@@ -221,13 +247,30 @@ x-backend-variables:
   BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS:
   BASEROW_ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES:
   BASEROW_ENTERPRISE_CODE_RUNNER_FUEL_LIMIT:
+  OPENAI_API_KEY:
+  GROQ_API_KEY:
+  GOOGLE_API_KEY:
+  BASEROW_OPENAI_API_KEY:
+  BASEROW_OPENAI_ORGANIZATION:
+  BASEROW_OPENAI_MODELS:
+  BASEROW_OPENAI_BASE_URL:
+  BASEROW_OPENROUTER_API_KEY:
+  BASEROW_OPENROUTER_ORGANIZATION:
+  BASEROW_OPENROUTER_MODELS:
+  BASEROW_ANTHROPIC_API_KEY:
+  BASEROW_ANTHROPIC_MODELS:
+  BASEROW_MISTRAL_API_KEY:
+  BASEROW_MISTRAL_MODELS:
+  BASEROW_OLLAMA_HOST:
+  BASEROW_OLLAMA_MODELS:
+  BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE:
   BASEROW_EMBEDDINGS_API_URL:
 
 services:
   backend:
-    image: baserow/backend:2.3.3
+    image: baserow/backend:2.3.4
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -242,7 +285,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:2.3.3
+    image: baserow/web-frontend:2.3.4
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -252,6 +295,7 @@ services:
       PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
       PUBLIC_BACKEND_URL:
       PUBLIC_WEB_FRONTEND_URL:
+      BASEROW_BUILDER_PREVIEW_URL:
       BASEROW_EMBEDDED_SHARE_URL:
       BASEROW_DISABLE_PUBLIC_URL_CHECK:
       INITIAL_TABLE_DATA_LIMIT:
@@ -276,6 +320,7 @@ services:
       BASEROW_ROW_PAGE_SIZE_LIMIT:
       BASEROW_DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT:
       BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
+      BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS:
       BASEROW_REALTIME_REPLAY_MAX_EVENTS:
       BASEROW_FORMULA_RANGE_MAX_ITEMS:
       BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT:
@@ -284,6 +329,7 @@ services:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
       BASEROW_FRONTEND_COOKIE_PREFIX:
+      BASEROW_DASHBOARD_DATA_SOURCE_DISPATCH_CONCURRENCY:
       BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT:
       BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
       BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS:
@@ -297,13 +343,14 @@ services:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES:
       BASEROW_ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE:
+      BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
     depends_on:
       - backend
     networks:
       local:
 
   celery:
-    image: baserow/backend:2.3.3
+    image: baserow/backend:2.3.4
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -324,7 +371,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:2.3.3
+    image: baserow/backend:2.3.4
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -345,7 +392,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:2.3.3
+    image: baserow/backend:2.3.4
     restart: unless-stopped
     command: celery-beat
     environment:
@@ -356,6 +403,58 @@ services:
       - backend
     volumes:
       - media:/baserow/media
+    networks:
+      local:
+
+  # Receives inbound email for the "Start workflow by email" automation trigger
+  # and forwards it to the backend. Opt-in through the "inbound-email" Compose
+  # profile (COMPOSE_PROFILES=inbound-email): Compose cannot publish a port
+  # conditionally, so without the profile the SMTP port below would be bound on
+  # the host of every installation, including the ones that never use the
+  # trigger. Also set BASEROW_INBOUND_EMAIL_DOMAIN and
+  # BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET; the service idles until both are
+  # present. Runs as root because mox binds its sockets as root and then drops
+  # privileges itself.
+  #
+  # Like the other services in this file, the SMTP port is only published on the
+  # loopback address by default. Sending mail servers connect to port 25 directly
+  # (a HTTP reverse proxy cannot forward SMTP), so to receive inbound email set
+  # BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP=0.0.0.0 to publish only this port on all
+  # interfaces without also exposing the backend and web-frontend ports.
+  email-receiver:
+    image: baserow/backend:2.3.4
+    profiles: ["inbound-email"]
+    restart: unless-stopped
+    user: root
+    command: email-receiver
+    ports:
+      - "${BASEROW_INBOUND_EMAIL_HOST_PUBLISH_IP:-${HOST_PUBLISH_IP:-127.0.0.1}}:${BASEROW_INBOUND_EMAIL_HOST_SMTP_PORT:-25}:25"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/baserow/backend/docker/docker-entrypoint.sh email-receiver-healthcheck",
+        ]
+    environment:
+      BASEROW_INBOUND_EMAIL_DOMAIN:
+      BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET:
+      BASEROW_INBOUND_EMAIL_WEBHOOK_URL:
+      BASEROW_INBOUND_EMAIL_SMTP_HOSTNAME:
+      BASEROW_INBOUND_EMAIL_SMTP_PORT:
+      BASEROW_INBOUND_EMAIL_TLS_MODE:
+      BASEROW_INBOUND_EMAIL_TLS_CERT_FILE:
+      BASEROW_INBOUND_EMAIL_TLS_KEY_FILE:
+      BASEROW_INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB:
+      BASEROW_INBOUND_EMAIL_WEBAPI_PORT:
+      BASEROW_INBOUND_EMAIL_WEBAPI_BIND_IP:
+      BASEROW_INBOUND_EMAIL_RECEIVER_PASSWORD:
+      PRIVATE_BACKEND_URL: ${PRIVATE_BACKEND_URL:-http://backend:8000}
+      BASEROW_DEPLOYMENT_ENV:
+      OTEL_RESOURCE_ATTRIBUTES:
+    depends_on:
+      - backend
+    volumes:
+      - mox_data:/baserow/data/mox
     networks:
       local:
 
@@ -402,6 +501,7 @@ services:
 volumes:
   pgdata:
   media:
+  mox_data:
   caddy_data:
   caddy_config:
 

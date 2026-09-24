@@ -84,3 +84,31 @@ def test_workflow_action_deleted(mock_broadcast_to_permitted_users, data_fixture
     assert args[0][4]["type"] == "workflow_action_deleted"
     assert args[0][4]["workflow_action_id"] == workflow_action_id
     assert args[0][4]["page_id"] == page.id
+
+
+@pytest.mark.django_db(transaction=True)
+@patch(
+    "baserow.contrib.builder.ws.workflow_actions.signals.broadcast_to_permitted_users"
+)
+def test_workflow_actions_reordered(mock_broadcast_to_permitted_users, data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    wa1 = data_fixture.create_notification_workflow_action(
+        page=page, element=element, event="click", order=1
+    )
+    wa2 = data_fixture.create_notification_workflow_action(
+        page=page, element=element, event="click", order=2
+    )
+
+    BuilderWorkflowActionService().order_workflow_actions(
+        user, page, [wa2.id, wa1.id], element=element
+    )
+
+    mock_broadcast_to_permitted_users.delay.assert_called_once()
+    args = mock_broadcast_to_permitted_users.delay.call_args
+
+    assert args[0][4]["type"] == "workflow_actions_reordered"
+    assert args[0][4]["page_id"] == page.id
+    assert args[0][4]["element_id"] == element.id
+    assert args[0][4]["order"] == [wa2.id, wa1.id]

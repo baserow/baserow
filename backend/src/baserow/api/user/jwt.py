@@ -7,6 +7,25 @@ from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import AccessToken, Token
 
 
+def user_is_valid_for_token(user: AbstractUser, token: Token) -> bool:
+    """
+    Check an already loaded user against a token without touching the database.
+
+    Mirrors, in Python, the filters :meth:`UserHandler.get_active_user` applies
+    in SQL plus the token checks :func:`get_user_from_token` makes afterwards.
+
+    :param user: A user whose profile is already loaded.
+    :param token: The decoded JWT token to validate the user against.
+    :return: Whether the user may be authenticated with this token.
+    """
+
+    return (
+        user.is_active
+        and not user.profile.to_be_deleted
+        and user.profile.is_jwt_token_valid(token)
+    )
+
+
 def get_user_from_token(
     token: str,
     token_class: Optional[Type[Token]] = None,

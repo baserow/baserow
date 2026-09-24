@@ -1,5 +1,15 @@
 # Changelog
 
+## Released 2.3.4
+
+### Bug fixes
+* [Database] Fixed a bug where column resizes and other field option changes weren't shown to other users in real time [#5827](https://github.com/baserow/baserow/issues/5827)
+* [Database] Fixed missing row update permission check when importing rows with upsert configuration. [#5916](https://github.com/baserow/baserow/issues/5916)
+* [Database] Write-only data sync fields are excluded from workspace exports [#5918](https://github.com/baserow/baserow/issues/5918)
+* [Database] Restricted ad hoc filters on publicly shared calendar views to the view's visible fields. [#6080](https://github.com/baserow/baserow/issues/6080)
+* [Database] Resolved a bug which caused an AI field self-referencing to recurse indefinitely.
+
+
 ## Released 2.3.3
 
 ### New features

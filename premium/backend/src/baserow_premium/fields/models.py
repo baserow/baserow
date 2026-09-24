@@ -20,6 +20,8 @@ User = get_user_model()
 
 
 class AIField(Field):
+    # Together these form the field's logical AI model selection. The effective
+    # provider configuration is resolved for the field's workspace at runtime.
     ai_generative_ai_type = models.CharField(max_length=32, null=True)
     ai_generative_ai_model = models.CharField(max_length=128, null=True)
     ai_output_type = models.CharField(

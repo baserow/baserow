@@ -17,7 +17,7 @@ export default (client) => {
       searchMode = '',
       publicUrl = false,
       publicAuthToken = null,
-      groupBy = '',
+      groupBy = null,
       orderBy = null,
       filters = {},
       includeFields = [],
@@ -57,7 +57,7 @@ export default (client) => {
         }
       }
 
-      if (groupBy) {
+      if (groupBy || groupBy === '') {
         params.append('group_by', groupBy)
       }
 
@@ -156,14 +156,14 @@ export default (client) => {
       includeDescendants = false,
       descendantLimit = null,
       descendantRowBudget = null,
-      groupBy = '',
+      groupBy = null,
       aggregationsOnly = false,
       includeTotals = false,
     }) {
       const params = new URLSearchParams()
       params.append('offset', offset)
       params.append('limit', limit)
-      if (groupBy) {
+      if (groupBy || groupBy === '') {
         params.append('group_by', groupBy)
       }
       if (includeDescendants) {

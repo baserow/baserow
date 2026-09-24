@@ -62,7 +62,7 @@ describe('createApplicationBuilderMarkdownRules', () => {
     })
 
     expect(html).toContain(
-      '<a href="/builder/42/preview/path" class="ab-link">Link</a>'
+      '<a href="/builder/preview/42/path" class="ab-link">Link</a>'
     )
   })
 })

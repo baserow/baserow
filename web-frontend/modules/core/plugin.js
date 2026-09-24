@@ -28,6 +28,8 @@ import {
   AnthropicModelType,
   MistralModelType,
   OpenRouterModelType,
+  GoogleModelType,
+  GroqModelType,
 } from '@baserow/modules/core/generativeAIModelTypes'
 import {
   UploadFileUserFileUploadType,
@@ -54,6 +56,7 @@ import {
 import {
   MembersWorkspaceSettingsPageType,
   InvitesWorkspaceSettingsPageType,
+  AgentsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
@@ -68,6 +71,14 @@ import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
 import { CloudflareTurnstileCaptchaProviderType } from '@baserow/modules/core/captchaProviderTypes'
 
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
+import {
+  GeneralAgentSettingsType,
+  McpServerAgentSettingsType,
+} from '@baserow/modules/core/agentSettingsTypes'
+import {
+  AgentSubjectType,
+  UserSubjectType,
+} from '@baserow/modules/core/subjectTypes'
 
 import {
   RuntimeAdd,
@@ -161,15 +172,25 @@ export default defineNuxtPlugin({
     registry.registerNamespace('appAuthProvider')
     registry.registerNamespace('roles')
     registry.registerNamespace('generativeAIModel')
+    registry.registerNamespace('aiProviderModelFeature')
     registry.registerNamespace('onboarding')
     registry.registerNamespace('guidedTour')
     registry.registerNamespace('admin')
     registry.registerNamespace('workspaceSettingsPage')
+    registry.registerNamespace('agentExtension')
+    registry.registerNamespace('agentSettings')
+    registry.registerNamespace('subject')
     registry.registerNamespace('errorPage')
     registry.registerNamespace('twoFactorAuth')
     registry.registerNamespace('captchaProvider')
 
     const context = { app: nuxtApp }
+
+    registry.register('subject', new UserSubjectType(context))
+    registry.register('subject', new AgentSubjectType(context))
+
+    registry.register('agentSettings', new GeneralAgentSettingsType(context))
+    registry.register('agentSettings', new McpServerAgentSettingsType(context))
 
     registry.register('settings', new AccountSettingsType(context))
     registry.register('settings', new PasswordSettingsType(context))
@@ -186,6 +207,8 @@ export default defineNuxtPlugin({
 
     registry.register('generativeAIModel', new OpenAIModelType(context))
     registry.register('generativeAIModel', new AnthropicModelType(context))
+    registry.register('generativeAIModel', new GoogleModelType(context))
+    registry.register('generativeAIModel', new GroqModelType(context))
     registry.register('generativeAIModel', new MistralModelType(context))
     registry.register('generativeAIModel', new OllamaModelType(context))
     registry.register('generativeAIModel', new OpenRouterModelType(context))
@@ -247,6 +270,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new InvitesWorkspaceSettingsPageType(context)
+    )
+    registry.register(
+      'workspaceSettingsPage',
+      new AgentsWorkspaceSettingsPageType(context)
     )
 
     registry.register('runtimeFormulaFunction', new RuntimeConcat(context))

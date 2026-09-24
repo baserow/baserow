@@ -1,5 +1,4 @@
 import BigNumber from 'bignumber.js'
-import { FF_BUTTON_FIELD } from '@baserow/modules/core/plugins/featureFlags'
 import {
   DURATION_FORMATS,
   formatDurationValue,
@@ -971,6 +970,14 @@ export class FieldType extends Registerable {
    */
   isReadOnlyField(field) {
     return Boolean(field.read_only)
+  }
+
+  /**
+   * Whether the stored value must never be handed back, as a password field's
+   * hash must not be. Such a field is not offered where a value would be read.
+   */
+  isWriteOnlyField(field) {
+    return false
   }
 
   /**
@@ -5397,6 +5404,10 @@ export class PasswordFieldType extends FieldType {
     return 'iconoir-lock'
   }
 
+  isWriteOnlyField(field) {
+    return true
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('fieldType.password')
@@ -5615,12 +5626,6 @@ export class ButtonFieldType extends FieldType {
 
   getFormViewFieldComponents() {
     return {}
-  }
-
-  isVisibleInDropdown(workspace) {
-    // Hidden (not just disabled) while the feature flag is off. Existing
-    // button fields keep rendering because the type stays registered.
-    return this.app.$featureFlagIsEnabled(FF_BUTTON_FIELD)
   }
 
   isReadOnlyField() {

@@ -58,7 +58,7 @@ class MyConsumer(AsyncJsonWebsocketConsumer):
 
         # If client sends "Hi", say Hello back
         if "hi" in content:
-          self.send_json({"message": "Hello back!"})
+          await self.send_json({"message": "Hello back!"})
 
     # Event handlers
 
@@ -71,6 +71,32 @@ class MyConsumer(AsyncJsonWebsocketConsumer):
 ### CoreConsumer
 
 The main Baserow consumer is `CoreConsumer` (from `backend/src/baserow/ws/consumers.py`). It currently handles all web-frontend connections, all backend events and exchange of all messages between clients and the backend.
+
+### Concurrency and database access
+
+Keep consumer handlers nonblocking. Synchronous database, network, or expensive CPU
+work on the event loop delays every connection served by that loop. Channels processes
+messages sequentially within each consumer; awaiting a replay or permission check
+delays later messages on that socket, while other consumers can continue.
+
+ORM calls must use `run_database_sync` from `baserow.ws.telemetry`, or Channels'
+`database_sync_to_async`. In ordinary WebSocket scopes these calls share one
+thread-sensitive executor thread per ASGI process. Cold authentication, page
+permission checks, and presence-space resolution use this executor. Anonymous and
+valid cached-user authentication avoid it. Slow shared operations can still delay
+other operations using that thread; adding ASGI workers does not increase the
+concurrency within one worker.
+
+`CoreConsumer.dispatch` does not submit database cleanup before every message.
+Database-free handshakes and live, presence, and control delivery therefore avoid
+waiting behind unrelated shared-thread work. Each ORM adapter cleans connections
+before and after its operation on the connection-owning thread, including on error.
+Channels also retains its final disconnect cleanup after presence and group teardown.
+That final cleanup can wait for the shared thread before the application terminates.
+Do not move connection cleanup to an arbitrary thread or create a thread per socket.
+
+Use [WebSocket telemetry](../installation/monitoring.md#websocket-and-realtime-metrics)
+to distinguish executor queueing, database execution, and event-loop delays.
 
 ## Channel Layer and Channel Groups
 
@@ -133,7 +159,7 @@ WebSocket connections drop, and when they do, a client may miss broadcasts sent 
 
 ### Persisted Events
 
-Every broadcast that goes through the channel layer is **persisted** to the database before being sent. This creates a sequential log of all events, keyed by channel group, stored in the `ws_realtime_events` table:
+When replay recording is enabled, replayable broadcasts sent through `send_messages_to_channel_group` are **persisted** to the database before being sent. Direct channel-layer messages, including ephemeral presence updates, bypass recording. This creates a replay log keyed by channel group in the `ws_realtime_events` table:
 
 | Field | Type | Purpose |
 |---|---|---|
@@ -141,33 +167,152 @@ Every broadcast that goes through the channel layer is **persisted** to the data
 | `channel_group` | `TextField` | Which channel group this event targeted (e.g., `table-42`, `users`). |
 | `payload` | `JSONField` | The full broadcast message including type, user filters, and inner payload. |
 | `created_at` | `DateTimeField` | When the event was recorded. Used for retention cleanup. |
+| `target_user_ids` | `ArrayField(IntegerField)` | Recipients of users-channel events, derived by the database from the envelope. |
+| `all_users` | `BooleanField` | Whether a users-channel event targets every user. Derived by the database. |
 
 The `id` returned on insert is injected into the payload as `_event_id` before the message is sent.
 
 The table is created as a PostgreSQL `UNLOGGED` table. This skips write-ahead log (WAL) entries, significantly reducing write overhead for high-throughput event recording. The trade-offs are that contents are lost on unclean shutdown (acceptable — events are ephemeral and clients handle the can't-replay path gracefully) and that the table is invisible to streaming replication, so the database router routes all reads of unlogged models to the primary database. Any new unlogged model should follow the same convention.
 
+Recipient selection uses the small `target_user_ids` array and `all_users` flag,
+rather than searching every user's individual JSON payload map. A GIN index covers
+recipient arrays on the `users` channel, and a partial ID index covers broadcasts
+to all users. Page messages use the `(channel_group, id)` index. Full business
+payloads are not indexed.
+
+The `ws_realtime_event_targets_before_write` trigger calls
+`ws_set_realtime_event_targets()` to derive both columns before insertion
+and when `payload` or `channel_group` changes. This also covers old workers that
+insert only the original columns during deployment. It reads routing metadata for
+users-channel events; page messages need no payload traversal. Live delivery and
+replay must continue to agree on recipient selection.
+
+Migration `ws.0002` resets this disposable buffer with `TRUNCATE ... CONTINUE
+IDENTITY` before installing the columns, trigger and replacement indexes. It does
+not backfill old payloads. The reset and schema changes commit together, with
+indexes built while the table is empty and locked. Lock waits are capped at one
+second and statements at three seconds, preserving stricter existing limits;
+failure rolls the reset back. The event sequence is kept LOGGED and is never
+restarted, so pre-reset cursors cannot match unrelated new events.
+
+Apply the migration before deploying new workers. Clients whose cursor was
+cleared must refresh their data. Older workers remain write-compatible through
+the trigger, but older readers still filter JSON without the previous payload
+index and can be slower during rollout. If replay is disabled in production,
+leave it disabled until all workers are updated. Reversing this migration also
+resets the buffer before restoring its old indexes; neither direction restores
+discarded history. These resets affect only realtime replay, not the underlying
+user data.
+
+Migration `ws.0003` adds separate unlogged history-summary and history-state tables;
+it preserves the existing event table and indexes. Before migration, pause and
+drain the old cleanup task. Update all replay readers before enabling the new
+cleanup, because older readers cannot use the summaries. Initial activation
+establishes a conservative history floor from the logged event sequence. Cursors
+below that floor refresh. After an unlogged-table reset, initialization takes the
+same boundary while briefly blocking inserts, preserving the sequence's `CACHE 1`
+requirement. Before rolling back, disable replay and establish fresh client
+baselines; removing the summaries cannot restore compacted payloads.
+
 ### Last Seen Event ID
 
-The frontend tracks the highest `_event_id` it has observed and advances it on every incoming message. This value is global and monotonic because event IDs come from a single database sequence. It persists continuously across the page load and is not reset on workspace or page changes.
+During normal delivery, the frontend advances its cursor to the highest `_event_id`
+it has processed. The IDs come from a single database sequence. The cursor persists
+across workspace and page changes within a page load. During recovery, the client
+pins the original cursor and buffers persisted updates until replay completes.
 
 ### Replay on Reconnect
 
-When a client reconnects, it re-authenticates, sends a `replay_events` message carrying its last seen event ID as `last_seen_id`, and re-subscribes to the pages it was tracking. The `last_seen_id` tells the server "I've seen everything up to this point", and the server responds with one of three outcomes:
+When a client reconnects, it re-authenticates, restores its page subscriptions, and
+sends a `replay_events` message carrying its last seen event ID as `last_seen_id`.
+The server uses that cursor and those subscriptions to decide whether recovery is
+possible, with these completed outcomes:
 
-1. **Nothing missed** — The replay window contains only the client's `last_seen_id`. The client is already up to date for the channel groups being restored.
+1. **Nothing missed** — No relevant event follows the client's `last_seen_id`, in either full events or expired-history summaries. The client is already up to date for the channel groups being restored, even if the acknowledged event itself has been removed.
 2. **Events replayed** — The server fetches the missed events for the client's page channel groups and implicit `users` group, filters out the client's own broadcasts (via its web socket id) and any events not relevant to that user, and re-invokes them through the consumer's handlers in order — exactly as if they had arrived live. The client catches up without a page reload.
-3. **Can't replay** — Either too many events were missed (more than `BASEROW_REALTIME_REPLAY_MAX_EVENTS`), the client's `last_seen_id` has already been cleaned up by retention, or the server finds a persisted event it cannot safely re-deliver through a websocket broadcast handler. The server responds with `force_refresh=true` and the client shows a "workspace data is outdated" toast with a refresh action.
+3. **Can't replay** — A relevant missed event has expired, the cursor predates known history or is ahead of the recorded high-water mark, too many events were missed (more than `BASEROW_REALTIME_REPLAY_MAX_EVENTS`), or the server finds a persisted event it cannot safely re-deliver through a websocket broadcast handler. The server responds with `force_refresh=true` and the client shows a "workspace data is outdated" toast with a refresh action.
 
-Every `replay_events_result` with `force_refresh=false` includes `latest_event_id`, the latest event ID the server can safely acknowledge for that replay decision. If a client connects without a `last_seen_id` (a fresh page load), the server returns the latest persisted event ID as the new baseline because there is nothing to replay. When replay succeeds, `latest_event_id` is the last event in the replay window and might be lower than the global latest persisted ID if newer events were irrelevant to that client. If the server responds with `force_refresh=true`, `latest_event_id` is not meaningful and the client should refresh instead.
+Every `replay_events_result` with `force_refresh=false` includes `latest_event_id`, the latest event ID the server can safely acknowledge for that replay decision. A fresh page load receives the recorded high-water mark, including compacted history, as its baseline. When replay succeeds, `latest_event_id` is the last replayed event, or the original cursor when nothing relevant changed. It can be lower than the global high-water mark when newer events were irrelevant. Full events, expired summaries and the known-history floor are checked in one database snapshot, so cleanup cannot expose a gap between deleting an event and recording its expired history. If `force_refresh=true`, `latest_event_id` is not meaningful and the client should refresh instead.
+
+### Replay resource limits and retries
+
+Replay reads use a separate executor with two active jobs and up to eight FIFO
+waiters per ASGI process. A request has a three-second budget for queueing,
+connection setup, and execution. PostgreSQL receives a transaction-local statement
+timeout using the remaining budget without relaxing a stricter database timeout.
+These are internal constants in `backend/src/baserow/ws/replay.py`; they do not
+limit event-recording writes. A small result limit alone does not bound how many
+irrelevant rows a query may scan.
+
+Queued cancellations remove their waiter. Once a job is submitted, cancellation or
+a caller deadline retains its slot until the thread and its connection cleanup
+finish. Replay connections close after each job. Configure the database driver's
+connection timeout as well: an async deadline cannot stop a blocked synchronous
+connection attempt.
+
+For overload, timeouts, and database failures, clients advertising
+`supports_retry=true` receive `replay_events_retry` and retry on the same socket
+with backoff and jitter. Older clients receive the existing refresh fallback.
+Expired relevant history, an excessive event gap, or disabled recording requires a
+refresh when recovering missed updates.
+
+The frontend keeps one replay request or retry timer active and holds the original
+cursor across retries. It buffers persisted updates up to 1,000 event IDs and an
+estimated 5 MiB, then delivers recovered updates in event-ID order with duplicates
+removed. Ephemeral presence and control messages bypass this buffer. A fresh
+baseline preserves buffered live updates. Buffer overflow, or a disconnect before
+the first baseline was established, requires a refresh because recovery can no
+longer be verified. An unrecoverable gap stays marked outdated across reconnects.
 
 ### Event Cleanup
 
-A periodic Celery task removes events older than the retention window every 60 minutes. Retention is coupled to `REFRESH_TOKEN_LIFETIME` (default 7 days): clients with tokens older than that will re-authenticate and receive fresh state anyway, so their replay baseline is never needed.
+A periodic Celery task compacts events older than `BASEROW_REALTIME_REPLAY_RETENTION_HOURS` (24 hours by default), independently of JWT refresh-token lifetime. It runs every ten minutes, including when recording is disabled, with a 240-second work budget and at most 5,000 events per committed batch. Each statement has a three-second timeout and a 250 ms lock timeout, tightened to the remaining budget without relaxing stricter database settings. Locked rows are left for a later run.
+
+Each exact audience gets a separate summary containing routing metadata and the
+newest expired event IDs, without full business payloads. The summary keeps the
+newest event and the newest event with a different ignored socket: any client
+excludes at most one socket, so these two entries preserve its latest relevant
+expired event. New browser sessions therefore do not create new summary rows for
+an otherwise identical audience. Distinct audiences can still accumulate; summary
+storage has no fixed size bound or expiry. Row-scoped channel groups such as
+`table-<id>-row-<id>` give one summary per edited row rather than per table, so
+size this against row volume.
+
+Summary updates, deletion of all selected full events, and advancement of the
+compacted high-water mark commit together. Each batch commits separately, so
+earlier progress survives a later failure. Ordinary replay reads remain available
+while a batch is uncommitted. A scheduled run skips cleanup while another task owns
+the nonblocking 330-second lease. The retention target is not a hard maximum row
+age: locked rows or a sustained cleanup backlog can remain until a later run.
+
+Replay also checks the age of relevant full events left behind by cleanup, so
+locked rows or cleanup lag cannot make expired payloads replayable. Increasing the
+retention window cannot restore already compacted payloads. Deleting events or
+summaries outside this cleanup is unsupported without explicitly invalidating
+existing replay cursors.
+
+The existing `(created_at, id)` index supports bounded expiration scans; no second
+age index is added. Since expired originals are removed, retained summaries do not
+accumulate in that scan. Recipient indexes are restricted to the shared `users`
+channel; page events retain the
+`(channel_group, id)` index. Cleanup makes storage reusable through PostgreSQL
+vacuum; it does not normally shrink the table's allocated files. Monitor recording
+rate, committed cleanup progress, and database vacuum activity together; see
+[Monitoring](../installation/monitoring.md#websocket-and-realtime-metrics).
+
+The replay table uses the same autovacuum thresholds as the pending search values table:
+analyze threshold `2000` with scale factor `0.002`, and both update/delete and
+insert-triggered vacuum thresholds `5000` with scale factor `0.01`. For example,
+autoanalyze becomes eligible after approximately `2000 + 0.002 × estimated rows`
+changes. These settings affect eligibility; background-worker scheduling and
+available I/O still determine when maintenance runs. The migration does not run
+an immediate `ANALYZE`.
 
 ### Configuration
 
 | Setting | Default | Purpose |
 |---|---|---|
-| `BASEROW_REALTIME_REPLAY_MAX_EVENTS` | 0 (disabled) | Maximum number of missed events the server will replay. Beyond this, the client is told to refresh. Set to `0` to disable event recording and replay entirely; clients that request replay while replay is disabled are told to refresh because the server cannot verify or fill missed events. |
+| `BASEROW_REALTIME_REPLAY_MAX_EVENTS` | 200 | Maximum number of missed events the server will replay. Beyond this, the client is told to refresh. Set to `0` to disable event recording and replay; retention cleanup continues. Clients learn replay availability during authentication and use refresh when missed events cannot be recovered. |
+| `BASEROW_REALTIME_REPLAY_RETENTION_HOURS` | 24 | Maximum age in hours of full events available for replay. Must be a positive integer. Older relevant missed history requires a refresh; increasing the window cannot restore compacted payloads. |
 
 See [configuration.md](../installation/configuration.md) for the full settings reference.

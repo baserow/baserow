@@ -30,6 +30,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     ButtonStyleOverride,
     CollectionElementCreate,
     DataSourceCreate,
+    DataSourceItem,
     DataSourceSort,
     DataSourceUpdate,
     DisplayElementCreate,
@@ -47,9 +48,13 @@ from baserow_enterprise.assistant.tools.builder.types import (
     TypographyStyleOverride,
 )
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
+    ensure_valid_formula,
     formula_desc,
+    formula_object,
+    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
+    wrap_static_string,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
@@ -123,6 +128,57 @@ class TestFormulaUtils:
     def test_literal_or_placeholder_literal(self):
         assert literal_or_placeholder("Submit") == "'Submit'"
         assert literal_or_placeholder(None) == "''"
+
+    def test_wrap_static_string_escapes_apostrophes(self):
+        assert wrap_static_string("Sales Managers' Week") == (
+            "'Sales Managers\\' Week'"
+        )
+        assert wrap_static_string("Employees' Week") == "'Employees\\' Week'"
+
+    def test_wrap_static_string_escapes_backslashes(self):
+        assert wrap_static_string("C:\\") == "'C:\\\\'"
+
+    def test_wrap_static_string_keeps_valid_literals(self):
+        assert wrap_static_string("'Submit'") == "'Submit'"
+        assert wrap_static_string("'It\\'s'") == "'It\\'s'"
+
+    def test_wrap_static_string_rewraps_invalid_literals(self):
+        # Looks quoted, but the inner apostrophe makes it invalid syntax.
+        assert is_valid_formula(wrap_static_string("'Sales Managers' Week 3'"))
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "Sales Managers' Week 3",
+            "'Sales Managers' Week 3'",
+            "Submit",
+            "'Submit'",
+            "C:\\",
+            "",
+        ],
+    )
+    def test_wrap_static_string_always_parses(self, value):
+        assert is_valid_formula(wrap_static_string(value))
+
+    def test_literal_or_placeholder_escapes_apostrophes(self):
+        assert is_valid_formula(literal_or_placeholder("Sales Managers' Week 3"))
+
+    def test_ensure_valid_formula_keeps_valid_formulas(self):
+        assert ensure_valid_formula("get('page_parameter.id')") == (
+            "get('page_parameter.id')"
+        )
+        assert ensure_valid_formula("'Submit'") == "'Submit'"
+        assert ensure_valid_formula("") == ""
+
+    def test_ensure_valid_formula_falls_back_to_a_literal(self):
+        result = ensure_valid_formula("'Sales Managers' Week 3'")
+
+        assert is_valid_formula(result)
+
+    def test_formula_object_never_stores_an_invalid_formula(self):
+        formula = formula_object("'Sales Managers' Week 3'")
+
+        assert is_valid_formula(formula["formula"])
 
 
 # ===========================================================================
@@ -285,6 +341,18 @@ def test_data_source_validation_errors():
             type="get_row",
             table_id=1,
             # Missing row_id
+        )
+
+
+@pytest.mark.parametrize("row_id", [None, "", "  "])
+def test_update_row_action_requires_a_row_id(row_id):
+    with pytest.raises(ValueError, match="Missing: row_id"):
+        ActionCreate(
+            type="update_row",
+            element="btn",
+            table_id=1,
+            row_id=row_id,
+            field_values=[],
         )
 
 
@@ -464,6 +532,31 @@ def test_list_elements(data_fixture):
     result = list_elements(ctx, page_id=page.id, thought="test")
 
     assert result["elements"] == []
+
+
+@pytest.mark.django_db
+def test_list_elements_on_populated_page(data_fixture):
+    # Regression: from_orm must only read attributes that survived b70bc968d.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    data_fixture.create_builder_heading_element(page=page)
+    data_fixture.create_builder_form_container_element(page=page)
+    data_fixture.create_builder_table_element(page=page)
+    data_fixture.create_builder_column_element(page=page)
+
+    ctx = make_test_ctx(user, workspace)
+    result = list_elements(ctx, page_id=page.id, thought="test")
+
+    assert {el["type"] for el in result["elements"]} == {
+        "heading",
+        "form_container",
+        "table",
+        "column",
+    }
+    assert all(el["id"] for el in result["elements"])
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2566,3 +2659,18 @@ def test_setup_user_source_existing_table_creates_password_field(data_fixture):
     password_fields = [f for f in table_fields if isinstance(f, PasswordField)]
     assert len(password_fields) == 1
     assert password_fields[0].name == "Password"
+
+
+def test_data_source_type_folds_registered_name():
+    ds = DataSourceCreate(
+        ref="d", name="Products", type="local_baserow_list_rows", table_id=1
+    )
+    assert ds.type == "list_rows"
+
+
+def test_data_source_dedup_matches_the_registered_type():
+    ds = DataSourceCreate(ref="d", name="Products", type="list_rows", table_id=5)
+    existing = DataSourceItem(
+        id=1, name="Existing", type="local_baserow_list_rows", table_id=5
+    )
+    assert ds.matches_existing(existing)

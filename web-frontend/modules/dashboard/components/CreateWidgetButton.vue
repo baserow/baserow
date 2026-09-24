@@ -3,13 +3,16 @@
     <CreateWidgetModal
       ref="createWidgetModal"
       :dashboard="dashboard"
+      :loading="loading"
       @widget-variation-selected="$emit('widget-variation-selected', $event)"
     />
-    <ButtonFloating
+    <Button
       icon="iconoir-plus"
       type="secondary"
+      :loading="loading"
       @click="openCreateWidgetModal"
-    ></ButtonFloating>
+      >{{ $t('dashboard.addWidget') }}</Button
+    >
   </div>
 </template>
 
@@ -24,10 +27,19 @@ export default {
       type: Object,
       required: true,
     },
+    loading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   emits: ['widget-variation-selected'],
   methods: {
     openCreateWidgetModal() {
+      if (this.loading) {
+        return
+      }
+
       this.$refs.createWidgetModal.show()
     },
   },

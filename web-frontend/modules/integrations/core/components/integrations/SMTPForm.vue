@@ -49,11 +49,20 @@
       />
     </FormGroup>
 
-    <FormGroup :label="$t('smtpForm.password')" small-label>
+    <FormGroup
+      :label="$t('smtpForm.password')"
+      small-label
+      :helper-text="hasPassword ? $t('smtpForm.passwordConfigured') : ''"
+    >
       <FormInput
         v-model="values.password"
         type="password"
-        :placeholder="$t('smtpForm.passwordPlaceholder')"
+        autocomplete="new-password"
+        :placeholder="
+          hasPassword
+            ? $t('smtpForm.passwordKeepPlaceholder')
+            : $t('smtpForm.passwordPlaceholder')
+        "
       />
     </FormGroup>
   </div>
@@ -83,10 +92,30 @@ export default {
         port: 587,
         use_tls: true,
         username: '',
-        password: '',
+        // Untouched (`null`) is dropped on submit to keep the stored password;
+        // an empty string clears it.
+        password: null,
       },
       allowedValues: ['host', 'port', 'use_tls', 'username', 'password'],
     }
+  },
+  computed: {
+    hasPassword() {
+      return this.defaultValues.has_password === true
+    },
+  },
+  methods: {
+    getFormValues(deep = false) {
+      const values = Object.assign(
+        {},
+        this.values,
+        this.getChildFormsValues(deep)
+      )
+      if (values.password === null) {
+        delete values.password
+      }
+      return values
+    },
   },
   validations() {
     return {

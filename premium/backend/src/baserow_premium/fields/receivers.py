@@ -5,7 +5,7 @@ from django.dispatch import receiver
 
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
 from baserow.core import signals as core_signals
-from baserow.core.ai_provider.signals import ai_provider_availability_changed
+from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.ws.registries import page_registry
 
 from .models import AIField
@@ -35,19 +35,33 @@ def _schedule_ai_field_error_broadcasts(fields):
         )
 
 
-@receiver(ai_provider_availability_changed)
-def broadcast_ai_field_errors(sender, provider_type, model_identifiers=None, **kwargs):
+@receiver(ai_provider_updated)
+def broadcast_ai_field_errors(
+    sender,
+    model_availability_updated,
+    provider_type=None,
+    workspace=None,
+    model_identifiers=None,
+    **kwargs,
+):
     """
     Re-serialize affected AI fields after provider availability changes.
 
     These are computed metadata changes, not schema changes, so this broadcasts
     directly instead of sending the database ``field_updated`` domain signal.
     Passing no excluded websocket ID ensures the admin's other open tabs update.
+    A workspace-owned change cannot affect fields elsewhere, so only an
+    instance-level change scans every workspace.
     """
+
+    if not model_availability_updated:
+        return
 
     fields = AIField.objects.filter(ai_generative_ai_type=provider_type).select_related(
         "table__database__workspace"
     )
+    if workspace is not None:
+        fields = fields.filter(table__database__workspace=workspace)
     if model_identifiers is not None:
         fields = fields.filter(ai_generative_ai_model__in=model_identifiers)
 

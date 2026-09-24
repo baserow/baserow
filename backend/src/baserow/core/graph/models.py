@@ -480,6 +480,19 @@ class GraphPointTrashableItemType(TrashableItemType):
         self.validate_reference(reference, output)
 
         graph = trashed_item.get_parent().get_graph()
+        # Lock (and refresh) the graph before checking the reference, so the
+        # check runs against the latest committed state.
+        graph.lock_for_update()
+
+        # A live, untrashed reference can still be absent from the graph (an
+        # unhealed orphan, or removed by a concurrent write): insert() would
+        # reject it as invalid. Surface that as a restoration error instead.
+        if reference is not None and str(reference.id) not in graph.graph:
+            raise TrashItemRestorationDisallowed(
+                f"This record cannot be restored because its reference record "
+                f"({reference.id}) is currently not placed in the graph."
+            )
+
         graph.insert(trashed_item, reference, position_type, output)
 
         # Restore children in DFS order (ancestors before their dependants),

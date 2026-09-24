@@ -25,6 +25,7 @@ import PublicViewExportService from '@baserow_premium/services/publicViewExport'
 import {
   createFiltersTree,
   getOrderBy,
+  serializeGroupBys,
 } from '@baserow/modules/database/utils/view'
 
 export default {
@@ -80,6 +81,11 @@ export default {
 
       const orderBy = getOrderBy(this.view, true)
       values.order_by = orderBy
+
+      const viewType = this.$registry.get('view', this.view.type)
+      if (viewType.canGroupBy) {
+        values.group_by = serializeGroupBys(this.view)
+      }
 
       values.fields =
         this.visibleOrderedFields === null

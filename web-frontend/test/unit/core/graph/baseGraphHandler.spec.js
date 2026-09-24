@@ -609,4 +609,56 @@ describe('BaseGraphHandler', () => {
       expect(h.graph[1]).toBeUndefined()
     })
   })
+
+  describe('corrupted graph termination', () => {
+    // The backend write guards prevent the server graph from going cyclic,
+    // but the client's local copy is mutated by optimistic operations,
+    // realtime triplets applied to possibly-diverged state and error
+    // rollbacks — so every walk must terminate on a cyclic graph instead of
+    // freezing the tab. Termination only: repair is the backend heal's job.
+
+    // Container 1, slot chain 2 -> 3 -> 2 (loop), sibling next 1 -> 4.
+    const cyclicGraph = {
+      0: 1,
+      1: { children: { '': [2] }, next: { '': [4] } },
+      2: { next: { '': [3] } },
+      3: { next: { '': [2] } },
+      4: { next: { '': [1] } },
+    }
+
+    test('getChildren terminates on a looping slot chain', () => {
+      const h = make(cyclicGraph, pm(1, 2, 3, 4))
+      const children = h.getChildren(pt(1), { followChains: true })
+      expect(children.map((p) => p.id)).toEqual([2, 3])
+    })
+
+    test('getPreviousPositions terminates on a cyclic graph', () => {
+      const h = make(cyclicGraph, pm(1, 2, 3, 4))
+      // 99 is not in the graph: the exploration must exhaust and return []
+      // rather than recursing forever around the cycle.
+      expect(h.getPreviousPositions(pt(99))).toEqual([])
+    })
+
+    test('getDescendantIds terminates on a looping slot chain', () => {
+      const h = make(cyclicGraph, pm(1, 2, 3, 4))
+      expect(h.getDescendantIds(1).map(String).sort()).toEqual(['2', '3'])
+    })
+
+    test('getLastPosition terminates on a looping next chain', () => {
+      const h = make(
+        { 0: 1, 1: { next: { '': [2] } }, 2: { next: { '': [1] } } },
+        pm(1, 2)
+      )
+      const [point, position, output] = h.getLastPosition()
+      expect(point.id).toBe(2)
+      expect(position).toBe('south')
+      expect(output).toBe('')
+    })
+
+    test('getPointsInDepthFirstOrder terminates on a cyclic graph', () => {
+      const h = make(cyclicGraph, pm(1, 2, 3, 4))
+      const ordered = h.getPointsInDepthFirstOrder()
+      expect(ordered.map((p) => p.id)).toEqual([1, 2, 3, 4])
+    })
+  })
 })

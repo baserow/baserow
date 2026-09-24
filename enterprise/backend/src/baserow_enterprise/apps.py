@@ -57,7 +57,11 @@ class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
     def ready(self):
+        from baserow.core.agents.registries import agent_extension_type_registry
         from baserow.core.jobs.registries import job_type_registry
+        from baserow_enterprise.agents.agent_extension_types import (
+            EnterpriseAgentExtensionType,
+        )
         from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
         from baserow_enterprise.audit_log.operations import (
             ListWorkspaceAuditLogEntriesOperationType,
@@ -68,6 +72,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         job_type_registry.register(AuditLogExportJobType())
         job_type_registry.register(DataScanResultExportJobType())
+        agent_extension_type_registry.register(EnterpriseAgentExtensionType())
 
         from baserow.api.user.registries import member_data_registry
         from baserow.core.action.registries import (
@@ -281,10 +286,12 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
             FileInputElementType,
+            GraphElementType,
         )
 
         element_type_registry.register(AuthFormElementType())
         element_type_registry.register(FileInputElementType())
+        element_type_registry.register(GraphElementType())
 
         from baserow.contrib.database.data_sync.registries import (
             two_way_sync_strategy_type_registry,
@@ -343,7 +350,6 @@ class BaserowEnterpriseConfig(AppConfig):
             sender=self,
             dispatch_uid="sync_default_roles_after_migrate",
         )
-
         # Make sure that the assistant knowledge base is up to date after running the
         # migrations.
         if not settings.TESTS:
@@ -366,6 +372,9 @@ class BaserowEnterpriseConfig(AppConfig):
         connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments()
 
         from baserow.core.notifications.registries import notification_type_registry
+        from baserow_enterprise.application_users.notification_types import (
+            ApplicationUserLimitNotificationType,
+        )
         from baserow_enterprise.data_scanner.notification_types import (
             DataScanNewResultsNotificationType,
         )
@@ -381,6 +390,7 @@ class BaserowEnterpriseConfig(AppConfig):
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
         notification_type_registry.register(DataScanNewResultsNotificationType())
+        notification_type_registry.register(ApplicationUserLimitNotificationType())
 
         from baserow_enterprise.views.operations import (
             ListenToAllRestrictedViewEventsOperationType,
@@ -406,6 +416,12 @@ class BaserowEnterpriseConfig(AppConfig):
         page_registry.register(RestrictedViewPageType())
         view_realtime_rows_registry.register(RestrictedViewRealtimeRowsType())
 
+        from baserow.core.ai_provider.registries import (
+            ai_provider_model_feature_type_registry,
+        )
+        from baserow_enterprise.assistant.ai_provider_feature_types import (
+            KumaAIProviderModelFeatureType,
+        )
         from baserow_enterprise.assistant.tools.automation.tool_types import (
             AutomationToolType,
         )
@@ -425,6 +441,17 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
             SearchDocsToolType,
         )
+
+        ai_provider_model_feature_type_registry.register(
+            KumaAIProviderModelFeatureType()
+        )
+
+        from baserow.api.settings.registries import settings_data_registry
+        from baserow_enterprise.api.assistant.settings_data_types import (
+            KumaSettingsDataType,
+        )
+
+        settings_data_registry.register(KumaSettingsDataType())
 
         assistant_tool_registry.register(NavigationToolType())
         assistant_tool_registry.register(CoreToolType())

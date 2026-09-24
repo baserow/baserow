@@ -39,7 +39,12 @@ class BuilderDispatchContext(DispatchContext):
         "count",
         "only_record_id",
         "only_expose_public_allowed_properties",
+        "workspace",
     ]
+
+    # The answer and the body have always had a whole timeout each here, so
+    # an external request keeps both until #6117 settles a stricter one.
+    external_request_timeouts = 2
 
     def __init__(
         self,
@@ -79,6 +84,8 @@ class BuilderDispatchContext(DispatchContext):
             only_expose_public_allowed_properties
         )
 
+        kwargs["workspace"] = page.builder.get_workspace()
+
         super().__init__(**kwargs)
 
         # Early call to quickly trigger a validation error
@@ -106,11 +113,7 @@ class BuilderDispatchContext(DispatchContext):
             data=getattr(self.request, "data", {}).get("metadata", {}),
             context={
                 "page": self.page,
-                "user": getattr(
-                    self.request,
-                    "user_source_user",
-                    getattr(self.request, "user", None),
-                ),
+                "user": getattr(self.request, "user", None),
             },
         )
         serializer.is_valid(raise_exception=True)
@@ -166,10 +169,10 @@ class BuilderDispatchContext(DispatchContext):
                     pass
 
         # max prevent negative values
-        return [
+        return (
             max(0, offset),
             max(0, count) if count is not None else None,
-        ]
+        )
 
     def get_element_property_options(self) -> Dict[str, Dict[str, bool]]:
         """

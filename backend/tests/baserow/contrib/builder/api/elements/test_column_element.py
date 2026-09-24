@@ -394,6 +394,103 @@ def test_column_element_invalid_child_in_container_on_create(api_client, data_fi
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "place_in_container,error",
+    [
+        ("", "place_in_container must be an integer between 0 and 1, ('' was given)"),
+        (
+            "abc",
+            "place_in_container must be an integer between 0 and 1, ('abc' was given)",
+        ),
+        (None, "place_in_container must be an integer between 0 and 1, ('' was given)"),
+        ("-1", "place_in_container must be at least 0, (-1 was given)"),
+    ],
+)
+def test_column_element_non_numeric_child_place_in_container_on_create(
+    api_client, data_fixture, place_in_container, error
+):
+    user, token = data_fixture.create_user_and_token()
+    column_element = data_fixture.create_builder_column_element(
+        user=user, column_amount=2
+    )
+
+    url = reverse(
+        "api:builder:element:list", kwargs={"page_id": column_element.page.id}
+    )
+    response = api_client.post(
+        url,
+        {
+            "type": "text",
+            "reference_element_id": column_element.id,
+            "position": GraphPointPosition.CHILD,
+            "place_in_container": place_in_container,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [error]
+
+
+@pytest.mark.django_db
+def test_column_element_omitted_child_place_in_container_on_create(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    column_element = data_fixture.create_builder_column_element(
+        user=user, column_amount=2
+    )
+
+    url = reverse(
+        "api:builder:element:list", kwargs={"page_id": column_element.page.id}
+    )
+    response = api_client.post(
+        url,
+        {
+            "type": "text",
+            "reference_element_id": column_element.id,
+            "position": GraphPointPosition.CHILD,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "place_in_container must be an integer between 0 and 1, ('' was given)"
+    ]
+
+
+@pytest.mark.django_db
+def test_column_element_empty_child_place_in_container_on_move(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    column_element = data_fixture.create_builder_column_element(
+        user=user, column_amount=2
+    )
+    child = data_fixture.create_builder_text_element(page=column_element.page)
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": child.id})
+    response = api_client.patch(
+        url,
+        {
+            "reference_element_id": column_element.id,
+            "position": GraphPointPosition.CHILD,
+            "place_in_container": "",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "place_in_container must be an integer between 0 and 1, ('' was given)"
+    ]
+
+
+@pytest.mark.django_db
 def test_column_element_custom_weights_validation(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)

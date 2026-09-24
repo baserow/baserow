@@ -8,11 +8,11 @@ from rest_framework.views import APIView
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions
 from baserow.api.schemas import get_error_schema
+from baserow.contrib.builder.preview.authentication import (
+    BuilderPreviewAuthentication,
+)
 from baserow.contrib.builder.service import BuilderService
 from baserow.core.exceptions import ApplicationDoesNotExist
-from baserow_enterprise.api.authentication import (
-    AuthenticateFromUserSessionAuthentication,
-)
 from baserow_enterprise.features import BUILDER_CUSTOM_CODE
 from baserow_premium.license.handler import LicenseHandler
 
@@ -82,6 +82,4 @@ class PublicCustomCodeView(APIView):
 
 # This version is for authorized users only while in preview
 class CustomCodeView(PublicCustomCodeView):
-    authentication_classes = APIView.authentication_classes + [
-        AuthenticateFromUserSessionAuthentication
-    ]
+    authentication_classes = (BuilderPreviewAuthentication,)

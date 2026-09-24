@@ -48,7 +48,10 @@ from baserow.contrib.database.fields.field_filters import (
     AdvancedFilterBuilder,
     FilterBuilder,
 )
-from baserow.contrib.database.fields.field_sortings import OptionallyAnnotatedOrderBy
+from baserow.contrib.database.fields.field_sortings import (
+    OptionallyAnnotatedOrderBy,
+    serialize_sorts_to_string,
+)
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.contrib.database.fields.registries import (
@@ -59,6 +62,9 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
+from baserow.contrib.database.views.configuration_copy import (
+    view_configuration_copy_category_type_registry,
+)
 from baserow.contrib.database.views.exceptions import (
     ViewOwnershipTypeDoesNotExist,
     ViewOwnershipTypeNotCompatibleWithViewType,
@@ -118,6 +124,7 @@ from baserow.core.models import Workspace
 from baserow.core.registries import ImportExportConfig
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import (
     MirrorDict,
     atomic_if_not_already,
@@ -131,11 +138,13 @@ from baserow.core.utils import (
 
 from .constants import GROUP_BY_DATA_DEFAULT_LIMIT
 from .exceptions import (
+    CannotCopyViewConfigurationToSameView,
     CannotShareViewTypeError,
     DecoratorValueProviderTypeNotCompatible,
     FieldAggregationNotSupported,
     NoAuthorizationToPubliclySharedView,
     UnrelatedFieldError,
+    ViewConfigurationCopyCategoryNotSupported,
     ViewDecorationDoesNotExist,
     ViewDecorationNotSupported,
     ViewDoesNotExist,
@@ -184,6 +193,7 @@ from .signals import (
     form_submitted,
     rows_entered_view,
     rows_exited_view,
+    view_configuration_changed,
     view_created,
     view_decoration_created,
     view_decoration_deleted,
@@ -398,7 +408,7 @@ class ViewIndexingHandler:
 
         field_order_bys = []
 
-        for view_sort_or_group_by in view.get_all_sorts():
+        for view_sort_or_group_by in view.get_all_ordering():
             field_object = model._field_objects[view_sort_or_group_by.field_id]
             annotated_order_by = field_object["type"].get_order(
                 field_object["field"],
@@ -1163,6 +1173,206 @@ class ViewHandler:
 
         return duplicated_view
 
+    def _check_view_configuration_permissions(
+        self, user: AbstractUser, view: View, categories: Iterable[str]
+    ):
+        """
+        Checks in one batch that the user is allowed to configure all the requested
+        categories on the given view. The same check is applied to the source and
+        the destination of a copy because the ownership managers hide configuration
+        from users that lack these write operations, so a read check alone would
+        leak configuration that the interface hides.
+
+        :param user: The user on whose behalf the permissions are checked.
+        :param view: The view that the categories are configured on.
+        :param categories: The category types that must be checked.
+        :raises PermissionException: When the user is not allowed to configure one
+            of the categories on the view.
+        """
+
+        checks = [
+            PermissionCheck(user, operation_type.type, view)
+            for category in categories
+            for operation_type in view_configuration_copy_category_type_registry.get(
+                category
+            ).operation_types
+        ]
+        CoreHandler().check_multiple_permissions(
+            checks,
+            workspace=view.table.database.workspace,
+            raise_exception=True,
+        )
+
+    def export_view_configuration(
+        self, view: View, categories: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Returns a JSON serializable snapshot of the requested configuration categories
+        of the given view, including primary keys so that an undo can restore the exact
+        same objects via `apply_view_configuration`.
+
+        :param view: The specific view to export the configuration of.
+        :param categories: The category types that must be exported.
+        :return: The exported configuration per category.
+        """
+
+        cache = {}
+        return {
+            category: view_configuration_copy_category_type_registry.get(
+                category
+            ).export_configuration(view, cache=cache)
+            for category in categories
+        }
+
+    def apply_view_configuration(
+        self,
+        user: AbstractUser,
+        view: View,
+        configuration: Dict[str, Any],
+        preserve_ids: bool = False,
+    ):
+        """
+        Replaces the view's configuration with one previously exported with
+        `export_view_configuration`. All categories are applied with bulk operations
+        and a single `view_configuration_changed` signal is sent afterwards, instead of
+        a granular signal per created or deleted object, so that connected clients
+        receive one event with the complete new view state.
+
+        :param user: The user on whose behalf the configuration is applied.
+        :param view: The specific view to apply the configuration to.
+        :param configuration: The exported configuration per category.
+        :param preserve_ids: If True, the objects are recreated with the primary keys
+            from the configuration, which undo/redo relies on so that other clients
+            keep referencing valid ids.
+        :raises PermissionException: When the user is not allowed to configure one
+            of the categories on the view.
+        """
+
+        self._check_view_configuration_permissions(user, view, configuration.keys())
+
+        cache = {}
+        merged_field_options = {}
+        applied_category_types = []
+        for category, category_configuration in configuration.items():
+            category_type = view_configuration_copy_category_type_registry.get(category)
+            field_options = category_type.apply_configuration(
+                view,
+                category_configuration,
+                user=user,
+                preserve_ids=preserve_ids,
+                cache=cache,
+            )
+            for field_id, values in (field_options or {}).items():
+                merged_field_options.setdefault(int(field_id), {}).update(values)
+            applied_category_types.append(category_type)
+
+        if merged_field_options:
+            fields = Field.objects_and_trash.filter(table_id=view.table_id)
+            existing_field_ids = {field.id for field in fields}
+            # The `view_configuration_changed` signal sent below covers the
+            # field options change, so the granular signal is suppressed to
+            # keep this a single broadcast.
+            self.update_field_options(
+                view=view,
+                field_options={
+                    field_id: values
+                    for field_id, values in merged_field_options.items()
+                    if field_id in existing_field_ids
+                },
+                user=user,
+                fields=fields,
+                send_signal=False,
+            )
+
+        for category_type in applied_category_types:
+            category_type.after_applied(view)
+
+        view_configuration_changed.send(
+            self, view=view, user=user, categories=list(configuration.keys())
+        )
+
+    def validate_view_configuration_copy(
+        self,
+        source_view: View,
+        dest_view: View,
+        categories: List[str],
+    ):
+        """
+        Validates that the requested configuration categories can be copied from the
+        source view into the destination view.
+
+        :param source_view: The specific view to copy the configuration from.
+        :param dest_view: The specific view to copy the configuration into.
+        :param categories: The category types that must be copied.
+        :raises ViewNotInTable: When the source view belongs to another table.
+        :raises CannotCopyViewConfigurationToSameView: When the source and
+            destination view are the same view.
+        :raises ViewConfigurationCopyCategoryNotSupported: When a requested
+            category is not supported by both view types.
+        """
+
+        if source_view.id == dest_view.id:
+            raise CannotCopyViewConfigurationToSameView(
+                "The source and destination view of a configuration copy must "
+                "be different views."
+            )
+
+        if source_view.table_id != dest_view.table_id:
+            raise ViewNotInTable(source_view.id)
+
+        source_view_type = view_type_registry.get_by_model(source_view.specific_class)
+        dest_view_type = view_type_registry.get_by_model(dest_view.specific_class)
+        supported_categories = (
+            source_view_type.get_copyable_configuration_categories()
+            & dest_view_type.get_copyable_configuration_categories()
+        )
+        unsupported_categories = set(categories) - supported_categories
+        if unsupported_categories:
+            raise ViewConfigurationCopyCategoryNotSupported(
+                sorted(unsupported_categories)
+            )
+
+    def copy_view_configuration(
+        self,
+        user: AbstractUser,
+        source_view: View,
+        dest_view: View,
+        categories: List[str],
+    ) -> View:
+        """
+        Copies the requested configuration categories of the source view into
+        the destination view of the same table, replacing the destination's
+        existing configuration of those categories.
+
+        :param user: The user on whose behalf the configuration is copied.
+        :param source_view: The specific view to copy the configuration from.
+        :param dest_view: The specific view to copy the configuration into.
+        :param categories: The category types that must be copied.
+        :raises ViewNotInTable: When the source view belongs to another table.
+        :raises CannotCopyViewConfigurationToSameView: When the source and
+            destination view are the same view.
+        :raises ViewConfigurationCopyCategoryNotSupported: When a requested
+            category is not supported by both view types.
+        :raises PermissionException: When the user is not allowed to read or
+            configure one of the categories on the source or destination view.
+        :return: The updated destination view.
+        """
+
+        self.validate_view_configuration_copy(source_view, dest_view, categories)
+
+        CoreHandler().check_permissions(
+            user,
+            ReadViewOperationType.type,
+            workspace=dest_view.table.database.workspace,
+            context=source_view,
+        )
+        self._check_view_configuration_permissions(user, source_view, categories)
+
+        configuration = self.export_view_configuration(source_view, categories)
+        self.apply_view_configuration(user, dest_view, configuration)
+
+        return dest_view
+
     def update_view(
         self, user: AbstractUser, view: View, **data: Dict[str, Any]
     ) -> UpdatedViewWithChangedAttributes:
@@ -1391,6 +1601,7 @@ class ViewHandler:
         field_options: FieldOptionsDict,
         user: Optional[AbstractUser] = None,
         fields: Optional[QuerySet[Field]] = None,
+        send_signal: bool = True,
     ):
         """
         Updates the field options with the provided values if the field id exists in
@@ -1412,6 +1623,8 @@ class ViewHandler:
           no permission checking.
         :param fields: Optionally a list of fields can be provided so that they don't
             have to be fetched again.
+        :param send_signal: If False, the `view_field_options_updated` signal is not
+            sent, for when the caller broadcasts the change itself.
         :raises UnrelatedFieldError: When the provided field id is not related to the
             provided view.
         """
@@ -1508,7 +1721,8 @@ class ViewHandler:
             view, field_options, fields, updated_instances
         )
 
-        view_field_options_updated.send(self, view=view, user=user)
+        if send_signal:
+            view_field_options_updated.send(self, view=view, user=user)
 
     def after_field_moved_between_tables(self, field: Field, original_table_id: int):
         """
@@ -2095,7 +2309,7 @@ class ViewHandler:
         """
 
         order_by = []
-        for view_sort_or_group_by in view.get_all_sorts(restrict_to_field_ids):
+        for view_sort_or_group_by in view.get_all_ordering(restrict_to_field_ids):
             # If the to be sort field is not present in the `_field_objects` we
             # cannot filter so we raise a ValueError.
             if view_sort_or_group_by.field_id not in model._field_objects:
@@ -2137,36 +2351,25 @@ class ViewHandler:
 
         return order_by, queryset
 
-    def apply_sorting(
+    def apply_ordering(
         self,
         view: View,
         queryset: QuerySet,
         restrict_to_field_ids: Optional[Iterable[int]] = None,
     ) -> QuerySet:
         """
-        Applies the view's sorting to the given queryset. The first sort, which for now
-        is the first created, will always be applied first. Secondary sortings are
-        going to be applied if the values of the first sort rows are the same.
+        Applies the view's full ordering — group-bys first, then sorts — to the
+        given queryset. Group-by fields use ``get_group_by_sort_order`` (set-based
+        ordering for M2M fields), while sort fields use ``get_order``.
 
-        Example:
-
-        id | field_1 | field_2
-        1  | Bram    | 20
-        2  | Bram    | 10
-        3  | Elon    | 30
-
-        If we are going to sort ascending on field_1 and field_2 the resulting ids are
-        going to be 2, 1 and 3 in that order.
-
-        :param view: The view where to fetch the sorting from.
-        :param queryset: The queryset where the sorting need to be applied to.
+        :param view: The view whose group-bys and sorts to apply.
+        :param queryset: The queryset to order.
         :param restrict_to_field_ids: Only field ids in this iterable will have their
-            view sorts applied in the resulting queryset.
+            view sorts/group-bys applied in the resulting queryset.
         :raises ValueError: When the queryset's model is not a table model or if the
-            table model does not contain the one of the fields.
-        :raises ViewSortDoesNotExist: When the view is trashed
-
-        :return: The queryset where the sorting has been applied to.
+            table model does not contain one of the fields.
+        :raises ViewSortDoesNotExist: When the view is trashed.
+        :return: The queryset with ordering applied.
         """
 
         model = queryset.model
@@ -3099,7 +3302,7 @@ class ViewHandler:
         if view_type.can_filter and apply_filters:
             queryset = self.apply_filters(view, queryset)
         if view_type.can_sort and apply_sorts:
-            queryset = self.apply_sorting(
+            queryset = self.apply_ordering(
                 view,
                 queryset,
                 only_sort_by_field_ids,
@@ -3909,23 +4112,28 @@ class ViewHandler:
         queryset = table_model.objects.all().enhance_by_fields()
         queryset = self.apply_filters(view, queryset)
 
-        if view_type.can_group_by:
-            has_group_by = group_by is not None and group_by != ""
-            has_order_by = order_by is not None and order_by != ""
-            # If both the group by and order by string is set, then we must merge the
-            # two so that it will be sorted the right way because the grouping is
-            # basically just sorting for the backend. However, the group by will take
-            # precedence.
-            if has_group_by and has_order_by:
-                order_by = f"{group_by},{order_by}"
-            # If only the group_by is set, then we can simply replace the order_by
-            # because that must be applied to the queryset.
-            elif has_group_by:
-                order_by = group_by
+        has_adhoc_sorting = order_by is not None
+        group_by_for_ordering = group_by if view_type.can_group_by else None
+        has_adhoc_grouping = group_by_for_ordering is not None
+        has_any_adhoc_ordering = has_adhoc_sorting or has_adhoc_grouping
 
-        if order_by is not None and order_by != "":
+        if has_any_adhoc_ordering:
+            effective_group_by = group_by_for_ordering or ""
+            effective_order_by = order_by or ""
+
+            if not has_adhoc_grouping and view_type.can_group_by:
+                effective_group_by = serialize_sorts_to_string(
+                    view.viewgroupby_set.all()
+                )
+
+            if not has_adhoc_sorting:
+                effective_order_by = serialize_sorts_to_string(view.viewsort_set.all())
+
             queryset = queryset.order_by_fields_string(
-                order_by, False, visible_field_ids
+                effective_order_by,
+                False,
+                visible_field_ids,
+                group_by_string=effective_group_by or None,
             )
 
         if adhoc_filters.has_any_filters:

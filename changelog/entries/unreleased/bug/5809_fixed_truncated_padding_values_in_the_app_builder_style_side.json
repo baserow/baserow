@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed truncated padding values in the App Builder style sidebar.",
+    "issue_origin": "github",
+    "issue_number": 5809,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-08-04"
+}

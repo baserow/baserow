@@ -3,12 +3,14 @@ from typing import Any, Dict, Optional
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 
+from loguru import logger
 from rest_framework import serializers
 
 from baserow.core.action.registries import action_type_registry
 from baserow.core.auth_provider.exceptions import (
     CannotDisableLastAuthProvider,
     DifferentAuthProvider,
+    UnverifiedEmailFromProvider,
 )
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.auth_provider.models import (
@@ -83,9 +85,21 @@ class AuthProviderType(BaseAuthProviderType):
             to the UserHandler().create_user() method.
         :raises DeactivatedUserException: If the user exists but has been
             disabled from an admin.
+        :raises UnverifiedEmailFromProvider: If the provider reports the
+            email as unverified.
+        :raises DifferentAuthProvider: If the user exists but has been
+            created using a different auth provider.
         :return: The user that was created or retrieved and a boolean flag set
             to True if the user has been created, False otherwise.
         """
+
+        if not user_info.email_verified:
+            logger.warning(
+                "Rejecting SSO login — provider reported email as unverified "
+                "(provider_id={})",
+                auth_provider.id,
+            )
+            raise UnverifiedEmailFromProvider()
 
         try:
             user = self.get_user_and_sign_in(auth_provider, user_info)
@@ -118,14 +132,21 @@ class AuthProviderType(BaseAuthProviderType):
 
         user = UserHandler().get_active_user(email=user_info.email)
 
+        is_first_login_with_this_provider = not auth_provider.users.filter(
+            id=user.id
+        ).exists()
+
         is_original_provider_check_needed = (
             not settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT
         )
-        if (
-            is_original_provider_check_needed
-            and not auth_provider.users.filter(id=user.id).exists()
-        ):
+        if is_original_provider_check_needed and is_first_login_with_this_provider:
             raise DifferentAuthProvider()
+
+        if user_info.email_verified:
+            profile = user.profile
+            if not profile.email_verified:
+                profile.email_verified = True
+                profile.save(update_fields=["email_verified"])
 
         action_type_registry.get(SignInUserActionType.type).do(user, auth_provider)
 
@@ -162,6 +183,7 @@ class AuthProviderType(BaseAuthProviderType):
             language=user_info.language,
             workspace_invitation_token=user_info.workspace_invitation_token,
             auth_provider=auth_provider,
+            email_verified=user_info.email_verified,
         )
 
     def export_serialized(self) -> Dict[str, Any]:

@@ -3,11 +3,42 @@ from typing import Callable
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import is_valid_path
+from django.utils.cache import patch_vary_headers
 
 from rest_framework import status
 
 from baserow.config.db_routers import clear_db_state
 from baserow.core.handler import CoreHandler
+
+
+class BaserowCredentialedCorsMiddleware:
+    """
+    Allows credentialed CORS only for trusted frontend origins.
+
+    Baserow keeps broad CORS enabled because published builder sites can be served
+    from arbitrary custom domains. Credentials must be narrower because cookies
+    are ambient browser credentials, unlike the explicit JWT headers used by most
+    API calls.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        origin = request.headers.get("origin")
+        if (
+            not origin
+            or origin
+            not in getattr(settings, "BASEROW_CORS_ALLOWED_CREDENTIAL_ORIGINS", [])
+            or "Access-Control-Allow-Origin" not in response
+        ):
+            return response
+
+        response["Access-Control-Allow-Origin"] = origin
+        response["Access-Control-Allow-Credentials"] = "true"
+        patch_vary_headers(response, ("Origin",))
+        return response
 
 
 def json_error_404_add_trailing_slash(path: str) -> HttpResponse:

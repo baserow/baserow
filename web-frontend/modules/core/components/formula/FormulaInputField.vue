@@ -1,22 +1,57 @@
 <template>
   <div ref="formulaInputRoot">
-    <div
-      ref="formulaEditorSurface"
-      class="formula-input-field__editor"
-      @click="handleEditorClick"
-    >
-      <EditorContent
-        :id="forInput"
-        ref="editor"
-        class="form-input formula-input-field"
-        role="textbox"
-        :class="classes"
-        :editor="editor"
-        :style="{ '--formula-placeholder': `'${placeholder}'` }"
+    <div class="formula-input-field__container">
+      <div
+        v-if="!isRawMode"
+        ref="formulaEditorSurface"
+        class="formula-input-field__editor"
+        @click="handleEditorClick"
+      >
+        <EditorContent
+          :id="forInput"
+          ref="editor"
+          class="form-input formula-input-field"
+          role="textbox"
+          :class="classes"
+          :editor="editor"
+          :style="{ '--formula-placeholder': `'${placeholder}'` }"
+        />
+      </div>
+      <div v-else class="formula-input-field__raw-input">
+        <slot
+          name="raw-input"
+          :value="value"
+          :disabled="disabled"
+          :read-only="readOnly"
+          :placeholder="placeholder"
+          :small="small"
+          :input="emitRawValue"
+        >
+          <FormInput
+            :value="value"
+            :disabled="disabled || readOnly"
+            :placeholder="placeholder"
+            :size="small ? 'small' : 'regular'"
+            @input="emitRawValue"
+          />
+        </slot>
+      </div>
+      <ButtonIcon
+        v-if="allowRawValues && !readOnly"
+        class="formula-input-field__mode-toggle"
+        :class="{
+          'formula-input-field__mode-toggle--active': !isRawMode,
+        }"
+        icon="iconoir-sigma-function"
+        type="secondary"
+        :disabled="disabled"
+        :title="rawModeToggleTitle"
+        @click="toggleRawMode"
       />
     </div>
 
     <FormulaInputErrorContext
+      v-if="!isRawMode"
       :visible="showErrorContext"
       :formula-error-context="formulaErrorContext"
       :target="$refs.formulaEditorSurface"
@@ -24,25 +59,35 @@
     />
 
     <FormulaInputExplorerContext
-      v-if="isFocused && !readOnly"
+      v-if="!isRawMode && isFocused && !readOnly"
       ref="formulaInputExplorerContext"
       :node-selected="nodeSelected"
       :loading="loading"
       :mode="mode"
-      :has-value="value.length > 0"
+      :has-value="Boolean(value && value.length)"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
       :enabled-modes="enabledModes"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
+      @example-click="handleExampleSelected"
       @mode-changed="handleModeChange"
       @mousedown="onContextMouseDown"
     />
 
     <NodeHelpTooltip
+      v-if="!readOnly"
       ref="nodeHelpTooltip"
       :node="hoveredFunctionNode"
       :nodes-hierarchy="nodesHierarchy"
+    />
+
+    <FormulaInputModeChangeModal
+      v-if="allowRawValues"
+      ref="rawModeModal"
+      :title="$t('formulaInputExplorerContext.useRegularInputModalTitle')"
+      :confirm-label="$t('formulaInputField.useRawMode')"
+      @confirm="confirmRawModeChange"
     />
   </div>
 </template>
@@ -86,6 +131,10 @@ import FormulaInputExplorerContext from '@baserow/modules/core/components/formul
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
+import FormInput from '@baserow/modules/core/components/FormInput'
+import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
+import { ensureString } from '@baserow/modules/core/utils/validator'
+import FormulaInputModeChangeModal from '@baserow/modules/core/components/formula/FormulaInputModeChangeModal'
 
 /**
  * The ANTLR lexer's INTEGER_LITERAL / NUMERIC_LITERAL rules include an
@@ -144,6 +193,9 @@ export default {
     FormulaInputExplorerContext,
     EditorContent,
     NodeHelpTooltip,
+    FormInput,
+    ButtonIcon,
+    FormulaInputModeChangeModal,
   },
 
   provide() {
@@ -217,13 +269,18 @@ export default {
       required: false,
       default: () => BASEROW_FORMULA_MODES,
     },
+    allowRawValues: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     validationContext: {
       type: Object,
       required: false,
       default: () => ({}),
     },
   },
-  emits: ['input', 'update:mode', 'update:invalid'],
+  emits: ['input', 'update:mode', 'update:invalid', 'blur'],
   data() {
     return {
       editor: null,
@@ -241,6 +298,14 @@ export default {
   computed: {
     showErrorContext() {
       return this.isFocused && !this.readOnly && this.isFormulaInvalid
+    },
+    isRawMode() {
+      return this.mode === 'raw'
+    },
+    rawModeToggleTitle() {
+      return this.isRawMode
+        ? this.$t('formulaInputField.useFormulaMode')
+        : this.$t('formulaInputField.useRawMode')
     },
     isFormulaEmpty() {
       if (!this.editor) return true
@@ -336,17 +401,24 @@ export default {
             this.$refs.formulaInputExplorerContext?.hide()
           },
         }),
-        FunctionHelpTooltipExtension.configure({
-          functionDefinitions: this.formulaRegistry.definitions,
-          onShowTooltip: (el, node) => {
-            this.hoveredFunctionNode = node
-            this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
-          },
-          onHideTooltip: () => {
-            this.$refs.nodeHelpTooltip?.hide()
-            this.hoveredFunctionNode = null
-          },
-        }),
+        // Read-only fields are display-only snippets (e.g. the examples
+        // rendered inside `NodeHelpTooltip` itself), so they must not spawn
+        // their own hover help tooltip.
+        ...(this.readOnly
+          ? []
+          : [
+              FunctionHelpTooltipExtension.configure({
+                functionDefinitions: this.formulaRegistry.definitions,
+                onShowTooltip: (el, node) => {
+                  this.hoveredFunctionNode = node
+                  this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
+                },
+                onHideTooltip: () => {
+                  this.$refs.nodeHelpTooltip?.hide()
+                  this.hoveredFunctionNode = null
+                },
+              }),
+            ]),
         ...this.formulaComponents,
       ]
 
@@ -393,10 +465,10 @@ export default {
       this.$emit('update:invalid', newValue)
     },
     disabled(newValue) {
-      this.editor.setOptions({ editable: !newValue && !this.readOnly })
+      this.editor?.setOptions({ editable: !newValue && !this.readOnly })
     },
     readOnly(newValue) {
-      this.editor.setOptions({ editable: !this.disabled && !newValue })
+      this.editor?.setOptions({ editable: !this.disabled && !newValue })
     },
 
     mode(newMode, oldMode) {
@@ -409,10 +481,21 @@ export default {
       if (this.isHandlingModeChange) {
         return
       }
-      this.recreateEditor()
+      if (newMode === 'raw') {
+        this.editor?.destroy()
+        this.editor = null
+        this.isEditorInitialized = false
+        this.isFormulaInvalid = false
+        this.formulaErrorContext = { scope: null, title: '', message: '' }
+      } else {
+        this.recreateEditor()
+      }
     },
 
     value(value) {
+      if (this.isRawMode) {
+        return
+      }
       // Use editor.getJSON() directly instead of this.wrapperContent to avoid stale cached data
       const editorContent = this.editor?.getJSON()
       const currentFormula = this.toFormula(editorContent)
@@ -439,7 +522,9 @@ export default {
     },
   },
   mounted() {
-    this.createEditor()
+    if (!this.isRawMode) {
+      this.createEditor()
+    }
     // Reflect the validity of the initially-displayed formula so an
     // already-invalid stored value shows its error state without an edit.
     this.validateFormula(this.value)
@@ -479,12 +564,14 @@ export default {
       }
     },
     createEditor(formula = null) {
-      // Use provided formula or fall back to the prop value
-      this.content = this.toContent(formula || this.value)
+      // An empty string is an intentional value after switching from expert
+      // to basic mode, so only fall back when no formula was provided.
+      this.content = this.toContent(formula ?? this.value)
       this.editor = new Editor({
         content: this.content,
         editable: !this.disabled && !this.readOnly,
         onUpdate: this.onUpdate,
+        onBlur: () => this.$emit('blur'),
         extensions: this.extensions,
         parseOptions: {
           preserveWhitespace: 'full',
@@ -505,7 +592,7 @@ export default {
     },
     recreateEditor(formula = null) {
       const currentFormula =
-        formula ||
+        formula ??
         (this.editor ? this.toFormula(this.wrapperContent) : this.value)
 
       this.editor?.destroy()
@@ -521,6 +608,16 @@ export default {
      * renders without any error styling until the field is touched.
      */
     validateFormula(formula) {
+      // Raw mode holds plain text, not a formula. Read-only fields are
+      // display-only snippets (e.g. the examples in the help tooltip) that
+      // never show an error context, so don't paint them as errors either:
+      // an example may deliberately be incomplete, like `get()` without a path.
+      if (this.isRawMode || this.readOnly) {
+        this.isFormulaInvalid = false
+        this.formulaErrorContext = { scope: null, title: '', message: '' }
+        return true
+      }
+
       const functions = new RuntimeFunctionCollection(this.$registry)
       // Validate the syntax, and assuming it's valid, then validate the arguments.
       const validationResult = isFormulaValid(
@@ -546,7 +643,9 @@ export default {
       // this.wrapperContent can be stale content, so get the data
       // directly from the editor.
       const editorContent = this.editor.getJSON()
-      const formula = this.toFormula(editorContent)
+      // `toFormula` returns null when the content cannot be serialized; never
+      // emit null upstream, parents store it and feed it back as `value`.
+      const formula = this.toFormula(editorContent) ?? ''
 
       if (this.validateFormula(formula)) {
         this.$emit('input', formula)
@@ -558,6 +657,47 @@ export default {
     },
     onUpdate() {
       this.emitChange()
+    },
+    emitRawValue(value) {
+      this.$emit('input', value)
+    },
+    toggleRawMode() {
+      if (this.disabled) {
+        return
+      }
+
+      if (!this.isRawMode && this.value) {
+        this.$refs.rawModeModal.show()
+        return
+      }
+
+      this.changeRawMode()
+    },
+    changeRawMode() {
+      const newMode = this.isRawMode ? 'simple' : 'raw'
+      const newFormula = this.isRawMode ? ensureString(this.value) : ''
+
+      this.isHandlingModeChange = true
+      this.$emit('update:mode', newMode)
+      this.$emit('input', newFormula)
+
+      if (!this.isRawMode) {
+        this.editor?.destroy()
+        this.editor = null
+        this.isEditorInitialized = false
+      }
+
+      this.isFormulaInvalid = false
+      this.formulaErrorContext = { scope: null, title: '', message: '' }
+      this.$nextTick(() => {
+        if (newMode !== 'raw' && !this.editor) {
+          this.createEditor(newFormula)
+        }
+        this.isHandlingModeChange = false
+      })
+    },
+    confirmRawModeChange() {
+      this.changeRawMode()
     },
     handleNodeSelected(data) {
       const { path, node } = data
@@ -572,6 +712,22 @@ export default {
           this.editor.commands.insertDataComponent(path)
           break
       }
+    },
+    /**
+     * Inserts a clicked help-tooltip example at the cursor. Only advanced
+     * mode can host the function nodes examples parse into; the explorer's
+     * function tab (and thus a clickable tooltip) only exists in that mode.
+     */
+    handleExampleSelected(example) {
+      if (this.mode !== 'advanced') {
+        return
+      }
+      const content = this.toContent(example.formula)
+      const fragment = content?.content?.[0]?.content
+      if (!fragment) {
+        return
+      }
+      this.editor.commands.insertFormulaFragment(fragment)
     },
     onContextMouseDown() {
       this.editor?.commands.handleContextMouseDown()
@@ -711,7 +867,10 @@ export default {
         this.$emit('input', '')
         this.isFormulaInvalid = false
         this.formulaErrorContext = { scope: null, title: '', message: '' }
-        this.isHandlingModeChange = false
+        this.$nextTick(() => {
+          this.recreateEditor('')
+          this.isHandlingModeChange = false
+        })
       } else {
         // Otherwise (simple to advanced), keep the current formula
         // Get the formula BEFORE changing the mode, using the CURRENT mode

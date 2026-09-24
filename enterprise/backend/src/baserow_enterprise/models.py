@@ -3,7 +3,10 @@ from baserow_enterprise.builder.custom_code.models import (
     BuilderCustomCode,
     BuilderCustomScript,
 )
-from baserow_enterprise.builder.elements.models import AuthFormElement
+from baserow_enterprise.builder.elements.models import (
+    AuthFormElement,
+    GraphElement,
+)
 from baserow_enterprise.builder.workflow_actions.models import CoreCodeWorkflowAction
 from baserow_enterprise.data_sync.models import LocalBaserowTableDataSync
 from baserow_enterprise.date_dependency.models import DateDependency
@@ -28,6 +31,7 @@ __all__ = [
     "RoleAssignment",
     "LocalBaserowUserSource",
     "AuthFormElement",
+    "GraphElement",
     "LocalBaserowTableDataSync",
     "LocalBaserowPasswordAppAuthProvider",
     "SamlAppAuthProviderModel",

@@ -57,6 +57,7 @@ class CreateUserActionType(ActionType):
         workspace_invitation_token: Optional[str] = None,
         template: Optional[Template] = None,
         auth_provider: Optional[AuthProviderModel] = None,
+        email_verified: bool = False,
     ) -> AbstractUser:
         """
         Creates a new user.
@@ -69,6 +70,7 @@ class CreateUserActionType(ActionType):
             used to add the user to a workspace.
         :param template: The template that will be used to create the user.
         :param auth_provider: The auth provider that will be used to create the user.
+        :param email_verified: Whether the provider confirmed the email as verified.
 
         :return: The created user.
         """
@@ -84,6 +86,7 @@ class CreateUserActionType(ActionType):
             workspace_invitation_token,
             template,
             auth_provider=auth_provider,
+            email_verified=email_verified,
         )
 
         workspace_id, workspace_name = None, None

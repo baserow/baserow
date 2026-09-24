@@ -1,4 +1,5 @@
 import {
+  nameContainsNoSpam,
   nameContainsNoUrl,
   nameIsNotEmail,
 } from '@baserow/modules/core/validators'
@@ -33,6 +34,8 @@ describe('nameContainsNoUrl', () => {
     'unknown-tld.weirdtld/path',
     'bad\nname',
     'bad\tname',
+    'ｅｖｉｌ．ｃｏｍ',
+    'evil\u200b.com',
   ]
 
   test.each(validNames)('accepts %j', (name) => {
@@ -41,6 +44,42 @@ describe('nameContainsNoUrl', () => {
 
   test.each(invalidNames)('rejects %j', (name) => {
     expect(nameContainsNoUrl(name)).toBe(false)
+  })
+})
+
+describe('nameContainsNoSpam', () => {
+  const validNames = [
+    'Dr. Smith',
+    "Mary-Jane O'Neil",
+    'Zoë Müller',
+    '山田太郎',
+    'Team 2026',
+    '2025-2026 Budget',
+    '12345 Main',
+    '🚀 Marketing',
+    '🇳🇱 Sales',
+    'Area m²',
+    'Ｊｏｈｎ',
+    '👨\u200d👩\u200d👧 Family',
+  ]
+
+  const invalidNames = [
+    '🅰🅱🅲-❶❷❸❹❺❻◆⓿◆🅐❶❷',
+    '💬🅰🅱🅲-❶❷❸-₁₂₃🅂❹❺.',
+    '𝐉𝐨𝐢𝐧 𝐦𝐞 𝐧𝐨𝐰',
+    '①②③④⑤⑥',
+    '群1234567890聯絡加入',
+    '優惠活動1234567890加群12',
+    'call 0612345678',
+    'call 0\u200b6\u200b1\u200b2\u200b3\u200b4\u200b5\u200b6',
+  ]
+
+  test.each(validNames)('accepts %j', (name) => {
+    expect(nameContainsNoSpam(name)).toBe(true)
+  })
+
+  test.each(invalidNames)('rejects %j', (name) => {
+    expect(nameContainsNoSpam(name)).toBe(false)
   })
 })
 

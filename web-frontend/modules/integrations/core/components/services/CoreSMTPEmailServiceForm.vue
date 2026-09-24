@@ -150,6 +150,14 @@ export default {
       required: false,
       default: null,
     },
+    // False where the service cannot carry an integration, such as a button
+    // field's actions. The instance server is then the only way to send, so
+    // neither the choice nor the dropdown is worth offering.
+    allowIntegration: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   data() {
     return {
@@ -167,7 +175,11 @@ export default {
       ],
       values: {
         integration_id: null,
-        use_instance_smtp_settings: false,
+        // Where the service cannot carry an integration the instance server is
+        // the only way to send, so that is what an untouched form holds. Set
+        // here rather than after mount, or the mixin's watcher would report a
+        // change the user never made.
+        use_instance_smtp_settings: !this.allowIntegration,
         from_email: {},
         from_name: {},
         to_emails: {},
@@ -186,11 +198,16 @@ export default {
         : ['raw', 'simple']
     },
     showInstanceSmtpOption() {
-      return Boolean(this.service?.instance_smtp_settings_enabled)
+      return (
+        this.allowIntegration &&
+        Boolean(this.service?.instance_smtp_settings_enabled)
+      )
     },
     showIntegrationSelector() {
       return (
-        !this.showInstanceSmtpOption || !this.values.use_instance_smtp_settings
+        this.allowIntegration &&
+        (!this.showInstanceSmtpOption ||
+          !this.values.use_instance_smtp_settings)
       )
     },
     integrations() {

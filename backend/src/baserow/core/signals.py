@@ -1,5 +1,28 @@
 from django.dispatch import Signal
 
+from loguru import logger
+
+
+class ObservingSignal(Signal):
+    """
+    A signal whose receivers only observe what already happened, sent with
+    `send_robust` so one that fails is logged rather than failing the sender.
+
+    Only the class of the failure is logged. Django's own line carries the
+    message and a traceback, whose frames can hold what the sender was working
+    with, an address a request went to for instance, so `_log_robust_failure`
+    is overridden rather than left to Django's default.
+    """
+
+    def _log_robust_failure(self, receiver, err):
+        logger.error(
+            "Receiver {receiver} of {signal} failed with {exception}.",
+            receiver=getattr(receiver, "__qualname__", repr(receiver)),
+            signal=type(self).__name__,
+            exception=type(err).__name__,
+        )
+
+
 before_workspace_user_deleted = Signal()
 before_workspace_user_updated = Signal()
 before_user_deleted = Signal()

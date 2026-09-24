@@ -133,10 +133,10 @@ export default {
         if (replace) {
           this.results = results
         } else {
-          const resultIds = new Set(this.results.map((res) => res.id))
+          const resultIds = new Set(this.results.map((res) => res[this.idName]))
           this.results.push(
             ...results.filter((res) => {
-              return !resultIds.has(res.id)
+              return !resultIds.has(res[this.idName])
             })
           )
         }

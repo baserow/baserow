@@ -34,6 +34,12 @@ def test_user_source_auth_get_header(data_fixture, api_request_factory):
     )
     assert auth.get_header(fake_request) == bytes(f"JWT {token2}", "utf-8")
 
+    auth = UserSourceJSONWebTokenAuthentication(
+        use_user_source_authentication_header=True,
+        authentication_header="Authorization",
+    )
+    assert auth.get_header(fake_request) == bytes(f"JWT {token}", "utf-8")
+
 
 @pytest.mark.django_db
 def test_user_source_authenticate(

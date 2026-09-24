@@ -2360,7 +2360,7 @@ def test_lookup_field_type_sorting_array_numbers(
     sort = data_fixture.create_view_sort(
         view=grid_view, field=lookup_field, order="DESC"
     )
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup_numbers = [
         getattr(r, f"field_{lookup_field.id}_agg_sort_array") for r in sorted_rows
     ]
@@ -2369,7 +2369,7 @@ def test_lookup_field_type_sorting_array_numbers(
 
     sort.order = "ASC"
     sort.save()
-    sorted_rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    sorted_rows = view_handler.apply_ordering(grid_view, model.objects.all())
     sorted_lookup_numbers = [
         getattr(r, f"field_{lookup_field.id}_agg_sort_array") for r in sorted_rows
     ]

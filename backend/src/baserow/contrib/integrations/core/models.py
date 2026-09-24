@@ -1,5 +1,7 @@
+import secrets
 import uuid
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -9,6 +11,8 @@ from baserow.contrib.integrations.core.constants import (
     CSV_FILE_READER_INPUT_TYPE,
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
+    PERIODIC_TIMEZONE_DEFAULT,
+    RESPONSE_BODY_TYPE,
 )
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
@@ -46,6 +50,15 @@ class SMTPIntegration(Integration):
         null=True,
         help_text="The SMTP password for authentication.",
     )
+
+
+def generate_inbound_email_token() -> str:
+    """
+    Generates a high-entropy token used as the localpart of an inbound email
+    address. Lowercase hex keeps the localpart case-insensitivity-safe.
+    """
+
+    return secrets.token_hex(16)
 
 
 class CoreIteratorService(Service):
@@ -98,6 +111,24 @@ class CoreManualTriggerService(Service):
     A trigger service for workflows that can only be started manually.
     """
 
+    wait_for_response = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the caller should wait for the workflow response.",
+    )
+    response_timeout_seconds = models.PositiveSmallIntegerField(
+        default=10,
+        db_default=10,
+        validators=[
+            MinValueValidator(1, message="Value cannot be less than 1."),
+            MaxValueValidator(
+                settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                message="Value exceeds the maximum workflow response timeout.",
+            ),
+        ],
+        help_text="The maximum time to wait for the workflow response in seconds.",
+    )
+
 
 class CoreStartWorkflowService(Service):
     """
@@ -110,6 +141,40 @@ class CoreStartWorkflowService(Service):
         on_delete=models.SET_NULL,
         help_text="The automation workflow to start.",
     )
+
+
+class CoreResponseService(Service):
+    """
+    A service for defining the response returned by an automation workflow.
+    """
+
+    status_code = FormulaField(
+        help_text="The HTTP status code to return.",
+    )
+    body_type = models.CharField(
+        max_length=10,
+        choices=RESPONSE_BODY_TYPE.choices,
+        default=RESPONSE_BODY_TYPE.EMPTY,
+        help_text="The type of response body to return.",
+    )
+    body = FormulaField(
+        blank=True,
+        help_text="The response body content.",
+    )
+
+
+class CoreResponseHeader(models.Model):
+    """
+    Model to store workflow response headers.
+    """
+
+    service = models.ForeignKey(
+        CoreResponseService,
+        on_delete=models.CASCADE,
+        related_name="headers",
+    )
+    key = models.CharField(max_length=255, help_text="The header key.")
+    value = FormulaField(blank=True, help_text="The header value.")
 
 
 class CoreHTTPRequestService(Service):
@@ -228,7 +293,7 @@ class CoreSMTPEmailService(Service):
 
     @property
     def instance_smtp_settings_enabled(self) -> bool:
-        return self.get_type()._instance_smtp_is_available()
+        return self.get_type().instance_smtp_is_available()
 
 
 class CoreRouterService(Service):
@@ -305,6 +370,14 @@ class CorePeriodicService(Service):
         default=None,
         help_text="The interval frequency for running the service.",
     )
+    timezone = models.CharField(
+        max_length=255,
+        default=PERIODIC_TIMEZONE_DEFAULT,
+        db_default=PERIODIC_TIMEZONE_DEFAULT,
+        help_text="The IANA timezone that the hour, minute, day of week and day of "
+        "month are expressed in. The schedule keeps this local time across daylight "
+        "saving transitions.",
+    )
     minute = models.PositiveSmallIntegerField(
         default=0,
         help_text="The minute of the hour when to run (0-59). Required for hourly, "
@@ -347,3 +420,81 @@ class CoreHTTPTriggerService(Service):
         default=False,
         help_text="Defines whether the service is published or not.",
     )
+
+    wait_for_response = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the caller should wait for the workflow response.",
+    )
+    response_timeout_seconds = models.PositiveSmallIntegerField(
+        default=10,
+        db_default=10,
+        validators=[
+            MinValueValidator(1, message="Value cannot be less than 1."),
+            MaxValueValidator(
+                settings.AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS,
+                message="Value exceeds the maximum workflow response timeout.",
+            ),
+        ],
+        help_text="The maximum time to wait for the workflow response in seconds.",
+    )
+
+
+class CoreInboundEmailTriggerService(Service):
+    """
+    A trigger service that starts a workflow when an email is delivered to its
+    generated inbound email address.
+    """
+
+    token = models.CharField(
+        max_length=32,
+        default=generate_inbound_email_token,
+        db_index=True,
+        help_text="The localpart of the generated inbound email address.",
+    )
+
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Defines whether the service is published or not.",
+    )
+
+    @property
+    def email_address(self) -> str | None:
+        """
+        The full inbound email address for this trigger, or None when the
+        instance has no inbound email domain configured.
+        """
+
+        if not settings.INBOUND_EMAIL_DOMAIN:
+            return None
+
+        return f"{self.token}@{settings.INBOUND_EMAIL_DOMAIN}"
+
+    @property
+    def test_email_address(self) -> str | None:
+        """
+        The `test-` prefixed address that targets the draft version of the
+        workflow (a test run) instead of the published one, or None when the
+        instance has no inbound email domain configured.
+        """
+
+        from baserow.contrib.integrations.core.inbound_email import (
+            INBOUND_EMAIL_TEST_PREFIX,
+        )
+
+        if not settings.INBOUND_EMAIL_DOMAIN:
+            return None
+
+        return (
+            f"{INBOUND_EMAIL_TEST_PREFIX}{self.token}@{settings.INBOUND_EMAIL_DOMAIN}"
+        )
+
+    @property
+    def max_message_size_mb(self) -> int:
+        """
+        The largest email, in MB, the instance's inbound mail server accepts.
+        Mirrors the receiver's configuration so the limit can be shown next to
+        the address.
+        """
+
+        return settings.INBOUND_EMAIL_MAX_MESSAGE_SIZE_MB

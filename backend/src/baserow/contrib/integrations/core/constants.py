@@ -18,6 +18,22 @@ class BODY_TYPE(models.TextChoices):
     NONE = "none", "None"
 
 
+class RESPONSE_BODY_TYPE(models.TextChoices):
+    EMPTY = "empty", "Empty"
+    JSON = "json", "JSON"
+    TEXT = "text", "Text"
+
+
+DISALLOWED_WORKFLOW_RESPONSE_HEADERS = frozenset(
+    {
+        "clear-site-data",
+        "content-security-policy",
+        "set-cookie",
+        "strict-transport-security",
+    }
+)
+
+
 class CSV_FILE_READER_INPUT_TYPE(models.TextChoices):
     FILE = "file", "File"
     CONTENT = "content", "Content"
@@ -35,5 +51,10 @@ PERIODIC_INTERVAL_CHOICES = [
     (PERIODIC_INTERVAL_WEEK, PERIODIC_INTERVAL_WEEK),
     (PERIODIC_INTERVAL_MONTH, PERIODIC_INTERVAL_MONTH),
 ]
+
+# Services created before the schedule became timezone aware stored their fields
+# already converted to UTC, so UTC is the default which keeps them running at
+# exactly the same instants.
+PERIODIC_TIMEZONE_DEFAULT = "UTC"
 
 SMTP_EMAIL_TIMEOUT = 30

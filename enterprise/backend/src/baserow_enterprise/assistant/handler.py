@@ -1,3 +1,4 @@
+from contextlib import aclosing
 from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator
 from uuid import UUID
@@ -9,6 +10,7 @@ from baserow.core.models import Workspace
 
 from .assistant import Assistant
 from .exceptions import AssistantChatDoesNotExist
+from .model_profiles import ResolvedAssistantModelProfile
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .types import AiMessage, AssistantMessageUnion, HumanMessage, UIContext
 
@@ -49,15 +51,49 @@ class AssistantHandler:
             whether it was created.
         """
 
-        try:
-            chat = self.get_chat(user, chat_uid)
-            created = False
-        except AssistantChatDoesNotExist:
-            chat = AssistantChat.objects.create(
-                uuid=chat_uid, user=user, workspace=workspace
+        chat, created = AssistantChat.objects.select_related(
+            "workspace", "user__profile"
+        ).get_or_create(
+            uuid=chat_uid,
+            defaults={"user": user, "workspace": workspace},
+        )
+        if chat.user_id != user.id or chat.workspace_id != workspace.id:
+            raise AssistantChatDoesNotExist(
+                f"Chat with UUID {chat_uid} does not exist in workspace {workspace.id}."
             )
-            created = True
         return chat, created
+
+    def get_existing_chat(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        chat_uid: str | UUID,
+    ) -> AssistantChat | None:
+        """Return an existing chat only when it belongs to the requested workspace.
+
+        A chat UUID is globally unique and supplied by the client. Treat a UUID owned
+        by another user or workspace as missing so it can never be reused with a
+        different workspace's permissions, model credentials, or tool context.
+
+        :param user: The user requesting the chat.
+        :param workspace: The workspace the request claims the chat belongs to.
+        :param chat_uid: The unique identifier of the chat.
+        :return: The matching chat, or ``None`` when the UUID is unused.
+        :raises AssistantChatDoesNotExist: If the UUID belongs to another user or
+            workspace.
+        """
+
+        try:
+            chat = AssistantChat.objects.select_related(
+                "workspace", "user__profile"
+            ).get(uuid=chat_uid)
+        except AssistantChat.DoesNotExist:
+            return None
+        if chat.user_id != user.id or chat.workspace_id != workspace.id:
+            raise AssistantChatDoesNotExist(
+                f"Chat with UUID {chat_uid} does not exist in workspace {workspace.id}."
+            )
+        return chat
 
     def list_chats(self, user: AbstractUser, workspace_id: int) -> list[AssistantChat]:
         """
@@ -102,18 +138,22 @@ class AssistantHandler:
         :return: A list of messages from the AI assistant chat.
         """
 
-        assistant = self.get_assistant(chat)
-        return assistant.list_chat_messages()
+        return Assistant.list_chat_messages_for_chat(chat)
 
-    def get_assistant(self, chat: AssistantChat) -> Assistant:
+    def get_assistant(
+        self,
+        chat: AssistantChat,
+        model_profile: ResolvedAssistantModelProfile | None = None,
+    ) -> Assistant:
         """
         Get the assistant for the given chat.
 
         :param chat: The AI assistant chat to get the assistant for.
+        :param model_profile: The model resolution already checked for this request.
         :return: The assistant for the given chat.
         """
 
-        return Assistant(chat)
+        return Assistant(chat, model_profile=model_profile)
 
     def delete_predictions(
         self, older_than_days: int = 30, exclude_rated: bool = True
@@ -153,5 +193,6 @@ class AssistantHandler:
 
         assistant = self.get_assistant(chat)
         message = HumanMessage(content=human_message, ui_context=ui_context)
-        async for msg in assistant.astream_messages(message):
-            yield msg
+        async with aclosing(assistant.astream_messages(message)) as messages:
+            async for msg in messages:
+                yield msg

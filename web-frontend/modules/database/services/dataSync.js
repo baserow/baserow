@@ -24,8 +24,11 @@ export default (client) => {
       }
       return client.get(`/jobs/`, { params })
     },
-    fetchProperties(values) {
-      return client.post(`/database/data-sync/properties/`, values)
+    fetchProperties(databaseId, values) {
+      return client.post(
+        `/database/data-sync/database/${databaseId}/properties/`,
+        values
+      )
     },
     fetchPropertiesOfDataSync(dataSyncId) {
       return client.get(`/database/data-sync/${dataSyncId}/properties/`)

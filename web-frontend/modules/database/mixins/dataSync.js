@@ -68,7 +68,11 @@ export default {
         this.loadingProperties = false
       }
     },
-    async fetchNonExistingProperties(type, values) {
+    async fetchNonExistingProperties(type, values, databaseId) {
+      if (!databaseId) {
+        throw new Error('databaseId is required to fetch data sync properties')
+      }
+
       values.type = type
 
       this.loadingProperties = true
@@ -76,6 +80,7 @@ export default {
 
       try {
         const { data } = await DataSyncService(this.$client).fetchProperties(
+          databaseId,
           values
         )
         this.loadedProperties = true

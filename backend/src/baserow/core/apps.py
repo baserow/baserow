@@ -32,6 +32,9 @@ class CoreConfig(AppConfig):
 
         trash_item_type_registry.register(WorkspaceTrashableItemType())
         trash_item_type_registry.register(ApplicationTrashableItemType())
+        from .agents.trash_types import AgentTrashableItemType
+
+        trash_item_type_registry.register(AgentTrashableItemType())
 
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
@@ -161,6 +164,7 @@ class CoreConfig(AppConfig):
             StaffOnlyPermissionManagerType,
             StaffOnlySettingOperationPermissionManagerType,
             WorkspaceMemberOnlyPermissionManagerType,
+            WorkspaceRoleAvailabilityPermissionManagerType,
         )
         from baserow.core.registries import (
             email_context_registry,
@@ -173,6 +177,9 @@ class CoreConfig(AppConfig):
 
         email_context_registry.register(CoreEmailContextType())
 
+        permission_manager_type_registry.register(
+            WorkspaceRoleAvailabilityPermissionManagerType()
+        )
         permission_manager_type_registry.register(CorePermissionManagerType())
         permission_manager_type_registry.register(StaffOnlyPermissionManagerType())
         permission_manager_type_registry.register(BasicPermissionManagerType())
@@ -204,13 +211,21 @@ class CoreConfig(AppConfig):
 
         from baserow.core.registries import subject_type_registry
 
+        from .agents.subjects import AgentSubjectType
         from .subjects import AnonymousUserSubjectType, UserSubjectType
         from .user_sources.subjects import UserSourceUserSubjectType
 
         subject_type_registry.register(UserSubjectType())
         subject_type_registry.register(AnonymousUserSubjectType())
         subject_type_registry.register(UserSourceUserSubjectType())
+        subject_type_registry.register(AgentSubjectType())
 
+        from .agents.operations import (
+            CreateAgentOperationType,
+            DeleteAgentOperationType,
+            ListAgentsWorkspaceOperationType,
+            UpdateAgentOperationType,
+        )
         from .ai_provider.operations import ManageAIProvidersOperationType
         from .notifications.operations import (
             ClearNotificationsOperationType,
@@ -292,6 +307,10 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(RestoreApplicationOperationType())
         operation_type_registry.register(RestoreWorkspaceOperationType())
         operation_type_registry.register(ReadApplicationOperationType())
+        operation_type_registry.register(ListAgentsWorkspaceOperationType())
+        operation_type_registry.register(CreateAgentOperationType())
+        operation_type_registry.register(UpdateAgentOperationType())
+        operation_type_registry.register(DeleteAgentOperationType())
 
         from baserow.core.actions import (
             AcceptWorkspaceInvitationActionType,
@@ -411,6 +430,7 @@ class CoreConfig(AppConfig):
         action_type_registry.register(AdminDisableTwoFactorAuthActionType())
 
         from baserow.core.action.scopes import (
+            AllWorkspacesActionScopeType,
             ApplicationActionScopeType,
             RootActionScopeType,
             WorkspaceActionScopeType,
@@ -418,6 +438,7 @@ class CoreConfig(AppConfig):
 
         action_scope_registry.register(RootActionScopeType())
         action_scope_registry.register(WorkspaceActionScopeType())
+        action_scope_registry.register(AllWorkspacesActionScopeType())
         action_scope_registry.register(ApplicationActionScopeType())
 
         from baserow.core.jobs.registries import job_type_registry
@@ -503,6 +524,8 @@ class CoreConfig(AppConfig):
 
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
+            GoogleGenerativeAIModelType,
+            GroqGenerativeAIModelType,
             MistralGenerativeAIModelType,
             OllamaGenerativeAIModelType,
             OpenAIGenerativeAIModelType,
@@ -514,6 +537,8 @@ class CoreConfig(AppConfig):
 
         generative_ai_model_type_registry.register(OpenAIGenerativeAIModelType())
         generative_ai_model_type_registry.register(AnthropicGenerativeAIModelType())
+        generative_ai_model_type_registry.register(GoogleGenerativeAIModelType())
+        generative_ai_model_type_registry.register(GroqGenerativeAIModelType())
         generative_ai_model_type_registry.register(MistralGenerativeAIModelType())
         generative_ai_model_type_registry.register(OllamaGenerativeAIModelType())
         generative_ai_model_type_registry.register(OpenRouterGenerativeAIModelType())
@@ -563,6 +588,7 @@ class CoreConfig(AppConfig):
             ListIntegrationsApplicationOperationType,
             OrderIntegrationsOperationType,
             ReadIntegrationOperationType,
+            RestoreIntegrationOperationType,
             UpdateIntegrationOperationType,
         )
 
@@ -572,6 +598,24 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(ListIntegrationsApplicationOperationType())
         operation_type_registry.register(ReadIntegrationOperationType())
         operation_type_registry.register(OrderIntegrationsOperationType())
+        operation_type_registry.register(RestoreIntegrationOperationType())
+
+        from baserow.core.action.registries import action_type_registry
+        from baserow.core.integrations.actions import (
+            CreateIntegrationActionType,
+            DeleteIntegrationActionType,
+            MoveIntegrationActionType,
+            UpdateIntegrationActionType,
+        )
+        from baserow.core.integrations.trash_types import IntegrationTrashableItemType
+        from baserow.core.trash.registries import trash_item_type_registry
+
+        trash_item_type_registry.register(IntegrationTrashableItemType())
+
+        action_type_registry.register(CreateIntegrationActionType())
+        action_type_registry.register(UpdateIntegrationActionType())
+        action_type_registry.register(DeleteIntegrationActionType())
+        action_type_registry.register(MoveIntegrationActionType())
 
         from baserow.core.user_sources.object_scopes import UserSourceObjectScopeType
 
@@ -585,6 +629,7 @@ class CoreConfig(AppConfig):
             LoginUserSourceOperationType,
             OrderUserSourcesOperationType,
             ReadUserSourceOperationType,
+            RestoreUserSourceOperationType,
             UpdateUserSourceOperationType,
         )
 
@@ -596,6 +641,22 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(UpdateUserSourceOperationType())
         operation_type_registry.register(AuthenticateUserSourceOperationType())
         operation_type_registry.register(LoginUserSourceOperationType())
+        operation_type_registry.register(RestoreUserSourceOperationType())
+
+        from baserow.core.user_sources.actions import (
+            CreateUserSourceActionType,
+            DeleteUserSourceActionType,
+            MoveUserSourceActionType,
+            UpdateUserSourceActionType,
+        )
+        from baserow.core.user_sources.trash_types import UserSourceTrashableItemType
+
+        trash_item_type_registry.register(UserSourceTrashableItemType())
+
+        action_type_registry.register(CreateUserSourceActionType())
+        action_type_registry.register(UpdateUserSourceActionType())
+        action_type_registry.register(DeleteUserSourceActionType())
+        action_type_registry.register(MoveUserSourceActionType())
 
         from baserow.core.mcp.operations import (
             CreateMCPEndpointOperationType,
@@ -620,6 +681,8 @@ class CoreConfig(AppConfig):
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
+        import baserow.core.integrations.ws.signals  # noqa: F403, F401
+        import baserow.core.user_sources.ws.signals  # noqa: F403, F401
 
         # pgvector extension setup. Because the extension is optional, we must
         # dynamically check if it's available and adjust the models accordingly.

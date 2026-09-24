@@ -390,6 +390,27 @@ def view_decoration_deleted(
     broadcast_to(user, view_decoration.view, payload)
 
 
+@receiver(view_signals.view_configuration_changed)
+def view_configuration_changed(sender, view, user, categories, **kwargs):
+    _prefetch_view_default_values(view)
+    payload = {
+        "type": "view_configuration_changed",
+        "view_id": view.id,
+        "categories": categories,
+        "view": view_type_registry.get_serializer(
+            view,
+            ViewSerializer,
+            filters=True,
+            sortings=True,
+            decorations=True,
+            group_bys=True,
+            default_row_values=True,
+            context={"user": user},
+        ).data,
+    }
+    broadcast_to(user, view, payload)
+
+
 @receiver(view_signals.view_field_options_updated)
 def view_field_options_updated(sender, view, user, **kwargs):
     view_type = view_type_registry.get_by_model(view.specific_class)

@@ -297,10 +297,6 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
   getExamples() {
     return [
       { formula: "concat('Hello,', ' World!')", result: '"Hello, world!"' },
-      {
-        formula: "concat(get('data_source.1.0.field_1'), ' bar')",
-        result: '"foo bar"',
-      },
     ]
   }
 }
@@ -386,12 +382,11 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   }
 
   getExamples() {
-    return [
-      {
-        formula: "get('previous_node.1.body')",
-        result: "'Hello world'",
-      },
-    ]
+    // The help tooltip renders examples against the live data of the page or
+    // workflow being edited, so any placeholder path would show up as an
+    // invalid reference. Show the bare call instead; the data nodes in the
+    // explorer insert a `get()` with a real path for the user.
+    return [{ formula: 'get()', result: '' }]
   }
 
   /**
@@ -1317,6 +1312,14 @@ export class RuntimeRound extends RuntimeFormulaFunction {
         formula: "round('12.345', 2)",
         result: '12.35',
       },
+      {
+        formula: 'round(3.14159)',
+        result: '3.14',
+      },
+      {
+        formula: 'round(10 / 3, 1)',
+        result: '3.3',
+      },
     ]
   }
 }
@@ -1393,10 +1396,6 @@ export class RuntimeIsEven extends RuntimeFormulaFunction {
         formula: 'is_even(12)',
         result: 'true',
       },
-      {
-        formula: 'is_even(13)',
-        result: 'false',
-      },
     ]
   }
 }
@@ -1432,10 +1431,6 @@ export class RuntimeIsOdd extends RuntimeFormulaFunction {
       {
         formula: 'is_odd(11)',
         result: 'true',
-      },
-      {
-        formula: 'is_odd(12)',
-        result: 'false',
       },
     ]
   }
@@ -1527,6 +1522,10 @@ export class RuntimeDay extends RuntimeFormulaFunction {
         formula: "day('2025-10-16 11:05:38')",
         result: '16',
       },
+      {
+        formula: 'day(today())',
+        result: '16',
+      },
     ]
   }
 }
@@ -1564,6 +1563,10 @@ export class RuntimeMonth extends RuntimeFormulaFunction {
         formula: "month('2025-10-16 11:05:38')",
         result: '9',
       },
+      {
+        formula: 'month(now())',
+        result: '9',
+      },
     ]
   }
 }
@@ -1598,6 +1601,10 @@ export class RuntimeYear extends RuntimeFormulaFunction {
     return [
       {
         formula: "year('2025-10-16 11:05:38')",
+        result: '2025',
+      },
+      {
+        formula: 'year(today())',
         result: '2025',
       },
     ]
@@ -1672,6 +1679,10 @@ export class RuntimeMinute extends RuntimeFormulaFunction {
         formula: "minute('2025-10-16T11:05:38')",
         result: '5',
       },
+      {
+        formula: 'minute(now())',
+        result: '5',
+      },
     ]
   }
 }
@@ -1708,6 +1719,10 @@ export class RuntimeSecond extends RuntimeFormulaFunction {
         formula: "second('2025-10-16 11:05:38')",
         result: '38',
       },
+      {
+        formula: 'second(now())',
+        result: '38',
+      },
     ]
   }
 }
@@ -1731,6 +1746,11 @@ export class RuntimeNow extends RuntimeFormulaFunction {
 
   execute(context, args) {
     return new Date()
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.nowDescription')
   }
 
   getExamples() {
@@ -1813,6 +1833,10 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
       {
         formula: 'get_property(\'{"cherry": "red"}\', \'cherry\')',
         result: "'red'",
+      },
+      {
+        formula: 'get_property(from_json(\'{"name": "Ada"}\'), \'name\')',
+        result: "'Ada'",
       },
     ]
   }
@@ -2148,6 +2172,10 @@ export class RuntimeReplace extends RuntimeFormulaFunction {
       {
         formula: "replace('Hello, world!', 'l', '-')",
         result: "'He--o, wor-d!'",
+      },
+      {
+        formula: "replace('2025-10-16', '-', '/')",
+        result: "'2025/10/16'",
       },
     ]
   }
@@ -2890,6 +2918,10 @@ export class RuntimeToJson extends RuntimeFormulaFunction {
         formula: "concat('{\"value\": ', to_json('foo \"bar\"'), '}')",
         result: '\'{"value": "foo \\"bar\\""}\'',
       },
+      {
+        formula: "to_json(to_array('a, b'))",
+        result: '\'["a","b"]\'',
+      },
     ]
   }
 }
@@ -3042,16 +3074,16 @@ export class RuntimeNumberFormat extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: "number_format(1000000, 2, ',', '.')",
-        result: "'1,000,000.00'",
-      },
-      {
         formula: 'number_format(1000000)',
         result: "'1,000,000'",
       },
       {
         formula: 'number_format(1000000, 2)',
         result: "'1,000,000.00'",
+      },
+      {
+        formula: "number_format(1000000, 2, '.', ',')",
+        result: "'1.000.000,00'",
       },
     ]
   }
@@ -3294,7 +3326,7 @@ export class RuntimeDurationFormat extends RuntimeFormulaFunction {
         result: "'1:30:25.2'",
       },
       {
-        formula: "duration_format(get('Duration'), 'd h:mm')",
+        formula: "duration_format(to_duration('26:30', 'h:mm'), 'd h:mm')",
         result: "'1 2:30'",
       },
     ]

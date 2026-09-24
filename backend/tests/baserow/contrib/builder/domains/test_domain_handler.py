@@ -10,6 +10,7 @@ from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.models import Domain
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.cache import global_cache
 from baserow.core.utils import Progress
 
@@ -312,3 +313,27 @@ def test_get_published_domain_applications(data_fixture):
     assert published_applications.count() == 2
     assert published_applications.contains(published_builder1)
     assert published_applications.contains(published_builder2)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("event", ["hover", "button_click"])
+def test_domain_publishing_with_invalid_workflow_action_event(data_fixture, event):
+    """
+    A single workflow action with an event which can't be mapped (e.g. created
+    through the API with a bogus value) must not block publishing the builder.
+    """
+
+    builder = data_fixture.create_builder_application()
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+    page = data_fixture.create_builder_page(builder=builder)
+    button = data_fixture.create_builder_button_element(page=page)
+    data_fixture.create_notification_workflow_action(
+        page=page, element=button, event=event
+    )
+
+    domain = DomainHandler().publish(domain)
+
+    published_events = BuilderWorkflowAction.objects.filter(
+        page__builder=domain.published_to
+    ).values_list("event", flat=True)
+    assert list(published_events) == [event]

@@ -1,0 +1,35 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`dashboardApplication store > fetchNewDataSources awaits missing results for an existing source 1`] = `
+{
+  "data": {
+    "10": {
+      "result": 42,
+    },
+  },
+  "dataSources": [
+    {
+      "dashboard_id": 1,
+      "id": 10,
+      "type": "local_baserow_aggregate_rows",
+    },
+  ],
+}
+`;
+
+exports[`dashboardApplication store > fetchNewDataSources preserves cached results without dispatching again 1`] = `
+{
+  "data": {
+    "10": {
+      "result": 42,
+    },
+  },
+  "dataSources": [
+    {
+      "dashboard_id": 1,
+      "id": 10,
+      "type": "local_baserow_aggregate_rows",
+    },
+  ],
+}
+`;

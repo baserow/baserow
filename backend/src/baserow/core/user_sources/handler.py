@@ -11,8 +11,9 @@ from loguru import logger
 
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
+from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.models import Application, Workspace
+from baserow.core.models import Application
 from baserow.core.registries import application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
@@ -45,9 +46,15 @@ class UserSourceHandler:
                 user_source.application = gen_user_source.application
 
                 if user_source.integration_id:
-                    specific_integration = IntegrationHandler().get_integration(
-                        user_source.integration_id, specific=True
-                    )
+                    try:
+                        specific_integration = IntegrationHandler().get_integration(
+                            user_source.integration_id, specific=True
+                        )
+                    except IntegrationDoesNotExist:
+                        # The integration has been trashed (the no-trash manager
+                        # can't find it) but the user source still references it.
+                        # Treat it as misconfigured rather than failing to load.
+                        specific_integration = None
                     user_source.__class__.integration.field.set_cached_value(
                         user_source, specific_integration
                     )
@@ -402,40 +409,3 @@ class UserSourceHandler:
                 if raise_on_error:
                     raise e
                 continue
-
-    def aggregate_user_counts(
-        self,
-        workspace: Optional[Workspace] = None,
-        base_queryset: Optional[QuerySet] = None,
-    ) -> int:
-        """
-        Responsible for returning the sum total of all user counts in the instance.
-        If a workspace is provided, this aggregation is reduced to applications
-        within this workspace.
-
-        :param workspace: The workspace to filter the aggregation by.
-        :param base_queryset: The base queryset to use to build the query.
-        :return: The total number of user source users in the instance, or within the
-            workspace if provided.
-        """
-
-        queryset = (
-            base_queryset
-            if base_queryset is not None
-            else self.get_user_sources(
-                base_queryset=UserSource.objects.filter(
-                    application__workspace=workspace
-                )
-                if workspace
-                else None
-            )
-        )
-
-        user_source_counts: List[int] = []
-        for user_source in queryset:
-            user_source_type: UserSourceType = user_source.get_type()  # type: ignore
-            user_source_count = user_source_type.get_user_count(user_source)
-            if user_source_count is not None:
-                user_source_counts.append(user_source_count.count)
-
-        return sum(user_source_counts)

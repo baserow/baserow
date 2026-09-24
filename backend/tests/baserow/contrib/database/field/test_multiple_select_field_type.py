@@ -507,12 +507,12 @@ def test_multiple_select_field_type_sorting(data_fixture, django_assert_num_quer
 
     sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_4.id, row_3.id, row_2.id, row_1.id]
     sort.order = "DESC"
     sort.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_1.id, row_2.id, row_3.id, row_4.id]
 
@@ -521,7 +521,7 @@ def test_multiple_select_field_type_sorting(data_fixture, django_assert_num_quer
     sort.order = "ASC"
     sort.save()
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_4.id, row_2.id, row_1.id, row_3.id]
 
@@ -2290,7 +2290,7 @@ def test_multiple_select_adjacent_row(data_fixture):
         ],
     ).created_rows
 
-    base_queryset = ViewHandler().apply_sorting(
+    base_queryset = ViewHandler().apply_ordering(
         grid_view, table.get_model().objects.all()
     )
 

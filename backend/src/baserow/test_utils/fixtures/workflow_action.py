@@ -32,6 +32,10 @@ class WorkflowActionFixture:
                 kwargs["service"] = self.create_local_baserow_update_rows_service(
                     integration=integration,
                 )
+            elif model_class is LocalBaserowDeleteRowWorkflowAction:
+                kwargs["service"] = self.create_local_baserow_delete_row_service(
+                    integration=integration,
+                )
             else:
                 kwargs["service"] = self.create_local_baserow_upsert_row_service(
                     integration=integration,

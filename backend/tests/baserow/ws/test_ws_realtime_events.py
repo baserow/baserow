@@ -1,8 +1,11 @@
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
+from django.db import connection
 from django.test import override_settings
+from django.utils import timezone
 
 import pytest
 from asgiref.sync import sync_to_async
@@ -10,7 +13,7 @@ from channels.testing import WebsocketCommunicator
 from loguru import logger
 
 from baserow.config.asgi import application
-from baserow.ws.models import RealtimeEvent
+from baserow.ws.models import RealtimeEvent, RealtimeEventHistoryState
 from baserow.ws.realtime_events import (
     FIRST_CONNECT_CURSOR,
     NO_REPLAY_AVAILABLE,
@@ -592,6 +595,7 @@ def test_replay_raises_when_over_threshold():
         web_socket_id=None,
     )
     assert result.force_refresh is True
+    assert result.refresh_reason == "event_limit"
     assert result.replay_events == []
 
 
@@ -926,7 +930,7 @@ def test_record_events_bulk():
     assert stored[2].channel_group == "users"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 def test_cleanup_deletes_old_rows():
     from django.db import connection
@@ -1159,6 +1163,89 @@ async def test_replay_events_force_refresh_when_recording_disabled(data_fixture)
 
 @pytest.mark.django_db
 @pytest.mark.websockets
+@override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=2)
+def test_replay_window_ordered_scan_does_not_visit_events_before_cursor():
+    events = RealtimeEvent.objects.bulk_create(
+        [
+            RealtimeEvent(
+                channel_group="table-hot" if i % 5 == 0 else "table-other",
+                payload={"type": "broadcast_to_group", "payload": {}},
+            )
+            for i in range(1000)
+        ]
+    )
+    baseline = events[899].id
+
+    # At production cardinality PostgreSQL can prefer an ordered primary-key scan
+    # over a bitmap scan plus sort for this LIMIT. Exercise that valid plan even
+    # with a small fixture, then measure rows visited rather than wall-clock time.
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL enable_bitmapscan = off")
+        cursor.execute("SET LOCAL enable_seqscan = off")
+        cursor.execute("SET LOCAL max_parallel_workers_per_gather = 0")
+
+    window = RealtimeEventHandler.get_replay_window(42, ["table-hot"], baseline, None)
+    plan = json.loads(window.explain(analyze=True, format="json"))[0]["Plan"]
+    nodes = [plan]
+    rows_removed = 0
+    while nodes:
+        node = nodes.pop()
+        rows_removed += node.get("Rows Removed by Filter", 0)
+        nodes.extend(node.get("Plans", []))
+
+    assert [event.id for event in window] == [
+        events[900].id,
+        events[905].id,
+        events[910].id,
+    ]
+    assert rows_removed < 50
+
+
+@pytest.mark.django_db
+@pytest.mark.websockets
+def test_stale_users_replay_does_not_filter_unrelated_individual_payloads():
+    baseline = _record_group_broadcast("other")
+    RealtimeEvent.objects.bulk_create(
+        [
+            RealtimeEvent(
+                channel_group="users",
+                payload={
+                    "type": "broadcast_to_users_individual_payloads",
+                    "payload_map": {str(100_000 + i): {"value": i}},
+                },
+            )
+            for i in range(5000)
+        ]
+    )
+    targeted = _record_event(
+        "users",
+        {
+            "type": "broadcast_to_users_individual_payloads",
+            "payload_map": {"42": {"value": "targeted"}},
+        },
+    )
+    everyone = _record_user_broadcast(99, send_to_all_users=True)
+    with connection.cursor() as cursor:
+        cursor.execute("ANALYZE ws_realtime_events")
+
+    window = RealtimeEventHandler.get_replay_window(42, [], baseline, None)
+    plan = json.loads(window.explain(analyze=True, format="json"))[0]["Plan"]
+    nodes = [plan]
+    filtered_rows = 0
+    while nodes:
+        node = nodes.pop()
+        filtered_rows += node.get("Rows Removed by Filter", 0)
+        filtered_rows += node.get("Rows Removed by Index Recheck", 0)
+        nodes.extend(node.get("Plans", []))
+
+    assert [event.id for event in window] == [targeted, everyone]
+    # The shared event type must not make replay inspect every other user's
+    # payload. Check work performed by PostgreSQL, rather than machine timing.
+    assert filtered_rows < 50
+
+
+@pytest.mark.django_db
+@pytest.mark.websockets
 def test_replay_events_result_baseline_uses_one_query(django_assert_num_queries):
     latest_id = _record_event("users", {"type": "x"})
 
@@ -1211,30 +1298,34 @@ def test_replay_events_result_future_last_seen_uses_one_query(
         )
 
     assert result.force_refresh is True
+    assert result.refresh_reason == "cursor_ahead"
     assert result.latest_event_id == NO_REPLAY_AVAILABLE
     assert result.replay_events == []
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-def test_replay_events_result_missing_last_seen_uses_one_query(
+def test_replay_events_result_compacted_last_seen_uses_one_query(
     django_assert_num_queries,
 ):
-    missing_id = _record_user_broadcast(1, {"type": "missing"})
-    RealtimeEvent.objects.filter(id=missing_id).delete()
-    _record_user_broadcast(1, {"type": "latest"})
+    compacted_id = _record_user_broadcast(1, {"type": "acknowledged"})
+    RealtimeEvent.objects.filter(id=compacted_id).update(
+        created_at=timezone.now() - timedelta(days=2)
+    )
+    latest_id = _record_user_broadcast(1, {"type": "latest"})
+    assert RealtimeEventHandler.cleanup_old_realtime_events(timedelta(days=1)) == 1
 
     with django_assert_num_queries(1):
         result = _replay_events_result(
             user_id=1,
             page_group_names=[],
-            last_seen_id=missing_id,
+            last_seen_id=compacted_id,
             web_socket_id=None,
         )
 
-    assert result.force_refresh is True
-    assert result.latest_event_id == NO_REPLAY_AVAILABLE
-    assert result.replay_events == []
+    assert result.force_refresh is False
+    assert result.latest_event_id == latest_id
+    assert [event.id for event in result.replay_events] == [latest_id]
 
 
 @pytest.mark.django_db
@@ -1672,13 +1763,12 @@ async def test_replay_events_replays_individual_payloads_event(data_fixture):
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_replay_events_cant_replay_when_last_seen_expired(data_fixture):
+async def test_replay_events_cant_replay_below_the_known_history_floor(data_fixture):
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     await sync_to_async(data_fixture.create_workspace)(user=user)
 
-    # Last-seen event cleaned by retention while a newer one survives: replay can't
-    # anchor, so it must force a refresh. Capture the real id — the sequence isn't
-    # reset between transactional tests.
+    # A cursor below the known-history floor cannot prove recovery, even when
+    # newer full events survive. Use real IDs because sequences are not reset.
     stale_last_seen_id = await sync_to_async(_record_event)(
         "users",
         {
@@ -1689,8 +1779,7 @@ async def test_replay_events_cant_replay_when_last_seen_expired(data_fixture):
             "ignore_web_socket_id": "ws-other",
         },
     )
-    await sync_to_async(RealtimeEvent.objects.filter(id=stale_last_seen_id).delete)()
-    await sync_to_async(_record_event)(
+    latest_id = await sync_to_async(_record_event)(
         "users",
         {
             "type": "broadcast_to_users",
@@ -1699,6 +1788,9 @@ async def test_replay_events_cant_replay_when_last_seen_expired(data_fixture):
             "payload": {"type": "user_data_updated"},
             "ignore_web_socket_id": "ws-other",
         },
+    )
+    await sync_to_async(RealtimeEventHistoryState.objects.filter(pk=1).update)(
+        floor=latest_id
     )
 
     communicator = WebsocketCommunicator(

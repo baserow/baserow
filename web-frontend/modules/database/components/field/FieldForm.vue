@@ -387,6 +387,11 @@ export default {
     }
   },
   methods: {
+    /** Tells a sub-form it is being looked at again, in case the server has
+     * changed what it holds. */
+    onShow() {
+      this.$refs.childForm?.onShow?.()
+    },
     async submit(deep) {
       this.dbIndexError = false
       this.fieldConstraintError = null
@@ -458,6 +463,26 @@ export default {
     isDescriptionFieldNotEmpty() {
       this.showDescription = !!this.values.description
       return this.showDescription
+    },
+    /**
+     * Lets a field type persist whatever it keeps outside the field itself,
+     * once the field is saved and its id is known. Called by the create and
+     * update contexts.
+     */
+    async afterFieldSaved(fieldId, options = {}) {
+      if (typeof this.$refs.childForm?.afterFieldSaved === 'function') {
+        await this.$refs.childForm.afterFieldSaved(fieldId, options)
+      }
+    },
+    /**
+     * Field values the save response got wrong, because the field type wrote
+     * more after it was built. `null` when the type has nothing to correct.
+     */
+    fieldValuesAfterSave() {
+      if (typeof this.$refs.childForm?.fieldValuesAfterSave === 'function') {
+        return this.$refs.childForm.fieldValuesAfterSave()
+      }
+      return null
     },
     getFormValues() {
       // Only set the `db_index` to true if the frontend knows for certain that the

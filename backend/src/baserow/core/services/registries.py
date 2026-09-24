@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from loguru import logger
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.core.formula import resolve_formula
@@ -17,8 +18,11 @@ from baserow.core.formula.exceptions import (
 )
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.validator import ensure_integer
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
     APIUrlsRegistryMixin,
@@ -82,6 +86,13 @@ class ServiceType(
     # Does this service return a list of record?
     returns_list = False
 
+    # Whether dispatching this service sends to an endpoint it is configured
+    # with, such as HTTP, email, Slack or an AI provider. A file reader that
+    # downloads something it is not itself configured with is not one of
+    # these. Such a dispatch sends outside the savepoint when no transaction
+    # is already open, so a slow endpoint does not hold one.
+    is_external = False
+
     # What parent object is responsible for dispatching this `ServiceType`?
     # It could be via a `DataSource`, in which case `DATA` should be
     # chosen, or via a `WorkflowAction`, in which case `ACTION`
@@ -93,6 +104,17 @@ class ServiceType(
     public_serializer_field_names = []
     public_serializer_field_overrides = {}
 
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """Return whether this service type is unavailable in the workspace."""
+
+        return False
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        """Reject use of a deactivated service type when called by its consumer."""
+
+        if self.is_deactivated(workspace):
+            raise PermissionDenied("This service type is deactivated.")
+
     def can_be_dispatched_as(self, dispatch_type: DispatchTypes) -> bool:
         """
         Returns whether this service can be dispatched as the given dispatch type.
@@ -102,6 +124,19 @@ class ServiceType(
         """
 
         return dispatch_type in self.dispatch_types
+
+    def max_dispatch_seconds(self, service: Service) -> int:
+        """
+        The longest a dispatch of this service can take before it gives up. A
+        caller holding a lock over the dispatch needs it, since a lock that
+        expires while the service is still waiting stops protecting anything.
+
+        :param service: The service about to be dispatched.
+        :return: The number of seconds, 0 when the service does not wait on
+            anything outside this installation.
+        """
+
+        return 0
 
     def get_integration_type(self):
         from baserow.core.integrations.registries import integration_type_registry
@@ -160,13 +195,28 @@ class ServiceType(
                 try:
                     integration = IntegrationHandler().get_integration(integration_id)
                 except IntegrationDoesNotExist:
-                    raise DRFValidationError(
-                        f"The integration with ID {integration_id} does not exist."
-                    )
+                    # The integration may be trashed rather than truly gone: undoing
+                    # a data source update can restore an integration_id whose
+                    # integration is still trashed (a later undo step un-trashes it).
+                    # Resolve it from the full set so the FK can still be set; the
+                    # data source stays misconfigured until the integration is
+                    # restored. A genuinely non-existent id still raises.
+                    try:
+                        integration = IntegrationHandler().get_integration(
+                            integration_id,
+                            base_queryset=Integration.objects_and_trash.all(),
+                            specific=False,
+                        )
+                    except IntegrationDoesNotExist:
+                        raise DRFValidationError(
+                            f"The integration with ID {integration_id} does not exist."
+                        )
 
-                if instance and instance.integration_id:
-                    # `integration` cannot belong to a different application
-                    # than the one that `instance.integration` points to.
+                # `integration` cannot belong to a different application than the one
+                # that `instance.integration` points to. Skipped when the current
+                # integration has been trashed (it can no longer be resolved, so
+                # `instance.integration` is None).
+                if instance and instance.integration_id and instance.integration:
                     current_integration_id = instance.integration.application_id
                     if integration.application_id != current_integration_id:
                         raise DRFValidationError(
@@ -240,9 +290,17 @@ class ServiceType(
     def get_sample_data(
         self, service: ServiceSubClass, dispatch_context: DispatchContext
     ) -> Optional[Dict[Any, Any]]:
-        """Return the sample data for this service."""
+        """Return the usable sample data for this service, if any."""
 
-        return service.sample_data
+        sample_data = service.sample_data
+
+        # A failed simulated dispatch stores an `{"_error": ...}` sentinel so
+        # the frontend can display the failure. It doesn't hold `DispatchResult`
+        # fields, so it can't be replayed and counts as no sample data.
+        if sample_data is not None and "_error" in sample_data:
+            return None
+
+        return sample_data
 
     def get_context_data_schema(self, service: ServiceSubClass):
         """Return the schema for the context data."""
@@ -250,10 +308,32 @@ class ServiceType(
         return None
 
     def requires_integration(self, service: ServiceSubClass) -> bool:
+        """
+        Whether this service needs an integration to be dispatched.
+
+        :param service: The service in question.
+        """
+
         return self.integration_type is not None
 
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         return []
+
+    def should_resolve_service_formula(
+        self,
+        service: ServiceSubClass,
+        formula: FormulaToResolve,
+        resolved_values: Dict[str, Any],
+    ) -> bool:
+        """
+        Return whether the formula should be resolved given earlier resolved values.
+
+        Formulas are evaluated in the order returned by `formulas_to_resolve`, so a
+        service type can use this hook to skip a later formula based on an earlier
+        result.
+        """
+
+        return True
 
     def _get_validation_details(self, error):
         detail = error.detail
@@ -286,7 +366,13 @@ class ServiceType(
         """
 
         resolved_values = {}
-        for key, formula_ctx, ensurer, label in self.formulas_to_resolve(service):
+        for formula in self.formulas_to_resolve(service):
+            if not self.should_resolve_service_formula(
+                service, formula, resolved_values
+            ):
+                continue
+
+            key, formula_ctx, ensurer, label = formula
             try:
                 resolved_values[key] = ensurer(
                     resolve_formula(
@@ -350,6 +436,41 @@ class ServiceType(
         :return: The service `dispatch_data` result if any.
         """
 
+    def _dispatch_and_transform(
+        self,
+        service: ServiceSubClass,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """
+        Runs `dispatch_data` and `dispatch_transform` together. `dispatch`
+        calls this from either side of its savepoint, so the pairing is
+        written once rather than once per side.
+        """
+
+        data = self.dispatch_data(service, resolved_values, dispatch_context)
+        return self.dispatch_transform(data)
+
+    def after_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_result: DispatchResult,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """Finalizes a dispatch after its database savepoint has committed."""
+
+        return dispatch_result
+
+    def requires_autocommit(self, service: ServiceSubClass) -> bool:
+        """
+        Returns whether dispatch must run without an enclosing transaction.
+
+        This is needed by services that commit work before waiting for another
+        process to observe it.
+        """
+
+        return False
+
     def dispatch(
         self,
         service: ServiceSubClass,
@@ -376,19 +497,37 @@ class ServiceType(
         ):
             return DispatchResult(**sample_data)
 
+        # Formula resolution always runs inside this savepoint. `dispatch_data`
+        # and `dispatch_transform` run inside it too, unless the service is
+        # external and the dispatch context says its caller sends outside a
+        # transaction, in which case they run after the savepoint instead. A
+        # database error inside must not break the caller's transaction
+        # (#5621), so only this savepoint rolls back and the caller (and the
+        # sample data error save below) can still issue queries. An external
+        # call that runs outside must not hold a transaction open for its
+        # network wait; a context whose caller already wraps dispatch in a
+        # transaction of its own opts out, since leaving the savepoint there
+        # gains nothing. Sending outside commits formula resolution before the
+        # request goes out, so it relies on the data providers of such a
+        # context only reading: one that wrote would keep its writes when the
+        # request fails.
+        sends_outside = (
+            self.is_external
+            and dispatch_context.sends_external_calls_outside_transaction
+        )
         try:
-            # Wrap the dispatch in a savepoint so that, if any of these
-            # operations raise a database error, only this savepoint is rolled
-            # back. This keeps the surrounding transaction usable, so the
-            # caller (and the sample data error save below) can still issue
-            # queries instead of crashing with a `TransactionManagementError`
-            # on a broken transaction.
             with transaction.atomic():
                 resolved_values = self.resolve_service_formulas(
                     service, dispatch_context
                 )
-                data = self.dispatch_data(service, resolved_values, dispatch_context)
-                serialized_data = self.dispatch_transform(data)
+                if not sends_outside:
+                    serialized_data = self._dispatch_and_transform(
+                        service, resolved_values, dispatch_context
+                    )
+            if sends_outside:
+                serialized_data = self._dispatch_and_transform(
+                    service, resolved_values, dispatch_context
+                )
         except Exception as e:
             if dispatch_context.use_sample_data and (
                 dispatch_context.update_sample_data_for is None
@@ -398,12 +537,17 @@ class ServiceType(
                 service.save()
             raise
         else:
+            serialized_data = self.after_dispatch(
+                service, serialized_data, dispatch_context
+            )
             if dispatch_context.use_sample_data and (
                 dispatch_context.update_sample_data_for is None
                 or service in dispatch_context.update_sample_data_for
             ):
                 sample_data = {}
                 for field in fields(serialized_data):
+                    if field.metadata.get("exclude_from_sample_data"):
+                        continue
                     value = getattr(serialized_data, field.name)
                     sample_data[field.name] = value
 
@@ -553,7 +697,24 @@ class ListServiceTypeMixin:
 
     returns_list = True
 
-    @abstractmethod
+    def prepare_record_ids(self, record_ids: List[Any]) -> List[int]:
+        """
+        Convert record selector values into the type used by this service as row IDs.
+        Regular Baserow row services use integer row IDs. Services with synthetic or
+        external row identifiers can override this hook.
+        """
+
+        try:
+            prepared_record_ids = [
+                ensure_integer(record_id) for record_id in record_ids
+            ]
+        except ValidationError as exc:
+            raise DRFValidationError(
+                {"record_ids": ["The provided record ids are not valid."]}
+            ) from exc
+
+        return prepared_record_ids
+
     def get_record_names(
         self,
         service: Service,
@@ -563,13 +724,16 @@ class ListServiceTypeMixin:
         """
         Return the record name associated with each one of the provided record ids.
 
-        Implementation is required for any service that uses this mixin.
+        By default, the record id itself is used as the display name. Services
+        that can resolve richer names, like local Baserow row services, can
+        override this.
 
         :param service: The available service to use.
         :param record_ids: The list containing the record identifiers.
         :param dispatch_context: The context used for the dispatch.
         :return: A dictionary mapping each record to its name.
         """
+        return {record_id: str(record_id) for record_id in record_ids}
 
     @abstractmethod
     def get_max_result_limit(self, service: Service):
@@ -597,6 +761,10 @@ class TriggerServiceTypeMixin(ABC):
         """
         Whether this trigger can be dispatched immediately without waiting for an
         external event.
+
+        The given service can be a base `Service` instance instead of the
+        specific one, so implementations must not rely on fields of the specific
+        model and should ideally return a constant.
         """
 
         return False

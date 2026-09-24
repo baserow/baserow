@@ -1,60 +1,58 @@
 <template>
   <div>
-    <div v-if="!isLoading">
-      <div class="layout__col-2-2 dashboard-app__layout">
+    <div class="layout__col-2-2 dashboard-app__layout">
+      <div
+        class="dashboard-app__layout-scrollable"
+        :style="{ width: `calc(100% - ${sidebarWidth}px)` }"
+      >
         <div
-          class="dashboard-app__layout-scrollable"
-          :style="{ width: `calc(100% - ${sidebarWidth}px)` }"
+          class="dashboard-app__content"
+          :class="{
+            'dashboard-app__content--small': isInTemplate,
+            'dashboard-app__content--with-widgets': !isEmpty,
+          }"
         >
-          <div
-            class="dashboard-app__content"
-            :class="{ 'dashboard-app__content--small': isInTemplate }"
-          >
-            <DashboardContentHeader
-              :dashboard="dashboard"
-              :store-prefix="storePrefix"
-            />
-            <EmptyDashboard
-              v-if="isEmpty"
-              :dashboard="dashboard"
-              @widget-variation-selected="createWidget($event)"
-            />
-            <template v-else>
-              <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
-              <CreateWidgetButton
-                v-if="isEditMode && canCreateWidget"
-                :dashboard="dashboard"
-                :store-prefix="storePrefix"
-                @widget-variation-selected="createWidget($event)"
-              />
-            </template>
-          </div>
+          <DashboardContentHeader
+            :dashboard="dashboard"
+            :store-prefix="storePrefix"
+          />
+          <DashboardWidgetGridLoading v-if="loading" />
+          <EmptyDashboard
+            v-else-if="isEmpty"
+            :dashboard="dashboard"
+            :is-creating-widget="isCreatingWidget"
+            @widget-variation-selected="
+              $emit('widget-variation-selected', $event)
+            "
+          />
+          <template v-else>
+            <WidgetBoard :dashboard="dashboard" :store-prefix="storePrefix" />
+          </template>
         </div>
-        <DashboardSidebar
-          v-if="isEditMode"
-          :dashboard="dashboard"
-          :store-prefix="storePrefix"
-          :style="{ width: `${sidebarWidth}px` }"
-        />
       </div>
+      <DashboardSidebar
+        v-if="isEditMode && !loading"
+        :dashboard="dashboard"
+        :store-prefix="storePrefix"
+        :style="{ width: `${sidebarWidth}px` }"
+      />
     </div>
   </div>
 </template>
 
 <script>
 import EmptyDashboard from '@baserow/modules/dashboard/components/EmptyDashboard'
-import CreateWidgetButton from '@baserow/modules/dashboard/components/CreateWidgetButton'
 import DashboardSidebar from '@baserow/modules/dashboard/components/DashboardSidebar'
 import DashboardContentHeader from '@baserow/modules/dashboard/components/DashboardContentHeader'
 import WidgetBoard from '@baserow/modules/dashboard/components/WidgetBoard'
-import { notifyIf } from '@baserow/modules/core/utils/error'
+import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 
 export default {
   name: 'DashboardContent',
   components: {
     EmptyDashboard,
-    CreateWidgetButton,
     WidgetBoard,
+    DashboardWidgetGridLoading,
     DashboardContentHeader,
     DashboardSidebar,
   },
@@ -68,12 +66,17 @@ export default {
       required: false,
       default: '',
     },
+    loading: {
+      type: Boolean,
+      required: true,
+    },
+    isCreatingWidget: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
-  data() {
-    return {
-      contentHeight: 0,
-    }
-  },
+  emits: ['widget-variation-selected'],
   computed: {
     sidebarWidth() {
       if (this.isEditMode) {
@@ -91,49 +94,8 @@ export default {
         `${this.storePrefix}dashboardApplication/isEmpty`
       ]
     },
-    isLoading() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/isLoading`
-      ]
-    },
     isInTemplate() {
       return this.storePrefix === 'template/'
-    },
-  },
-  methods: {
-    toggleEditMode() {
-      return this.$store.dispatch(
-        `${this.storePrefix}dashboardApplication/toggleEditMode`
-      )
-    },
-    enterEditMode() {
-      return this.$store.dispatch(
-        `${this.storePrefix}dashboardApplication/enterEditMode`
-      )
-    },
-    canCreateWidget() {
-      return this.$hasPermission(
-        'dashboard.create_widget',
-        this.dashboard,
-        this.dashboard.workspace.id
-      )
-    },
-    async createWidget(widgetVariation) {
-      const widgetType = widgetVariation.type.getType()
-      const typeFromRegistry = this.$registry.get('dashboardWidget', widgetType)
-      try {
-        await this.$store.dispatch('dashboardApplication/createWidget', {
-          dashboard: this.dashboard,
-          widget: {
-            title: typeFromRegistry.name,
-            type: widgetType,
-            ...widgetVariation.params,
-          },
-        })
-        this.enterEditMode()
-      } catch (error) {
-        notifyIf(error, 'dashboard')
-      }
     },
   },
 }

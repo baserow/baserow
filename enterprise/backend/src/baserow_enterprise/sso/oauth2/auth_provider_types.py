@@ -211,9 +211,26 @@ class BaseOAuth2AuthProviderMixin:
                     "workspace_invitation_token", None
                 ),
                 language=request_data.get("language", None),
+                email_verified=self._extract_email_verified(oauth_response_data),
             ),
             request_data.get("original", ""),
         )
+
+    def _extract_email_verified(self, oauth_response_data: Dict[str, Any]) -> bool:
+        """
+        Extracts email verification status from the provider's response.
+        Subclasses should override this for provider-specific field names.
+
+        Defaults to True because some providers (e.g. Facebook) never report
+        verification status. New provider subclasses that do expose this field
+        must override to extract it.
+
+        :param oauth_response_data: JSON response data from the provider.
+        :returns: True if the email is verified or if the provider does not
+            report verification status.
+        """
+
+        return True
 
     def get_user_info(
         self, instance: AuthProviderModel, code: str, session: SessionBase
@@ -317,6 +334,10 @@ class GoogleAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
     ACCESS_TOKEN_URL = "https://www.googleapis.com/oauth2/v4/token"  # nosec B105
     USER_INFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo"  # nosec B105
 
+    def _extract_email_verified(self, oauth_response_data: Dict[str, Any]) -> bool:
+        # Google v1 userinfo uses "verified_email", not "email_verified"
+        return bool(oauth_response_data.get("verified_email", True))
+
 
 class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
     """
@@ -358,37 +379,46 @@ class GitHubAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
         logger.debug("OAuth2 response: {0} {1}", token, json_response)
 
         try:
-            json_response["email"] = self.get_email(
+            email, email_verified = self.get_email(
                 {"Authorization": "token {}".format(token.get("access_token"))},
             )
+            json_response["email"] = email
+            json_response["email_verified"] = email_verified
         except Exception as exc:
             logger.exception(exc)
             raise AuthFlowError()
 
         return self.get_user_info_from_oauth_json_response(json_response, session)
 
-    def get_email(self, headers) -> str:
+    def _extract_email_verified(self, oauth_response_data: Dict[str, Any]) -> bool:
+        return bool(oauth_response_data.get("email_verified", True))
+
+    def get_email(self, headers) -> Tuple[str, bool]:
         """
-        Helper method to obtain user's email from GitHub.
+        Helper method to obtain user's email and verification status from GitHub.
 
         :param headers: Authorization headers that will authorize the request.
-        :return: User's email.
+        :return: Tuple of (email, verified).
         """
 
         email = None
+        verified = True
         resp = requests.get(self.EMAILS_URL, headers=headers)  # noqa: S113
         resp.raise_for_status()
         emails = resp.json()
         if resp.status_code == 200 and emails:
-            email = emails[0]
+            email_entry = emails[0]
             primary_emails = [
                 e for e in emails if not isinstance(e, dict) or e.get("primary")
             ]
             if primary_emails:
-                email = primary_emails[0]
-            if isinstance(email, dict):
-                email = email.get("email", "")
-        return email
+                email_entry = primary_emails[0]
+            if isinstance(email_entry, dict):
+                email = email_entry.get("email", "")
+                verified = bool(email_entry.get("verified", True))
+            else:
+                email = email_entry
+        return email, verified
 
 
 class GitLabAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
@@ -417,6 +447,12 @@ class GitLabAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
 
     def get_access_token_url(self, instance: AuthProviderModel) -> str:
         return f"{instance.base_url}{self.ACCESS_TOKEN_PATH}"
+
+    def _extract_email_verified(self, oauth_response_data: Dict[str, Any]) -> bool:
+        # GitLab /api/v4/user returns "confirmed_at" (non-null = verified)
+        if "confirmed_at" in oauth_response_data:
+            return oauth_response_data["confirmed_at"] is not None
+        return True
 
 
 class FacebookAuthProviderType(OAuth2AuthProviderMixin, AuthProviderType):
@@ -586,9 +622,11 @@ class OpenIdConnectAuthProviderTypeMixin:
         if instance.use_id_token:
             if "id_token" not in token:
                 raise AuthFlowError("Id token is missing")
-            email, name = self.get_user_info_from_id_token(instance, token["id_token"])
+            email, name, email_verified = self.get_user_info_from_id_token(
+                instance, token["id_token"]
+            )
         else:
-            email, name = self.get_user_info_from_user_info_endpoint(
+            email, name, email_verified = self.get_user_info_from_user_info_endpoint(
                 instance, json_response
             )
 
@@ -602,20 +640,21 @@ class OpenIdConnectAuthProviderTypeMixin:
                     "workspace_invitation_token", None
                 ),
                 language=request_data.get("language", None),
+                email_verified=email_verified,
             ),
             request_data.get("original", ""),
         )
 
     def get_user_info_from_user_info_endpoint(
         self, instance, oauth_response_data: Dict[str, Any]
-    ) -> Tuple[str, str]:
+    ) -> Tuple[str, str, bool]:
         """
-        Extracts email and name from user_info endpoint.
+        Extracts email, name, and email_verified from user_info endpoint.
 
         :param instance: Provider model that will be used to retrieve the user
             info.
         :param oauth_response_data: JSON response data from the provider.
-        :return: Email and name of user.
+        :return: Email, name, and email_verified of user.
         """
 
         email = oauth_response_data.get(instance.email_attr_key)
@@ -632,16 +671,19 @@ class OpenIdConnectAuthProviderTypeMixin:
         if not name:
             name = email
 
-        return email, name
+        email_verified = bool(oauth_response_data.get("email_verified", True))
+
+        return email, name, email_verified
 
     def get_user_info_from_id_token(self, instance, id_token):
         """
-        Decodes the id_token and verify the signature to extract user email and name.
+        Decodes the id_token and verifies the signature to extract user email,
+        name, and email verification status.
 
         :param instance: Provider model that will be used to retrieve the user
             info.
         :param id_token: The coded JWT id_token.
-        :return: Email and name of user.
+        :return: Email, name, and email_verified of user.
         """
 
         key = self._get_verifying_key(instance, id_token)
@@ -669,7 +711,9 @@ class OpenIdConnectAuthProviderTypeMixin:
         if not name:
             name = email
 
-        return email, name
+        email_verified = bool(decoded_token.get("email_verified", True))
+
+        return email, name, email_verified
 
     def _get_verifying_key(self, instance, id_token, retry_on_fail=True):
         """

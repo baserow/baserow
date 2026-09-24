@@ -3,6 +3,32 @@
     "page": "Page",
     "of": "of {pages}"
   },
+  "allWorkspaces": {
+    "title": "Your workspaces",
+    "searchResults": "Search results",
+    "searchPlaceholder": "Search",
+    "allItems": "All items",
+    "itemsSelected": "{count} item type | {count} item types",
+    "createWorkspace": "Create workspace",
+    "expandedView": "Expanded view",
+    "compactView": "Compact view",
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "workspacesSection": "Workspaces",
+    "itemsSection": "Items",
+    "noResultsTitle": "No results found",
+    "noResultsDescription": "We couldn't find anything for \"{search}\". Check your spelling or use different keywords.",
+    "clearSearch": "Clear search",
+    "membersCount": "0 members | 1 member | {count} members",
+    "itemsCount": "0 items | 1 item | {count} items",
+    "created": "Created",
+    "moreElements": "{count} more element | {count} more elements",
+    "noApplications": "No builders yet",
+    "noFilterMatches": "No items match the selected types.",
+    "create": "Create",
+    "members": "Members",
+    "settings": "Settings"
+  },
   "workspaceSearch": {
     "title": "Search",
     "searchEverything": "Search...",
@@ -32,7 +58,8 @@
     "showErrorLabel": "Show error",
     "downloadFullPayload": "Download full payload",
     "truncatedLabel": "[Output truncated]",
-    "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer."
+    "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer.",
+    "noHtmlContent": "This email has no HTML body."
   },
   "action": {
     "cancel": "Cancel",
@@ -62,6 +89,9 @@
     "errorNoWorkspace": "You don’t have any workspaces.",
     "adminTools": "Admin tools",
     "home": "Home",
+    "allWorkspaces": "All workspaces",
+    "backToHome": "Back to home",
+    "templates": "Templates",
     "dashboard": "Dashboard",
     "trash": "Trash",
     "settings": "My settings",
@@ -332,7 +362,8 @@
     "title": "Workspace Settings"
   },
   "workspaceSettingType": {
-    "generativeAI": "Generative AI"
+    "generativeAI": "Generative AI",
+    "aiProviders": "AI providers"
   },
   "generativeAIModelType": {
     "openai": "OpenAI",
@@ -368,11 +399,32 @@
     "openRouterOrganization": "Organization (optional)",
     "openRouterModelsLabel": "Enabled Models",
     "openRouterModelsDescription": "Provide a comma-separated list of [OpenRouter model identifiers](https://openrouter.ai/models) that can be used in Baserow. For example: `openai/gpt-5.6,anthropic/claude-sonnet-5`.",
-    "openRouterModelIdentifierDescription": "Enter an [OpenRouter model identifier](https://openrouter.ai/models). For example: `openai/gpt-5.6` or `anthropic/claude-sonnet-5`."
+    "openRouterModelIdentifierDescription": "Enter an [OpenRouter model identifier](https://openrouter.ai/models). For example: `openai/gpt-5.6` or `anthropic/claude-sonnet-5`.",
+    "google": "Google Gemini",
+    "googleApiKeyLabel": "API Key",
+    "googleApiKeyDescription": "Enter a Google AI Studio API key. [Create or view an API key](https://aistudio.google.com/apikey).",
+    "googleModelsLabel": "Enabled Models",
+    "googleModelsDescription": "Provide a comma-separated list of [Gemini model identifiers](https://ai.google.dev/gemini-api/docs/models) that can be used in Baserow. For example: `gemini-3.6-flash,gemini-3.5-flash`.",
+    "googleModelIdentifierDescription": "Enter a [Gemini model identifier](https://ai.google.dev/gemini-api/docs/models). For example: `gemini-3.6-flash` or `gemini-3.5-flash`.",
+    "groq": "Groq",
+    "groqApiKeyLabel": "API Key",
+    "groqApiKeyDescription": "Enter a Groq API key. [Create or view an API key](https://console.groq.com/keys).",
+    "groqModelsLabel": "Enabled Models",
+    "groqModelsDescription": "Provide a comma-separated list of [Groq model identifiers](https://console.groq.com/docs/models) that can be used in Baserow. For example: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+    "groqModelIdentifierDescription": "Enter a [Groq model identifier](https://console.groq.com/docs/models). For example: `openai/gpt-oss-120b` or `openai/gpt-oss-20b`."
   },
   "generativeAIWorkspaceSettings": {
     "title": "Generative AI settings",
     "description": "These settings can be used to optionally set generative AI configuration on workspace level. Features like the AI field can be disabled because they lack an API key for one of the supported models. By providing the settings here, you can enable those features. Leaving a value blank defaults back to the global instance settings. Note that everyone in the workspace will share these settings.",
+    "providerTitle": "AI providers",
+    "providerDescription": "Manage providers owned by this workspace or enable and disable providers inherited from the instance.",
+    "sharedModelsTitle": "Shared across workspaces",
+    "addWorkspaceConfiguration": "Add workspace configuration",
+    "overridden": "Overridden",
+    "overriddenByWorkspace": "Overridden by workspace",
+    "disabledInWorkspace": "Disabled in workspace",
+    "noProviders": "No AI providers are available",
+    "noProvidersDescription": "Add a provider for this workspace, or ask an instance administrator to configure one.",
     "changedTitle": "Settings updated correctly",
     "changedDescription": "The settings have been updated and they will be now used in this workspace.",
     "submitButton": "Update settings",
@@ -391,7 +443,8 @@
     "title": "Templates"
   },
   "templateHeader": {
-    "use": "Use this template"
+    "use": "Use this template",
+    "selectWorkspace": "Choose workspace"
   },
   "trashSidebar": {
     "unnamedWorkspace": "Unnamed workspace {id}",
@@ -419,6 +472,10 @@
     "restore": "Restore",
     "andMore": "... and {count} more",
     "unnamed": "Unnamed {type} {id}"
+  },
+  "trashType": {
+    "integration": "integration",
+    "user_source": "user source"
   },
   "trashModal": {
     "emptyTitle": "No workspaces found",
@@ -523,9 +580,10 @@
     "action": "Reload"
   },
   "errorLayout": {
+    "pageNotFoundTitle": "Page not found",
     "notFound": "The page you are looking for has not been found. This might be because URL is incorrect or that you don’t have permission to view this page.",
-    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the dashboard.",
-    "backDashboard": "Back to dashboard",
+    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the homepage.",
+    "backDashboard": "Back to home",
     "backLogin": "Back to login",
     "wrong": "Something went wrong",
     "refresh": "Refresh page"
@@ -831,7 +889,9 @@
   "integrationCreateEditModal": {
     "createTitle": "New integration",
     "editTitle": "Edit integration",
-    "warningTitle": "Warning"
+    "warningTitle": "Warning",
+    "credentialRequiredTitle": "Credential required",
+    "credentialRequiredMessage": "Enter the credential again to change where this integration connects."
   },
   "integrationEditForm": {
     "name": "Name",
@@ -841,7 +901,8 @@
     "addIntegration": "Add new integration",
     "noIntegrations": "No integrations found.",
     "selectTypeFirst": "Choose the type first",
-    "integrationPlaceholder": "Select an integration"
+    "integrationPlaceholder": "Select an integration",
+    "editIntegration": "Edit integration"
   },
   "dropdown": {
     "empty": "No items available",
@@ -909,7 +970,9 @@
     "errorInvalidFormula": "The formula is invalid.",
     "advancedFormulaMode": "Advanced formula mode",
     "invalidFormulaTitle": "Invalid formula",
-    "invalidSyntax": "Not a valid expert formula, please check the syntax."
+    "invalidSyntax": "Not a valid expert formula, please check the syntax.",
+    "useFormulaMode": "Use formula mode",
+    "useRawMode": "Use raw mode"
   },
   "formulaInputErrorContext": {
     "viewFullError": "View full error"
@@ -1051,28 +1114,64 @@
     "removeModel": "Remove model",
     "editModel": "Edit model",
     "modelIdentifier": "Model identifier",
-    "modelDiscoveryHelp": "Choose a model known by Pydantic AI or enter any custom identifier.",
+    "availableFor": "Available for",
+    "availableForDescription": "Choose which listed AI features may use this model.",
+    "availableForList": "Available for: {features}",
+    "availableForNone": "Not available to any listed feature",
+    "featureSettingsTitle": "AI features",
+    "featureSettingsDescription": "Choose the model used by features that need one default model.",
+    "kumaDisabled": "Disabled",
+    "kumaInvalidFallback": "Selected model unavailable — using legacy environment model: {model}",
+    "kumaInvalidNoFallback": "Selected model unavailable — no legacy environment model configured",
+    "kumaDisabledInWorkspace": "Disabled in this workspace",
+    "kumaUseInstance": "Use instance setting — {model}",
+    "kumaInheritedUnavailable": "selected model unavailable in this workspace",
+    "kumaUseLegacy": "Use legacy environment model: {model}",
+    "kumaLegacyFallback": "legacy environment model: {model}",
+    "kumaLegacyEmpty": "empty",
+    "kumaNotConfigured": "not configured",
+    "featureModelLabel": "Model for {feature}",
+    "modelScopeInstance": "Instance",
+    "modelScopeWorkspace": "Workspace",
+    "noFeatureModels": "No eligible models are available. Edit a model and choose which features may use it.",
+    "featureSettingError": "The AI feature setting could not be saved.",
+    "featureSettingErrorDescription": "Refresh the page and choose an available model.",
+    "modelDiscoveryHelp": "Choose a model from the list or enter any custom identifier.",
     "modelDiscoveryUnavailable": "Known model suggestions are unavailable. Enter an identifier manually.",
-    "modelDiscoveryEmpty": "Pydantic AI has no known models for this provider. Enter an identifier manually.",
+    "modelDiscoveryEmpty": "No known models for this provider. Enter an identifier manually.",
     "modelDiscoveryNoMatch": "No known model matches. You can use the identifier you entered.",
     "noProviders": "No instance AI providers configured",
     "noProvidersDescription": "Add a provider manually, or preview and run the environment import command before enabling the feature for users.",
     "noModels": "No models are configured for this provider.",
     "active": "Active",
     "inactive": "Inactive",
+    "inherited": "Inherited",
     "enable": "Enable",
     "disable": "Disable",
     "modelDisabled": "Disabled",
-    "test": "Test",
-    "testAllModelsButtonTitle": "Test all defined models",
-    "testModelButtonTitle": "Test this model",
+    "moreActions": "More actions",
+    "testAllModels": "Test all models",
+    "testModel": "Test model",
     "testPassed": "Test passed",
     "testFailed": "Test failed",
+    "someTestsFailed": "Some tests failed",
+    "featureTestPassed": "{feature}: Passed",
+    "featureTestFailed": "{feature}: {error}",
+    "testing": "Testing…",
     "notTested": "Not tested",
     "deleteProviderTitle": "Delete {name}?",
     "deleteProviderDescription": "This permanently removes the provider and its models.",
     "deleteModelTitle": "Delete {name}?",
     "deleteModelDescription": "This permanently removes the model.",
+    "disableModelTitle": "Disable {name}?",
+    "disableModelDescription": "The model stays selected where it is configured, but it cannot be used until it is enabled again.",
+    "modelFeaturesRemovedTitle": "Change what {name} is available for?",
+    "modelFeaturesRemovedDescription": "The features you unchecked can no longer use this model.",
+    "modelInUse": "{features} uses this model. | {features} use this model.",
+    "modelUsageUnknown": "Baserow could not check what still uses this model.",
+    "modelUsageFeature": "{feature} ({count})",
+    "modelIdentifierRenamedTitle": "Rename {name}?",
+    "modelIdentifierRenamedDescription": "They keep pointing at the old identifier and stop working until they are repointed.",
     "loadError": "The AI provider settings could not be loaded.",
     "loadErrorDescription": "Check the connection and try again.",
     "retry": "Retry",
@@ -1252,7 +1351,60 @@
     "methodsOptionLabel": "Allowed HTTP methods",
     "methodsOptionDescription": "Controls which HTTP methods are allowed for this webhook. Excluding GET reduces the chance of the webhook being triggered accidentally.",
     "methodsOptionAll": "All",
-    "methodsOptionExcludeGet": "Exclude GET"
+    "methodsOptionExcludeGet": "Exclude GET",
+    "responseOptionsLabel": "Response",
+    "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
+    "responseTimeout": "Response timeout",
+    "seconds": "seconds"
+  },
+  "coreManualTriggerServiceForm": {
+    "responseOptionsLabel": "Response",
+    "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
+    "responseTimeout": "Response timeout",
+    "seconds": "seconds"
+  },
+  "coreResponseServiceForm": {
+    "statusCode": "Status code",
+    "statusCode200": "200 - OK",
+    "statusCode201": "201 - Created",
+    "statusCode202": "202 - Accepted",
+    "statusCode204": "204 - No Content",
+    "statusCode400": "400 - Bad Request",
+    "statusCode401": "401 - Unauthorized",
+    "statusCode403": "403 - Forbidden",
+    "statusCode404": "404 - Not Found",
+    "statusCode405": "405 - Method Not Allowed",
+    "statusCode409": "409 - Conflict",
+    "statusCode422": "422 - Unprocessable Content",
+    "statusCode429": "429 - Too Many Requests",
+    "bodyType": "Body type",
+    "bodyTypeEmpty": "Empty",
+    "bodyTypeJson": "JSON",
+    "bodyTypeText": "Text",
+    "body": "Body",
+    "bodyPlaceholder": "Response body",
+    "headers": "Headers",
+    "name": "Name",
+    "value": "Value",
+    "namePlaceholder": "Header name",
+    "valuePlaceholder": "Header value",
+    "addHeader": "Add header",
+    "nameFieldRequired": "A header name is required.",
+    "nameFieldInvalid": "Header names can only contain letters, numbers, dashes, and underscores, and cannot start with a dash or underscore."
+  },
+  "inboundEmailTriggerServiceForm": {
+    "title": "Email address",
+    "addressVersionTest": "Test",
+    "addressVersionPublished": "Published",
+    "copyAddress": "Copy email address",
+    "description": "Any email sent to this address will start the workflow with the email's sender, subject, body and attachment details as the payload.",
+    "limits": "Emails up to {size} MB are accepted, and the text and HTML bodies are passed on up to 1 MB each. Attachments are not stored: only their name, type and size are included in the payload.",
+    "autoForwardTip": "Tip: you can also add this address as an auto-forward rule in your own inbox, so the workflow runs whenever you receive an email.",
+    "secretWarning": "Treat this address as a secret: anyone who knows it can start this workflow.",
+    "regenerate": "Regenerate address",
+    "notConfigured": "This Baserow instance is not configured to receive inbound email. Set the BASEROW_INBOUND_EMAIL_DOMAIN environment variable to enable this trigger."
   },
   "twoFactorAuthEmpty": {
     "title": "You have not yet enabled 2FA",
@@ -1262,8 +1414,9 @@
     "notAllowedDescription": "Adding 2FA is only possible to password-based accounts."
   },
   "nodeHelpTooltip": {
-    "exampleLabel": "Example",
-    "result": "Result: {result}"
+    "exampleLabel": "Example | Examples",
+    "result": "Result: {result}",
+    "clickToInsert": "Click an example to insert it"
   },
   "enableWithQRCode": {
     "scanQRCode": "Scan QR code",
@@ -1283,5 +1436,28 @@
   },
   "adminWorkspaces": {
     "title": "Workspaces"
+  },
+  "subjectType": {
+    "user": "User",
+    "users": "Users",
+    "agent": "Agent",
+    "agents": "Agents"
+  },
+  "agents": {
+    "saved": "Changes saved",
+    "tabTitle": "Agents",
+    "title": "{count} agents in {workspace}",
+    "create": "Create agent",
+    "createTitle": "Create agent",
+    "updateTitle": "Edit agent",
+    "save": "Save agent",
+    "edit": "Edit agent",
+    "delete": "Delete agent",
+    "general": "General",
+    "mcpServerPlaceholder": "MCP server settings will be available here.",
+    "name": "Name",
+    "invalidNameTitle": "Agent name not allowed",
+    "lastActive": "Last active",
+    "workspaceRole": "Workspace role"
   }
 }

@@ -600,8 +600,12 @@ def test_get_data_sync_properties_source_table_does_not_exist(
     enterprise_data_fixture.enable_enterprise()
 
     user, token = enterprise_data_fixture.create_user_and_token()
+    database = enterprise_data_fixture.create_database_application(user=user)
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -626,9 +630,13 @@ def test_get_data_sync_properties_no_access_to_source_table(
     enterprise_data_fixture.enable_enterprise()
 
     user, token = enterprise_data_fixture.create_user_and_token()
+    database = enterprise_data_fixture.create_database_application(user=user)
     source_table = enterprise_data_fixture.create_database_table(name="Source")
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -665,7 +673,10 @@ def test_get_data_sync_properties(enterprise_data_fixture, api_client):
         table=source_table, name="Number", primary=False, number_decimal_places=2
     )
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": source_table.database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -1648,7 +1659,10 @@ def test_get_properties_with_view_provided_only_public_fields(
         grid, hidden_field, hidden=True
     )
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": source_table.database.id},
+    )
     response = api_client.post(
         url,
         {
@@ -1689,7 +1703,10 @@ def test_get_properties_with_table_view_id_none(enterprise_data_fixture, api_cli
         user=user, name="Source"
     )
 
-    url = reverse("api:database:data_sync:properties")
+    url = reverse(
+        "api:database:data_sync:properties",
+        kwargs={"database_id": source_table.database.id},
+    )
     response = api_client.post(
         url,
         {

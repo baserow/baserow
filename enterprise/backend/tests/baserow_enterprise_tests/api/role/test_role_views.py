@@ -729,7 +729,7 @@ def test_batch_assign_role_is_undoable(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "roles,",
+    "roles",
     [
         ["foo_role"],
         ["bar_role", "foo_role"],

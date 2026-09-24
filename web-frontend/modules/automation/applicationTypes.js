@@ -75,23 +75,31 @@ export class AutomationApplicationType extends ApplicationType {
     ).some((workflow) => workflow._.selected)
 
     if (workflowSelected) {
-      $router.push({ name: 'dashboard' })
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
     }
   }
 
   async loadExtraData(automation) {
     const { $store } = this.app
     if (!automation._loadedOnce) {
-      await Promise.all([
+      const [integrations] = await Promise.all([
         $store.dispatch('integration/fetch', {
           application: automation,
         }),
       ])
 
-      await $store.dispatch('application/forceUpdate', {
-        application: automation,
-        data: { _loadedOnce: true },
-      })
+      // Null when the list changed under the fetch and it gave up rather than
+      // write an answer older than the screen. Marking the automation loaded
+      // now would leave its dropdowns short for the session.
+      if (integrations !== null) {
+        await $store.dispatch('application/forceUpdate', {
+          application: automation,
+          data: { _loadedOnce: true },
+        })
+      }
     }
   }
 

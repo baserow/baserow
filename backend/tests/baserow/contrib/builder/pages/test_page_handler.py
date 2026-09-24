@@ -4,9 +4,12 @@ from django.contrib.auth.models import AnonymousUser
 
 import pytest
 
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.domains.handler import DomainHandler
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import ColumnElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTER
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
@@ -21,7 +24,14 @@ from baserow.contrib.builder.pages.exceptions import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
 from baserow.core.graph.types import GraphPointPosition
+from baserow.core.handler import CoreHandler
+from baserow.core.services.models import Service
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -219,12 +229,199 @@ def test_duplicate_page(data_fixture):
 
 
 @pytest.mark.django_db
+def test_page_path_uniqueness_accounts_for_trashed_pages(data_fixture):
+    builder = data_fixture.create_builder_application()
+    page = data_fixture.create_builder_page(builder=builder, path="/foo/")
+    page.trashed = True
+    page.save()
+
+    # A trashed page's path must still be considered taken because the
+    # `(builder, path)` uniqueness is enforced at the database level and counts
+    # trashed rows.
+    assert PageHandler().is_page_path_unique(builder, "/foo/") is False
+
+
+@pytest.mark.django_db
+def test_duplicate_page_avoids_a_trashed_duplicates_path(data_fixture):
+    """
+    Regression: duplicating a page, trashing the copy, then duplicating again used to
+    reuse the trashed copy's path and crash with an IntegrityError.
+    """
+
+    builder = data_fixture.create_builder_application()
+    page = data_fixture.create_builder_page(builder=builder, path="/examples/")
+
+    clone1 = PageHandler().duplicate_page(page)
+    clone1.trashed = True
+    clone1.save()
+
+    clone2 = PageHandler().duplicate_page(page)
+
+    assert clone2.path != clone1.path
+
+
+@pytest.mark.django_db
+def test_duplicate_page_with_element_referencing_trashed_data_source(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page
+    )
+    element = data_fixture.create_builder_repeat_element(
+        page=page, data_source=data_source
+    )
+
+    # Trash (soft-delete) the data source; the element keeps its dangling reference.
+    TrashHandler.trash(user, builder.workspace, builder, data_source)
+    element.refresh_from_db()
+    assert element.data_source_id == data_source.id
+
+    page_clone = PageHandler().duplicate_page(page)
+
+    cloned_element = page_clone.element_set.get().specific
+    # The clone must not carry the reference to the trashed data source.
+    assert cloned_element.data_source_id is None
+
+
+@pytest.mark.django_db
+def test_duplicate_page_with_workflow_action_referencing_trashed_integration(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        user=user, page=page, element=element, event=EventTypes.CLICK
+    )
+    integration = workflow_action.service.integration
+
+    # Trash (soft-delete) the integration; the service keeps its FK, just as the
+    # original page continues to reference it.
+    TrashHandler.trash(user, builder.workspace, builder, integration)
+    workflow_action.service.refresh_from_db()
+    assert workflow_action.service.integration_id == integration.id
+
+    # Previously raised Integration.DoesNotExist and crashed the duplicate job.
+    page_clone = PageHandler().duplicate_page(page)
+
+    cloned_action = BuilderWorkflowAction.objects.get(page=page_clone).specific
+    # The clone points at the same (trashed) integration as the original, so both
+    # are restored intact when the integration is un-trashed.
+    assert cloned_action.service.integration_id == integration.id
+
+
+@pytest.mark.django_db
+def test_duplicate_page_preserves_trashed_integration_on_local_data_source(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration
+    )
+
+    # Trash the integration; the data source's service keeps its FK in the DB.
+    TrashHandler.trash(user, builder.workspace, builder, integration)
+
+    page_clone = PageHandler().duplicate_page(page)
+
+    # The clone's page-local data source must keep the (trashed) integration id in the
+    # DB — previously it was serialized from the display-nulled value and written as
+    # NULL, so the copy could never reconnect when the integration was restored.
+    cloned_service_id = DataSource.objects.get(page=page_clone).service_id
+    clone_integration_id = Service.objects.get(id=cloned_service_id).integration_id
+    assert clone_integration_id == integration.id
+
+    # Restoring the integration must make the clone's data source valid again.
+    TrashHandler.restore_item(user, "integration", integration.id)
+    assert Service.objects.get(id=cloned_service_id).integration_id == integration.id
+
+
+@pytest.mark.django_db
 def test_duplicate_shared_page(data_fixture):
     page = data_fixture.create_builder_page()
     shared_page = page.builder.shared_page
 
     with pytest.raises(SharedPageIsReadOnly):
         PageHandler().duplicate_page(shared_page)
+
+
+@pytest.mark.django_db
+def test_duplicate_application_preserves_multi_page_header_children(data_fixture):
+    # Regression: duplicating an app whose shared page has a multi-page header
+    # containing a child element must keep the child *inside* the header. The
+    # shared page's serialized graph is only set in memory during import, so
+    # migrate_graph's row-lock refresh reset it to the empty committed graph,
+    # dropping the header's children — the append fallback then re-attached the
+    # heading as a sibling (`next`) of the header instead of a child.
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+
+    header = ElementService().create_element(
+        user, element_type_registry.get("header"), page=shared_page
+    )
+    heading = ElementService().create_element(
+        user,
+        element_type_registry.get("heading"),
+        page=shared_page,
+        reference_element_id=header.id,
+        position=GraphPointPosition.CHILD,
+    )
+
+    # Sanity: in the source, the heading is a child of the header.
+    shared_page.refresh_from_db(fields=["graph"])
+    assert shared_page.graph == {
+        "0": header.id,
+        str(header.id): {"children": {"": [heading.id]}},
+        str(heading.id): {},
+    }
+
+    clone = CoreHandler().duplicate_application(user, builder)
+    clone_shared = clone.specific.shared_page
+    clone_shared.refresh_from_db(fields=["graph"])
+
+    graph = clone_shared.graph
+    root_id = str(graph["0"])
+    root_info = graph[root_id]
+
+    # The duplicated header is still the root, with the heading as its child —
+    # not a flat next-chain (the corruption).
+    assert "next" not in root_info, "header child was corrupted into a sibling"
+    assert list(root_info["children"].keys()) == [""]
+    (child_id,) = root_info["children"][""]
+    assert graph[str(child_id)] == {}
+
+    # The imported points are the header and its child heading, and ancestry
+    # resolves accordingly.
+    imported_header = ElementHandler().get_element(int(root_id))
+    imported_child = ElementHandler().get_element(int(child_id))
+    assert imported_header.get_type().type == "header"
+    assert imported_child.get_type().type == "heading"
+    assert imported_child.parent_element_id == imported_header.id
+
+
+@pytest.mark.django_db
+def test_duplicate_page_when_previous_duplicate_is_trashed(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    first_clone = PageHandler().duplicate_page(page)
+    assert first_clone.path == "/test/2"
+
+    TrashHandler.trash(user, builder.workspace, builder, first_clone)
+
+    # The trashed clone still holds /test/2 under the (builder, path) unique
+    # constraint, so the next duplicate must skip to the next free path.
+    second_clone = PageHandler().duplicate_page(page)
+    assert second_clone.path == "/test/3"
 
 
 def test_is_page_path_valid():
@@ -285,6 +482,18 @@ def test_find_unused_page_path(data_fixture):
 
 
 @pytest.mark.django_db
+def test_find_unused_page_path_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    data_fixture.create_builder_page(builder=builder, path="/test")
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/test/2")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    assert PageHandler().find_unused_page_path(builder, "/test") == "/test/3"
+
+
+@pytest.mark.django_db
 def test_is_page_path_unique(data_fixture):
     builder = data_fixture.create_builder_application()
 
@@ -314,6 +523,42 @@ def test_is_page_path_unique_raises(data_fixture):
 
     with pytest.raises(PagePathNotUnique):
         PageHandler().is_page_path_unique(builder, "/test/:id", raises=True)
+
+
+@pytest.mark.django_db
+def test_is_page_path_unique_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    assert PageHandler().is_page_path_unique(builder, "/test") is False
+
+
+@pytest.mark.django_db
+def test_create_page_page_path_not_unique_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    with pytest.raises(PagePathNotUnique):
+        PageHandler().create_page(builder, name="test", path="/test")
+
+
+@pytest.mark.django_db
+def test_update_page_page_path_not_unique_with_trashed_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    trashed_page = data_fixture.create_builder_page(builder=builder, path="/taken")
+    page = data_fixture.create_builder_page(builder=builder, path="/test")
+
+    TrashHandler.trash(user, builder.workspace, builder, trashed_page)
+
+    with pytest.raises(PagePathNotUnique):
+        PageHandler().update_page(page, path="/taken")
 
 
 def test_generalise_path():
@@ -603,3 +848,20 @@ def test_is_published_application_page(data_fixture):
 
     assert not PageHandler()._is_published_application_page(page.id)
     assert PageHandler()._is_published_application_page(published_page.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("event", ["hover", "button_click"])
+def test_duplicate_page_with_invalid_workflow_action_event(data_fixture, event):
+    page = data_fixture.create_builder_page()
+    button = data_fixture.create_builder_button_element(page=page)
+    data_fixture.create_notification_workflow_action(
+        page=page, element=button, event=event
+    )
+
+    page_clone = PageHandler().duplicate_page(page)
+
+    duplicated_events = BuilderWorkflowAction.objects.filter(
+        page=page_clone
+    ).values_list("event", flat=True)
+    assert list(duplicated_events) == [event]

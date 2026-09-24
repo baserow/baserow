@@ -34,5 +34,9 @@ class ReadDataSourceOperationType(BuilderDataSourceOperationType):
     type = "builder.page.data_source.read"
 
 
+class RestoreDataSourceOperationType(BuilderDataSourceOperationType):
+    type = "builder.page.data_source.restore"
+
+
 class DispatchDataSourceOperationType(BuilderDataSourceOperationType):
     type = "builder.page.data_source.dispatch"

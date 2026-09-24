@@ -2359,3 +2359,67 @@ def test_group_by_data_includes_multiple_select_display_values(
     assert group["display"][f"field_{field.id}"] == [
         {"id": option.id, "value": "Red", "color": "red"}
     ]
+
+
+@pytest.mark.django_db
+def test_group_by_data_saved_group_bys_exclude_hidden_fields(api_client, data_fixture):
+    """
+    When hidden_field_ids is non-None (enterprise restricted view), saved
+    group-bys on hidden fields must not appear in the group tree.
+    """
+
+    from unittest.mock import patch
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    visible = data_fixture.create_text_field(table=table, name="Visible")
+    hidden = data_fixture.create_text_field(table=table, name="Hidden")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=visible)
+    data_fixture.create_view_group_by(view=grid, field=hidden)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{visible.id}": "A", f"field_{hidden.id}": "secret"})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    with patch(
+        "baserow.contrib.database.api.views.grid.views.get_hidden_field_ids_for_view_user",
+        return_value={hidden.id},
+    ):
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    group = page["groups"][0]
+    assert f"field_{visible.id}" in group["path"]
+    assert f"field_{hidden.id}" not in group["path"]
+
+
+@pytest.mark.django_db
+def test_public_group_by_data_saved_group_bys_exclude_hidden_fields(
+    api_client, data_fixture
+):
+    """Public saved group-bys on hidden fields must not appear in the group tree."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    visible = data_fixture.create_text_field(table=table, name="Visible")
+    hidden = data_fixture.create_text_field(table=table, name="Hidden")
+    grid = data_fixture.create_grid_view(table=table, public=True)
+    data_fixture.create_view_group_by(view=grid, field=visible)
+    data_fixture.create_view_group_by(view=grid, field=hidden)
+    data_fixture.create_grid_view_field_option(grid, hidden, hidden=True)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{visible.id}": "A", f"field_{hidden.id}": "secret"})
+
+    url = reverse(
+        "api:database:views:grid:public-group-by-data", kwargs={"slug": grid.slug}
+    )
+    response = api_client.get(url)
+
+    assert response.status_code == HTTP_200_OK
+    page = _get_only_page(response)
+    group = page["groups"][0]
+    assert f"field_{visible.id}" in group["path"]
+    assert f"field_{hidden.id}" not in group["path"]

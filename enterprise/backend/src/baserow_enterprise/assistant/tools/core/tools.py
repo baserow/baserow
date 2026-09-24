@@ -172,8 +172,15 @@ def switch_mode(
 
 def update_builder(
     ctx: RunContext[AssistantDeps],
+    builder_id: Annotated[
+        int,
+        Field(
+            description="ID of the builder to update, as returned by list_builders or create_builders."
+        ),
+    ],
     update: Annotated[
-        BuilderUpdate, Field(description="Application settings to update.")
+        BuilderUpdate,
+        Field(description="Settings to change. Set only the fields you want changed."),
     ],
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
@@ -192,7 +199,7 @@ def update_builder(
 
     user = ctx.deps.user
 
-    app = CoreService().get_application(user, update.builder_id).specific
+    app = CoreService().get_application(user, builder_id).specific
     ctx.deps.tool_helpers.update_status(
         _("Updating %(app_name)s...") % {"app_name": app.name}
     )

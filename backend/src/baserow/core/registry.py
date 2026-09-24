@@ -538,7 +538,9 @@ class EasyImportExportMixin(Generic[T], ABC):
     SerializedDict: Type[TypedDict]
 
     # List of fields that are potentially sensitive and shouldn't be included
-    # when exporting the application.
+    # when exporting the application. This does not hide them from API responses:
+    # integration credentials that must be write-only belong in
+    # `IntegrationType.secret_fields` as well.
     sensitive_fields: List[str] = []
 
     # The parent property name for the model

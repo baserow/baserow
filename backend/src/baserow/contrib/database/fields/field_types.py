@@ -149,22 +149,31 @@ from baserow.contrib.database.views.models import (
     FormView,
     View,
 )
+from baserow.contrib.database.workflow_actions.handler import (
+    DatabaseWorkflowActionHandler,
+)
+from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
+from baserow.contrib.database.workflow_actions.registries import (
+    database_workflow_action_type_registry,
+)
 from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     collate_expression,
     specific_queryset,
 )
+from baserow.core.deferred_callbacks import (
+    deferred_callback_context,
+    register_deferred_callback,
+)
 from baserow.core.expressions import DateTrunc
-from baserow.core.feature_flags import FF_BUTTON_FIELD, feature_flag_is_enabled
 from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
-from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import grouper, list_to_comma_separated_string
@@ -225,10 +234,6 @@ from .fields import (
     SyncedUserForeignKeyField,
 )
 from .fields import DurationField as DurationModelField
-from .formula_visitors import (
-    extract_field_id_dependencies,
-    replace_field_id_references,
-)
 from .handler import FieldHandler
 from .models import (
     AbstractSelectOption,
@@ -3051,6 +3056,22 @@ class LinkRowFieldType(
             },
         )
 
+    def get_query_value_serializer(self, field: LinkRowField):
+        response_serializer = self.get_response_serializer_field(field)
+        related_model = field.link_row_table.get_model()
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            rows_by_id = {
+                row.id: row for row in related_model.objects.filter(id__in=value)
+            }
+            rows = [rows_by_id[row_id] for row_id in value if row_id in rows_by_id]
+            return response_serializer.to_representation(rows)
+
+        return serialize
+
     def get_serializer_help_text(self, instance):
         return (
             "This field accepts an `array` containing the ids or the names of the "
@@ -3517,8 +3538,12 @@ class LinkRowFieldType(
             cache[queryset_name] = get_random_objects_iterator()
         return []
 
-    def export_serialized(self, field):
-        serialized = super().export_serialized(field, False)
+    def export_serialized(
+        self, field, include_allowed_fields=True, import_export_config=None
+    ):
+        serialized = super().export_serialized(
+            field, False, import_export_config=import_export_config
+        )
         serialized["link_row_table_id"] = field.link_row_table_id
         serialized["link_row_related_field_id"] = field.link_row_related_field_id
         serialized["link_row_limit_selection_view_id"] = (
@@ -3683,6 +3708,29 @@ class LinkRowFieldType(
             ]
         else:
             return []
+
+    def get_import_dependency_when_referenced(
+        self,
+        serialized_field: Dict[str, Any],
+        reference_name: str,
+        serialized_fields_map: Dict[int, Dict[str, Any]],
+        primary_table_fields_map: Dict[int, int],
+    ) -> Optional[Tuple[Union[int, str], Union[int, str]]]:
+        # A link row field renders the linked table's primary field, so referencing it
+        # by name really depends on that primary field, reached via this link row
+        # field. This is the import-time counterpart of `get_field_dependencies`.
+        related_table_id = serialized_field.get("link_row_table_id", None)
+
+        # A missing table means we're referencing a table that already exists before
+        # the import (i.e. duplicating a table/field), so there is nothing to order.
+        if related_table_id is None or related_table_id not in primary_table_fields_map:
+            return None
+
+        primary_field_id = primary_table_fields_map[related_table_id]
+        if primary_field_id not in serialized_fields_map:
+            return None
+
+        return (serialized_fields_map[primary_field_id]["name"], reference_name)
 
     def should_backup_field_data_for_same_type_update(
         self, old_field: LinkRowField, new_field_attrs: Dict[str, Any]
@@ -4852,6 +4900,18 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             }
         )
 
+    def get_query_value_serializer(self, field: SingleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            return response_serializer.to_representation(select_options.get(value))
+
+        return serialize
+
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
@@ -5055,6 +5115,23 @@ class MultipleSelectFieldType(
                 **kwargs,
             }
         )
+
+    def get_query_value_serializer(self, field: MultipleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            options = [
+                select_options[option_id]
+                for option_id in value
+                if option_id in select_options
+            ]
+            return response_serializer.to_representation(options)
+
+        return serialize
 
     def enhance_queryset(self, queryset, field, name, **kwargs):
         # It's important that this individual enhance_queryset method exists, even
@@ -5374,28 +5451,64 @@ class MultipleSelectFieldType(
             for value in raw_values
         ]
 
+    def _get_through_sort_expression(self, field, field_name, sort_type):
+        """
+        Returns the expression to aggregate inside a through-table subquery,
+        referencing the related model's column via ``related_field__<attr>``.
+        """
+
+        if sort_type == SINGLE_SELECT_SORT_BY_ORDER:
+            return "order"
+        return "value"
+
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
         """
-        Order by the concatenated values of the select options, separated by a comma.
+        Order by the concatenated values of the select options, separated by a
+        comma.  Uses a correlated subquery against the through table when
+        ``table_model`` is available, preserving insertion order and preventing
+        M2M join multiplication.
         """
 
-        # FIXME: this is broken because the field sort items by insertion order with the
-        # id in the through table. It's fixable here using a subquery on the m2m table
-        # instead of a `StringAgg`, but it will be very difficult to fix in the formula
-        # language. Also the frontend is not matching exactly the backend sorting and we
-        # should also consider the possibility that a comma can be part of the value.
         sort_column_name = f"{field_name}_agg_sort"
-        query = Coalesce(
-            StringAgg(
-                self.get_sortable_column_expression(field, field_name, sort_type),
-                ",",
+
+        if table_model is not None:
+            through_model = table_model._meta.get_field(field_name).remote_field.through
+            reversed_field = through_model._meta.get_fields()[1].name
+            related_field = through_model._meta.get_fields()[2].name
+            sort_attr = self._get_through_sort_expression(field, field_name, sort_type)
+
+            query = Coalesce(
+                Subquery(
+                    through_model.objects.filter(
+                        **{f"{reversed_field}_id": OuterRef("id")}
+                    )
+                    .values(f"{reversed_field}_id")
+                    .annotate(
+                        _agg=StringAgg(
+                            F(f"{related_field}__{sort_attr}"),
+                            ",",
+                            ordering=F("id"),
+                            output_field=models.TextField(),
+                        )
+                    )
+                    .values("_agg")[:1]
+                ),
+                Value(""),
                 output_field=models.TextField(),
-            ),
-            Value(""),
-            output_field=models.TextField(),
-        )
+            )
+        else:
+            query = Coalesce(
+                StringAgg(
+                    self.get_sortable_column_expression(field, field_name, sort_type),
+                    ",",
+                    output_field=models.TextField(),
+                ),
+                Value(""),
+                output_field=models.TextField(),
+            )
+
         annotation = {sort_column_name: query}
         order = collate_expression(F(sort_column_name))
 
@@ -5411,9 +5524,10 @@ class MultipleSelectFieldType(
     ):
         """
         Group-by treats a cell as a set of options: ``{A, B}`` and ``{B, A}``
-        are the same group. Uses ``ArrayAgg(ARRAY[order, id])`` to produce a
+        are the same group.  Uses ``ArrayAgg(ARRAY[order, id])`` to produce a
         collision-proof, deterministic sort key based on the field-defined
-        option order.
+        option order.  Wrapped in a correlated subquery when ``table_model`` is
+        available to prevent M2M join multiplication.
         """
 
         sort_column_name = f"{field_name}_group_by_agg_sort"
@@ -5428,7 +5542,7 @@ class MultipleSelectFieldType(
             output_field=pair_field,
         )
 
-        query = Coalesce(
+        agg = Coalesce(
             ArrayAgg(
                 option_key,
                 filter=Q(**{f"{field_name}__id__isnull": False}),
@@ -5437,6 +5551,16 @@ class MultipleSelectFieldType(
             Value([], output_field=sort_key_field),
             output_field=sort_key_field,
         )
+
+        if table_model is not None:
+            query = Subquery(
+                table_model.objects.filter(id=OuterRef("id"))
+                .values("id")
+                .annotate(_group_agg=agg)
+                .values("_group_agg")[:1]
+            )
+        else:
+            query = agg
 
         annotation = {sort_column_name: query}
         order = F(sort_column_name)
@@ -7011,6 +7135,23 @@ class MultipleCollaboratorsFieldType(
             }
         )
 
+    def get_query_value_serializer(self, field: MultipleCollaboratorsField):
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            users_by_id = {
+                user.id: user for user in get_user_model().objects.filter(id__in=value)
+            }
+            users = [
+                users_by_id[user_id] for user_id in value if user_id in users_by_id
+            ]
+            return response_serializer.to_representation(users)
+
+        return serialize
+
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         return [{"id": u.id, "name": u.first_name} for u in value.all()]
 
@@ -7330,24 +7471,49 @@ class MultipleCollaboratorsFieldType(
         self, field, field_name, order_direction, sort_type, table_model=None
     ):
         """
-        If the user wants to sort the results they expect them to be ordered
-        alphabetically based on the user's name and not in the id which is
-        stored in the table. This method generates a Case expression which maps
-        the id to the correct position.
+        Sort collaborators alphabetically by name.  Uses a correlated subquery
+        against the through table when ``table_model`` is available, preserving
+        insertion order and preventing M2M join multiplication.
         """
 
         sort_column_name = f"{field_name}_agg_sort"
-        query = Coalesce(
-            StringAgg(
-                self.get_sortable_column_expression(field, field_name, sort_type),
-                "",
-                output_field=models.TextField(),
-            ),
-            Value(""),
-            output_field=models.TextField(),
-        )
-        annotation = {sort_column_name: query}
 
+        if table_model is not None:
+            through_model = table_model._meta.get_field(field_name).remote_field.through
+            reversed_field = through_model._meta.get_fields()[1].name
+            related_field = through_model._meta.get_fields()[2].name
+
+            query = Coalesce(
+                Subquery(
+                    through_model.objects.filter(
+                        **{f"{reversed_field}_id": OuterRef("id")}
+                    )
+                    .values(f"{reversed_field}_id")
+                    .annotate(
+                        _agg=StringAgg(
+                            F(f"{related_field}__first_name"),
+                            "",
+                            ordering=F("id"),
+                            output_field=models.TextField(),
+                        )
+                    )
+                    .values("_agg")[:1]
+                ),
+                Value(""),
+                output_field=models.TextField(),
+            )
+        else:
+            query = Coalesce(
+                StringAgg(
+                    self.get_sortable_column_expression(field, field_name, sort_type),
+                    "",
+                    output_field=models.TextField(),
+                ),
+                Value(""),
+                output_field=models.TextField(),
+            )
+
+        annotation = {sort_column_name: query}
         order = collate_expression(F(sort_column_name))
 
         if order_direction == "DESC":
@@ -7362,9 +7528,10 @@ class MultipleCollaboratorsFieldType(
     ):
         """
         Group-by treats a cell as a set of collaborators: ``{A, B}`` and
-        ``{B, A}`` are the same group. Uses ``ArrayAgg(ARRAY[first_name, id])``
+        ``{B, A}`` are the same group.  Uses ``ArrayAgg(ARRAY[first_name, id])``
         ordered by ``(first_name, id)`` to produce a collision-proof sort key
-        with alphabetical group ordering.
+        with alphabetical group ordering.  Wrapped in a correlated subquery when
+        ``table_model`` is available to prevent M2M join multiplication.
         """
 
         sort_column_name = f"{field_name}_group_by_agg_sort"
@@ -7385,7 +7552,7 @@ class MultipleCollaboratorsFieldType(
             output_field=pair_field,
         )
 
-        query = Coalesce(
+        agg = Coalesce(
             ArrayAgg(
                 option_key,
                 filter=Q(**{f"{field_name}__id__isnull": False}),
@@ -7394,6 +7561,16 @@ class MultipleCollaboratorsFieldType(
             Value([], output_field=sort_key_field),
             output_field=sort_key_field,
         )
+
+        if table_model is not None:
+            query = Subquery(
+                table_model.objects.filter(id=OuterRef("id"))
+                .values("id")
+                .annotate(_group_agg=agg)
+                .values("_group_agg")[:1]
+            )
+        else:
+            query = agg
 
         annotation = {sort_column_name: query}
         order = F(sort_column_name)
@@ -7793,6 +7970,7 @@ class PasswordFieldType(FieldType):
 
     type = "password"
     model_class = PasswordField
+    write_only = True
     can_be_in_form_view = True
     keep_data_on_duplication = True
     _can_order_by_types = []
@@ -7987,17 +8165,38 @@ class FormViewEditRowFieldType(ReadOnlyFieldType):
         pass
 
 
+class UnchangedIdMapping(dict[int, int]):
+    """
+    An import id mapping that maps every id to itself, for a copy that keeps
+    referencing the same objects as its original.
+
+    An empty mapping can't say that: importers read a missing id as "the object
+    is gone" and null the reference. Both `mapping[id]` and `mapping.get(id)`
+    are covered, since importers use either.
+    """
+
+    def __missing__(self, key: int) -> int:
+        return key
+
+    def get(self, key: int, default: Any = None) -> int:
+        return key
+
+
 class ButtonFieldType(ReadOnlyFieldType):
     """
-    Read-only field whose cells render a button opening a URL resolved
-    client-side from the row's values. Stores configuration only; there is no
-    cell data and no database column.
+    Read-only field whose cells render a button running the field's ordered
+    list of workflow actions. Stores configuration only; there is no cell data
+    and no database column.
     """
 
     type = "button"
     model_class = ButtonField
-    allowed_fields = ["label", "url_formula"]
-    serializer_field_names = ["label", "url_formula", "error"]
+    allowed_fields = ["label"]
+    serializer_field_names = [
+        "label",
+        "has_workflow_actions",
+        "requires_reconfiguration",
+    ]
     serializer_field_overrides = {
         "label": serializers.CharField(
             required=False,
@@ -8006,52 +8205,66 @@ class ButtonFieldType(ReadOnlyFieldType):
             help_text="The text shown on the button. Must be provided when the "
             "field is created, and can't be set to an empty value afterwards.",
         ),
-        "url_formula": FormulaSerializerField(
-            required=False,
-            help_text="Formula resolved per row in the client to build the URL "
-            "the button opens. Can reference the row's fields via "
-            "get('fields.field_<id>').",
-        ),
-        "error": serializers.CharField(
+        "has_workflow_actions": serializers.BooleanField(
             required=False,
             read_only=True,
-            allow_null=True,
-            help_text="The error message if the field's URL formula is broken, "
-            "else null.",
+            help_text="Whether the field has any configured actions. The client "
+            "uses this to decide whether a cell renders a button that dispatches "
+            "actions or an inert one.",
+        ),
+        "requires_reconfiguration": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether a click is sure to fail, because an action "
+            "points at a table, field or integration that is in the trash or "
+            "gone, or updates a row without saying which. The client renders "
+            "a disabled button with a warning instead.",
         ),
     }
     api_exceptions_map = {
         ButtonFieldLabelNotProvided: ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
     }
     can_be_in_form_view = False
-    # The label and the URL formula are only meaningful to someone configuring
-    # the field, and they'd be handed to anonymous visitors as-is.
+    # The label is only meaningful to someone configuring the field, and it'd
+    # be handed to anonymous visitors as-is.
     can_be_in_public_view = False
     _can_order_by_types = []
     _can_be_primary_field = False
     can_get_unique_values = False
     keep_data_on_duplication = False
-    # The cell column is always null, so there is nothing worth backing up when
-    # converting to another type; the label and formula are enough to restore.
+    # The cell column is always null, so a type change has no data to back up.
+    # The configuration it must keep rides along in `export_prepared_values`.
     field_data_is_derived_from_attrs = True
+    # They describe the button's actions rather than the table's data, and each
+    # costs a query, so a service's table schema leaves them out.
+    action_state_field_names = ["has_workflow_actions", "requires_reconfiguration"]
+
+    def get_field_names(self, request_serializer, extra_params, **kwargs):
+        names = super().get_field_names(request_serializer, extra_params, **kwargs)
+        if (extra_params or {}).get("data_schema"):
+            names = [n for n in names if n not in self.action_state_field_names]
+        return names
+
+    def get_field_overrides(self, request_serializer, extra_params, **kwargs):
+        overrides = super().get_field_overrides(
+            request_serializer, extra_params, **kwargs
+        )
+        if (extra_params or {}).get("data_schema"):
+            overrides = {
+                name: override
+                for name, override in overrides.items()
+                if name not in self.action_state_field_names
+            }
+        return overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
     ):
-        # Only creation is gated. The type is always registered and updating,
-        # duplicating or exporting an existing button field keeps working with
-        # the flag off, so turning it off never breaks a table that already has
-        # one. `import_serialized` (table duplication, snapshot restore,
-        # template install) deliberately isn't gated either: it round-trips
-        # fields that already exist rather than creating new ones.
-        feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
         self._validate_label(allowed_field_values, required=True)
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
         # Converting another field type into a button counts as creating one.
         converting_into_button = not isinstance(from_field, ButtonField)
-        if converting_into_button:
-            feature_flag_is_enabled(FF_BUTTON_FIELD, raise_if_disabled=True)
         self._validate_label(to_field_values, required=converting_into_button)
 
     def _validate_label(self, field_values, required: bool):
@@ -8073,6 +8286,29 @@ class ButtonFieldType(ReadOnlyFieldType):
                 "The label of a button field can't be empty."
             )
 
+    def enhance_field_queryset_for_serialization(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        # Both flags are serialized for every button field, so without this a
+        # table's field list costs queries per button. Not in
+        # `enhance_field_queryset`: they depend on other tables, so the cached
+        # table model would serve them stale.
+        from baserow.contrib.database.workflow_actions.reconfiguration import (
+            requires_reconfiguration,
+        )
+
+        queryset = super().enhance_field_queryset_for_serialization(queryset, field)
+        return queryset.annotate(
+            **{
+                ButtonField.HAS_WORKFLOW_ACTIONS_ANNOTATION: Exists(
+                    DatabaseWorkflowAction.objects.filter(field_id=OuterRef("pk"))
+                ),
+                ButtonField.REQUIRES_RECONFIGURATION_ANNOTATION: (
+                    requires_reconfiguration(OuterRef("pk"))
+                ),
+            }
+        )
+
     def get_serializer_field(self, instance, **kwargs):
         # The cell holds nothing, so don't advertise the type of a placeholder
         # column in the API docs and generated schemas.
@@ -8092,132 +8328,205 @@ class ButtonFieldType(ReadOnlyFieldType):
     def random_value(self, instance, fake, cache):
         return None
 
-    def get_export_value(self, value, field_object, rich_value=False):
-        # The URL only exists client-side; exports stay empty.
+    def get_export_value(
+        self, value: Any, field_object: "FieldObject", rich_value: bool = False
+    ) -> Any:
+        # A button holds no cell data, so exports stay empty.
         return None if rich_value else ""
 
-    def get_field_dependencies(
-        self, field_instance: ButtonField, field_cache: "FieldCache"
-    ) -> FieldDependencies:
-        try:
-            field_ids = extract_field_id_dependencies(field_instance.url_formula)
-        except BaserowFormulaException:
-            # Unparseable formulas surface via `error` and have no deps.
-            return []
-
-        if not field_ids:
-            return []
-
-        # The table model is generated once and cached for the whole request or
-        # task, so reading the referenced fields off it costs no extra query
-        # even when many fields are rebuilt at once.
-        model = field_cache.get_model(field_instance.table)
-        existing_field_ids = field_ids & model._field_objects.keys()
-        # A trashed referenced field is declared as a broken reference (by name,
-        # like formula fields) so the edge survives and restoring the field
-        # re-links it and re-reports this field's error to the client.
-        trashed_names = [
-            field_object["field"].name
-            for field_id, field_object in model._trashed_field_objects.items()
-            if field_id in field_ids
+    def export_serialized(
+        self,
+        field: ButtonField,
+        include_allowed_fields: bool = True,
+        import_export_config: Optional[ImportExportConfig] = None,
+    ) -> Dict[str, Any]:
+        serialized = super().export_serialized(
+            field, include_allowed_fields, import_export_config=import_export_config
+        )
+        # Passed on: an action's service can hold an API key, and only the
+        # config says whether this export is allowed to carry it.
+        serialized["workflow_actions"] = [
+            action.get_type().export_serialized(action, import_export_config)
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(field)
         ]
-        return [
-            FieldDependency(dependency_id=field_id, dependant=field_instance, via=None)
-            for field_id in existing_field_ids
-        ] + [
-            FieldDependency(
-                broken_reference_field_name=name, dependant=field_instance, via=None
-            )
-            for name in trashed_names
-        ]
+        return serialized
 
-    def _broadcast_error_change(
-        self, field: ButtonField, update_collector, via_path_to_starting_table
-    ):
-        # Push a re-serialization without touching cell values (None statement)
-        # so the client picks up the new `error`.
-        update_collector.add_field_with_pending_update_statement(
-            field, None, via_path_to_starting_table
-        )
-
-    def field_dependency_created(
+    def import_serialized(
         self,
-        field: ButtonField,
-        created_field: Field,
-        update_collector,
-        field_cache: "FieldCache",
-        via_path_to_starting_table=None,
-    ):
-        self._broadcast_error_change(
-            field, update_collector, via_path_to_starting_table
+        table: "Table",
+        serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
+        id_mapping: Dict[str, Any],
+        deferred_fk_update_collector: DeferredForeignKeyUpdater,
+    ) -> ButtonField:
+        # The actions are stashed on the returned instance and imported in
+        # `after_import_serialized`, once every table and field exists. The
+        # input dict is copied so the caller can reuse it for another import.
+        serialized_values = {**serialized_values}
+        serialized_actions = serialized_values.pop("workflow_actions", [])
+        field = super().import_serialized(
+            table,
+            serialized_values,
+            import_export_config,
+            id_mapping,
+            deferred_fk_update_collector,
         )
-        super().field_dependency_created(
-            field,
-            created_field,
-            update_collector,
-            field_cache,
-            via_path_to_starting_table,
-        )
-
-    def field_dependency_deleted(
-        self,
-        field: ButtonField,
-        deleted_field: Field,
-        update_collector,
-        field_cache: "FieldCache",
-        via_path_to_starting_table=None,
-    ):
-        self._broadcast_error_change(
-            field, update_collector, via_path_to_starting_table
-        )
-        super().field_dependency_deleted(
-            field,
-            deleted_field,
-            update_collector,
-            field_cache,
-            via_path_to_starting_table,
-        )
-
-    def field_dependency_updated(
-        self,
-        field: ButtonField,
-        updated_field: Field,
-        updated_old_field: Field,
-        update_collector,
-        field_cache: "FieldCache",
-        via_path_to_starting_table=None,
-    ):
-        # Nothing to broadcast here: the formula references fields by id, so
-        # renaming or retyping a referenced field can't change the button's
-        # `error`. Only creating and deleting one can, and those have their own
-        # hooks above.
-        super().field_dependency_updated(
-            field,
-            updated_field,
-            updated_old_field,
-            update_collector,
-            field_cache,
-            via_path_to_starting_table,
-        )
+        field._serialized_workflow_actions = serialized_actions
+        # Stashed with them: the service types need it to tell a duplicate from
+        # an import when a target table is outside the id mapping.
+        field._workflow_action_import_config = import_export_config
+        return field
 
     def after_import_serialized(
         self, field: ButtonField, field_cache: "FieldCache", id_mapping: Dict[str, Any]
-    ):
-        if field.url_formula:
-            try:
-                # Assign the whole object, not just the formula string: saving a
-                # bare string makes `to_python` re-wrap it as `simple` mode,
-                # which turns a raw literal URL into an unparseable formula.
-                url_formula = BaserowFormulaObject.to_formula(field.url_formula)
-                field.url_formula = {
-                    **url_formula,
-                    "formula": replace_field_id_references(
-                        url_formula, id_mapping["database_fields"]
-                    ),
-                }
-                field.save()
-            except (KeyError, BaserowFormulaException):
-                # Missing mapping / unparseable formula: keep as-is so the
-                # import succeeds; broken state surfaces via `error`.
-                pass
+    ) -> None:
+        serialized_actions = getattr(field, "_serialized_workflow_actions", None) or []
+        import_export_config = getattr(field, "_workflow_action_import_config", None)
+
+        def import_workflow_actions():
+            # Deferred: an action can target another database, and this hook
+            # runs at the end of one database's import, so such a reference
+            # would be read as trashed and nulled.
+            for serialized_action in serialized_actions:
+                action_type = database_workflow_action_type_registry.get(
+                    serialized_action["type"]
+                )
+                action_type.import_serialized(
+                    field,
+                    serialized_action,
+                    id_mapping,
+                    import_export_config=import_export_config,
+                    # A duplicated table or application is copied by a person,
+                    # and this path never passes through the endpoint that
+                    # checks what they may read. An import from a file has
+                    # nobody, and leaves this None.
+                    copied_by=getattr(import_export_config, "copied_by", None),
+                )
+
+        if serialized_actions:
+            register_deferred_callback(import_workflow_actions)
+
         FieldDependencyHandler.rebuild_dependencies([field], field_cache)
+
+    def after_field_duplicated(
+        self,
+        original_field: ButtonField,
+        new_field: ButtonField,
+        serialized_field: Dict[str, Any],
+        user: Optional[AbstractUser] = None,
+    ) -> None:
+        # Field duplication skips the serialization import path, so without
+        # this the actions would be dropped (ADR 006 section 8).
+        self._recreate_workflow_actions(
+            new_field, serialized_field.get("workflow_actions") or [], user=user
+        )
+
+    def export_prepared_values(self, field: ButtonField) -> Dict[str, Any]:
+        values = super().export_prepared_values(field)
+        # A type change deletes the row the actions cascade off, so only this
+        # backup can bring them back. Trashed actions are kept too: undoing a
+        # save trashes the actions it created before it undoes the type change,
+        # and redo restores them from the trash. The backup is logged on the
+        # undo action and copied into the audit log, so whatever a service
+        # calls sensitive is left blank, as a workspace export leaves it. An
+        # email action's service calls its whole message sensitive, so it comes
+        # back empty.
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=True,
+        )
+        values["workflow_actions"] = [
+            {
+                **action.get_type().export_serialized(action, import_export_config),
+                "trashed": action.trashed,
+            }
+            for action in DatabaseWorkflowActionHandler().get_workflow_actions(
+                field, base_queryset=DatabaseWorkflowAction.objects_and_trash
+            )
+        ]
+        return values
+
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
+        # A button that stayed one kept its actions; importing would double them.
+        if isinstance(from_field, ButtonField):
+            return
+
+        # `user` is checked against the restored actions (ADR 006 section 5),
+        # so a credential or workflow they may not read is dropped.
+        self._recreate_workflow_actions(
+            to_field,
+            to_field_kwargs.get("workflow_actions") or [],
+            user=user,
+            restore=True,
+        )
+
+    def _recreate_workflow_actions(
+        self,
+        field: ButtonField,
+        serialized_actions: List[Dict[str, Any]],
+        user: Optional[AbstractUser] = None,
+        restore: bool = False,
+    ) -> None:
+        """
+        Recreates the serialized actions on the field, in order.
+
+        :param restore: Whether these are the field's own actions coming back
+            after a type change, rather than copies. Each keeps its id, so the
+            undo steps naming it still work, and a trashed one is trashed again.
+            Its entry went with it, and redoing the step that trashed it
+            restores it from a new one.
+        """
+
+        if not serialized_actions:
+            return
+
+        # The actions land beside the ones they came from, so every table and
+        # field they reference still exists under its own id.
+        id_mapping = {
+            "database_tables": UnchangedIdMapping(),
+            "database_fields": UnchangedIdMapping(),
+        }
+
+        # Marked as a duplicate so the action types keep references outside
+        # the copied scope: the data never leaves the workspace.
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            is_duplicate=True,
+            exclude_sensitive_data=False,
+            copied_by=user,
+        )
+
+        # Opened only because the action import registers a deferred callback,
+        # which raises when no context is active.
+        with deferred_callback_context():
+            for serialized_action in serialized_actions:
+                trashed = restore and serialized_action.get("trashed", False)
+                action_type = database_workflow_action_type_registry.get(
+                    serialized_action["type"]
+                )
+                action = action_type.import_serialized(
+                    field,
+                    serialized_action,
+                    id_mapping,
+                    import_export_config=import_export_config,
+                    copied_by=user,
+                    restored_workflow_action_id=(
+                        serialized_action.get("id") if restore else None
+                    ),
+                )
+                if trashed:
+                    database = field.table.database
+                    TrashHandler.trash(user, database.workspace, database, action)

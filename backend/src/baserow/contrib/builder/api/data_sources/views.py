@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from baserow.api.authentication import JSONWebTokenAuthentication
 from baserow.api.decorators import (
     map_exceptions,
     require_request_data_type,
@@ -24,6 +25,9 @@ from baserow.api.services.errors import (
     ERROR_SERVICE_SORT_PROPERTY_DOES_NOT_EXIST,
     ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
 )
+from baserow.api.user_sources.authentication import (
+    UserSourceJSONWebTokenAuthentication,
+)
 from baserow.api.utils import (
     CustomFieldRegistryMappingSerializer,
     DiscriminatorCustomFieldsMappingSerializer,
@@ -35,7 +39,6 @@ from baserow.contrib.builder.api.data_sources.errors import (
     ERROR_DATA_DOES_NOT_EXIST,
     ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
     ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-    ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
     ERROR_DATA_SOURCE_NOT_IN_SAME_PAGE,
     ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
 )
@@ -51,12 +54,17 @@ from baserow.contrib.builder.api.data_sources.serializers import (
 from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_EXIST
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.application_types import BuilderApplicationType
+from baserow.contrib.builder.data_sources.actions import (
+    CreateDataSourceActionType,
+    DeleteDataSourceActionType,
+    MoveDataSourceActionType,
+    UpdateDataSourceActionType,
+)
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
 from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceDoesNotExist,
-    DataSourceNameNotUniqueError,
     DataSourceNotInSamePage,
     DataSourceRefinementForbidden,
 )
@@ -184,7 +192,6 @@ class DataSourcesView(APIView):
         {
             PageDoesNotExist: ERROR_PAGE_DOES_NOT_EXIST,
             DataSourceNotInSamePage: ERROR_DATA_SOURCE_NOT_IN_SAME_PAGE,
-            DataSourceNameNotUniqueError: ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
@@ -209,7 +216,7 @@ class DataSourcesView(APIView):
 
         service_type = service_type_registry.get(type_name) if type_name else None
 
-        data_source = DataSourceService().create_data_source(
+        data_source = CreateDataSourceActionType.do(
             request.user, page, service_type=service_type, before=before, **data
         )
 
@@ -264,7 +271,6 @@ class DataSourceView(APIView):
     @map_exceptions(
         {
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
-            DataSourceNameNotUniqueError: ERROR_DATA_SOURCE_NAME_NOT_UNIQUE,
             InvalidServiceTypeDispatchSource: ERROR_DATA_SOURCE_CANNOT_USE_SERVICE_TYPE,
         }
     )
@@ -316,12 +322,19 @@ class DataSourceView(APIView):
                 request.data,
                 base_serializer_class=UpdateDataSourceSerializer,
                 serializer_class_context={"application_type": BuilderApplicationType},
+                # Partial validation, otherwise fields absent from the request
+                # (e.g. when only `page_id` is sent to share/un-share a data
+                # source) are populated with their serializer defaults, resetting
+                # formula fields like `row_id` to blank.
+                partial=True,
                 return_validated=True,
             )
 
         else:
             # No service nor type, we should validate with the default serializer
-            data = validate_data(BaseUpdateDataSourceSerializer, request.data)
+            data = validate_data(
+                BaseUpdateDataSourceSerializer, request.data, partial=True
+            )
 
         if change_service_type:
             data["new_service_type"] = service_type_from_query
@@ -329,7 +342,7 @@ class DataSourceView(APIView):
         if page is not None:
             data["page"] = page
 
-        data_source_updated = DataSourceService().update_data_source(
+        data_source_updated = UpdateDataSourceActionType.do(
             request.user, data_source, service_type=service_type, **data
         )
 
@@ -378,12 +391,12 @@ class DataSourceView(APIView):
     @transaction.atomic
     def delete(self, request, data_source_id: int):
         """
-        Deletes an data_source.
+        Deletes a data_source.
         """
 
         data_source = DataSourceHandler().get_data_source_for_update(data_source_id)
 
-        DataSourceService().delete_data_source(request.user, data_source)
+        DeleteDataSourceActionType.do(request.user, data_source)
 
         return Response(status=204)
 
@@ -443,7 +456,7 @@ class MoveDataSourceView(APIView):
         if before_id:
             before = DataSourceHandler().get_data_source(before_id, specific=False)
 
-        moved_data_source = DataSourceService().move_data_source(
+        moved_data_source = MoveDataSourceActionType.do(
             request.user, data_source, before
         )
 
@@ -606,6 +619,10 @@ class DispatchDataSourcesView(APIView):
 
 class GetRecordNamesView(APIView):
     permission_classes = (AllowAny,)
+    authentication_classes = (
+        UserSourceJSONWebTokenAuthentication,
+        JSONWebTokenAuthentication,
+    )
 
     @extend_schema(
         parameters=[
@@ -683,7 +700,9 @@ class GetRecordNamesView(APIView):
         query = GetRecordIdsSerializer(data=request.query_params)
 
         if query.is_valid(raise_exception=True):
-            record_ids = query.validated_data["record_ids"]
+            record_ids = service_type.prepare_record_ids(
+                query.validated_data["record_ids"]
+            )
             record_names = service_type.get_record_names(
                 service, record_ids, dispatch_context
             )

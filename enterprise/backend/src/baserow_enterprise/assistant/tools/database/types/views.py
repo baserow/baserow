@@ -84,7 +84,7 @@ _VIEW_EXAMPLES: dict[str, dict] = {
 
 
 def _grid_to_orm(v, table):
-    return {"row_height": v.row_height}
+    return {"row_height_size": v.row_height}
 
 
 def _kanban_to_orm(v, table):
@@ -108,7 +108,7 @@ def _gallery_to_orm(v, table):
     cover_field = model.get_field_object_by_id(v.cover_field_id)["field"]
     if not isinstance(cover_field, FileField):
         raise ValueError("The cover_field_id must be a File field.")
-    return {"card_cover_image_field_id": v.cover_field_id}
+    return {"card_cover_image_field": cover_field}
 
 
 def _timeline_to_orm(v, table):

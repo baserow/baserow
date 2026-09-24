@@ -41,7 +41,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from loguru import logger
-from pydantic_ai._run_context import RunContext
+from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models import (
@@ -67,6 +67,8 @@ _RETRYABLE_MESSAGES = frozenset(
 def _is_transient_provider_error(exc: Exception) -> bool:
     """Return True for provider errors that are transient and safe to retry."""
 
+    if isinstance(exc, ModelHTTPError) and exc.status_code == 429:
+        return True
     msg = str(exc)
     return any(needle in msg for needle in _RETRYABLE_MESSAGES)
 
@@ -197,6 +199,18 @@ _PROVIDER_ENV: dict[str, dict[str, str | None]] = {
     "ollama": {
         "base_url": "OLLAMA_BASE_URL",
     },
+    "google": {
+        "api_key": "GOOGLE_API_KEY",
+    },
+    "google-gla": {
+        "api_key": "GOOGLE_API_KEY",
+    },
+    "google-cloud": {
+        "api_key": "GOOGLE_API_KEY",
+    },
+    "google-vertex": {
+        "api_key": "GOOGLE_API_KEY",
+    },
 }
 
 
@@ -261,35 +275,28 @@ def _make_ollama(name: str, creds: dict[str, str | None]) -> Model:
 
 
 def _make_google(name: str, creds: dict[str, str | None]) -> Model:
-    """Google models need a fresh httpx client per call to avoid event-loop
-    binding issues in Django async views.
-    See: https://github.com/pydantic/pydantic-ai/issues/3240
+    """Build a Google model with a provider-owned HTTP client.
+
+    Pydantic AI creates a fresh client with its safe 600-second timeout and keeps
+    ownership so the client can be closed with the provider.
     """
 
-    import httpx
     from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.providers.google import GoogleProvider
 
     return GoogleModel(
         name,
-        provider=GoogleProvider(
-            api_key=creds["api_key"], http_client=httpx.AsyncClient()
-        ),
+        provider=GoogleProvider(api_key=creds["api_key"]),
     )
 
 
 def _make_google_vertex(name: str, creds: dict[str, str | None]) -> Model:
-    import httpx
     from pydantic_ai.models.google import GoogleModel
-    from pydantic_ai.providers.google import GoogleProvider
+    from pydantic_ai.providers.google_cloud import GoogleCloudProvider
 
     return GoogleModel(
         name,
-        provider=GoogleProvider(
-            api_key=creds["api_key"],
-            http_client=httpx.AsyncClient(),
-            vertexai=True,
-        ),
+        provider=GoogleCloudProvider(api_key=creds["api_key"]),
     )
 
 
@@ -298,9 +305,11 @@ _PROVIDER_FACTORIES: dict[str, Callable[[str, dict[str, str | None]], Model]] = 
     "groq": _make_groq,
     "anthropic": _make_anthropic,
     "ollama": _make_ollama,
+    # Both spellings resolve here; resolve_assistant_model() normalises them.
     "google-gla": _make_google,
     "google": _make_google,
     "google-vertex": _make_google_vertex,
+    "google-cloud": _make_google_vertex,
 }
 
 
@@ -381,37 +390,42 @@ class RetryingModel(WrapperModel):
         model_settings: ModelSettings | None,
         model_request_parameters: ModelRequestParameters,
     ) -> ModelResponse:
-        for attempt in range(1, self.max_attempts + 1):
-            try:
-                return await self.wrapped.request(
-                    messages, model_settings, model_request_parameters
-                )
-            except Exception as exc:
-                # Try to recover tool_use_failed into a response so
-                # pydantic-ai's validation loop can tell the model what
-                # was wrong (instead of blindly retrying the same request).
-                recovered = _try_recover_tool_use_failed(exc)
-                if recovered is not None:
-                    logger.info(
-                        "[assistant] Recovered tool_use_failed error into ModelResponse"
+        wrapped = self.wrapped
+        async with wrapped:
+            for attempt in range(1, self.max_attempts + 1):
+                try:
+                    return await wrapped.request(
+                        messages, model_settings, model_request_parameters
                     )
-                    return recovered
+                except Exception as exc:
+                    # Try to recover tool_use_failed into a response so
+                    # pydantic-ai's validation loop can tell the model what
+                    # was wrong (instead of blindly retrying the same request).
+                    recovered = _try_recover_tool_use_failed(exc)
+                    if recovered is not None:
+                        logger.info(
+                            "[assistant] Recovered tool_use_failed error into "
+                            "ModelResponse"
+                        )
+                        return recovered
 
-                if (
-                    not _is_transient_provider_error(exc)
-                    or attempt == self.max_attempts
-                ):
-                    raise
-                delay = self._delay_for(attempt)
-                logger.warning(
-                    "[assistant] Model request failed (attempt {}/{}), "
-                    "retrying in {:.1f}s: {}",
-                    attempt,
-                    self.max_attempts,
-                    delay,
-                    repr(exc),
-                )
-                await asyncio.sleep(delay)
+                    if (
+                        not _is_transient_provider_error(exc)
+                        or attempt == self.max_attempts
+                    ):
+                        raise
+                    delay = self._delay_for(attempt)
+                    if isinstance(exc, ModelHTTPError) and exc.retry_after is not None:
+                        delay = min(exc.retry_after, self.max_delay)
+                    logger.warning(
+                        "[assistant] Model request failed (attempt {}/{}), "
+                        "retrying in {:.1f}s: {}",
+                        attempt,
+                        self.max_attempts,
+                        delay,
+                        repr(exc),
+                    )
+                    await asyncio.sleep(delay)
         raise RuntimeError("Exhausted retries")  # pragma: no cover
 
     @asynccontextmanager
@@ -422,46 +436,49 @@ class RetryingModel(WrapperModel):
         model_request_parameters: ModelRequestParameters,
         run_context: RunContext[Any] | None = None,
     ) -> AsyncIterator[StreamedResponse]:
-        yielded = False
-        try:
-            async with self.wrapped.request_stream(
-                messages, model_settings, model_request_parameters, run_context
-            ) as stream:
-                yielded = True
-                # Wrap the stream so that errors *during* chunk iteration
-                # (e.g. groq.APIError with malformed failed_generation)
-                # are caught and converted to recovery events rather than
-                # crashing the entire agent run.
-                yield _ErrorRecoveringStream(stream)
-        except Exception as exc:
-            if yielded:
-                # Error during stream consumption that
-                # _ErrorRecoveringStream couldn't handle.
-                raise
+        wrapped = self.wrapped
+        async with wrapped:
+            yielded = False
+            try:
+                async with wrapped.request_stream(
+                    messages, model_settings, model_request_parameters, run_context
+                ) as stream:
+                    yielded = True
+                    # Wrap the stream so that errors *during* chunk iteration
+                    # (e.g. groq.APIError with malformed failed_generation)
+                    # are caught and converted to recovery events rather than
+                    # crashing the entire agent run.
+                    yield _ErrorRecoveringStream(stream)
+            except Exception as exc:
+                if yielded:
+                    # Error during stream consumption that
+                    # _ErrorRecoveringStream couldn't handle.
+                    raise
 
-            # Setup error — try to recover tool_use_failed.
-            recovered = _try_recover_tool_use_failed(exc)
-            if recovered is not None:
-                logger.info(
-                    "[assistant] Recovered tool_use_failed error "
-                    "in stream into ModelResponse"
+                # Setup error — try to recover tool_use_failed.
+                recovered = _try_recover_tool_use_failed(exc)
+                if recovered is not None:
+                    logger.info(
+                        "[assistant] Recovered tool_use_failed error "
+                        "in stream into ModelResponse"
+                    )
+                    yield _PreFetchedResponse(recovered, model_request_parameters)
+                    return
+
+                if not _is_transient_provider_error(exc):
+                    raise
+                # Stream failed with a retryable error. Fall back to a
+                # non-streaming request, whose nested model context is safe
+                # because providers reference-count re-entrant scopes.
+                logger.warning(
+                    "[assistant] Stream failed with retryable error, "
+                    "falling back to non-streaming request: {}",
+                    repr(exc),
                 )
-                yield _PreFetchedResponse(recovered, model_request_parameters)
-                return
-
-            if not _is_transient_provider_error(exc):
-                raise
-            # Stream failed with a retryable error.  Fall back to a
-            # non-streaming request which has its own retry loop.
-            logger.warning(
-                "[assistant] Stream failed with retryable error, "
-                "falling back to non-streaming request: {}",
-                repr(exc),
-            )
-            response = await self.request(
-                messages, model_settings, model_request_parameters
-            )
-            yield _PreFetchedResponse(response, model_request_parameters)
+                response = await self.request(
+                    messages, model_settings, model_request_parameters
+                )
+                yield _PreFetchedResponse(response, model_request_parameters)
 
 
 class _ErrorRecoveringStream(StreamedResponse):
@@ -489,6 +506,8 @@ class _ErrorRecoveringStream(StreamedResponse):
     provider_response_id = property(lambda self: self._inner.provider_response_id)  # type: ignore[assignment]
     provider_details = property(lambda self: self._inner.provider_details)  # type: ignore[assignment]
     finish_reason = property(lambda self: self._inner.finish_reason)  # type: ignore[assignment]
+    state = property(lambda self: self._inner.state)  # type: ignore[assignment]
+    metadata = property(lambda self: self._inner.metadata)  # type: ignore[assignment]
     _cancelled = property(lambda self: self._inner._cancelled)  # type: ignore[assignment]
     _finished = property(lambda self: self._inner._finished)  # type: ignore[assignment]
     _parts_manager = property(lambda self: self._inner._parts_manager)  # type: ignore[assignment]
@@ -525,6 +544,10 @@ class _ErrorRecoveringStream(StreamedResponse):
                 yield self._parts_manager.handle_part(
                     vendor_part_id=f"recovered-{i}", part=part
                 )
+
+    async def close_stream(self) -> None:
+        # Not delegating leaves the base class's NotImplementedError in place.
+        await self._inner.close_stream()
 
     # Abstract properties — delegate to inner stream.
 

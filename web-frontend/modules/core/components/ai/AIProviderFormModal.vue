@@ -76,24 +76,26 @@
       <div
         v-for="(model, index) in models"
         :key="index"
-        class="ai-provider-form__model-row"
+        class="ai-provider-form__model-entry"
       >
-        <AIProviderModelCombobox
-          v-model="model.model_identifier"
-          :suggestions="availableSuggestionsFor(model)"
-          :loading="discoveryLoading"
-          :unavailable="discoveryUnavailable"
-          :placeholder="$t('aiProviderAdmin.modelIdentifier')"
-          @focus="discoverModelsIfNeeded"
-        />
-        <Button
-          type="secondary"
-          size="small"
-          icon="iconoir-cancel"
-          :title="$t('aiProviderAdmin.removeModel')"
-          :aria-label="$t('aiProviderAdmin.removeModel')"
-          @click="models.splice(index, 1)"
-        />
+        <div class="ai-provider-form__model-row">
+          <AIProviderModelCombobox
+            v-model="model.model_identifier"
+            :suggestions="availableSuggestionsFor(model)"
+            :loading="discoveryLoading"
+            :unavailable="discoveryUnavailable"
+            :placeholder="$t('aiProviderAdmin.modelIdentifier')"
+            @focus="discoverModelsIfNeeded"
+          />
+          <Button
+            type="secondary"
+            icon="iconoir-cancel"
+            :title="$t('aiProviderAdmin.removeModel')"
+            :aria-label="$t('aiProviderAdmin.removeModel')"
+            @click="models.splice(index, 1)"
+          />
+        </div>
+        <AIProviderModelFeatureSelector v-model="model.feature_types" />
       </div>
       <Button type="secondary" size="small" @click="addModel">
         <i class="iconoir-plus" /> {{ $t('aiProviderAdmin.addModel') }}
@@ -121,15 +123,22 @@
 
 <script>
 import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProviderModelCombobox'
+import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
 import modal from '@baserow/modules/core/mixins/modal'
+
+const defaultFeatureTypes = (registry) =>
+  registry
+    .getOrderedList('aiProviderModelFeature')
+    .map((feature) => feature.getType())
 
 export default {
   name: 'AIProviderFormModal',
-  components: { AIProviderModelCombobox },
+  components: { AIProviderModelCombobox, AIProviderModelFeatureSelector },
   mixins: [modal],
   props: {
     provider: { type: Object, default: null },
     providerTypes: { type: Array, required: true },
+    workspaceId: { type: Number, default: null },
   },
   emits: ['hidden', 'saved'],
   data() {
@@ -149,7 +158,14 @@ export default {
         api_key: '',
       },
       extraSettings: { ...(this.provider?.extra_settings || {}) },
-      models: this.provider ? [] : [{ model_identifier: '' }],
+      models: this.provider
+        ? []
+        : [
+            {
+              model_identifier: '',
+              feature_types: defaultFeatureTypes(this.$registry),
+            },
+          ],
     }
   },
   computed: {
@@ -203,8 +219,14 @@ export default {
     },
   },
   methods: {
+    emptyModel() {
+      return {
+        model_identifier: '',
+        feature_types: defaultFeatureTypes(this.$registry),
+      }
+    },
     addModel() {
-      this.models.push({ model_identifier: '' })
+      this.models.push(this.emptyModel())
     },
     availableSuggestionsFor(model) {
       const selectedModels = new Set(
@@ -238,7 +260,12 @@ export default {
       try {
         const result = await this.$store.dispatch(
           'aiProvider/discoverModels',
-          this.values.provider_type
+          this.workspaceId === null
+            ? this.values.provider_type
+            : {
+                providerType: this.values.provider_type,
+                workspaceId: this.workspaceId,
+              }
         )
         this.discoveredModels = result.models || []
         this.discoverySupported = result.supported !== false
@@ -280,13 +307,22 @@ export default {
           .filter((model) => model.model_identifier.trim())
           .map((model) => ({
             model_identifier: model.model_identifier.trim(),
+            feature_types: model.feature_types,
           }))
       }
       try {
         const action = this.provider ? 'aiProvider/update' : 'aiProvider/create'
         const payload = this.provider
-          ? { providerId: this.provider.id, values }
-          : values
+          ? {
+              providerId: this.provider.id,
+              values,
+              ...(this.workspaceId === null
+                ? {}
+                : { workspaceId: this.workspaceId }),
+            }
+          : this.workspaceId === null
+            ? values
+            : { values, workspaceId: this.workspaceId }
         const result = await this.$store.dispatch(action, payload)
         this.$emit('saved', result)
         this.hide()

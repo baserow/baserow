@@ -409,6 +409,153 @@ describe('element store', () => {
         dispatched.some((d) => d.action.startsWith('builderWorkflowAction/'))
       ).toBe(false)
     })
+
+    test('flushes a pending move when a different element is moved', async () => {
+      // Regression: `moveTimeout` is shared across all elements. Moving a second
+      // element within the debounce window used to cancel the first element's
+      // timer and drop its backend move (and its undo action).
+      const elementA = { id: 5, type: 'heading', place_in_container: '' }
+      const elementB = { id: 6, type: 'heading', place_in_container: '' }
+      const page = makePage({ 0: 5, 5: { next: { '': [6] } }, 6: {} }, [
+        elementA,
+        elementB,
+      ])
+
+      const patch = vi.fn((url) =>
+        Promise.resolve({
+          data: {
+            id: Number(url.match(/element\/(\d+)/)[1]),
+            page_id: page.id,
+          },
+        })
+      )
+      const thisCtx = {
+        $client: { patch },
+        $registry: { get: () => ({ wrapMove: (ctxArg, cb) => cb() }) },
+      }
+      const context = {
+        commit: vi.fn(),
+        dispatch: vi.fn(() => Promise.resolve()),
+        getters: {
+          getElementById: (p, id) =>
+            [elementA, elementB].find((e) => e.id === id) ?? null,
+          getParent: () => null,
+        },
+        rootGetters: {
+          'builderWorkflowAction/getElementWorkflowActions': () => [],
+        },
+      }
+
+      const move = (elementId) =>
+        elementStore.actions.move.call(thisCtx, context, {
+          builder: {},
+          page,
+          elementId,
+          referenceElementId: null,
+          position: 'south',
+          placeInContainer: '',
+          targetPage: null,
+        })
+
+      await move(5)
+      // Still within A's debounce window: nothing persisted yet.
+      expect(patch).not.toHaveBeenCalled()
+
+      // Moving B flushes A's pending move instead of discarding it.
+      await move(6)
+      expect(patch).toHaveBeenCalledWith(
+        'builder/element/5/move/',
+        expect.anything()
+      )
+
+      // B is still debounced; let its timer fire.
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(patch).toHaveBeenCalledWith(
+        'builder/element/6/move/',
+        expect.anything()
+      )
+      expect(patch).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('debouncedUpdate', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    })
+
+    const makeContext = () => ({
+      dispatch: vi.fn(() => Promise.resolve()),
+      getters: {},
+    })
+
+    test('flushes the pending update when a different element is edited', async () => {
+      // Regression: the debounce context is shared across all elements. Editing a
+      // second element before the first's debounce fired used to clear the first
+      // element's timer and drop its save entirely, leaving the local state ahead
+      // of the backend and its undo action missing.
+      const patch = vi.fn(() => Promise.resolve({ data: {} }))
+      const thisCtx = { $client: { patch } }
+      const page = makePage({}, [])
+      const elementA = { id: 1, type: 'heading', value: 'a' }
+      const elementB = { id: 2, type: 'heading', value: 'b' }
+
+      const p1 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element: elementA, values: { value: 'AAA' } }
+      )
+      await vi.advanceTimersByTimeAsync(0)
+      // Still within A's debounce window: nothing persisted yet.
+      expect(patch).not.toHaveBeenCalled()
+
+      const p2 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element: elementB, values: { value: 'BBB' } }
+      )
+      await vi.advanceTimersByTimeAsync(0)
+      // Editing B flushed A's pending update instead of discarding it.
+      expect(patch).toHaveBeenCalledWith('builder/element/1/', { value: 'AAA' })
+
+      // B is still debounced; let its timer fire.
+      await vi.advanceTimersByTimeAsync(500)
+      expect(patch).toHaveBeenCalledWith('builder/element/2/', { value: 'BBB' })
+      expect(patch).toHaveBeenCalledTimes(2)
+
+      await Promise.all([p1, p2])
+    })
+
+    test('coalesces rapid edits to the same element into a single save', async () => {
+      const patch = vi.fn(() => Promise.resolve({ data: {} }))
+      const thisCtx = { $client: { patch } }
+      const page = makePage({}, [])
+      const element = { id: 1, type: 'heading', value: 'a' }
+
+      const p1 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element, values: { value: 'X' } }
+      )
+      await vi.advanceTimersByTimeAsync(200)
+      const p2 = elementStore.actions.debouncedUpdate.call(
+        thisCtx,
+        makeContext(),
+        { builder: {}, page, element, values: { value: 'XY' } }
+      )
+      await vi.advanceTimersByTimeAsync(500)
+
+      // Same element: the edits coalesce into one PATCH with the latest value,
+      // never prematurely flushed.
+      expect(patch).toHaveBeenCalledTimes(1)
+      expect(patch).toHaveBeenCalledWith('builder/element/1/', { value: 'XY' })
+
+      await Promise.all([p1, p2])
+    })
   })
 
   describe('getRootElements', () => {
@@ -440,6 +587,54 @@ describe('element store', () => {
       const result = elementStore.getters.getRootElements(null, null)(page)
 
       expect(result.map((e) => e.id)).toEqual([1, 99])
+    })
+  })
+
+  describe('realtime form-reset metadata', () => {
+    const makeSelected = () => {
+      const element = {
+        id: 1,
+        type: 'heading',
+        value: 'a',
+        _: { viaRealtime: false, realtimeVersion: 0 },
+      }
+      const page = { elements: [element], elementMap: { 1: element } }
+      const builder = { selectedElement: element }
+      return { element, page, builder }
+    }
+
+    test('a realtime update flags viaRealtime and bumps realtimeVersion once', () => {
+      const { element, page, builder } = makeSelected()
+
+      elementStore.mutations.UPDATE_ITEM(
+        {},
+        {
+          builder,
+          page,
+          element: { id: 1 },
+          values: { value: 'b' },
+          viaRealtime: true,
+        }
+      )
+
+      expect(element.value).toBe('b')
+      expect(element._.viaRealtime).toBe(true)
+      // Bumped exactly once even though selectedElement is the same object.
+      expect(element._.realtimeVersion).toBe(1)
+    })
+
+    test('a local update clears viaRealtime without bumping realtimeVersion', () => {
+      const { element, page, builder } = makeSelected()
+      element._.viaRealtime = true
+      element._.realtimeVersion = 2
+
+      elementStore.mutations.UPDATE_ITEM(
+        {},
+        { builder, page, element: { id: 1 }, values: { value: 'c' } }
+      )
+
+      expect(element._.viaRealtime).toBe(false)
+      expect(element._.realtimeVersion).toBe(2)
     })
   })
 })

@@ -18,6 +18,22 @@ ERROR_ASSISTANT_MODEL_NOT_SUPPORTED = (
     ),
 )
 
+ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE = (
+    "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
+    HTTP_400_BAD_REQUEST,
+    (
+        "The Kuma model selected in AI provider settings could not be used. "
+        "Test the selected model and verify its provider credentials before trying "
+        "again."
+    ),
+)
+
+ERROR_ASSISTANT_MODEL_DISABLED = (
+    "ERROR_ASSISTANT_MODEL_DISABLED",
+    HTTP_400_BAD_REQUEST,
+    ("Kuma is disabled in AI provider settings. Enable Kuma before trying again."),
+)
+
 ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK = (
     "ERROR_CANNOT_SUBMIT_MESSAGE_FEEDBACK",
     HTTP_400_BAD_REQUEST,

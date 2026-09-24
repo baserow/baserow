@@ -14,6 +14,8 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 import _ from 'lodash'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal.vue'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export class AIFieldType extends FieldType {
   static getType() {
@@ -212,9 +214,13 @@ export class AIFieldType extends FieldType {
   }
 
   isEnabled(workspace) {
-    return Object.values(workspace.generative_ai_models_enabled).some(
-      (models) => models.length > 0
-    )
+    return Object.values(
+      getEnabledModelsForAIProviderFeature(
+        workspace,
+        'ai_fields',
+        this.app.$featureFlagIsEnabled(FF_AI_PROVIDERS)
+      )
+    ).some((models) => models.length > 0)
   }
 
   getDisabledClickModal(workspace) {

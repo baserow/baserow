@@ -92,17 +92,25 @@ export class DatabaseApplicationType extends ApplicationType {
     return {
       ...super.populate(application),
       tables,
+      // Filled by the button field editor when an action needs one. The flag
+      // rides on the application, so a refetch that empties the list clears
+      // the memory of having loaded it too.
+      integrations: application.integrations || [],
+      _integrationsLoadedOnce: false,
     }
   }
 
   /**
    * When a table of the deleted database is selected we must redirect back to
-   * the dashboard because that page doesn't exist anymore.
+   * the workspace homepage because that page doesn't exist anymore.
    */
   delete(application, { $router }) {
     const tableSelected = application.tables.some((table) => table._.selected)
     if (tableSelected) {
-      $router.push({ name: 'dashboard' })
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
     }
   }
 

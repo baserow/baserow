@@ -9,6 +9,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, AsyncGenerator, Dict, List, Optional
 from unittest.mock import patch
 
@@ -839,8 +840,10 @@ def stub_check_permissions() -> callable:
         permission_manager_type_registry.registry[first_manager] = (
             stub_core_permission_manager
         )
-        yield stub_core_permission_manager
-        permission_manager_type_registry.registry = before
+        try:
+            yield stub_core_permission_manager
+        finally:
+            permission_manager_type_registry.registry = before
 
     return _perform_stub
 
@@ -991,10 +994,12 @@ class FakeDispatchContext(DispatchContext):
         "_is_publicly_sortable",
         "_filters",
         "_sortings",
+        "actor",
     ]
 
     def __init__(self, **kwargs):
-        super().__init__()
+        workspace = kwargs.pop("workspace", SimpleNamespace(id=-1))
+        super().__init__(workspace)
         self.context = kwargs.pop("context", {})
         self._public_allowed_properties = kwargs.pop("public_allowed_properties", None)
         self._searchable_fields = kwargs.pop("searchable_fields", [])
@@ -1034,7 +1039,7 @@ class FakeDispatchContext(DispatchContext):
         return self._sortings
 
     def range(self, service):
-        return [0, self._count]
+        return 0, self._count
 
     def __getitem__(self, key: str) -> Any:
         if key == "test":
@@ -1055,6 +1060,8 @@ class FakeDispatchContext(DispatchContext):
     def validate_filter_search_sort_fields(
         self, fields: List[str], refinement: ServiceAdhocRefinements
     ):
+        # The fake context declares itself publicly refinable, so it has to
+        # accept the fields the tests refine on.
         pass
 
 

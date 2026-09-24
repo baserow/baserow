@@ -21,6 +21,7 @@ import {
   IMAGE_SOURCE_TYPES,
   PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
+import { LocalBaserowListRowsServiceType } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 
 describe('elementTypes tests', () => {
   let testApp
@@ -108,6 +109,21 @@ describe('elementTypes tests', () => {
     test('ColumnElementType returns the name by default', () => {
       const elementType = testApp.$registry.get('element', 'column')
       expect(elementType.getDisplayName({}, {})).toBe('elementType.column')
+    })
+    test('ColumnElementType provides its public responsive styles', () => {
+      const elementType = testApp.$registry.get('element', 'column')
+      const styles = elementType.getPublicResponsiveStyles({
+        breakpoints: { mobile: 640, tablet: 1024 },
+      })
+
+      expect(styles).toContain('@media (min-width: 1025px)')
+      expect(styles).toContain(
+        '@media (min-width: 641px) and (max-width: 1024px)'
+      )
+      expect(styles).toContain('@media (max-width: 640px)')
+      expect(styles).toContain(
+        '.column-element--public.column-element--stack-smartphone'
+      )
     })
     test('InputTextElementType label and default_value variations', () => {
       const elementType = testApp.$registry.get('element', 'input_text')
@@ -573,6 +589,18 @@ describe('elementTypes tests', () => {
         elementType.isValid({ required: false, validation_type: 'integer' }, '')
       ).toBe(true)
     })
+    test.each(['3.2', '32', NaN, Infinity])(
+      'InputTextElementType rejects unparsed or non-finite numeric value %s',
+      (value) => {
+        const elementType = new InputTextElementType()
+        expect(
+          elementType.isValid(
+            { required: false, validation_type: 'integer' },
+            value
+          )
+        ).toBe(false)
+      }
+    )
     test('InputTextElementType | required | email | valid value.', () => {
       const elementType = new InputTextElementType()
       expect(
@@ -670,6 +698,26 @@ describe('elementTypes tests', () => {
       }
       expect(elementType.isValid(element, 'uk', {})).toBe(true)
     })
+    test('ChoiceElementType | required multiple | undefined value.', () => {
+      const elementType = new ChoiceElementType()
+      const element = {
+        required: true,
+        multiple: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
+        options: [{ id: 1, value: 'uk', name: 'UK' }],
+      }
+      expect(elementType.isValid(element, undefined, {})).toBe(false)
+    })
+    test('ChoiceElementType | not required multiple | undefined value.', () => {
+      const elementType = new ChoiceElementType()
+      const element = {
+        required: false,
+        multiple: true,
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
+        options: [{ id: 1, value: 'uk', name: 'UK' }],
+      }
+      expect(elementType.isValid(element, undefined, {})).toBe(true)
+    })
     test('RecordSelectorElementType | required | no value.', () => {
       const elementType = new RecordSelectorElementType()
       const element = { required: true, multiple: false }
@@ -716,6 +764,98 @@ describe('elementTypes tests', () => {
       const elementType = new RecordSelectorElementType({ app })
       const element = { required: false, multiple: false, data_source_id: 1 }
       expect(elementType.isValid(element, 1, {})).toBe(true)
+    })
+    test.each([
+      [false, '', null],
+      [false, null, null],
+      [false, '42', 42],
+      [true, [''], []],
+      [true, ['42', '43'], [42, 43]],
+    ])(
+      'Record selector List rows default: multiple=%s, value=%j',
+      (multiple, defaultValue, expected) => {
+        const elementType = new RecordSelectorElementType()
+        vi.spyOn(elementType, 'getRecordIdServiceType').mockReturnValue(
+          new LocalBaserowListRowsServiceType({})
+        )
+        vi.spyOn(elementType, 'resolveFormula').mockReturnValue(defaultValue)
+
+        expect(
+          elementType.getInitialFormDataValue(
+            { multiple, default_value: {} },
+            {}
+          )
+        ).toEqual(expected)
+      }
+    )
+    test('RecordSelectorElementType | string data source id default value.', () => {
+      const serviceType = {
+        parseRecordId(value) {
+          return value
+        },
+        getRecordIdDataType() {
+          return 'string'
+        },
+      }
+      const sharedPage = { id: 2 }
+      const page = { id: 1 }
+      const dataSource = { id: 1, type: 'grouped_rows' }
+      const app = {
+        $registry: {
+          get(namespace, type) {
+            if (namespace === 'service' && type === dataSource.type) {
+              return serviceType
+            }
+          },
+        },
+        $store: {
+          getters: {
+            'page/getSharedPage'() {
+              return sharedPage
+            },
+            'dataSource/getPagesDataSourceById'() {
+              return dataSource
+            },
+          },
+        },
+      }
+      const elementType = new RecordSelectorElementType({ app })
+      vi.spyOn(elementType, 'resolveFormula').mockReturnValue('Group A')
+
+      const element = {
+        default_value: {},
+        multiple: false,
+        data_source_id: dataSource.id,
+      }
+
+      expect(
+        elementType.getInitialFormDataValue(element, {
+          builder: { id: 1 },
+          page,
+        })
+      ).toBe('Group A')
+      expect(
+        elementType.formDataType(element, {
+          builder: { id: 1 },
+          page,
+        })
+      ).toBe('string')
+      expect(
+        elementType.getDataSchema(element, {
+          builder: { id: 1 },
+          page,
+        })
+      ).toEqual({ type: 'string' })
+
+      expect(
+        elementType.getDataSchema(
+          { ...element, multiple: true },
+          {
+            builder: { id: 1 },
+            page,
+          }
+        )
+      ).toEqual({ type: 'array', items: { type: 'string' } })
     })
   })
 
@@ -1130,6 +1270,31 @@ describe('elementTypes tests', () => {
       // Otherwise it is valid
       element.image_url = { formula: "'http://localhost'" }
       expect(elementType.isInError(element, { element })).toBe(false)
+    })
+  })
+
+  describe('ChoiceElementType getErrorMessage tests', () => {
+    test('is in error when a manual option has an empty name', () => {
+      const elementType = testApp.$registry.get('element', 'choice')
+      const element = {
+        option_type: CHOICE_OPTION_TYPES.MANUAL,
+        options: [
+          { id: 1, name: '', value: null },
+          { id: 2, name: 'Blank value', value: '' },
+        ],
+      }
+
+      expect(elementType.getErrorMessage(element, {})).toBe(
+        'elementType.errorOptionNameMissing'
+      )
+
+      element.options[0].name = '   '
+      expect(elementType.getErrorMessage(element, {})).toBe(
+        'elementType.errorOptionNameMissing'
+      )
+
+      element.options[0].name = 'Named option'
+      expect(elementType.getErrorMessage(element, {})).toBeNull()
     })
   })
 

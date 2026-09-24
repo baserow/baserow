@@ -17,6 +17,9 @@ class HumanReadableRowContext(RuntimeFormulaContext):
             for field in model._field_objects.values()
             if field["field"].id not in exclude_field_ids
         }
+        # Not a field, but a button's URL is resolved through this provider and
+        # linking back to the clicked row is the common case.
+        self.human_readable_row_values["id"] = row.id
 
         super().__init__()
 

@@ -1,21 +1,24 @@
 <template>
-  <div>
-    <DashboardWidget
-      v-for="widget in widgets"
-      :key="widget.id"
-      :widget="widget"
-      :dashboard="dashboard"
-      :store-prefix="storePrefix"
-    />
-  </div>
+  <ClientOnly>
+    <DashboardWidgetGrid :dashboard="dashboard" :store-prefix="storePrefix" />
+    <template #fallback>
+      <div
+        class="dashboard-widget-board__fallback"
+        data-testid="dashboard-widget-board-fallback"
+      >
+        <DashboardWidgetGridLoading />
+      </div>
+    </template>
+  </ClientOnly>
 </template>
 
 <script>
-import DashboardWidget from '@baserow/modules/dashboard/components/widget/DashboardWidget'
+import DashboardWidgetGrid from '@baserow/modules/dashboard/components/DashboardWidgetGrid.client'
+import DashboardWidgetGridLoading from '@baserow/modules/dashboard/components/DashboardWidgetGridLoading'
 
 export default {
   name: 'WidgetBoard',
-  components: { DashboardWidget },
+  components: { DashboardWidgetGrid, DashboardWidgetGridLoading },
   props: {
     dashboard: {
       type: Object,
@@ -25,18 +28,6 @@ export default {
       type: String,
       required: false,
       default: '',
-    },
-  },
-  computed: {
-    isEditMode() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/isEditMode`
-      ]
-    },
-    widgets() {
-      return this.$store.getters[
-        `${this.storePrefix}dashboardApplication/getWidgets`
-      ]
     },
   },
 }

@@ -7,8 +7,8 @@
     ></component>
     <template v-if="showAdmin">
       <div class="sidebar__head">
-        <a class="sidebar__back" @click="setShowAdmin(false)">
-          <i class="sidebar__back-icon iconoir-nav-arrow-left"></i>
+        <a class="sidebar__back" @click="leaveAdmin()">
+          <i class="iconoir-nav-arrow-left"></i>
         </a>
         <div v-show="!collapsed" class="sidebar__title">
           {{ $t('sidebar.adminSettings') }}
@@ -17,38 +17,56 @@
       <SidebarAdmin v-show="!collapsed"></SidebarAdmin>
     </template>
     <template v-if="!showAdmin">
-      <a
+      <div
         ref="workspaceContextAnchor"
         class="sidebar__workspaces-selector"
         data-highlight="workspaces"
-        @click="
-          $refs.workspacesContext.toggle(
-            $refs.workspaceContextAnchor,
-            'bottom',
-            'left',
-            8,
-            16
-          )
-        "
       >
-        <Avatar
-          :initials="$filters.nameAbbreviation(selectedWorkspace.name || name)"
-        ></Avatar>
-        <span
+        <nuxt-link
           v-show="!collapsed"
-          class="sidebar__workspaces-selector-selected-workspace"
-          >{{ selectedWorkspace.name || name }}</span
+          v-tooltip="$t('sidebar.backToHome')"
+          tooltip-position="right"
+          tooltip-no-arrow
+          tooltip-show-delay="500"
+          class="sidebar__back"
+          :aria-label="$t('sidebar.backToHome')"
+          :to="{ name: 'all-workspaces' }"
         >
-        <span
-          v-show="!collapsed"
-          v-if="unreadNotificationsInOtherWorkspaces"
-          class="sidebar__unread-notifications-icon"
-        ></span>
-        <i
-          v-show="!collapsed"
-          class="sidebar__workspaces-selector-icon baserow-icon-up-down-arrows"
-        ></i>
-      </a>
+          <i class="iconoir-nav-arrow-left"></i>
+        </nuxt-link>
+        <a
+          class="sidebar__workspaces-selector-link"
+          @click="
+            $refs.workspacesContext.toggle(
+              $refs.workspaceContextAnchor,
+              'bottom',
+              'left',
+              4,
+              16
+            )
+          "
+        >
+          <Avatar
+            :initials="
+              $filters.nameAbbreviation(selectedWorkspace.name || name)
+            "
+          ></Avatar>
+          <span
+            v-show="!collapsed"
+            class="sidebar__workspaces-selector-selected-workspace"
+            >{{ selectedWorkspace.name || name }}</span
+          >
+          <span
+            v-show="!collapsed"
+            v-if="unreadNotificationsInOtherWorkspaces"
+            class="sidebar__unread-notifications-icon"
+          ></span>
+          <i
+            v-show="!collapsed"
+            class="sidebar__workspaces-selector-icon baserow-icon-up-down-arrows"
+          ></i>
+        </a>
+      </div>
       <SidebarUserContext
         ref="workspacesContext"
         :workspaces="workspaces"
@@ -175,6 +193,18 @@ export default {
     setShowAdmin(value) {
       this.showAdmin = value
       this.$forceUpdate()
+    },
+    /**
+     * If no workspace is selected, for example when an admin page was loaded
+     * directly, then toggling back would show an empty workspace sidebar, so the
+     * user is navigated to the all workspaces homepage instead.
+     */
+    leaveAdmin() {
+      if (this.hasSelectedWorkspace) {
+        this.setShowAdmin(false)
+      } else {
+        this.$router.push({ name: 'all-workspaces' })
+      }
     },
   },
 }

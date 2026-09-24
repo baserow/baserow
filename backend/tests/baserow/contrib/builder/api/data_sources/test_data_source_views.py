@@ -24,6 +24,7 @@ from baserow.core.formula.types import (
     BaserowFormulaObject,
 )
 from baserow.core.services.models import Service
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
 from baserow.test_utils.helpers import AnyInt, AnyStr, setup_interesting_test_table
 
@@ -166,7 +167,7 @@ def test_create_data_source_bad_request(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
+def test_create_data_source_with_duplicate_name_is_allowed(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
@@ -183,11 +184,10 @@ def test_create_data_source_with_with_name_conflict(api_client, data_fixture):
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source.name}' already exists.",
-    }
+    # Data source names are not unique (like database table names), so creating a
+    # second data source with the same name on the same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source.name
 
 
 @pytest.mark.django_db
@@ -319,7 +319,38 @@ def test_update_data_source_page(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
+def test_update_data_source_page_only_preserves_service_values(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(user=user, builder=page.builder)
+    table = data_fixture.create_database_table(user=user)
+    data_source1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page, name="name", table=table, row_id="'42'"
+    )
+
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source1.id}
+    )
+
+    response = api_client.patch(
+        url,
+        {"page_id": page2.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["page_id"] == page2.id
+    assert response.json()["row_id"]["formula"] == "'42'"
+    assert response.json()["table_id"] == table.id
+
+    data_source1.refresh_from_db()
+    assert data_source1.service.specific.row_id["formula"] == "'42'"
+
+
+@pytest.mark.django_db
+def test_update_data_source_with_duplicate_name_is_allowed_on_same_page(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
@@ -341,11 +372,10 @@ def test_update_data_source_with_with_name_conflict_is_disallowed_on_same_pages(
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_DATA_SOURCE_NAME_NOT_UNIQUE",
-        "detail": f"The data source name '{data_source_1.name}' already exists.",
-    }
+    # Data source names are not unique, so renaming one to match a sibling on the
+    # same page is allowed.
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["name"] == data_source_1.name
 
 
 @pytest.mark.django_db
@@ -403,7 +433,6 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                         version=BASEROW_FORMULA_VERSION_INITIAL,
                         mode=BASEROW_FORMULA_MODE_RAW,
                     ),
-                    "value_is_formula": False,
                 },
                 {
                     "field": formula_field.id,
@@ -413,7 +442,6 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                         version=BASEROW_FORMULA_VERSION_INITIAL,
                         mode=BASEROW_FORMULA_MODE_SIMPLE,
                     ),
-                    "value_is_formula": True,
                 },
             ]
         },
@@ -435,7 +463,6 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 mode=BASEROW_FORMULA_MODE_RAW,
             ),
             "trashed": False,
-            "value_is_formula": False,
             "group": None,
         },
         {
@@ -449,9 +476,12 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
-            "value_is_formula": True,
             "group": None,
         },
+    ]
+    assert [service_filter.value["mode"] for service_filter in service_filters] == [
+        BASEROW_FORMULA_MODE_RAW,
+        BASEROW_FORMULA_MODE_SIMPLE,
     ]
 
     # Reset the filters to nothing.
@@ -481,7 +511,6 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                         version=BASEROW_FORMULA_VERSION_INITIAL,
                         mode=BASEROW_FORMULA_MODE_RAW,
                     ),
-                    "value_is_formula": False,
                 }
             ]
         },
@@ -503,10 +532,10 @@ def test_update_data_source_with_filters(api_client, data_fixture):
                 mode=BASEROW_FORMULA_MODE_RAW,
             ),
             "trashed": False,
-            "value_is_formula": False,
             "group": None,
         }
     ]
+    assert service_filter.value["mode"] == BASEROW_FORMULA_MODE_RAW
 
 
 @pytest.mark.django_db
@@ -1014,7 +1043,14 @@ def test_delete_data_source(api_client, data_fixture):
     )
     assert response.status_code == HTTP_204_NO_CONTENT
 
-    # Ensure the service also is deleted
+    # The data source is trashed (soft-deleted) so it can be restored via undo.
+    assert not DataSource.objects.filter(id=data_source1.id).exists()
+    assert DataSource.trash.filter(id=data_source1.id).exists()
+    # The underlying service is preserved while trashed so a restore brings it back.
+    assert Service.objects.count() == 1
+
+    # Permanently deleting the data source also cleans up the service.
+    TrashHandler.permanently_delete(data_source1)
     assert Service.objects.count() == 0
 
 
@@ -2298,6 +2334,55 @@ def test_dispatch_only_shared_data_sources(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("actor", ["anonymous", "user_source", "other_builder"])
+def test_get_record_names_published_builder(
+    api_client, data_fixture, data_source_fixture, actor
+):
+    primary_field = data_source_fixture["fields"][0]
+    primary_field.primary = True
+    primary_field.save()
+    page = data_source_fixture["page"]
+    page.builder.workspace = None
+    page.builder.save()
+    data_fixture.create_builder_custom_domain(published_to=page.builder)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=data_source_fixture["user"],
+        page=page,
+        integration=data_source_fixture["integration"],
+        table=data_source_fixture["table"],
+    )
+    url = reverse(
+        "api:builder:data_source:record-names",
+        kwargs={"data_source_id": data_source.id},
+    )
+    token = data_source_fixture["user_source_user_token"]
+    if actor == "other_builder":
+        other_builder = data_fixture.create_builder_application(workspace=None)
+        data_fixture.create_builder_custom_domain(published_to=other_builder)
+        source = data_fixture.create_local_baserow_table_user_source(
+            application=other_builder,
+            user=data_source_fixture["user"],
+            integration=data_fixture.create_local_baserow_integration(
+                application=other_builder, user=data_source_fixture["user"]
+            ),
+        )
+        external_user = data_fixture.create_user_source_user(
+            user_source=source, user_id=source.table.get_model().objects.first().id
+        )
+        token = external_user.get_refresh_token().access_token
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if actor != "anonymous" else {}
+    row = data_source_fixture["rows"][0]
+    response = api_client.get(f"{url}?record_ids={row.id}", **headers)
+
+    if actor == "other_builder":
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+        assert response.json()["error"] == "PERMISSION_DENIED"
+    else:
+        assert response.status_code == HTTP_200_OK
+        assert response.json() == {str(row.id): "Apple"}
+
+
+@pytest.mark.django_db
 def test_get_record_names(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
@@ -2343,6 +2428,17 @@ def test_get_record_names(api_client, data_fixture):
     response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["record_ids"] == ["The provided record ids are not valid."]
+
+    # Malformed CSV must return a validation error instead of a server error.
+    response = api_client.get(
+        base_url,
+        {"record_ids": "one\ntwo"},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["record_ids"][0].startswith(
+        "Could not split comma separated string:"
+    )
 
     # If the data source is not a list data source, it should raise an error
     non_list_data_source = (

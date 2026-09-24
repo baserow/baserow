@@ -1,6 +1,41 @@
 import FieldService from '@baserow/modules/database/services/field'
 import { clone } from '@baserow/modules/core/utils/object'
 
+// One permissions request per database at a time, with one more queued when a
+// field lands mid-request, so the newest response is the last one applied.
+const permissionRefreshes = new Map()
+
+/**
+ * Refetches the workspace permissions after a field appeared. A role on the
+ * table or database is handed out as a list of field ids fetched with the
+ * workspace, so until this runs every field scoped check refuses the new field.
+ */
+function refreshPermissionsAfterField(dispatch, databaseId) {
+  const pending = permissionRefreshes.get(databaseId)
+  if (pending) {
+    pending.again = true
+    return pending.promise
+  }
+  const entry = { again: false }
+  entry.promise = (async () => {
+    try {
+      do {
+        entry.again = false
+        await dispatch('application/refreshPermissions', databaseId, {
+          root: true,
+        })
+      } while (entry.again)
+    } catch (error) {
+      // The field is already in the store, so the toast asks for a reload.
+      await dispatch('toast/setPermissionsUpdated', true, { root: true })
+    } finally {
+      permissionRefreshes.delete(databaseId)
+    }
+  })()
+  permissionRefreshes.set(databaseId, entry)
+  return entry.promise
+}
+
 export function populateField(field, registry) {
   const type = registry.get('field', field.type)
 
@@ -16,6 +51,7 @@ export const state = () => ({
   loading: false,
   loaded: null,
   items: [],
+  errorRefreshGeneration: 0,
 })
 
 export const mutations = {
@@ -36,10 +72,19 @@ export const mutations = {
     const fieldToUpdate = storedField || field
     fieldToUpdate.error = value
   },
+  SET_ITEM_VALUES(state, { id, values }) {
+    const storedField = state.items.find((item) => item.id === id)
+    if (storedField) {
+      Object.assign(storedField, values)
+    }
+  },
   SET_LOADED(state, value) {
     state.loaded = value
       ? { tableId: value.tableId, viewId: value.viewId }
       : value
+  },
+  SET_ERROR_REFRESH_GENERATION(state, value) {
+    state.errorRefreshGeneration = value
   },
   ADD_ITEM(state, item) {
     state.items.push(item)
@@ -81,23 +126,37 @@ export const actions = {
     commit('SET_ITEM_ERROR', { field, value })
   },
   /**
+   * Patches a stored field with values its save response could not carry,
+   * because the field type wrote more after the response was built.
+   */
+  setItemValues({ commit }, { id, values }) {
+    commit('SET_ITEM_VALUES', { id, values })
+  },
+  /**
    * Refreshes computed field errors for the table cached in the field store.
    * This preserves the existing field objects and view state.
    */
-  async refreshLoadedFieldErrors({ state, commit }) {
+  async refreshLoadedFieldErrors(
+    { state, commit },
+    { realtimeRecovery = false } = {}
+  ) {
     if (!state.loaded) {
       return
     }
 
     const loaded = { ...state.loaded }
+    const requestGeneration = state.errorRefreshGeneration + 1
+    commit('SET_ERROR_REFRESH_GENERATION', requestGeneration)
     const { $client } = this
     const { data } = await FieldService($client).fetchAll(
       loaded.tableId,
-      loaded.viewId
+      loaded.viewId,
+      realtimeRecovery
     )
 
     if (
       !state.loaded ||
+      state.errorRefreshGeneration !== requestGeneration ||
       state.loaded.tableId !== loaded.tableId ||
       state.loaded.viewId !== loaded.viewId
     ) {
@@ -122,19 +181,37 @@ export const actions = {
    * Fetches all the fields of a given table. The is mostly called when the user
    * selects a different table.
    */
-  async fetchAll({ commit, getters, dispatch }, { table, viewId = null }) {
+  async fetchAll(
+    { commit, getters, dispatch, state, rootGetters },
+    { table, viewId = null }
+  ) {
     const { $registry, $client } = this
     commit('SET_LOADING', true)
+    commit('SET_ERROR_REFRESH_GENERATION', state.errorRefreshGeneration + 1)
     commit('UNSELECT', {})
+
+    // The table page fetches without blocking the navigation, so another table
+    // can have been selected while the request was running. Whether it succeeds
+    // or fails, the fields of the table that was navigated away from must then
+    // not replace or clear the ones of the selected table.
+    const isStale = () => {
+      const selectedTableId = rootGetters['table/getSelectedId']
+      return selectedTableId && selectedTableId !== table.id
+    }
 
     try {
       const { data } = await FieldService($client).fetchAll(table.id, viewId)
+      if (isStale()) {
+        return getters.getAll
+      }
       await dispatch('forceSetFields', { fields: data })
       commit('SET_LOADED', { tableId: table.id, viewId })
     } catch (error) {
-      commit('SET_ITEMS', [])
-      commit('SET_LOADING', false)
-      commit('SET_LOADED', null)
+      if (!isStale()) {
+        commit('SET_ITEMS', [])
+        commit('SET_LOADING', false)
+        commit('SET_LOADED', null)
+      }
 
       throw error
     }
@@ -208,10 +285,12 @@ export const actions = {
    */
   async fieldRestored(context, { table, selectedView, values }) {
     const { $registry } = this
-    const { commit } = context
+    const { commit, dispatch } = context
     const fieldType = $registry.get('field', values.type)
     const populatedField = populateField(values, $registry)
     commit('ADD_ITEM', populatedField)
+    // A trashed field drops out of the list the same way a new one is missing.
+    refreshPermissionsAfterField(dispatch, table.database_id)
 
     if (selectedView) {
       const selectedViewType = $registry.get('view', selectedView.type)
@@ -234,6 +313,9 @@ export const actions = {
     const fieldType = $registry.get('field', values.type)
     const data = populateField(values, $registry)
     commit('ADD_ITEM', data)
+    // Not awaited: the field shows straight away and its checks pass once
+    // the response lands.
+    refreshPermissionsAfterField(dispatch, table.database_id)
 
     // Call the field created event on all the registered views because they might
     // need to change things in loaded data. For example the grid field will add the
@@ -249,7 +331,10 @@ export const actions = {
   /**
    * Updates the values of the provided field.
    */
-  async update(context, { field, type, values, forceUpdate = true }) {
+  async update(
+    context,
+    { field, type, values, forceUpdate = true, undoRedoActionGroupId = null }
+  ) {
     const { $registry, $client } = this
     const { dispatch } = context
 
@@ -268,7 +353,11 @@ export const actions = {
     const postData = clone(values)
     postData.type = type
 
-    const { data } = await FieldService($client).update(field.id, postData)
+    const { data } = await FieldService($client).update(
+      field.id,
+      postData,
+      undoRedoActionGroupId
+    )
     const forceUpdateCallback = async () => {
       return await dispatch('forceUpdate', {
         field,

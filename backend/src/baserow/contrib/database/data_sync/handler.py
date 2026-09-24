@@ -33,6 +33,7 @@ from baserow.core.utils import (
 
 from .constants import BASE_DATA_SYNC_ALLOWED_FIELDS
 from .exceptions import (
+    DataSyncCredentialRequired,
     DataSyncDoesNotExist,
     PropertyNotFound,
     SyncDataSyncTableAlreadyRunning,
@@ -303,6 +304,20 @@ class DataSyncHandler:
                 # number of consecutive failures because the user could have fixed the
                 # problem after it was automatically disabled.
                 data_sync.two_way_sync_consecutive_failures = 0
+
+        for (
+            secret_field,
+            target_fields,
+        ) in data_sync_type.secret_field_dependencies.items():
+            target_changed = any(
+                field in kwargs and kwargs[field] != getattr(data_sync, field)
+                for field in target_fields
+            )
+            if target_changed and secret_field not in kwargs:
+                raise DataSyncCredentialRequired(
+                    "When changing the connection target, the credential must be "
+                    "re-supplied."
+                )
 
         data_sync = set_allowed_attrs(kwargs, allowed_fields, data_sync)
         data_sync.save()

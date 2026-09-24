@@ -63,6 +63,8 @@ def handle_workflow_dispatch_done(
         # Only update the history if it's still started.
         # If the workflow history was marked as failed by a specific node, we
         # don't want to overwrite it.
+        history = AutomationWorkflowHistory.objects.get(id=history_id)
+        AutomationHistoryHandler().ensure_default_response(history)
         AutomationWorkflowHistory.objects.filter(
             id=history_id,
             status=HistoryStatusChoices.STARTED,
@@ -71,7 +73,7 @@ def handle_workflow_dispatch_done(
             completed_on=timezone.now(),
         )
 
-        history = AutomationWorkflowHistory.objects.get(id=history_id)
+        history.refresh_from_db()
         automation_workflow_dispatch_done.send(
             sender=None,
             workflow_history=history,

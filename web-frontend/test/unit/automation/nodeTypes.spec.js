@@ -1,6 +1,7 @@
 import {
   NodeType,
   CoreRouterNodeType,
+  CoreInboundEmailTriggerNodeType,
 } from '@baserow/modules/automation/nodeTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -27,6 +28,46 @@ describe('NodeType.getHistoryLabel', () => {
     expect(nodeType.getHistoryLabel({ nodeHistory: { node_label: '' } })).toBe(
       'Test node'
     )
+  })
+})
+
+describe('NodeType service validation context', () => {
+  test('forwards the workspace and application to the service type', () => {
+    const service = { id: 1 }
+    const workspace = { id: 2 }
+    const application = { id: 3 }
+    const serviceType = {
+      isDeactivatedReason: vi.fn(() => null),
+      isInError: vi.fn(() => true),
+      getErrorMessage: vi.fn(() => 'Unavailable model'),
+    }
+
+    class ContextAwareNodeType extends NodeType {
+      static getType() {
+        return 'context-aware'
+      }
+
+      get serviceType() {
+        return serviceType
+      }
+    }
+
+    const nodeType = new ContextAwareNodeType({ app: {} })
+
+    expect(nodeType.isInError({ service, workspace, application })).toBe(true)
+    expect(nodeType.getErrorMessage({ service, workspace, application })).toBe(
+      'Unavailable model'
+    )
+    expect(serviceType.isInError).toHaveBeenCalledWith({
+      service,
+      workspace,
+      application,
+    })
+    expect(serviceType.getErrorMessage).toHaveBeenCalledWith({
+      service,
+      workspace,
+      application,
+    })
   })
 })
 
@@ -99,9 +140,10 @@ describe('Automation node types', () => {
       'http_request',
       'smtp_email',
       'code',
-      'iterator',
+      'response',
       'ai_agent',
       'router',
+      'iterator',
       'csv_file_reader',
       'xls_file_reader',
       'goto',
@@ -161,5 +203,30 @@ describe('Automation node types', () => {
     expect(slack.iconClass).toBe('iconoir-message-text')
     expect(slack.iconColor).toBe('darker-pink')
     expect(slack.image).toBeUndefined()
+  })
+})
+
+describe('NodeType.isEnabled', () => {
+  class TestNodeType extends NodeType {
+    static getType() {
+      return 'test'
+    }
+  }
+
+  test('node types are enabled by default', () => {
+    expect(new TestNodeType({ app: {} }).isEnabled()).toBe(true)
+  })
+
+  test('the email trigger follows the instance settings flag', () => {
+    const makeType = (settings) =>
+      new CoreInboundEmailTriggerNodeType({
+        app: { $store: { getters: { 'settings/get': settings } } },
+      })
+
+    expect(makeType({ inbound_email_enabled: true }).isEnabled()).toBe(true)
+    expect(makeType({ inbound_email_enabled: false }).isEnabled()).toBe(false)
+    // Settings not loaded yet, or an older backend without the flag.
+    expect(makeType({}).isEnabled()).toBe(false)
+    expect(makeType(null).isEnabled()).toBe(false)
   })
 })

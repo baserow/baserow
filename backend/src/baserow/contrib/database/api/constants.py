@@ -217,6 +217,17 @@ ADHOC_SORTING_API_PARAM = OpenApiParameter(
     "descending (Z-A).",
 )
 
+ADHOC_GROUP_BY_API_PARAM = OpenApiParameter(
+    name="group_by",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.STR,
+    description="Optionally the rows can be grouped by the provided field ids "
+    "separated by comma. By default a field is grouped in ascending (A-Z) "
+    "order, but by prepending the field with a '-' it can be grouped "
+    "descending (Z-A). Fields listed here use group-by ordering instead of "
+    "regular sort ordering.",
+)
+
 PAGINATION_API_PARAMS = (
     OpenApiParameter(
         name="limit",

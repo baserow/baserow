@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
 
-from channels.db import database_sync_to_async
+from channels.consumer import get_handler_name
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from loguru import logger
 from opentelemetry import metrics
@@ -29,6 +29,8 @@ from baserow.ws.registries import (
     PageType,
     page_registry,
 )
+from baserow.ws.replay import get_replay_events_result
+from baserow.ws.telemetry import run_database_sync, websocket_phase
 
 MSG_TYPE_REPLAY_EVENTS = "replay_events"
 MSG_TYPE_PRESENCE_FOCUS = "presence.focus"
@@ -190,6 +192,21 @@ class SubscribedPages:
 class CoreConsumer(AsyncJsonWebsocketConsumer):
     presence: PresenceHandlerProtocol = NullPresenceHandler()
 
+    async def dispatch(self, message):
+        # Unlike Channels' default dispatch, do not queue database cleanup before
+        # every message: it makes database-free delivery wait behind unrelated SQL.
+        # ORM work must use run_database_sync/database_sync_to_async, which clean
+        # connections before and after the operation on the owning thread.
+        # Channels' final disconnect cleanup is retained.
+        handler = getattr(self, get_handler_name(message), None)
+        if handler is None:
+            raise ValueError("No handler for message type %s" % message["type"])
+        if message["type"] == "websocket.connect":
+            with websocket_phase("connect"):
+                await handler(message)
+        else:
+            await handler(message)
+
     async def connect(self):
         await self.accept()
         websocket_connections_counter.add(1)
@@ -320,8 +337,8 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             "user", "web_socket_id", "resolved_page_type", "page_scope.page_parameters"
         )(context)
 
-        can_add = await database_sync_to_async(page_type.can_add)(
-            user, web_socket_id, **parameters
+        can_add = await run_database_sync(
+            "page_permission", page_type.can_add, user, web_socket_id, **parameters
         )
 
         if not can_add:
@@ -553,6 +570,8 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         ``last_seen_id``, or ``force_refresh=true`` when the gap is too
         large, the cursor expired, the client has no high-water mark,
         replay failed mid-flight, or recording is disabled.
+        Transient failures ask capable clients to retry on the same connection;
+        older clients retain their existing force-refresh fallback.
         Silent drops: unauthenticated requests only.
         """
 
@@ -576,9 +595,22 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         pages = self.scope.get("pages", SubscribedPages())
         page_group_names = RealtimeEventHandler.get_page_group_names(pages)
 
-        result = await database_sync_to_async(
-            RealtimeEventHandler.get_replay_events_result
-        )(user.id, page_group_names, last_seen_id, web_socket_id)
+        phase = (
+            "replay_cursor" if last_seen_id == FIRST_CONNECT_CURSOR else "replay_query"
+        )
+        with websocket_phase(phase):
+            result = await get_replay_events_result(
+                user.id, page_group_names, last_seen_id, web_socket_id
+            )
+
+        if result.retry_after_ms is not None and content.get("supports_retry") is True:
+            await self.send_json(
+                {
+                    "type": "replay_events_retry",
+                    "retry_after_ms": result.retry_after_ms,
+                }
+            )
+            return
 
         if result.replay_events and not await self._replay_persisted_events(
             result.replay_events

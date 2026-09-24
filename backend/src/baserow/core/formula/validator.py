@@ -105,7 +105,9 @@ def ensure_numeric(
     )
 
 
-def ensure_integer(value: Any, allow_empty: bool = False) -> Optional[int]:
+def ensure_integer(
+    value: Any, allow_empty: bool = False, allow_negative: bool = True
+) -> Optional[int]:
     """
     Ensures that the value is an integer or can be converted to an integer.
     Raises a ValidationError if the value is not a valid integer or convertible to an
@@ -113,6 +115,7 @@ def ensure_integer(value: Any, allow_empty: bool = False) -> Optional[int]:
 
     :param value: The value to ensure as an integer.
     :param allow_empty: Whether we should throw an error if `value` is empty.
+    :param allow_negative: Whether negative integer values are allowed.
     :return: The value as an integer if conversion is successful.
     :raises ValidationError: If the value is not a valid integer or convertible to an
         integer.
@@ -123,15 +126,37 @@ def ensure_integer(value: Any, allow_empty: bool = False) -> Optional[int]:
             raise ValidationError("The value is required")
         return None
 
-    if isinstance(value, timedelta):
-        return int(value.total_seconds())
+    if isinstance(value, bool):
+        raise ValidationError(
+            "The value must be an integer or convertible to an integer."
+        )
+
+    integer_pattern = r"^[+-]?\d+$" if allow_negative else r"^\d+$"
+    if isinstance(value, str) and not re.match(integer_pattern, value):
+        raise ValidationError(
+            "The value must be an integer or convertible to an integer."
+        )
+
+    if isinstance(value, (float, Decimal)) and value != int(value):
+        raise ValidationError(
+            "The value must be an integer or convertible to an integer."
+        )
 
     try:
-        return int(value)
+        int_value = (
+            int(value.total_seconds()) if isinstance(value, timedelta) else int(value)
+        )
     except (ValueError, TypeError) as exc:
         raise ValidationError(
             "The value must be an integer or convertible to an integer."
         ) from exc
+
+    if not allow_negative and int_value < 0:
+        raise ValidationError(
+            "The value must be a non-negative integer or convertible to one."
+        )
+
+    return int_value
 
 
 def ensure_string(value: Any, allow_empty: bool = True) -> str:

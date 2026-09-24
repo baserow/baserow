@@ -777,13 +777,13 @@ def test_single_select_field_type_get_order(data_fixture):
 
     sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_2.id, row_1.id, row_4.id, row_3.id]
 
     sort.order = "DESC"
     sort.save()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_3.id, row_1.id, row_4.id, row_2.id, row_5.id]
 
@@ -792,7 +792,7 @@ def test_single_select_field_type_get_order(data_fixture):
     sort.order = "ASC"
     sort.save()
     model = table.get_model()
-    rows = view_handler.apply_sorting(grid_view, model.objects.all())
+    rows = view_handler.apply_ordering(grid_view, model.objects.all())
     row_ids = [row.id for row in rows]
     assert row_ids == [row_5.id, row_1.id, row_4.id, row_3.id, row_2.id]
 

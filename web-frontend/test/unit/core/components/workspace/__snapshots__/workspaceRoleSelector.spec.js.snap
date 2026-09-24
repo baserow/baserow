@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WorkspaceRoleSelector > can hide all commercial role information 1`] = `
+"<div modelvalue="MEMBER" show-search="false" fixed-items="">
+  <div class="dropdown-item" name="Member" disabled="false" value="MEMBER">Member
+    <!--v-if-->
+    <!--v-if-->
+    <!--v-if-->
+  </div>
+  <div class="dropdown-item" name="Admin" disabled="false" value="ADMIN">Admin
+    <!--v-if-->
+    <!--v-if-->
+    <!--v-if-->
+  </div>
+</div>"
+`;
+
+exports[`WorkspaceRoleSelector > shows commercial role information by default 1`] = `
+"<div modelvalue="MEMBER" show-search="false" fixed-items="">
+  <div class="dropdown-item" name="Member" disabled="false" value="MEMBER">Member <span class="badge margin-left-1" color="yellow" size="small" bold="">common.free</span>
+    <!--v-if-->
+    <!--v-if-->
+  </div>
+  <div class="dropdown-item" name="Admin" disabled="false" value="ADMIN">Admin <span class="badge" color="cyan" size="small" bold="">common.billable</span>
+    <!--v-if-->
+    <!--v-if-->
+  </div>
+</div>"
+`;

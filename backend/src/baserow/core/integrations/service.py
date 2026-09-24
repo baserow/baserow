@@ -1,10 +1,13 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
-from baserow.core.integrations.exceptions import IntegrationNotInSameApplication
+from baserow.core.integrations.exceptions import (
+    IntegrationCredentialRequired,
+    IntegrationNotInSameApplication,
+)
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import (
@@ -17,13 +20,14 @@ from baserow.core.integrations.operations import (
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.signals import (
     integration_created,
-    integration_deleted,
     integration_moved,
     integration_orders_recalculated,
     integration_updated,
 )
-from baserow.core.integrations.types import IntegrationForUpdate
+from baserow.core.integrations.types import IntegrationForUpdate, UpdatedIntegration
 from baserow.core.models import Application
+from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import extract_undo_redo_values
 
 
 class IntegrationService:
@@ -133,18 +137,49 @@ class IntegrationService:
 
         return new_integration
 
+    def _check_secret_dependencies(
+        self,
+        integration: IntegrationForUpdate,
+        integration_type: IntegrationType,
+        values: Dict[str, Any],
+    ):
+        """
+        Raises if a request-target field is being changed without the credential
+        it protects being supplied in the same request. A secret that is not
+        stored is skipped, so an integration that authenticates anonymously can
+        still change its host.
+        """
+
+        for secret, targets in integration_type.secret_field_dependencies.items():
+            if not getattr(integration, secret, None):
+                continue
+
+            target_changed = any(
+                target in values and values[target] != getattr(integration, target)
+                for target in targets
+            )
+            if target_changed and secret not in values:
+                raise IntegrationCredentialRequired(
+                    f"The `{secret}` must be supplied again when the connection "
+                    f"target changes."
+                )
+
     def update_integration(
-        self, user: AbstractUser, integration: IntegrationForUpdate, **kwargs
-    ) -> Integration:
+        self,
+        user: AbstractUser,
+        integration: IntegrationForUpdate,
+        **kwargs,
+    ) -> UpdatedIntegration:
         """
         Updates and integration with values. Will also check if the values are allowed
         to be set on the integration first.
 
         :param user: The user trying to update the integration.
         :param integration: The integration that should be updated.
-        :param values: The values that should be set on the integration.
         :param kwargs: Additional attributes of the integration.
-        :return: The updated integration.
+        :return: The updated integration together with the values that changed.
+        :raises IntegrationCredentialRequired: When a request-target field changes
+            without its credential.
         """
 
         CoreHandler().check_permissions(
@@ -154,15 +189,26 @@ class IntegrationService:
             context=integration,
         )
 
-        prepared_values = integration.get_type().prepare_values(kwargs, user)
+        integration_type = integration.get_type()
+
+        self._check_secret_dependencies(integration, integration_type, kwargs)
+
+        # Capture the original and new values (in the service-level vocabulary, so
+        # FK fields are stored as their ids) before `prepare_values` mutates them, so
+        # the update can be undone/redone.
+        original_values, new_values = extract_undo_redo_values(
+            integration, kwargs, integration_type.get_action_log_excluded_fields()
+        )
+
+        prepared_values = integration_type.prepare_values(kwargs, user)
 
         integration = self.handler.update_integration(
-            integration.get_type(), integration, **prepared_values
+            integration_type, integration, **prepared_values
         )
 
         integration_updated.send(self, integration=integration, user=user)
 
-        return integration
+        return UpdatedIntegration(integration, original_values, new_values)
 
     def delete_integration(self, user: AbstractUser, integration: IntegrationForUpdate):
         """
@@ -181,11 +227,9 @@ class IntegrationService:
             context=integration,
         )
 
-        self.handler.delete_integration(integration)
-
-        integration_deleted.send(
-            self, integration_id=integration.id, application=application, user=user
-        )
+        # Soft-delete (trash) the integration so it can be restored via undo. The
+        # `integration_deleted` realtime signal is emitted by the trashable item type.
+        TrashHandler.trash(user, application.workspace, application, integration)
 
     def move_integration(
         self,

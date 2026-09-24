@@ -14,7 +14,3 @@ class DataSourceRefinementForbidden(Exception):
     Raised when a web page visitor tries to apply adhoc filtering, sorting and/or
     search against a schema property that the page designer has not allowed.
     """
-
-
-class DataSourceNameNotUniqueError(Exception):
-    """Raised when trying to set a data source name that already exists"""

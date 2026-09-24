@@ -1,3 +1,9 @@
+// json.dumps escapes newlines, so this can never occur inside a record.
+const RECORD_DELIMITER = '\n\n'
+
+const STREAM_LOG_PREFIX = '[assistant stream]'
+const CORRUPT_RECORD_PREVIEW_LENGTH = 200
+
 /**
  * The AI Assistant starts from the root URL, not the /api URL like the rest of
  * the Baserow API. This service file therefore overrides the baseURL to be the
@@ -6,6 +12,60 @@
 function getAssistantBaseURL(client) {
   const url = new URL(client.defaults.baseURL)
   return url.origin
+}
+
+/**
+ * Turns the cumulative `xhr.responseText` into whole delimiter-terminated
+ * records and hands them to the consumer one at a time, in arrival order.
+ *
+ * @param {Function} readResponseText Returns everything received so far.
+ * @param {Function} onRecord Called with each parsed record, may be async.
+ * @returns {{read: Function, flush: Function}} Reader driven by the XHR events.
+ */
+function createRecordReader(readResponseText, onRecord) {
+  let consumed = 0
+  let pending = ''
+  let dispatched = Promise.resolve()
+
+  // Taking records synchronously keeps the buffer consistent across progress events.
+  const take = (isFinal) => {
+    const responseText = readResponseText()
+    pending += responseText.substring(consumed)
+    consumed = responseText.length
+
+    const records = pending.split(RECORD_DELIMITER)
+    pending = isFinal ? '' : records.pop()
+    return records.filter((record) => record.trim() !== '')
+  }
+
+  const dispatch = (records) => {
+    dispatched = dispatched.then(async () => {
+      for (const record of records) {
+        let update
+        try {
+          update = JSON.parse(record)
+        } catch (error) {
+          console.error(`${STREAM_LOG_PREFIX} dropped an unparsable record`, {
+            length: record.length,
+            preview: record.slice(0, CORRUPT_RECORD_PREVIEW_LENGTH),
+            error,
+          })
+          continue
+        }
+        try {
+          await onRecord(update)
+        } catch (error) {
+          console.error(`${STREAM_LOG_PREFIX} record handler failed`, error)
+        }
+      }
+    })
+    return dispatched
+  }
+
+  return {
+    read: () => dispatch(take(false)),
+    flush: () => dispatch(take(true)),
+  }
 }
 
 export default (client) => {
@@ -25,7 +85,10 @@ export default (client) => {
           adapter: (config) => {
             return new Promise((resolve, reject) => {
               const xhr = new XMLHttpRequest()
-              let buffer = ''
+              const reader = createRecordReader(
+                () => xhr.responseText,
+                onDownloadProgress ?? (() => {})
+              )
 
               // Store XHR for potential cancellation
               activeRequests.set(chatUuid, xhr)
@@ -36,18 +99,7 @@ export default (client) => {
               })
 
               xhr.onprogress = () => {
-                const chunk = xhr.responseText.substring(buffer.length)
-                buffer = xhr.responseText
-
-                chunk.split('\n\n').forEach(async (line) => {
-                  if (line.trim()) {
-                    try {
-                      await onDownloadProgress(JSON.parse(line))
-                    } catch (e) {
-                      console.trace(e)
-                    }
-                  }
-                })
+                reader.read()
               }
 
               xhr.onload = () => {
@@ -56,7 +108,9 @@ export default (client) => {
 
                 // Check if the request was successful (2xx status codes)
                 if (xhr.status >= 200 && xhr.status < 300) {
-                  resolve({ data: xhr.responseText, status: xhr.status })
+                  reader.flush().then(() => {
+                    resolve({ data: xhr.responseText, status: xhr.status })
+                  })
                 } else {
                   let errorData
                   try {

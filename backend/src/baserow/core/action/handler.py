@@ -17,6 +17,7 @@ from .models import Action
 from .registries import (
     ActionScopeStr,
     UndoableActionCustomCleanupMixin,
+    action_scope_registry,
     action_type_registry,
 )
 from .signals import ActionCommandType
@@ -98,6 +99,7 @@ class ActionHandler:
         # events triggered by the action.
         user.web_socket_id = None
 
+        scopes = action_scope_registry.resolve(user, scopes)
         latest_not_undone_action = (
             Action.objects.filter(user=user, undone_at__isnull=True, session=session)
             .filter(scopes_to_q_filter(scopes))
@@ -180,7 +182,7 @@ class ActionHandler:
         # events triggered by the action.
         user.web_socket_id = None
 
-        scopes_filter = scopes_to_q_filter(scopes)
+        scopes_filter = scopes_to_q_filter(action_scope_registry.resolve(user, scopes))
         latest_undone_action = (
             Action.objects.filter(user=user, undone_at__isnull=False, session=session)
             .filter(scopes_filter)

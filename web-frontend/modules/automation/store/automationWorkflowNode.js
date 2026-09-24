@@ -3,6 +3,10 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import AutomationWorkflowNodeService from '@baserow/modules/automation/services/automationWorkflowNode'
 import { NodeEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { clone } from '@baserow/modules/core/utils/object'
+import {
+  markRealtimeMetadata,
+  realtimeMetadata,
+} from '@baserow/modules/core/utils/realtime'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 
@@ -27,7 +31,7 @@ const updateCachedValues = (workflow) => {
 }
 
 export function populateNode(node) {
-  return { ...node, _: { loading: false } }
+  return { ...node, _: { loading: false, ...realtimeMetadata() } }
 }
 
 export function getWorkflowImmediateDispatch($registry, workflow) {
@@ -66,16 +70,30 @@ const mutations = {
   },
   UPDATE_ITEM(
     state,
-    { workflow, node: nodeToUpdate, values, override = false }
+    {
+      workflow,
+      node: nodeToUpdate,
+      values,
+      override = false,
+      viaRealtime = false,
+    }
   ) {
     if (override) {
       const index = workflow.nodes.findIndex(
         (item) => item.id === nodeToUpdate.id
       )
-      workflow.nodes[index] = populateNode(values)
+      const previous = workflow.nodes[index]
+      const newNode = populateNode(values)
+      // Carry the realtime version over the object replacement so a subsequent
+      // increment is still detected as a change by watchers.
+      newNode._.realtimeVersion = previous?._?.realtimeVersion || 0
+      markRealtimeMetadata(newNode, viaRealtime)
+      workflow.nodes[index] = newNode
       updateCachedValues(workflow)
     } else {
-      Object.assign(workflow.nodeMap[nodeToUpdate.id], values)
+      const node = workflow.nodeMap[nodeToUpdate.id]
+      Object.assign(node, values)
+      markRealtimeMetadata(node, viaRealtime)
     }
   },
   DELETE_ITEM(state, { workflow, nodeId }) {
@@ -297,12 +315,36 @@ const actions = {
       throw error
     }
   },
-  forceUpdate({ commit }, { workflow, node, values, override }) {
+  /**
+   * Reloads one node from the server and applies it as a realtime update.
+   * Used when a websocket event was too large to carry the node's sample data
+   * and arrived with `requires_refresh` instead; the list endpoint is the only
+   * read endpoint for nodes, so the workflow's nodes are fetched and the one we
+   * need is picked out, leaving the selection and the other nodes untouched.
+   */
+  async refetch({ dispatch, getters }, { workflow, nodeId }) {
+    const { data: nodes } = await AutomationWorkflowNodeService(
+      this.$client
+    ).get(workflow.id)
+    const values = nodes.find((node) => node.id === nodeId)
+    const existing = getters.findById(workflow, nodeId)
+    if (!values || !existing) return null
+    await dispatch('forceUpdate', {
+      workflow,
+      node: existing,
+      values,
+      override: true,
+      viaRealtime: true,
+    })
+    return getters.findById(workflow, nodeId)
+  },
+  forceUpdate({ commit }, { workflow, node, values, override, viaRealtime }) {
     commit('UPDATE_ITEM', {
       workflow,
       node,
       values,
       override,
+      viaRealtime,
     })
   },
   async updateDebounced(

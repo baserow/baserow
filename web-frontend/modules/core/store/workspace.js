@@ -1,9 +1,5 @@
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
-import {
-  setWorkspaceCookie,
-  unsetWorkspaceCookie,
-} from '@baserow/modules/core/utils/workspace'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsService from '@baserow/modules/core/services/permissions'
 import RolesService from '@baserow/modules/core/services/roles'
@@ -23,16 +19,17 @@ export function populateWorkspace(workspace) {
   return workspace
 }
 
-const appendRoleTranslations = (roles, registry) => {
-  const translationMap = Object.values(
-    registry.getAll('permissionManager')
-  ).reduce(
+export const getRoleTranslations = (registry) =>
+  Object.values(registry.getAll('permissionManager')).reduce(
     (translations, manager) => ({
       ...translations,
       ...manager.getRolesTranslations(),
     }),
     {}
   )
+
+const appendRoleTranslations = (roles, registry) => {
+  const translationMap = getRoleTranslations(registry)
   return roles.map((role) => {
     if (translationMap[role.uid]) {
       const { uid, ...rest } = role
@@ -52,10 +49,16 @@ export const state = () => ({
   loading: false,
   items: [],
   selected: {},
+  selectRequestId: 0,
   userIdsInSelected: new Set(),
+  aiModelRevisions: {},
+  aiFeatureRevisions: {},
 })
 
 export const mutations = {
+  INCREMENT_SELECT_REQUEST_ID(state) {
+    state.selectRequestId += 1
+  },
   SET_LOADED(state, loaded) {
     state.loaded = loaded
   },
@@ -88,6 +91,22 @@ export const mutations = {
   UPDATE_ITEM(state, { id, values }) {
     const index = state.items.findIndex((item) => item.id === id)
     Object.assign(state.items[index], state.items[index], values)
+  },
+  BUMP_AI_MODEL_REVISIONS(state, workspaceIds) {
+    for (const workspaceId of workspaceIds) {
+      state.aiModelRevisions[workspaceId] =
+        (state.aiModelRevisions[workspaceId] || 0) + 1
+    }
+  },
+  BUMP_AI_FEATURE_REVISIONS(state, workspaceIds) {
+    for (const workspaceId of workspaceIds) {
+      state.aiFeatureRevisions[workspaceId] =
+        (state.aiFeatureRevisions[workspaceId] || 0) + 1
+    }
+  },
+  CLEAR_AI_REVISIONS(state) {
+    state.aiModelRevisions = {}
+    state.aiFeatureRevisions = {}
   },
   ORDER_ITEMS(state, order) {
     state.items.forEach((workspace) => {
@@ -195,6 +214,7 @@ export const actions = {
    */
   clearAll({ commit, dispatch }) {
     commit('SET_ITEMS', [])
+    commit('CLEAR_AI_REVISIONS')
     commit('UNSELECT')
     commit('SET_LOADED', false)
     return dispatch('application/clearAll', undefined, { root: true })
@@ -210,12 +230,34 @@ export const actions = {
    */
   async fetchAll({ commit, dispatch, state }) {
     const { $client } = this
+    const requestModelRevisions = { ...state.aiModelRevisions }
+    const requestFeatureRevisions = { ...state.aiFeatureRevisions }
     commit('SET_LOADING', true)
 
     try {
       const { data } = await WorkspaceService($client).fetchAll()
+      const workspaces = data.map((workspace) => {
+        const current = state.items.find((item) => item.id === workspace.id)
+        if (current === undefined) {
+          return workspace
+        }
+        if (
+          state.aiModelRevisions[workspace.id] !==
+          requestModelRevisions[workspace.id]
+        ) {
+          workspace.generative_ai_models_enabled =
+            current.generative_ai_models_enabled
+        }
+        if (
+          state.aiFeatureRevisions[workspace.id] !==
+          requestFeatureRevisions[workspace.id]
+        ) {
+          workspace.ai_features = current.ai_features
+        }
+        return workspace
+      })
       commit('SET_LOADED', true)
-      commit('SET_ITEMS', data)
+      commit('SET_ITEMS', workspaces)
     } catch (error) {
       commit('SET_ITEMS', [])
     }
@@ -232,24 +274,80 @@ export const actions = {
     }
   },
   /**
+   * Applies enabled AI models delivered by a realtime event, so a workspace
+   * scoped provider change costs no request.
+   */
+  forceUpdateGenerativeAIModels(
+    { commit, getters },
+    { workspaceId, generativeAIModelsEnabled, aiFeatures }
+  ) {
+    if (getters.get(workspaceId) === undefined) {
+      return
+    }
+    commit('BUMP_AI_MODEL_REVISIONS', [workspaceId])
+    if (aiFeatures !== undefined) {
+      commit('BUMP_AI_FEATURE_REVISIONS', [workspaceId])
+    }
+    commit('UPDATE_ITEM', {
+      id: workspaceId,
+      values: {
+        generative_ai_models_enabled: generativeAIModelsEnabled || {},
+        ...(aiFeatures === undefined ? {} : { ai_features: aiFeatures }),
+      },
+    })
+  },
+  /**
    * Refreshes enabled AI models for every locally loaded workspace without
    * replacing local UI and permission state.
    */
-  async refreshAllGenerativeAIModels({ commit, getters }) {
+  async refreshAllGenerativeAIModels({ commit, getters, state }, options = {}) {
     const { $client } = this
-    const { data } = await WorkspaceService($client).fetchAll()
+    const workspaceIds = state.items.map((workspace) => workspace.id)
+    commit('BUMP_AI_MODEL_REVISIONS', workspaceIds)
+    commit('BUMP_AI_FEATURE_REVISIONS', workspaceIds)
+    const requestModelRevisions = Object.fromEntries(
+      workspaceIds.map((workspaceId) => [
+        workspaceId,
+        state.aiModelRevisions[workspaceId],
+      ])
+    )
+    const requestFeatureRevisions = Object.fromEntries(
+      workspaceIds.map((workspaceId) => [
+        workspaceId,
+        state.aiFeatureRevisions[workspaceId],
+      ])
+    )
+    const { data } = await WorkspaceService($client).fetchAll(
+      options?.realtimeRecovery === true
+    )
 
     for (const refreshedWorkspace of data) {
-      if (getters.get(refreshedWorkspace.id) === undefined) {
+      if (
+        getters.get(refreshedWorkspace.id) === undefined ||
+        requestModelRevisions[refreshedWorkspace.id] === undefined
+      ) {
         continue
       }
-      commit('UPDATE_ITEM', {
-        id: refreshedWorkspace.id,
-        values: {
-          generative_ai_models_enabled:
-            refreshedWorkspace.generative_ai_models_enabled || {},
-        },
-      })
+      const values = {}
+      if (
+        state.aiModelRevisions[refreshedWorkspace.id] ===
+        requestModelRevisions[refreshedWorkspace.id]
+      ) {
+        values.generative_ai_models_enabled =
+          refreshedWorkspace.generative_ai_models_enabled || {}
+      }
+      if (
+        state.aiFeatureRevisions[refreshedWorkspace.id] ===
+        requestFeatureRevisions[refreshedWorkspace.id]
+      ) {
+        values.ai_features = refreshedWorkspace.ai_features || {}
+      }
+      if (Object.keys(values).length > 0) {
+        commit('UPDATE_ITEM', {
+          id: refreshedWorkspace.id,
+          values,
+        })
+      }
     }
     return data
   },
@@ -367,10 +465,10 @@ export const actions = {
     })
 
     if (workspace._.selected) {
-      // Navigate to the dashboard if selected because any of those related pages
-      // can't be accessed anymore.
+      // Navigate to the all workspaces homepage if selected because any of those
+      // related pages can't be accessed anymore.
       await dispatch('unselect', workspace)
-      await this.$router.push({ name: 'dashboard' })
+      await this.$router.push({ name: 'all-workspaces' })
       await pageFinished(this.app)
       await nextTick()
     }
@@ -422,13 +520,19 @@ export const actions = {
   /**
    * Select a workspace and fetch all the applications related to that workspace.
    */
-  async select({ commit, dispatch }, workspace) {
-    const nuxtApp = this
+  async select({ commit, dispatch, state }, workspace) {
+    commit('INCREMENT_SELECT_REQUEST_ID')
+    const requestId = state.selectRequestId
 
     await dispatch('fetchPermissions', workspace)
     await dispatch('fetchRoles', workspace)
+    // Pages select without blocking the navigation, so a slower selection of the
+    // workspace that was navigated away from can finish after the current one.
+    // It must then not switch the selection and scopes back.
+    if (requestId !== state.selectRequestId) {
+      return workspace
+    }
     commit('SET_SELECTED', workspace)
-    setWorkspaceCookie(workspace.id, nuxtApp)
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.workspace(workspace.id),
@@ -453,10 +557,7 @@ export const actions = {
    * Unselect a workspace if selected and clears all the fetched applications.
    */
   unselect({ commit, dispatch, getters }, workspace) {
-    const nuxtApp = this
-
     commit('UNSELECT', {})
-    unsetWorkspaceCookie(nuxtApp)
     dispatch(
       'undoRedo/updateCurrentScopeSet',
       CORE_ACTION_SCOPES.workspace(null),

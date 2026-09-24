@@ -29,6 +29,11 @@ READ_ONLY_ROLE_UID = getattr(settings, "READ_ONLY_ROLE_UID", "READ_ONLY")
 NO_ROLE_LOW_PRIORITY_ROLE_UID = getattr(
     settings, "NO_ROLE_LOW_PRIORITY_UID", "NO_ROLE_LOW_PRIORITY"
 )
+# This hidden role is used as a marker on field-scoped RoleAssignments. It is handled
+# exclusively by the field permission manager and must never affect regular RBAC role
+# computation.
+FIELD_PERMISSION_EDITOR_ROLE_UID = "FIELD_PERMISSION_EDITOR"
+INTERNAL_ROLE_UIDS = (FIELD_PERMISSION_EDITOR_ROLE_UID,)
 FREE_ROLE_UIDS = [
     COMMENTER_ROLE_UID,
     VIEWER_ROLE_UID,
@@ -44,5 +49,5 @@ ROLE_ASSIGNABLE_OBJECT_MAP = getattr(
 ALLOWED_SUBJECT_TYPE_BY_PRIORITY = getattr(
     settings,
     "ALLOWED_SUBJECT_TYPE_BY_PRIORITY",
-    ["auth.User", "baserow_enterprise.Team"],
+    ["auth.User", "core.Agent", "baserow_enterprise.Team"],
 )

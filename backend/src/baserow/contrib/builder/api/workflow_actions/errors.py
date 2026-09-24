@@ -18,6 +18,12 @@ ERROR_WORKFLOW_ACTION_CANNOT_BE_DISPATCHED = (
     "The requested workflow action cannot be dispatched.",
 )
 
+ERROR_INVALID_WORKFLOW_ACTION_EVENT = (
+    "ERROR_INVALID_WORKFLOW_ACTION_EVENT",
+    HTTP_400_BAD_REQUEST,
+    "The event is not valid for the element the workflow action is attached to.",
+)
+
 
 ERROR_DATA_DOES_NOT_EXIST = (
     "ERROR_DATA_DOES_NOT_EXIST",

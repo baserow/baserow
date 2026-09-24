@@ -21,6 +21,7 @@ from baserow_enterprise.assistant.tools.builder.themes import (
     ThemeName,
     apply_theme,
 )
+from baserow_enterprise.assistant.tools.shared import require_payload
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 
 from . import agents, helpers
@@ -140,6 +141,7 @@ def create_pages(
     WHAT it does: Creates pages with paths and parameters. Skips duplicates by name.
     RETURNS: Created pages with id, name, path.
     DO NOT USE when: Pages with those names already exist — check with list_pages first.
+    REQUIRED: `application_id` and `pages` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Page Setup
     - Each page needs a unique name and path.
@@ -154,8 +156,7 @@ def create_pages(
     workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
-    if not pages:
-        return {"created_pages": []}
+    require_payload("create_pages", "pages", pages)
 
     builder = helpers.get_builder(user, workspace, application_id)
 
@@ -293,6 +294,7 @@ def create_data_sources(
     WHAT it does: Creates list_rows or get_row data sources. Skips duplicates by name.
     RETURNS: Created data sources with ref-to-ID mapping.
     DO NOT USE when: Data sources with those names already exist on the page.
+    REQUIRED: `page_id` and `data_sources` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Data Source Types
     - list_rows: Fetches multiple rows — use when the page displays a collection (table, repeat, dropdown).
@@ -311,8 +313,7 @@ def create_data_sources(
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    if not data_sources:
-        return {"created_data_sources": [], "ref_to_id_map": {}}
+    require_payload("create_data_sources", "data_sources", data_sources)
 
     page = helpers.get_page(user, page_id)
     integration = helpers.get_local_baserow_integration(user, page.builder)
@@ -444,7 +445,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    WHAT it does: Lists elements with id, type, order, parent_element_id, is_container.
+    WHAT it does: Lists elements with id, type, parent_element_id, is_container.
     RETURNS: Elements array.
 
     Elements with page_name="[shared]" are headers/footers visible on ALL pages.
@@ -468,14 +469,15 @@ def _create_elements_internal(
     page_id: int,
     elements: list[ElementItemCreate],
     before_element_id: int | None = None,
+    *,
+    tool_name: str,
 ) -> dict[str, Any]:
     """Shared implementation for all create_*_elements tools."""
 
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    if not elements:
-        return {"created_elements": [], "ref_to_id_map": {}}
+    require_payload(tool_name, "elements", elements)
 
     page = helpers.get_page(user, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
@@ -588,6 +590,7 @@ def create_display_elements(
     WHEN to use: User wants to add text content, headings, buttons, links, or images.
     WHAT it does: Creates display elements with formula support for dynamic values.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Element Structure
     - parent_element: int ID (existing container) or string ref (same batch)
@@ -609,7 +612,13 @@ def create_display_elements(
     """
 
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(ctx, page_id, internal, before_element_id)
+    return _create_elements_internal(
+        ctx,
+        page_id,
+        internal,
+        before_element_id,
+        tool_name="create_display_elements",
+    )
 
 
 def create_layout_elements(
@@ -632,6 +641,7 @@ def create_layout_elements(
     WHEN to use: User wants page structure — columns, containers, headers, footers, menus.
     WHAT it does: Creates container elements that hold child elements.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Element Structure
     - Layout elements are containers — add children via parent_element ref.
@@ -649,7 +659,13 @@ def create_layout_elements(
     """
 
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(ctx, page_id, internal, before_element_id)
+    return _create_elements_internal(
+        ctx,
+        page_id,
+        internal,
+        before_element_id,
+        tool_name="create_layout_elements",
+    )
 
 
 def create_form_elements(
@@ -672,6 +688,7 @@ def create_form_elements(
     WHEN to use: User wants a form to collect input data.
     WHAT it does: Creates form containers and input elements with validation.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Form Structure
     - Create a form_container first, then add inputs inside it via parent_element.
@@ -690,7 +707,13 @@ def create_form_elements(
     """
 
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(ctx, page_id, internal, before_element_id)
+    return _create_elements_internal(
+        ctx,
+        page_id,
+        internal,
+        before_element_id,
+        tool_name="create_form_elements",
+    )
 
 
 def create_collection_elements(
@@ -714,6 +737,7 @@ def create_collection_elements(
     WHEN to use: User wants to display data from a data source in a table or repeating layout.
     WHAT it does: Creates collection elements connected to data sources.
     RETURNS: Created elements with ref-to-ID mapping.
+    REQUIRED: `page_id` and `elements` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Prerequisites
     Create data sources first (create_data_sources), then reference them here.
@@ -729,7 +753,13 @@ def create_collection_elements(
     """
 
     internal = [el.to_element_item_create() for el in elements]
-    return _create_elements_internal(ctx, page_id, internal, before_element_id)
+    return _create_elements_internal(
+        ctx,
+        page_id,
+        internal,
+        before_element_id,
+        tool_name="create_collection_elements",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -926,7 +956,6 @@ def move_elements(
                     "element_id": element.id,
                     "parent_element_id": element.parent_element_id,
                     "place_in_container": element.place_in_container,
-                    "order": str(element.order),
                 }
             )
         except Exception as exc:
@@ -986,6 +1015,7 @@ def create_actions(
     WHEN to use: User wants buttons/forms to perform actions (navigate, create/update rows, show notifications).
     WHAT it does: Creates workflow actions with formula support for dynamic values.
     RETURNS: Created actions with id, type, element_ref, event.
+    REQUIRED: `page_id` and `actions` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Attaching Actions
     - element_ref: attach to newly created element (auto-tracked)
@@ -1010,8 +1040,7 @@ def create_actions(
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
 
-    if not actions:
-        return {"created_actions": []}
+    require_payload("create_actions", "actions", actions)
 
     page = helpers.get_page(user, page_id)
     integration = helpers.get_local_baserow_integration(user, page.builder)
@@ -1298,6 +1327,7 @@ def setup_page(
     WHEN to use: Building a complete page with data, UI elements, and interactions.
     WHAT it does: Creates data sources first, then elements (in order), then actions. Handles ref resolution across all three phases.
     RETURNS: Created items with ref-to-ID mappings and any errors. Partial success is possible — some items may be created even when others fail. Check the ``errors`` key.
+    ARGS: ``page_id`` is WHERE to build; ``data_sources``, ``elements`` and ``actions`` are WHAT to build. Each of the three is optional on its own, but a call carrying none of them creates nothing and is rejected. To only open a page, use ``navigate``.
 
     ## Deduplication
     Data sources are deduplicated by name (case-insensitive) and by structural match (same type and table). Existing data sources are reused and their IDs mapped to the provided refs.
@@ -1342,6 +1372,15 @@ def setup_page(
 
     user = ctx.deps.user
     tool_helpers = ctx.deps.tool_helpers
+
+    if not data_sources and not elements and not actions:
+        raise helpers.ToolInputError(
+            "setup_page was called with no content: `data_sources`, `elements` "
+            "and `actions` were all empty, so nothing was created. An ID "
+            "argument says where to act, never what to do — send the items to "
+            "build in the same call that carries the ID. To only open a page, "
+            "use `navigate` instead."
+        )
 
     page = helpers.get_page(user, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)

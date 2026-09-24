@@ -20,7 +20,9 @@ export class SlackBotIntegrationType extends IntegrationType {
   }
 
   getSummary(integration) {
-    if (!integration.token) {
+    // The token itself is write-only and never reaches the browser, so whether
+    // one is set can only be read from the flag the API sends in its place.
+    if (!integration.has_token) {
       return this.app.$i18n.t('slackBotIntegrationType.slackBotNoToken')
     }
     return this.app.$i18n.t('slackBotIntegrationType.slackBotSummary')
@@ -30,8 +32,14 @@ export class SlackBotIntegrationType extends IntegrationType {
     return SlackBotForm
   }
 
+  get warning() {
+    return this.app.$i18n.t('slackBotIntegrationType.slackBotWarning')
+  }
+
   getDefaultValues() {
-    return { token: '' }
+    // No `token`: the form starts it at null to mean "untouched", and a default
+    // here would overwrite that sentinel on the create path.
+    return {}
   }
 
   getOrder() {

@@ -60,7 +60,9 @@ VALID_ENTERPRISE_FIVE_SEAT_LICENSE = (
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_premium.license.registries.BuilderHandler.aggregate_user_source_counts")
+@patch(
+    "baserow_premium.license.registries.ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
 def test_get_builder_usage_summary_for_single_premium_license(
     mock_aggregate_user_source_counts, premium_data_fixture
 ):
@@ -76,7 +78,9 @@ def test_get_builder_usage_summary_for_single_premium_license(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_premium.license.registries.BuilderHandler.aggregate_user_source_counts")
+@patch(
+    "baserow_premium.license.registries.ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
 def test_get_builder_usage_summary_for_multiple_stacked_premium_licenses(
     mock_aggregate_user_source_counts, premium_data_fixture
 ):
@@ -100,7 +104,9 @@ def test_get_builder_usage_summary_for_multiple_stacked_premium_licenses(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow_premium.license.registries.BuilderHandler.aggregate_user_source_counts")
+@patch(
+    "baserow_premium.license.registries.ApplicationUserUsageHandler.aggregate_user_source_counts"
+)
 def test_get_builder_usage_summary_for_multiple_stacked_premium_and_enterprise_licenses(
     mock_aggregate_user_source_counts, premium_data_fixture
 ):

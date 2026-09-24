@@ -32,6 +32,9 @@
         <span v-else-if="v$.values.name.nameContainsNoUrl.$invalid">
           {{ $t('error.nameContainsUrl') }}
         </span>
+        <span v-else-if="v$.values.name.nameContainsNoSpam.$invalid">
+          {{ $t('error.nameContainsSpam') }}
+        </span>
       </template>
     </FormGroup>
 
@@ -151,6 +154,7 @@ import { email, maxLength, minLength, required } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import {
+  nameContainsNoSpam,
   nameContainsNoUrl,
   nameIsNotEmail,
 } from '@baserow/modules/core/validators'
@@ -187,6 +191,7 @@ export default {
           maxLength: maxLength(60),
           nameIsNotEmail,
           nameContainsNoUrl,
+          nameContainsNoSpam,
         },
         username: {
           required,

@@ -1,0 +1,96 @@
+import { expect } from "@playwright/test";
+
+/**
+ * Reads what the stack actually sent, from the MailHog the e2e environment
+ * runs. Without it a send can only be seen in a worker's log, which the tests
+ * cannot reach, so an email action could pass while delivering nothing.
+ */
+
+export interface CapturedEmail {
+  id: string;
+  to: string[];
+  from: string;
+  subject: string;
+  body: string;
+}
+
+/**
+ * The dev stack's MailHog by default, which is what a plain `yarn run test`
+ * runs against. `just e2e` and CI set the variable to their own catcher.
+ */
+function apiUrl(): string {
+  return process.env.E2E_MAIL_API_URL ?? "http://localhost:8025";
+}
+
+function headerOf(message: any, name: string): string {
+  const values = message?.Content?.Headers?.[name];
+  return Array.isArray(values) ? values.join(", ") : (values ?? "");
+}
+
+/**
+ * The messages whose subject contains the given text, newest first.
+ *
+ * Asked of the catcher rather than paged through here: it holds every mail the
+ * rest of the suite sent, and against a dev stack whatever the developer had
+ * already captured, so the one being looked for can be arbitrarily far down.
+ */
+export async function findEmails(subject: string): Promise<CapturedEmail[]> {
+  const response = await fetch(
+    `${apiUrl()}/api/v2/search?kind=containing&query=${encodeURIComponent(
+      subject,
+    )}`,
+  );
+  if (!response.ok) {
+    throw new Error(
+      `The mail catcher at ${apiUrl()} answered ${response.status}. Is it ` +
+        `running, and is E2E_MAIL_API_URL pointing at it?`,
+    );
+  }
+  const payload: any = await response.json();
+  return (payload.items ?? []).map((message: any) => ({
+    id: message.ID,
+    to: (message.To ?? []).map(
+      (recipient: any) => `${recipient.Mailbox}@${recipient.Domain}`,
+    ),
+    from: headerOf(message, "From"),
+    subject: headerOf(message, "Subject"),
+    body: message?.Content?.Body ?? "",
+  }));
+}
+
+/**
+ * Drops one message, so a test leaves the catcher as it found it.
+ *
+ * Scoped to a single id on purpose. Emptying the catcher would take messages
+ * that are not this test's: the workers run in parallel and read the same one,
+ * and against a dev stack it is the developer's own captured mail.
+ */
+export async function deleteEmail(id: string): Promise<void> {
+  const response = await fetch(`${apiUrl()}/api/v1/messages/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(
+      `The mail catcher at ${apiUrl()} answered ${response.status} when asked ` +
+        `to drop message ${id}.`,
+    );
+  }
+}
+
+/**
+ * Waits for a message with the given subject. The action sends the message
+ * itself while the click is being answered, but the catcher has to accept it
+ * over SMTP and index it before its API lists it, so it is not there the
+ * instant the click returns.
+ */
+export async function waitForEmail(subject: string): Promise<CapturedEmail> {
+  let found: CapturedEmail | undefined;
+
+  await expect(async () => {
+    const emails = await findEmails(subject);
+    found = emails.find((email) => email.subject === subject);
+    expect(found, `no email with subject "${subject}" arrived`).toBeTruthy();
+  }).toPass({ timeout: 20_000 });
+
+  return found as CapturedEmail;
+}

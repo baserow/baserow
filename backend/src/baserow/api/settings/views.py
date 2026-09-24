@@ -6,13 +6,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.decorators import validate_body
+from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
 from baserow.api.settings.registries import settings_data_registry
 from baserow.core.handler import CoreHandler
 
 from .serializers import InstanceIdSerializer, SettingsSerializer
 
 
-class SettingsView(APIView):
+class SettingsView(RealtimeRecoveryPrimaryReadMixin, APIView):
     permission_classes = (AllowAny,)
 
     @extend_schema(

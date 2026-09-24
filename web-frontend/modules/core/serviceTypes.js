@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { ensureInteger } from '@baserow/modules/core/utils/validator'
 
 export const getCoreGroup = (app) => ({
   id: 'core',
@@ -85,7 +86,13 @@ export class ServiceType extends Registerable {
    * @param service - The service object.
    * @returns {String} - The error message
    */
-  getErrorMessage({ service }) {
+  getErrorMessage({ service, workspace = null }) {
+    const deactivatedReason =
+      workspace && this.isDeactivatedReason({ workspace })
+    if (deactivatedReason) {
+      return deactivatedReason
+    }
+
     return null
   }
 
@@ -110,6 +117,23 @@ export class ServiceType extends Registerable {
    */
   getSampleData(service) {
     return service.sample_data || null
+  }
+
+  /**
+   * The content type of the sample data returned by this service. Service
+   * types returning 'html' get an extra HTML preview tab in the sample data
+   * modal, rendering the value of `getSampleDataHtml`.
+   */
+  getSampleDataContentType(service) {
+    return 'json'
+  }
+
+  /**
+   * The HTML document to render in the sample data modal's HTML tab, for
+   * service types whose sample data content type is 'html'.
+   */
+  getSampleDataHtml(service) {
+    return null
   }
 
   /**
@@ -179,10 +203,39 @@ export const DataSourceServiceTypeMixin = (Base) =>
     }
 
     /**
+     * Convert record-name endpoint keys back to the value type used by this service.
+     */
+    parseRecordId(value) {
+      return ensureInteger(value)
+    }
+
+    /**
+     * Returns the JSON-schema type used by this service's record identifiers.
+     */
+    getRecordIdDataType(service) {
+      return 'number'
+    }
+
+    /**
+     * Some list services use record identifiers that can be displayed without
+     * fetching the record name endpoint. Return null to fall back to the endpoint.
+     */
+    getRecordNameFromId(service, recordId) {
+      return null
+    }
+
+    /**
      * The maximum number of records that can be returned by this service
      */
     getMaxResultLimit(service) {
       return null
+    }
+
+    /**
+     * Whether this list data source supports frontend paging controls.
+     */
+    get supportsPagination() {
+      return this.returnsList
     }
 
     /**

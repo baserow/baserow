@@ -4,7 +4,7 @@ const transformNode = (node) => ({
   description: node.description || null,
   icon: node.icon || 'iconoir-database',
   highlightingColor: null,
-  example: null,
+  examples: null,
   order: node.order || null,
   signature: null,
   nodes: node.nodes

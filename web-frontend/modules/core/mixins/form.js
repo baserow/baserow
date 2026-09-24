@@ -203,7 +203,7 @@ export default {
      */
     fieldHasErrors(fieldName) {
       // a field can be without any validators
-      return this.v$.values[fieldName]?.$error || false
+      return this.v$.values?.[fieldName]?.$error || false
     },
     /**
      * Return the first validaten error message for the given field
@@ -211,7 +211,7 @@ export default {
      * @returns the error message or undefined if none.
      */
     getFirstErrorMessage(fieldName) {
-      return this.v$.values[fieldName].$errors[0]?.$message
+      return this.v$.values?.[fieldName]?.$errors?.[0]?.$message
     },
     /**
      * Returns true is everything is valid.
