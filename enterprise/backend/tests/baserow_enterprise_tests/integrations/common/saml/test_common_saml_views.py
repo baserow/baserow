@@ -240,7 +240,6 @@ def test_builder_saml_assertion_consumer_service(
 @pytest.mark.django_db()
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -278,6 +277,9 @@ def test_builder_saml_acs_redirects_with_error_over_application_user_limit(
         "api:user_sources:sso_saml:acs",
     )
 
+    UserModel = published_user_source.table.get_model()
+    count_before = UserModel.objects.count()
+
     with freeze_time("2024-12-17T15:53:00.00Z"):
         global_cache.update(
             get_over_limit_cache_key(workspace.id),
@@ -308,6 +310,10 @@ def test_builder_saml_acs_redirects_with_error_over_application_user_limit(
         == "errorApplicationUserLimitReached"
     )
     assert f"user_source_saml_token__{published_user_source.id}" not in query_param
+    # The view swallows the refusal inside its transaction, so a user row created
+    # before the limit check would have been committed. The first time user must not
+    # have been auto-provisioned.
+    assert UserModel.objects.count() == count_before
 
 
 @pytest.mark.django_db()

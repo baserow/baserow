@@ -1,6 +1,5 @@
 from dataclasses import asdict, dataclass
 
-from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
 
@@ -17,9 +16,6 @@ class ApplicationUserLimitNotificationData:
     threshold: int
     usage: int
     limit: int
-    # Whether the limit is enforced (hard limit) so the frontend can pick the right
-    # wording for the 100% notification.
-    enforced: bool
 
 
 class ApplicationUserLimitNotificationType(NotificationType):
@@ -39,7 +35,6 @@ class ApplicationUserLimitNotificationType(NotificationType):
             threshold=threshold,
             usage=usage,
             limit=limit,
-            enforced=settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED,
         )
         return notify_admins_in_workspace(workspace, cls.type, asdict(data))
 

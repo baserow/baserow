@@ -2610,7 +2610,6 @@ def mark_over_limit_since(user_source, since):
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -2633,7 +2632,6 @@ def test_local_baserow_user_source_authentication_refused_over_application_user_
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -2659,7 +2657,6 @@ def test_local_baserow_user_source_authentication_allowed_within_application_use
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -2682,15 +2679,13 @@ def test_local_baserow_user_source_get_or_create_user_refused_over_application_u
             user_source, email="new@baserow.io", name="New user"
         )
 
-    # The limit is deliberately checked after the user row is created (the SSO
-    # auto-provisioning path may create it before the limit is known), so the row
-    # exists even though the sign in was refused.
-    assert UserModel.objects.count() == count_before + 1
+    # The refused user must not be created, it would otherwise count towards the
+    # usage without ever having signed in.
+    assert UserModel.objects.count() == count_before
 
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(

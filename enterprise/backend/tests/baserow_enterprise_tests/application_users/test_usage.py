@@ -82,25 +82,7 @@ def user_source(data_fixture):
 
 
 @pytest.mark.django_db
-@override_settings(DEBUG=True, BASEROW_APPLICATION_USER_LIMIT_ENFORCED=False)
-@patch(
-    "baserow_premium.application_user_usage.handler."
-    "ApplicationUserUsageHandler.aggregate_user_source_counts"
-)
-def test_login_is_allowed_over_the_limit_when_the_limit_is_a_soft_one(
-    mock_aggregate_user_source_counts, user_source, premium_data_fixture
-):
-    mock_aggregate_user_source_counts.return_value = OVER_THE_LICENSE_LIMIT
-    premium_data_fixture.create_premium_license(
-        license=VALID_PREMIUM_5_SEAT_10_APP_USER_LICENSE.decode()
-    )
-
-    raise_if_over_application_user_login_limit(user_source)
-
-
-@pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -118,7 +100,6 @@ def test_login_is_allowed_when_unlicensed_within_the_default_limit(
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -139,7 +120,6 @@ def test_login_is_refused_when_unlicensed_over_the_default_limit(
 @pytest.mark.django_db
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -161,7 +141,7 @@ def test_login_is_refused_over_the_default_limit_when_no_license_carries_one(
 
 
 @pytest.mark.django_db
-@override_settings(DEBUG=True, BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True)
+@override_settings(DEBUG=True)
 @patch(
     "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
@@ -180,7 +160,6 @@ def test_login_is_allowed_when_the_usage_is_within_the_license_limit(
 @pytest.mark.django_db
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -203,7 +182,6 @@ def test_login_is_refused_when_over_the_license_limit_past_the_grace_period(
 @pytest.mark.django_db
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -225,7 +203,6 @@ def test_login_is_allowed_when_over_the_license_limit_within_the_grace_period(
 @pytest.mark.django_db
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -248,7 +225,6 @@ def test_login_is_allowed_when_the_periodic_count_has_not_detected_the_overrun_y
 @pytest.mark.django_db
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -272,7 +248,6 @@ def test_login_is_allowed_past_the_grace_period_when_the_usage_dropped_meanwhile
 @pytest.mark.django_db
 @override_settings(
     DEBUG=True,
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -563,22 +538,18 @@ def test_application_user_limit_notification_title(threshold, expected_title):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("enforced", [True, False])
 @override_settings(BASEROW_APPLICATION_USER_USAGE_WARNING_THRESHOLDS=[])
 @patch(
     "baserow_premium.application_user_usage.handler."
     "ApplicationUserUsageHandler.aggregate_user_source_counts"
 )
-def test_the_notification_data_carries_the_enforced_flag(
+def test_the_notification_data_contract(
     mock_aggregate_user_source_counts,
     data_fixture,
     django_capture_on_commit_callbacks,
-    settings,
-    enforced,
 ):
-    # The frontend picks the wording of the 100% notification based on whether the
-    # limit is enforced, so the flag is part of the notification data contract.
-    settings.BASEROW_APPLICATION_USER_LIMIT_ENFORCED = enforced
+    # The frontend renders the notification from this data, so its keys are part
+    # of the contract.
     mock_aggregate_user_source_counts.return_value = OVER_THE_DEFAULT_LIMIT
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -591,11 +562,13 @@ def test_the_notification_data_carries_the_enforced_flag(
     notification = Notification.objects.get(
         type=ApplicationUserLimitNotificationType.type, workspace=workspace
     )
-    assert notification.data["enforced"] is enforced
-    assert notification.data["workspace_id"] == workspace.id
-    assert notification.data["workspace_name"] == workspace.name
-    assert notification.data["usage"] == OVER_THE_DEFAULT_LIMIT
-    assert notification.data["limit"] == DEFAULT_APPLICATION_USERS_LIMIT
+    assert notification.data == {
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+        "threshold": 100,
+        "usage": OVER_THE_DEFAULT_LIMIT,
+        "limit": DEFAULT_APPLICATION_USERS_LIMIT,
+    }
 
 
 @pytest.mark.django_db
