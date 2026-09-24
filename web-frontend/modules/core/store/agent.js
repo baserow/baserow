@@ -53,8 +53,16 @@ export const actions = {
     )
     return dispatch('forceCreate', data)
   },
-  forceCreate({ commit }, agent) {
+  forceCreate({ commit, state, dispatch }, agent) {
+    const exists = state.items.some((item) => item.id === agent.id)
     commit('UPSERT_ITEM', agent)
+    if (!exists) {
+      dispatch(
+        'workspace/updateAgentsCount',
+        { workspaceId: agent.workspace_id, delta: 1 },
+        { root: true }
+      )
+    }
     return agent
   },
   async update({ dispatch }, { agentId, values }) {
@@ -72,8 +80,13 @@ export const actions = {
       agentId: agent.id,
     })
   },
-  forceDelete({ commit }, payload) {
+  forceDelete({ commit, dispatch }, payload) {
     commit('DELETE_ITEM', payload)
+    dispatch(
+      'workspace/updateAgentsCount',
+      { workspaceId: payload.workspaceId, delta: -1 },
+      { root: true }
+    )
   },
 }
 

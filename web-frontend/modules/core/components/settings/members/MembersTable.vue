@@ -11,7 +11,7 @@
       <template #title>
         {{
           $t('membersSettings.membersTable.title', {
-            userAmount: workspace.users.length || 0,
+            userAmount: membersCount,
             workspaceName: workspace.name,
           })
         }}
@@ -68,6 +68,7 @@
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getWorkspaceMembersCount } from '@baserow/modules/core/utils/workspace'
 
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
@@ -102,6 +103,16 @@ export default {
   },
   computed: {
     ...mapGetters({ userId: 'auth/getUserId' }),
+    membersCount() {
+      return getWorkspaceMembersCount(
+        this.workspace,
+        this.$hasPermission(
+          'workspace.list_agents',
+          this.workspace,
+          this.workspace.id
+        )
+      )
+    },
     roles() {
       return this.workspace._.roles
     },

@@ -1,3 +1,7 @@
+export const getWorkspaceMembersCount = (workspace, canListAgents) =>
+  (workspace.users?.length || 0) +
+  (canListAgents ? workspace.agents_count || 0 : 0)
+
 /**
  * Fetches the workspaces and applications of the authenticated user if that hasn't
  * happened yet, and selects the provided workspace if it exists. Shared by the
