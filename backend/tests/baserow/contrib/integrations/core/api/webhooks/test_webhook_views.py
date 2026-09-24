@@ -317,6 +317,28 @@ def test_workflow_response_enforces_browser_sandbox(csp_header_key):
     assert response["Content-Security-Policy"] == "sandbox"
 
 
+@pytest.mark.parametrize(
+    "header_name",
+    [
+        "Set-Cookie",
+        "clear-site-data",
+        "StRiCt-TrAnSpOrT-SeCuRiTy",
+    ],
+)
+def test_workflow_response_strips_shared_origin_state_headers(header_name):
+    workflow_response = SimpleNamespace(
+        headers={header_name: "unsafe", "X-Workflow": "done"},
+        status_code=HTTP_200_OK,
+        body_type=RESPONSE_BODY_TYPE.TEXT,
+        body="Hello",
+    )
+
+    response = CoreHTTPTriggerView().response_to_http_response(workflow_response)
+
+    assert not response.has_header(header_name)
+    assert response["X-Workflow"] == "done"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_http_trigger_does_not_wait_for_response_when_disabled(
     api_client, data_fixture

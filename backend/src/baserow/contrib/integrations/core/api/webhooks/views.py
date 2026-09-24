@@ -16,7 +16,10 @@ from baserow.contrib.integrations.core.api.webhooks.errors import (
     ERROR_CORE_HTTP_TRIGGER_SERVICE_DOES_NOT_EXIST,
     ERROR_CORE_HTTP_TRIGGER_SERVICE_METHOD_NOT_ALLOWED,
 )
-from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
+from baserow.contrib.integrations.core.constants import (
+    DISALLOWED_WORKFLOW_RESPONSE_HEADERS,
+    RESPONSE_BODY_TYPE,
+)
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
     CoreHTTPTriggerServiceMethodNotAllowed,
@@ -103,7 +106,7 @@ class CoreHTTPTriggerView(APIView):
         headers = {
             key: value
             for key, value in (workflow_response.headers or {}).items()
-            if key.lower() != "content-security-policy"
+            if key.lower() not in DISALLOWED_WORKFLOW_RESPONSE_HEADERS
         }
         headers["Content-Security-Policy"] = WORKFLOW_RESPONSE_CONTENT_SECURITY_POLICY
         status = workflow_response.status_code

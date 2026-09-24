@@ -8,6 +8,9 @@ from baserow.contrib.automation.automation_dispatch_context import (
 from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistoryResponse,
 )
+from baserow.contrib.integrations.core.api.serializers import (
+    CoreResponseHeaderSerializer,
+)
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.contrib.integrations.core.models import CoreResponseHeader
 from baserow.contrib.integrations.core.service_types import (
@@ -17,6 +20,24 @@ from baserow.contrib.integrations.core.service_types import (
 )
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
 from baserow.core.services.exceptions import InvalidContextContentDispatchException
+
+
+@pytest.mark.parametrize(
+    "header_name",
+    [
+        "Set-Cookie",
+        "clear-site-data",
+        "CoNtEnT-SeCuRiTy-PoLiCy",
+        "StRiCt-TrAnSpOrT-SeCuRiTy",
+    ],
+)
+def test_response_header_serializer_rejects_shared_origin_state_headers(header_name):
+    serializer = CoreResponseHeaderSerializer(
+        data={"key": header_name, "value": "'value'"}
+    )
+
+    assert not serializer.is_valid()
+    assert "shared Baserow origin" in str(serializer.errors["key"][0])
 
 
 @pytest.mark.django_db

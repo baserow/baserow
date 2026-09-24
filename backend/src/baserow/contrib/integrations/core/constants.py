@@ -24,6 +24,16 @@ class RESPONSE_BODY_TYPE(models.TextChoices):
     TEXT = "text", "Text"
 
 
+DISALLOWED_WORKFLOW_RESPONSE_HEADERS = frozenset(
+    {
+        "clear-site-data",
+        "content-security-policy",
+        "set-cookie",
+        "strict-transport-security",
+    }
+)
+
+
 class CSV_FILE_READER_INPUT_TYPE(models.TextChoices):
     FILE = "file", "File"
     CONTENT = "content", "Content"
