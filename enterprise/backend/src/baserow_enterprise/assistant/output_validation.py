@@ -60,7 +60,8 @@ _BARE_COMPLETED_CHANGE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _DESCRIPTIVE_CHANGE_SUBJECT_PATTERN = re.compile(
-    rf"^\s*{_CHANGE_VERBS}\s+\w+\s+(?:is|are|can|may|go|goes)\b",
+    rf"^\s*{_CHANGE_VERBS}\s+\w+\s+"
+    r"(?:is|are|isn['’]t|aren['’]t|can|may|go|goes)\b",
     re.IGNORECASE,
 )
 _FENCED_CODE_PATTERN = re.compile(

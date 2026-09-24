@@ -2086,6 +2086,10 @@ class TestFinalAnswerValidation:
         "answer",
         [
             "Deleted rows go to the trash and can be restored within the 3-day retention period.",
+            "Deleted rows aren't removed permanently right away—they go to the trash.",
+            "Deleted rows aren’t removed permanently right away—they go to the trash.",
+            "Updated data isn't visible until the page refreshes.",
+            "Updated data isn’t visible until the page refreshes.",
             "Updated fields are saved automatically.",
             "Created rows can be filtered by their author.",
             "Use a restricted view with this filter:\n```\nCreated by = Current user\n```\n"
