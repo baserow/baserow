@@ -529,6 +529,54 @@ def test_create_smtp_integration_without_a_password_is_allowed(
 
 
 @pytest.mark.django_db
+def test_create_smtp_integration_with_tls_and_ssl_returns_400(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "smtp",
+            "name": "Mailer",
+            "host": "smtp.example.com",
+            "port": 465,
+            "use_tls": True,
+            "use_ssl": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "use_ssl" in response.json()
+
+
+@pytest.mark.django_db
+def test_create_smtp_integration_with_implicit_ssl(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+
+    url = reverse("api:integrations:list", kwargs={"application_id": application.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "smtp",
+            "name": "Mailer",
+            "host": "smtp.example.com",
+            "port": 465,
+            "use_ssl": True,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["use_ssl"] is True
+    assert response.json()["use_tls"] is False
+
+
+@pytest.mark.django_db
 def test_update_smtp_integration_response_omits_password(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_builder_application(user=user)
