@@ -256,7 +256,14 @@ def _make_groq(name: str, creds: dict[str, str | None]) -> Model:
     from pydantic_ai.models.groq import GroqModel
     from pydantic_ai.providers.groq import GroqProvider
 
-    return GroqModel(name, provider=GroqProvider(api_key=creds["api_key"]))
+    from baserow_enterprise.assistant.groq_model import GroqGPTOSSModel
+
+    model_class = (
+        GroqGPTOSSModel
+        if name in {"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
+        else GroqModel
+    )
+    return model_class(name, provider=GroqProvider(api_key=creds["api_key"]))
 
 
 def _make_anthropic(name: str, creds: dict[str, str | None]) -> Model:

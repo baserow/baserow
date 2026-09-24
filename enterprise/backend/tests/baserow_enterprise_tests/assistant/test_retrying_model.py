@@ -793,3 +793,85 @@ class TestResolveModel:
             api_client._async_httpx_client
             is not second_model._provider.client._api_client._async_httpx_client
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["openai/gpt-oss-120b", "openai/gpt-oss-20b"])
+async def test_groq_gpt_oss_preserves_reasoning_in_native_history(monkeypatch, name):
+    from copy import deepcopy
+
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ThinkingPart,
+        ToolCallPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    model = _resolve_model(f"groq:{name}")
+    messages = [
+        ModelRequest(parts=[UserPromptPart("Find the table.")]),
+        ModelResponse(
+            parts=[
+                ThinkingPart("First find the table."),
+                TextPart("Checking <think> literally."),
+                ThinkingPart("Then inspect its fields."),
+                ToolCallPart("list_tables", {}, tool_call_id="lookup-1"),
+            ]
+        ),
+        ModelRequest(parts=[ToolReturnPart("list_tables", [], "lookup-1")]),
+        ModelResponse(parts=[TextPart("No tables found.")]),
+        ModelRequest(parts=[UserPromptPart("Thanks.")]),
+    ]
+    original = deepcopy(messages)
+
+    mapped = await model._map_messages(messages, ModelRequestParameters())
+
+    assert mapped[1] == {
+        "role": "assistant",
+        "content": "Checking <think> literally.",
+        "reasoning": "First find the table.\n\nThen inspect its fields.",
+        "tool_calls": [
+            {
+                "id": "lookup-1",
+                "type": "function",
+                "function": {"name": "list_tables", "arguments": "{}"},
+            }
+        ],
+    }
+    assert mapped[2]["tool_call_id"] == "lookup-1"
+    assert mapped[3] == {"role": "assistant", "content": "No tables found."}
+    assert messages == original
+
+
+@pytest.mark.asyncio
+async def test_groq_other_models_keep_the_sdk_history_mapping(monkeypatch):
+    from pydantic_ai.messages import ModelResponse, ThinkingPart
+    from pydantic_ai.models.groq import GroqModel
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    model = _resolve_model("groq:qwen/qwen3-32b")
+    assert type(model) is GroqModel
+    mapped = await model._map_messages(
+        [ModelResponse(parts=[ThinkingPart("Find the table.")])],
+        ModelRequestParameters(),
+    )
+    assert mapped == [
+        {"role": "assistant", "content": "<think>\nFind the table.\n</think>"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_groq_gpt_oss_keeps_reasoning_only_responses(monkeypatch):
+    from pydantic_ai.messages import ModelResponse, ThinkingPart
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+    model = _resolve_model("groq:openai/gpt-oss-120b")
+    mapped = await model._map_messages(
+        [ModelResponse(parts=[ThinkingPart("Find the table.")])],
+        ModelRequestParameters(),
+    )
+    assert mapped == [{"role": "assistant", "reasoning": "Find the table."}]

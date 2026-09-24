@@ -88,6 +88,12 @@ If synthesis returns no valid citation, it reconsiders the same passages once fo
 supported partial information. This fallback keeps the citation checks and can
 still return no evidence.
 
+Groq GPT-OSS history keeps prior reasoning in the API's native `reasoning` field.
+Pydantic AI otherwise embeds it in visible `<think>` text, which can trigger
+malformed final/tool responses. The adapter preserves text, tool calls, and stored
+history; other providers and models retain their SDK mapping. Provider failures
+and malformed responses still count against the same eval limits.
+
 ## Verification
 
 Run the assistant and prompt tests with:
