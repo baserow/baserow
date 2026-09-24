@@ -315,6 +315,33 @@ def test_refresh_data_source_serializes_trashed_data_source_as_null(data_fixture
 
 
 @pytest.mark.django_db
+def test_refresh_data_source_serialization_does_not_query_data_sources(
+    data_fixture, django_assert_num_queries
+):
+    page = data_fixture.create_builder_page()
+    workflow_action_type = RefreshDataSourceWorkflowActionType()
+    for _ in range(2):
+        data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+            page=page
+        )
+        data_fixture.create_workflow_action(
+            RefreshDataSourceWorkflowAction,
+            page=page,
+            data_source=data_source,
+        )
+
+    workflow_actions = list(
+        workflow_action_type.enhance_queryset(
+            RefreshDataSourceWorkflowAction.objects.filter(page=page)
+        )
+    )
+
+    with django_assert_num_queries(0):
+        for workflow_action in workflow_actions:
+            workflow_action_type.get_serializer(workflow_action).data
+
+
+@pytest.mark.django_db
 def test_import_notification_workflow_action(data_fixture):
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()

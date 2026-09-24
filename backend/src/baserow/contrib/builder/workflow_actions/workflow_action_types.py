@@ -228,6 +228,9 @@ class RefreshDataSourceWorkflowActionType(BuilderWorkflowActionType):
     def allowed_fields(self):
         return super().allowed_fields + ["data_source_id"]
 
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).select_related("data_source")
+
     def deserialize_property(
         self,
         prop_name,
