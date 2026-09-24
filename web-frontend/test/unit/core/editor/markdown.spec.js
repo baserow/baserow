@@ -300,181 +300,84 @@ describe('official TipTap Markdown integration', () => {
     expect(editor.getHTML()).not.toContain('<script>')
   })
 
-  test('preserves an image inside an ordered list item', () => {
-    const document = {
-      type: 'doc',
-      content: [
-        {
-          type: 'orderedList',
-          attrs: { start: 1 },
-          content: [
-            {
-              type: 'listItem',
-              attrs: {},
-              content: [
-                paragraph(),
-                {
-                  type: 'image',
-                  attrs: {
-                    src: 'https://example.com/img.png',
-                    alt: 'photo',
-                    title: null,
-                    userFileName: 'abc123_def456.png',
-                    maxWidth: '100%',
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    }
-    const opts = { enableImages: true }
-    editor = createEditor(document, opts)
-
-    const reopened = reopen(editor, opts)
-    editor = reopened.editor
-
-    const json = editor.getJSON()
-    const listItem = json.content[0].content[0]
-    const imageNode = listItem.content.find((n) => n.type === 'image')
-    expect(imageNode).toBeTruthy()
-    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
-    expect(imageNode.attrs.alt).toBe('photo')
-
-    const firstPara = listItem.content[0]
-    expect(firstPara.type).toBe('paragraph')
-    expect(firstPara.content).toBeUndefined()
-  })
-
-  test('does not show &nbsp; text in list items after round-trip', () => {
-    const document = {
-      type: 'doc',
-      content: [
-        {
-          type: 'orderedList',
-          attrs: { start: 1 },
-          content: [
-            {
-              type: 'listItem',
-              attrs: {},
-              content: [
-                paragraph(),
-                {
-                  type: 'image',
-                  attrs: {
-                    src: 'https://example.com/img.png',
-                    alt: 'photo',
-                    title: null,
-                    userFileName: 'abc123_def456.png',
-                    maxWidth: '100%',
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    }
-    const opts = { enableImages: true }
-    editor = createEditor(document, opts)
-    const markdown = editor.getMarkdown()
-    expect(markdown).toContain('&nbsp;')
-
-    const reopened = reopen(editor, opts)
-    editor = reopened.editor
-    const json = editor.getJSON()
-    const allText = JSON.stringify(json)
-    expect(allText).not.toContain('&nbsp;')
-    expect(allText).not.toContain('\\u00a0')
-  })
-
-  test('preserves an image inside a bullet list item', () => {
-    const document = {
-      type: 'doc',
-      content: [
-        {
-          type: 'bulletList',
-          content: [
-            {
-              type: 'listItem',
-              attrs: {},
-              content: [
-                paragraph('some text'),
-                {
-                  type: 'image',
-                  attrs: {
-                    src: 'https://example.com/img.png',
-                    alt: 'photo',
-                    title: null,
-                    userFileName: 'abc123_def456.png',
-                    maxWidth: '100%',
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    }
-    const opts = { enableImages: true }
-    editor = createEditor(document, opts)
-
-    const reopened = reopen(editor, opts)
-    editor = reopened.editor
-
-    const json = editor.getJSON()
-    const listItem = json.content[0].content[0]
-    const imageNode = listItem.content.find((n) => n.type === 'image')
-    expect(imageNode).toBeTruthy()
-    expect(imageNode.attrs.src).toBe('https://example.com/img.png')
-  })
-
-  test('preserves image with userFileName through full app flow', () => {
-    const imageAttrs = {
-      src: 'https://example.com/img.png',
-      alt: 'photo',
-      title: null,
-      userFileName: 'abc123_def456.jpg',
-      maxWidth: '100%',
-    }
-    editor = createEditor(
+  const IMAGE_ATTRS = {
+    src: 'https://example.com/img.png',
+    alt: 'photo',
+    title: null,
+    userFileName: 'abc123_def456.png',
+    maxWidth: '100%',
+  }
+  const listWithImage = (listType, text) => ({
+    type: 'doc',
+    content: [
       {
-        type: 'doc',
+        type: listType,
+        ...(listType === 'orderedList' ? { attrs: { start: 1 } } : {}),
         content: [
           {
-            type: 'orderedList',
-            attrs: { start: 1 },
+            type: 'listItem',
+            attrs: {},
             content: [
               {
-                type: 'listItem',
-                attrs: {},
-                content: [paragraph(), { type: 'image', attrs: imageAttrs }],
+                type: 'paragraph',
+                content: [
+                  ...(text ? [{ type: 'text', text }] : []),
+                  { type: 'image', attrs: IMAGE_ATTRS },
+                ],
               },
             ],
           },
         ],
       },
-      { enableImages: true }
+    ],
+  })
+  const findImage = (json) => {
+    let found = null
+    const walk = (node) => {
+      if (node.type === 'image') found = found || node
+      ;(node.content || []).forEach(walk)
+    }
+    walk(json)
+    return found
+  }
+
+  test.each([
+    ['ordered', 'orderedList', undefined, '1. '],
+    ['bullet', 'bulletList', 'some text ', '- some text '],
+  ])('keeps an image inside a %s list item', (_, listType, text, prefix) => {
+    const opts = { enableImages: true }
+    editor = createEditor(listWithImage(listType, text), opts)
+
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+
+    expect(reopened.markdown).toBe(
+      `${prefix}![photo][abc123_def456.png](https://example.com/img.png)`
     )
+    const listItem = editor.getJSON().content[0].content[0]
+    expect(listItem.content).toHaveLength(1)
+    expect(findImage(listItem).attrs).toMatchObject(IMAGE_ATTRS)
+  })
 
-    const markdown = editor.getMarkdown()
-    expect(markdown).toContain('[abc123_def456.jpg]')
-    expect(markdown).toContain('https://example.com/img.png')
-    editor.destroy()
+  test('an image-only list item round-trips without &nbsp;', () => {
+    const opts = { enableImages: true }
+    editor = createEditor(listWithImage('orderedList'), opts)
 
-    // The stored markdown (as returned by the backend with resolved URLs) is
-    // parsed directly, the image tokenizer stamps userFileName itself.
+    const reopened = reopen(editor, opts)
+    editor = reopened.editor
+
+    expect(reopened.markdown).not.toContain('&nbsp;')
+    expect(JSON.stringify(editor.getJSON())).not.toContain('\\u00a0')
+  })
+
+  test('parses a stored list image with its user file name', () => {
     editor = new Editor({
       extensions: createRichTextEditorExtensions({ enableImages: true }),
-      content: markdown,
+      content: '1. ![photo][abc123_def456.jpg](https://example.com/img.png)',
       contentType: 'markdown',
     })
 
-    const json = editor.getJSON()
-    const listItem = json.content[0].content[0]
-    const imageNode = listItem.content.find((n) => n.type === 'image')
-    expect(imageNode).toBeTruthy()
+    const imageNode = findImage(editor.getJSON())
     expect(imageNode.attrs.src).toBe('https://example.com/img.png')
     expect(imageNode.attrs.userFileName).toBe('abc123_def456.jpg')
   })

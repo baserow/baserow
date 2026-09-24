@@ -13,7 +13,6 @@ import { History } from '@tiptap/extension-history'
 import { HorizontalRule } from '@tiptap/extension-horizontal-rule'
 import { Italic } from '@tiptap/extension-italic'
 import { isAllowedUri, Link as BaseLink } from '@tiptap/extension-link'
-import { getListMarker } from '@tiptap/extension-list'
 import { ListItem as BaseListItem } from '@tiptap/extension-list-item'
 import { OrderedList } from '@tiptap/extension-ordered-list'
 import { Paragraph } from '@tiptap/extension-paragraph'
@@ -30,7 +29,6 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Marked } from 'marked'
 
 import { ScalableImage } from '@baserow/modules/core/editor/image'
-import { LINK_PROTOCOLS } from '@baserow/modules/core/editor/linkProtocols'
 import { rememberRichTextEditorClipboard } from '@baserow/modules/core/editor/richTextClipboard'
 import {
   decodeInlineCodeText,
@@ -49,6 +47,11 @@ export const MARKDOWN_OPTIONS = {
 export const createMarkedInstance = () => new Marked()
 
 const HEADING_LEVELS = [1, 2, 3]
+const LINK_PROTOCOLS = [
+  { scheme: 'ftp' },
+  { scheme: 'mailto', optionalSlashes: true },
+  { scheme: 'tel', optionalSlashes: true },
+]
 
 const Heading = BaseHeading.extend({
   parseMarkdown(token, helpers) {
@@ -122,43 +125,26 @@ const CodeBlock = BaseCodeBlock.extend({
 
 const ListItem = BaseListItem.extend({
   renderMarkdown(node, helpers, context) {
+    // Marked only recognizes an empty list item when it contains a visible Markdown
+    // placeholder. Replace the first sentinel only; later user text may contain it.
     const emptyParagraphMarker = '\uE002'
-    const children = node.content ?? []
-    if (children.length === 0) return ''
-
-    const [first, ...rest] = children
-    const normalizedFirst =
-      first?.type === 'paragraph' && !first.content?.length
+    const firstChild = node.content?.[0]
+    const normalizedNode =
+      firstChild?.type === 'paragraph' && !firstChild.content?.length
         ? {
-            ...first,
-            content: [{ type: 'text', text: emptyParagraphMarker }],
+            ...node,
+            content: [
+              {
+                ...firstChild,
+                content: [{ type: 'text', text: emptyParagraphMarker }],
+              },
+              ...node.content.slice(1),
+            ],
           }
-        : first
-
-    let marker = '- '
-    if (context.parentType === 'orderedList') {
-      const start = context.meta?.parentAttrs?.start || 1
-      const type = context.meta?.parentAttrs?.type
-      marker = getListMarker(type, start - 1 + (context.index || 0), '. ')
-    }
-
-    const mainContent = helpers.renderChildren([normalizedFirst])
-    let output = `${marker}${mainContent}`
-
-    for (let i = 0; i < rest.length; i++) {
-      const child = rest[i]
-      const rendered =
-        helpers.renderChild(child, i + 1) ?? helpers.renderChildren([child])
-      if (rendered == null) continue
-      const indented = rendered
-        .split('\n')
-        .map((line) => helpers.indent(line))
-        .join('\n')
-      const separator = child.type === 'paragraph' ? '\n\n' : '\n'
-      output += `${separator}${indented}`
-    }
-
-    return output.replace(emptyParagraphMarker, '&nbsp;')
+        : node
+    return BaseListItem.config
+      .renderMarkdown(normalizedNode, helpers, context)
+      .replace(emptyParagraphMarker, '&nbsp;')
   },
 })
 
@@ -281,7 +267,9 @@ export const createRichTextEditorExtensions = (options = {}) => {
     History,
   ]
 
-  extensions.push(Dropcursor, Gapcursor)
+  if (options.enableImages) {
+    extensions.push(Dropcursor, Gapcursor)
+  }
 
   return extensions
 }

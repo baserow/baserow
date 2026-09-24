@@ -11,6 +11,10 @@ const unescapeAlt = (s) => s.replace(/\\([\\[\]])/g, '$1')
 
 export const ScalableImage = Image.extend({
   selectable: true,
+  addOptions() {
+    // Inline so an image can sit in a paragraph or list item; CSS shows it on its own line.
+    return { ...this.parent?.(), inline: true }
+  },
   addAttributes() {
     return {
       ...this.parent?.(),

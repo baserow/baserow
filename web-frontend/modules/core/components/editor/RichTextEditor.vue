@@ -42,8 +42,6 @@ import { mapGetters } from 'vuex'
 import { Editor, EditorContent } from '@tiptap/vue-3'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { isActive } from '@tiptap/core'
-import { GapCursor } from '@tiptap/pm/gapcursor'
-import { NodeSelection } from '@tiptap/pm/state'
 
 import RichTextEditorBubbleMenu from '@baserow/modules/core/components/editor/RichTextEditorBubbleMenu'
 import RichTextEditorFloatingMenu from '@baserow/modules/core/components/editor/RichTextEditorFloatingMenu'
@@ -556,15 +554,6 @@ export default {
     },
     focus() {
       this.editor.commands.focus('end')
-      // `end` selects a trailing block image as a node, so the first keystroke
-      // would replace it. Put a gap cursor after it instead.
-      const { state, view } = this.editor
-      if (state.selection instanceof NodeSelection) {
-        const $after = state.doc.resolve(state.selection.to)
-        if (GapCursor.valid($after)) {
-          view.dispatch(state.tr.setSelection(new GapCursor($after)))
-        }
-      }
     },
     serializeToMarkdown() {
       // A URL the editor didn't get from Baserow (pasted) would load in the optimistic preview.

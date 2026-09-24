@@ -550,6 +550,19 @@ describe('RichTextEditor images', () => {
     )
   })
 
+  test.each([
+    [
+      'an uploaded image',
+      'see ![x][abc_def.png](https://example.com/abc_def.png) end',
+    ],
+    ['an external image', 'see ![x](https://example.com/photo.png) end'],
+  ])('keeps text around %s in one paragraph', async (_, markdown) => {
+    const wrapper = await mountEditor(markdown, { uploadFile: vi.fn() })
+
+    expect(wrapper.findAll('.tiptap p')).toHaveLength(1)
+    expect(wrapper.vm.serializeToMarkdown()).toBe(markdown)
+  })
+
   test('keeps an external image as a placeholder and saves it unchanged', async () => {
     const markdown = '![photo](https://example.com/photo.png)'
     const wrapper = await mountEditor(markdown, { uploadFile: vi.fn() })
