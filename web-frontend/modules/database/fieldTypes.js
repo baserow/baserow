@@ -1440,7 +1440,11 @@ export class LongTextFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.$i18n.t('fieldDocs.longText')
+    return this.app.$i18n.t(
+      field.long_text_enable_rich_text
+        ? 'fieldDocs.longTextRichText'
+        : 'fieldDocs.longText'
+    )
   }
 
   getDocsRequestExample(field) {
