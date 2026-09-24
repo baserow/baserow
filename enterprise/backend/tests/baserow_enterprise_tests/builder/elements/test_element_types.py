@@ -24,6 +24,7 @@ from baserow_enterprise.builder.elements.element_types import (
     GraphElementSeriesSerializer,
     GraphElementType,
 )
+from baserow_enterprise.builder.elements.models import FileInputElement
 
 
 @pytest.mark.django_db
@@ -423,6 +424,42 @@ def test_file_input_element_is_valid_invalid_filetype(fake, allowed, should_rais
         }
 
 
+@pytest.mark.parametrize(
+    "allowed,content_type,expected",
+    [
+        (["text/*"], "text/csv", True),
+        (["text/*"], "text/plain", True),
+        (["TEXT/*"], "TEXT/CSV", True),
+        (["text/*"], "application/pdf", False),
+        (["text/*"], "textual/csv", False),
+        (["application/*"], "application/pdf", True),
+        (["application/*"], "image/png", False),
+        (["image/*"], "image/jpeg", True),
+        (["audio/*"], "audio/mpeg", True),
+        (["video/*"], "video/mp4", True),
+        (["*/*"], "text/csv", False),
+        (["text/c*"], "text/csv", False),
+        (["image/jpg"], "image/jpeg", True),
+        (["image/jpeg"], "image/jpg", True),
+        (["IMAGE/JPG"], "IMAGE/JPEG", True),
+        (["image/jpg"], "image/png", False),
+        (["image/jpeg"], "image/png", False),
+        (["jpg"], "image/jpg", True),
+        ([".jpg"], "image/jpeg", True),
+        (["text/csv"], "text/csv", True),
+        (["text/csv"], "text/plain", False),
+        ([], "text/csv", True),
+        (["image/jpg", "text/*"], "text/csv", True),
+    ],
+)
+def test_file_input_element_allowed_content_type(allowed, content_type, expected):
+    element = FileInputElement(allowed_filetypes=allowed)
+    assert (
+        FileInputElementType().is_allowed_content_type(element, content_type)
+        is expected
+    )
+
+
 @pytest.mark.django_db
 def test_file_input_element_is_valid_invalid_size(fake):
     element = MagicMock()
@@ -462,9 +499,25 @@ def test_file_input_element_is_valid_invalid_size(fake):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("allowed_filetypes", [[], ["image/png"]])
+@pytest.mark.parametrize(
+    "allowed_filetypes,filename,content_type,image_format",
+    [
+        ([], "image_1.png", "image/png", "png"),
+        (["image/png"], "image_1.png", "image/png", "png"),
+        (["image/jpg"], "image_1.JPG", "image/jpeg", "jpeg"),
+        (["image/jpeg"], "image_1.JPG", "image/jpg", "jpeg"),
+        (["text/*"], "data.csv", "text/csv", None),
+    ],
+)
 def test_dispatch_local_baserow_update_row_workflow_action_with_file(
-    api_client, data_fixture, enable_enterprise, fake, allowed_filetypes
+    api_client,
+    data_fixture,
+    enable_enterprise,
+    fake,
+    allowed_filetypes,
+    filename,
+    content_type,
+    image_format,
 ):
     user, token = data_fixture.create_user_and_token()
     table, fields, rows = data_fixture.build_table(
@@ -515,7 +568,9 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
             "external": {workflow_action.service.id: ["id", file_field.db_column]},
         }
 
-        image = fake.image()
+        content = (
+            fake.image(image_format=image_format) if image_format else b"name\nAlice\n"
+        )
 
         payload = {
             "metadata": json.dumps(
@@ -524,8 +579,8 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
                         str(file_input_element.id): [
                             {
                                 "__file__": True,
-                                "name": "image_1.png",
-                                "content_type": "image/png",
+                                "name": filename,
+                                "content_type": content_type,
                                 "size": "1963",
                                 "file": "3c913094-c69a-4fd3-b19d-c35322f7d5c5",
                             },
@@ -534,7 +589,7 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
                 }
             ),
             "3c913094-c69a-4fd3-b19d-c35322f7d5c5": SimpleUploadedFile(
-                name="avatar.png", content=image, content_type="image/png"
+                name=filename, content=content, content_type=content_type
             ),
         }
         response = api_client.post(
@@ -549,10 +604,10 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
 
     assert response_json[file_field.name] == [
         {
-            "image_height": 256,
-            "image_width": 256,
-            "is_image": True,
-            "mime_type": "image/png",
+            "image_height": 256 if image_format else None,
+            "image_width": 256 if image_format else None,
+            "is_image": bool(image_format),
+            "mime_type": f"image/{image_format}" if image_format else "text/csv",
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
@@ -562,9 +617,11 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
                     "url": AnyStr(),
                     "width": 21,
                 },
-            },
+            }
+            if image_format
+            else None,
             "url": AnyStr(),
-            "visible_name": "image_1.png",
+            "visible_name": filename,
         },
     ]
 

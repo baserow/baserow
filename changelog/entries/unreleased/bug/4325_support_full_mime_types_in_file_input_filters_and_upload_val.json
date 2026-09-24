@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Support full MIME types in file input filters and upload validation.",
+    "message": "Support full MIME types, JPEG aliases, and MIME wildcards in file input filters and upload validation.",
     "issue_origin": "github",
     "issue_number": 4325,
     "domain": "builder",
