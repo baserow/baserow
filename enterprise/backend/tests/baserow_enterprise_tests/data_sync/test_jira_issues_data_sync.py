@@ -552,7 +552,7 @@ _Italic_
 
 
 
-[Screenshot 2024-09-12 at 11.21.36.png](Screenshot 2024-09-12 at 11.21.36.png){width=884 height=213}
+![Screenshot 2024-09-12 at 11.21.36.png](Screenshot 2024-09-12 at 11.21.36.png){width=884 height=213}
 
 😃
 

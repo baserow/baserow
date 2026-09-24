@@ -786,25 +786,20 @@ def test_prepare_value_for_db_accepts_svg_user_file(data_fixture):
 
 
 @pytest.mark.django_db
-def test_prepare_value_for_db_demotes_external_images(data_fixture):
-    """Rich text images are Baserow user files only.
-
-    A row can be written anonymously through a form and read anonymously from a
-    public view, so an external image would let a third party host content that
-    every reader fetches. Only the user file reference stays an image.
-    """
+def test_prepare_value_for_db_keeps_external_images_as_written(data_fixture):
+    """The frontend decides whether an external image is shown, so the stored
+    value keeps it exactly as written, whatever markdown form it takes."""
 
     _, _, field, field_type = _rich_text_field(data_fixture)
     user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
     value = (
         f"![ok][{user_file.name}] ![ext](https://example.com/p.gif) "
-        "![inline](data:image/png;base64,AAAA)"
+        "![inline](data:image/png;base64,AAAA)\n\n"
+        "![logo][remote]\n\n[remote]: https://example.com/p.gif"
     )
 
-    assert field_type.prepare_value_for_db(field, value) == (
-        f"![ok][{user_file.name}] [ext](https://example.com/p.gif) "
-        "[inline](data:image/png;base64,AAAA)"
-    )
+    assert field_type.prepare_value_for_db(field, value) == value
+    assert field_type.prepare_value_for_db_in_bulk(field, {0: value}) == {0: value}
 
 
 @pytest.mark.django_db
@@ -857,7 +852,7 @@ def test_prepare_value_for_db_in_bulk_single_query(
 
     assert result[0] == (
         f"row 0 ![a][{files[0].name}] ![b][{files[1].name}] "
-        "[ext](https://evil.com/x.png)"
+        "![ext](https://evil.com/x.png)"
     )
     assert result[50] is None
     assert result[51] == "no images here"
@@ -921,7 +916,7 @@ def test_row_handler_batch_create_validates_rich_text_images(data_fixture):
         .created_rows
     )
     assert getattr(rows[0], field.db_column) == (
-        f"![a][{user_file.name}] [e](https://evil.com/x.png)"
+        f"![a][{user_file.name}] ![e](https://evil.com/x.png)"
     )
 
     with pytest.raises(UserFileDoesNotExist):
@@ -941,7 +936,7 @@ def test_get_human_readable_value_uses_alt_text(data_fixture):
     )
 
     assert field_type.get_human_readable_value(value, field_object) == (
-        "Intro my [photo] mid second  end"
+        "Intro my [photo] mid second ![](https://ext.example/x.png) end"
     )
     assert field_type.get_human_readable_value(None, field_object) == ""
     assert field_type.get_human_readable_value("", field_object) == ""
@@ -974,21 +969,19 @@ def test_get_export_value_non_rich_text_unchanged(data_fixture):
 
 
 @pytest.mark.django_db
-def test_import_serialized_value_demotes_external_images(data_fixture):
+def test_import_serialized_value_keeps_external_images_as_written(data_fixture):
     _, table, field, field_type = _rich_text_field(data_fixture)
     model = table.get_model()
 
-    row1 = model()
-    field_type.set_import_serialized_value(
-        row1, field.db_column, "![e](https://example.com/x.png)", {}, {}, None, None
-    )
-    assert getattr(row1, field.db_column) == "[e](https://example.com/x.png)"
-
-    row2 = model()
-    field_type.set_import_serialized_value(
-        row2, field.db_column, "![e](javascript:alert(1))", {}, {}, None, None
-    )
-    assert getattr(row2, field.db_column) == "[e](javascript:alert(1))"
+    for value in [
+        "![e](https://example.com/x.png)",
+        "![logo][remote]\n\n[remote]: https://example.com/p.gif",
+    ]:
+        row = model()
+        field_type.set_import_serialized_value(
+            row, field.db_column, value, {}, {}, None, None
+        )
+        assert getattr(row, field.db_column) == value
 
 
 @pytest.mark.django_db
@@ -1154,9 +1147,7 @@ def test_prepare_value_for_db_leaves_code_literal(data_fixture):
         "![ext](https://e.com/b.png)"
     )
 
-    assert field_type.prepare_value_for_db(field, value) == value.replace(
-        "![ext](https://e.com/b.png)", "[ext](https://e.com/b.png)"
-    )
+    assert field_type.prepare_value_for_db(field, value) == value
 
 
 @pytest.mark.django_db
@@ -1213,69 +1204,6 @@ def test_max_length_ignores_resolved_image_urls(data_fixture, api_client, settin
     )
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-
-
-PIXEL_REFERENCE = "![logo][remote]\n\n[remote]: https://example.com/p.gif"
-
-
-def _hijacking_definition(name):
-    # Shadows a real user file reference, case-insensitively, from a blockquote.
-    return f"![a][{name}]\n\n> [{name.upper()}]: https://example.com/p.gif"
-
-
-@pytest.mark.django_db
-def test_prepare_value_for_db_rejects_markdown_rendered_images(data_fixture):
-    _, _, field, field_type = _rich_text_field(data_fixture)
-    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
-
-    for value in [PIXEL_REFERENCE, _hijacking_definition(user_file.name)]:
-        with pytest.raises(ValidationError) as exc:
-            field_type.prepare_value_for_db(field, value)
-        assert exc.value.code == "external_image_not_supported"
-
-    # Code stays literal, so an example of the syntax is fine.
-    value = f"```\n{PIXEL_REFERENCE}\n```"
-    assert field_type.prepare_value_for_db(field, value) == value
-
-
-@pytest.mark.django_db
-def test_prepare_value_for_db_in_bulk_rejects_markdown_rendered_images(data_fixture):
-    _, _, field, field_type = _rich_text_field(data_fixture)
-    values_by_row = {0: "text", 1: PIXEL_REFERENCE}
-
-    with pytest.raises(ValidationError):
-        field_type.prepare_value_for_db_in_bulk(field, dict(values_by_row))
-
-    result = field_type.prepare_value_for_db_in_bulk(
-        field, dict(values_by_row), continue_on_error=True
-    )
-    assert result[0] == "text"
-    assert result[1].code == "external_image_not_supported"
-
-
-@pytest.mark.django_db
-def test_import_serialized_value_escapes_markdown_rendered_images(data_fixture):
-    _, table, field, field_type = _rich_text_field(data_fixture)
-    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
-    model = table.get_model()
-
-    row = model()
-    field_type.set_import_serialized_value(
-        row, field.db_column, PIXEL_REFERENCE, {}, {}, None, None
-    )
-    assert getattr(row, field.db_column) == "\\" + PIXEL_REFERENCE
-
-    row = model()
-    field_type.set_import_serialized_value(
-        row, field.db_column, _hijacking_definition(user_file.name), {}, {}, None, None
-    )
-    stored = getattr(row, field.db_column)
-    # The definition is escaped, the user file reference is kept.
-    assert stored == (
-        f"![a][{user_file.name}]\n\n> \\[{user_file.name.upper()}]: "
-        "https://example.com/p.gif"
-    )
-    assert extract_user_file_names(stored) == {user_file.name}
 
 
 def _over_limit_value():

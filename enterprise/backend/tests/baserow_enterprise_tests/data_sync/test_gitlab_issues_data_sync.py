@@ -953,8 +953,8 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
 def test_sync_data_sync_table_description_with_image_is_stable(
     enterprise_data_fixture,
 ):
-    """The rich text description demotes `![alt](url)` to a link on write. The
-    second sync must compare in that stored form, or every run rewrites the row."""
+    """An external image is stored as written, so the second sync sees no change
+    and doesn't rewrite the row."""
 
     issue = deepcopy(SINGLE_ISSUE)
     issue["description"] = "Screenshot ![shot](https://gitlab.com/uploads/a.png)"
@@ -994,9 +994,7 @@ def test_sync_data_sync_table_description_with_image_is_stable(
     )[1]
     model = data_sync.table.get_model()
     row = model.objects.get()
-    assert getattr(row, f"field_{description_field.id}") == (
-        "Screenshot [shot](https://gitlab.com/uploads/a.png)"
-    )
+    assert getattr(row, f"field_{description_field.id}") == issue["description"]
     updated_on = row.updated_on
 
     with patch(

@@ -15,10 +15,7 @@ from baserow.contrib.database.data_sync.export_serialized import (
 )
 from baserow.contrib.database.data_sync.models import DataSync, DataSyncSyncedProperty
 from baserow.contrib.database.fields.models import Field, LongTextField
-from baserow.contrib.database.fields.rich_text_utils import (
-    neutralize_markdown_images,
-    normalize_rich_text_for_storage,
-)
+from baserow.contrib.database.fields.rich_text_utils import strip_user_file_urls
 from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -123,28 +120,23 @@ class DataSyncProperty(ABC):
 
 class RichTextDataSyncProperty(DataSyncProperty):
     """
-    A property synced into a rich text long text field. The field normalises
-    every stored value (external images become links, resolved URLs are
-    stripped), so the remote value must be compared in that same form or every
-    sync would see a difference and rewrite the row.
+    A property synced into a rich text long text field. The field strips resolved
+    URLs from user file references, so the remote value must be compared in that
+    same form or every sync would see a difference and rewrite the row.
     """
 
     def to_baserow_field(self) -> LongTextField:
         return LongTextField(name=self.name, long_text_enable_rich_text=True)
 
     def normalize_value(self, data_sync_row_value: Any) -> Any:
-        # The field rejects a value markdown would render an image for, e.g. a
-        # reference definition pointing at a remote URL. Escape those instead.
         if not isinstance(data_sync_row_value, str) or not data_sync_row_value:
             return data_sync_row_value
-        return neutralize_markdown_images(
-            normalize_rich_text_for_storage(data_sync_row_value)
-        )
+        return strip_user_file_urls(data_sync_row_value)
 
     def is_equal(self, baserow_row_value: Any, data_sync_row_value: Any) -> bool:
-        return normalize_rich_text_for_storage(
-            baserow_row_value
-        ) == normalize_rich_text_for_storage(data_sync_row_value)
+        return strip_user_file_urls(baserow_row_value) == strip_user_file_urls(
+            data_sync_row_value
+        )
 
 
 class DataSyncType(

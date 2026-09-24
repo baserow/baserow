@@ -299,14 +299,11 @@ from .rich_text_utils import (
     MARKDOWN_IMAGE_REGEX,
     MAX_RICH_TEXT_IMAGES,
     append_user_file_urls,
-    contains_markdown_image,
     count_image_references,
     extract_user_file_names,
     is_renderable_user_file,
     keep_first_image_references,
     map_outside_code,
-    neutralize_markdown_images,
-    normalize_rich_text_for_storage,
     replace_user_file_images_with_alt,
     resolve_user_file_urls,
     strip_user_file_urls,
@@ -767,29 +764,11 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 code="not_an_image",
             )
 
-    def _validate_no_markdown_images(self, value: str):
-        """
-        Rejects a value for which markdown itself would render an image, such as
-        ``![x][ref]`` with a ``[ref]: https://...`` definition. Only user files may
-        be embedded, and those are stored as unresolved references.
-
-        :param value: The value, already normalized for storage.
-        :raises ValidationError: If markdown-it renders an image for the value.
-        """
-
-        if contains_markdown_image(value):
-            raise ValidationError(
-                "Rich text values can only embed uploaded user files, external "
-                "images are not supported.",
-                code="external_image_not_supported",
-            )
-
     def prepare_value_for_db(self, instance, value):
         if not instance.long_text_enable_rich_text or not value:
             return value
 
-        value = normalize_rich_text_for_storage(value)
-        self._validate_no_markdown_images(value)
+        value = strip_user_file_urls(value)
         names = extract_user_file_names(value)
         if not names:
             return value
@@ -813,15 +792,8 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         for row_index, value in values_by_row.items():
             if not value:
                 continue
-            value = normalize_rich_text_for_storage(value)
+            value = strip_user_file_urls(value)
             values_by_row[row_index] = value
-            try:
-                self._validate_no_markdown_images(value)
-            except ValidationError as e:
-                if continue_on_error:
-                    values_by_row[row_index] = e
-                    continue
-                raise
             names = extract_user_file_names(value)
             if names:
                 names_by_row[row_index] = names
@@ -932,11 +904,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             # The archive can carry resolved URLs from the instance that produced
             # it. Those point at storage this instance does not own, so strip them
             # to the stored `![alt][name]` form, like `prepare_value_for_db` does.
-            content = normalize_rich_text_for_storage(content)
-            # One bad cell can't abort the whole import, so an image markdown would
-            # render (e.g. through a reference definition) is escaped instead of
-            # rejected like the API does.
-            content = neutralize_markdown_images(content)
+            content = strip_user_file_urls(content)
             # Bound the references before touching the zip, so surplus images are
             # never uploaded only to end up unreferenced.
             content = self._sanitize_imported_rich_text(content)

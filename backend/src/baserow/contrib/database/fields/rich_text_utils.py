@@ -1,8 +1,6 @@
 import re
 from typing import Callable, Iterator, Optional
 
-from markdown_it import MarkdownIt
-
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
 
@@ -15,111 +13,76 @@ MAX_RICH_TEXT_IMAGES = 100
 # scripts or loads external resources. See the CSP headers on ``/media/``.
 RENDERABLE_NON_IMAGE_EXTENSIONS = {"svg", "svgz"}
 
-# Both classes exclude the backslash so ``\\.`` escapes match unambiguously (no
-# catastrophic backtracking). The name class also rejects path separators, so a
-# stored name can never become a storage path traversal.
-_ALT_PATTERN = r"[^\[\]\\]*(?:\\.[^\[\]\\]*)*"
-# Parentheses are excluded too: the extension is taken verbatim from the
-# uploaded filename, and a ``)`` in it would terminate the ``(url)`` group early.
-# The extension may be empty: a file uploaded without one is named ``unique_hash.``.
-_NAME_PATTERN = r"[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]\s/\\()]*"
+# Mirrored in richTextImageUtils.js, ASCII-only because ``\s`` and ``.`` differ in JS.
+_WHITESPACE = r" \t\n\r\f\v"
+# The backslash is excluded so escapes match unambiguously (no catastrophic backtracking).
+_ALT_PATTERN = r"[^\[\]\\]*(?:\\[^\n][^\[\]\\]*)*"
+# No path separators (storage traversal) and no ``)`` (it would end the URL early).
+_NAME_PATTERN = rf"[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\]{_WHITESPACE}/\\()]*"
 
 # ``![alt][name]`` — the storage format of a Baserow user file image.
 MARKDOWN_IMAGE_REGEX = re.compile(
     rf"!\[(?P<alt>{_ALT_PATTERN})\]\[(?P<name>{_NAME_PATTERN})\]"
 )
 
-# ``![alt][name](url)`` — the API format with the resolved storage URL appended.
+# ``![alt][name](url)``, the API format; no ``(`` in the URL keeps failed matches linear.
 MARKDOWN_IMAGE_WITH_URL_REGEX = re.compile(
     rf"(?P<ref>!\[(?P<alt>{_ALT_PATTERN})\]\[(?P<name>{_NAME_PATTERN})\])"
-    # The URL can't contain whitespace or parentheses, so a failed match stops at
-    # the next ``(`` instead of rescanning the rest of the input (quadratic time
-    # on ``'![x][a_b.png](' * n``). Storage URLs never contain either.
-    r"\((?P<url>[^()\s]*)\)"
-)
-
-# ``![alt](url)`` — a plain markdown image (external URL, not a Baserow upload).
-# Cannot match the Baserow forms above because there ``]`` is followed by
-# ``[name]`` rather than ``(``. The destination allows one level of balanced
-# parentheses like CommonMark does, and whitespace for a title, but no unbalanced
-# ``(``, so a failed match is bounded by the next ``(`` and ``'![x](' * n`` stays
-# linear.
-MARKDOWN_PLAIN_IMAGE_REGEX = re.compile(
-    rf"!\[(?P<alt>{_ALT_PATTERN})\]\((?P<url>(?:[^()]|\([^()]*\))*)\)"
+    rf"\((?P<url>[^(){_WHITESPACE}]*)\)"
 )
 
 _ESCAPED_BRACKET_REGEX = re.compile(r"\\([\[\]])")
 
+# CommonMark 4.5: a fence is 3+ backticks or tildes indented by up to 3 spaces.
+_FENCE_REGEX = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+_FENCE_CLOSE_TAIL_REGEX = re.compile(r"[ \t]*\r?\n?")
+_LINE_REGEX = re.compile(r"[^\n]*\n|[^\n]+\Z")
 _BACKTICK_RUN_REGEX = re.compile(r"`+")
-# markdown-it splits lines on these after normalizing, so ``str.splitlines`` (which
-# also splits on ``\v``, ``\x1c``, ``\u2028``...) would disagree on line numbers.
-_LINE_REGEX = re.compile(r"[^\r\n]*(?:\r\n|\r|\n)|[^\r\n]+$")
-
-# The parsers use the same preset as the frontend (``new Markdown({ html: false })``),
-# so both sides agree on what is code and what is an image. HTML is disabled on
-# both, so an ``<img>`` tag is never rendered.
-# Block structure only: code blocks are block tokens, so the inline pass is skipped.
-_BLOCK_MARKDOWN = MarkdownIt("js-default").disable("inline")
-# Inline pass for image detection. The disabled rules only post-process emphasis
-# and merge text tokens, never create images, and ``fragments_join`` is quadratic
-# on long inputs.
-_INLINE_MARKDOWN = MarkdownIt("js-default").disable(
-    ["balance_pairs", "emphasis", "strikethrough", "fragments_join", "text_join"]
-)
-# The inline parse is linear, but each character that can start an inline rule
-# costs a few µs and each ``[`` ~50µs (link label scan), so ``'![[[' * n`` of
-# 100KB takes seconds. The paragraphs that need parsing get a budget of about
-# half a second, and content over it is treated as containing an image.
-MAX_INLINE_IMAGE_SCAN_COST = 200_000
-_INLINE_BRACKET_COST = 20
-# markdown-it's inline text rule consumes everything else in one step.
-_INLINE_RULE_START_REGEX = re.compile(r"[\n!#$%&*+\-:<=>@\[\\\]^_`{}~]")
 
 
-def _may_contain_code_block(content: str) -> bool:
+def _iter_fence_segments(content: str) -> Iterator[tuple[str, bool]]:
     """
-    Cheap pre-check: a code block needs a fence or four columns of indentation.
+    Splits ``content`` into fenced code blocks and the text around them. The
+    fence lines belong to the code segment. An unclosed fence runs to the end.
+
+    Lines end at ``\\n`` only, like the frontend: ``str.splitlines`` also breaks
+    on ``\\r``, ``\\x1c`` or ``\\u2028``, and the two sides must agree on what
+    is code.
     """
 
-    return "```" in content or "~~~" in content or "    " in content or "\t" in content
+    text: list[str] = []
+    code: list[str] = []
+    fence_char = None
+    fence_length = 0
 
+    for line in _LINE_REGEX.findall(content):
+        match = _FENCE_REGEX.match(line)
+        if fence_char is None:
+            if match:
+                if text:
+                    yield "".join(text), False
+                    text = []
+                fence_char = match.group(1)[0]
+                fence_length = len(match.group(1))
+                code.append(line)
+            else:
+                text.append(line)
+        else:
+            code.append(line)
+            if (
+                match
+                and match.group(1)[0] == fence_char
+                and len(match.group(1)) >= fence_length
+                and _FENCE_CLOSE_TAIL_REGEX.fullmatch(line, match.end())
+            ):
+                yield "".join(code), True
+                code = []
+                fence_char = None
 
-def _iter_block_segments(content: str) -> Iterator[tuple[str, bool]]:
-    """
-    Splits ``content`` into code blocks (fenced or indented, at any nesting level
-    such as inside a list or blockquote) and the text around them, using the line
-    ranges markdown-it reports for its ``code_block`` and ``fence`` tokens.
-    """
-
-    if not _may_contain_code_block(content):
-        yield content, False
-        return
-
-    code_lines: list[tuple[int, int]] = [
-        tuple(token.map)
-        for token in _BLOCK_MARKDOWN.parse(content)
-        if token.type in ("code_block", "fence") and token.map
-    ]
-    if not code_lines:
-        yield content, False
-        return
-
-    lines = _LINE_REGEX.findall(content)
-    is_code = [False] * len(lines)
-    for start, end in code_lines:
-        for line_number in range(start, min(end, len(lines))):
-            is_code[line_number] = True
-
-    buffer: list[str] = []
-    current = is_code[0] if lines else False
-    for line, line_is_code in zip(lines, is_code):
-        if line_is_code != current and buffer:
-            yield "".join(buffer), current
-            buffer = []
-        current = line_is_code
-        buffer.append(line)
-    if buffer:
-        yield "".join(buffer), current
+    if text:
+        yield "".join(text), False
+    if code:
+        yield "".join(code), True
 
 
 def _iter_inline_code_segments(content: str) -> Iterator[tuple[str, bool]]:
@@ -167,11 +130,11 @@ def _iter_inline_code_segments(content: str) -> Iterator[tuple[str, bool]]:
 def iter_code_segments(content: str) -> Iterator[tuple[str, bool]]:
     """
     Yields ``(segment, is_code)`` pairs covering ``content`` in order. Code is a
-    fenced or indented block or an inline span, where markdown image syntax is
-    literal text and must not be rewritten or resolved.
+    fenced block or an inline span, where markdown image syntax is literal text
+    and must not be rewritten or resolved.
     """
 
-    for segment, is_code in _iter_block_segments(content):
+    for segment, is_code in _iter_fence_segments(content):
         if is_code:
             yield segment, True
         else:
@@ -309,202 +272,10 @@ def strip_user_file_urls(content: Optional[str]) -> str:
     )
 
 
-def demote_external_images_to_links(content: Optional[str]) -> str:
-    """
-    Rewrite every plain markdown image ``![alt](url)`` into a link ``[alt](url)``.
-
-    Rich text images are Baserow user files only. A form can be submitted
-    anonymously and the resulting row can be shown in a public view, so an
-    external image would be fetched by every reader from a host the workspace
-    does not control: that leaks reader IPs and lets the remote content be
-    swapped after anyone reviewed it. Degrading to a link keeps the URL visible
-    without the page loading it.
-
-    Mirrors ``demoteExternalImagesToLinks`` on the frontend.
-
-    :param content: Markdown text that may contain plain image syntax.
-    :return: Content with plain images converted to links.
-    """
-
-    if not content:
-        return content or ""
-
-    def _demote(match):
-        return f"[{match.group('alt')}]({match.group('url')})"
-
-    return map_outside_code(
-        content, lambda segment: MARKDOWN_PLAIN_IMAGE_REGEX.sub(_demote, segment)
-    )
-
-
-def normalize_rich_text_for_storage(content: Optional[str]) -> str:
-    """
-    Brings any accepted rich text input into the stored form: resolved URLs are
-    stripped from user file references and external images are demoted to links.
-    Every write path (API, import, data sync, handler callers) must go through
-    this so the stored value has a single shape.
-
-    :param content: Markdown text as received.
-    :return: The content in the storage format.
-    """
-
-    if not content:
-        return content or ""
-
-    return demote_external_images_to_links(strip_user_file_urls(content))
-
-
-def _iter_image_tokens(tokens) -> Iterator:
-    for token in tokens:
-        if token.type == "image":
-            yield token
-        if token.children:
-            yield from _iter_image_tokens(token.children)
-
-
-def _has_foreign_image_opener(content: str) -> bool:
-    """
-    Whether ``content`` has a ``![`` that isn't the stored ``![alt][name]`` form.
-    Escaped openers count too: a backslash inside a code span is literal.
-    """
-
-    return any(
-        not _OUR_IMAGE_AHEAD_REGEX.match(content, match.end())
-        for match in _IMAGE_OPENER_REGEX.finditer(content)
-    )
-
-
-def contains_markdown_image(content: Optional[str]) -> bool:
-    """
-    Whether a markdown renderer would draw any image for ``content``.
-
-    The stored format ``![alt][name]`` is a reference with no matching definition,
-    so it renders as text and the frontend swaps it for the user file. Anything
-    markdown-it itself turns into an image, such as ``![x][ref]`` with a
-    ``[ref]: https://...`` definition, a nested alt label, or a definition that
-    shadows a user file name, would load a URL the workspace doesn't control.
-
-    Only paragraphs that could hold such an image are parsed inline: ones with a
-    foreign ``![``, or any ``![`` when a definition label looks like a user file
-    name. If those exceed ``MAX_INLINE_IMAGE_SCAN_COST`` the answer is True.
-
-    :param content: Markdown text, already normalized for storage.
-    :return: True if markdown-it produces at least one image token.
-    """
-
-    if not content or "![" not in content:
-        return False
-
-    env: dict = {}
-    tokens = _BLOCK_MARKDOWN.parse(content, env)
-    shadows_file_name = any(
-        _NAME_LABEL_REGEX.fullmatch(label) for label in env.get("references", {})
-    )
-    to_scan = [
-        token.content
-        for token in tokens
-        if token.type == "inline"
-        and "![" in token.content
-        and (shadows_file_name or _has_foreign_image_opener(token.content))
-    ]
-    cost = sum(
-        len(_INLINE_RULE_START_REGEX.findall(text))
-        + _INLINE_BRACKET_COST * text.count("[")
-        for text in to_scan
-    )
-    if cost > MAX_INLINE_IMAGE_SCAN_COST:
-        return True
-
-    return any(
-        next(_iter_image_tokens(_INLINE_MARKDOWN.parseInline(text, env)), None)
-        is not None
-        for text in to_scan
-    )
-
-
-# A reference definition whose label could match a user file name. Labels match
-# case-insensitively and ignore surrounding whitespace, and a definition can sit
-# inside a blockquote or a list item.
-_FILE_NAME_DEFINITION_REGEX = re.compile(
-    # Whitespace only ever leads a marker, so the prefix has a single parse and
-    # can't backtrack exponentially on ``'> ' * n``.
-    rf"^(?P<prefix>(?:[ \t]*(?:>|[-+*]|\d{{1,9}}[.)]))*[ \t]*)"
-    rf"\[(?=[ \t]*{_NAME_PATTERN}[ \t]*\]:)",
-    re.MULTILINE | re.IGNORECASE,
-)
-_OUR_IMAGE_AHEAD = rf"(?={_ALT_PATTERN}\]\[{_NAME_PATTERN}\])"
-_OUR_IMAGE_AHEAD_REGEX = re.compile(_OUR_IMAGE_AHEAD)
-_IMAGE_OPENER_REGEX = re.compile(r"!\[")
-# markdown-it normalizes reference labels (collapsed whitespace, case folded).
-_NAME_LABEL_REGEX = re.compile(_NAME_PATTERN, re.IGNORECASE)
-
-
-def _escape_image_openers(content: str, keep_ours: bool) -> str:
-    """
-    Escapes every unescaped ``![`` so it renders as ``!`` followed by a link.
-
-    :param keep_ours: Leave the stored ``![alt][name]`` form alone.
-    """
-
-    parts = []
-    position = 0
-    for match in _IMAGE_OPENER_REGEX.finditer(content):
-        start = match.start()
-        backslashes = 0
-        while start - backslashes > 0 and content[start - backslashes - 1] == "\\":
-            backslashes += 1
-        if backslashes % 2 == 1:
-            continue
-        if keep_ours and _OUR_IMAGE_AHEAD_REGEX.match(content, match.end()):
-            continue
-        parts.append(content[position:start])
-        parts.append("\\")
-        position = start
-    parts.append(content[position:])
-    return "".join(parts)
-
-
-def neutralize_markdown_images(content: Optional[str]) -> str:
-    """
-    Makes sure markdown-it renders no image for ``content``, while keeping the
-    stored ``![alt][name]`` user file references.
-
-    Used on paths that can't reject a value, such as import and data sync, where
-    the API would answer 400 instead. Every foreign image opener is escaped and
-    reference definitions that could shadow a user file name are escaped. If an
-    image survives that, every image opener is escaped, the user file references
-    included, and as a last resort code is escaped too.
-
-    :param content: Markdown text, already normalized for storage.
-    :return: Content for which ``contains_markdown_image`` is False.
-    """
-
-    if not contains_markdown_image(content):
-        return content or ""
-
-    content = map_outside_code(
-        content, lambda segment: _escape_image_openers(segment, keep_ours=True)
-    )
-    content = map_outside_code(
-        content,
-        lambda segment: _FILE_NAME_DEFINITION_REGEX.sub(r"\g<prefix>\\[", segment),
-    )
-    if not contains_markdown_image(content):
-        return content
-
-    content = map_outside_code(
-        content, lambda segment: _escape_image_openers(segment, keep_ours=False)
-    )
-    if not contains_markdown_image(content):
-        return content
-
-    return _escape_image_openers(content, keep_ours=False)
-
-
 def replace_user_file_images_with_alt(content: Optional[str]) -> str:
     """
-    Replace all image references — ``![alt][name]``, ``![alt][name](url)``
-    and ``![alt](url)`` — with their alt text, producing a plain text
+    Replace all user file image references — ``![alt][name]`` and
+    ``![alt][name](url)`` — with their alt text, producing a plain text
     representation of the content.
 
     :param content: Markdown text that may contain image references.
@@ -519,8 +290,7 @@ def replace_user_file_images_with_alt(content: Optional[str]) -> str:
 
     def _replace(segment):
         segment = MARKDOWN_IMAGE_WITH_URL_REGEX.sub(_alt, segment)
-        segment = MARKDOWN_IMAGE_REGEX.sub(_alt, segment)
-        return MARKDOWN_PLAIN_IMAGE_REGEX.sub(_alt, segment)
+        return MARKDOWN_IMAGE_REGEX.sub(_alt, segment)
 
     return map_outside_code(content, _replace)
 
