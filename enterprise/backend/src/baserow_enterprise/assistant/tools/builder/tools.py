@@ -203,6 +203,8 @@ def create_pages(
         result["next_steps"] = (
             "Pages created. Add the requested content now. Draft sensible headings, "
             "descriptions, and button labels rather than asking for this copy. "
+            "If the request names an internal navigation destination that is "
+            "missing, create that supporting page too and link to its returned ID. "
             "Add data sources only for content backed by existing records "
             "(create_data_sources). Then add elements "
             "(create_display_elements, create_layout_elements, "

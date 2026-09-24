@@ -35,18 +35,23 @@ def _docs_question_scenario(fx: Fixtures) -> EvalScenario:
     )
 
 
+def _normalize_keyword_text(text: str) -> str:
+    """Compare wording independently of spaces and typographic apostrophes."""
+
+    text = text.casefold().replace("\u2018", "'").replace("\u2019", "'")
+    return " ".join(text.split())
+
+
 def _make_docs_checks(
     expected_source_patterns: list[str], expected_keywords: list[str]
 ) -> CheckSuite:
     def _checks(
         case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
     ) -> list[CheckResult]:
-        # Typography such as a narrow no-break space in "14\u202fdays" is
-        # equivalent to an ordinary space; values and wording still matter.
-        answer = " ".join(output.answer.casefold().split())
+        # Typography is equivalent; values, wording and negation still matter.
+        answer = _normalize_keyword_text(output.answer)
         keyword_match = any(
-            " ".join(keyword.casefold().split()) in answer
-            for keyword in expected_keywords
+            _normalize_keyword_text(keyword) in answer for keyword in expected_keywords
         )
 
         # Source-URL matching is non-fatal — URLs change and retrieval may
