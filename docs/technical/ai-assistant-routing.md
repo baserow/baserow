@@ -60,6 +60,10 @@ exist. Inspection requests use read tools. For changes, missing user-owned data
 must be looked up before asking for clarification; displaying existing data does
 not authorize creating replacement tables or sample records. New build requests
 with enough context use reasonable defaults for a useful first version.
+Compact table schemas identify omitted fields and direct the agent to request the
+full schema before treating a field as missing. Page discovery distinguishes
+application IDs from page IDs; `setup_page` populates a page created separately by
+`create_pages`.
 `ask_user` records a question for the final answer; it does not persist a separate
 workflow or introduce a new frontend protocol. The next reply resumes through the
 ordinary chat history.

@@ -234,7 +234,7 @@ def get_tables_schema(
     full_schema: Annotated[
         bool,
         Field(
-            description="If True, include all fields. If False, only table names, IDs, primary keys, and relationships."
+            description="Use True to inspect fields, configure views/filters, or check whether a field exists. False is only a relationship overview and omits ordinary fields."
         ),
     ],
     thought: Annotated[
@@ -245,7 +245,7 @@ def get_tables_schema(
     Get field definitions for tables (full_schema=True for all fields).
 
     WHEN to use: Before creating/modifying fields to understand table structure and avoid duplicates. Also for understanding relationships when creating link_row fields.
-    WHAT it does: Returns the schema of specified tables. full_schema=True returns all fields with types and configs. full_schema=False returns only names, IDs, primary keys, and relationships.
+    WHAT it does: Returns the schema of specified tables. Use full_schema=True for field IDs, view/filter configuration, or deciding whether a field exists. full_schema=False is only a compact relationship overview: it omits ordinary fields, so an empty fields list does not establish that a field is missing.
     RETURNS: Table schemas with field names, types, IDs, primary keys, and relationships.
     DO NOT USE when: You need row data — use list_rows instead. For row operations, use load_row_tools, those tools already provide the necessary schema info in their instructions.
     """
@@ -255,7 +255,7 @@ def get_tables_schema(
     tool_helpers = ctx.deps.tool_helpers
 
     if not table_ids:
-        return {"tables_schema": []}
+        return {"tables_schema": [], "full_schema": full_schema}
 
     tables = helpers.filter_tables(user, workspace).filter(id__in=table_ids)
 
@@ -264,11 +264,20 @@ def get_tables_schema(
         % {"table_names": ", ".join(t.name for t in tables)}
     )
 
-    return {
+    result = {
         "tables_schema": [
             ts.model_dump() for ts in helpers.get_tables_schema(tables, full_schema)
-        ]
+        ],
+        "full_schema": full_schema,
     }
+    if not full_schema:
+        result["next_steps"] = (
+            "This relationship overview omits ordinary fields. An empty fields list "
+            "does not mean the table has no other fields. Call get_tables_schema "
+            "with full_schema=True to get field IDs or configure views and filters. "
+            "Do that before reporting a field missing or asking the user for its ID."
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------

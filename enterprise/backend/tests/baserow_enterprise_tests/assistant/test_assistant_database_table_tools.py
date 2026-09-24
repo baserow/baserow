@@ -18,6 +18,7 @@ from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
     create_tables,
     generate_formula,
+    get_tables_schema,
     list_tables,
 )
 from baserow_enterprise.assistant.tools.database.types import (
@@ -264,6 +265,57 @@ def test_reused_table_detects_a_non_text_primary_field():
         "actual_type": "number",
         "requested_type": "text",
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("full_schema", [False, True])
+def test_table_schema_distinguishes_omitted_fields_from_missing_fields(
+    data_fixture, full_schema
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    primary = data_fixture.create_text_field(table=table, primary=True)
+    active = data_fixture.create_boolean_field(table=table, name="Active")
+    other_table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=other_table, primary=True)
+
+    result = get_tables_schema(
+        make_test_ctx(user, workspace),
+        table_ids=[table.id, other_table.id],
+        full_schema=full_schema,
+        thought="Find the Active field for a filter.",
+    )
+
+    assert [item["id"] for item in result["tables_schema"]] == [table.id]
+    schema = result["tables_schema"][0]
+    assert schema["primary_field"]["id"] == primary.id
+    assert [field["id"] for field in schema["fields"]] == (
+        [active.id] if full_schema else []
+    )
+    assert result["full_schema"] is full_schema
+    if full_schema:
+        assert "next_steps" not in result
+    else:
+        assert "full_schema=True" in result["next_steps"]
+        assert "does not mean" in result["next_steps"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("full_schema", [False, True])
+def test_empty_table_schema_retains_requested_detail(data_fixture, full_schema):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    result = get_tables_schema(
+        make_test_ctx(user, workspace),
+        table_ids=[],
+        full_schema=full_schema,
+        thought="Inspect table schemas.",
+    )
+
+    assert result == {"tables_schema": [], "full_schema": full_schema}
 
 
 @pytest.mark.django_db
