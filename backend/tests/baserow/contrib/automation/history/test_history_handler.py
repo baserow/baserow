@@ -90,6 +90,8 @@ def test_wait_for_workflow_response_returns_during_backoff():
 
     assert response is expected_response
     assert clock.sleeps == pytest.approx([0.1, 0.2])
+
+
 @pytest.mark.django_db
 def test_get_workflow_histories_no_base_queryset(data_fixture):
     workflow = data_fixture.create_automation_workflow()
