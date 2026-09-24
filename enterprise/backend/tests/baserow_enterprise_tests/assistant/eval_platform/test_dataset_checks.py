@@ -30,6 +30,7 @@ from baserow_enterprise.assistant.evals.datasets.builder import (
     _filtered_data_source_via_view_scenario,
 )
 from baserow_enterprise.assistant.evals.datasets.docs import _make_docs_checks
+from baserow_enterprise.assistant.evals.registry import get_case
 from baserow_enterprise.assistant.evals.types import EvalRunOutput
 
 
@@ -356,6 +357,44 @@ def test_documentation_whitespace_normalization_preserves_other_requirements():
         None, None, _output(answer="History is retained for 90\u202fdays.")
     )
     assert [check.passed for check in checks[:3]] == [False, False, False]
+
+
+@pytest.mark.parametrize(
+    "wording", ["per view", "per-view", "per\u2010view", "per\u2011view"]
+)
+def test_column_width_check_accepts_reference_answer_wording(wording):
+    case = get_case("docs/sync-column-widths")
+    checks = case.checks(
+        case,
+        None,
+        _output(
+            answer=f"No. Column widths are saved {wording}; resizing one does not sync others.",
+            tool_calls=["search_user_docs"],
+            sources=["https://baserow.io/user-docs/guide-to-grid-view"],
+        ),
+    )
+    assert all(check.passed for check in checks)
+
+
+@pytest.mark.parametrize("defect", ["wrong_answer", "missing_source", "missing_search"])
+def test_column_width_check_keeps_other_requirements(defect):
+    case = get_case("docs/sync-column-widths")
+    checks = case.checks(
+        case,
+        None,
+        _output(
+            answer=(
+                "Column widths synchronize automatically across all views."
+                if defect == "wrong_answer"
+                else "Column widths are saved per-view."
+            ),
+            tool_calls=[] if defect == "missing_search" else ["search_user_docs"],
+            sources=[]
+            if defect == "missing_source"
+            else ["https://baserow.io/user-docs/guide-to-grid-view"],
+        ),
+    )
+    assert not all(check.passed for check in checks)
 
 
 def _element_call(elements):

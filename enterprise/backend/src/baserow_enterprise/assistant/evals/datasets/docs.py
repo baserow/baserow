@@ -36,9 +36,10 @@ def _docs_question_scenario(fx: Fixtures) -> EvalScenario:
 
 
 def _normalize_keyword_text(text: str) -> str:
-    """Compare wording independently of spaces and typographic apostrophes."""
+    """Compare wording independently of spacing and equivalent typography."""
 
     text = text.casefold().replace("\u2018", "'").replace("\u2019", "'")
+    text = text.replace("\u2010", "-").replace("\u2011", "-")
     return " ".join(text.split())
 
 
@@ -1149,7 +1150,7 @@ _register_docs_case(
         "views of a table, so resizing once applies everywhere?"
     ),
     ["guide-to-grid-view"],
-    ["doesn't", "each view", "duplicat"],
+    ["doesn't", "each view", "duplicat", "per view", "per-view"],
     reference_answer=(
         "Baserow doesn't have a way to sync column widths across views — "
         "width is saved per view, so each view keeps its own. The closest "
