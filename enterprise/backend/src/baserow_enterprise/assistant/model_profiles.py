@@ -114,7 +114,8 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     },
 }
 
-# GPT-OSS rejects ``reasoning_format``, so it keeps the provider-agnostic defaults.
+# Groq GPT-OSS rejects ``reasoning_format``; its supported effort setting is
+# applied below with an explicit provider check.
 _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {}
 
 
@@ -150,6 +151,15 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
         )
         if env_temp is not None:
             result["temperature"] = env_temp
+
+    if (
+        provider == "groq"
+        and model_name == "gpt-oss-120b"
+        and role in {ORCHESTRATOR, SUBAGENT}
+    ):
+        # More reasoning helps follow prerequisites and distinguish documentation
+        # surfaces. Keep the existing request, output-token, and timeout limits.
+        result["extra_body"] = {"reasoning_effort": "high"}
 
     if provider in {"google", "google-gla", "google-cloud", "google-vertex"}:
         result = sanitize_google_model_settings(after_provider, result)
