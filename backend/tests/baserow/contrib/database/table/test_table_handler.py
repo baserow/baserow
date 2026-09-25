@@ -740,6 +740,63 @@ def test_duplicate_table_keeps_filter_on_lookup_of_select_field_in_other_table(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("middle_field_type", ["lookup", "formula"])
+def test_duplicate_table_keeps_filter_on_nested_lookup_of_select_field(
+    data_fixture, middle_field_type
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_c = data_fixture.create_database_table(user=user, database=database)
+    table_b = data_fixture.create_database_table(user=user, database=database)
+    table_a = data_fixture.create_database_table(user=user, database=database)
+    field_handler = FieldHandler()
+    select_field = field_handler.create_field(
+        user, table_c, "single_select", name="select"
+    )
+    opt_a = data_fixture.create_select_option(field=select_field, value="a")
+    link_b_c = field_handler.create_field(
+        user, table_b, "link_row", name="link_b_c", link_row_table=table_c
+    )
+    if middle_field_type == "lookup":
+        middle_field = field_handler.create_field(
+            user,
+            table_b,
+            "lookup",
+            name="middle",
+            through_field_id=link_b_c.id,
+            target_field_id=select_field.id,
+        )
+    else:
+        middle_field = field_handler.create_field(
+            user,
+            table_b,
+            "formula",
+            name="middle",
+            formula="lookup('link_b_c', 'select')",
+        )
+    link_a_b = field_handler.create_field(
+        user, table_a, "link_row", name="link_a_b", link_row_table=table_b
+    )
+    lookup_field = field_handler.create_field(
+        user,
+        table_a,
+        "lookup",
+        name="lookup",
+        through_field_id=link_a_b.id,
+        target_field_id=middle_field.id,
+    )
+    grid_view = data_fixture.create_grid_view(table=table_a)
+    data_fixture.create_view_filter(
+        view=grid_view, field=lookup_field, type="has_value_equal", value=str(opt_a.id)
+    )
+
+    duplicated_table = TableHandler().duplicate_table(user, table_a)
+
+    duplicated_filter = duplicated_table.view_set.get().specific.viewfilter_set.get()
+    assert duplicated_filter.value == str(opt_a.id)
+
+
+@pytest.mark.django_db
 @pytest.mark.undo_redo
 def test_duplicate_table_with_limit_view_link_row_field_same_table(data_fixture):
     session_id = "session-id"

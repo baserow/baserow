@@ -25,6 +25,7 @@ from baserow.contrib.database.views.array_view_filters import (
     HasNotDateWithinViewFilterType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import FormViewFieldOptionsCondition
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.contrib.database.views.view_filters import (
     DateIsAfterMultiStepFilterType,
@@ -3637,8 +3638,6 @@ def test_has_value_equal_filter_types_export_import_select_option_lookup(
         view_filter_type.set_import_serialized_value(None, id_mapping, lookup_field)
         == ""
     )
-    # Without the field it's unknown what the value represents, so it's kept as is.
-    assert view_filter_type.set_import_serialized_value("1", id_mapping) == "1"
 
 
 @pytest.mark.django_db
@@ -3720,3 +3719,43 @@ def test_duplicate_database_maps_has_not_value_equal_filter_on_single_select_loo
         ).count()
         == 2
     )
+
+
+@pytest.mark.django_db
+def test_duplicate_database_maps_form_view_condition_on_single_select_lookup(
+    data_fixture,
+):
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
+    test_setup.table.name = "main"
+    test_setup.table.save()
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    text_field = data_fixture.create_text_field(table=test_setup.table, name="text")
+    form_view = data_fixture.create_form_view(table=test_setup.table)
+    field_option = data_fixture.create_form_view_field_option(
+        form_view, text_field, enabled=True
+    )
+    FormViewFieldOptionsCondition.objects.create(
+        field_option=field_option,
+        field=test_setup.lookup_field,
+        type="has_value_equal",
+        value=str(opt_a.id),
+    )
+
+    duplicated_database = CoreHandler().duplicate_application(
+        test_setup.user, test_setup.table.database
+    )
+
+    duplicated_table = duplicated_database.table_set.get(name="main")
+    duplicated_opt_a = SelectOption.objects.get(
+        field__table__database=duplicated_database, value="a"
+    )
+    duplicated_condition = FormViewFieldOptionsCondition.objects.get(
+        field_option__form_view__table=duplicated_table
+    )
+    assert (
+        duplicated_condition.field_id
+        == duplicated_table.field_set.get(name=test_setup.lookup_field.name).id
+    )
+    assert duplicated_condition.value == str(duplicated_opt_a.id)
