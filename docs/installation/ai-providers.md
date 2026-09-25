@@ -55,6 +55,10 @@ There are two exceptions:
   upgrading, or an imported provider you deleted. This fallback is deprecated: add the provider
   in **Admin tools → AI providers** instead.
 
+If complete workspace settings are skipped because an API key or model name exceeds
+the database limits, their existing connection and model list remain in use until
+you create a workspace provider.
+
 Three workspace setups behave differently after the upgrade. Fix them in the
 workspace's **Settings → AI providers**:
 

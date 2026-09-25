@@ -1520,6 +1520,73 @@ def test_dispatch_reports_uninstalled_provider_as_unavailable(data_fixture):
 
 
 @pytest.mark.django_db
+def test_partial_override_narrows_complete_legacy_workspace_models(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    workspace = application.workspace
+    workspace.generative_ai_models_settings = {
+        "openai": {
+            "api_key": "workspace-key",
+            "models": ["selected-model", "unselected-model"],
+        }
+    }
+    workspace.save(update_fields=("generative_ai_models_settings",))
+    create_openai_db_provider(None, "instance-model")
+    integration = IntegrationService().create_integration(
+        user,
+        AIIntegrationType(),
+        application=application,
+        ai_settings={"openai": {"models": ["selected-model", "instance-model"]}},
+    )
+    service_type = AIAgentServiceType()
+    values = {
+        "integration_id": integration.id,
+        "ai_generative_ai_type": "openai",
+        "ai_generative_ai_model": "selected-model",
+        "ai_prompt": "'Use the workspace connection'",
+    }
+    service = ServiceHandler().create_service(
+        service_type, **service_type.prepare_values(dict(values), user)
+    )
+
+    with (
+        patch(
+            "baserow.core.generative_ai.generative_ai_model_types."
+            "OpenAIGenerativeAIModelType.get_ai_model"
+        ) as get_model,
+        patch(
+            "baserow.core.generative_ai.registries.run_agent_sync_with_model"
+        ) as run_agent,
+    ):
+        run_agent.return_value.output = "AI response"
+        result = service_type.dispatch(service, FakeDispatchContext())
+
+    assert result.data == {"result": "AI response"}
+    get_model.assert_called_once_with(
+        "selected-model",
+        workspace,
+        {
+            "api_key": "workspace-key",
+            "models": ["selected-model", "unselected-model"],
+            "base_url": None,
+            "organization": None,
+        },
+    )
+
+    for unavailable_model in ("unselected-model", "instance-model"):
+        values["ai_generative_ai_model"] = unavailable_model
+        with pytest.raises(DRFValidationError, match="not available"):
+            service_type.prepare_values(dict(values), user)
+        service.ai_generative_ai_model = unavailable_model
+        with (
+            mock_ai_prompt() as prompt,
+            pytest.raises(ServiceImproperlyConfiguredDispatchException),
+        ):
+            service_type.dispatch(service, FakeDispatchContext())
+        prompt.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_dispatch_partial_override_respects_feature_eligibility(data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)

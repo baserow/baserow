@@ -62,10 +62,7 @@ def _import_everything():
 @pytest.mark.parametrize("legacy_values", LEGACY_SHAPES)
 def test_import_covers_exactly_what_the_resolver_reads(data_fixture, legacy_values):
     """
-    The import and the resolver must agree on which legacy settings are complete.
-
-    If the import were stricter, a workspace would keep resolving from legacy JSON
-    while an imported instance provider narrowed its model list.
+    Complete legacy settings that fit the database columns should be imported.
     """
 
     workspace = data_fixture.create_workspace(
@@ -254,15 +251,41 @@ def test_partial_legacy_settings_survive_the_import(
 @pytest.mark.parametrize(
     "legacy_values",
     [
-        {"api_key": "k" * 600, "models": ["gpt-4o"]},
+        {
+            "api_key": "k" * 600,
+            "models": ["gpt-4o"],
+            "base_url": "https://workspace.example/v1",
+        },
         {"api_key": "k", "models": ["m" * 400]},
     ],
 )
-def test_oversized_legacy_settings_are_skipped_not_fatal(data_fixture, legacy_values):
-    """A value too long for its column must not abort the whole upgrade."""
+def test_oversized_legacy_settings_keep_working_after_import(
+    data_fixture, settings, legacy_values
+):
+    """Skipped workspace settings keep their own models and connection."""
 
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["environment-model"]
     workspace = data_fixture.create_workspace(
         generative_ai_models_settings={"openai": legacy_values}
+    )
+    model_type = generative_ai_model_type_registry.get("openai")
+
+    def availability():
+        return {
+            feature: model_type.get_enabled_models_for_feature(
+                feature, workspace=workspace
+            )
+            for feature in FEATURE_TYPES
+        }
+
+    before = availability()
+    assert before == {feature: legacy_values["models"] for feature in FEATURE_TYPES}
+    expected_connection = {"base_url": None, "organization": None, **legacy_values}
+    model_name = legacy_values["models"][0]
+    assert (
+        model_type.get_model_settings_override(model_name, workspace)
+        == expected_connection
     )
 
     plan = plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace)
@@ -273,6 +296,15 @@ def test_oversized_legacy_settings_are_skipped_not_fatal(data_fixture, legacy_va
     _import_everything()
 
     assert not AIProviderConfig.objects.filter(workspace=workspace).exists()
+    assert AIProviderConfig.objects.get(workspace__isnull=True).api_key == (
+        "environment-key"
+    )
+    assert availability() == before
+    assert model_type.get_api_key(workspace) == legacy_values["api_key"]
+    assert (
+        model_type.get_model_settings_override(model_name, workspace)
+        == expected_connection
+    )
 
 
 @pytest.mark.django_db

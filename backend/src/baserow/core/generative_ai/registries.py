@@ -461,17 +461,16 @@ class GenerativeAIModelType(Instance):
         disabled_provider_ids = state.disabled_instance_provider_ids
 
         workspace_provider = workspace_providers.get(self.type)
-        legacy_settings = None
         if workspace_provider is None and model_settings_override is None:
             legacy_settings = self._get_complete_legacy_workspace_settings(workspace)
-            if legacy_settings is not None and key != "models":
+            if legacy_settings is not None:
+                # Legacy settings that could not be imported still own their
+                # connection and models independently of the instance provider.
                 return True, legacy_settings.get(key)
         instance_provider = instance_providers.get(self.type)
         if workspace_provider is None and instance_provider is None:
             if model_settings_override is not None:
                 return True, model_settings_override
-            if legacy_settings is not None:
-                return True, legacy_settings.get(key)
             return False, None
 
         if key == "models":
@@ -503,13 +502,12 @@ class GenerativeAIModelType(Instance):
                     and model.model_identifier not in overridden_identifiers
                 ]
             effective_models = workspace_models + instance_models
-            models_to_limit = model_settings_override
-            if models_to_limit is None and legacy_settings is not None:
-                models_to_limit = legacy_settings["models"]
-            if models_to_limit is not None:
+            if model_settings_override is not None:
                 effective_model_set = set(effective_models)
                 effective_models = [
-                    model for model in models_to_limit if model in effective_model_set
+                    model
+                    for model in model_settings_override
+                    if model in effective_model_set
                 ]
             return True, effective_models
 
@@ -657,29 +655,9 @@ class GenerativeAIModelType(Instance):
         if workspace_provider is None:
             legacy_settings = self._get_complete_legacy_workspace_settings(workspace)
             if legacy_settings is not None:
-                instance_provider = instance_providers.get(self.type)
-                if instance_provider is None:
-                    return (
-                        legacy_settings
-                        if model_name in legacy_settings["models"]
-                        else None
-                    )
-                enabled_instance_models = [
-                    model.model_identifier
-                    for model in instance_provider.models.all()
-                    if instance_provider.is_active
-                    and instance_provider.id not in disabled_provider_ids
-                    and model.is_enabled
-                ]
-                enabled_instance_model_set = set(enabled_instance_models)
-                enabled_legacy_models = [
-                    model
-                    for model in legacy_settings["models"]
-                    if model in enabled_instance_model_set
-                ]
-                if model_name not in enabled_legacy_models:
-                    return None
-                return {**legacy_settings, "models": enabled_legacy_models}
+                return (
+                    legacy_settings if model_name in legacy_settings["models"] else None
+                )
 
         instance_provider = instance_providers.get(self.type)
         if (

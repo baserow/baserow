@@ -183,9 +183,14 @@ def test_provider_state_reflects_handler_mutations(data_fixture):
 
 
 @pytest.mark.django_db
-def test_instance_models_limit_workspace_and_automation_model_settings(data_fixture):
+@pytest.mark.parametrize("instance_state", ["active", "inactive", "switched_off"])
+def test_complete_legacy_workspace_settings_keep_their_own_models(
+    data_fixture, instance_state
+):
     provider = AIProviderConfig.objects.create(
-        provider_type="openai", api_key="database-key"
+        provider_type="openai",
+        api_key="database-key",
+        is_active=instance_state != "inactive",
     )
     AIProviderModel.objects.create(
         provider_config=provider, model_identifier="database-model"
@@ -206,22 +211,43 @@ def test_instance_models_limit_workspace_and_automation_model_settings(data_fixt
         }
     }
     workspace.save(update_fields=("generative_ai_models_settings",))
+    if instance_state == "switched_off":
+        AIProviderWorkspaceOverride.objects.create(
+            workspace=workspace, provider_config=provider
+        )
 
     model_type = OpenAIGenerativeAIModelType()
     assert model_type.get_api_key(workspace) == "workspace-key"
-    assert model_type.get_enabled_models(workspace) == ["workspace-model"]
+    assert model_type.get_enabled_models(workspace) == [
+        "workspace-model",
+        "disabled-model",
+        "workspace-only-model",
+    ]
+    assert model_type.get_model_settings_override(
+        "workspace-only-model", workspace
+    ) == {
+        "api_key": "workspace-key",
+        "models": ["workspace-model", "disabled-model", "workspace-only-model"],
+        "organization": None,
+        "base_url": None,
+    }
+    assert model_type.get_model_settings_override("database-model", workspace) is None
     assert (
         model_type.get_api_key(
             workspace, settings_override={"api_key": "automation-key"}
         )
         == "automation-key"
     )
-    assert model_type.get_enabled_models(
-        workspace,
-        settings_override={
-            "models": ["database-model", "disabled-model", "automation-only-model"]
-        },
-    ) == ["database-model"]
+    inherited_models = ["database-model"] if instance_state == "active" else []
+    assert (
+        model_type.get_enabled_models(
+            workspace,
+            settings_override={
+                "models": ["database-model", "disabled-model", "automation-only-model"]
+            },
+        )
+        == inherited_models
+    )
 
 
 @pytest.mark.django_db
@@ -310,7 +336,13 @@ def test_inactive_database_provider_prevents_environment_model_override(
 ):
     settings.BASEROW_OPENAI_API_KEY = "environment-key"
     settings.BASEROW_OPENAI_MODELS = ["environment-model"]
-    workspace = data_fixture.create_workspace()
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings=(
+            {"openai": {"api_key": "legacy-key", "models": ["legacy-model"]}}
+            if workspace_owned
+            else {}
+        )
+    )
     AIProviderConfig.objects.create(
         workspace=workspace if workspace_owned else None,
         provider_type="openai",
@@ -320,6 +352,8 @@ def test_inactive_database_provider_prevents_environment_model_override(
     model_type = OpenAIGenerativeAIModelType()
 
     assert model_type.get_enabled_models(workspace) == []
+    assert model_type.get_api_key(workspace) is None
+    assert model_type.get_model_settings_override("legacy-model", workspace) is None
     assert (
         model_type.get_model_settings_override("environment-model", workspace) is None
     )
@@ -329,7 +363,11 @@ def test_inactive_database_provider_prevents_environment_model_override(
 def test_workspace_models_override_matching_instance_models_and_inherit_the_rest(
     data_fixture,
 ):
-    workspace = data_fixture.create_workspace()
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "legacy-key", "models": ["legacy-model"]}
+        }
+    )
     instance_provider = AIProviderConfig.objects.create(
         provider_type="openai", api_key="instance-key"
     )
