@@ -23,7 +23,6 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_RAW,
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormulaFormat,
-    BaserowFormulaMode,
     BaserowFormulaObject,
 )
 from baserow.core.registry import Registry
@@ -94,14 +93,9 @@ class FormulaSerializerField(serializers.JSONField):
         self,
         *args,
         allowed_formats: Optional[List[BaserowFormulaFormat]] = None,
-        legacy_text_mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
         **kwargs,
     ):
         self.allowed_formats = list(allowed_formats or [BASEROW_FORMULA_FORMAT_PLAIN])
-        # The mode a bare string payload is read as, the counterpart of the model
-        # field's flag: simple for fields that always took formulas, raw for the
-        # fields that took plain text before they became formulas.
-        self.legacy_text_mode = legacy_text_mode
         if len(self.allowed_formats) > 1:
             # Only the fields that accept a format mention it in the API docs.
             formats_help_text = (
@@ -154,8 +148,8 @@ class FormulaSerializerField(serializers.JSONField):
                 data["format"] = format
 
         # For compatibility reasons: if we receive a string, we will
-        # construct a BaserowFormulaObject with it, in the field's legacy text
-        # mode (simple unless told otherwise), and the initial version.
+        # construct a BaserowFormulaObject with it, and assume the
+        # mode is 'simple', and the version is the initial version.
         # TODO: we should infer the `mode` differently, once we know
         #   what an advanced/raw formula looks like. Or: just force the
         #   user to tell us?
@@ -163,7 +157,7 @@ class FormulaSerializerField(serializers.JSONField):
             data = BaserowFormulaObject(
                 formula=data,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
-                mode=self.legacy_text_mode,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
             )
 
         if not data["formula"] or data["mode"] == BASEROW_FORMULA_MODE_RAW:

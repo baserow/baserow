@@ -1,11 +1,25 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
+    <FormGroup
+      :label="$t('textElementForm.textFormatTypeLabel')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <RadioGroup
+        v-model="values.format"
+        type="button"
+        :options="textFormatTypeOptions"
+      >
+      </RadioGroup>
+    </FormGroup>
+
     <CustomStyleButton
       v-model="values.styles"
       style-key="typography"
       :config-block-types="['typography']"
       :theme="builder.theme"
-      :extra-args="{ onlyBody: !isMarkdown }"
+      :extra-args="{ onlyBody: values.format === TEXT_FORMAT_TYPES.PLAIN }"
     />
     <FormGroup
       small-label
@@ -16,7 +30,6 @@
       <InjectedFormulaInput
         v-model="values.value"
         :placeholder="$t('textElementForm.textPlaceholder')"
-        :allowed-formats="allowedFormats"
       />
     </FormGroup>
   </form>
@@ -25,11 +38,8 @@
 <script>
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
+import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
-import {
-  BASEROW_FORMULA_FORMAT_MARKDOWN,
-  BASEROW_FORMULA_FORMATS,
-} from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'TextElementForm',
@@ -40,18 +50,27 @@ export default {
   mixins: [elementForm],
   data() {
     return {
-      allowedValues: ['value', 'styles'],
+      allowedValues: ['value', 'format', 'styles'],
       values: {
         value: {},
+        format: TEXT_FORMAT_TYPES.PLAIN,
         styles: {},
       },
-      // The format is picked in the formula input and stored on the value.
-      allowedFormats: BASEROW_FORMULA_FORMATS,
+      textFormatTypeOptions: [
+        {
+          value: TEXT_FORMAT_TYPES.PLAIN,
+          label: this.$t('textElementForm.textFormatTypePlain'),
+        },
+        {
+          value: TEXT_FORMAT_TYPES.MARKDOWN,
+          label: this.$t('textElementForm.textFormatTypeMarkdown'),
+        },
+      ],
     }
   },
   computed: {
-    isMarkdown() {
-      return this.values.value?.format === BASEROW_FORMULA_FORMAT_MARKDOWN
+    TEXT_FORMAT_TYPES() {
+      return TEXT_FORMAT_TYPES
     },
   },
 }

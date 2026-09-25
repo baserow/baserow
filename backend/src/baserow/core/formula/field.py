@@ -55,10 +55,6 @@ class FormulaField(models.TextField):
         - E.g. 'get(\"data_source.123.field_123\")'
         - This can happen if a user fetches a row with one or more formula fields
           which were not yet migrated to the new formula context format.
-        - It is read as a formula in the `legacy_text_mode` of the field: simple
-          for the columns that always held formulas, raw for the columns that
-          held plain text before they became formula fields, so that their
-          legacy rows keep meaning that text.
     - A JSON-serialized formula context:
         - E.g. {"f":"get(\"data_source.123.field_123\")\","m": "simple","v":"0.1"}
         - This is the new format which contains the formula string, the mode (simple,
@@ -67,33 +63,13 @@ class FormulaField(models.TextField):
           `"fmt": "markdown"`. The key is absent when the format is plain.
     """
 
-    def __init__(
-        self,
-        *args,
-        legacy_text_mode: BaserowFormulaMode = BASEROW_FORMULA_MODE_SIMPLE,
-        **kwargs,
-    ):
-        # The mode a stored value which isn't a serialized formula context (a
-        # plain string) is read and written as, see the class docstring.
-        self.legacy_text_mode = legacy_text_mode
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # For compat reasons, applied the parameters we used to receive.
         # These can be altered once we inherit from `JSONField`.
         self.default = ""
         self.null = True
         self.blank = True
-
-    def deconstruct(self):
-        """
-        Keeps a non-default `legacy_text_mode` in the migration state, so that
-        the historical models of a data migration read the legacy rows of the
-        column the same way the live model does.
-        """
-
-        name, path, args, kwargs = super().deconstruct()
-        if self.legacy_text_mode != BASEROW_FORMULA_MODE_SIMPLE:
-            kwargs["legacy_text_mode"] = self.legacy_text_mode
-        return name, path, args, kwargs
 
     def _deserialize_baserow_object(
         self, value: FormulaFieldDatabaseValue
@@ -142,7 +118,7 @@ class FormulaField(models.TextField):
     def _legacy_text_to_object(self, value: str) -> BaserowFormulaObject:
         """
         Wraps a stored plain string, one that isn't a serialized formula context,
-        in a `BaserowFormulaObject` in the `legacy_text_mode` of the field.
+        in a simple-mode `BaserowFormulaObject`: it is a legacy formula string.
 
         :param value: The stored string.
         :return: A `BaserowFormulaObject`.
@@ -150,7 +126,7 @@ class FormulaField(models.TextField):
 
         return BaserowFormulaObject(
             formula=value,
-            mode=self.legacy_text_mode,
+            mode=BASEROW_FORMULA_MODE_SIMPLE,
             version=BASEROW_FORMULA_VERSION_INITIAL,
         )
 
@@ -179,9 +155,8 @@ class FormulaField(models.TextField):
                 # If we have, then we can parse it and return the `BaserowFormulaObject`
                 return self._minified_to_object(context)
             elif isinstance(value, str):
-                # Otherwise, it's a plain string (a legacy formula, or the legacy
-                # text of a column that became a formula field), which we can
-                # wrap in a `BaserowFormulaObject` and return.
+                # Otherwise, it's a raw formula string, which we can wrap in a
+                # `BaserowFormulaObject` and return.
                 return self._legacy_text_to_object(value)
             # It's a dictionary, so we can assume it's already a formula context.
             # We just wrap it in a `BaserowFormulaObject` for typing purposes.
@@ -304,14 +279,12 @@ class FormulaField(models.TextField):
             # v2.1: the column type is `json`, so we can store a dict.
             return minified
 
-        # In v1.x the frontend will keep sending a formula string, and fixtures
-        # or old callers can assign one, so we need to convert it to the new
-        # format. Like a stored plain string, it's read in the `legacy_text_mode`
-        # of the field.
+        # In v1.x the frontend will keep sending a formula string,
+        # so we need to convert it to the new format.
         return json.dumps(
             _minify(
                 formula=str(value),
-                mode=self.legacy_text_mode,
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
                 version=BASEROW_FORMULA_VERSION_INITIAL,
             )
         )

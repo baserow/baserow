@@ -100,25 +100,18 @@
           class="row margin-bottom-1"
         >
           <div class="col col-5">
-            <InjectedFormulaInput
+            <FormInput
               v-model="option.name"
-              allow-raw-values
-              :allowed-formats="allowedFormats"
               :placeholder="$t('choiceOptionSelector.namePlaceholder')"
             />
           </div>
           <div class="col col-5">
-            <!--
-            -- A null value means "the same as the name". The name is a formula
-            -- now, so it can't be echoed here: say it with the placeholder.
-            -->
             <FormInput
-              :value="option.value ?? ''"
-              :placeholder="
-                option.value === null
-                  ? $t('choiceOptionSelector.valueSameAsName')
-                  : $t('choiceOptionSelector.valuePlaceholder')
-              "
+              :value="option.value === null ? option.name : option.value"
+              :placeholder="$t('choiceOptionSelector.valuePlaceholder')"
+              :class="{
+                'choice-element__option-value--fake': option.value === null,
+              }"
               @input="option.value = $event"
             />
           </div>
@@ -221,7 +214,7 @@ export default {
         formula_value: {},
         styles: {},
       },
-      // Option names, manual or from a formula, can render as markdown.
+      // The label and the formula option names can render as markdown.
       allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
@@ -277,13 +270,7 @@ export default {
   },
   methods: {
     createOption() {
-      // A new option starts with a raw-mode name: plain text, which the sigma
-      // toggle of the input turns into a formula when needed.
-      this.values.options.push({
-        name: { formula: '', mode: 'raw' },
-        value: null,
-        id: uuid(),
-      })
+      this.values.options.push({ name: '', value: null, id: uuid() })
     },
     deleteOption({ id }) {
       this.values.options = this.values.options.filter(

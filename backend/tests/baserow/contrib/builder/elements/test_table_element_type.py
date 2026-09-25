@@ -67,9 +67,8 @@ def test_create_table_element_with_fields(data_fixture):
     fields = list(created_element.fields.all())
 
     assert len(fields) == 2
-    # Plain string names are stored as raw-mode formulas.
-    assert fields[0].name == {"formula": "Field 1", "mode": "raw", "version": "0.1"}
-    assert fields[1].name == {"formula": "Field 2", "mode": "raw", "version": "0.1"}
+    assert fields[0].name == "Field 1"
+    assert fields[1].name == "Field 2"
 
 
 @pytest.mark.django_db
