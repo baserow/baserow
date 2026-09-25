@@ -11,6 +11,7 @@
     <FormGroup
       :label="$t('aiProviderAdmin.providerType')"
       :error-message="providerTypeError"
+      small-label
       required
       class="margin-bottom-2"
     >
@@ -31,6 +32,7 @@
     <FormGroup
       v-if="selectedType && selectedType.uses_api_key"
       :label="$t('aiProviderAdmin.apiKey')"
+      small-label
       required
       class="margin-bottom-2"
     >
@@ -52,7 +54,10 @@
         </div>
       </template>
       <template v-if="settingDescription('api_key')" #helper>
-        <MarkdownIt :content="settingDescription('api_key')" />
+        <MarkdownIt
+          :content="settingDescription('api_key')"
+          open-links-in-new-tab
+        />
       </template>
     </FormGroup>
     <FormGroup
@@ -60,17 +65,22 @@
       :key="field.name"
       :label="extraFieldLabel(field.name)"
       :required="field.required && !field.allow_blank"
+      small-label
       class="margin-bottom-2"
     >
       <FormInput v-model="extraSettings[field.name]" />
       <template v-if="settingDescription(field.name)" #helper>
-        <MarkdownIt :content="settingDescription(field.name)" />
+        <MarkdownIt
+          :content="settingDescription(field.name)"
+          open-links-in-new-tab
+        />
       </template>
     </FormGroup>
 
     <FormGroup
       v-if="!provider"
       :label="$t('aiProviderAdmin.models')"
+      small-label
       class="margin-bottom-2"
     >
       <div
@@ -104,11 +114,14 @@
         {{ $t('aiProviderAdmin.modelDiscoveryHelp') }}
       </div>
       <template v-if="modelIdentifierDescription" #helper>
-        <MarkdownIt :content="modelIdentifierDescription" />
+        <MarkdownIt
+          :content="modelIdentifierDescription"
+          open-links-in-new-tab
+        />
       </template>
     </FormGroup>
 
-    <div class="actions">
+    <div class="actions margin-bottom-0">
       <ul class="action__links">
         <li>
           <a @click="hide()">{{ $t('action.cancel') }}</a>

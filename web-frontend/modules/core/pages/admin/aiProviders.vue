@@ -52,6 +52,9 @@
           :provider="provider"
           :provider-type="providerType(provider.provider_type)"
           :testing-model-ids="testingModelIds"
+          :toggling-model-ids="togglingModelIds"
+          :deleting-model-ids="deletingModelIds"
+          :toggling-provider-ids="togglingProviderIds"
           @edit-provider="openProviderForm"
           @toggle-provider="toggleProvider"
           @delete-provider="deleteProvider"
@@ -139,6 +142,9 @@ export default {
       pendingAction: null,
       actionLoading: false,
       testingModelIds: [],
+      togglingModelIds: [],
+      togglingProviderIds: [],
+      deletingModelIds: [],
       initialLoadFailed: false,
     }
   },
@@ -209,10 +215,17 @@ export default {
       this.$nextTick(() => this.$refs.modelForm.show())
     },
     async toggleProvider(provider) {
-      return await this.runAction(
-        provider.is_active ? 'provider-disable' : 'provider-enable',
-        provider
-      )
+      this.togglingProviderIds = [...this.togglingProviderIds, provider.id]
+      try {
+        return await this.runAction(
+          provider.is_active ? 'provider-disable' : 'provider-enable',
+          provider
+        )
+      } finally {
+        this.togglingProviderIds = this.togglingProviderIds.filter(
+          (providerId) => providerId !== provider.id
+        )
+      }
     },
     deleteProvider(provider) {
       this.openConfirmation({
@@ -227,28 +240,44 @@ export default {
       })
     },
     async toggleModel(model) {
-      if (!model.is_enabled) {
-        return await this.runAction('model-enable', model)
+      this.togglingModelIds = [...this.togglingModelIds, model.id]
+      try {
+        if (!model.is_enabled) {
+          return await this.runAction('model-enable', model)
+        }
+        const usage = await this.lookupModelUsage(model.id)
+        if (!this.modelHasDependents(usage)) {
+          return await this.runAction('model-disable', model)
+        }
+        this.openConfirmation({
+          kind: 'model-disable',
+          resource: model,
+          title: this.$t('aiProviderAdmin.disableModelTitle', {
+            name: model.model_identifier,
+          }),
+          message: this.modelUsageMessage(
+            usage,
+            this.$t('aiProviderAdmin.disableModelDescription')
+          ),
+          confirmLabel: this.$t('aiProviderAdmin.disable'),
+        })
+      } finally {
+        this.togglingModelIds = this.togglingModelIds.filter(
+          (modelId) => modelId !== model.id
+        )
       }
-      const usage = await this.lookupModelUsage(model.id)
-      if (!this.modelHasDependents(usage)) {
-        return await this.runAction('model-disable', model)
-      }
-      this.openConfirmation({
-        kind: 'model-disable',
-        resource: model,
-        title: this.$t('aiProviderAdmin.disableModelTitle', {
-          name: model.model_identifier,
-        }),
-        message: this.modelUsageMessage(
-          usage,
-          this.$t('aiProviderAdmin.disableModelDescription')
-        ),
-        confirmLabel: this.$t('aiProviderAdmin.disable'),
-      })
     },
     async deleteModel(model) {
-      const usage = await this.lookupModelUsage(model.id)
+      // The usage lookup is a request of its own, so the menu item shows it.
+      this.deletingModelIds = [...this.deletingModelIds, model.id]
+      let usage
+      try {
+        usage = await this.lookupModelUsage(model.id)
+      } finally {
+        this.deletingModelIds = this.deletingModelIds.filter(
+          (modelId) => modelId !== model.id
+        )
+      }
       this.openConfirmation({
         kind: 'model-delete',
         resource: model,

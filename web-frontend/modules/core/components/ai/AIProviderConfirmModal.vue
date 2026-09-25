@@ -2,7 +2,7 @@
   <Modal ref="modal" small @hidden="$emit('hidden')">
     <h2 class="box__title">{{ title }}</h2>
     <p>{{ message }}</p>
-    <div class="actions">
+    <div class="actions margin-bottom-0">
       <ul class="action__links">
         <li>
           <a @click="hide()">{{ $t('action.cancel') }}</a>

@@ -13,6 +13,7 @@
     <FormGroup
       :label="$t('aiProviderAdmin.modelIdentifier')"
       required
+      small-label
       class="margin-bottom-2"
     >
       <AIProviderModelCombobox
@@ -42,14 +43,17 @@
         {{ $t('aiProviderAdmin.modelDiscoveryHelp') }}
       </div>
       <template v-if="modelIdentifierDescription" #helper>
-        <MarkdownIt :content="modelIdentifierDescription" />
+        <MarkdownIt
+          :content="modelIdentifierDescription"
+          open-links-in-new-tab
+        />
       </template>
     </FormGroup>
     <AIProviderModelFeatureSelector
       v-model="values.feature_types"
       class="margin-bottom-2"
     />
-    <div class="actions">
+    <div class="actions margin-bottom-0">
       <ul class="action__links">
         <li>
           <a @click="hide()">{{ $t('action.cancel') }}</a>

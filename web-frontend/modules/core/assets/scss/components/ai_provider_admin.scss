@@ -220,8 +220,12 @@
   font-size: 12px;
   white-space: nowrap;
 
-  > span:first-child {
+  // Each state renders its icon and text inside one span, so align them there.
+  > span {
+    display: inline-flex;
+    align-items: center;
     flex-shrink: 0;
+    gap: 6px;
   }
 }
 
@@ -230,9 +234,6 @@
 }
 
 .ai-provider-model__testing {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   color: $palette-blue-700;
 
   @include loading-spinner($palette-blue-500, 12px, 0.2em, before);
@@ -331,8 +332,11 @@
 }
 
 .ai-provider-workspace-settings .ai-provider-admin__header {
-  padding-right: 64px;
   margin-bottom: 16px;
+}
+
+.ai-provider-workspace-settings__add-provider {
+  margin-top: 32px;
 }
 
 .ai-provider-hierarchy {
@@ -392,10 +396,6 @@
   .ai-provider-hierarchy__header {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .ai-provider-workspace-settings .ai-provider-admin__header {
-    padding-right: 48px;
   }
 
   .ai-provider-form__model-row {

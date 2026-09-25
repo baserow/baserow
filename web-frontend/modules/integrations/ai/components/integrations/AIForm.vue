@@ -83,7 +83,10 @@
               />
 
               <template v-if="setting.description" #helper>
-                <MarkdownIt :content="setting.description" />
+                <MarkdownIt
+                  :content="setting.description"
+                  open-links-in-new-tab
+                />
               </template>
             </FormGroup>
           </div>

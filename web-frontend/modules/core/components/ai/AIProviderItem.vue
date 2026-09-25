@@ -130,6 +130,9 @@ export default {
     provider: { type: Object, required: true },
     providerType: { type: Object, default: null },
     testingModelIds: { type: Array, default: () => [] },
+    togglingModelIds: { type: Array, default: () => [] },
+    togglingProviderIds: { type: Array, default: () => [] },
+    deletingModelIds: { type: Array, default: () => [] },
     embedded: { type: Boolean, default: false },
     primary: { type: Boolean, default: false },
     title: { type: String, default: '' },
@@ -184,6 +187,7 @@ export default {
         key: 'toggle',
         label: this.toggleActionTitle(this.providerToggleState),
         icon: this.toggleActionIcon(this.providerToggleState),
+        loading: this.togglingProviderIds.includes(this.provider.id),
       }
     },
     providerMenuActions() {
@@ -297,12 +301,14 @@ export default {
           key: 'toggle',
           label: this.toggleActionTitle(model.is_enabled),
           icon: this.toggleActionIcon(model.is_enabled),
+          loading: this.togglingModelIds.includes(model.id),
         },
         {
           key: 'delete',
           label: this.$t('action.delete'),
           icon: 'iconoir-bin',
           danger: true,
+          loading: this.deletingModelIds.includes(model.id),
         },
       ]
     },
