@@ -273,3 +273,40 @@ def test_oversized_legacy_settings_are_skipped_not_fatal(data_fixture, legacy_va
     _import_everything()
 
     assert not AIProviderConfig.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("scope", ["instance", "workspace"])
+def test_malformed_ollama_host_does_not_abort_import(data_fixture, settings, scope):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+    legacy_settings = {
+        "openai": {"api_key": "workspace-key", "models": ["gpt-5.4-mini"]}
+    }
+    if scope == "instance":
+        settings.BASEROW_OLLAMA_HOST = "http://["
+        settings.BASEROW_OLLAMA_MODELS = ["llama3"]
+    else:
+        legacy_settings["ollama"] = {"host": "http://[", "models": ["llama3"]}
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings=legacy_settings
+    )
+
+    if scope == "instance":
+        plan = plan_instance_import(AIProviderConfig, AIProviderModel)
+    else:
+        plan = plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace)
+    assert len(plan.skipped) == 1
+    assert plan.skipped[0].provider_type == "ollama"
+    assert "valid URL" in plan.skipped[0].reason
+
+    _import_everything()
+
+    assert AIProviderConfig.objects.count() == 2
+    instance_provider = AIProviderConfig.objects.get(workspace__isnull=True)
+    assert instance_provider.api_key == "environment-key"
+    assert instance_provider.models.get().model_identifier == "gpt-5.4"
+    workspace_provider = AIProviderConfig.objects.get(workspace=workspace)
+    assert workspace_provider.api_key == "workspace-key"
+    assert workspace_provider.models.get().model_identifier == "gpt-5.4-mini"
+    assert not AIProviderConfig.objects.filter(provider_type="ollama").exists()

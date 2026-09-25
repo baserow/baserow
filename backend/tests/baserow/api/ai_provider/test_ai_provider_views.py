@@ -707,7 +707,7 @@ def test_provider_connection_settings_are_required(api_client, staff_headers):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert "host" in response.json()["detail"]
 
-    for invalid_host in ("127.0.0.1:11434", "ftp://ollama:11434"):
+    for invalid_host in ("127.0.0.1:11434", "ftp://ollama:11434", "http://["):
         response = api_client.post(
             url,
             {
