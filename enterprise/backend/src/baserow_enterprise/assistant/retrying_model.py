@@ -40,9 +40,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
 
+from anthropic import APIConnectionError, APIStatusError, AsyncAnthropic
 from loguru import logger
 from pydantic_ai import RunContext
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models import (
     KnownModelName,
@@ -54,6 +55,8 @@ from pydantic_ai.models import (
 )
 from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
+
+from baserow.core.generative_ai.anthropic import get_retry_after
 
 # Transient Groq errors that are safe to retry.
 _RETRYABLE_MESSAGES = frozenset(
@@ -69,6 +72,15 @@ def _is_transient_provider_error(exc: Exception) -> bool:
 
     if isinstance(exc, ModelHTTPError) and exc.status_code == 429:
         return True
+    # Anthropic SDK retries are disabled when this wrapper owns the budget.
+    # Preserve its connection, timeout, conflict, and server-error retries.
+    provider_error = exc.__cause__ if isinstance(exc, ModelAPIError) else exc
+    if isinstance(provider_error, APIConnectionError):
+        return True
+    if isinstance(provider_error, APIStatusError):
+        return provider_error.status_code in (408, 409, 429) or (
+            provider_error.status_code >= 500
+        )
     msg = str(exc)
     return any(needle in msg for needle in _RETRYABLE_MESSAGES)
 
@@ -374,6 +386,10 @@ class RetryingModel(WrapperModel):
                 if isinstance(self._wrapped_or_name, Model)
                 else _resolve_model(self._wrapped_or_name)
             )
+        # Both string-resolved and database-backed models pass through here.
+        # Otherwise the SDK can sleep for minutes inside each bounded attempt.
+        if self._uses_anthropic(self._resolved):
+            self._resolved.provider.client.max_retries = 0
         return self._resolved
 
     @wrapped.setter
@@ -383,6 +399,33 @@ class RetryingModel(WrapperModel):
     def _delay_for(self, attempt: int) -> float:
         """Exponential back-off delay capped at ``max_delay``."""
         return min(self.base_delay * (2 ** (attempt - 1)), self.max_delay)
+
+    @staticmethod
+    def _uses_anthropic(model: Model) -> bool:
+        provider = model.provider
+        return provider is not None and isinstance(provider.client, AsyncAnthropic)
+
+    def _retry_delay(self, exc: Exception, attempt: int) -> float | None:
+        """Return a delay, or None if Anthropic asks to exceed the retry budget."""
+
+        delay = self._delay_for(attempt)
+        if self._uses_anthropic(self.wrapped):
+            headers = None
+            if isinstance(exc, ModelHTTPError):
+                headers = exc.headers
+            elif isinstance(exc, APIStatusError):
+                headers = exc.response.headers
+            if headers:
+                retry_after = get_retry_after(headers)
+                if headers.get("x-should-retry") == "false" or (
+                    retry_after is not None and retry_after > self.max_delay
+                ):
+                    return None
+                if retry_after is not None and retry_after > 0:
+                    delay = retry_after
+        elif isinstance(exc, ModelHTTPError) and exc.retry_after is not None:
+            delay = min(exc.retry_after, self.max_delay)
+        return delay
 
     async def request(
         self,
@@ -414,9 +457,9 @@ class RetryingModel(WrapperModel):
                         or attempt == self.max_attempts
                     ):
                         raise
-                    delay = self._delay_for(attempt)
-                    if isinstance(exc, ModelHTTPError) and exc.retry_after is not None:
-                        delay = min(exc.retry_after, self.max_delay)
+                    delay = self._retry_delay(exc, attempt)
+                    if delay is None:
+                        raise
                     logger.warning(
                         "[assistant] Model request failed (attempt {}/{}), "
                         "retrying in {:.1f}s: {}",
@@ -467,6 +510,11 @@ class RetryingModel(WrapperModel):
 
                 if not _is_transient_provider_error(exc):
                     raise
+                if self._uses_anthropic(wrapped):
+                    delay = self._retry_delay(exc, 1)
+                    if delay is None:
+                        raise
+                    await asyncio.sleep(delay)
                 # Stream failed with a retryable error. Fall back to a
                 # non-streaming request, whose nested model context is safe
                 # because providers reference-count re-entrant scopes.

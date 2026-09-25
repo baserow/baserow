@@ -942,6 +942,7 @@ class GenerativeAIModelType(Instance):
         output_type: Any = None,
         content: Optional[list[UserContent]] = None,
         model_settings_override: Optional[dict[str, Any]] = None,
+        timeout_seconds: float | None = None,
     ) -> Any:
         """
         Prompt the AI model and return the result. Handles model retrieval,
@@ -970,6 +971,8 @@ class GenerativeAIModelType(Instance):
             to include as multi-modal input alongside the text prompt.
         :param model_settings_override: Optional request settings merged over the
             provider defaults.
+        :param timeout_seconds: Optional wall-clock budget for the model run,
+            including provider retries.
         :return: The model's response — a string, a matched choice, or a
             validated output_type instance.
         """
@@ -996,6 +999,7 @@ class GenerativeAIModelType(Instance):
                 user_prompt,
                 model=ai_model,
                 model_settings=model_settings,
+                timeout_seconds=timeout_seconds,
             )
 
             if self._is_choices(output_type):

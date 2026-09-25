@@ -1062,6 +1062,7 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
             "max_tokens": AI_PROVIDER_TEST_MAX_TOKENS,
             "timeout": AI_PROVIDER_TEST_TIMEOUT_SECONDS,
         },
+        timeout_seconds=AI_PROVIDER_TEST_TIMEOUT_SECONDS,
     )
     first.refresh_from_db()
     second.refresh_from_db()

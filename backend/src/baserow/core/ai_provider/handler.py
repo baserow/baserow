@@ -979,6 +979,7 @@ class AIProviderHandler:
                     "max_tokens": AI_PROVIDER_TEST_MAX_TOKENS,
                     "timeout": AI_PROVIDER_TEST_TIMEOUT_SECONDS,
                 },
+                timeout_seconds=AI_PROVIDER_TEST_TIMEOUT_SECONDS,
             )
             if not isinstance(response, str) or not response.strip():
                 raise ModelTextResponseNotSupportedError(

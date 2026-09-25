@@ -5,16 +5,23 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import threading
 import time
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack, contextmanager
+from dataclasses import dataclass
 from types import ModuleType
 from typing import Any
 
 from pydantic_ai import Agent
-from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
+from pydantic_ai._utils import (  # noqa: PLC2701
+    run_until_complete,
+    using_thread_executor,
+)
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
+from pydantic_ai.toolsets import WrapperToolset
 from pydantic_ai.usage import UsageLimits
 
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
@@ -65,7 +72,10 @@ def _patched_module_attr(module: ModuleType, attr: str, value: str) -> Iterator[
     try:
         yield
     finally:
-        setattr(module, attr, previous)
+        # A stuck thread still reads module globals. Keep its prompts stable
+        # until the process is restarted; no further cases may run meanwhile.
+        if _cleanup_error is None:
+            setattr(module, attr, previous)
 
 
 @contextmanager
@@ -76,6 +86,7 @@ def override_assistant_prompts(prompt_texts: dict[str, str]) -> Iterator[None]:
     only the static string entries are replaced.
     """
 
+    ensure_worker_safe()
     with ExitStack() as stack:
         for name, text in prompt_texts.items():
             agent = PROMPT_AGENT_TARGETS.get(name)
@@ -224,6 +235,7 @@ def tool_call_order_ok(output: EvalRunOutput, names: list[str]) -> bool:
 
 
 DEFAULT_CASE_TIMEOUT_S = 120
+TOOL_CLEANUP_TIMEOUT_S = 5
 
 
 def get_case_timeout_s() -> float:
@@ -235,7 +247,100 @@ def get_case_timeout_s() -> float:
 
 
 class EvalCaseTimeout(Exception):
-    """A case outran its budget: its run was cancelled and its tools told to stop."""
+    """A case outran its budget and its cancelled tools have finished."""
+
+
+class EvalCaseCleanupError(RuntimeError):
+    """A tool outlived bounded cleanup; the eval process must be restarted."""
+
+
+_cleanup_error: str | None = None
+
+
+def ensure_worker_safe() -> None:
+    """Reject subsequent work before changing prompts or creating fixtures."""
+
+    if _cleanup_error is not None:
+        raise EvalCaseCleanupError(_cleanup_error)
+
+
+class _CaseExecutor(ThreadPoolExecutor):
+    """Track actual sync work, even after its asyncio waiter is cancelled."""
+
+    def __init__(self):
+        super().__init__(thread_name_prefix="eval-tool")
+        self._futures = []
+        self._futures_lock = threading.Lock()
+        self.tool_tasks: list[asyncio.Task] = []
+
+    def submit(self, *args, **kwargs):
+        with self._futures_lock:
+            future = super().submit(*args, **kwargs)
+            self._futures.append(future)
+            return future
+
+    async def drain(self, timeout_s: float) -> None:
+        self.shutdown(wait=False, cancel_futures=True)
+        with self._futures_lock:
+            futures = list(self._futures)
+        # Keep the loop alive: synchronous tools can await async sub-agents.
+        await asyncio.wait_for(
+            asyncio.shield(
+                asyncio.gather(
+                    *(asyncio.wrap_future(future) for future in futures),
+                    *self.tool_tasks,
+                    return_exceptions=True,
+                )
+            ),
+            timeout_s,
+        )
+
+
+@dataclass
+class _CaseToolset(WrapperToolset):
+    tasks: list[asyncio.Task]
+
+    async def call_tool(self, name, tool_args, ctx, tool):
+        # Async tools can also spawn threads (e.g. sync_to_async search). Keep
+        # their coroutines alive so cancellation cannot detach that work.
+        task = asyncio.create_task(self.wrapped.call_tool(name, tool_args, ctx, tool))
+        self.tasks.append(task)
+        return await asyncio.shield(task)
+
+
+async def _run_with_timeout(
+    coro, timeout_s: float, helpers: ToolHelpers, executor: _CaseExecutor
+):
+    task = asyncio.create_task(coro)
+    cleanup_deadline = None
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout_s)
+    except BaseException:
+        # Signal checkpoints before task cancellation starts unwinding clients.
+        helpers.cancel()
+        task.cancel()
+        cleanup_deadline = time.monotonic() + TOOL_CLEANUP_TIMEOUT_S
+        done, _ = await asyncio.wait({task}, timeout=TOOL_CLEANUP_TIMEOUT_S)
+        if not done:
+            # Retrieve any eventual failure without waiting indefinitely for
+            # cancellation-resistant async tools or client cleanup.
+            task.add_done_callback(
+                lambda finished: None if finished.cancelled() else finished.exception()
+            )
+            raise EvalCaseCleanupError("Agent cancellation did not finish")
+        if not task.cancelled():
+            task.exception()
+        raise
+    finally:
+        remaining = (
+            max(0, cleanup_deadline - time.monotonic())
+            if cleanup_deadline is not None
+            else TOOL_CLEANUP_TIMEOUT_S
+        )
+        try:
+            await executor.drain(remaining)
+        except TimeoutError as exc:
+            raise EvalCaseCleanupError("Synchronous tools did not finish") from exc
 
 
 def run_case(
@@ -244,10 +349,14 @@ def run_case(
     """Build the scenario, run ``main_agent``, and execute the case's checks.
 
     Performs no teardown and no chat persistence — the eval DB is disposable.
-    Raises ``EvalCaseTimeout`` when the agent outruns its wall-clock budget:
-    a hung case would otherwise block the single worker indefinitely.
+    Raises ``EvalCaseTimeout`` after cancellation and bounded tool cleanup.
+    If a tool cannot finish, ``EvalCaseCleanupError`` blocks further cases
+    until the eval process is restarted, preserving shared prompt state.
     """
 
+    global _cleanup_error
+
+    ensure_worker_safe()
     load_all()
     scenario = get_scenario(case.scenario)(make_fixtures())
     model_profile = resolve_assistant_model(
@@ -268,25 +377,32 @@ def run_case(
 
     timeout_s = get_case_timeout_s()
     start = time.monotonic()
-    # Cancelling the managed run closes the model client on the same event loop.
+    executor = _CaseExecutor()
     try:
-        result = run_until_complete(
-            asyncio.wait_for(
-                run_agent_with_model(
-                    main_agent,
-                    case.prompt,
-                    deps=ctx.deps,
-                    model=ctx.model,
-                    model_settings=model_profile.get_settings(ORCHESTRATOR),
-                    usage_limits=UsageLimits(request_limit=case.max_iters),
-                    toolsets=[ctx.toolset],
-                ),
-                timeout_s,
+        with using_thread_executor(executor):
+            result = run_until_complete(
+                _run_with_timeout(
+                    run_agent_with_model(
+                        main_agent,
+                        case.prompt,
+                        deps=ctx.deps,
+                        model=ctx.model,
+                        model_settings=model_profile.get_settings(ORCHESTRATOR),
+                        usage_limits=UsageLimits(request_limit=case.max_iters),
+                        toolsets=[_CaseToolset(ctx.toolset, executor.tool_tasks)],
+                    ),
+                    timeout_s,
+                    tool_helpers,
+                    executor,
+                )
             )
+    except EvalCaseCleanupError as exc:
+        _cleanup_error = (
+            f"{case.id}: cleanup did not finish within {TOOL_CLEANUP_TIMEOUT_S:g}s "
+            "after cancellation. Restart the eval runner before running more cases."
         )
+        raise EvalCaseCleanupError(_cleanup_error) from exc
     except (TimeoutError, asyncio.CancelledError) as exc:
-        # Sync tools run in worker threads that task cancellation cannot stop.
-        tool_helpers.cancel()
         raise EvalCaseTimeout(
             f"{case.id} exceeded {timeout_s:g}s and was cancelled"
         ) from exc

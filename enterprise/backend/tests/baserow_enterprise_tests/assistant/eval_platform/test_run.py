@@ -15,7 +15,10 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
 from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals import gitinfo, registry
 from baserow_enterprise.assistant.evals.control import RunControl
-from baserow_enterprise.assistant.evals.harness import EvalCaseTimeout
+from baserow_enterprise.assistant.evals.harness import (
+    EvalCaseCleanupError,
+    EvalCaseTimeout,
+)
 from baserow_enterprise.assistant.evals.judge import JudgeVerdict
 from baserow_enterprise.assistant.evals.models import DEFAULT_EVAL_MODEL
 from baserow_enterprise.assistant.evals.run import (
@@ -2044,6 +2047,56 @@ class TestFullDatasetProgressAndStop:
 
 
 class TestTimeoutIsRecordedNotRaised:
+    def test_cleanup_failure_aborts_the_subset_instead_of_scoring_a_timeout(self):
+        client = _two_case_client()
+        control = RunControl()
+        calls = []
+
+        def fail_cleanup(case, *args, **kwargs):
+            calls.append(case.id)
+            raise EvalCaseCleanupError("Restart the eval runner")
+
+        with _subset_env(client, run_case_side_effect=fail_cleanup):
+            with pytest.raises(EvalCaseCleanupError):
+                run_experiment_for(
+                    "kuma-database",
+                    "groq:test-model",
+                    case_ids=["db/case-1", "db/case-2"],
+                    control=control,
+                )
+
+        assert calls == ["db/case-1"]
+        assert control.completed == 0
+        assert client.experiments.log_run_calls == []
+
+    def test_cleanup_failure_stops_phoenix_retries_and_reaches_the_runner(self):
+        client = _two_case_client()
+        control = RunControl()
+        calls = []
+
+        def fail_cleanup(case, *args, **kwargs):
+            calls.append(case.id)
+            raise EvalCaseCleanupError("Restart the eval runner")
+
+        def retry_task(**kwargs):
+            task = kwargs["task"]
+            with pytest.raises(EvalCaseCleanupError):
+                task(_ExampleStub("db/case-1"))
+            assert task(_ExampleStub("db/case-1")) == {"skipped": "run stopped"}
+            assert task(_ExampleStub("db/case-2")) == {"skipped": "run stopped"}
+            return {"experiment_id": "exp-1", "dataset_id": "ds-1"}
+
+        with (
+            _subset_env(client, run_case_side_effect=fail_cleanup),
+            patch.object(client.experiments, "run_experiment", retry_task),
+            pytest.raises(EvalCaseCleanupError, match="Restart the eval runner"),
+        ):
+            run_experiment_for("kuma-database", "groq:test-model", control=control)
+
+        assert calls == ["db/case-1"]
+        assert control.stopping
+        assert control.completed == 0
+
     def test_a_timed_out_case_scores_zero_and_is_marked(self):
         case = _make_case("db/hangs")
 

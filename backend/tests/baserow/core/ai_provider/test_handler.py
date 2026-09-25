@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
@@ -460,6 +461,43 @@ def test_both_probes_share_one_token_budget():
     # Kuma one.
     assert text_budget["max_tokens"] == AI_PROVIDER_TEST_MAX_TOKENS
     assert tool_budget["max_tokens"] == AI_PROVIDER_TEST_MAX_TOKENS
+
+
+def test_text_probe_deadline_cancels_the_request_and_closes_the_model(monkeypatch):
+    events = []
+
+    class SlowModel(TestModel):
+        async def request(self, *args, **kwargs):
+            try:
+                # Model settings cannot bound a provider's retry sleep.
+                await asyncio.sleep(2)
+            except asyncio.CancelledError:
+                events.append("cancelled")
+                raise
+            return await super().request(*args, **kwargs)
+
+        async def __aexit__(self, *args):
+            events.append("closed")
+            return await super().__aexit__(*args)
+
+    monkeypatch.setattr(
+        "baserow.core.ai_provider.handler.AI_PROVIDER_TEST_TIMEOUT_SECONDS", 1
+    )
+    model_type = MistralGenerativeAIModelType()
+    with patch.object(
+        model_type,
+        "get_ai_model",
+        return_value=SlowModel(call_tools=[], custom_output_text="OK"),
+    ):
+        result = AIProviderHandler._test_text(
+            model_type, "model", settings_override={}, secret_values=[]
+        )
+
+    assert result == {
+        "status": AIProviderModel.TestStatus.FAILURE,
+        "error": "The AI request timed out after 1 seconds.",
+    }
+    assert events == ["cancelled", "closed"]
 
 
 def test_model_test_derives_each_feature_result_from_shared_capabilities():
