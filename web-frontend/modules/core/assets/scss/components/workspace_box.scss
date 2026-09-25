@@ -73,13 +73,37 @@
   font-size: 12px;
   font-weight: 500;
   color: $palette-neutral-900;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.workspace-box__meta-text {
+  min-width: 0;
 
   @extend %ellipsis;
 }
 
+// Components added by plugins are short, and truncating them would hide their
+// value, so only the member and item count text is truncated.
+.workspace-box__meta-item {
+  flex: 0 0 auto;
+}
+
+.workspace-box__badge-skeleton {
+  flex: 0 0 auto;
+}
+
 .workspace-box__meta-separator {
-  margin: 0 4px;
+  margin: 0 6px;
   color: $palette-neutral-400;
+
+  // A plugin component renders nothing while its data is still loading, for
+  // example, and then its separator must not be shown either.
+  &:has(+ .workspace-box__meta-item:empty) {
+    display: none;
+  }
 }
 
 .workspace-box__actions {
