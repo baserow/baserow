@@ -8,10 +8,15 @@ from baserow.contrib.builder.domains.exceptions import (
 )
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.models import Domain
+from baserow.contrib.builder.elements.permission_manager import (
+    ElementVisibilityPermissionManager,
+)
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.cache import global_cache
+from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.utils import Progress
 
 
@@ -337,3 +342,54 @@ def test_domain_publishing_with_invalid_workflow_action_event(data_fixture, even
         page__builder=domain.published_to
     ).values_list("event", flat=True)
     assert list(published_events) == [event]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_kind", ["default", "explicit", "explicit_default_name"])
+@pytest.mark.parametrize(
+    "role_type",
+    [Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT, Page.ROLE_TYPES.ALLOW_ALL_EXCEPT],
+)
+def test_publish_page_roles_follow_user_source(data_fixture, role_kind, role_type):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    source, _ = data_fixture.create_user_table_and_role(user, builder, "editor")
+    original_role = f"{DEFAULT_USER_ROLE_PREFIX}{source.id}"
+    if role_kind == "default":
+        source.role_field = None
+        source.save()
+    elif role_kind == "explicit_default_name":
+        # An explicit role can have the same name as a generated default role.
+        source.table.get_model().objects.update(
+            **{source.role_field.db_column: original_role}
+        )
+    else:
+        original_role = "editor"
+    page = data_fixture.create_builder_page(
+        builder=builder,
+        path="/home",
+        visibility=Page.VISIBILITY_TYPES.LOGGED_IN,
+        role_type=role_type,
+        roles=[original_role],
+    )
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    # Both first publication and republication create a new user source ID.
+    for _ in range(2):
+        DomainHandler().publish(domain)
+        domain.refresh_from_db()
+        published_source = domain.published_to.user_sources.get().specific
+        published_page = domain.published_to.visible_pages.get(path="/home")
+        published_user = published_source.get_type().get_user(
+            published_source, email="foo@bar.com"
+        )
+
+        assert published_source.id != source.id
+        assert published_page.visibility == Page.VISIBILITY_TYPES.LOGGED_IN
+        assert published_page.role_type == role_type
+        assert ElementVisibilityPermissionManager().actor_can_view_page(
+            published_user, published_page
+        ) == (role_type == Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT)
+        assert published_page.roles == [published_user.role]
+        page.refresh_from_db()
+        assert page.roles == [original_role]

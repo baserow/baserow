@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix login redirects to pages restricted to a default user role after publishing an application",
+    "issue_origin": "github",
+    "issue_number": 4331,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-09-17"
+}
