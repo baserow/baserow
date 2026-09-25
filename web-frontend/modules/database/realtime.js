@@ -242,23 +242,23 @@ export const registerRealtimeEvents = (realtime) => {
     const beforeById = Object.fromEntries(
       (data.rows_before_update || []).map((r) => [r.id, r])
     )
-    for (const viewType of Object.values(app.$registry.getAll('view'))) {
-      for (let i = 0; i < data.rows.length; i++) {
-        const row = data.rows[i]
-        const rowBeforeUpdate = beforeById[row.id] || { id: row.id }
-
-        await viewType.rowUpdated(
+    const updates = data.rows.map((row) => ({
+      row: beforeById[row.id] || { id: row.id },
+      values: row,
+      metadata: data.metadata[row.id],
+      updatedFieldIds: data.updated_field_ids,
+    }))
+    await Promise.all(
+      Object.values(app.$registry.getAll('view')).map((viewType) =>
+        viewType.rowsUpdated(
           context,
           data.table_id,
           store.getters['field/getAll'],
-          rowBeforeUpdate,
-          row,
-          data.metadata[row.id],
-          data.updated_field_ids,
+          updates,
           'page/'
         )
-      }
-    }
+      )
+    )
     for (let i = 0; i < data.rows.length; i++) {
       store.dispatch('rowModal/updated', {
         tableId: data.table_id,

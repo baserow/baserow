@@ -1,4 +1,6 @@
 import { registerRealtimeEvents } from '@baserow/modules/database/realtime'
+import { ViewType } from '@baserow/modules/database/viewTypes'
+import flushPromises from 'flush-promises'
 
 const getHandlers = () => {
   const handlers = {}
@@ -9,6 +11,51 @@ const getHandlers = () => {
   })
   return handlers
 }
+
+describe('database realtime row update batches', () => {
+  test('keeps non-grid view updates sequential within a frame', async () => {
+    const handlers = getHandlers()
+    const viewType = Object.create(ViewType.prototype)
+    let finishFirstUpdate
+    viewType.rowUpdated = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishFirstUpdate = resolve
+          })
+      )
+      .mockResolvedValue()
+    const store = {
+      getters: { 'field/getAll': [] },
+      dispatch: vi.fn().mockResolvedValue(),
+    }
+    const context = {
+      store,
+      app: { $registry: { getAll: () => ({ view: viewType }) } },
+    }
+    const updating = handlers.rows_updated(context, {
+      table_id: 1,
+      rows: [{ id: 10 }, { id: 11 }],
+      metadata: {},
+      updated_field_ids: [],
+    })
+
+    try {
+      await flushPromises()
+      expect(viewType.rowUpdated).toHaveBeenCalledTimes(1)
+      expect(viewType.rowUpdated.mock.calls[0][3]).toEqual({ id: 10 })
+      expect(store.dispatch).not.toHaveBeenCalled()
+    } finally {
+      finishFirstUpdate()
+      await updating
+    }
+
+    expect(viewType.rowUpdated).toHaveBeenCalledTimes(2)
+    expect(viewType.rowUpdated.mock.calls[1][3]).toEqual({ id: 11 })
+    expect(store.dispatch).toHaveBeenCalledTimes(2)
+  })
+})
 
 describe('database realtime AI provider updates', () => {
   test('refreshes cached field errors when model availability changes', async () => {

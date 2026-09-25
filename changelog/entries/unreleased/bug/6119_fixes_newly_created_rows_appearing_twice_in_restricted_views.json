@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fixes newly created rows appearing twice in restricted views",
+    "message": "Fixes duplicate or missing rows when creating and editing rows concurrently in restricted grid views",
     "issue_origin": "github",
     "issue_number": 6119,
     "domain": "database",
