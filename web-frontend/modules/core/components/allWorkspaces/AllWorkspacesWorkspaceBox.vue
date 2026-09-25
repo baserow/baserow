@@ -25,14 +25,54 @@
             v-if="hasUnreadNotifications"
             class="workspace-box__unread"
           ></span>
+          <template
+            v-for="(component, index) in badgeComponents"
+            :key="'badge-' + index"
+          >
+            <SkeletonBlock
+              v-if="componentArgumentsLoading"
+              class="workspace-box__badge-skeleton"
+              width="40px"
+              height="20px"
+            ></SkeletonBlock>
+            <component
+              :is="component"
+              v-else
+              :workspace="workspace"
+              :component-arguments="componentArguments"
+            ></component>
+          </template>
           <span v-if="roleName !== ''" class="workspace-box__role">{{
             roleName
           }}</span>
         </div>
         <div class="workspace-box__meta">
-          {{ $t('allWorkspaces.membersCount', { count: memberCount }) }}
-          <span class="workspace-box__meta-separator">&#8226;</span>
-          {{ $t('allWorkspaces.itemsCount', { count: totalApplicationCount }) }}
+          <span class="workspace-box__meta-text"
+            >{{ $t('allWorkspaces.membersCount', { count: memberCount })
+            }}<span class="workspace-box__meta-separator">&#8226;</span
+            >{{
+              $t('allWorkspaces.itemsCount', { count: totalApplicationCount })
+            }}</span
+          >
+          <template
+            v-for="(component, index) in metaComponents"
+            :key="'meta-' + index"
+          >
+            <span class="workspace-box__meta-separator">&#8226;</span>
+            <span class="workspace-box__meta-item">
+              <SkeletonBlock
+                v-if="componentArgumentsLoading"
+                width="100px"
+                height="12px"
+              ></SkeletonBlock>
+              <component
+                :is="component"
+                v-else
+                :workspace="workspace"
+                :component-arguments="componentArguments"
+              ></component>
+            </span>
+          </template>
         </div>
       </div>
 
@@ -188,6 +228,24 @@ export default {
       required: false,
       default: '',
     },
+    /**
+     * The data fetched by the plugins' `fetchAsyncDashboardData`, passed to the
+     * components they add to the box.
+     */
+    componentArguments: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
+    /**
+     * Whether the `componentArguments` are still being fetched, in which case
+     * the components that need them show a skeleton instead.
+     */
+    componentArgumentsLoading: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     applications: {
       type: Array,
       required: true,
@@ -234,6 +292,12 @@ export default {
     }
   },
   computed: {
+    badgeComponents() {
+      return this.pluginComponents('getAllWorkspacesWorkspaceBadgeComponents')
+    },
+    metaComponents() {
+      return this.pluginComponents('getAllWorkspacesWorkspaceMetaComponents')
+    },
     showEditable() {
       return this.highlight === '' || this.editing || this.saving
     },
@@ -277,6 +341,11 @@ export default {
     },
   },
   methods: {
+    pluginComponents(hook) {
+      return Object.values(this.$registry.getAll('plugin'))
+        .flatMap((plugin) => plugin[hook](this.workspace))
+        .filter((component) => component)
+    },
     goToWorkspace() {
       // Clicking inside the name while it's being renamed inline must not
       // navigate away.

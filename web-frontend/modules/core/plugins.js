@@ -89,13 +89,36 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple components in the header of
+   * each workspace box on the all workspaces page, directly after the workspace
+   * name. The components receive the `workspace` and the `componentArguments`
+   * fetched by `fetchAsyncDashboardData`.
+   * @returns {*[]}
+   */
+  getAllWorkspacesWorkspaceBadgeComponents(workspace) {
+    return []
+  }
+
+  /**
+   * Every registered plugin can display multiple components at the end of the
+   * meta line (member and item count) of each workspace box on the all
+   * workspaces page. The components receive the `workspace` and the
+   * `componentArguments` fetched by `fetchAsyncDashboardData`.
+   * @returns {*[]}
+   */
+  getAllWorkspacesWorkspaceMetaComponents(workspace) {
+    return []
+  }
+
+  /**
    * Because the dashboard could contain dynamic `getDashboardWorkspaceComponent` and
    * `getDashboardWorkspaceExtraComponent` components, it could be that additional data
    * must be fetched from the backend when the page first loads. This method can be
    * overwritten to do that.
    *
-   * Optinally, a workspace id can be provided to fetch only data for a particular
-   * workspace.
+   * Optionally, a workspace id can be provided to fetch only data for a particular
+   * workspace. The all workspaces page calls it without a workspace id, so the
+   * data of all workspaces must then be returned.
    */
   fetchAsyncDashboardData(context, workspaceId) {
     return null

@@ -27,6 +27,8 @@
           :key="workspace.id"
           :workspace="workspace"
           :role-name="roleNameOf(workspace)"
+          :component-arguments="workspaceComponentArguments"
+          :component-arguments-loading="workspaceComponentArgumentsLoading"
           :applications="filteredApplicationsOf(workspace)"
           :total-application-count="applicationsOf(workspace).length"
           :collapsed="collapsedIds.has(workspace.id)"
@@ -51,6 +53,8 @@
               :key="'search-workspace-' + workspace.id"
               :workspace="workspace"
               :role-name="roleNameOf(workspace)"
+              :component-arguments="workspaceComponentArguments"
+              :component-arguments-loading="workspaceComponentArgumentsLoading"
               :applications="[]"
               :total-application-count="applicationsOf(workspace).length"
               :highlight="query"
@@ -100,7 +104,7 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter, useNuxtApp } from '#app'
+import { useRouter, useNuxtApp, useAsyncData } from '#app'
 import { useHead } from '#imports'
 
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -142,7 +146,8 @@ definePageMeta({
 
 const store = useStore()
 const router = useRouter()
-const { $registry, $i18n } = useNuxtApp()
+const nuxtApp = useNuxtApp()
+const { $registry, $i18n } = nuxtApp
 
 // The page lists the applications of every workspace, so actions performed on
 // them in their own workspace scope must be undoable here. Unlike the workspace
@@ -164,6 +169,41 @@ const workspaceInvitations = computed(
 )
 
 await store.dispatch('auth/fetchWorkspaceInvitations')
+
+/**
+ * Fetches the data the plugins need for the components they add to the
+ * workspace boxes, for all workspaces at once. It doesn't block the page, and
+ * because the data is optional, a failure must not break the page either.
+ */
+async function fetchWorkspaceComponentArguments() {
+  let mergedData = { workspaceComponentArguments: { usageData: [] } }
+
+  for (const plugin of Object.values($registry.getAll('plugin'))) {
+    try {
+      const workspaceData = await plugin.fetchAsyncDashboardData(nuxtApp)
+      if (workspaceData) {
+        mergedData = plugin.mergeDashboardData(mergedData, workspaceData)
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  return mergedData.workspaceComponentArguments
+}
+
+const { data: fetchedComponentArguments, status } = useAsyncData(
+  'all-workspaces-component-arguments',
+  fetchWorkspaceComponentArguments,
+  { lazy: true, server: false }
+)
+const workspaceComponentArguments = computed(
+  () => fetchedComponentArguments.value ?? {}
+)
+// `idle` is the tick before the fetch starts.
+const workspaceComponentArgumentsLoading = computed(() =>
+  ['idle', 'pending'].includes(status.value)
+)
 
 const header = ref(null)
 
