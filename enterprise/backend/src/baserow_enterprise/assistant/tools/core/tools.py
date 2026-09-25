@@ -96,6 +96,7 @@ def create_builders(
     HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
     THEME (applications only): Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
     ASK FIRST: An application needs a purpose — what it manages or shows. For a bare request such as "create an app for my team", call ask_user before creating anything. A request that names the builder or asks for an empty one (e.g. "create an empty automation called X") is enough to create it.
+    NOT FOR APP RECORDS: Never create a database to hold records an app should show unless the user asked for new data storage or an example, demo, or sample app. Call list_tables and, if nothing matches, ask the user instead.
     """
 
     user = ctx.deps.user

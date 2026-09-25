@@ -59,7 +59,10 @@ resource. It also does not prevent duplicates across concurrent agent runs.
 Product questions use documentation without requiring example tables or fields to
 exist. Inspection requests use read tools. For changes, missing user-owned data
 must be looked up before asking for clarification; displaying existing data does
-not authorize creating replacement tables or sample records. New build requests
+not authorize creating replacement tables or sample records. When no table holds
+the records an app should show, Kuma creates nothing and asks whether to create a
+table with sample data, agree on its fields first, or use data the user points to.
+An explicit example, demo, or sample app request authorizes its sample data. New build requests
 with enough context use reasonable defaults for a useful first version.
 Compact table schemas identify omitted fields and direct the agent to request the
 full schema before treating a field as missing. Page discovery distinguishes
