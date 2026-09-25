@@ -373,6 +373,25 @@ export class ViewType extends Registerable {
   ) {}
 
   /**
+   * Apply one realtime update frame. Views process its rows sequentially unless
+   * they provide their own queue and need to schedule the entire frame at once.
+   */
+  async rowsUpdated(context, tableId, fields, updates, storePrefix) {
+    for (const { row, values, metadata, updatedFieldIds } of updates) {
+      await this.rowUpdated(
+        context,
+        tableId,
+        fields,
+        row,
+        values,
+        metadata,
+        updatedFieldIds,
+        storePrefix
+      )
+    }
+  }
+
+  /**
    * Event that is called when something went wrong while generating AI values
    * for a field. This can be used to show an error message to the user.
    */
@@ -886,17 +905,6 @@ export class GridViewType extends ViewType {
     )
   }
 
-  // fetchAllFieldAggregationData refreshes the footer in flat mode and the per-group
-  // values + footer totals (one request) in grouped mode, so this works for both.
-  refreshAggregationsAfterRowChange(store, fields, storePrefix) {
-    store.dispatch(
-      storePrefix + 'view/grid/fetchAllFieldAggregationDataDebounced',
-      {
-        view: store.getters['view/getSelected'],
-      }
-    )
-  }
-
   async rowCreated(
     { store },
     tableId,
@@ -906,17 +914,14 @@ export class GridViewType extends ViewType {
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
-      await store.dispatch(storePrefix + 'view/grid/createdNewRow', {
+      await store.dispatch(storePrefix + 'view/grid/applyRealtimeRowChange', {
+        tableId,
         view: store.getters['view/getSelected'],
         fields,
+        action: 'createdNewRow',
         values,
         metadata,
       })
-      await store.dispatch(storePrefix + 'view/grid/fetchByScrollTopDelayed', {
-        scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
-        fields,
-      })
-      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 
@@ -931,50 +936,48 @@ export class GridViewType extends ViewType {
     storePrefix = ''
   ) {
     if (this.isCurrentView(store, tableId)) {
-      try {
-        // A realtime row update signal can be received before the rows are created.
-        // In that case, there is a race condition because the row doesn't have the
-        // ID yet, so it can't be updated. This can be resolved by waiting all rows
-        // to be created.
-        await waitFor(() =>
-          store.getters[storePrefix + 'view/grid/getRows'].every(
-            (row) => !row._.loading
-          )
-        )
-      } catch (error) {
-        // If the timeout is reached, then just continue with the update because the
-        // realtime update must come through eventually, otherwise the page is not
-        // up to date.
-      }
-      await store.dispatch(storePrefix + 'view/grid/updatedExistingRow', {
+      await store.dispatch(storePrefix + 'view/grid/applyRealtimeRowChange', {
+        tableId,
         view: store.getters['view/getSelected'],
         fields,
+        action: 'updatedExistingRow',
         row,
         values,
         metadata,
         updatedFieldIds,
       })
-      await store.dispatch(storePrefix + 'view/grid/fetchByScrollTopDelayed', {
-        scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
-        fields,
-      })
-      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
   }
 
   async rowDeleted({ store }, tableId, fields, row, storePrefix = '') {
     if (this.isCurrentView(store, tableId)) {
-      await store.dispatch(storePrefix + 'view/grid/deletedExistingRow', {
+      await store.dispatch(storePrefix + 'view/grid/applyRealtimeRowChange', {
+        tableId,
         view: store.getters['view/getSelected'],
         fields,
+        action: 'deletedExistingRow',
         row,
       })
-      await store.dispatch(storePrefix + 'view/grid/fetchByScrollTopDelayed', {
-        scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
-        fields,
-      })
-      this.refreshAggregationsAfterRowChange(store, fields, storePrefix)
     }
+  }
+
+  async rowsUpdated(context, tableId, fields, updates, storePrefix) {
+    // Queue the whole frame synchronously, so later create/delete frames cannot
+    // overtake its remaining rows while a local creation is pending.
+    await Promise.all(
+      updates.map(({ row, values, metadata, updatedFieldIds }) =>
+        this.rowUpdated(
+          context,
+          tableId,
+          fields,
+          row,
+          values,
+          metadata,
+          updatedFieldIds,
+          storePrefix
+        )
+      )
+    )
   }
 
   AIValuesGenerationError(

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes duplicate or missing rows when creating and editing rows concurrently in restricted grid views",
+    "issue_origin": "github",
+    "issue_number": 6119,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-25"
+}

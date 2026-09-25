@@ -12,7 +12,11 @@ import {
 
 import { uuid } from '@baserow/modules/core/utils/string'
 import { clone } from '@baserow/modules/core/utils/object'
-import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
+import {
+  GroupTaskQueue,
+  TaskQueue,
+  waitFor,
+} from '@baserow/modules/core/utils/queue'
 import ViewService from '@baserow/modules/database/services/view'
 import GridService from '@baserow/modules/database/services/view/grid'
 import RowService from '@baserow/modules/database/services/row'
@@ -961,6 +965,8 @@ export const state = () => ({
   selectedRowId: -1,
   // The last used grid id.
   lastGridId: -1,
+  // Invalidates delayed realtime changes when the grid is loaded again.
+  rowsGeneration: 0,
   // If true, ad hoc filtering is used instead of persistent one
   adhocFiltering: false,
   // If true, ad hoc sorting is used
@@ -1017,6 +1023,7 @@ export const state = () => ({
 
 export const mutations = {
   CLEAR_ROWS(state) {
+    state.rowsGeneration += 1
     state.fieldOptions = {}
     state.count = 0
     state.rows = []
@@ -1223,6 +1230,7 @@ export const mutations = {
   },
   SET_LAST_GRID_ID(state, gridId) {
     state.lastGridId = gridId
+    state.rowsGeneration += 1
   },
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
@@ -1778,6 +1786,21 @@ const fireScrollTop = {
 }
 
 const createAndUpdateRowQueue = new GroupTaskQueue()
+
+// Promises and queues belong to a grid store instance, outside serializable state.
+const realtimeRowChanges = new WeakMap()
+
+function getRealtimeRowChanges(state) {
+  // A pending request in an old view must not block events in a newly loaded one.
+  if (realtimeRowChanges.get(state)?.generation !== state.rowsGeneration) {
+    realtimeRowChanges.set(state, {
+      generation: state.rowsGeneration,
+      pendingCreations: new Set(),
+      queue: new TaskQueue({}),
+    })
+  }
+  return realtimeRowChanges.get(state)
+}
 
 // Contains the last row request to be able to cancel it.
 let lastRequest = null
@@ -4674,7 +4697,14 @@ export const actions = {
         }
       }
     })
-    await taskQueue.waitFor(taskId)
+    const creation = taskQueue.waitFor(taskId)
+    const { pendingCreations } = getRealtimeRowChanges(state)
+    pendingCreations.add(creation)
+    try {
+      await creation
+    } finally {
+      pendingCreations.delete(creation)
+    }
 
     if (
       !skipFetchByScrollTop &&
@@ -4686,6 +4716,66 @@ export const actions = {
         fields,
       })
     }
+  },
+  /**
+   * Apply realtime row changes in arrival order, after pending local creations.
+   * In particular, a deletion can arrive before a create response assigns the
+   * row its permanent ID. Queue reentries and updates too so they cannot overtake
+   * that deletion. Keep this separate from the lifecycle actions below because
+   * creation completion and rollback call them before settling their promise.
+   */
+  async applyRealtimeRowChange(
+    { dispatch, getters, rootGetters, state },
+    { tableId, view, fields, action, ...payload }
+  ) {
+    const generation = state.rowsGeneration
+    const isCurrentGrid = () =>
+      generation === state.rowsGeneration &&
+      getters.getLastGridId === view.id &&
+      rootGetters['view/getSelected'].id === view.id &&
+      rootGetters['table/getSelected'].id === tableId
+
+    const { queue, pendingCreations } = getRealtimeRowChanges(state)
+    const creations = [...pendingCreations]
+    const taskId = queue.add(async () => {
+      // Rejected creates roll back their temporary rows and must also release
+      // realtime changes. Ordinary edits need not delay visibility events.
+      await Promise.allSettled(creations)
+      // A different restricted view can have different membership on the same
+      // table. A fresh load already includes changes received before that load.
+      if (!isCurrentGrid()) {
+        return
+      }
+      if (action === 'updatedExistingRow') {
+        try {
+          // Preserve update ordering with non-optimistic local edits too: their
+          // HTTP response must not overwrite a newer realtime value. Unlike
+          // creates, keep the existing timeout for these local edit spinners.
+          await waitFor(
+            () =>
+              !isCurrentGrid() ||
+              getters.getAllRows.every((row) => !row._.loading)
+          )
+        } catch (error) {
+          // Apply the realtime update even if a local edit remains stuck loading.
+        }
+        if (!isCurrentGrid()) {
+          return
+        }
+      }
+      await dispatch(action, { view, fields, ...payload })
+      if (!isCurrentGrid()) {
+        return
+      }
+      await dispatch('fetchByScrollTopDelayed', {
+        scrollTop: getters.getScrollTop,
+        fields,
+      })
+      if (isCurrentGrid()) {
+        dispatch('fetchAllFieldAggregationDataDebounced', { view })
+      }
+    })
+    await queue.waitFor(taskId)
   },
   /**
    * Called after a new row has been created, which could be by the user or via

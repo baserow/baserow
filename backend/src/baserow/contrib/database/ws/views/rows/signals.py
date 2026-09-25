@@ -232,14 +232,17 @@ def views_rows_updated(
 
     @baserow_trace(tracer, allow_nested=True)
     def _send_created_updated_deleted_row_signals_to_views():
+        # Restricted clients do not have the view filters, so even the editor
+        # needs these events when an update changes a row's visibility. Unlike
+        # actual creates/deletes, the HTTP response cannot reconcile this change.
         _send_rows_deleted_event_to_views(
-            serialized_old_rows, views_where_rows_were_deleted, user=user
+            serialized_old_rows, views_where_rows_were_deleted, user=None
         )
         _send_rows_created_event_to_views(
             serialized_updated_rows,
             before=None,
             views=views_where_rows_were_created,
-            user=user,
+            user=None,
         )
 
         view_handler = ViewHandler()
