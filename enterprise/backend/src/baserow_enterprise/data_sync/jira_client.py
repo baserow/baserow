@@ -176,9 +176,7 @@ def fetch_issues(
         for i, page in enumerate(_iter_pages(jira, jql, ",".join(fields))):
             if progress is None:
                 total = int(page.get("total") or 0)
-                # Jira Server can cap the page size below what was asked for, in
-                # which case it reports the size it applied and there are more
-                # pages than the requested size suggests.
+                # Jira Server reports the page size it applied, Cloud doesn't.
                 page_size = int(page.get("maxResults") or JIRA_MAX_RESULTS_PER_PAGE)
                 child_total = math.ceil(total / page_size) if total else 1
                 progress = ChildProgressBuilder.build(

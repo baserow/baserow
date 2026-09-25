@@ -172,7 +172,7 @@ def test_a_property_enabled_during_the_fetch_is_written_by_that_sync(data_fixtur
     assert data_sync.table.field_set.filter(id=dtend_property.field_id).exists(), (
         "the column enabled during the fetch was removed again by the sync"
     )
-    row = data_sync.table.get_model().objects.first()
+    row = data_sync.table.get_model(use_cache=False).objects.first()
     assert getattr(row, f"field_{dtend_property.field_id}") is not None, (
         "the source returned a value for the newly enabled property, but the sync "
         "did not write it"

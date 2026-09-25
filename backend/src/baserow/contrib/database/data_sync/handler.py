@@ -28,7 +28,6 @@ from baserow.contrib.database.table.operations import UpdateDatabaseTableOperati
 from baserow.contrib.database.table.signals import table_created, table_updated
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.view_types import GridViewType
-from baserow.core.cache import local_cache
 from baserow.core.db import specific_queryset
 from baserow.core.handler import CoreHandler
 from baserow.core.utils import (
@@ -477,11 +476,7 @@ class DataSyncHandler:
         cached model doesn't know and fails, so the cache is bypassed here.
         """
 
-        # The wildcard also drops the cached table version that `get_model()` keys
-        # the shared model cache on; without that it would hand back the entry
-        # for the version this thread saw before the fetch.
-        local_cache.delete(f"database_table_model_{data_sync.table_id}*")
-        return data_sync.table.get_model()
+        return data_sync.table.get_model(use_cache=False)
 
     @staticmethod
     def _fingerprint_row(row: dict, field_names: List[str]) -> int:
@@ -514,24 +509,30 @@ class DataSyncHandler:
         # change to one it does. Storing a fingerprint per row rather than the
         # values themselves keeps the memory footprint to one integer per row; the
         # write phase re-reads the current values under the table lock anyway.
-        pre_fetch_model = self._get_current_model(data_sync)
-        pre_fetch_key_to_field_name = {
-            p.key: f"field_{p.field_id}"
-            for p in DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
-        }
-        pre_fetch_field_names = sorted(pre_fetch_key_to_field_name.values())
+        pre_fetch_field_names = []
         pre_fetch_fingerprints = {}
         pre_fetch_unique_keys = set()
-        for row in pre_fetch_model.objects.all().values("id", *pre_fetch_field_names):
-            pre_fetch_fingerprints[row["id"]] = self._fingerprint_row(
-                row, pre_fetch_field_names
-            )
-            pre_fetch_unique_keys.add(
-                tuple(
-                    row[pre_fetch_key_to_field_name[key]] for key in unique_primary_keys
+        pre_fetch_row_ids = None
+        if data_sync.two_way_sync:
+            pre_fetch_model = self._get_current_model(data_sync)
+            pre_fetch_key_to_field_name = {
+                p.key: f"field_{p.field_id}"
+                for p in DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
+            }
+            pre_fetch_field_names = sorted(pre_fetch_key_to_field_name.values())
+            for row in pre_fetch_model.objects.all().values(
+                "id", *pre_fetch_field_names
+            ):
+                pre_fetch_fingerprints[row["id"]] = self._fingerprint_row(
+                    row, pre_fetch_field_names
                 )
-            )
-        pre_fetch_row_ids = set(pre_fetch_fingerprints.keys())
+                pre_fetch_unique_keys.add(
+                    tuple(
+                        row[pre_fetch_key_to_field_name[key]]
+                        for key in unique_primary_keys
+                    )
+                )
+            pre_fetch_row_ids = set(pre_fetch_fingerprints.keys())
         progress.increment(by=1)  # makes the total `3`
 
         # --- Fetch phase (outside transaction) ---
@@ -685,11 +686,12 @@ class DataSyncHandler:
                         row_ids_to_delete.append(row["id"])
                 # Rows that did not exist when the fetch started can't be missing
                 # from the source; they were created by a user in the meantime.
-                row_ids_to_delete = [
-                    row_id
-                    for row_id in row_ids_to_delete
-                    if row_id in pre_fetch_row_ids
-                ]
+                if pre_fetch_row_ids is not None:
+                    row_ids_to_delete = [
+                        row_id
+                        for row_id in row_ids_to_delete
+                        if row_id in pre_fetch_row_ids
+                    ]
             progress.increment(by=1)  # makes the total `71`
 
             created_rows = CreatedRowsData([], {}, [], None)
