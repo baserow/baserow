@@ -1963,8 +1963,15 @@ def test_ai_field_api_serializes_error(api_client, premium_data_fixture):
 
 @pytest.mark.field_ai
 @pytest.mark.django_db
-def test_ai_field_list_api_serializes_disabled_instance_model_error(
-    api_client, premium_data_fixture
+@pytest.mark.parametrize(
+    "legacy_api_key, expected_error",
+    [
+        ("", "The selected AI model is disabled or no longer available."),
+        ("workspace-secret", None),
+    ],
+)
+def test_ai_field_list_api_resolves_disabled_instance_model_with_legacy_settings(
+    api_client, premium_data_fixture, legacy_api_key, expected_error
 ):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
@@ -1973,7 +1980,7 @@ def test_ai_field_list_api_serializes_disabled_instance_model_error(
     workspace = table.database.workspace
     workspace.generative_ai_models_settings = {
         "openai": {
-            "api_key": "workspace-secret",
+            "api_key": legacy_api_key,
             "models": ["gpt-5"],
         }
     }
@@ -1999,15 +2006,17 @@ def test_ai_field_list_api_serializes_disabled_instance_model_error(
     serialized_field = next(
         serialized for serialized in response.json() if serialized["id"] == field.id
     )
-    assert serialized_field["error"] == (
-        "The selected AI model is disabled or no longer available."
-    )
+    assert serialized_field["error"] == expected_error
 
 
 @pytest.mark.field_ai
 @pytest.mark.django_db
-def test_create_ai_field_rejects_disabled_instance_model(
-    api_client, premium_data_fixture
+@pytest.mark.parametrize(
+    "legacy_api_key, expected_status",
+    [("", HTTP_400_BAD_REQUEST), ("workspace-secret", HTTP_200_OK)],
+)
+def test_create_ai_field_resolves_disabled_instance_model_with_legacy_settings(
+    api_client, premium_data_fixture, legacy_api_key, expected_status
 ):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
@@ -2016,7 +2025,7 @@ def test_create_ai_field_rejects_disabled_instance_model(
     workspace = table.database.workspace
     workspace.generative_ai_models_settings = {
         "openai": {
-            "api_key": "workspace-secret",
+            "api_key": legacy_api_key,
             "models": ["gpt-5"],
         }
     }
@@ -2040,8 +2049,15 @@ def test_create_ai_field_rejects_disabled_instance_model(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
+    assert response.status_code == expected_status
+    if expected_status == HTTP_400_BAD_REQUEST:
+        assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
+        assert not AIField.objects.filter(table=table).exists()
+    else:
+        field = AIField.objects.get(id=response.json()["id"])
+        assert field.table_id == table.id
+        assert field.ai_generative_ai_type == "openai"
+        assert field.ai_generative_ai_model == "gpt-5"
 
 
 @pytest.mark.field_ai

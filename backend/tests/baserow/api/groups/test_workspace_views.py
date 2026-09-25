@@ -54,15 +54,19 @@ def test_listing_workspaces_resolves_ai_models_in_a_workspace_independent_way(
 
 
 @pytest.mark.django_db
-def test_listing_workspaces_excludes_legacy_models_missing_from_instance_provider(
-    api_client, data_fixture
+@pytest.mark.parametrize(
+    "legacy_api_key, expected_models",
+    [("", ["database-model"]), ("workspace-secret", ["legacy-model"])],
+)
+def test_listing_workspaces_resolves_legacy_models_alongside_instance_provider(
+    api_client, data_fixture, legacy_api_key, expected_models
 ):
     user, token = data_fixture.create_user_and_token()
     data_fixture.create_workspace(
         user=user,
         generative_ai_models_settings={
             "openai": {
-                "api_key": "workspace-secret",
+                "api_key": legacy_api_key,
                 "models": ["legacy-model"],
             }
         },
@@ -79,10 +83,12 @@ def test_listing_workspaces_excludes_legacy_models_missing_from_instance_provide
     )
 
     assert response.status_code == HTTP_200_OK
-    assert "openai" not in response.json()[0]["generative_ai_models_enabled"]
+    assert (
+        response.json()[0]["generative_ai_models_enabled"]["openai"] == expected_models
+    )
     assert response.json()[0]["ai_features"]["ai_fields"] == {
-        "is_enabled": False,
-        "models": {},
+        "is_enabled": True,
+        "models": {"openai": expected_models},
     }
 
 
@@ -660,12 +666,18 @@ def test_legacy_workspace_generative_ai_settings_endpoint_is_removed(
 
 
 @pytest.mark.django_db
-def test_list_workspaces_excludes_disabled_instance_ai_models(api_client, data_fixture):
+@pytest.mark.parametrize(
+    "legacy_api_key, expected_models",
+    [("", []), ("workspace-secret", ["gpt-5"])],
+)
+def test_list_workspaces_resolves_disabled_instance_models_with_legacy_settings(
+    api_client, data_fixture, legacy_api_key, expected_models
+):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     workspace.generative_ai_models_settings = {
         "openai": {
-            "api_key": "workspace-secret",
+            "api_key": legacy_api_key,
             "models": ["gpt-5"],
         }
     }
@@ -683,7 +695,11 @@ def test_list_workspaces_excludes_disabled_instance_ai_models(api_client, data_f
 
     assert response.status_code == HTTP_200_OK
     enabled_models = response.json()[0]["generative_ai_models_enabled"]
-    assert enabled_models.get("openai", []) == []
+    assert enabled_models.get("openai", []) == expected_models
+    assert response.json()[0]["ai_features"]["ai_fields"] == {
+        "is_enabled": bool(expected_models),
+        "models": {"openai": expected_models} if expected_models else {},
+    }
 
 
 @pytest.mark.django_db
