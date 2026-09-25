@@ -9,8 +9,8 @@
       @dragover.prevent="onDragOver"
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
-      @keydown.enter.prevent="triggerFileInput"
-      @keydown.space.prevent="triggerFileInput"
+      @keydown.enter.self.prevent="triggerFileInput"
+      @keydown.space.self.prevent="triggerFileInput"
     >
       <ABFormattedText
         class="ab-file-input__help-text"
@@ -184,11 +184,7 @@ export default {
     onDragLeave() {
       this.isDragOver = false
     },
-    triggerFileInput(event) {
-      // A link in the help text must not open the file picker as well.
-      if (event?.target?.closest?.('a')) {
-        return
-      }
+    triggerFileInput() {
       this.$refs.fileInputRef.click()
     },
     removeFile(index) {

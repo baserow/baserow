@@ -52,7 +52,9 @@ import {
  *
  * Links follow the Application Builder rules (internal `/` links go through
  * the router, nothing navigates in editing mode) and can be switched off with
- * `allowLinks`.
+ * `allowLinks`. Outside editing mode a click on a link stops here, so that an
+ * ancestor with a click handler of its own (a drop zone, a row) doesn't react
+ * to it as well.
  */
 export default {
   name: 'ABFormattedText',
@@ -132,12 +134,19 @@ export default {
   methods: {
     onClick(event) {
       if (this.mode === 'editing') {
+        // The click still bubbles: the editor selects the element with it.
         event.preventDefault()
         return
       }
-      if (event.target.classList.contains('ab-link')) {
-        const url = event.target.getAttribute('href')
+      // Markdown can nest inline elements inside a link (`[**bold**](url)`),
+      // so the click target isn't always the anchor itself. The lookup stays
+      // within this component's own markup.
+      const link = event.target.closest('a.ab-link')
+      if (link && this.$el.contains(link)) {
+        // The click belongs to the link: nothing above must act on it too.
+        event.stopPropagation()
 
+        const url = link.getAttribute('href')
         if (url?.startsWith('/')) {
           event.preventDefault()
           this.$router.push(url)
