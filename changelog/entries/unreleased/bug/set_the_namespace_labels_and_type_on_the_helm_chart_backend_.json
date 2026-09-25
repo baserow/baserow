@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Set the namespace, labels and type on the Helm chart backend secret so it matches the other chart resources",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-07"
+}

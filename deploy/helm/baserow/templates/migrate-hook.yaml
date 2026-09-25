@@ -11,13 +11,16 @@ spec:
   template:
     spec:
       {{- if or .Values.global.baserow.securityContext.enabled .Values.migration.securityContext.enabled }}
-      securityContext: {{- include "podSecurityContext" . | nindent 8 }}
+      securityContext: {{- include "baserow.global.migration.podSecurityContext" . | nindent 8 }}
       {{- end }}
       containers:
         - name: migrate
           image: {{ include "baserow.global.migration.image" . }}
           args: ["setup"]
           imagePullPolicy: Always
+          {{- with .Values.migration.resources }}
+          resources: {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- if .Values.migration.extraEnv }}
           env:
             {{- range .Values.migration.extraEnv }}
@@ -36,7 +39,7 @@ spec:
           priorityClassName: {{ .Values.migration.priorityClassName }}
           {{- end -}}
           {{- if or .Values.global.baserow.containerSecurityContext.enabled .Values.migration.containerSecurityContext.enabled }}
-          securityContext: {{- include "containerSecurityContext" . | nindent 12 }}
+          securityContext: {{- include "baserow.global.migration.containerSecurityContext" . | nindent 12 }}
           {{- end }}
           {{- with .Values.migration.volumeMounts }}
           volumeMounts:
