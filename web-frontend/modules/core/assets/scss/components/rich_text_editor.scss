@@ -158,10 +158,6 @@
   font-size: 13px;
 }
 
-// Stands in for an image on the surfaces that render none. An icon rather than
-// the U+1F5BC glyph, which Inter does not cover: the browser fell back to the
-// colour emoji font on some pages and to a monochrome one on others, so the
-// same cell looked different in the grid and in a public view.
 .rich-text-image-placeholder {
   display: inline-block;
   margin-right: 2px;

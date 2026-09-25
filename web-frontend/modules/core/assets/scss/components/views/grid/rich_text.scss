@@ -9,14 +9,10 @@
     height: 100%;
     overflow: hidden;
 
-    // Sized like a file field thumbnail (`grid-field-file__image`): a fixed
-    // height with the aspect ratio kept, so a row of mixed images lines up
-    // instead of each one keeping its own height. The file field's border
-    // rules are repeated rather than `@extend`ed, which would drag its
-    // `.grid-field-file__cell.active` nesting in with them.
     .field-rich-text--preview & img {
       display: inline-block;
       height: 22px;
+      max-height: none;
       width: auto;
       margin: 2px 4px 2px 0;
       border: solid 1px $palette-neutral-400;
