@@ -65,7 +65,10 @@ export default {
     acceptedFileTypes() {
       return this.element.allowed_filetypes
         .filter((v) => v)
-        .map((value) => {
+        .flatMap((value) => {
+          if (['jpg', 'jpeg', '.jpg', '.jpeg'].includes(value)) {
+            return ['.jpg', '.jpeg']
+          }
           if (value.toLowerCase() === 'image/jpg') {
             return 'image/jpeg'
           }
