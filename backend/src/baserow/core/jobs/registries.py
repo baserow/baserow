@@ -55,13 +55,6 @@ class JobType(
     A number of max jobs count for the same type for a given user.
     """
 
-    queue: str = "export"
-
-    """
-    The Celery queue `run_async_job` is sent to for this type. Slow work that
-    must not delay exports and imports gets a queue of its own.
-    """
-
     def can_schedule_or_raise(self, job: Job) -> None:
         """
         Checks whether ``job`` can be scheduled for the given user. Splits into

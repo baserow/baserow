@@ -751,7 +751,7 @@ test.describe("Button field, external actions", () => {
       const clicker = await freshClicker();
       const grid = await gridFor(page, clicker);
 
-      // This environment's Celery worker runs the button_dispatch queue at a
+      // This environment's Celery worker runs the export queue at a
       // concurrency of one, so the two jobs below are never actually
       // in flight together and the per-field, per-row lock itself is not
       // contested here — that's covered instead by

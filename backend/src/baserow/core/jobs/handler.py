@@ -266,7 +266,7 @@ class JobHandler:
             # failure that triggers a sys.exit(1) to be called in gunicorn.
             def call_async_job_safe():
                 try:
-                    run_async_job.apply_async(args=[job.id], queue=job_type.queue)
+                    run_async_job.delay(job.id)
                 except BaseException as e:
                     job.refresh_from_db()
                     if job.pending:

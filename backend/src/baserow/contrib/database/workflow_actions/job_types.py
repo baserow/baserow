@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.db import DatabaseError
 from django.utils import timezone
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -15,6 +16,9 @@ from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.utils.encoders import JSONEncoder
 
 from baserow.api.errors import ERROR_PERMISSION_DENIED
+from baserow.contrib.database.api.workflow_actions.errors import (
+    ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS,
+)
 from baserow.contrib.database.api.workflow_actions.serializers import (
     dispatch_result_payload,
 )
@@ -46,7 +50,7 @@ from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import JobType
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.utils import Progress
+from baserow.core.utils import Progress, remove_invalid_surrogate_characters
 
 
 def denied_message(exc: Exception) -> str:
@@ -74,24 +78,26 @@ def jsonb_safe(value: Any) -> Any:
     """
     The click's payload as Postgres can store it. The inline response was
     rendered by DRF, which accepts what a jsonb column refuses: a NUL
-    character in an endpoint's answer, a float that is not a number, a date.
+    character or a lone surrogate (a string cut mid-emoji) in an endpoint's
+    answer, a float that is not a number, a date.
 
     :param value: The payload.
-    :return: The same payload with those replaced.
+    :return: The same payload with those removed or replaced.
     """
 
-    def clean(item):
-        if isinstance(item, str):
-            return item.replace("\x00", "")
+    def finite(item):
         if isinstance(item, float) and not math.isfinite(item):
             return None
         if isinstance(item, dict):
-            return {clean(key): clean(val) for key, val in item.items()}
+            return {key: finite(val) for key, val in item.items()}
         if isinstance(item, (list, tuple)):
-            return [clean(val) for val in item]
+            return [finite(val) for val in item]
         return item
 
-    return clean(json.loads(json.dumps(clean(value), cls=JSONEncoder)))
+    # Dumped with every non-ASCII character escaped, so the NUL and surrogate
+    # escapes are removed as the Airtable import removes them.
+    encoded = json.dumps(finite(value), cls=JSONEncoder).encode("utf-8")
+    return json.loads(remove_invalid_surrogate_characters(encoded, "utf-8"))
 
 
 def _own_message(exc: Exception) -> str:
@@ -110,11 +116,10 @@ class ButtonFieldDispatchJobType(JobType):
     type = "button_field_dispatch"
     model_class = ButtonFieldDispatchJob
     max_count = 5
-    queue = "button_dispatch"
 
     job_exceptions_map = {
         WorkflowActionDispatchError: _own_message,
-        WorkflowActionDispatchInProgress: "Another click on this row is still running.",
+        WorkflowActionDispatchInProgress: ERROR_WORKFLOW_ACTION_DISPATCH_IN_PROGRESS[2],
         # A race between enqueue and run: the field, the row, the workspace
         # membership or the type's activation can change while the job is
         # queued. Mapped so the job fails with a message instead of raising
@@ -143,10 +148,26 @@ class ButtonFieldDispatchJobType(JobType):
     }
 
     request_serializer_field_names = []
-    serializer_field_names = ["results", "client_actions"]
+    serializer_field_names = ["field_id", "row_id", "results", "client_actions"]
     serializer_field_overrides = {
-        "results": serializers.JSONField(read_only=True, allow_null=True),
-        "client_actions": serializers.JSONField(read_only=True, allow_null=True),
+        "field_id": serializers.IntegerField(
+            read_only=True,
+            allow_null=True,
+            help_text="The clicked button field. Empty once it is no longer a button.",
+        ),
+        "row_id": serializers.IntegerField(
+            read_only=True, help_text="The clicked row."
+        ),
+        "results": serializers.JSONField(
+            read_only=True,
+            allow_null=True,
+            help_text="One result per server action that ran, once the click finished.",
+        ),
+        "client_actions": serializers.JSONField(
+            read_only=True,
+            allow_null=True,
+            help_text="The frontend-only actions the browser runs after the click.",
+        ),
     }
 
     def prepare_values(
@@ -167,7 +188,7 @@ class ButtonFieldDispatchJobType(JobType):
         return nullcontext()
 
     def run(self, job: ButtonFieldDispatchJob, progress: Progress) -> None:
-        # Reading `job.user` restores the clicker's websocket id on it.
+        # Reading `job.user` restores the clicker's IP and session ids on it.
         user = job.user
         # The cleanup fails a job this old and frees its cell, so another click
         # may already be running the same actions.
@@ -259,6 +280,12 @@ class ButtonFieldDispatchJobType(JobType):
         payload = jsonb_safe(dispatch_result_payload(dispatch, user))
         job.results = payload["results"]
         job.client_actions = payload["client_actions"]
-        job.save(update_fields=["results", "client_actions"])
+        try:
+            job.save(update_fields=["results", "client_actions"])
+        except DatabaseError:
+            # The failure save that follows writes every field, so it would
+            # be refused too and leave the job started, its cell busy.
+            job.results = job.client_actions = None
+            raise
 
         send_dispatched(DispatchOutcome.COMPLETED)

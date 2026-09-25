@@ -4,11 +4,7 @@ from django.db.models import OuterRef
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.core.formula.field import FormulaField as CoreFormulaModelField
-from baserow.core.jobs.mixins import (
-    JobWithUndoRedoIds,
-    JobWithUserIpAddress,
-    JobWithWebsocketId,
-)
+from baserow.core.jobs.mixins import JobWithUndoRedoIds, JobWithUserIpAddress
 from baserow.core.jobs.models import Job
 from baserow.core.mixins import OrderableMixin
 from baserow.core.registry import ModelRegistryMixin
@@ -139,9 +135,7 @@ class SlackWriteMessageWorkflowAction(DatabaseWorkflowServiceAction): ...
 class CoreStartWorkflowWorkflowAction(DatabaseWorkflowServiceAction): ...
 
 
-class ButtonFieldDispatchJob(
-    JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job
-):
+class ButtonFieldDispatchJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
     """
     One button click that runs behind the request, because an action of it
     reaches outside Baserow. Carries what the click produced once it ran, in

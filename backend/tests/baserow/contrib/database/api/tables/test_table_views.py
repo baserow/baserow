@@ -467,9 +467,7 @@ def test_create_table_with_data(
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
 
-    mock_run_async_job.apply_async.assert_called_with(
-        args=[response_json["id"]], queue="export"
-    )
+    mock_run_async_job.delay.assert_called_with(response_json["id"])
 
     job = FileImportJob.objects.get(id=response_json["id"])
 

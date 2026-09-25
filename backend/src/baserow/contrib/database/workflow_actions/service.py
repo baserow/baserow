@@ -3,7 +3,7 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import fields as dataclass_fields
 from datetime import timedelta
 from time import perf_counter
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, ContextManager, Dict, List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -64,6 +64,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
+from baserow.core.jobs.handler import JobHandler
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
@@ -654,6 +655,71 @@ class DatabaseWorkflowActionService:
             )
             .exists()
         )
+
+    def async_dispatch_workflow_actions(
+        self,
+        user: AbstractUser,
+        field: ButtonField,
+        row: Any,
+        workflow_actions: List[DatabaseWorkflowAction],
+        charge: Callable[[], ContextManager] = nullcontext,
+    ) -> ButtonFieldDispatchJob:
+        """
+        Hands a click to a job that runs its actions behind the request.
+        Refuses first what the job would refuse, so a click that cannot run
+        leaves no job behind.
+
+        A pending or started job guards its cell until it ends, so a second
+        click on that cell is refused. The short enqueue lock only serializes
+        that check with the job's creation, so two racing clicks cannot both
+        pass it.
+
+        :param user: The user who clicked.
+        :param field: The clicked button field.
+        :param row: The clicked row.
+        :param workflow_actions: The actions to run, from
+            `get_dispatch_snapshot`. The job runs this list and no other.
+        :param charge: Wraps the job's creation, once the click is accepted,
+            to charge for it. Whatever it charged is its own to give back when
+            the creation raises.
+        :raises WorkflowActionDispatchInProgress: When a click is already
+            waiting or running for this field and row.
+        :return: The job, pending.
+        """
+
+        # Imported here: the job type module reads this service.
+        from baserow.contrib.database.workflow_actions.job_types import (
+            ButtonFieldDispatchJobType,
+        )
+
+        self.check_dispatch_allowed(user, field, workflow_actions)
+        # Before anything is charged, so a receiver refusing the click (a SaaS
+        # quota) answers in the request as it does for an inline click. Sent
+        # again when the job runs, in case the answer changed meanwhile.
+        workflow_actions_before_dispatch.send(
+            self,
+            user=user,
+            field=field,
+            workflow_actions=tuple(
+                wa for wa in workflow_actions if not wa.get_type().is_frontend_only
+            ),
+        )
+
+        # Two requests could otherwise both see the cell free and both create
+        # a job, which a single worker would then run one after the other,
+        # sending every request twice.
+        with self.cell_lock("button_enqueue", field, row.id, timeout=10):
+            if self.has_click_in_flight(field, row.id, workflow_actions):
+                raise WorkflowActionDispatchInProgress()
+
+            with charge():
+                return JobHandler().create_and_start_job(
+                    user,
+                    ButtonFieldDispatchJobType.type,
+                    field=field,
+                    row_id=row.id,
+                    accepted_actions=self.accepted_actions(workflow_actions),
+                )
 
     def _remember_nothing_was_captured(
         self, workflow_action: DatabaseWorkflowAction, reason: str

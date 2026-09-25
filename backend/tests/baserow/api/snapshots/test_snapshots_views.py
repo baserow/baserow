@@ -508,7 +508,7 @@ def test_get_current_snapshot_job(api_client, data_fixture):
     url = reverse("api:snapshots:list", kwargs={"application_id": application_1.id})
     snapshot_name = "Test snapshot name"
 
-    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
+    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
         response = api_client.post(
             url,
             {"name": snapshot_name},
@@ -565,7 +565,7 @@ def test_get_current_snapshot_job_cancelled(api_client, data_fixture):
     url = reverse("api:snapshots:list", kwargs={"application_id": application_1.id})
     snapshot_name = "Test snapshot name"
 
-    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
+    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
         response = api_client.post(
             url,
             {"name": snapshot_name},

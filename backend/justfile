@@ -580,7 +580,7 @@ run-celery: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow,button_dispatch -l INFO
+    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -l INFO
 
 # Run production Celery export worker
 [group('5 - production')]
@@ -642,8 +642,8 @@ run-dev-celery: _check-dev
     # Clear log file on start
     > "$LOG_FILE"
 
-    echo "Starting Celery worker (celery,automation_workflow,button_dispatch queues)..."
-    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow,button_dispatch -n default-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "WORKER" "$COLOR_WORKER" &
+    echo "Starting Celery worker (celery,automation_workflow queues)..."
+    {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -n default-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "WORKER" "$COLOR_WORKER" &
     WORKER_PID=$!
 
     echo "Starting Celery export worker (export queue)..."

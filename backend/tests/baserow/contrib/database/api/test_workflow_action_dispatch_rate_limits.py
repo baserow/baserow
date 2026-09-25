@@ -21,6 +21,9 @@ from baserow.contrib.database.workflow_actions.models import (
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
 )
+from baserow.contrib.database.workflow_actions.operations import (
+    DispatchDatabaseWorkflowActionOperationType,
+)
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
@@ -28,6 +31,7 @@ from baserow.contrib.database.workflow_actions.service import (
     DatabaseWorkflowActionService,
 )
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.jobs.constants import JOB_FAILED, JOB_STARTED
 from baserow.throttling.types import RateLimit
 from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
@@ -279,12 +283,16 @@ def test_a_click_refused_by_permissions_spends_nothing(
     table, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
 
-    def only_reading(self, checks, **kwargs):
-        raise PermissionException()
+    original = CoreHandler.check_permissions
 
-    with patch(
-        "baserow.core.handler.CoreHandler.check_multiple_permissions", only_reading
-    ):
+    def all_but_dispatch(self, actor, operation_name, *args, **kwargs):
+        # Only the dispatch permission, so the click gets past reading the
+        # row and is refused by the check that guards the budget.
+        if operation_name == DispatchDatabaseWorkflowActionOperationType.type:
+            raise PermissionException()
+        return original(self, actor, operation_name, *args, **kwargs)
+
+    with patch.object(CoreHandler, "check_permissions", all_but_dispatch):
         refused = _click(api_client, token, button_field, row)
 
     assert refused.status_code == HTTP_401_UNAUTHORIZED
@@ -464,8 +472,7 @@ def test_a_click_whose_job_row_cannot_be_written_spends_nothing(
     api_client.raise_request_exception = False
 
     with patch(
-        "baserow.contrib.database.api.workflow_actions.views.JobHandler"
-        ".create_and_start_job",
+        "baserow.core.jobs.handler.JobHandler.create_and_start_job",
         side_effect=DatabaseError("read-only replica"),
     ):
         failed = _click(api_client, token, button_field, row)

@@ -109,7 +109,7 @@ def test_create_job(mock_run_async, data_fixture, api_client):
             "human_readable_error": "",
             "error_code": "",
         }
-        mock_run_async.apply_async.assert_called()
+        mock_run_async.delay.assert_called()
 
         response = api_client.post(
             reverse("api:jobs:list"),
@@ -370,7 +370,7 @@ def test_cancel_job_running(
 
     user, token = data_fixture.create_user_and_token()
 
-    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
+    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
         response = api_client.post(
             reverse("api:jobs:list"),
             {
@@ -456,7 +456,7 @@ def test_cancel_job_pending(
 
     user, token = data_fixture.create_user_and_token()
 
-    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
+    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
         response = api_client.post(
             reverse("api:jobs:list"),
             {
@@ -530,7 +530,7 @@ def test_cancel_job_finished(
 
     user, token = data_fixture.create_user_and_token()
 
-    with patch("baserow.core.jobs.tasks.run_async_job.apply_async"):
+    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
         response = api_client.post(
             reverse("api:jobs:list"),
             {

@@ -115,7 +115,7 @@ def test_create_airtable_import_job(
         "error_code": "",
         "database": None,
     }
-    mock_run_import_from_airtable.apply_async.assert_called()
+    mock_run_import_from_airtable.delay.assert_called()
 
     airtable_import_job.delete()
     with freeze_time("2025-01-01 12:00:00"):
@@ -203,7 +203,7 @@ def test_create_airtable_import_job_long_share_id(
         "error_code": "",
         "database": None,
     }
-    mock_run_import_from_airtable.apply_async.assert_called()
+    mock_run_import_from_airtable.delay.assert_called()
 
 
 @pytest.mark.django_db(transaction=True)

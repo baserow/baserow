@@ -17,7 +17,6 @@ class Migration(migrations.Migration):
             fields=[
                 ('job_ptr', models.OneToOneField(auto_created=True, on_delete=django.db.models.deletion.CASCADE, parent_link=True, primary_key=True, serialize=False, to='core.job')),
                 ('user_ip_address', models.GenericIPAddressField(help_text='The user IP address.', null=True)),
-                ('user_websocket_id', models.CharField(help_text='The user websocket uuid needed to manage signals sent correctly.', max_length=36, null=True)),
                 ('user_session_id', models.CharField(help_text='The user session uuid needed for undo/redo functionality.', max_length=36, null=True)),
                 ('user_action_group_id', models.CharField(help_text='The user session uuid needed for undo/redo action group functionality.', max_length=36, null=True)),
                 ('row_id', models.PositiveIntegerField(help_text='The clicked row.')),

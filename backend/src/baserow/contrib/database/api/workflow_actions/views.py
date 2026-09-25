@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from time import perf_counter
 from typing import Dict, List
 
@@ -85,7 +86,6 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.contrib.database.workflow_actions.signals import (
     button_field_dispatched,
-    workflow_actions_before_dispatch,
 )
 from baserow.contrib.database.workflow_actions.telemetry import (
     outcome_for,
@@ -94,7 +94,6 @@ from baserow.contrib.database.workflow_actions.types import DispatchOutcome
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
-from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
@@ -649,65 +648,31 @@ class DispatchDatabaseWorkflowActionsView(APIView):
         workflow_actions: List[DatabaseWorkflowAction],
     ) -> Response:
         """
-        Hands the click to a job and answers 202 with it. Refuses first what
-        the job would refuse, so a click that cannot run leaves no job behind.
-
-        A pending or started job row guards its cell from enqueue until the
-        job ends, so a second click on that cell is refused. The short enqueue
-        lock only serializes that check with the job's creation, so two
-        racing clicks cannot both pass it.
+        Hands the click to a job and answers 202 with it.
 
         The rate-limit slots are charged for every external action once the
-        job exists, and not given back after that: a refund needs this
-        request's throttle objects, which the job does not have, and
-        over-counting a click whose job later fails is the conservative
-        direction for a limit. A refusal still inside this request, such as
-        the per-user job cap or a job row that could not be written, gives its
-        slots back like every other in-request refusal, since no job was ever
-        created to charge them to.
+        click is accepted. They are kept once the job exists, even when it
+        later fails, as a failed automation run counts too: the budget caps
+        the traffic, not the successes. A refusal still inside this request,
+        such as the per-user job cap or a job row that could not be written,
+        gives its slots back like every other in-request refusal, since no job
+        was created to charge them to.
         """
 
-        service.check_dispatch_allowed(request.user, field, workflow_actions)
-        # Before anything is charged, so a receiver refusing the click (a SaaS
-        # quota) answers in the request as it does for an inline click. Sent
-        # again when the job runs, in case the answer changed meanwhile.
-        workflow_actions_before_dispatch.send(
-            service,
-            user=request.user,
-            field=field,
-            workflow_actions=tuple(
-                wa for wa in workflow_actions if not wa.get_type().is_frontend_only
-            ),
-        )
-
-        # Two requests could otherwise both see the cell free and both create
-        # a job, which a single worker would then run one after the other,
-        # sending every request twice.
-        with service.cell_lock("button_enqueue", field, row.id, timeout=10):
-            # A click already waiting or running on this cell.
-            if service.has_click_in_flight(field, row.id, workflow_actions):
-                raise WorkflowActionDispatchInProgress()
-
+        @contextmanager
+        def charge():
             reservations = self._reserve_dispatch_budget(
                 request, field, workflow_actions
             )
-
             try:
-                # The job runs this list and no other: it was checked and
-                # charged for exactly these actions.
-                job = JobHandler().create_and_start_job(
-                    request.user,
-                    ButtonFieldDispatchJobType.type,
-                    field=field,
-                    row_id=row.id,
-                    accepted_actions=service.accepted_actions(workflow_actions),
-                )
+                yield
             except Exception:
-                # No job was created to charge these slots to, whether the cap
-                # refused it or its row could not be written.
                 self._release_dispatch_budget(reservations)
                 raise
 
+        job = service.async_dispatch_workflow_actions(
+            request.user, field, row, workflow_actions, charge=charge
+        )
         serializer = job_type_registry.get_serializer(job, JobSerializer)
         return Response(serializer.data, status=http_status.HTTP_202_ACCEPTED)
 

@@ -1,10 +1,10 @@
-import json
 from contextlib import nullcontext
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
 
+from django.db import DataError
 from django.utils import timezone
 
 import pytest
@@ -368,32 +368,6 @@ def test_a_deleted_row_fails_the_job_with_a_readable_message(data_fixture):
 
 
 @pytest.mark.django_db
-def test_the_job_restores_the_clickers_websocket_id(data_fixture):
-    user = data_fixture.create_user()
-    user.web_socket_id = "socket-1"
-    table, name_field, button_field, row = _button(data_fixture, user)
-    _add_http_action(data_fixture, button_field)
-    seen = {}
-
-    def spy(self, user, field, row, **kwargs):
-        seen["web_socket_id"] = getattr(user, "web_socket_id", None)
-        return original(self, user, field, row, **kwargs)
-
-    from baserow.contrib.database.workflow_actions.service import (
-        DatabaseWorkflowActionService,
-    )
-
-    original = DatabaseWorkflowActionService.dispatch_workflow_actions
-    with (
-        mock_advocate_request({"ok": True}),
-        patch.object(DatabaseWorkflowActionService, "dispatch_workflow_actions", spy),
-    ):
-        _run(user, button_field, row)
-
-    assert seen["web_socket_id"] == "socket-1"
-
-
-@pytest.mark.django_db
 def test_the_job_restores_the_clickers_ip_and_session_for_the_audit_log(
     data_fixture,
 ):
@@ -403,7 +377,6 @@ def test_the_job_restores_the_clickers_ip_and_session_for_the_audit_log(
     user = data_fixture.create_user()
     table, name_field, button_field, row = _button(data_fixture, user)
     _add_http_action(data_fixture, button_field)
-    user.web_socket_id = "socket-1"
     set_user_remote_addr_ip(user, "203.0.113.7")
     set_untrusted_client_session_id(user, "session-1")
     set_client_undo_redo_action_group_id(user, str(uuid4()))
@@ -571,8 +544,8 @@ def test_a_click_older_than_the_job_cleanup_does_not_run(data_fixture, settings)
 
 @pytest.mark.django_db
 def test_an_answer_postgres_cannot_store_still_finishes_the_click(data_fixture):
-    """A NUL character in an endpoint's answer was fine in an inline response
-    but is refused by a jsonb column."""
+    """A NUL character or a lone surrogate in an endpoint's answer was fine in
+    an inline response but is refused by a jsonb column."""
 
     user = data_fixture.create_user()
     table, name_field, button_field, row = _button(data_fixture, user)
@@ -581,11 +554,41 @@ def test_an_answer_postgres_cannot_store_still_finishes_the_click(data_fixture):
         OpenUrlWorkflowAction, field=button_field
     )
 
-    with mock_advocate_request({"text": "a\x00b", "ratio": float("nan")}):
+    answer = {"text": "a\x00b", "cut": "cut \ud83d", "emoji": "\U0001f600"}
+    with mock_advocate_request({**answer, "ratio": float("nan")}):
         job = _run(user, button_field, row)
 
     assert job.state == JOB_FINISHED, job.error
-    assert "\x00" not in json.dumps(job.results)
+    job.refresh_from_db()
+    body = job.results[0]["data"]["body"]
+    assert body["text"] == "ab"
+    assert body["cut"] == "cut "
+    assert body["emoji"] == "\U0001f600"
+    assert body["ratio"] is None
+
+
+@pytest.mark.django_db
+def test_an_answer_that_cannot_be_saved_still_fails_the_job(data_fixture):
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+    original_save = ButtonFieldDispatchJob.save
+
+    def refuse_results(self, *args, **kwargs):
+        if kwargs.get("update_fields") == ["results", "client_actions"]:
+            raise DataError("unsupported Unicode escape sequence")
+        return original_save(self, *args, **kwargs)
+
+    with (
+        mock_advocate_request({"ok": True}),
+        patch.object(ButtonFieldDispatchJob, "save", refuse_results),
+    ):
+        with pytest.raises(DataError):
+            _run(user, button_field, row)
+
+    job = ButtonFieldDispatchJob.objects.get()
+    assert job.state == JOB_FAILED
+    assert job.results is None
 
 
 def test_denied_message_reads_the_detail_of_an_api_error():
