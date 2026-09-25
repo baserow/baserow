@@ -31,9 +31,10 @@
         "roleTitle": "Rol por defecto",
         "inviteMembers": "Añadir miembros",
         "membersTitle": "Miembros",
-        "noSubjectsSelected": "Haz clic en '{buttonLabel}' para añadir opcionalmente usuarios del equipo.",
+        "noSubjectsSelected": "Nadie tiene acceso a través de este equipo todavía.",
         "roleHelpText": "Los roles específicos de usuario siempre prevalecerán sobre los roles de equipo.",
-        "submit": "Guardar"
+        "submit": "Guardar",
+        "accessModalDescription": "Elige las personas y los agentes que pertenecen a este equipo."
     },
     "editTeamContext": {
         "edit": "Editar equipo",
@@ -159,7 +160,8 @@
         "errorSsoFeatureNotActive": "La función SSO no está activa. Consulta a tu administrador.",
         "errorSignupDisabled": "El administrador ha desactivado el registro.",
         "errorWorkspaceInvitationEmailMismatch": "su dirección de correo electrónico no coincide con la invitación.",
-        "errorUnverifiedEmail": "el proveedor de identidad no ha verificado tu dirección de correo electrónico. Por favor, verifica tu correo con el proveedor e inténtalo de nuevo."
+        "errorUnverifiedEmail": "el proveedor de identidad no ha verificado tu dirección de correo electrónico. Por favor, verifica tu correo con el proveedor e inténtalo de nuevo.",
+        "errorApplicationUserLimitReached": "El inicio de sesión no está disponible temporalmente. Por favor, contacta al propietario del sitio web o inténtalo de nuevo más tarde."
     },
     "roles": {
         "builder": {
@@ -248,7 +250,8 @@
         "membersTab": "Miembros",
         "subjectTypeNameMembers": "miembros",
         "subjectTypeNameTeams": "equipos",
-        "teamsTab": "Equipos"
+        "teamsTab": "Equipos",
+        "agentsTab": "Agentes"
     },
     "selectTeamsList": {
         "searchPlaceholder": "Encontrar equipos...",
@@ -258,9 +261,10 @@
         "invite": "Invitar {cuenta} {tipo}",
         "types": {
             "members": "miembros",
-            "teams": "equipos"
+            "teams": "equipos",
+            "agents": "agentes"
         },
-        "helpTooltip": "La asignación de funciones a los miembros anula la asignación de funciones a los equipos.",
+        "helpTooltip": "Las asignaciones de roles a miembros y agentes anulan las asignaciones de roles a equipos.",
         "roleSelectorBuilderDataWarningTooltip": "Podrán crear fórmulas y campos de búsqueda que expongan cualquier campo de cualquier tabla vinculada."
     },
     "membersRoleField": {
@@ -341,7 +345,8 @@
         "xlsFileReaderContent": "Lee filas desde archivos XLS y XLSX en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones.",
         "codeRunnerContent": "Ejecuta código JavaScript en nodos de automatización y acciones de flujo de trabajo del constructor de aplicaciones.",
         "xlsFileReader": "Lector de archivos XLS",
-        "codeRunner": "Ejecutor de código"
+        "codeRunner": "Ejecutor de código",
+        "builderGraphElementContent": "Muestra datos basados en fórmulas como un gráfico en páginas de aplicación."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Soporte directo"
@@ -914,7 +919,10 @@
         "title": "¿Qué debería Kuma construir para ti?",
         "modelNotSupportedMessage": "No se puede contactar a Kuma porque ningún modelo de IA funcional está configurado, así que no puede construir una base de datos para ti ahora. Intentar de nuevo no ayudará hasta que eso se arregle.",
         "description": "Hemos escrito una primera sugerencia basada en tus respuestas. Cámbiala, o elige otra a continuación.",
-        "errorOtherOptions": "Vuelve atrás para iniciar una base de datos de otra manera, por ejemplo desde una plantilla, una importación o desde cero."
+        "errorOtherOptions": "Vuelve atrás para iniciar una base de datos de otra manera, por ejemplo desde una plantilla, una importación o desde cero.",
+        "placeholder": "ej. Realiza un seguimiento de proyectos de clientes con fechas límite, responsables y estado.",
+        "generating": "Kuma está escribiendo una sugerencia para ti…",
+        "suggestionsTitle": "O empieza con uno de estos"
     },
     "aiPromptOnboardingType": {
         "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas.",
@@ -923,12 +931,25 @@
     },
     "fieldPermissionSubjectsSelector": {
         "accessNote": "La selección no otorga acceso a la tabla. Un usuario seleccionado, un agente, o un miembro de un equipo seleccionado debe tener además un rol de Editor, Constructor o Administrador donde esta tabla se encuentra.",
-        "noSelectedSubjects": "Nadie está seleccionado todavía. Usa la búsqueda de arriba para añadir un usuario, agente o equipo."
+        "noSelectedSubjects": "Nadie está seleccionado todavía. Usa la búsqueda de arriba para añadir un usuario, agente o equipo.",
+        "teamSearchDescription": "Equipo · {count} miembro | Equipo · {count} miembros"
     },
     "applicationUserLimitNotification": {
-        "titleReachedEnforced": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que se supere, nadie podrá iniciar sesión en sus aplicaciones publicadas hasta que actualices el plan."
+        "titleReachedEnforced": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que se supere, nadie podrá iniciar sesión en sus aplicaciones publicadas hasta que actualices el plan.",
+        "titleReached": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Por favor, actualiza el plan.",
+        "titleWarning": "{workspaceName} ha usado {usage} de los {limit} usuarios de aplicación disponibles."
     },
     "graphElementForm": {
-        "labelsHelper": "La fórmula debe resolverse en un `array`. Cada elemento se convierte en una etiqueta del gráfico."
+        "labelsHelper": "La fórmula debe resolverse en un `array`. Cada elemento se convierte en una etiqueta del gráfico.",
+        "seriesValuesHelper": "La fórmula debe resolverse en un valor numérico por etiqueta."
+    },
+    "enterpriseAgents": {
+        "retry": "Reintentar",
+        "teamsLoadErrorDescription": "Comprueba la conexión e inténtalo de nuevo.",
+        "teamsLoadError": "No se pudieron cargar los equipos."
+    },
+    "subjectType": {
+        "team": "Equipo",
+        "teams": "Equipos"
     }
 }
