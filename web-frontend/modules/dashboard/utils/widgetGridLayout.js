@@ -29,15 +29,21 @@ export function sortWidgetsByGridPosition(widgets) {
 }
 
 function getCanonicalLayoutItem(widget) {
+  const width = clamp(
+    asGridNumber(widget.grid_width, DASHBOARD_GRID_COLUMNS),
+    1,
+    DASHBOARD_GRID_COLUMNS
+  )
+  const savedX = asGridNumber(widget.grid_x, 0)
+  const wrappedX =
+    ((savedX % DASHBOARD_GRID_COLUMNS) + DASHBOARD_GRID_COLUMNS) %
+    DASHBOARD_GRID_COLUMNS
+
   return {
     i: widget.id,
-    x: asGridNumber(widget.grid_x, 0),
+    x: clamp(wrappedX, 0, DASHBOARD_GRID_COLUMNS - width),
     y: asGridNumber(widget.grid_y, 0),
-    w: clamp(
-      asGridNumber(widget.grid_width, DASHBOARD_GRID_COLUMNS),
-      1,
-      DASHBOARD_GRID_COLUMNS
-    ),
+    w: width,
     h: Math.max(1, asGridNumber(widget.grid_height, 9)),
   }
 }
@@ -110,7 +116,12 @@ export function resizeWidgetGridLayout(layout, widgetId, width, height) {
  * Uses saved six-column coordinates at every viewport size and in both modes.
  */
 export function createWidgetGridLayout(widgets) {
-  return sortWidgetsByGridPosition(widgets).map(getCanonicalLayoutItem)
+  return sortWidgetsByGridPosition(widgets).reduce((layout, widget) => {
+    const item = getCanonicalLayoutItem(widget)
+    item.y = firstAvailableRow(layout, item, item.y)
+    layout.push(item)
+    return layout
+  }, [])
 }
 
 export function getWidgetGridItemConstraints(widget, layoutItem) {

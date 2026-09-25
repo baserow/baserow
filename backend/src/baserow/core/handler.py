@@ -828,7 +828,6 @@ class CoreHandler:
         user: AbstractUser,
         workspace: WorkspaceForUpdate,
         name: Optional[str] = None,
-        generative_ai_models_settings: Optional[Dict[str, Any]] = None,
     ) -> Workspace:
         """
         Updates the values of a workspace if the user has admin
@@ -843,7 +842,7 @@ class CoreHandler:
 
         if not isinstance(workspace, Workspace):
             raise ValueError("The workspace is not an instance of Workspace.")
-        elif name is None and generative_ai_models_settings is None:
+        elif name is None:
             raise ValueError("Nothing to update.")
 
         CoreHandler().check_permissions(
@@ -857,9 +856,6 @@ class CoreHandler:
         if name is not None:
             workspace.name = name
             updated_fields.append("name")
-        if generative_ai_models_settings is not None:
-            workspace.generative_ai_models_settings = generative_ai_models_settings
-            updated_fields.append("generative_ai_models_settings")
 
         workspace.save(update_fields=updated_fields)
         workspace_updated.send(

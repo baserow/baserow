@@ -29,7 +29,9 @@ from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.evals.control import RunControl
 from baserow_enterprise.assistant.evals.gitinfo import get_git_info
 from baserow_enterprise.assistant.evals.harness import (
+    EvalCaseCleanupError,
     EvalCaseTimeout,
+    ensure_worker_safe,
     get_case_timeout_s,
     override_assistant_prompts,
     run_case,
@@ -448,6 +450,7 @@ def run_experiment_for(
         with Phoenix results; experiment names can be reused.
     """
 
+    ensure_worker_safe()
     load_all()
     control = control or RunControl()
     client = get_phoenix_client()
@@ -471,8 +474,11 @@ def run_experiment_for(
 
     # Phoenix re-enters the task on retry, so cap each example at its repetitions.
     counted: Counter[str] = Counter()
+    cleanup_error: EvalCaseCleanupError | None = None
 
     def task(example: Any) -> dict[str, Any]:
+        nonlocal cleanup_error
+
         if control.stopping:
             return {"skipped": "run stopped"}
         case = case_for_example(
@@ -481,7 +487,16 @@ def run_experiment_for(
         if isinstance(case, dict):
             result = case
         else:
-            result = run_case_for_experiment(case, model, kb_available, prompt_texts)
+            try:
+                result = run_case_for_experiment(
+                    case, model, kb_available, prompt_texts
+                )
+            except EvalCaseCleanupError as exc:
+                # Phoenix catches task exceptions and may retry them. Stop its
+                # remaining work, then propagate this failure to the runner.
+                cleanup_error = exc
+                control.stop()
+                raise
         example_id = str(example.id)
         if counted[example_id] < runs:
             counted[example_id] += 1
@@ -490,7 +505,7 @@ def run_experiment_for(
 
     dataset = client.datasets.get_dataset(dataset=dataset_name)
     control.set_total(len(dataset.examples) * runs)
-    return client.experiments.run_experiment(
+    experiment = client.experiments.run_experiment(
         dataset=dataset,
         task=task,
         evaluators=[checklist, passed, answer_quality],
@@ -503,6 +518,9 @@ def run_experiment_for(
         ),
         repetitions=runs,
     )
+    if cleanup_error is not None:
+        raise cleanup_error
+    return experiment
 
 
 def _run_case_subset(

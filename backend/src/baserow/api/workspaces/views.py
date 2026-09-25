@@ -36,7 +36,6 @@ from baserow.api.schemas import (
 )
 from baserow.api.trash.errors import ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM
 from baserow.api.user_files.errors import ERROR_FILE_SIZE_TOO_LARGE, ERROR_INVALID_FILE
-from baserow.api.utils import validate_data
 from baserow.api.workspaces.users.serializers import WorkspaceUserWorkspaceSerializer
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import (
@@ -55,7 +54,6 @@ from baserow.core.exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceUserIsLastAdmin,
 )
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
@@ -72,7 +70,6 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.notifications.handler import NotificationHandler
-from baserow.core.operations import UpdateWorkspaceOperationType
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
@@ -84,7 +81,6 @@ from .serializers import (
     OrderWorkspacesSerializer,
     PermissionObjectSerializer,
     WorkspaceSerializer,
-    get_generative_ai_settings_serializer,
 )
 
 
@@ -124,11 +120,9 @@ class WorkspacesView(RealtimeRecoveryPrimaryReadMixin, APIView):
         )
 
         workspaceuser_workspaces = list(workspaceuser_workspaces)
-        ai_provider_states = None
-        if feature_flag_is_enabled(FF_AI_PROVIDERS):
-            ai_provider_states = load_ai_provider_state(
-                workspaceuser.workspace for workspaceuser in workspaceuser_workspaces
-            )
+        ai_provider_states = load_ai_provider_state(
+            workspaceuser.workspace for workspaceuser in workspaceuser_workspaces
+        )
 
         serializer = WorkspaceUserWorkspaceSerializer(
             workspaceuser_workspaces,
@@ -387,89 +381,6 @@ class WorkspacePermissionsView(APIView):
         permissions = CoreHandler().get_permissions(request.user, workspace=workspace)
 
         return Response(permissions)
-
-
-class WorkspaceGenerativeAISettingsView(APIView):
-    permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        tags=["Workspaces"],
-        operation_id="get_workspace_generative_ai_models_settings",
-        description=(
-            "Returns the generative AI models settings for the given workspace."
-        ),
-        responses={200: get_generative_ai_settings_serializer()},
-    )
-    @map_exceptions(
-        {
-            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
-            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-            UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
-        }
-    )
-    def get(self, request, workspace_id):
-        workspace = CoreHandler().get_workspace(workspace_id)
-
-        # Only ADMINs and who can update the workspace can view these settings.
-        CoreHandler().check_permissions(
-            request.user,
-            UpdateWorkspaceOperationType.type,
-            workspace=workspace,
-            context=workspace,
-        )
-        serializer = get_generative_ai_settings_serializer()
-        settings = workspace.generative_ai_models_settings or {}
-        return Response(serializer(settings).data)
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="workspace_id",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="Updates the workspace settings for the generative AI models available.",
-            ),
-            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
-        ],
-        tags=["Workspaces"],
-        operation_id="update_workspace_generative_ai_models_settings",
-        description=(
-            "Updates the generative AI models settings for the given workspace."
-        ),
-        request=get_generative_ai_settings_serializer(),
-        responses={
-            200: WorkspaceSerializer,
-            400: get_error_schema(
-                [
-                    "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_USER_INVALID_GROUP_PERMISSIONS",
-                ]
-            ),
-            404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
-        },
-    )
-    @transaction.atomic
-    @map_exceptions(
-        {
-            WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
-            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-            UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
-        }
-    )
-    def patch(self, request, workspace_id):
-        data = validate_data(
-            get_generative_ai_settings_serializer(),
-            request.data,
-            return_validated=True,
-        )
-
-        handler = CoreHandler()
-        workspace = handler.get_workspace_for_update(workspace_id)
-        updated_workspace = handler.update_workspace(
-            request.user, workspace, generative_ai_models_settings=data
-        )
-        return Response(WorkspaceSerializer(updated_workspace).data)
 
 
 class CreateInitialWorkspaceView(APIView):

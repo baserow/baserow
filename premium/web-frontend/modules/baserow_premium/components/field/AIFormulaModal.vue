@@ -28,7 +28,6 @@ import error from '@baserow/modules/core/mixins/error'
 import FieldService from '@baserow_premium/services/field'
 import AIFormulaForm from '@baserow_premium/components/field/AIFormulaForm.vue'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'AIFormulaModal',
@@ -57,11 +56,7 @@ export default {
     },
     hasModels() {
       return Object.values(
-        getEnabledModelsForAIProviderFeature(
-          this.workspace,
-          'ai_fields',
-          this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
-        )
+        getEnabledModelsForAIProviderFeature(this.workspace, 'ai_fields')
       ).some((models) => models.length > 0)
     },
   },

@@ -27,9 +27,9 @@ workflow_actions_before_dispatch = Signal()
 # that raises also stops the receivers behind it.
 workflow_action_dispatched = ObservingSignal()
 
-# Sent with the button fields of one table whose `has_workflow_actions` or
-# `requires_reconfiguration` may have changed, so every page showing them can
-# send them out. Kept apart from `field_updated`, which makes the client
+# Sent with the button fields of one table whose `has_workflow_actions`,
+# `requires_reconfiguration` or `opens_new_tab` may have changed, so every page
+# showing them can send them out. Kept apart from `field_updated`, which makes the client
 # refetch the whole grid.
 button_fields_updated = Signal()
 

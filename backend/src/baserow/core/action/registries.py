@@ -2,7 +2,7 @@ import abc
 import dataclasses
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Dict, NewType, Optional
+from typing import Any, Dict, List, NewType, Optional
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -97,9 +97,42 @@ class ActionScopeType(abc.ABC, Instance):
 
         pass
 
+    def resolve(self, user: AbstractUser, scope_str: ActionScopeStr) -> List[str]:
+        """
+        The scope strings that a requested scope of this type stands for when undoing
+        or redoing. A scope normally stands for itself, but a scope describing a
+        surface that spans several others, like the all workspaces homepage, expands
+        into the scopes it can see for this user.
+
+        :param user: The user undoing or redoing.
+        :param scope_str: The requested scope string of this type.
+        :return: The scope strings to match actions against.
+        """
+
+        return [scope_str]
+
 
 class ActionScopeRegistry(Registry[ActionScopeType]):
     name = "action_scope"
+
+    def resolve(
+        self, user: AbstractUser, scopes: List[ActionScopeStr]
+    ) -> List[ActionScopeStr]:
+        """
+        Expands the requested scopes into the ones to match actions against, see
+        `ActionScopeType.resolve`. Only scopes whose string equals a registered type,
+        like `root` or `all_workspaces`, can expand; the others stand for themselves.
+        """
+
+        scope_types = {scope_type.type: scope_type for scope_type in self.get_all()}
+        resolved = []
+        for scope_str in scopes:
+            scope_type = scope_types.get(scope_str)
+            if scope_type is None:
+                resolved.append(scope_str)
+            else:
+                resolved.extend(scope_type.resolve(user, scope_str))
+        return resolved
 
 
 @dataclasses.dataclass

@@ -69,6 +69,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /*
+   * Every registered plugin can display components at the top of the workspace
+   * homepage, above the resources. They are given the selected workspace.
+   */
+  getDashboardTopComponents(workspace) {
+    return []
+  }
+
+  /*
    * Every registered plugin can display a component in the `DashboardWorkspace`
    * component directly after the workspace name.
    */
@@ -202,6 +210,24 @@ export class BaserowPlugin extends Registerable {
     node,
     nodeType,
   }) {
+    return []
+  }
+
+  /**
+   * Every registered plugin can display multiple additional components next to
+   * the action type names in the button field action type dropdown.
+   * @returns {*[]}
+   */
+  getButtonFieldActionTypeContextComponents({ workspace, actionType }) {
+    return []
+  }
+
+  /**
+   * Every registered plugin can display multiple additional components next to
+   * the heading of the button field action list.
+   * @returns {*[]}
+   */
+  getButtonFieldActionListHeadingComponents({ workspace }) {
     return []
   }
 

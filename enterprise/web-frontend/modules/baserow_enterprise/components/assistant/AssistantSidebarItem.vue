@@ -2,7 +2,7 @@
   <div v-if="isAvailable">
     <li class="tree__item">
       <div class="tree__action">
-        <a href="#" class="tree__link" @click.prevent="toggleRightSidebar">
+        <a href="#" class="tree__link" @click.prevent="toggleRightSidebar()">
           <i class="tree__icon iconoir-sparks"></i>
           <span class="tree__link-text">{{
             $t('assistantSidebarItem.title')
@@ -18,6 +18,8 @@
 </template>
 
 <script>
+import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
+
 export default {
   name: 'AssistantSidebarItem',
   emits: ['toggle-right-sidebar'],
@@ -33,27 +35,14 @@ export default {
     },
   },
   computed: {
-    hasPermission() {
-      return this.$hasPermission(
-        'assistant.chat',
-        this.workspace,
-        this.workspace.id
-      )
-    },
-    isConfigured() {
-      return (
-        this.workspace.ai_features?.kuma?.is_enabled ??
-        !!this.$config.public.baserowEnterpriseAssistantLlmModel
-      )
-    },
     isAvailable() {
-      return this.hasPermission && this.isConfigured
+      return isAssistantAvailable(this, this.workspace)
     },
   },
   watch: {
     isAvailable(available) {
       if (!available && this.rightSidebarOpen) {
-        this.$bus.$emit('toggle-right-sidebar', false)
+        this.toggleRightSidebar(false)
       }
     },
   },
@@ -62,13 +51,12 @@ export default {
       this.isAvailable &&
       localStorage.getItem('baserow.rightSidebarOpen') !== 'false'
     ) {
-      // open the right sidebar if the feature is available
-      this.$nextTick(this.toggleRightSidebar)
+      this.$nextTick(() => this.toggleRightSidebar(true))
     }
   },
   methods: {
-    toggleRightSidebar() {
-      this.$bus.$emit('toggle-right-sidebar')
+    toggleRightSidebar(value) {
+      this.$bus.$emit('toggle-right-sidebar', value)
     },
   },
 }

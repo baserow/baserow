@@ -29,6 +29,7 @@ from baserow.contrib.automation.nodes.models import (
     CoreIteratorActionNode,
     CoreManualTriggerNode,
     CorePeriodicTriggerNode,
+    CoreResponseActionNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     CoreStartWorkflowActionNode,
@@ -64,6 +65,7 @@ from baserow.contrib.integrations.core.service_types import (
     CoreIteratorServiceType,
     CoreManualTriggerServiceType,
     CorePeriodicServiceType,
+    CoreResponseServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
@@ -86,6 +88,10 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.contrib.integrations.slack.service_types import (
     SlackWriteMessageServiceType,
+)
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_RAW,
+    BaserowFormulaObject,
 )
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance
@@ -273,6 +279,34 @@ class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
                 service_values.pop("workflow_id"),
                 workflow.automation.workspace_id,
             )
+        return super().prepare_values(values, user, instance)
+
+
+class CoreResponseNodeType(AutomationNodeActionNodeType):
+    display_name = _("Response")
+    type = "response"
+    model_class = CoreResponseActionNode
+    service_type = CoreResponseServiceType.type
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: AutomationNode = None,
+    ) -> Dict[str, Any]:
+        """Default new response nodes to a raw 204 status-code formula."""
+
+        if instance is None:
+            service_values = values.get("service") or {}
+            values = {
+                **values,
+                "service": {
+                    "status_code": BaserowFormulaObject.create(
+                        "204", mode=BASEROW_FORMULA_MODE_RAW
+                    ),
+                    **service_values,
+                },
+            }
         return super().prepare_values(values, user, instance)
 
 
@@ -717,6 +751,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
         # For perf reasons, store the trigger<->service relationship.
         service_map = {service.id: service for service in services}
 
+        histories = []
         for trigger in triggers:
             # If we've received a callable payload, call it with the specific service,
             # this can give us a payload that is specific to the trigger's service.
@@ -727,7 +762,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
             )
 
             workflow = trigger.workflow
-            AutomationWorkflowHandler().async_start_workflow(
+            history = AutomationWorkflowHandler().async_start_workflow(
                 workflow,
                 service_payload,
                 # Read before the reset below clears it.
@@ -735,9 +770,13 @@ class AutomationNodeTriggerType(AutomationNodeType):
                     workflow
                 ),
             )
+            if history is not None:
+                histories.append(history)
 
             # We don't want subsequent events to trigger a new test run
             AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+        return histories
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):

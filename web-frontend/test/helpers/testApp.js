@@ -428,6 +428,29 @@ export class TestApp {
     this.failTestOnErrorResponse = true
   }
 
+  /**
+   * Signs the user in without a backend. The store decodes the access token
+   * without verifying it, so an unsigned one carrying the user id is enough.
+   *
+   * @param {object} user The user object as the backend would return it.
+   */
+  authenticate(user) {
+    const encode = (value) =>
+      btoa(JSON.stringify(value))
+        .replace(/=+$/, '')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+    const accessToken = [
+      encode({ alg: 'none', typ: 'JWT' }),
+      encode({ user_id: user.id }),
+      '',
+    ].join('.')
+    this.store.dispatch('auth/forceSetUserData', {
+      user,
+      access_token: accessToken,
+    })
+  }
+
   get body() {
     return new DOMWrapper(document.body)
   }

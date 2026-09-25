@@ -319,6 +319,22 @@ class ServiceType(
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         return []
 
+    def should_resolve_service_formula(
+        self,
+        service: ServiceSubClass,
+        formula: FormulaToResolve,
+        resolved_values: Dict[str, Any],
+    ) -> bool:
+        """
+        Return whether the formula should be resolved given earlier resolved values.
+
+        Formulas are evaluated in the order returned by `formulas_to_resolve`, so a
+        service type can use this hook to skip a later formula based on an earlier
+        result.
+        """
+
+        return True
+
     def _get_validation_details(self, error):
         detail = error.detail
 
@@ -350,7 +366,13 @@ class ServiceType(
         """
 
         resolved_values = {}
-        for key, formula_ctx, ensurer, label in self.formulas_to_resolve(service):
+        for formula in self.formulas_to_resolve(service):
+            if not self.should_resolve_service_formula(
+                service, formula, resolved_values
+            ):
+                continue
+
+            key, formula_ctx, ensurer, label = formula
             try:
                 resolved_values[key] = ensurer(
                     resolve_formula(
@@ -429,6 +451,26 @@ class ServiceType(
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         return self.dispatch_transform(data)
 
+    def after_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_result: DispatchResult,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """Finalizes a dispatch after its database savepoint has committed."""
+
+        return dispatch_result
+
+    def requires_autocommit(self, service: ServiceSubClass) -> bool:
+        """
+        Returns whether dispatch must run without an enclosing transaction.
+
+        This is needed by services that commit work before waiting for another
+        process to observe it.
+        """
+
+        return False
+
     def dispatch(
         self,
         service: ServiceSubClass,
@@ -495,12 +537,17 @@ class ServiceType(
                 service.save()
             raise
         else:
+            serialized_data = self.after_dispatch(
+                service, serialized_data, dispatch_context
+            )
             if dispatch_context.use_sample_data and (
                 dispatch_context.update_sample_data_for is None
                 or service in dispatch_context.update_sample_data_for
             ):
                 sample_data = {}
                 for field in fields(serialized_data):
+                    if field.metadata.get("exclude_from_sample_data"):
+                        continue
                     value = getattr(serialized_data, field.name)
                     sample_data[field.name] = value
 

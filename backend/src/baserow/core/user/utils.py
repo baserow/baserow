@@ -30,10 +30,41 @@ def normalize_email_address(email):
     return unicodedata.normalize("NFKC", email).strip().lower()
 
 
+# Holds the id of the staff member the token was issued to.
+IMPERSONATED_BY_CLAIM = "impersonated_by"
+IMPERSONATED_BY_USER_ATTR = "impersonated_by_user_id"
+
+
+def set_user_impersonated_from_token(user: AbstractUser, token) -> None:
+    """
+    Remembers on the user object, for this request only, which staff member the
+    token was issued to when the user is being impersonated.
+
+    :param user: The authenticated user.
+    :param token: The validated access token of the request.
+    """
+
+    setattr(user, IMPERSONATED_BY_USER_ATTR, token.get(IMPERSONATED_BY_CLAIM))
+
+
+def get_impersonated_by_user_id(user: AbstractUser) -> Optional[int]:
+    """
+    :param user: The authenticated user of the request.
+    :return: The id of the staff member impersonating the user, or `None`.
+    """
+
+    return getattr(user, IMPERSONATED_BY_USER_ATTR, None)
+
+
+def is_user_impersonated(user: AbstractUser) -> bool:
+    return get_impersonated_by_user_id(user) is not None
+
+
 def generate_session_tokens_for_user(
     user: AbstractUser,
     include_refresh_token: bool = False,
     verified_email_claim: Optional[str] = None,
+    impersonated_by_user_id: Optional[int] = None,
 ) -> Dict[str, str]:
     """
     Generates a new access and refresh token (if requested) for the given user.
@@ -42,6 +73,9 @@ def generate_session_tokens_for_user(
     :param include_refresh_token: Whether or not a refresh token must be included.
     :param verified_email_claim: Optionally stores which authentication
         method was used.
+    :param impersonated_by_user_id: The id of the staff member acting as this
+        user, if any. Marks the tokens, so requests made with them can be told
+        apart from the user's own.
     :return: A dictionary with the access and refresh token.
     """
 
@@ -50,6 +84,11 @@ def generate_session_tokens_for_user(
 
     if refresh_token and verified_email_claim is not None:
         refresh_token["verified_email_claim"] = verified_email_claim
+
+    if impersonated_by_user_id is not None:
+        access_token[IMPERSONATED_BY_CLAIM] = impersonated_by_user_id
+        if refresh_token:
+            refresh_token[IMPERSONATED_BY_CLAIM] = impersonated_by_user_id
 
     return prepare_user_tokens_payload(user.id, access_token, refresh_token)
 

@@ -19,6 +19,10 @@ export class BuilderApplicationType extends ApplicationType {
     return 'baserow-icon-application'
   }
 
+  getIconColor() {
+    return 'blue'
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.builder')
@@ -112,7 +116,10 @@ export class BuilderApplicationType extends ApplicationType {
     ).some((page) => page._.selected)
 
     if (pageSelected) {
-      $router.push({ name: 'dashboard' })
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
     }
   }
 

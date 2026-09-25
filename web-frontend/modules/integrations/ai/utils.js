@@ -9,7 +9,7 @@
  *
  * @param {object} options The inputs for one provider's model resolution.
  * @param {string[]} [options.workspaceModels=[]] Effective workspace models,
- *   already filtered for AI Agent eligibility when the provider flag is enabled.
+ *   already filtered for AI Agent eligibility.
  * @param {object|null} [options.integrationSettings=null] Provider settings from
  *   the selected integration.
  * @param {GenerativeAIModelType|null} [options.modelType=null] The registered

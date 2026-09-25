@@ -69,11 +69,13 @@ export default defineNuxtModule({
         baserowFrontendSameSiteCookie: 'lax',
         baserowFrontendCookiePrefix: '',
         baserowFrontendJobsPollingTimeoutMs: 2000,
+        baserowDashboardDataSourceDispatchConcurrency: 5,
         posthogProjectApiKey: '',
         posthogHost: '',
         baserowEmbeddedShareUrl: 'http://localhost:3000',
         baserowUsePgFulltextSearch: 'true',
         integrationLocalBaserowPageSizeLimit: 200,
+        automationWorkflowResponseTimeoutMaxSeconds: 20,
         formulaRangeMaxItems: 10000,
         integrationLocalBaserowBatchOperationSizeLimit: 1000,
         extraPublicWebFrontendHostnames: [],
@@ -170,11 +172,6 @@ export default defineNuxtModule({
     })
 
     addRouteMiddleware({
-      name: 'aiProvidersFeatureFlag',
-      path: resolve('./middleware/aiProvidersFeatureFlag'),
-    })
-
-    addRouteMiddleware({
       name: 'impersonate',
       path: resolve('./middleware/impersonate'),
     })
@@ -182,11 +179,6 @@ export default defineNuxtModule({
     addRouteMiddleware({
       name: 'urlCheck',
       path: resolve('./middleware/urlCheck'),
-    })
-
-    addRouteMiddleware({
-      name: 'dashboardRedirect',
-      path: resolve('./middleware/dashboardRedirect'),
     })
 
     addRouteMiddleware({

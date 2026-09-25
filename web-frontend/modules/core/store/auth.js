@@ -10,7 +10,6 @@ import {
   unsetToken,
   unsetUserSessionCookie,
 } from '@baserow/modules/core/utils/auth'
-import { unsetWorkspaceCookie } from '@baserow/modules/core/utils/workspace'
 import { uuid } from '@baserow/modules/core/utils/string'
 
 export const state = () => ({
@@ -35,6 +34,7 @@ export const state = () => ({
   userSessionExpired: false,
   workspaceInvitations: [],
   umreadUserNotificationCount: 0,
+  // What the backend last confirmed, so a failed change can be undone.
 })
 
 export const mutations = {
@@ -215,7 +215,6 @@ export const actions = {
   async forceLogoff({ commit }) {
     await unsetToken(this.app)
     await unsetUserSessionCookie(this.app)
-    await unsetWorkspaceCookie(this.app)
     commit('LOGOFF')
   },
   /**
@@ -256,7 +255,6 @@ export const actions = {
       if (error.response?.status === 401) {
         await unsetToken(this.app)
         await unsetUserSessionCookie(this.app)
-        await unsetWorkspaceCookie(this.app)
         if (getters.isAuthenticated) {
           dispatch('setUserSessionExpired', true)
         }
@@ -288,6 +286,48 @@ export const actions = {
     commit('UPDATE_USER_DATA', data)
     this.app.$bus.$emit('user-data-updated', data)
   },
+  /**
+   * Changes one or more user preferences. The store is updated right away and
+   * the response is not applied, so nothing that arrives late can overwrite a
+   * newer choice. The last value chosen per key is remembered, so a finished
+   * request only touches keys the user hasn't changed since, and a session
+   * change makes the outcome irrelevant.
+   */
+  async updateUserPreferences({ getters, dispatch }, values) {
+    const userId = getters.getUserId
+    const keys = Object.keys(values)
+    const latest = (this._latestPreferences ??= {})
+    const previous = Object.fromEntries(
+      keys.map((key) => [key, getters.getUserPreference(key)])
+    )
+    keys.forEach((key) => (latest[key] = values[key]))
+    const stillMine = (key) =>
+      getters.isAuthenticated &&
+      getters.getUserId === userId &&
+      latest[key] === values[key]
+    const apply = (source, applyTo) =>
+      dispatch('forceUpdateUserData', {
+        user: {
+          preferences: {
+            ...getters.getUserPreferences,
+            ...Object.fromEntries(applyTo.map((key) => [key, source[key]])),
+          },
+        },
+      })
+
+    apply(values, keys)
+    try {
+      await AuthService(this.$client).updatePreferences(values)
+      // A token refresh that ran before this request replaced the store with
+      // the snapshot from before the write, so the value is applied again.
+      apply(values, keys.filter(stillMine))
+    } catch (error) {
+      const mine = keys.filter(stillMine)
+      mine.forEach((key) => (latest[key] = previous[key]))
+      apply(previous, mine)
+      throw error
+    }
+  },
   setUserData({ commit, dispatch }, data) {
     commit('SET_USER_DATA', data)
     dispatch(
@@ -308,7 +348,6 @@ export const actions = {
   async setUserSessionExpired({ commit }, value) {
     await unsetToken(this.app)
     await unsetUserSessionCookie(this.app)
-    await unsetWorkspaceCookie(this.app)
     commit('SET_USER_SESSION_EXPIRED', value)
   },
   async fetchWorkspaceInvitations({ commit }) {
@@ -383,6 +422,12 @@ export const getters = {
   },
   getCompletedGuidedTour(state) {
     return state?.user?.completed_guided_tours || []
+  },
+  getUserPreferences(state) {
+    return state?.user?.preferences || {}
+  },
+  getUserPreference: (state, getters) => (key) => {
+    return getters.getUserPreferences[key]
   },
   getUntrustedClientSessionId(state) {
     return state.untrustedClientSessionId

@@ -19,11 +19,19 @@ export const state = () => ({
   isLoadingChats: false,
   uiLocation: null,
   uiLocationHistory: [],
+  // A message asked for from outside the panel, like the prompt on the workspace
+  // homepage. The panel picks it up when it mounts, which is the only moment it
+  // can send it, and it survives `reset` for that reason.
+  pendingPrompt: null,
 })
 
 export const mutations = {
   SET_CURRENT_CHAT_ID(state, id) {
     state.currentChatId = id
+  },
+
+  SET_PENDING_PROMPT(state, prompt) {
+    state.pendingPrompt = prompt
   },
 
   SET_CHAT_LOADING(state, { chat, value }) {
@@ -125,6 +133,10 @@ export const mutations = {
 }
 
 export const actions = {
+  setPendingPrompt({ commit }, prompt) {
+    commit('SET_PENDING_PROMPT', prompt)
+  },
+
   reset({ commit }) {
     commit('CLEAR_MESSAGES')
     commit('CLEAR_UI_LOCATION_HISTORY')
@@ -241,8 +253,10 @@ export const actions = {
         commit('SET_UI_LOCATION', update.location)
         break
       case MESSAGE_TYPE.CHAT_TITLE:
+        // The stream's own chat, because the user can have moved on to another
+        // conversation by the time the title arrives.
         commit('UPDATE_CHAT', {
-          id: state.currentChatId,
+          id: chat.id,
           updates: { title: update.content },
         })
         break
@@ -402,6 +416,8 @@ export const actions = {
 export const getters = {
   currentChatId: (state) => state.currentChatId,
 
+  pendingPrompt: (state) => state.pendingPrompt,
+
   currentChat: (state) => {
     return state.chats.find((chat) => chat.id === state.currentChatId)
   },
@@ -430,7 +446,9 @@ export const getters = {
 
     const uiContext = {
       applicationType: application?.type || null,
-      workspace: { id: workspace.id, name: workspace.name },
+      // The workspace can be missing on workspace agnostic pages like the all
+      // workspaces homepage.
+      workspace: workspace ? { id: workspace.id, name: workspace.name } : null,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     }
 

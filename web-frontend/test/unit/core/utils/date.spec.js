@@ -1,5 +1,6 @@
 import {
   getDateInTimezone,
+  getHumanAgoLabel,
   getMonthlyTimestamps,
   DateOnly,
 } from '@baserow/modules/core/utils/date'
@@ -211,5 +212,33 @@ describe('DateOnly', () => {
     expect(dateOnly.getMonth()).toBe(11)
     expect(dateOnly.getDate()).toBe(25)
     expect(dateOnly.getDay()).toBe(1) // Monday
+  })
+})
+
+describe('getHumanAgoLabel', () => {
+  const t = (key, params) => (params ? `${key}:${params.count}` : key)
+
+  test('treats very fresh moments as just now', () => {
+    expect(getHumanAgoLabel(t, moment().subtract(2, 'seconds'))).toBe(
+      'datetime.justNow'
+    )
+    expect(getHumanAgoLabel(t, moment().subtract(30, 'seconds'))).toBe(
+      'datetime.lessThanMinuteAgo'
+    )
+  })
+
+  test('can be pinned to a reference moment', () => {
+    expect(
+      getHumanAgoLabel(t, '2026-01-01T10:00:00Z', '2026-01-01T12:30:00Z')
+    ).toBe('datetime.hoursAgo:2')
+  })
+
+  test('uses the largest whole period', () => {
+    expect(getHumanAgoLabel(t, moment().subtract(90, 'minutes'))).toBe(
+      'datetime.hoursAgo:1'
+    )
+    expect(getHumanAgoLabel(t, moment().subtract(3, 'days'))).toBe(
+      'datetime.daysAgo:3'
+    )
   })
 })

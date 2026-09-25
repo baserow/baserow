@@ -47,7 +47,7 @@ export class WorkspaceInvitationCreatedNotificationType extends NotificationType
   }
 
   getRoute(notificationData) {
-    return { name: 'dashboard' }
+    return { name: 'all-workspaces' }
   }
 }
 

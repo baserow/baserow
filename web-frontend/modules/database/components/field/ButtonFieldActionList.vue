@@ -4,6 +4,12 @@
     <div class="button-field-action-list__heading">
       <div class="button-field-action-list__title">
         {{ $t('buttonFieldActionList.actions') }}
+        <component
+          :is="component"
+          v-for="(component, index) in headingComponents"
+          :key="index"
+          :workspace="workspace"
+        />
       </div>
       <ButtonText type="secondary" icon="iconoir-plus" @click="addAction()">
         {{ $t('buttonFieldActionList.addAction') }}
@@ -65,7 +71,32 @@
                 :value="actionType.getType()"
                 :description="deactivatedReasonFor(actionType)"
                 :disabled="Boolean(deactivatedReasonFor(actionType))"
-              ></DropdownItem>
+              >
+                <i
+                  v-if="actionType.icon"
+                  class="select__item-icon"
+                  :class="actionType.icon"
+                />
+                <img
+                  v-if="actionType.image"
+                  class="select__item-image"
+                  :src="actionType.image"
+                />
+                <span
+                  class="select__item-name-text"
+                  :title="actionType.label"
+                  >{{ actionType.label }}</span
+                >
+                <component
+                  :is="component"
+                  v-for="(
+                    component, componentIndex
+                  ) in actionTypeContextComponents(actionType)"
+                  :key="componentIndex"
+                  :workspace="workspace"
+                  :action-type="actionType"
+                />
+              </DropdownItem>
             </Dropdown>
           </div>
           <div @click.stop>
@@ -204,6 +235,13 @@ export default {
     availableActionTypes() {
       return this.$registry.getOrderedList('databaseWorkflowActionType')
     },
+    headingComponents() {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getButtonFieldActionListHeadingComponents({
+          workspace: this.workspace,
+        })
+      )
+    },
     misconfigured() {
       return this.value.some((action) => this.errorFor(action))
     },
@@ -260,6 +298,14 @@ export default {
   methods: {
     actionKey(action) {
       return workflowActionEditorKey(action)
+    },
+    actionTypeContextComponents(actionType) {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getButtonFieldActionTypeContextComponents({
+          workspace: this.workspace,
+          actionType,
+        })
+      )
     },
     /**
      * Why this installation cannot run a type at all, shown on the option

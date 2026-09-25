@@ -406,7 +406,7 @@ exports[`Dropdown component > basics 1`] = `
       />
     </div>
     <ul
-      class="select__items prevent-scroll"
+      class="select__items"
       style="display: none;"
       tabindex="-1"
     >
@@ -450,7 +450,7 @@ exports[`Dropdown component > basics 2`] = `
   >
     <!--v-if-->
     <ul
-      class="select__items prevent-scroll"
+      class="select__items"
       style="display: none;"
       tabindex="-1"
     >
@@ -506,7 +506,7 @@ exports[`Dropdown component > basics 3`] = `
       />
     </div>
     <ul
-      class="select__items prevent-scroll"
+      class="select__items"
       style="display: none;"
       tabindex="-1"
     >

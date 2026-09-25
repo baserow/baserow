@@ -97,7 +97,7 @@
           <SettingsModal ref="settingsModal"></SettingsModal>
         </li>
 
-        <li class="context__menu-item">
+        <li v-if="anyGuidedTourActive" class="context__menu-item">
           <a class="context__menu-item-link" @click="replayGuidedTour()">
             <i class="context__menu-item-icon iconoir-help-circle"></i>
             {{ $t('sidebar.replayGuidedTour') }}
@@ -190,6 +190,17 @@ export default {
         )
         .filter((component) => component !== null)
     },
+    /**
+     * Replaying only makes sense when a guided tour can actually show on the
+     * current page. On the all workspaces homepage, for example, no tour is
+     * active, and forcing a start there would show nothing while blocking a later
+     * natural start.
+     */
+    anyGuidedTourActive() {
+      return Object.values(this.$registry.getAll('guidedTour')).some((tour) =>
+        tour.isActive(this.$route)
+      )
+    },
     filteredWorkspaces() {
       let workspaces = this.workspaces
       const regex = new RegExp('(' + escapeRegExp(this.query) + ')', 'i')
@@ -246,17 +257,24 @@ export default {
       return this.$store.getters['notification/workspaceHasUnread'](workspaceId)
     },
     async selectWorkspace(workspace) {
-      if (workspace._.selected) {
-        return
+      // The workspace can still be selected while the user is on a workspace
+      // agnostic page, like the all workspaces homepage, so there must always be
+      // navigated to the workspace even if selecting can be skipped.
+      if (!workspace._.selected) {
+        await this.$store.dispatch('workspace/select', workspace)
       }
-      await this.$store.dispatch('workspace/select', workspace)
       await this.$router.push({
         name: 'workspace',
         params: { workspaceId: workspace.id },
       })
       await pageFinished(this.nuxtApp)
       await nextTick()
-      this.hide()
+      // The navigation can replace the sidebar, and with it this context, for example
+      // when selecting a workspace from the all workspaces homepage. It's then already
+      // unmounted and doesn't have to be hidden anymore.
+      if (this.$refs.context) {
+        this.hide()
+      }
     },
   },
 }

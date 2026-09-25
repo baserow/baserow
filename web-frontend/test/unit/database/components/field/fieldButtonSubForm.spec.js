@@ -1201,6 +1201,7 @@ describe('FieldButtonSubForm', () => {
       )
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: true,
+        opens_new_tab: false,
         requires_reconfiguration: true,
       })
 
@@ -1215,8 +1216,30 @@ describe('FieldButtonSubForm', () => {
 
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
+        opens_new_tab: false,
         requires_reconfiguration: false,
       })
+    })
+
+    test('fieldValuesAfterSave takes the new tab flag from the field', async () => {
+      // Asked of the server rather than worked out from the action list,
+      // which is stale when refreshing it failed.
+      const wrapper = await mountForm({ type: 'button', label: 'Go', id: 7 })
+      wrapper.vm.localActions = []
+      wrapper.vm.$client.get
+        .mockRejectedValueOnce(
+          Object.assign(new Error('offline'), {
+            handler: { notifyIf: () => {} },
+          })
+        )
+        .mockResolvedValueOnce({
+          data: { id: 7, requires_reconfiguration: false, opens_new_tab: true },
+        })
+
+      await wrapper.vm.afterFieldSaved(7)
+
+      expect(wrapper.vm.serverActions).toEqual([])
+      expect(wrapper.vm.fieldValuesAfterSave().opens_new_tab).toBe(true)
     })
 
     test('a failed field refresh leaves the reconfigure flag out', async () => {
@@ -1248,6 +1271,7 @@ describe('FieldButtonSubForm', () => {
       await wrapper.vm.afterFieldSaved(7)
       expect(wrapper.vm.fieldValuesAfterSave()).toEqual({
         has_workflow_actions: false,
+        opens_new_tab: false,
         requires_reconfiguration: false,
       })
 

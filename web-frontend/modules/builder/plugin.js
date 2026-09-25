@@ -61,6 +61,7 @@ import {
   PublishBuilderJobType,
 } from '@baserow/modules/builder/jobTypes'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
+import { BuilderPageLastViewedItemType } from '@baserow/modules/builder/lastViewedItemTypes'
 import { PublicSiteErrorPageType } from '@baserow/modules/builder/errorPageTypes'
 import {
   DataSourcesPageHeaderItemType,
@@ -199,6 +200,10 @@ export default defineNuxtPlugin({
     $registry.registerNamespace('collectionField')
 
     $registry.register('application', new BuilderApplicationType(context))
+    $registry.register(
+      'lastViewedItem',
+      new BuilderPageLastViewedItemType(context)
+    )
     $registry.register('job', new DuplicatePageJobType(context))
     $registry.register('job', new PublishBuilderJobType(context))
 

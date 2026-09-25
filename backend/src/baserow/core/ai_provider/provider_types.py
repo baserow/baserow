@@ -162,11 +162,17 @@ def get_legacy_workspace_provider_values(
 
 
 def normalize_model_identifiers(values: str | list[str] | None) -> list[str]:
+    if values is None:
+        return []
     if isinstance(values, str):
         values = values.split(",")
+    elif not isinstance(values, list):
+        raise InvalidAIProviderSettings(
+            {"models": ["Models must be a list or a comma-separated string."]}
+        )
     result = []
     seen = set()
-    for raw_value in values or []:
+    for raw_value in values:
         value = str(raw_value).strip()
         if value and value not in seen:
             result.append(value)

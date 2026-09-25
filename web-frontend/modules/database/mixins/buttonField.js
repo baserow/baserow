@@ -109,6 +109,7 @@ export default {
       // handed a different row while the request is in flight.
       const key = this.dispatchKey
       dispatchesInFlight.add(key)
+      const newTab = this.openNewTab()
       try {
         // The dispatch takes its own broadcast, so `this.row` can change
         // mid-request. Client actions get the row as it was at click time.
@@ -135,7 +136,8 @@ export default {
         await this.runClientActions(
           outcome?.client_actions || [],
           clickedRow,
-          this.previousActionResults(outcome)
+          this.previousActionResults(outcome),
+          newTab
         )
       } catch (error) {
         if (error instanceof ButtonFieldDispatchJobDropped) {
@@ -161,6 +163,40 @@ export default {
         }
       } finally {
         dispatchesInFlight.delete(key)
+        // Still here when the dispatch failed or no action navigated it.
+        newTab?.discard()
+      }
+    },
+    /**
+     * Opens the tab a new tab action will navigate, while the click still
+     * counts as one. Safari blocks a `window.open` made once the dispatch
+     * request has returned, and says nothing about it.
+     *
+     * @returns {Object|null} `take()` hands the tab to the one action that
+     *   navigates it, `discard()` closes it if none did.
+     */
+    openNewTab() {
+      if (this.field.opens_new_tab !== true) {
+        return null
+      }
+      // Not `noopener`: that makes `window.open` return null, leaving nothing
+      // to navigate. Cut the link by hand instead.
+      let tab = window.open('', '_blank')
+      if (!tab) {
+        return null
+      }
+      tab.opener = null
+      return {
+        take() {
+          // Closed by the user while the dispatch ran: nothing to navigate.
+          const taken = tab?.closed ? null : tab
+          tab = null
+          return taken
+        },
+        discard() {
+          tab?.close()
+          tab = null
+        },
       }
     },
     /**
@@ -303,7 +339,12 @@ export default {
      * returned them. It only sends them when every server side action
      * succeeded, so a failed row action never navigates away.
      */
-    async runClientActions(clientActions, row, previousActionResults = {}) {
+    async runClientActions(
+      clientActions,
+      row,
+      previousActionResults = {},
+      newTab = null
+    ) {
       const fields =
         this.allFieldsInTable?.length > 0
           ? this.allFieldsInTable
@@ -320,6 +361,7 @@ export default {
                 previousActionResults,
                 workflowAction
               ),
+              newTab,
             },
           })
         // The server cannot tell whether the browser opened the URL, so this

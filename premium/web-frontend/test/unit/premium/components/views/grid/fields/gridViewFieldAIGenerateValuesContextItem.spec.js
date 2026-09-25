@@ -86,4 +86,15 @@ describe('GridViewFieldAIGenerateValuesContextItem component', () => {
     )
     expect(wrapper.find('a').classes()).toContain('disabled')
   })
+
+  test('disables generation when the selected model is ineligible for AI Fields', async () => {
+    await testApp.getStore().dispatch('workspace/forceCreate', {
+      ...workspace,
+      ai_features: { ai_fields: { models: {} } },
+    })
+
+    const wrapper = await mountComponent(aiField, vi.fn())
+
+    expect(wrapper.find('a').classes()).toContain('disabled')
+  })
 })

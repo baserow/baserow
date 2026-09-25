@@ -238,7 +238,7 @@ def get_frontend_default_redirect_url() -> str:
     :return: The absolute url to the Baserow dashboard.
     """
 
-    return urljoin(settings.PUBLIC_WEB_FRONTEND_URL, "/dashboard")
+    return urljoin(settings.PUBLIC_WEB_FRONTEND_URL, "/all-workspaces")
 
 
 def get_frontend_login_error_url() -> str:

@@ -11,7 +11,6 @@ from baserow.core.ai_provider.registries import (
     ai_provider_model_feature_type_registry,
 )
 from baserow.core.ai_provider.resolution import get_ai_provider_state
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.models import WorkspaceUser
 
@@ -161,11 +160,9 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         so a scope resolved here is memoized in the same context.
 
         :param workspace_user: The workspace user being serialized.
-        :return: The provider state of the scope, or None when the flag is off.
+        :return: The provider state of the scope.
         """
 
-        if not feature_flag_is_enabled(FF_AI_PROVIDERS):
-            return None
         states = self.context.setdefault("ai_provider_states", {})
         if workspace_user.workspace_id not in states:
             states[workspace_user.workspace_id] = get_ai_provider_state(

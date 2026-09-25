@@ -12,6 +12,11 @@ class CoreConfig(AppConfig):
     name = "baserow.core"
 
     def ready(self):
+        import pydantic_ai
+
+        # Otherwise the first uninstrumented agent run prints a Logfire promo to stderr.
+        pydantic_ai.BANNER_ENABLED = False
+
         # Patch Django's DecimalField to have lenient conversion
         # regarding NaN values
         from django.db.models import DecimalField
@@ -430,6 +435,7 @@ class CoreConfig(AppConfig):
         action_type_registry.register(AdminDisableTwoFactorAuthActionType())
 
         from baserow.core.action.scopes import (
+            AllWorkspacesActionScopeType,
             ApplicationActionScopeType,
             RootActionScopeType,
             WorkspaceActionScopeType,
@@ -437,6 +443,7 @@ class CoreConfig(AppConfig):
 
         action_scope_registry.register(RootActionScopeType())
         action_scope_registry.register(WorkspaceActionScopeType())
+        action_scope_registry.register(AllWorkspacesActionScopeType())
         action_scope_registry.register(ApplicationActionScopeType())
 
         from baserow.core.jobs.registries import job_type_registry
@@ -464,6 +471,21 @@ class CoreConfig(AppConfig):
 
         user_data_registry.register(GlobalPermissionsDataType())
         user_data_registry.register(UnreadUserNotificationsCountPermissionsDataType())
+
+        from baserow.core.preference_types import (
+            AllWorkspacesSortByPreferenceType,
+            AllWorkspacesViewModePreferenceType,
+            RecentlyViewedViewModePreferenceType,
+            WorkspaceRecentlyViewedViewModePreferenceType,
+        )
+        from baserow.core.user.registries import user_preference_type_registry
+
+        user_preference_type_registry.register(AllWorkspacesSortByPreferenceType())
+        user_preference_type_registry.register(AllWorkspacesViewModePreferenceType())
+        user_preference_type_registry.register(RecentlyViewedViewModePreferenceType())
+        user_preference_type_registry.register(
+            WorkspaceRecentlyViewedViewModePreferenceType()
+        )
 
         from baserow.core.auth_provider.auth_provider_types import (
             PasswordAuthProviderType,
@@ -559,10 +581,17 @@ class CoreConfig(AppConfig):
 
             patch_user_model_str()
 
+        import baserow.core.last_viewed.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401
         from baserow.core.telemetry.telemetry import setup_logging
 
         setup_logging()
+
+        # Must run after setup_logging so the notice reaches the configured
+        # sink and the OpenTelemetry log exporter.
+        from baserow.config.helpers import log_ai_provider_env_deprecations
+
+        log_ai_provider_env_deprecations()
 
     def _setup_health_checks(self):
         from health_check.plugins import plugin_dir

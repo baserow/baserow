@@ -148,8 +148,8 @@ class AIProviderFeatureSettingSerializer(serializers.Serializer):
         choices=("configured", "disabled", "unconfigured", "invalid"),
         allow_null=True,
         help_text=(
-            "How the instance selection resolves in this workspace, or null at "
-            "instance scope."
+            "The state of the instance selection this workspace inherits, or null "
+            "at instance scope."
         ),
     )
 

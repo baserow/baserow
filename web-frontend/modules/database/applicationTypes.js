@@ -27,6 +27,10 @@ export class DatabaseApplicationType extends ApplicationType {
     return 'iconoir-db'
   }
 
+  getIconColor() {
+    return 'green'
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.database')
@@ -102,12 +106,15 @@ export class DatabaseApplicationType extends ApplicationType {
 
   /**
    * When a table of the deleted database is selected we must redirect back to
-   * the dashboard because that page doesn't exist anymore.
+   * the workspace homepage because that page doesn't exist anymore.
    */
   delete(application, { $router }) {
     const tableSelected = application.tables.some((table) => table._.selected)
     if (tableSelected) {
-      $router.push({ name: 'dashboard' })
+      $router.push({
+        name: 'workspace',
+        params: { workspaceId: application.workspace.id },
+      })
     }
   }
 

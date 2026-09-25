@@ -861,7 +861,7 @@
   },
   "apiDocsDatabase": {
     "pageTitle": "{name} database API documentation",
-    "back": "Back to dashboard",
+    "back": "Back to overview",
     "openDatabase": "open database"
   },
   "apiDocsComponent": {
@@ -870,7 +870,7 @@
     "settings": "settings",
     "selectApplicationTitle": "For which database do you want to see the documentation?",
     "signIn": "Sign in to get started",
-    "back": "Back to dashboard"
+    "back": "Back to overview"
   },
   "viewAggregationType": {
     "count": "Count",
@@ -1377,5 +1377,8 @@
   "rowEditFieldFormViewEditRow": {
     "copyLink": "Copy link",
     "noFormView": "No form view configured"
+  },
+  "lastViewedItemType": {
+    "databaseView": "{name} view"
   }
 }

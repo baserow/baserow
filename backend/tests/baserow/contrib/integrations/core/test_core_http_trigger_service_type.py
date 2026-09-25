@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+from django.test import override_settings
+
 import pytest
 
 from baserow.contrib.integrations.core.exceptions import (
@@ -10,6 +12,16 @@ from baserow.contrib.integrations.core.exceptions import (
 from baserow.contrib.integrations.core.service_types import CoreHTTPTriggerServiceType
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.pytest_conftest import fake_import_formula
+
+
+@override_settings(AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS=42)
+def test_response_timeout_serializer_uses_configured_maximum():
+    field = CoreHTTPTriggerServiceType().serializer_field_overrides[
+        "response_timeout_seconds"
+    ]
+
+    assert field.default == 10
+    assert field.max_value == 42
 
 
 @pytest.mark.django_db

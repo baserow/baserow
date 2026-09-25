@@ -431,6 +431,49 @@ def test_button_field_reports_whether_it_has_actions(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "actions,expected",
+    [
+        ([], False),
+        ([(LocalBaserowCreateRowWorkflowAction, {})], False),
+        ([(OpenUrlWorkflowAction, {"target": "self"})], False),
+        ([(OpenUrlWorkflowAction, {"target": "blank"})], True),
+        (
+            [
+                (LocalBaserowCreateRowWorkflowAction, {}),
+                (OpenUrlWorkflowAction, {"target": "blank"}),
+            ],
+            True,
+        ),
+    ],
+)
+def test_button_field_reports_whether_it_opens_a_new_tab(
+    api_client, data_fixture, actions, expected
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    for model_class, values in actions:
+        data_fixture.create_database_workflow_action(
+            model_class, field=button_field, **values
+        )
+
+    item = api_client.get(
+        reverse("api:database:fields:item", kwargs={"field_id": button_field.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    listing = api_client.get(
+        reverse("api:database:fields:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert item.status_code == HTTP_200_OK, item.json()
+    assert item.json()["opens_new_tab"] is expected
+    [listed] = [f for f in listing.json() if f["id"] == button_field.id]
+    assert listed["opens_new_tab"] is expected
+
+
+@pytest.mark.django_db
 def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture):
     """
     `has_workflow_actions` is serialized for every button field, so it is
@@ -467,6 +510,9 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
         data_fixture.create_database_workflow_action(
             LocalBaserowCreateRowWorkflowAction, field=extra
         )
+        data_fixture.create_database_workflow_action(
+            OpenUrlWorkflowAction, field=extra, target="blank"
+        )
 
     payload, four_button_queries = list_fields()
 
@@ -476,4 +522,10 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
     assert all(field["requires_reconfiguration"] is True for field in buttons), (
         "The fixture's row actions have no table, so every button needs one."
     )
+    assert {field["label"]: field["opens_new_tab"] for field in buttons} == {
+        "One": False,
+        "Two": True,
+        "Three": True,
+        "Four": True,
+    }
     assert four_button_queries == one_button_queries

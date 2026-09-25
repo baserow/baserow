@@ -27,6 +27,7 @@ class AutomationConfig(AppConfig):
             CoreIteratorNodeType,
             CoreManualTriggerNodeType,
             CorePeriodicTriggerNodeType,
+            CoreResponseNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
             CoreStartWorkflowNodeType,
@@ -115,6 +116,13 @@ class AutomationConfig(AppConfig):
         object_scope_type_registry.register(AutomationWorkflowObjectScopeType())
         object_scope_type_registry.register(AutomationNodeObjectScopeType())
 
+        from baserow.contrib.automation.workflows.last_viewed_types import (
+            AutomationWorkflowLastViewedItemType,
+        )
+        from baserow.core.registries import last_viewed_item_type_registry
+
+        last_viewed_item_type_registry.register(AutomationWorkflowLastViewedItemType())
+
         operation_type_registry.register(CreateAutomationWorkflowOperationType())
         operation_type_registry.register(DeleteAutomationWorkflowOperationType())
         operation_type_registry.register(DuplicateAutomationWorkflowOperationType())
@@ -189,6 +197,7 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(CoreRouterActionNodeType())
         automation_node_type_registry.register(CoreStartWorkflowNodeType())
         automation_node_type_registry.register(CoreGotoActionNodeType())
+        automation_node_type_registry.register(CoreResponseNodeType())
         automation_node_type_registry.register(LocalBaserowRowsCreatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsUpdatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsDeletedNodeTriggerType())
@@ -235,6 +244,7 @@ class AutomationConfig(AppConfig):
         # The signals must always be imported last because they use
         # the registries which need to be filled first.
         import baserow.contrib.automation.nodes.ws.signals  # noqa: F403, F401
+        import baserow.contrib.automation.workflows.receivers  # noqa: F401
         import baserow.contrib.automation.workflows.signals  # noqa: F403, F401
         import baserow.contrib.automation.workflows.ws.signals  # noqa: F403, F401
         import baserow.contrib.integrations.tasks  # noqa: F403, F401

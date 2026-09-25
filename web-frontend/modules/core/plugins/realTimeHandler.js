@@ -721,17 +721,6 @@ export class RealTimeHandler {
           )
         }
 
-        if (
-          data.workspace_id === null &&
-          data.model_availability_updated === true
-        ) {
-          recoveries.push(
-            retryRealtimeRecovery(() =>
-              store.dispatch('settings/load', { realtimeRecovery: true })
-            )
-          )
-        }
-
         const providerScopeIsActive = () =>
           (store.getters['aiProvider/hasLoaded'] ||
             store.getters['aiProvider/isLoading']) &&
@@ -755,13 +744,6 @@ export class RealTimeHandler {
 
         await Promise.all(recoveries)
         return
-      }
-
-      if (data.instance_ai_features !== undefined) {
-        store.dispatch(
-          'settings/forceUpdateAIFeatures',
-          data.instance_ai_features
-        )
       }
 
       for (const [workspaceId, enabledModels] of Object.entries(
@@ -901,6 +883,20 @@ export class RealTimeHandler {
         store.dispatch('application/forceUpdate', {
           application,
           data: data.application,
+        })
+      }
+    })
+
+    this.registerEvent('last_viewed_updated', ({ store }, data) => {
+      const application = store.getters['application/get'](data.application_id)
+      if (
+        application !== undefined &&
+        (!application.last_viewed ||
+          Date.parse(data.last_viewed) > Date.parse(application.last_viewed))
+      ) {
+        store.dispatch('application/forceUpdate', {
+          application,
+          data: { last_viewed: data.last_viewed },
         })
       }
     })

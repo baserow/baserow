@@ -43,3 +43,10 @@ export const falseValues = [
   'unchecked',
   false,
 ]
+
+// Which sidebar the `app` layout renders, chosen by a page through
+// `definePageMeta({ sidebarType })`. Defaults to the workspace one.
+export const SIDEBAR_TYPES = {
+  WORKSPACE: 'workspace',
+  ALL_WORKSPACES: 'all-workspaces',
+}

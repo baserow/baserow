@@ -49,7 +49,10 @@ export const makeBuilderPreviewSessionErrorInterceptor = (
  * Sends browser or SSR preview-session credentials only to preview API URLs.
  */
 export const prepareBuilderPreviewRequest = (previewSsrAuth) => (config) => {
-  if (getBuilderPreviewIdFromApiUrl(config.url) === null) {
+  if (
+    config.skipBuilderPreviewRequestHandling ||
+    getBuilderPreviewIdFromApiUrl(config.url) === null
+  ) {
     return config
   }
 

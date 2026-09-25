@@ -5,15 +5,19 @@ from functools import cached_property
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
 
+from django.conf import settings
+
 from loguru import logger
 
-from baserow.core.ai_provider.constants import AI_PROVIDER_TYPES
+from baserow.core.ai_provider.constants import (
+    AI_PROVIDER_TYPES,
+    PROVIDER_ENVIRONMENT_SETTINGS,
+)
 from baserow.core.ai_provider.exceptions import InvalidAIProviderSettings
 from baserow.core.ai_provider.resolution import (
     ScopedAIProviderState,
     get_ai_provider_state,
 )
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
@@ -423,33 +427,32 @@ class GenerativeAIModelType(Instance):
         """
         Resolve a non-environment setting and report whether it is authoritative.
 
-        Explicit overrides come first. With database providers enabled, workspace
-        models override matching instance models while non-overridden instance
-        models remain inherited. Otherwise a complete legacy workspace JSON
+        Explicit overrides come first. Workspace models override matching instance
+        models while non-overridden instance models remain inherited. If no
+        workspace provider exists, a complete legacy workspace JSON
         configuration is checked before an inherited instance provider and
         environment settings. Incomplete legacy settings are never combined with
         credentials from another scope.
 
+        :param workspace: The workspace scope, or None for instance settings.
+        :param key: The provider setting to resolve.
+        :param settings_override: Explicit provider settings supplied by the caller.
+        :param feature_type: Restrict model availability to this feature, if given.
         :param state: Pre-loaded state for this scope. Callers resolving many
             settings, or many workspaces, load it once and pass it here so the
             provider rows are read from the database a single time.
+        :returns: Whether the resolved value is authoritative and the value itself.
+            An authoritative empty value suppresses the environment fallback.
         """
 
-        providers_enabled = feature_flag_is_enabled(FF_AI_PROVIDERS)
         model_settings_override = None
         if settings_override is not None and key in settings_override:
-            if not providers_enabled or key != "models":
+            if key != "models":
                 return True, settings_override[key]
             complete_override = self._get_complete_provider_settings(settings_override)
             if complete_override is not None:
                 return True, complete_override["models"]
             model_settings_override = settings_override[key]
-
-        if not providers_enabled:
-            legacy_value = self.get_workspace_setting(workspace, key)
-            if legacy_value:
-                return True, legacy_value
-            return False, None
 
         if state is None:
             state = get_ai_provider_state(workspace)
@@ -458,17 +461,16 @@ class GenerativeAIModelType(Instance):
         disabled_provider_ids = state.disabled_instance_provider_ids
 
         workspace_provider = workspace_providers.get(self.type)
-        legacy_settings = None
         if workspace_provider is None and model_settings_override is None:
             legacy_settings = self._get_complete_legacy_workspace_settings(workspace)
-            if legacy_settings is not None and key != "models":
+            if legacy_settings is not None:
+                # Legacy settings that could not be imported still own their
+                # connection and models independently of the instance provider.
                 return True, legacy_settings.get(key)
         instance_provider = instance_providers.get(self.type)
         if workspace_provider is None and instance_provider is None:
             if model_settings_override is not None:
                 return True, model_settings_override
-            if legacy_settings is not None:
-                return True, legacy_settings.get(key)
             return False, None
 
         if key == "models":
@@ -500,13 +502,12 @@ class GenerativeAIModelType(Instance):
                     and model.model_identifier not in overridden_identifiers
                 ]
             effective_models = workspace_models + instance_models
-            models_to_limit = model_settings_override
-            if models_to_limit is None and legacy_settings is not None:
-                models_to_limit = legacy_settings["models"]
-            if models_to_limit is not None:
+            if model_settings_override is not None:
                 effective_model_set = set(effective_models)
                 effective_models = [
-                    model for model in models_to_limit if model in effective_model_set
+                    model
+                    for model in model_settings_override
+                    if model in effective_model_set
                 ]
             return True, effective_models
 
@@ -551,7 +552,10 @@ class GenerativeAIModelType(Instance):
         ):
             return None
 
-        values = (workspace.generative_ai_models_settings or {}).get(self.type)
+        legacy_settings = workspace.generative_ai_models_settings
+        if not isinstance(legacy_settings, dict):
+            return None
+        values = legacy_settings.get(self.type)
         return self._get_complete_provider_settings(values)
 
     def _get_complete_provider_settings(self, values: Any) -> Optional[dict[str, Any]]:
@@ -622,14 +626,20 @@ class GenerativeAIModelType(Instance):
         settings_override: Optional[dict[str, Any]] = None,
         state: Optional[ScopedAIProviderState] = None,
     ) -> Optional[dict[str, Any]]:
-        """Resolve the complete provider configuration owning ``model_name``."""
+        """Resolve the complete provider configuration owning ``model_name``.
+
+        :param model_name: The model whose connection settings are requested.
+        :param workspace: The owning workspace, or None for instance resolution.
+        :param settings_override: An explicit connection override, if supplied.
+        :param state: Pre-loaded provider state for this scope, if available.
+        :returns: The complete settings override, including environment fallbacks,
+            or None when provider getters should resolve their own settings.
+        """
 
         if settings_override is not None:
             return settings_override
 
-        if not feature_flag_is_enabled(FF_AI_PROVIDERS) or not isinstance(
-            workspace, Workspace
-        ):
+        if not isinstance(workspace, Workspace):
             return None
 
         if state is None:
@@ -648,29 +658,9 @@ class GenerativeAIModelType(Instance):
         if workspace_provider is None:
             legacy_settings = self._get_complete_legacy_workspace_settings(workspace)
             if legacy_settings is not None:
-                instance_provider = instance_providers.get(self.type)
-                if instance_provider is None:
-                    return (
-                        legacy_settings
-                        if model_name in legacy_settings["models"]
-                        else None
-                    )
-                enabled_instance_models = [
-                    model.model_identifier
-                    for model in instance_provider.models.all()
-                    if instance_provider.is_active
-                    and instance_provider.id not in disabled_provider_ids
-                    and model.is_enabled
-                ]
-                enabled_instance_model_set = set(enabled_instance_models)
-                enabled_legacy_models = [
-                    model
-                    for model in legacy_settings["models"]
-                    if model in enabled_instance_model_set
-                ]
-                if model_name not in enabled_legacy_models:
-                    return None
-                return {**legacy_settings, "models": enabled_legacy_models}
+                return (
+                    legacy_settings if model_name in legacy_settings["models"] else None
+                )
 
         instance_provider = instance_providers.get(self.type)
         if (
@@ -683,6 +673,27 @@ class GenerativeAIModelType(Instance):
             )
         ):
             return self._get_provider_settings(instance_provider)
+
+        if workspace_provider is None and instance_provider is None:
+            environment_settings = PROVIDER_ENVIRONMENT_SETTINGS.get(self.type)
+            if environment_settings is not None:
+                # Keep environment-backed prompts and file clients on the same
+                # resolved connection without reopening provider state in workers.
+                # Preserve raw values and absent optional settings just as the
+                # provider getters do; import validation must not alter them here.
+                api_key_setting = environment_settings["api_key"]
+                return {
+                    "api_key": getattr(settings, api_key_setting)
+                    if api_key_setting
+                    else None,
+                    "models": getattr(settings, environment_settings["models"]),
+                    **{
+                        name: getattr(settings, setting_name)
+                        for name, setting_name in environment_settings[
+                            "extra_settings"
+                        ].items()
+                    },
+                }
         return None
 
     def get_api_key(
@@ -931,6 +942,7 @@ class GenerativeAIModelType(Instance):
         output_type: Any = None,
         content: Optional[list[UserContent]] = None,
         model_settings_override: Optional[dict[str, Any]] = None,
+        timeout_seconds: float | None = None,
     ) -> Any:
         """
         Prompt the AI model and return the result. Handles model retrieval,
@@ -959,6 +971,8 @@ class GenerativeAIModelType(Instance):
             to include as multi-modal input alongside the text prompt.
         :param model_settings_override: Optional request settings merged over the
             provider defaults.
+        :param timeout_seconds: Optional wall-clock budget for the model run,
+            including provider retries.
         :return: The model's response — a string, a matched choice, or a
             validated output_type instance.
         """
@@ -985,6 +999,7 @@ class GenerativeAIModelType(Instance):
                 user_prompt,
                 model=ai_model,
                 model_settings=model_settings,
+                timeout_seconds=timeout_seconds,
             )
 
             if self._is_choices(output_type):

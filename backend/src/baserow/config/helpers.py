@@ -2,10 +2,74 @@ import asyncio
 import os
 import sys
 
+from django.apps import apps
 from django.conf import settings
 from django.core.handlers.asgi import ASGIHandler
 
 from loguru import logger
+
+
+def log_ai_provider_env_deprecations() -> None:
+    """
+    Warn about configured legacy AI provider and Kuma environment variables.
+
+    Called during Django startup for servers, workers, and management commands.
+    Only variable names are logged; checking the environment requires no database
+    access or provider connections and leaves compatibility fallbacks unchanged.
+    The notice cannot say whether a given variable is still in use, because that
+    depends on provider rows this must not query during startup.
+
+    :returns: None.
+    """
+
+    from baserow.core.ai_provider.constants import PROVIDER_ENVIRONMENT_SETTINGS
+
+    configured_provider_variables = sorted(
+        name
+        for provider_settings in PROVIDER_ENVIRONMENT_SETTINGS.values()
+        for name in (
+            provider_settings["api_key"],
+            provider_settings["models"],
+            *provider_settings["extra_settings"].values(),
+        )
+        if name and os.environ.get(name, "").strip()
+    )
+    if configured_provider_variables:
+        logger.warning(
+            "Deprecated AI provider environment variables are configured: {}. "
+            "Upgrading imports them once into Admin tools > AI providers, which then "
+            "takes precedence: editing these variables afterwards has no effect "
+            "on a provider type configured there. Manage those providers in the "
+            "admin instead, and verify the imported configuration before removing "
+            "these variables. A provider type with no configuration there still "
+            "falls back to its environment settings, and "
+            "migrate_ai_provider_settings --scope instance imports one that the "
+            "upgrade could not.",
+            ", ".join(configured_provider_variables),
+        )
+
+    if apps.is_installed("baserow_enterprise"):
+        configured_kuma_variables = [
+            name
+            for name in (
+                "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL",
+                "UDSPY_LM_MODEL",
+                "UDSPY_LM_API_KEY",
+                "UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL",
+            )
+            if os.environ.get(name, "").strip()
+        ]
+        if configured_kuma_variables:
+            logger.warning(
+                "Deprecated Kuma environment variables are "
+                "configured: {}. Configure and test a provider and model under "
+                "Admin tools > AI providers, then select it for Kuma under AI features. "
+                "The automatic import does not migrate Kuma selectors or SDK "
+                "credentials, and imported models are not Kuma-eligible until you "
+                "mark them. Keep the environment fallback until a supported "
+                "replacement is configured and verified.",
+                ", ".join(configured_kuma_variables),
+            )
 
 
 def check_lazy_loaded_libraries():

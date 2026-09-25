@@ -3,6 +3,51 @@
     "page": "Page",
     "of": "of {pages}"
   },
+  "allWorkspaces": {
+    "title": "Your workspaces",
+    "searchResults": "Search results",
+    "searchPlaceholder": "Search",
+    "allItems": "All items",
+    "itemsSelected": "{count} item type | {count} item types",
+    "createWorkspace": "Create workspace",
+    "expandedView": "Expanded view",
+    "compactView": "Compact view",
+    "collapseAll": "Collapse all",
+    "expandAll": "Expand all",
+    "workspacesSection": "Workspaces",
+    "itemsSection": "Items",
+    "noResultsTitle": "No results found",
+    "noResultsDescription": "We couldn't find anything for \"{search}\". Check your spelling or use different keywords.",
+    "clearSearch": "Clear search",
+    "membersCount": "0 members | 1 member | {count} members",
+    "itemsCount": "0 items | 1 item | {count} items",
+    "moreElements": "{count} more element | {count} more elements",
+    "noApplications": "No builders yet",
+    "noFilterMatches": "No items match the selected types.",
+    "create": "Create",
+    "members": "Members",
+    "settings": "Settings"
+  },
+  "recentlyViewed": {
+    "title": "Recently viewed",
+    "yourItems": "Your items",
+    "name": "Name",
+    "lastViewed": "Last viewed",
+    "workspace": "Workspace",
+    "allWorkspaces": "All workspaces",
+    "workspacesSelected": "{count} workspace | {count} workspaces",
+    "allItems": "All items",
+    "itemTypesSelected": "{count} item type | {count} item types",
+    "tableView": "Table",
+    "cardsView": "Cards",
+    "loadMore": "Load more",
+    "emptyTitle": "Nothing viewed recently",
+    "emptyDescription": "The views, pages, dashboards and workflows you open show up here.",
+    "noFilterMatchesTitle": "No items match the selected filters",
+    "noFilterMatchesDescription": "Try selecting other workspaces or item types.",
+    "clearFilters": "Clear filters",
+    "goToWorkspaces": "Go to your workspaces"
+  },
   "workspaceSearch": {
     "title": "Search",
     "searchEverything": "Search...",
@@ -62,7 +107,11 @@
     "logoff": "Log out",
     "errorNoWorkspace": "You don’t have any workspaces.",
     "adminTools": "Admin tools",
-    "home": "Home",
+    "recents": "Recents",
+    "allWorkspaces": "All workspaces",
+    "recentlyViewed": "Recently viewed",
+    "backToHome": "Back to home",
+    "templates": "Templates",
     "dashboard": "Dashboard",
     "trash": "Trash",
     "settings": "My settings",
@@ -333,7 +382,6 @@
     "title": "Workspace Settings"
   },
   "workspaceSettingType": {
-    "generativeAI": "Generative AI",
     "aiProviders": "AI providers"
   },
   "generativeAIModelType": {
@@ -385,8 +433,6 @@
     "groqModelIdentifierDescription": "Enter a [Groq model identifier](https://console.groq.com/docs/models). For example: `openai/gpt-oss-120b` or `openai/gpt-oss-20b`."
   },
   "generativeAIWorkspaceSettings": {
-    "title": "Generative AI settings",
-    "description": "These settings can be used to optionally set generative AI configuration on workspace level. Features like the AI field can be disabled because they lack an API key for one of the supported models. By providing the settings here, you can enable those features. Leaving a value blank defaults back to the global instance settings. Note that everyone in the workspace will share these settings.",
     "providerTitle": "AI providers",
     "providerDescription": "Manage providers owned by this workspace or enable and disable providers inherited from the instance.",
     "sharedModelsTitle": "Shared across workspaces",
@@ -396,9 +442,6 @@
     "disabledInWorkspace": "Disabled in workspace",
     "noProviders": "No AI providers are available",
     "noProvidersDescription": "Add a provider for this workspace, or ask an instance administrator to configure one.",
-    "changedTitle": "Settings updated correctly",
-    "changedDescription": "The settings have been updated and they will be now used in this workspace.",
-    "submitButton": "Update settings",
     "openSettings": "Open settings",
     "hideSettings": "Hide settings"
   },
@@ -414,7 +457,8 @@
     "title": "Templates"
   },
   "templateHeader": {
-    "use": "Use this template"
+    "use": "Use this template",
+    "selectWorkspace": "Choose workspace"
   },
   "trashSidebar": {
     "unnamedWorkspace": "Unnamed workspace {id}",
@@ -552,8 +596,8 @@
   "errorLayout": {
     "pageNotFoundTitle": "Page not found",
     "notFound": "The page you are looking for has not been found. This might be because URL is incorrect or that you don’t have permission to view this page.",
-    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the dashboard.",
-    "backDashboard": "Back to dashboard",
+    "error": "Something went wrong while loading the page. Our developers have been notified of the issue. Please try to refresh or return to the homepage.",
+    "backDashboard": "Back to home",
     "backLogin": "Back to login",
     "wrong": "Something went wrong",
     "refresh": "Refresh page"
@@ -570,8 +614,8 @@
     "shareOnReddit": "Share on Reddit",
     "shareOnFacebook": "Share on Facebook",
     "shareOnLinkedIn": "Share on LinkedIn",
-    "suggestedTemplates": "Suggested templates",
-    "resources": "Resources",
+    "templates": "Templates",
+    "templatesMessage": "Start with a ready made solution",
     "knowledgeBase": "Knowledge base",
     "knowledgeBaseMessage": "Find answers to all of your questions",
     "tutorials": "Tutorials",
@@ -585,12 +629,6 @@
     "addNew": "Add new...",
     "noWorkspace": "No workspace",
     "noWorkspaceDescription": "Get started by creating a new workspace"
-  },
-  "dashboardApplication": {
-    "createdAt": "created"
-  },
-  "templateCard": {
-    "viewMore": "View more"
   },
   "login": {
     "title": "Welcome back",
@@ -1089,15 +1127,15 @@
     "availableForList": "Available for: {features}",
     "availableForNone": "Not available to any listed feature",
     "featureSettingsTitle": "AI features",
-    "featureSettingsDescription": "Choose the model used by features that need one default model.",
+    "featureSettingsDescription": "Choose a configured provider model for each feature. Environment models are deprecated.",
     "kumaDisabled": "Disabled",
-    "kumaInvalidFallback": "Selected model unavailable — using legacy environment model: {model}",
-    "kumaInvalidNoFallback": "Selected model unavailable — no legacy environment model configured",
+    "kumaInvalidFallback": "Selected model unavailable — using deprecated environment model: {model}",
+    "kumaInvalidNoFallback": "Selected model unavailable — no environment model configured",
     "kumaDisabledInWorkspace": "Disabled in this workspace",
     "kumaUseInstance": "Use instance setting — {model}",
-    "kumaInheritedUnavailable": "selected model unavailable in this workspace",
-    "kumaUseLegacy": "Use legacy environment model: {model}",
-    "kumaLegacyFallback": "legacy environment model: {model}",
+    "kumaInheritedUnavailable": "selected instance model unavailable",
+    "kumaUseLegacy": "Use environment model (deprecated): {model}",
+    "kumaLegacyFallback": "environment model (deprecated): {model}",
     "kumaLegacyEmpty": "empty",
     "kumaNotConfigured": "not configured",
     "featureModelLabel": "Model for {feature}",
@@ -1111,7 +1149,7 @@
     "modelDiscoveryEmpty": "No known models for this provider. Enter an identifier manually.",
     "modelDiscoveryNoMatch": "No known model matches. You can use the identifier you entered.",
     "noProviders": "No instance AI providers configured",
-    "noProvidersDescription": "Add a provider manually, or preview and run the environment import command before enabling the feature for users.",
+    "noProvidersDescription": "Add a provider to configure the models available to your workspaces.",
     "noModels": "No models are configured for this provider.",
     "active": "Active",
     "inactive": "Inactive",
@@ -1321,7 +1359,48 @@
     "methodsOptionLabel": "Allowed HTTP methods",
     "methodsOptionDescription": "Controls which HTTP methods are allowed for this webhook. Excluding GET reduces the chance of the webhook being triggered accidentally.",
     "methodsOptionAll": "All",
-    "methodsOptionExcludeGet": "Exclude GET"
+    "methodsOptionExcludeGet": "Exclude GET",
+    "responseOptionsLabel": "Response",
+    "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
+    "responseTimeout": "Response timeout",
+    "seconds": "seconds"
+  },
+  "coreManualTriggerServiceForm": {
+    "responseOptionsLabel": "Response",
+    "waitForResponse": "Wait for workflow response",
+    "waitForResponseDescription": "Wait until a Response node is reached. If none is reached, wait for the workflow to finish and return the default response.",
+    "responseTimeout": "Response timeout",
+    "seconds": "seconds"
+  },
+  "coreResponseServiceForm": {
+    "statusCode": "Status code",
+    "statusCode200": "200 - OK",
+    "statusCode201": "201 - Created",
+    "statusCode202": "202 - Accepted",
+    "statusCode204": "204 - No Content",
+    "statusCode400": "400 - Bad Request",
+    "statusCode401": "401 - Unauthorized",
+    "statusCode403": "403 - Forbidden",
+    "statusCode404": "404 - Not Found",
+    "statusCode405": "405 - Method Not Allowed",
+    "statusCode409": "409 - Conflict",
+    "statusCode422": "422 - Unprocessable Content",
+    "statusCode429": "429 - Too Many Requests",
+    "bodyType": "Body type",
+    "bodyTypeEmpty": "Empty",
+    "bodyTypeJson": "JSON",
+    "bodyTypeText": "Text",
+    "body": "Body",
+    "bodyPlaceholder": "Response body",
+    "headers": "Headers",
+    "name": "Name",
+    "value": "Value",
+    "namePlaceholder": "Header name",
+    "valuePlaceholder": "Header value",
+    "addHeader": "Add header",
+    "nameFieldRequired": "A header name is required.",
+    "nameFieldInvalid": "Header names can only contain letters, numbers, dashes, and underscores, and cannot start with a dash or underscore."
   },
   "inboundEmailTriggerServiceForm": {
     "title": "Email address",

@@ -1,0 +1,222 @@
+.recently-viewed-page {
+  padding: 24px;
+}
+
+.recently-viewed__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.recently-viewed__title {
+  margin: 0 auto 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+
+  @extend %ellipsis;
+}
+
+.recently-viewed__filter {
+  width: 150px;
+}
+
+.recently-viewed__header-divider {
+  width: 1px;
+  height: 20px;
+  background-color: $palette-neutral-200;
+}
+
+// Name column, last viewed column and, on the all workspaces page, the
+// workspace column. The proportions follow the design at its reference width and
+// scale with the page.
+.recently-viewed__head,
+.recently-viewed__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: center;
+  column-gap: 16px;
+}
+
+.recently-viewed__head--with-workspace,
+.recently-viewed__row--with-workspace {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.recently-viewed__head {
+  height: 36px;
+  padding: 0 12px;
+  background-color: $palette-neutral-50;
+  font-size: 12px;
+  font-weight: 500;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded-md);
+}
+
+.recently-viewed__head-cell {
+  @extend %ellipsis;
+}
+
+.recently-viewed__row {
+  position: relative;
+
+  // Own stacking context, so the hover layer below can sit behind the cells.
+  isolation: isolate;
+  height: 71px;
+  color: $palette-neutral-1200;
+  cursor: pointer;
+
+  // The hover background is inset from the separators, like in the design, and
+  // bleeds 8px over both edges.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 6px -8px 7px;
+    z-index: -1;
+
+    @include rounded($rounded-lg);
+  }
+
+  // The line between two rows starts after the icon, like in the design.
+  &::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 56px;
+    height: 1px;
+    background-color: $palette-neutral-200;
+  }
+
+  &:last-child::after {
+    display: none;
+  }
+
+  // It's a link, which the global styles underline on hover.
+  &:hover {
+    text-decoration: none;
+  }
+
+  &:hover::before,
+  &:focus-visible::before {
+    background-color: $palette-neutral-25;
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    &::before {
+      outline: 2px solid $palette-blue-500;
+      outline-offset: -2px;
+    }
+  }
+}
+
+// Placeholder rows keep the layout of real rows but none of the interaction.
+.recently-viewed__row--skeleton {
+  cursor: default;
+
+  &:hover::before {
+    background-color: transparent;
+  }
+}
+
+.recently-viewed__cell {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.recently-viewed__cell--muted {
+  color: $palette-neutral-900;
+}
+
+.recently-viewed__cell--workspace {
+  gap: 8px;
+}
+
+.recently-viewed__name-details {
+  min-width: 0;
+}
+
+.recently-viewed__name-details--skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recently-viewed__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+
+  @extend %ellipsis;
+}
+
+.recently-viewed__path {
+  margin-top: 4px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+
+  @extend %ellipsis;
+}
+
+.recently-viewed__path-separator {
+  margin: 0 6px;
+  color: $palette-neutral-400;
+}
+
+.recently-viewed__cell-text {
+  // Block level, so the ellipsis and the first letter rule below apply.
+  display: block;
+
+  @extend %ellipsis;
+}
+
+// Values like "just now" come from the shared date wording, which is lower case
+// mid sentence but starts the cell here.
+.recently-viewed__cell-text--capitalized::first-letter {
+  text-transform: uppercase;
+}
+
+.recently-viewed__grid {
+  @extend %all-workspaces-grid;
+}
+
+.recently-viewed__footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.recently-viewed__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 64px 24px;
+  border: 1px dashed $palette-neutral-400;
+  text-align: center;
+
+  @include rounded($rounded-md);
+}
+
+.recently-viewed__empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.recently-viewed__empty-description {
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.recently-viewed__empty-action {
+  margin-top: 8px;
+}

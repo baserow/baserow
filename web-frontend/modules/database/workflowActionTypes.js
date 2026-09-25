@@ -145,6 +145,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     return null
   }
 
+  /** Mirrors the backend's `is_frontend_only`: this runs on the server. */
+  get isFrontendOnly() {
+    return false
+  }
+
   get serviceType() {
     throw new Error('Must be set on the type.')
   }
@@ -323,6 +328,17 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
  * Opens a URL in the browser. No service: the backend hands it back to the
  * client to run, so this extends the core type rather than the one above.
  */
+/**
+ * Whether the browser loads the URL itself, rather than handing it to another
+ * app the way it does `mailto:`, `tel:` or `ftp:`. A relative URL is this
+ * site's, so it loads.
+ */
+function loadsPage(url) {
+  // Any http base will do: it only has to make a relative URL parse.
+  const { protocol } = new URL(url, 'http://baserow.invalid')
+  return protocol === 'http:' || protocol === 'https:'
+}
+
 export class OpenUrlWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'open_url'
@@ -342,6 +358,11 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
 
   get icon() {
     return 'iconoir-link'
+  }
+
+  /** Mirrors the backend's `is_frontend_only`: the browser opens the URL. */
+  get isFrontendOnly() {
+    return true
   }
 
   /**
@@ -460,9 +481,25 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
       return false
     }
 
-    if (workflowAction.target === 'blank') {
-      window.open(url, '_blank', 'noopener,noreferrer')
+    if (workflowAction.target === 'blank' && loadsPage(url)) {
+      // The button opened this tab on click, see `openNewTab` in the button
+      // field mixin. Without one, or for a second new tab action, fall back
+      // to opening it here.
+      const tab = applicationContext.newTab?.take()
+      if (tab) {
+        // A link followed from inside the tab, so `noreferrer` still keeps
+        // this page's URL from the site, as the fallback below does.
+        const link = tab.document.createElement('a')
+        link.href = url
+        link.rel = 'noreferrer'
+        tab.document.body.appendChild(link)
+        link.click()
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
     } else {
+      // Also where a `mailto:` or `tel:` URL goes: another app takes it and
+      // this page stays, where a new tab would be left empty.
       window.location.href = url
     }
     return true

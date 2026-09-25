@@ -96,6 +96,25 @@ describe('Notification store', () => {
     expect(store.getters['notification/anyOtherWorkspaceWithUnread']).toBe(true)
   })
 
+  test('anyWorkspaceWithUnread also counts the current workspace', () => {
+    store.dispatch('notification/forceCreateInBulk', {
+      notifications: [
+        {
+          id: 1,
+          type: 'test',
+          workspace: { id: 1 },
+          read: false,
+        },
+      ],
+    })
+    // The unread notification belongs to the current workspace, so it's skipped
+    // by the "other" getter, but must count on workspace agnostic pages.
+    expect(store.getters['notification/anyOtherWorkspaceWithUnread']).toBe(
+      false
+    )
+    expect(store.getters['notification/anyWorkspaceWithUnread']).toBe(true)
+  })
+
   test('can mark a notification as read', () => {
     store.dispatch('notification/forceCreateInBulk', {
       notifications: [

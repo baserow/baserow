@@ -12,6 +12,7 @@ from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.service import AIProviderService
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
+from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
@@ -253,6 +254,7 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
             "generative_ai_models_enabled": {},
         },
         "tables": [],
+        "last_viewed": None,
     }
     assert len(args) == 2
     call_1 = args[1][0]
@@ -271,6 +273,29 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
     assert call_2[1]["type"] == "group_restored"
     assert call_2[1]["workspace"]["id"] == workspace_user.workspace_id
     assert call_2[1]["applications"] == [expected_database_json]
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.signals.broadcast_to_users")
+@pytest.mark.websockets
+def test_workspace_restored_carries_the_users_last_viewed(
+    mock_broadcast_to_users, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    with freeze_time("2026-01-01T12:00:00Z"):
+        LastViewedHandler.mark_viewed(
+            user.id, "dashboard", dashboard.id, datetime.now(tz=timezone.utc)
+        )
+    TrashHandler.trash(user, workspace, None, workspace)
+
+    TrashHandler.restore_item(user, "workspace", workspace.id)
+
+    (payload,) = [call[0][1] for call in mock_broadcast_to_users.delay.call_args_list]
+    assert [a["last_viewed"] for a in payload["applications"]] == [
+        "2026-01-01T12:00:00Z"
+    ]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -294,45 +319,6 @@ def test_workspace_updated(mock_broadcast_to_workspace, data_fixture):
     assert args[0][1]["workspace"]["id"] == workspace.id
     assert args[0][1]["updated_fields"] == ["name"]
     assert args[0][2] == "test"
-
-
-@pytest.mark.django_db(transaction=True)
-@patch("baserow.ws.signals.broadcast_to_group")
-@pytest.mark.websockets
-def test_workspace_ai_settings_change_broadcasts_enabled_models(
-    mock_broadcast_to_workspace, data_fixture, settings
-):
-    settings.FEATURE_FLAGS = ["ai-providers"]
-    user = data_fixture.create_user()
-    user.web_socket_id = "test"
-    workspace = data_fixture.create_workspace(user=user)
-    AIProviderHandler.create_provider(
-        "openai",
-        api_key="secret",
-        models_data=[
-            {"model_identifier": "gpt-5"},
-            {"model_identifier": "gpt-4"},
-        ],
-    )
-
-    with transaction.atomic():
-        locked_workspace = CoreHandler().get_workspace_for_update(workspace.id)
-        CoreHandler().update_workspace(
-            user,
-            locked_workspace,
-            generative_ai_models_settings={
-                "openai": {
-                    "api_key": "workspace-secret",
-                    "models": ["gpt-4"],
-                }
-            },
-        )
-
-    payload = mock_broadcast_to_workspace.delay.call_args.args[1]
-    assert payload["type"] == "group_updated"
-    assert payload["updated_fields"] == ["generative_ai_models_settings"]
-    assert payload["workspace"]["generative_ai_models_enabled"] == {"openai": ["gpt-4"]}
-    assert mock_broadcast_to_workspace.delay.call_args.args[2] is None
 
 
 @pytest.mark.django_db(transaction=True)
@@ -385,9 +371,8 @@ def test_instance_ai_model_availability_change_schedules_complete_payload(
 @patch("baserow.ws.signals.broadcast_ai_provider_update")
 @pytest.mark.websockets
 def test_workspace_ai_provider_change_stays_inside_the_workspace(
-    mock_broadcast_ai_provider_update, data_fixture, settings
+    mock_broadcast_ai_provider_update, data_fixture
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
 
@@ -409,9 +394,7 @@ def test_workspace_ai_provider_change_stays_inside_the_workspace(
 def test_workspace_provider_metadata_update_skips_model_availability(
     mock_broadcast,
     data_fixture,
-    settings,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     provider = AIProviderHandler.create_provider(
@@ -440,9 +423,8 @@ def test_workspace_provider_metadata_update_skips_model_availability(
 @patch("baserow.ws.tasks.broadcast_to_users")
 @pytest.mark.websockets
 def test_deleting_imported_workspace_provider_broadcasts_fresh_model_availability(
-    mock_broadcast, data_fixture, settings
+    mock_broadcast, data_fixture
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(
         user=user,
@@ -678,6 +660,8 @@ def test_application_updated(mock_broadcast_to_permitted_users, data_fixture):
     assert args[0][4]["type"] == "application_updated"
     assert args[0][4]["application_id"] == database.id
     assert args[0][4]["application"]["id"] == database.id
+    # Personal, so it is only delivered by `last_viewed_updated`.
+    assert "last_viewed" not in args[0][4]["application"]
 
 
 @pytest.mark.django_db(transaction=True)

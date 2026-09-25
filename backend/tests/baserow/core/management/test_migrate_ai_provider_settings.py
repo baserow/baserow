@@ -11,7 +11,11 @@ from baserow.core.ai_provider.constants import (
     PROVIDER_ENVIRONMENT_SETTINGS,
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
-from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
+from baserow.core.ai_provider.models import (
+    AIProviderConfig,
+    AIProviderModel,
+    AIProviderWorkspaceOverride,
+)
 from baserow.core.ai_provider.registries import (
     ai_provider_model_feature_type_registry,
 )
@@ -219,9 +223,7 @@ def test_workspace_scope_previews_then_imports_idempotently_without_secrets(
 
 
 @pytest.mark.django_db
-def test_workspace_scope_migrates_every_current_legacy_provider_setting(
-    data_fixture, settings
-):
+def test_workspace_scope_migrates_every_current_legacy_provider_setting(data_fixture):
     legacy_settings = {
         "openai": {
             "api_key": "openai-key",
@@ -261,6 +263,17 @@ def test_workspace_scope_migrates_every_current_legacy_provider_setting(
         generative_ai_models_settings=legacy_settings
     )
 
+    # A direct upgrade preserves complete workspace connections before import.
+    for provider_type, legacy_values in legacy_settings.items():
+        model_type = generative_ai_model_type_registry.get(provider_type)
+        assert model_type.get_model_settings_override(
+            legacy_values["models"][0], workspace
+        ) == {
+            "api_key": legacy_values.get("api_key", ""),
+            "models": legacy_values["models"],
+            **expected_extra_settings[provider_type],
+        }
+
     call_command(
         "migrate_ai_provider_settings",
         "--scope",
@@ -272,7 +285,6 @@ def test_workspace_scope_migrates_every_current_legacy_provider_setting(
     assert AIProviderConfig.objects.filter(workspace=workspace).count() == len(
         legacy_settings
     )
-    settings.FEATURE_FLAGS = ["ai-providers"]
     for provider_type, legacy_values in legacy_settings.items():
         provider = AIProviderConfig.objects.get(
             workspace=workspace, provider_type=provider_type
@@ -381,19 +393,15 @@ def test_workspace_scope_import_is_atomic(data_fixture):
             },
         }
     )
-    create_provider = AIProviderHandler.create_provider
 
-    def create_provider_then_fail(*args, **kwargs):
-        provider = create_provider(*args, **kwargs)
-        if kwargs["provider_type"] == "anthropic":
-            raise RuntimeError("stop after creating the second provider")
-        return provider
+    def fail_after_providers(*args, **kwargs):
+        raise RuntimeError("stop after creating the providers")
 
     with (
         patch.object(
-            AIProviderHandler,
-            "create_provider",
-            side_effect=create_provider_then_fail,
+            AIProviderModel.objects,
+            "bulk_create",
+            side_effect=fail_after_providers,
         ),
         pytest.raises(RuntimeError),
     ):
@@ -406,3 +414,53 @@ def test_workspace_scope_import_is_atomic(data_fixture):
         )
 
     assert not AIProviderConfig.objects.exists()
+
+
+@pytest.mark.django_db
+def test_workspace_scope_does_not_opt_out_of_inheritance_but_warns(data_fixture):
+    """
+    Only the upgrade migration opts imported workspaces out of instance inheritance.
+
+    The command is the manual recovery path, so it imports and reports instead,
+    leaving the operator to disable the inherited provider deliberately.
+    """
+
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "workspace-key", "models": ["gpt-4o"]}
+        }
+    )
+    AIProviderConfig.objects.create(
+        workspace=None, provider_type="openai", api_key="instance-key"
+    )
+
+    out = StringIO()
+    call_command(
+        "migrate_ai_provider_settings", "--scope", "workspace", "--apply", stdout=out
+    )
+
+    assert AIProviderConfig.objects.filter(workspace=workspace).count() == 1
+    assert not AIProviderWorkspaceOverride.objects.exists()
+    assert "will also inherit the instance provider" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_instance_scope_warns_that_existing_workspaces_will_inherit(
+    data_fixture, settings
+):
+    """The recovery path must flag the inheritance the migration would have prevented."""
+
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+    workspace = data_fixture.create_workspace()
+    AIProviderConfig.objects.create(
+        workspace=workspace, provider_type="openai", api_key="workspace-key"
+    )
+
+    out = StringIO()
+    call_command(
+        "migrate_ai_provider_settings", "--scope", "instance", "--apply", stdout=out
+    )
+
+    assert "1 workspace(s) with their own provider of this type" in out.getvalue()
+    assert not AIProviderWorkspaceOverride.objects.exists()

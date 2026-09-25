@@ -157,10 +157,10 @@ a few seconds.
 
 ## Operational notes
 
-- **Version pinning**: the image tag is pinned (`version-20.3.0`) and must be
-  upgraded together with the `openinference-instrumentation-pydantic-ai` and
-  (once the eval tooling lands) `arize-phoenix-client` Python packages — treat
-  them as one upgrade unit and re-verify a trace after upgrading.
+- **Version pinning**: the image tag is pinned (`version-20.3.0`). Phoenix,
+  `openinference-instrumentation-pydantic-ai`, and `arize-phoenix-client` can
+  be upgraded independently. Check compatibility and verify a trace after
+  changing a component; upgrade the others only when compatibility requires it.
 - **Privacy**: traces contain full chat content and tool arguments. Keep the
   instance on the internal network/VPN and treat access like access to
   production logs. Production traffic does not export here — this receives

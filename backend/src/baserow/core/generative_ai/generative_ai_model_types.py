@@ -201,8 +201,12 @@ class AnthropicFileHandler(FileHandler):
 
         import anthropic
 
+        from .anthropic import BoundedAnthropicRetryMiddleware
+
         api_key = self._model_type.get_api_key(workspace, settings_override)
-        return anthropic.Anthropic(api_key=api_key)
+        return anthropic.Anthropic(
+            api_key=api_key, middleware=[BoundedAnthropicRetryMiddleware()]
+        )
 
     def _upload(
         self,
@@ -370,10 +374,13 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         settings_override: Optional[dict[str, Any]] = None,
     ) -> Any:
         from pydantic_ai.models.anthropic import AnthropicModel
-        from pydantic_ai.providers.anthropic import AnthropicProvider
+
+        from .anthropic import BoundedAnthropicProvider
 
         api_key = self.get_api_key(workspace, settings_override)
-        return AnthropicModel(model_name, provider=AnthropicProvider(api_key=api_key))
+        return AnthropicModel(
+            model_name, provider=BoundedAnthropicProvider(api_key=api_key)
+        )
 
     def get_known_models(self) -> list[str]:
         from pydantic_ai.models.anthropic import AnthropicModelName
