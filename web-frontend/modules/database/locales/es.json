@@ -925,7 +925,9 @@
         "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores.",
         "maxGroupBysReached": "Puedes agrupar por hasta {count} campos.",
         "collapseAllGroups": "Colapsar todo",
-        "expandAllGroups": "Expandir todo"
+        "expandAllGroups": "Expandir todo",
+        "layoutColumn": "Columnas",
+        "layoutSection": "Secciones"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
@@ -963,7 +965,8 @@
         "enableRichTextFormatting": "Activar el formato de texto enriquecido"
     },
     "dataProviderTypes": {
-        "fieldsName": "Campos"
+        "fieldsName": "Campos",
+        "previousActionRowId": "ID"
     },
     "userMentionInRichTextFieldNotification": {
         "deletedUser": "Un usuario eliminado",
@@ -1264,13 +1267,17 @@
         "refreshWarning": "¿Estás seguro de que quieres refrescar la URL de {viewName}? Después de refrescar, se generará una nueva URL y no será posible acceder a la vista mediante la URL anterior. Todos los que tengan la URL anterior no podrán acceder a la vista nunca más."
     },
     "templateOnboardingCancelModal": {
-        "description": "Para omitir la bienvenida, selecciona una de las plantillas a continuación. Empezar con una plantilla es la mejor manera de conocer Baserow porque configura tablas, campos y datos de ejemplo por ti. Siempre puedes cambiarlo o eliminarlo más adelante."
+        "description": "Para omitir la bienvenida, selecciona una de las plantillas a continuación. Empezar con una plantilla es la mejor manera de conocer Baserow porque configura tablas, campos y datos de ejemplo por ti. Siempre puedes cambiarlo o eliminarlo más adelante.",
+        "title": "Selecciona una plantilla para empezar"
     },
     "dataSyncRuns": {
-        "description": "Las ejecuciones de sincronización más recientes de esta tabla, sin importar quién o qué las inició."
+        "description": "Las ejecuciones de sincronización más recientes de esta tabla, sin importar quién o qué las inició.",
+        "duration": "{seconds}s",
+        "noRuns": "Esta tabla aún no se ha sincronizado."
     },
     "viewsAdminContext": {
-        "publicUrlCopiedMessage": "La URL pública de la vista ha sido copiada a tu portapapeles."
+        "publicUrlCopiedMessage": "La URL pública de la vista ha sido copiada a tu portapapeles.",
+        "openPublicView": "Abrir vista pública en una pestaña nueva"
     },
     "databaseWorkflowActionType": {
         "startWorkflowMissing": "El flujo de trabajo de esta acción no se puede encontrar. Puede que haya sido eliminado, o que no tengas acceso a él. Elige otro flujo de trabajo, o pide ayuda a alguien que pueda ver este.",
@@ -1278,7 +1285,12 @@
         "tableTrashed": "Esta acción utiliza una tabla que está en la papelera o ya no existe. Restaura la tabla o elige otra.",
         "writesToTrashedField": "Esta acción escribe en un campo que está en la papelera. Restaura el campo para ejecutar la acción de nuevo.",
         "instanceSmtpTurnedOff": "El envío a través del servidor SMTP propio de esta instancia de Baserow está desactivado, por lo que un botón no puede enviar correo electrónico.",
-        "requiresReconfiguration": "Esta acción apunta a una tabla, campo o integración que está en la papelera o que ha desaparecido."
+        "requiresReconfiguration": "Esta acción apunta a una tabla, campo o integración que está en la papelera o que ha desaparecido.",
+        "startWorkflowUnpublished": "Este flujo de trabajo aún no ha sido publicado. Publícalo antes de que el botón pueda iniciarlo.",
+        "noInstanceSmtp": "Esta instancia de Baserow no tiene un servidor SMTP configurado, por lo que un botón no puede enviar correo electrónico.",
+        "startWorkflowNotLive": "Este flujo de trabajo está pausado o deshabilitado. Reactívalo antes de que el botón pueda iniciarlo.",
+        "staleReference": "Esta acción usa un resultado de una acción que ya no se ejecuta antes que ella.",
+        "unreadableReference": "Esta acción usa un resultado de una acción que ya no devuelve uno."
     },
     "databaseWorkflowActionWithService": {
         "nothingCapturedYet": "Haz clic en este botón en una fila para capturar lo que el punto final (endpoint) responde, de modo que las acciones posteriores puedan usar sus campos. Las demás acciones del botón también se ejecutan."
@@ -1288,5 +1300,21 @@
     },
     "openUrlWorkflowAction": {
         "invalidUrlMessage": "No se pudo resolver la URL de esta fila, o usa un protocolo que no está permitido."
+    },
+    "buttonField": {
+        "rateLimitedMessage": "Este botón se ha pulsado con demasiada frecuencia. Espera un momento e inténtalo de nuevo.",
+        "dispatchErrorMessage": "Algo salió mal al ejecutar las acciones del botón. Por favor, inténtalo de nuevo.",
+        "requiresReconfiguration": "Este botón necesita ser reconfigurado antes de que pueda ser pulsado.",
+        "noPermission": "No tienes permiso para pulsar este botón."
+    },
+    "rowEditFieldButtonField": {
+        "createRowBefore": "Las acciones se pueden ejecutar después de que se haya creado la fila."
+    },
+    "viewsAdminTable": {
+        "workspace": "Espacio de trabajo"
+    },
+    "buttonFieldActionList": {
+        "moveAction": "Mover acción, usa las teclas de flecha para reordenar",
+        "misconfigured": "Al menos una acción está mal configurada"
     }
 }
