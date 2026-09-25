@@ -1,4 +1,5 @@
 import { Image } from '@tiptap/extension-image'
+import { Plugin, TextSelection } from '@tiptap/pm/state'
 
 import { isTrustedImageUrl } from '@baserow/modules/core/editor/trustedImageUrls'
 
@@ -8,6 +9,127 @@ const IMAGE_REF_REGEX =
 
 const escapeAlt = (s) => s.replace(/[\\[\]]/g, '\\$&')
 const unescapeAlt = (s) => s.replace(/\\([\\[\]])/g, '$1')
+
+function imageMarkdown({ alt, src, title, userFileName }) {
+  const escapedAlt = escapeAlt(alt || '')
+  if (userFileName) {
+    // No `()` when unresolved: an empty group is not the storage format and piles up on each save.
+    return src
+      ? `![${escapedAlt}][${userFileName}](${src})`
+      : `![${escapedAlt}][${userFileName}]`
+  }
+  return title
+    ? `![${escapedAlt}](${src || ''} "${title}")`
+    : `![${escapedAlt}](${src || ''})`
+}
+
+const isPendingImage = (node) =>
+  node.type.name === 'image' && Boolean(node.attrs.uploadId)
+
+const isPendingImageJSON = (node) =>
+  node.type === 'image' && Boolean(node.attrs?.uploadId)
+
+const isParagraphMadeForPendingImages = (node) =>
+  node.type === 'paragraph' &&
+  node.content?.length > 0 &&
+  node.content.every(isPendingImageJSON) &&
+  node.content.some((child) => child.attrs.ownParagraph)
+
+/** Returns the images still uploading in a document or fragment, as `{ node, pos }` in order. */
+export function findPendingImages(content) {
+  const found = []
+  content.descendants((node, pos) => {
+    if (isPendingImage(node)) {
+      found.push({ node, pos })
+    }
+  })
+  return found
+}
+
+// A code block only holds plain text, so the image goes after it instead of splitting it.
+function imageInsertPosition(doc, pos) {
+  const $pos = doc.resolve(pos)
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    if ($pos.node(depth).type.spec.code) {
+      return $pos.after(depth)
+    }
+  }
+  return pos
+}
+
+/** Adds one pending image per upload id at `pos`, in order, with the caret after them. */
+export function insertPendingImages(tr, pos, uploadIds) {
+  const imageType = tr.doc.type.schema.nodes.image
+  const insertAt = imageInsertPosition(tr.doc, pos)
+  const ownParagraph = !tr.doc.resolve(insertAt).parent.inlineContent
+  const stepCount = tr.steps.length
+  tr.insert(
+    insertAt,
+    uploadIds.map((uploadId) => imageType.create({ uploadId, ownParagraph }))
+  )
+  const end = tr.mapping.slice(stepCount).map(insertAt)
+  return tr.setSelection(TextSelection.near(tr.doc.resolve(end), -1))
+}
+
+function deletePendingImage(tr, node, pos) {
+  const $pos = tr.doc.resolve(pos)
+  // A lone paragraph stays, since the node around it must keep a block.
+  const removesParagraph =
+    node.attrs.ownParagraph &&
+    $pos.parent.childCount === 1 &&
+    $pos.node(-1).childCount > 1
+  if (removesParagraph) {
+    tr.delete($pos.before(), $pos.after())
+  } else {
+    tr.delete(pos, pos + node.nodeSize)
+  }
+}
+
+/** Gives each settled pending image its uploaded attributes, or removes it when they are `null`. */
+function settlePendingImages(tr, settledUploads) {
+  findPendingImages(tr.doc)
+    .reverse()
+    .forEach(({ node, pos }) => {
+      const { uploadId } = node.attrs
+      if (!settledUploads.has(uploadId)) {
+        return
+      }
+      const attrs = settledUploads.get(uploadId)
+      if (attrs === null) {
+        deletePendingImage(tr, node, pos)
+        return
+      }
+      Object.entries({ ...attrs, uploadId: null, ownParagraph: false }).forEach(
+        ([name, value]) => tr.setNodeAttribute(pos, name, value)
+      )
+    })
+  return tr
+}
+
+const bringsPendingImage = (transaction) =>
+  transaction.steps.some(
+    (step) => step.slice && findPendingImages(step.slice.content).length > 0
+  )
+
+/** Copies `json` without pending images, which are not content yet, or the paragraphs made for them. */
+export function withoutPendingImages(json) {
+  if (!Array.isArray(json?.content) || json.content.length === 0) {
+    return json
+  }
+  const content = json.content
+    .filter(
+      (child) =>
+        !isPendingImageJSON(child) && !isParagraphMadeForPendingImages(child)
+    )
+    .map(withoutPendingImages)
+  if (content.length > 0) {
+    return { ...json, content }
+  }
+  const { content: removed, ...withoutContent } = json
+  return removed.some(isParagraphMadeForPendingImages)
+    ? { ...withoutContent, content: [{ type: 'paragraph' }] }
+    : withoutContent
+}
 
 export const ScalableImage = Image.extend({
   selectable: true,
@@ -22,6 +144,18 @@ export const ScalableImage = Image.extend({
         default: null,
         rendered: false,
       },
+      // Set only while the upload is in progress, and never taken from pasted content.
+      uploadId: {
+        default: null,
+        rendered: false,
+        parseHTML: () => null,
+      },
+      // Set on a pending image whose paragraph was made for it, so that paragraph goes with it.
+      ownParagraph: {
+        default: false,
+        rendered: false,
+        parseHTML: () => false,
+      },
       maxWidth: {
         default: '100%',
         renderHTML: (attributes) => {
@@ -32,7 +166,49 @@ export const ScalableImage = Image.extend({
       },
     }
   },
+  addStorage() {
+    return { settledUploads: new Map() }
+  },
+  addCommands() {
+    return {
+      ...this.parent?.(),
+      settlePendingImage:
+        (uploadId, attrs) =>
+        ({ tr, dispatch }) => {
+          if (dispatch) {
+            this.storage.settledUploads.set(uploadId, attrs)
+            settlePendingImages(tr, this.storage.settledUploads).setMeta(
+              'addToHistory',
+              false
+            )
+          }
+          return true
+        },
+    }
+  },
+  addProseMirrorPlugins() {
+    const { settledUploads } = this.storage
+    return [
+      ...(this.parent?.() ?? []),
+      new Plugin({
+        // Undo and redo can bring back a pending image whose upload has settled since.
+        appendTransaction: (transactions, oldState, newState) => {
+          if (
+            settledUploads.size === 0 ||
+            !transactions.some(bringsPendingImage)
+          ) {
+            return null
+          }
+          const tr = settlePendingImages(newState.tr, settledUploads)
+          return tr.docChanged ? tr.setMeta('addToHistory', false) : null
+        },
+      }),
+    ]
+  },
   renderHTML({ node, HTMLAttributes }) {
+    if (node.attrs.uploadId) {
+      return ['span', { class: 'rich-text-editor__image-uploading' }]
+    }
     // `rendered: false` keeps userFileName out of HTMLAttributes, so read it from
     // the node. ProseMirror's clipboard prefers text/html, and without this
     // attribute an in-editor copy/paste drops the user file ref.
@@ -139,19 +315,17 @@ export const ScalableImage = Image.extend({
     })
   },
   renderMarkdown(node) {
-    const alt = node.attrs?.alt || ''
-    const src = node.attrs?.src || ''
-    if (node.attrs?.userFileName) {
-      // No `()` when the URL is unresolved: an empty group is not the storage
-      // format, and it accumulates over repeated saves.
-      return src
-        ? `![${escapeAlt(alt)}][${node.attrs.userFileName}](${src})`
-        : `![${escapeAlt(alt)}][${node.attrs.userFileName}]`
+    if (node.attrs?.uploadId) {
+      return ''
     }
-    const title = node.attrs?.title || ''
-    if (title) {
-      return `![${escapeAlt(alt)}](${src} "${title}")`
+    const markdown = imageMarkdown(node.attrs ?? {})
+    const link = node.markdownLink
+    if (!link) {
+      return markdown
     }
-    return `![${escapeAlt(alt)}](${src})`
+    const href = link.href ?? ''
+    return link.title
+      ? `[${markdown}](${href} "${link.title}")`
+      : `[${markdown}](${href})`
   },
 })

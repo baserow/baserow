@@ -155,6 +155,16 @@ export function stripImageUrls(content, keepUrl = () => false) {
 const IMAGE_REF_REGEX =
   /!\[([^[\]\\]*(?:\\[^\n][^[\]\\]*)*)\]\[[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\] \t\n\r\f\v/\\()]*\]/g
 
+/** Counts references outside code, repeats included, like `count_image_references`. */
+export function countImageReferences(content) {
+  if (!content) return 0
+  let count = 0
+  for (const [segment, isCode] of iterCodeSegments(content)) {
+    if (!isCode) count += (segment.match(IMAGE_REF_REGEX) || []).length
+  }
+  return count
+}
+
 // A sentinel standing in for an image on the surfaces that render none. It is a
 // single character so it survives slicing and length maths as one unit, and
 // `renderImagePlaceholders` swaps it for the icon after markdown-it has escaped
@@ -204,15 +214,11 @@ export function replaceImagesWithPlaceholder(content) {
 const PLAIN_IMAGE_REGEX =
   /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\(((?:[^()]|\([^()]*\))*)\)/g
 
-// An image token that starts but never closes before the end of the input, e.g.
-// `![alt` or `![alt][name](url`. A complete token followed by anything does not
-// match because the anchors require the end. The URL tails stop at an
-// unbalanced `(` for the same reason as the regexes above: otherwise every `![`
-// would scan to the end of the input.
-const ALT_TAIL = String.raw`[^[\]\\\n]*(?:\\.[^[\]\\\n]*)*`
+// URL tails stop at an unbalanced `(`, otherwise every `![` would scan to the end.
+const ALT_TAIL = String.raw`[^[\]\\]*(?:\\[^\n][^[\]\\]*)*\\?`
 const PLAIN_URL_TAIL = String.raw`(?:[^()\n]|\([^()\n]*\))*(?:\([^()\n]*)?`
 const UNFINISHED_IMAGE_TAIL_REGEX = new RegExp(
-  String.raw`!\[${ALT_TAIL}(?:\]\[[^\]\n]*(?:\]\([^()\n]*)?|\]\(${PLAIN_URL_TAIL})?$`
+  String.raw`!\[${ALT_TAIL}(?:\](?:\[[^\]\n]*(?:\]\([^()\n]*)?|\(${PLAIN_URL_TAIL})?)?$`
 )
 
 /**

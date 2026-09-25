@@ -7,6 +7,7 @@ import RowEditFieldLongText from '@baserow/modules/database/components/row/RowEd
 import RowEditFieldRichText from '@baserow/modules/database/components/row/RowEditFieldRichText'
 import RowCardFieldRichText from '@baserow/modules/database/components/card/RowCardFieldRichText'
 import RowHistoryFieldRichText from '@baserow/modules/database/components/row/RowHistoryFieldRichText'
+import { LongTextFieldType } from '@baserow/modules/database/fieldTypes'
 
 describe('LongTextFieldType rich text switching', () => {
   let testApp = null
@@ -140,5 +141,50 @@ describe('LongTextFieldType rich text switching', () => {
     expect(
       fieldType.prepareValueForPaste(plainField, 'ciao\nmiao', copiedValue)
     ).toBe('ciao\nmiao')
+  })
+})
+
+describe('LongTextFieldType.getValidationError limits rich text images', () => {
+  const fieldType = new LongTextFieldType({
+    app: {
+      $config: { public: { baserowMaxFieldTextLength: 1000000 } },
+      $i18n: { t: (key, params) => `${key}:${params?.max}:${params?.over}` },
+    },
+  })
+  const richField = { type: 'long_text', long_text_enable_rich_text: true }
+  const plainField = { type: 'long_text', long_text_enable_rich_text: false }
+  const name =
+    'R7SiH9lsCNSxDKLRsabcjoqpu3YmYdmP_31f3aa68afe0ddc9027c18de4030fdb7df1434c10401ca23aab07d6fc308661c.png'
+  const images = (count, url = '') =>
+    Array.from({ length: count }, () => `![x][${name}]${url}`).join(' ')
+
+  test('accepts as many images as the backend allows', () => {
+    expect(fieldType.getValidationError(richField, images(100))).toBe(null)
+  })
+
+  test('rejects more images than the backend allows, counting repeats', () => {
+    expect(fieldType.getValidationError(richField, images(103))).toBe(
+      'fieldErrors.maxImagesExceeded:100:3'
+    )
+  })
+
+  test('counts resolved references like stored ones', () => {
+    expect(
+      fieldType.getValidationError(richField, images(101, '(https://h/x.png)'))
+    ).toBe('fieldErrors.maxImagesExceeded:100:1')
+  })
+
+  test('counts what the backend stores once the URLs are stripped', () => {
+    const value = images(60, `(![y][${name}])`)
+    expect(fieldType.getValidationError(richField, value)).toBe(null)
+  })
+
+  test('ignores image syntax inside code', () => {
+    const value = `\`\`\`\n${images(101)}\n\`\`\`\n${images(1)}`
+    expect(fieldType.getValidationError(richField, value)).toBe(null)
+  })
+
+  test('does not limit plain long text', () => {
+    expect(fieldType.getValidationError(plainField, images(101))).toBe(null)
   })
 })

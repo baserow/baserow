@@ -209,8 +209,45 @@ const tagLineStartTextNodes = (children) =>
       : child
   })
 
+const linkMarkOf = (node) => node?.marks?.find(({ type }) => type === 'link')
+
+// The serializer never wraps an inline node in its marks, and a link shared with text reopens as a stray `[`.
+const moveImageLinkOutOfMarks = (image) => {
+  const link = linkMarkOf(image)
+  if (!link) {
+    return image
+  }
+  return {
+    ...image,
+    marks: image.marks.filter((mark) => mark !== link),
+    markdownLink: link.attrs,
+  }
+}
+
+const isSameLink = (a, b) =>
+  Boolean(a && b) &&
+  a.attrs?.href === b.attrs?.href &&
+  a.attrs?.title === b.attrs?.title
+
+// With an image's link moved out, a space sharing only that link would save as an empty `[](href)`.
+const unlinkSpacesNextToLinkedImages = (children) =>
+  children.map((child, index) => {
+    const link = linkMarkOf(child)
+    if (child.type !== 'text' || !link || child.text?.trim()) {
+      return child
+    }
+    const sharesLinkWithImage = [children[index - 1], children[index + 1]].some(
+      (neighbour) =>
+        neighbour?.type === 'image' && isSameLink(linkMarkOf(neighbour), link)
+    )
+    return sharesLinkWithImage
+      ? { ...child, marks: child.marks.filter((mark) => mark !== link) }
+      : child
+  })
+
 export const prepareMarkdownDocumentForSerialization = (node) => {
-  const prepared = { ...node }
+  const prepared =
+    node.type === 'image' ? moveImageLinkOutOfMarks(node) : { ...node }
   if (node.type === 'text' && node.marks?.length) {
     const hasCodeMark = node.marks.some(({ type }) => type === 'code')
     if (hasCodeMark) {
@@ -229,7 +266,9 @@ export const prepareMarkdownDocumentForSerialization = (node) => {
     )
   }
   if (node.content?.length) {
-    let children = assignBulletListMarkers(node.content)
+    let children = unlinkSpacesNextToLinkedImages(
+      assignBulletListMarkers(node.content)
+    )
     if (node.type === 'paragraph') {
       children = tagLineStartTextNodes(children)
     }

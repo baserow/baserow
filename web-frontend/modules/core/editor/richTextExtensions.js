@@ -79,6 +79,41 @@ const Strike = BaseStrike.extend({
 const decodeMarkdownEscapes = (text) =>
   text.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~])/g, '$1')
 
+// The Markdown manager puts a parsed mark on text nodes only.
+const markImages = (content, mark) =>
+  content.map((node) =>
+    node.type === 'image'
+      ? { ...node, marks: [...(node.marks ?? []), mark] }
+      : node
+  )
+
+const MARKED_LINK_TEXT_UNESCAPE_REGEX = /\\([[\]])/g
+
+/** Returns the text of a `[text](href)` link as written in `token.raw`, or `null`. */
+function writtenLinkText(token) {
+  const raw = token.raw ?? ''
+  for (
+    let end = raw.indexOf('](');
+    end !== -1;
+    end = raw.indexOf('](', end + 1)
+  ) {
+    const text = raw.slice(1, end)
+    // Comparing with marked's unescaped text finds the end without re-implementing its bracket grammar.
+    if (text.replace(MARKED_LINK_TEXT_UNESCAPE_REGEX, '$1') === token.text) {
+      return text
+    }
+  }
+  return null
+}
+
+// Marked lexes link text without the backslash of `\[` and `\]`, which breaks an escaped image alt.
+function linkTextTokens(token, helpers) {
+  const text = writtenLinkText(token)
+  return text === null || text === token.text
+    ? (token.tokens ?? [])
+    : helpers.tokenizeInline(text)
+}
+
 const Link = BaseLink.extend({
   parseMarkdown(token, helpers) {
     const raw = token.raw ?? ''
@@ -89,10 +124,13 @@ const Link = BaseLink.extend({
       return helpers.createTextNode(decodeMarkdownEscapes(raw))
     }
 
-    return helpers.applyMark('link', helpers.parseInline(token.tokens ?? []), {
-      href: token.href,
-      title: token.title ?? null,
-    })
+    const attrs = { href: token.href, title: token.title ?? null }
+    const content = helpers.parseInline(linkTextTokens(token, helpers))
+    return helpers.applyMark(
+      'link',
+      markImages(content, { type: 'link', attrs }),
+      attrs
+    )
   },
 })
 

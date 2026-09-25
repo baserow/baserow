@@ -1,5 +1,5 @@
 import re
-from typing import Callable, Iterator, Optional
+from typing import Callable, Container, Iterator, Optional
 
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
@@ -272,25 +272,27 @@ def strip_user_file_urls(content: Optional[str]) -> str:
     )
 
 
-def escape_user_file_references(content: Optional[str]) -> Optional[str]:
+def escape_user_file_references(
+    content: Optional[str], names: Optional[Container[str]] = None
+) -> Optional[str]:
     """
-    Escapes every ``![alt][name]`` reference so it is stored and shown as literal
-    text. For content from outside Baserow, such as a synced issue body, which can
-    never point at one of this instance's user files and must not fail their
-    validation.
+    Escapes ``![alt][name]`` references so they are stored and shown as literal text.
 
-    :param content: Markdown text from an external source.
-    :return: The content without user file references, or an empty value as is.
+    :param content: Markdown text that may contain image references.
+    :param names: Only escape the references to these names; all when omitted.
+    :return: The content with those references escaped, or an empty value as is.
     """
 
     if not content:
         return content
 
+    def _escape(match: re.Match) -> str:
+        if names is not None and match.group("name") not in names:
+            return match.group(0)
+        return "!\\" + match.group(0)[1:]
+
     return map_outside_code(
-        content,
-        lambda segment: MARKDOWN_IMAGE_REGEX.sub(
-            lambda match: "!\\" + match.group(0)[1:], segment
-        ),
+        content, lambda segment: MARKDOWN_IMAGE_REGEX.sub(_escape, segment)
     )
 
 

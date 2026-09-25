@@ -18,6 +18,7 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.export.table_exporters.csv_table_exporter import (
     CsvQuerysetSerializer,
 )
+from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.exceptions import (
     IncompatiblePrimaryFieldTypeError,
     RichTextImageLimitExceeded,
@@ -33,10 +34,18 @@ from baserow.contrib.database.fields.rich_text_utils import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.trash.models import TrashedRows
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.registries import action_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
+from baserow.test_utils.fixtures import Fixtures
+
+MISSING_NAME = (
+    "8sRAf6ICEwHvz1juRBb17JY2ph3XI07c_"
+    "e22137d6a29ab39d1b92edcee4bb6536939186dfd20390871e301bece429efe0.png"
+)
 
 
 @pytest.mark.django_db
@@ -695,41 +704,56 @@ def test_export_serialized_value_missing_storage_file(data_fixture, tmpdir):
     assert cache["_missing_user_files"] == {user_file.name}
 
 
-@pytest.mark.django_db
-def test_import_serialized_value_missing_zip_entry(data_fixture, tmpdir):
-    """``set_import_serialized_value`` should not raise when the zip file
-    does not contain the referenced image. The content is set on the row
-    with the original filename preserved (not replaced)."""
-
-    user = data_fixture.create_user()
-    table = data_fixture.create_database_table(user=user)
-    field = data_fixture.create_long_text_field(
-        table=table, name="Notes", long_text_enable_rich_text=True
-    )
-    field_name = f"field_{field.id}"
-    field_type = field_type_registry.get_by_model(field)
-
-    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-
-    # Create an empty zip — no files at all
+def _empty_zip() -> ZipFile:
     zip_buffer = io.BytesIO()
-    with ZipFile(zip_buffer, "w") as zf:
-        pass  # deliberately empty
+    with ZipFile(zip_buffer, "w"):
+        pass
     zip_buffer.seek(0)
-    files_zip = ZipFile(zip_buffer, "r")
+    return ZipFile(zip_buffer, "r")
 
-    model = table.get_model()
-    row = model(**{field_name: ""})
-    content = "Text ![img][abc123_def456.png] end"
+
+@pytest.mark.django_db
+def test_import_escapes_references_missing_from_zip_and_target(
+    data_fixture, tmpdir, django_assert_num_queries
+):
+    """A reference no user file backs would make every later save of the cell fail."""
+
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    files_zip = _empty_zip()
+    cache = {}
+    content = f"Text ![img][{MISSING_NAME}] `![img][{MISSING_NAME}]` end"
+
+    stored = []
+    for queries in [1, 0]:
+        row = table.get_model()()
+        with django_assert_num_queries(queries):
+            field_type.set_import_serialized_value(
+                row, field.db_column, content, {}, cache, files_zip, storage
+            )
+        stored.append(getattr(row, field.db_column))
+
+    escaped = f"Text !\\[img][{MISSING_NAME}] `![img][{MISSING_NAME}]` end"
+    assert stored == [escaped, escaped]
+    assert field_type.prepare_value_for_db(field, escaped) == escaped
+
+
+@pytest.mark.django_db
+def test_import_keeps_references_missing_from_zip_but_present_on_target(
+    data_fixture, tmpdir
+):
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    row = table.get_model()()
+    content = f"Text ![img][{user_file.name}] end"
 
     field_type.set_import_serialized_value(
-        row, field_name, content, {}, {}, files_zip=files_zip, storage=storage
+        row, field.db_column, content, {}, {}, _empty_zip(), storage
     )
 
-    result = getattr(row, field_name)
-    # Original filename is preserved since it could not be re-uploaded
-    assert "![img][abc123_def456.png]" in result
-    assert result == content
+    assert getattr(row, field.db_column) == content
+    assert field_type.prepare_value_for_db(field, content) == content
 
 
 def _rich_text_field(data_fixture):
@@ -1206,10 +1230,13 @@ def test_max_length_ignores_resolved_image_urls(data_fixture, api_client, settin
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
-def _over_limit_value():
-    return " ".join(
-        f"![x][{'a' * 8}{i:04d}_hash.png]" for i in range(MAX_RICH_TEXT_IMAGES + 1)
-    )
+def _images(data_fixture: Fixtures, count: int) -> str:
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    return " ".join([f"![x][{user_file.name}]"] * count)
+
+
+def _over_limit_value(data_fixture: Fixtures) -> str:
+    return _images(data_fixture, MAX_RICH_TEXT_IMAGES + 1)
 
 
 @pytest.mark.django_db
@@ -1219,7 +1246,9 @@ def test_enabling_rich_text_rejects_values_over_image_limit(data_fixture):
     field = data_fixture.create_long_text_field(
         table=table, long_text_enable_rich_text=False
     )
-    RowHandler().create_row(user, table, {field.db_column: _over_limit_value()})
+    RowHandler().create_row(
+        user, table, {field.db_column: _over_limit_value(data_fixture)}
+    )
 
     # The API wraps the update in a transaction, which the error rolls back.
     with pytest.raises(RichTextImageLimitExceeded), transaction.atomic():
@@ -1240,8 +1269,8 @@ def test_enabling_rich_text_ignores_code_and_values_within_limit(data_fixture):
         user,
         table,
         [
-            {field.db_column: f"```\n{_over_limit_value()}\n```"},
-            {field.db_column: "![x][abc_def.png] " * MAX_RICH_TEXT_IMAGES},
+            {field.db_column: f"```\n{_over_limit_value(data_fixture)}\n```"},
+            {field.db_column: _images(data_fixture, MAX_RICH_TEXT_IMAGES)},
         ],
     )
 
@@ -1255,7 +1284,9 @@ def test_converting_text_to_rich_text_rejects_values_over_image_limit(data_fixtu
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(table=table)
-    RowHandler().create_row(user, table, {field.db_column: _over_limit_value()})
+    RowHandler().create_row(
+        user, table, {field.db_column: _over_limit_value(data_fixture)}
+    )
 
     with pytest.raises(RichTextImageLimitExceeded), transaction.atomic():
         FieldHandler().update_field(
@@ -1272,7 +1303,9 @@ def test_enabling_rich_text_over_image_limit_is_a_400(api_client, data_fixture):
     field = data_fixture.create_long_text_field(
         table=table, long_text_enable_rich_text=False
     )
-    RowHandler().create_row(user, table, {field.db_column: _over_limit_value()})
+    RowHandler().create_row(
+        user, table, {field.db_column: _over_limit_value(data_fixture)}
+    )
 
     response = api_client.patch(
         reverse("api:database:fields:item", kwargs={"field_id": field.id}),
@@ -1285,3 +1318,120 @@ def test_enabling_rich_text_over_image_limit_is_a_400(api_client, data_fixture):
     assert response.json()["error"] == "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED"
     field.refresh_from_db()
     assert not field.long_text_enable_rich_text
+
+
+@pytest.mark.django_db
+def test_enabling_rich_text_escapes_references_to_missing_user_files(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    missing = f"![x][{MISSING_NAME}]"
+    existing = f"![y][{user_file.name}]"
+    too_many_missing = " ".join([missing] * (MAX_RICH_TEXT_IMAGES + 1))
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            [
+                {field.db_column: f"{missing} `{missing}` {existing}"},
+                {field.db_column: existing},
+                {field.db_column: too_many_missing},
+                {field.db_column: missing},
+            ],
+        )
+        .created_rows
+    )
+    table.get_model().objects.filter(id=rows[3].id).update(trashed=True)
+
+    field = FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
+
+    escaped = f"!\\[x][{MISSING_NAME}]"
+    model = table.get_model()
+    values = [
+        getattr(model.objects_and_trash.get(id=row.id), field.db_column) for row in rows
+    ]
+    assert values == [
+        f"{escaped} `{missing}` {existing}",
+        existing,
+        " ".join([escaped] * (MAX_RICH_TEXT_IMAGES + 1)),
+        escaped,
+    ]
+    field_type = field_type_registry.get_by_model(field)
+    for value in values:
+        assert field_type.prepare_value_for_db(field, value) == value
+
+
+@pytest.mark.django_db
+def test_converting_text_to_rich_text_escapes_references_to_missing_user_files(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    row = RowHandler().create_row(
+        user, table, {field.db_column: f"![x][{MISSING_NAME}]"}
+    )
+
+    field = FieldHandler().update_field(
+        user, field, new_type_name="long_text", long_text_enable_rich_text=True
+    )
+
+    row.refresh_from_db()
+    assert getattr(row, field.db_column) == f"!\\[x][{MISSING_NAME}]"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undoing_enabling_rich_text_restores_escaped_references(data_fixture):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    original = f"![x][{MISSING_NAME}]"
+    row = RowHandler().create_row(user, table, {field.db_column: original})
+    scopes = [UpdateFieldActionType.scope(table.id)]
+
+    action_type_registry.get_by_type(UpdateFieldActionType).do(
+        user, field, long_text_enable_rich_text=True
+    )
+    ActionHandler.undo(user, scopes, session_id)
+
+    row.refresh_from_db()
+    assert getattr(row, field.db_column) == original
+
+    ActionHandler.redo(user, scopes, session_id)
+
+    row.refresh_from_db()
+    assert getattr(row, field.db_column) == f"!\\[x][{MISSING_NAME}]"
+
+
+@pytest.mark.django_db
+def test_enabling_rich_text_backs_up_only_when_references_may_be_escaped(
+    data_fixture,
+):
+    field = data_fixture.create_long_text_field(long_text_enable_rich_text=False)
+    field_type = field_type_registry.get_by_model(field)
+    model = field.table.get_model()
+    enable = {"long_text_enable_rich_text": True}
+    model.objects.create(**{field.db_column: "![logo](https://example.com/a.png)"})
+
+    assert not field_type.should_backup_field_data_for_same_type_update(field, enable)
+
+    model.objects_and_trash.create(
+        **{field.db_column: f"![x][{MISSING_NAME}]", "trashed": True}
+    )
+
+    assert field_type.should_backup_field_data_for_same_type_update(field, enable)
+    assert not field_type.should_backup_field_data_for_same_type_update(
+        field, {"name": "renamed"}
+    )
+    field.long_text_enable_rich_text = True
+    assert not field_type.should_backup_field_data_for_same_type_update(
+        field, {"long_text_enable_rich_text": False}
+    )

@@ -16,6 +16,11 @@ from baserow.contrib.database.fields.rich_text_utils import (
     strip_user_file_urls,
 )
 
+NAME = (
+    "R7SiH9lsCNSxDKLRsabcjoqpu3YmYdmP_"
+    "31f3aa68afe0ddc9027c18de4030fdb7df1434c10401ca23aab07d6fc308661c.png"
+)
+
 
 class TestExtractUserFileNames:
     def test_returns_empty_set_for_none(self):
@@ -262,7 +267,40 @@ class TestPatternsMatchTheFrontend:
         assert list(iter_code_segments(content)) == [(content, True)]
 
 
+class TestCountImageReferences:
+    # Same cases as `countImageReferences` in richTextImageUtils.spec.js.
+    @pytest.mark.parametrize(
+        "content,expected",
+        [
+            (None, 0),
+            ("", 0),
+            (f"![a][{NAME}]", 1),
+            (f"![a][{NAME}] ![a][{NAME}]", 2),
+            (f"![a][{NAME}](https://h/x.png)", 1),
+            (f"`![a][{NAME}]` ![b][{NAME}]", 1),
+            (f"```\n![a][{NAME}]\n```\n![b][{NAME}]", 1),
+            (f"x\r```\n![a][{NAME}]", 1),
+            (f"!\\[a][{NAME}]", 0),
+            (f"![a\\]b][{NAME}]", 1),
+            (f"![a][{NAME}\u2028]", 1),
+            ("![a](https://e.com/p.png)", 0),
+        ],
+    )
+    def test_matches_the_frontend(self, content, expected):
+        assert count_image_references(content) == expected
+
+
 class TestEscapeUserFileReferences:
+    def test_escapes_only_the_given_names(self):
+        other = "abc_def.png"
+        content = f"![a][{NAME}] ![b][{other}] `![c][{NAME}]` ![d][{NAME}](http://h/x)"
+        escaped = escape_user_file_references(content, {NAME})
+        assert escaped == (
+            f"!\\[a][{NAME}] ![b][{other}] `![c][{NAME}]` !\\[d][{NAME}](http://h/x)"
+        )
+        assert extract_user_file_names(escaped) == {other}
+        assert escape_user_file_references(content, set()) == content
+
     def test_escapes_references_outside_code(self):
         content = "![a][abc_def.png] `![b][abc_def.png]` ![c][abc_def.png](http://h/x)"
         escaped = escape_user_file_references(content)

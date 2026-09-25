@@ -1,4 +1,5 @@
 import {
+  countImageReferences,
   isRenderableUserFile,
   iterCodeSegments,
   preprocessRichTextImages,
@@ -98,12 +99,24 @@ describe('stripUnresolvedImageRefs', () => {
 })
 
 describe('trimUnfinishedImageRef', () => {
+  const name =
+    'R7SiH9lsCNSxDKLRsabcjoqpu3YmYdmP_31f3aa68afe0ddc9027c18de4030fdb7df1434c10401ca23aab07d6fc308661c.png'
+  const url = `https://s3.example.com/user_files/${name}`
+
   test.each([
     ['text ![alt', 'text '],
     ['text ![alt][abc_def.pn', 'text '],
     ['text ![alt][abc_def.png](https://exa', 'text '],
     ['text ![alt](https://exa', 'text '],
     [String.raw`text ![a\]b][abc_d`, 'text '],
+    ['text ![line one\nline two', 'text '],
+    [`text ![line one\nline two][${name.slice(0, 40)}`, 'text '],
+    [`text ![line one\nline two][${name}](${url.slice(0, 30)}`, 'text '],
+    [`text ![line one\nline two](${url.slice(0, 30)}`, 'text '],
+    ['text ![alt]', 'text '],
+    ['text ![line one\nline two]', 'text '],
+    [String.raw`text ![a\]b]`, 'text '],
+    ['text ![al\\', 'text '],
   ])('drops the cut-off token in %j', (input, expected) => {
     expect(trimUnfinishedImageRef(input)).toBe(expected)
   })
@@ -114,6 +127,10 @@ describe('trimUnfinishedImageRef', () => {
     '![a][abc_def.png](https://example.com/f.png)',
     '![a](https://example.com/f.png) and ![b][x_y.png]',
     '![a][x_y.png] then [a link](https://example.com)',
+    `![line one\nline two][${name}]`,
+    `![line one\nline two][${name}](${url})`,
+    '![a] is not an image',
+    'see [a note]',
   ])('keeps complete content %j', (input) => {
     expect(trimUnfinishedImageRef(input)).toBe(input)
   })
@@ -377,6 +394,29 @@ describe('code and references are read exactly like the backend', () => {
   )
 })
 
+describe('countImageReferences', () => {
+  const name =
+    'R7SiH9lsCNSxDKLRsabcjoqpu3YmYdmP_31f3aa68afe0ddc9027c18de4030fdb7df1434c10401ca23aab07d6fc308661c.png'
+
+  // Same cases as TestCountImageReferences in test_rich_text_utils.py.
+  test.each([
+    [null, 0],
+    ['', 0],
+    [`![a][${name}]`, 1],
+    [`![a][${name}] ![a][${name}]`, 2],
+    [`![a][${name}](https://h/x.png)`, 1],
+    [`\`![a][${name}]\` ![b][${name}]`, 1],
+    [`\`\`\`\n![a][${name}]\n\`\`\`\n![b][${name}]`, 1],
+    [`x\r\`\`\`\n![a][${name}]`, 1],
+    [`!\\[a][${name}]`, 0],
+    [`![a\\]b][${name}]`, 1],
+    [`![a][${name}\u2028]`, 1],
+    ['![a](https://e.com/p.png)', 0],
+  ])('%j has %i', (content, expected) => {
+    expect(countImageReferences(content)).toBe(expected)
+  })
+})
+
 describe('user file names without an extension', () => {
   const ref = '![x][abc_def.]'
   const resolved = `${ref}(http://h/abc_def.)`
@@ -474,6 +514,9 @@ describe('image regexes are linear', () => {
     withUrl: (n) => '![x][a_b.png]('.repeat(n),
     withUrlClosedAtEnd: (n) => '![x][a_b.png]('.repeat(n) + ')',
     deepParens: (n) => '![x](' + '('.repeat(n),
+    multiLineAlts: (n) => '![x\n'.repeat(n) + '].',
+    bareMultiLineAlts: (n) => '![x\n]'.repeat(n) + '.',
+    escapedMultiLineAlt: (n) => '![' + '\\x\n'.repeat(n) + '].',
   }
 
   describe.each(Object.keys(functions))('%s', (fnName) => {

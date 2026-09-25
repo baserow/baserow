@@ -26,13 +26,9 @@
     </div>
     <EditorContent
       class="rich-text-editor__content"
-      :class="[
-        { 'rich-text-editor__content--loading': loadings.length > 0 },
-        editorClass,
-      ]"
+      :class="editorClass"
       :editor="editor"
     />
-    <div v-if="loadings.length > 0" class="loading-spinner"></div>
   </div>
 </template>
 
@@ -70,6 +66,11 @@ import {
   registerTrustedImageUrl,
   registerTrustedImageUrlsFromMarkdown,
 } from '@baserow/modules/core/editor/trustedImageUrls'
+import {
+  findPendingImages,
+  insertPendingImages,
+  withoutPendingImages,
+} from '@baserow/modules/core/editor/image'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -143,14 +144,13 @@ export default {
       default: null,
     },
   },
-  emits: ['blur', 'focus', 'update:modelValue', 'stop-edit'],
+  emits: ['blur', 'focus', 'update:modelValue', 'stop-edit', 'upload-settled'],
   data() {
     return {
       editor: null,
       resizeObserver: null,
       bubbleMenuVisible: true,
       floatingMenuVisible: true,
-      loadings: [],
       mousedownEvent: null,
       scrollEvent: null,
       scrollElement: null,
@@ -199,7 +199,7 @@ export default {
       if (_.isEqual(value, this.lastEmittedValue)) {
         return
       }
-      if (!_.isEqual(value, this.editor.getJSON())) {
+      if (!_.isEqual(value, this.getJSONWithoutPendingImages())) {
         this.loadContent(value, { preserveSelection: this.editable })
       }
     },
@@ -424,7 +424,7 @@ export default {
         },
         extensions,
         onUpdate: () => {
-          const json = clone(this.editor.getJSON())
+          const json = clone(this.getJSONWithoutPendingImages())
           // Remembered so the `modelValue` watcher can tell this echo apart
           // from an externally changed value.
           this.lastEmittedValue = json
@@ -452,7 +452,7 @@ export default {
           this.setMenuScrollVisibility(true)
         },
       })
-      this.initialDocument = clone(this.editor.getJSON())
+      this.initialDocument = clone(this.getJSONWithoutPendingImages())
       this.setupEditor()
     },
     setupEditor() {
@@ -558,11 +558,20 @@ export default {
     serializeToMarkdown() {
       // A URL the editor didn't get from Baserow (pasted) would load in the optimistic preview.
       return this.enableRichTextFormatting
-        ? stripImageUrls(this.editor.getMarkdown(), isTrustedImageUrl)
+        ? stripImageUrls(
+            this.editor.markdown.serialize(this.getJSONWithoutPendingImages()),
+            isTrustedImageUrl
+          )
         : this.editor.getText({ blockSeparator: '\n' })
     },
     isDirty() {
-      return !_.isEqual(this.editor.getJSON(), this.initialDocument)
+      return !_.isEqual(
+        this.getJSONWithoutPendingImages(),
+        this.initialDocument
+      )
+    },
+    getJSONWithoutPendingImages() {
+      return withoutPendingImages(this.editor.getJSON())
     },
     /**
      * Replaces the document with ``value``. When ``preserveSelection`` is set
@@ -574,18 +583,36 @@ export default {
       const previousSelection = preserveSelection
         ? this.editor.state.selection.anchor
         : null
+      const pendingImages = findPendingImages(this.editor.state.doc)
       this.registerTrustedImageUrls(value)
       this.editor.commands.setContent(value, {
         emitUpdate: false,
         contentType: this.getContentType(value),
       })
+      this.restorePendingImages(pendingImages)
       if (previousSelection !== null) {
         const size = this.editor.state.doc.content.size
         this.editor.commands.setTextSelection(
           Math.min(previousSelection, Math.max(size - 1, 0))
         )
       }
-      this.initialDocument = clone(this.editor.getJSON())
+      this.initialDocument = clone(this.getJSONWithoutPendingImages())
+    },
+    /** An external update replaces the document but must not drop the uploads still in progress. */
+    restorePendingImages(pendingImages) {
+      if (pendingImages.length === 0) {
+        return
+      }
+      const { state, view } = this.editor
+      const tr = state.tr
+      pendingImages.forEach(({ node, pos }) => {
+        insertPendingImages(tr, Math.min(pos, tr.doc.content.size), [
+          node.attrs.uploadId,
+        ])
+      })
+      view.dispatch(
+        tr.setMeta('addToHistory', false).setMeta('preventUpdate', true)
+      )
     },
     /**
      * A Markdown value handed to the editor comes from the backend, which
@@ -607,60 +634,23 @@ export default {
         isElement(this.$refs.root, event.target) || this.isEventFromMenu(event)
       )
     },
-    addImages(imageFiles, insertPos = null) {
-      const validImages = []
-      for (const image of imageFiles) {
-        if (isRenderableUserFile(image)) {
-          validImages.push(image)
-        } else {
-          this.$store.dispatch('toast/error', {
-            title: this.$t('richTextEditor.errorUnsupportedImageTitle'),
-            message: this.$t('richTextEditor.errorUnsupportedImageMessage', {
-              name: image.original_name,
-            }),
-          })
-        }
+    /** Returns null, after telling the user, for an uploaded file that can't be shown. */
+    getUploadedImageAttributes(userFile) {
+      if (!isRenderableUserFile(userFile)) {
+        this.$store.dispatch('toast/error', {
+          title: this.$t('richTextEditor.errorUnsupportedImageTitle'),
+          message: this.$t('richTextEditor.errorUnsupportedImageMessage', {
+            name: userFile.original_name,
+          }),
+        })
+        return null
       }
-      for (const image of validImages) {
-        // The URL comes from the upload response, so it is safe to load.
-        registerTrustedImageUrl(image.url)
-        const chain = this.editor.chain()
-        if (insertPos != null) {
-          chain.focus(insertPos)
-        }
-        chain
-          .setImage({
-            src: image.url,
-            alt: image.original_name.replace(/\.[^.]+$/, ''),
-            userFileName: image.name,
-          })
-          .createParagraphNear()
-          .run()
-      }
-    },
-    /**
-     * Tracks ``pos`` across the document changes that happen while an upload is
-     * in flight, so a second drop still inserts where it was dropped after an
-     * earlier upload has shifted the document. Returns a getter for the mapped
-     * position and a ``dispose`` to stop tracking.
-     */
-    trackPosition(pos) {
-      if (pos == null) {
-        return { get: () => null, dispose: () => {} }
-      }
-      let current = pos
-      const onTransaction = ({ transaction }) => {
-        if (transaction.docChanged) {
-          current = transaction.mapping.map(current)
-        }
-      }
-      this.editor.on('transaction', onTransaction)
+      // The URL comes from the upload response, so it is safe to load.
+      registerTrustedImageUrl(userFile.url)
       return {
-        get: () => current,
-        set: (pos) => {
-          current = pos
-        },
-        dispose: () => this.editor?.off('transaction', onTransaction),
+        src: userFile.url,
+        alt: userFile.original_name.replace(/\.[^.]+$/, ''),
+        userFileName: userFile.name,
       }
     },
     /**
@@ -690,62 +680,54 @@ export default {
       const upload = { cancelled: false }
       this._activeUploads.add(upload)
 
-      const tracked = this.trackPosition(insertPos)
-
       const files = fileArray.map((file) => ({
-        id: uuid(),
+        uploadId: uuid(),
         file: this.sanitizeUploadFile(file),
       }))
+      const uploadIds = files.map(({ uploadId }) => uploadId)
+      const unsettled = new Set(uploadIds)
 
-      // First add the file ids to the loading list so the user sees a visual loading
-      // indication for each file.
-      files.forEach((file) => {
-        this.loadings.push({ id: file.id })
-      })
+      const { state, view } = this.editor
+      view.dispatch(
+        insertPendingImages(
+          state.tr,
+          insertPos ?? state.selection.from,
+          uploadIds
+        ).scrollIntoView()
+      )
+      view.focus()
 
-      // Now upload the files one by one to not overload the backend. When finished,
-      // regardless of if it has succeeded, the loading state for that file can be
-      // removed because it has already been added as a file.
-      const useTrackedPos = insertPos != null
       try {
-        for (const fileObj of files) {
-          const id = fileObj.id
-          const file = fileObj.file
-
-          if (upload.cancelled) {
-            break
-          }
-
+        // One by one, to not overload the backend.
+        for (const { uploadId, file } of files) {
+          let userFile = null
           try {
-            const { data } = await this.uploadFile(file)
-            if (!this.editor || this.editor.isDestroyed || upload.cancelled) {
-              break
-            }
-            // Mapped through any edit made while this file was uploading.
-            this.addImages([data], useTrackedPos ? tracked.get() : null)
-            if (useTrackedPos) {
-              // The next file of this drop goes right after the image that was
-              // just inserted, even if the user moves the cursor meanwhile.
-              tracked.set(this.editor.state.selection.from)
-            }
+            const response = await this.uploadFile(file)
+            userFile = response.data
           } catch (error) {
             notifyIf(error, 'userFile')
           }
-
-          const index = this.loadings.findIndex((l) => l.id === id)
-          if (index !== -1) {
-            this.loadings.splice(index, 1)
+          if (upload.cancelled) {
+            break
           }
+          this.settleUpload(
+            uploadId,
+            userFile ? this.getUploadedImageAttributes(userFile) : null
+          )
+          unsettled.delete(uploadId)
         }
       } finally {
-        tracked.dispose()
         this._activeUploads.delete(upload)
-        // Only entries belonging to this call are cleared, so a concurrent
-        // upload keeps its own loading indicators.
-        this.loadings = this.loadings.filter(
-          (l) => !files.some((f) => f.id === l.id)
-        )
+        if (!upload.cancelled) {
+          // Reached with leftovers only when an unexpected error escaped the loop.
+          unsettled.forEach((uploadId) => this.settleUpload(uploadId, null))
+        }
       }
+    },
+    /** A parent that saves on blur needs this: the upload can finish after the editor lost focus. */
+    settleUpload(uploadId, attrs) {
+      this.editor.commands.settlePendingImage(uploadId, attrs)
+      this.$emit('upload-settled')
     },
   },
 }

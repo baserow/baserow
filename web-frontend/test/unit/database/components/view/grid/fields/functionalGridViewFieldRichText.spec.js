@@ -154,6 +154,18 @@ describe('FunctionalGridViewFieldRichText component', () => {
     expect(wrapper.text()).not.toContain('https://')
   })
 
+  test('drops a multi-line alt reference the raw cut lands inside', async () => {
+    const url = `https://s3.example.com/user_files/${fileName}`
+    // The first reference ends at 4913, so the 5000-char raw cut splits the second file name.
+    const wrapper = await mountComponent(
+      `${imageRef(4800)} ![line one\nline two][${fileName}](${url}) tail`
+    )
+
+    expect(wrapper.findAll('i.iconoir-media-image')).toHaveLength(1)
+    expect(wrapper.text()).toBe('chart...')
+    expect(wrapper.text()).not.toContain(fileName.slice(0, 8))
+  })
+
   test('keeps the placeholders of a very long value', async () => {
     const ref = imageRef(600)
     const wrapper = await mountComponent(

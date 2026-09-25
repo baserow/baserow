@@ -441,6 +441,43 @@ describe('official TipTap Markdown integration', () => {
     expect(container.textContent).toBe('email@1.example and @Jane Doe')
   })
 
+  test.each([
+    [
+      String.raw`[a \[x\] b](https://example.com)`,
+      'a [x] b',
+      String.raw`[a \[x\] b](https://example.com)`,
+    ],
+    [
+      String.raw`[see \[1\] https://example.org](https://example.com)`,
+      'see [1] https://example.org',
+      String.raw`[see \[1\] https://example.org](https://example.com)`,
+    ],
+    [
+      String.raw`[a \\\] b](https://example.com)`,
+      'a \\] b',
+      String.raw`[a \\\] b](https://example.com)`,
+    ],
+  ])(
+    'keeps a link whose text has escaped brackets as one link: %s',
+    (markdown, text, markdownOnSave) => {
+      editor = createEditor(markdown)
+
+      expect(editor.getJSON().content[0].content).toStrictEqual([
+        {
+          type: 'text',
+          text,
+          marks: [
+            {
+              type: 'link',
+              attrs: expect.objectContaining({ href: 'https://example.com' }),
+            },
+          ],
+        },
+      ])
+      expect(editor.getMarkdown()).toBe(markdownOnSave)
+    }
+  )
+
   test('parses and serializes Markdown on the plain-text clipboard', () => {
     editor = createEditor('')
 
@@ -763,6 +800,24 @@ describe('empty paragraph round trip with images', () => {
 
     expect(html).toContain('<img')
   })
+
+  test.each([['photo'], [String.raw`Screenshot \[1\]`]])(
+    'keeps the link around the image %s through the round trip',
+    (escapedAlt) => {
+      const name = `${'a'.repeat(32)}_${'b'.repeat(64)}.png`
+      const url = `https://example.com/media/user_files/${name}`
+      const html = parseMarkdown(
+        `[![${escapedAlt}][${name}](${url})](https://example.com)\n\n&nbsp;`,
+        { enableImages: true, openLinkOnClick: true }
+      )
+      const document = new DOMParser().parseFromString(html, 'text/html')
+
+      const img = document.querySelector('a img')
+      expect(img).not.toBeNull()
+      expect(img.getAttribute('src')).toBe(url)
+      expect(img.closest('a').getAttribute('href')).toBe('https://example.com')
+    }
+  )
 
   test('never renders an external image next to an empty paragraph', () => {
     const html = parseMarkdown('![x](https://example.com/x.png)\n\n&nbsp;', {
