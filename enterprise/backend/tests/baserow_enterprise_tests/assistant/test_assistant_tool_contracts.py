@@ -311,8 +311,9 @@ def _check_list_builders(result: Any, seed: SeededWorkspace) -> None:
 
 
 def _check_list_tables(result: Any, seed: SeededWorkspace) -> None:
-    assert_items(result, {"id": int, "name": str, "database_id": int}, "list_tables")
-    assert {t["id"] for t in result} == {seed.table.id, seed.linked_table.id}
+    tables = result["tables"]
+    assert_items(tables, {"id": int, "name": str, "database_id": int}, "list_tables")
+    assert {t["id"] for t in tables} == {seed.table.id, seed.linked_table.id}
 
 
 def _check_get_tables_schema(result: Any, seed: SeededWorkspace) -> None:

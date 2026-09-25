@@ -291,9 +291,7 @@ def test_permission_errors_become_actionable_tool_results(built: BuiltToolset) -
 
     result = asyncio.run(routed.call_tool("create_tables", {}, None, tool))
 
-    assert result["error"] == (
-        "create_tables was not executed because permission was denied."
-    )
+    assert result["error"] == "create_tables stopped because permission was denied."
     assert "Do not retry or claim" in result["next_steps"]
 
 

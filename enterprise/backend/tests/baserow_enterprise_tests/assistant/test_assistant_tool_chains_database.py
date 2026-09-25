@@ -268,7 +268,7 @@ def test_chain_build_a_database_from_nothing(data_fixture):
             database_id_or_name=database_id, table_ids_or_names=None
         ),
         thought="chain",
-    )
+    )["tables"]
     assert {t["id"] for t in listed_tables} == {customers_id, orders_id}
 
     # --- final ORM state ---------------------------------------------------
