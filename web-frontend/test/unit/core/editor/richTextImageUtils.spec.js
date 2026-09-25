@@ -1,4 +1,5 @@
 import {
+  countImageReferences,
   isRenderableUserFile,
   iterCodeSegments,
   preprocessRichTextImages,
@@ -375,6 +376,29 @@ describe('code and references are read exactly like the backend', () => {
       expect(stripImageUrls(content)).toBe('![a][abc_def.png]')
     }
   )
+})
+
+describe('countImageReferences', () => {
+  const name =
+    'R7SiH9lsCNSxDKLRsabcjoqpu3YmYdmP_31f3aa68afe0ddc9027c18de4030fdb7df1434c10401ca23aab07d6fc308661c.png'
+
+  // Same cases as TestCountImageReferences in test_rich_text_utils.py.
+  test.each([
+    [null, 0],
+    ['', 0],
+    [`![a][${name}]`, 1],
+    [`![a][${name}] ![a][${name}]`, 2],
+    [`![a][${name}](https://h/x.png)`, 1],
+    [`\`![a][${name}]\` ![b][${name}]`, 1],
+    [`\`\`\`\n![a][${name}]\n\`\`\`\n![b][${name}]`, 1],
+    [`x\r\`\`\`\n![a][${name}]`, 1],
+    [`!\\[a][${name}]`, 0],
+    [`![a\\]b][${name}]`, 1],
+    [`![a][${name}\u2028]`, 1],
+    ['![a](https://e.com/p.png)', 0],
+  ])('%j has %i', (content, expected) => {
+    expect(countImageReferences(content)).toBe(expected)
+  })
 })
 
 describe('user file names without an extension', () => {

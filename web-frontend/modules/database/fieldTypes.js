@@ -16,7 +16,10 @@ import {
   isValidEmail,
   isValidURL,
 } from '@baserow/modules/core/utils/string'
-import { stripImageUrls } from '@baserow/modules/core/editor/richTextImageUtils'
+import {
+  countImageReferences,
+  stripImageUrls,
+} from '@baserow/modules/core/editor/richTextImageUtils'
 import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
 import {
   parseNumberValue,
@@ -1212,6 +1215,20 @@ function maxFieldTextLengthError(app, value) {
   return null
 }
 
+// Mirrors `MAX_RICH_TEXT_IMAGES` in `rich_text_utils.py`.
+const MAX_RICH_TEXT_IMAGES = 100
+
+function maxRichTextImagesError(app, value) {
+  const count = countImageReferences(value)
+  if (count > MAX_RICH_TEXT_IMAGES) {
+    return app.$i18n.t('fieldErrors.maxImagesExceeded', {
+      max: MAX_RICH_TEXT_IMAGES,
+      over: count - MAX_RICH_TEXT_IMAGES,
+    })
+  }
+  return null
+}
+
 export class TextFieldType extends FieldType {
   static getType() {
     return 'text'
@@ -1432,7 +1449,11 @@ export class LongTextFieldType extends FieldType {
 
   getValidationError(field, value) {
     if (field.long_text_enable_rich_text && value) {
-      return maxFieldTextLengthError(this.app, stripImageUrls(value))
+      const stored = stripImageUrls(value)
+      return (
+        maxFieldTextLengthError(this.app, stored) ||
+        maxRichTextImagesError(this.app, stored)
+      )
     }
     return maxFieldTextLengthError(this.app, value)
   }

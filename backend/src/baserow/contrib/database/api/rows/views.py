@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
+from rest_framework.exceptions import APIException
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -47,6 +48,7 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INCOMPATIBLE_FIELD_TYPE,
     ERROR_ORDER_BY_FIELD_NOT_FOUND,
     ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
+    ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
 )
 from baserow.contrib.database.api.rows.errors import (
     ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
@@ -160,6 +162,22 @@ from .serializers import (
     get_example_row_serializer_class,
     get_row_serializer_class,
 )
+
+
+def row_values_validation_error(exc: ValidationError) -> APIException:
+    """
+    Maps an error raised while preparing row values to the error the client gets.
+
+    :param exc: A single message validation error.
+    :return: The rich text image limit error, or a request body validation error.
+    """
+
+    if exc.code == "too_many_images":
+        error, status_code, _ = ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED
+        api_exception = APIException({"error": error, "detail": exc.message})
+        api_exception.status_code = status_code
+        return api_exception
+    return RequestBodyValidationException(detail=exc.message)
 
 
 def build_response_with_metadata(
@@ -554,6 +572,7 @@ class RowsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -627,8 +646,8 @@ class RowsView(APIView):
                 user_field_names=False,
                 send_webhook_events=send_webhook_events,
             )
-        except ValidationError as e:
-            raise RequestBodyValidationException(detail=e.message)
+        except ValidationError as exc:
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
@@ -961,7 +980,11 @@ class RowView(APIView):
                 example_type="get", user_field_names=True
             ),
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
@@ -1041,7 +1064,7 @@ class RowView(APIView):
                 .updated_rows[0]
             )
         except ValidationError as exc:
-            raise RequestBodyValidationException(detail=exc.message) from exc
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
@@ -1368,6 +1391,7 @@ class BatchRowsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ROW_IDS_NOT_UNIQUE",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -1439,7 +1463,7 @@ class BatchRowsView(APIView):
                 send_webhook_events=send_webhook_events,
             )
         except ValidationError as exc:
-            raise RequestBodyValidationException(detail=exc.message)
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None
@@ -1537,6 +1561,7 @@ class BatchRowsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_ROW_IDS_NOT_UNIQUE",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -1603,8 +1628,8 @@ class BatchRowsView(APIView):
                 send_webhook_events=send_webhook_events,
             )
             rows = updated_data.updated_rows
-        except ValidationError as e:
-            raise RequestBodyValidationException(detail=e.message)
+        except ValidationError as exc:
+            raise row_values_validation_error(exc) from exc
 
         hidden_field_ids = (
             get_hidden_field_ids_for_view_user(request.user, view) if view else None

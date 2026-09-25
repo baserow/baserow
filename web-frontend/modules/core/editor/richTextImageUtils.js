@@ -155,6 +155,16 @@ export function stripImageUrls(content, keepUrl = () => false) {
 const IMAGE_REF_REGEX =
   /!\[([^[\]\\]*(?:\\[^\n][^[\]\\]*)*)\]\[[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[^\] \t\n\r\f\v/\\()]*\]/g
 
+/** Counts references outside code, repeats included, like `count_image_references`. */
+export function countImageReferences(content) {
+  if (!content) return 0
+  let count = 0
+  for (const [segment, isCode] of iterCodeSegments(content)) {
+    if (!isCode) count += (segment.match(IMAGE_REF_REGEX) || []).length
+  }
+  return count
+}
+
 // A sentinel standing in for an image on the surfaces that render none. It is a
 // single character so it survives slicing and length maths as one unit, and
 // `renderImagePlaceholders` swaps it for the icon after markdown-it has escaped

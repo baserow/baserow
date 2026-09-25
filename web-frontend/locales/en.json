@@ -197,6 +197,7 @@
     "higherThan": "Value is higher than {max}.",
     "maxChars": "Max {max} chars.",
     "maxCharsExceeded": "Max {max} chars (-{over}).",
+    "maxImagesExceeded": "Max {max} images (remove {over}).",
     "minChars": "Min {min} chars."
   },
   "fieldDocs": {
