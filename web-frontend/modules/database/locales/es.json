@@ -1271,5 +1271,22 @@
     },
     "viewsAdminContext": {
         "publicUrlCopiedMessage": "La URL pública de la vista ha sido copiada a tu portapapeles."
+    },
+    "databaseWorkflowActionType": {
+        "startWorkflowMissing": "El flujo de trabajo de esta acción no se puede encontrar. Puede que haya sido eliminado, o que no tengas acceso a él. Elige otro flujo de trabajo, o pide ayuda a alguien que pueda ver este.",
+        "slackTokenMissing": "Este bot no tiene token. Añade un nuevo bot con su token, o pega uno en este bot, antes de que el botón pueda publicar.",
+        "tableTrashed": "Esta acción utiliza una tabla que está en la papelera o ya no existe. Restaura la tabla o elige otra.",
+        "writesToTrashedField": "Esta acción escribe en un campo que está en la papelera. Restaura el campo para ejecutar la acción de nuevo.",
+        "instanceSmtpTurnedOff": "El envío a través del servidor SMTP propio de esta instancia de Baserow está desactivado, por lo que un botón no puede enviar correo electrónico.",
+        "requiresReconfiguration": "Esta acción apunta a una tabla, campo o integración que está en la papelera o que ha desaparecido."
+    },
+    "databaseWorkflowActionWithService": {
+        "nothingCapturedYet": "Haz clic en este botón en una fila para capturar lo que el punto final (endpoint) responde, de modo que las acciones posteriores puedan usar sus campos. Las demás acciones del botón también se ejecutan."
+    },
+    "fieldButtonSubForm": {
+        "unresolvedReferenceMessage": "Una acción utiliza un resultado de una acción que no se ejecuta antes que ella. Muévela hacia atrás o elimina la referencia, y luego guarda de nuevo."
+    },
+    "openUrlWorkflowAction": {
+        "invalidUrlMessage": "No se pudo resolver la URL de esta fila, o usa un protocolo que no está permitido."
     }
 }
