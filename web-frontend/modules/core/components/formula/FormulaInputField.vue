@@ -36,6 +36,17 @@
           />
         </slot>
       </div>
+      <button
+        v-if="showFormatBadge"
+        type="button"
+        class="formula-input-field__format-badge"
+        :title="formatBadgeTitle"
+        :disabled="disabled"
+        @mousedown.prevent
+        @click="focusEditor"
+      >
+        {{ formatBadge }}
+      </button>
       <ButtonIcon
         v-if="allowRawValues && !readOnly"
         class="formula-input-field__mode-toggle"
@@ -68,10 +79,13 @@
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
       :enabled-modes="enabledModes"
+      :format="format"
+      :format-options="formatOptions"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @example-click="handleExampleSelected"
       @mode-changed="handleModeChange"
+      @format-changed="$emit('update:format', $event)"
       @mousedown="onContextMouseDown"
     />
 
@@ -128,9 +142,17 @@ import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipT
 import { mergeAttributes } from '@tiptap/core'
 import FormulaInputErrorContext from '~/modules/core/components/formula/FormulaInputErrorContext'
 import FormulaInputExplorerContext from '@baserow/modules/core/components/formula/FormulaInputExplorerContext'
-import { isFormulaValid } from '@baserow/modules/core/formula'
+import {
+  isFormulaValid,
+  toFormulaStringLiteral,
+} from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
-import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
+import {
+  BASEROW_FORMULA_FORMAT_MARKDOWN,
+  BASEROW_FORMULA_FORMAT_PLAIN,
+  BASEROW_FORMULA_FORMATS,
+  BASEROW_FORMULA_MODES,
+} from '@baserow/modules/core/formula/constants'
 import FormInput from '@baserow/modules/core/components/FormInput'
 import ButtonIcon from '@baserow/modules/core/components/ButtonIcon'
 import { ensureString } from '@baserow/modules/core/utils/validator'
@@ -184,6 +206,18 @@ export function disambiguateMinusOperator(formula) {
   }
 
   return result
+}
+
+const FORMAT_LABEL_KEYS = {
+  [BASEROW_FORMULA_FORMAT_PLAIN]: 'formulaInputField.formatPlain',
+  [BASEROW_FORMULA_FORMAT_MARKDOWN]: 'formulaInputField.formatMarkdown',
+}
+
+// The letter shown on the input while a non-plain format is selected. The
+// picker itself lives in the explorer context, which only exists while the
+// field is focused, so the badge is what keeps the format visible.
+const FORMAT_BADGES = {
+  [BASEROW_FORMULA_FORMAT_MARKDOWN]: 'M',
 }
 
 export default {
@@ -274,13 +308,33 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * How the surface showing the resolved formula renders it (plain text or
+     * markdown). It doesn't affect the formula itself, which is why it also
+     * applies in raw mode.
+     */
+    format: {
+      type: String,
+      required: false,
+      default: BASEROW_FORMULA_FORMAT_PLAIN,
+      validator: (value) => BASEROW_FORMULA_FORMATS.includes(value),
+    },
+    /**
+     * The formats the surface using this input can render. The format picker
+     * is only shown when there is more than one to choose from.
+     */
+    allowedFormats: {
+      type: Array,
+      required: false,
+      default: () => [BASEROW_FORMULA_FORMAT_PLAIN],
+    },
     validationContext: {
       type: Object,
       required: false,
       default: () => ({}),
     },
   },
-  emits: ['input', 'update:mode', 'update:invalid', 'blur'],
+  emits: ['input', 'update:mode', 'update:format', 'update:invalid', 'blur'],
   data() {
     return {
       editor: null,
@@ -306,6 +360,31 @@ export default {
       return this.isRawMode
         ? this.$t('formulaInputField.useFormulaMode')
         : this.$t('formulaInputField.useRawMode')
+    },
+    showFormatBadge() {
+      return (
+        this.allowedFormats.length > 1 &&
+        !this.readOnly &&
+        this.format !== BASEROW_FORMULA_FORMAT_PLAIN
+      )
+    },
+    formatBadge() {
+      return FORMAT_BADGES[this.format] || this.format.charAt(0).toUpperCase()
+    },
+    formatBadgeTitle() {
+      return this.$t('formulaInputField.formatBadgeTitle', {
+        format: this.$t(FORMAT_LABEL_KEYS[this.format] || this.format),
+      })
+    },
+    /**
+     * The options of the format picker, which the explorer context renders in
+     * its footer when there is more than one.
+     */
+    formatOptions() {
+      return this.allowedFormats.map((format) => ({
+        value: format,
+        name: this.$t(FORMAT_LABEL_KEYS[format] || format),
+      }))
     },
     isFormulaEmpty() {
       if (!this.editor) return true
@@ -675,7 +754,12 @@ export default {
     },
     changeRawMode() {
       const newMode = this.isRawMode ? 'simple' : 'raw'
-      const newFormula = this.isRawMode ? ensureString(this.value) : ''
+      // Raw text is not formula syntax, so it carries over as a string
+      // literal (`Price` -> `'Price'`); passed through verbatim it would be
+      // parsed as a function name and rejected. The other direction clears
+      // the formula, after confirmation when it isn't empty.
+      const rawText = this.isRawMode ? ensureString(this.value) : ''
+      const newFormula = rawText ? toFormulaStringLiteral(rawText) : ''
 
       this.isHandlingModeChange = true
       this.$emit('update:mode', newMode)
@@ -857,6 +941,16 @@ export default {
       if (this.editor && !this.disabled && !this.readOnly) {
         this.editor.commands.showContext()
       }
+    },
+    /**
+     * The format badge is a shortcut to the picker: focusing the editor opens
+     * the explorer context that hosts it. The badge prevents the default of
+     * its mousedown, so an already focused editor keeps the focus and the
+     * context doesn't close and reopen.
+     */
+    focusEditor() {
+      if (this.isRawMode || this.disabled || this.readOnly) return
+      this.editor?.commands.focus()
     },
     handleModeChange(newMode) {
       // If switching from advanced to simple, clear the content

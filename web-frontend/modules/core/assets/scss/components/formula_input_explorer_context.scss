@@ -56,15 +56,36 @@
 
 .formula-input-explorer-context__footer {
   flex-shrink: 0;
-  padding: 12px 16px;
+  padding: 8px 16px;
   border-top: 1px solid $palette-neutral-200;
-  height: 36px;
+  min-height: 36px;
   box-sizing: border-box;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px 12px;
   background-color: $white;
 
   @include rounded($rounded);
+}
+
+// Never let the segments shrink into an ellipsis: the block keeps its content
+// width and, when a long mode-switch label leaves no room, wraps to a second
+// right-aligned line instead.
+.formula-input-explorer-context__format {
+  flex-shrink: 0;
+  margin-left: auto;
+
+  // Compact the shared control for the footer. The default `flex: 1` splits
+  // the width evenly between the segments, which clips the longer label;
+  // here each keeps its own content width, and the buttons match the
+  // mode-switch text in size.
+  .segment-control .segment-control__button {
+    flex: 0 0 auto;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
 }
 
 .formula-input-explorer-context__advanced-mode-modal {

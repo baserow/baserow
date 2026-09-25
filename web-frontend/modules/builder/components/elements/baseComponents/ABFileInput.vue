@@ -9,10 +9,15 @@
       @dragover.prevent="onDragOver"
       @dragleave.prevent="onDragLeave"
       @drop.prevent="onDrop"
-      @keydown.enter.prevent="triggerFileInput"
-      @keydown.space.prevent="triggerFileInput"
+      @keydown.enter.self.prevent="triggerFileInput"
+      @keydown.space.self.prevent="triggerFileInput"
     >
-      <div>{{ helpText }}</div>
+      <ABFormattedText
+        class="ab-file-input__help-text"
+        :value="helpText"
+        :format="helpTextFormat"
+        profile="block"
+      />
       <input
         ref="fileInputRef"
         type="file"
@@ -48,6 +53,7 @@
 
 <script>
 import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
+import { BASEROW_FORMULA_FORMAT_PLAIN } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'ABFileInput',
@@ -67,6 +73,13 @@ export default {
     helpText: {
       type: String,
       default: 'Drag and drop files here or click to select',
+    },
+    /**
+     * The `format` of the formula the help text was resolved from.
+     */
+    helpTextFormat: {
+      type: String,
+      default: BASEROW_FORMULA_FORMAT_PLAIN,
     },
     accept: {
       type: Array,

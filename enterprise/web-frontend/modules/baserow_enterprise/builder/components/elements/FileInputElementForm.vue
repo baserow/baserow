@@ -16,6 +16,7 @@
       <InjectedFormulaInput
         v-model="v$.values.label.$model"
         :placeholder="$t('generalForm.labelPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
     <FormGroup
@@ -27,6 +28,7 @@
       <InjectedFormulaInput
         v-model="v$.values.help_text.$model"
         :placeholder="$t('fileInputElementForm.helpTextPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
     <hr />
@@ -163,6 +165,7 @@ import {
   maxValue,
   helpers,
 } from '@vuelidate/validators'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FileInputElementForm',
@@ -197,6 +200,7 @@ export default {
         'allowed_filetypes',
         'preview',
       ],
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
   methods: {

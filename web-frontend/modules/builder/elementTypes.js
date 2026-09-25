@@ -1923,12 +1923,16 @@ export class ChoiceElementType extends FormElementType {
         const formulaNames = ensureArray(
           this.resolveFormula(element.formula_name, applicationContext)
         )
+        // The format of the name formula, undefined when plain, so that the
+        // element can render the names accordingly.
+        const nameFormat = element.formula_name?.format
         return formulaValues.map((value, index) => ({
           id: index,
           value: ensureStringOrInteger(value),
           name: ensureString(
             index < formulaValues.length ? formulaNames[index] : value
           ),
+          nameFormat,
         }))
       }
       default:

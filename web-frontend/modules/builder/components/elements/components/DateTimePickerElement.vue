@@ -1,6 +1,7 @@
 <template>
   <ABFormGroup
     :label="resolvedLabel"
+    :label-format="element.label?.format"
     :error-message="errorMessage"
     :required="element.required"
     :style="getStyleOverride('input')"

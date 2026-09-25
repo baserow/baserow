@@ -14,8 +14,8 @@
       class="ab-form-group__label"
       :class="{ 'ab-form-group__label--small': smallLabel }"
     >
-      {{ label }}
-      <span v-if="required" :title="$t('error.requiredField')">*</span>
+      <ABFormattedText :value="label" :format="labelFormat" profile="inline" />
+      <span v-if="required" :title="$t('error.requiredField')"> *</span>
     </label>
     <div class="ab-form-group__children">
       <slot />
@@ -28,6 +28,8 @@
 </template>
 
 <script>
+import { BASEROW_FORMULA_FORMAT_PLAIN } from '@baserow/modules/core/formula/constants'
+
 export default {
   name: 'ABFormGroup',
   props: {
@@ -40,6 +42,15 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    /**
+     * The `format` of the formula the label was resolved from, so that a
+     * markdown label renders inline.
+     */
+    labelFormat: {
+      type: String,
+      required: false,
+      default: BASEROW_FORMULA_FORMAT_PLAIN,
     },
     smallLabel: {
       type: Boolean,

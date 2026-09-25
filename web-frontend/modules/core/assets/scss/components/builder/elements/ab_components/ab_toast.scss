@@ -34,10 +34,6 @@
   flex: 1 1 auto;
   overflow: hidden;
   overflow-wrap: break-word;
-
-  p {
-    margin: 1em 0;
-  }
 }
 
 .ab-toast__title {
@@ -59,6 +55,12 @@
   color: var(--body-text-color, $black);
   text-align: var(--body-text-alignment, left);
   font-family: var(--body-font-family, Inter);
+
+  // A plain message is split into paragraphs; space them like the
+  // markdown ones without a margin above the first.
+  .ab-text + .ab-text {
+    margin-top: 1em;
+  }
 }
 
 .ab-toast__details {
