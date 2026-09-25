@@ -36,7 +36,12 @@ class SMTPIntegration(Integration):
     )
     use_tls = models.BooleanField(
         default=True,
-        help_text="Whether to use TLS encryption.",
+        help_text="Whether to upgrade the connection with STARTTLS.",
+    )
+    use_ssl = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether to connect with implicit SSL/TLS, usually on port 465.",
     )
     username = models.CharField(
         max_length=255,

@@ -1132,6 +1132,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 username=smtp_integration.username or "",
                 password=smtp_integration.password or "",
                 use_tls=smtp_integration.use_tls,
+                use_ssl=smtp_integration.use_ssl,
                 timeout=SMTP_EMAIL_TIMEOUT,
             )
             smtp_host = smtp_integration.host

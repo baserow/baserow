@@ -32,7 +32,9 @@ describe('SMTP integration form', () => {
     expect(inputs.at(1).element.value).toBe('587')
     expect(inputs.at(2).element.value).toBe('')
     expect(inputs.at(3).element.value).toBe('')
-    expect(wrapper.find('.checkbox').classes()).toContain('checkbox--checked')
+    expect(
+      wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
+    ).toBe('starttls')
   })
 
   test('emits updated values with the parsed SMTP port', async () => {
@@ -41,7 +43,9 @@ describe('SMTP integration form', () => {
 
     await inputs.at(0).setValue('smtp.example.com')
     await inputs.at(1).setValue('2525')
-    await wrapper.find('.checkbox').trigger('click')
+    wrapper
+      .findComponent({ name: 'Dropdown' })
+      .vm.$emit('update:modelValue', 'none')
     await inputs.at(2).setValue('mailer')
     await inputs.at(3).setValue('secret')
     await flushPromises()
@@ -53,9 +57,69 @@ describe('SMTP integration form', () => {
       host: 'smtp.example.com',
       port: 2525,
       use_tls: false,
+      use_ssl: false,
       username: 'mailer',
       password: 'secret',
     })
+  })
+
+  test('selecting SSL/TLS turns STARTTLS off', async () => {
+    const wrapper = await mountComponent()
+
+    wrapper
+      .findComponent({ name: 'Dropdown' })
+      .vm.$emit('update:modelValue', 'ssl')
+    await flushPromises()
+
+    const lastEmission = wrapper.emitted('values-changed').at(-1)[0]
+    expect(lastEmission.use_tls).toBe(false)
+    expect(lastEmission.use_ssl).toBe(true)
+  })
+
+  test('switches a conventional port along with the security mode', async () => {
+    const wrapper = await mountComponent()
+    const dropdown = wrapper.findComponent({ name: 'Dropdown' })
+
+    dropdown.vm.$emit('update:modelValue', 'ssl')
+    await flushPromises()
+    expect(wrapper.vm.getFormValues().port).toBe(465)
+
+    dropdown.vm.$emit('update:modelValue', 'starttls')
+    await flushPromises()
+    expect(wrapper.vm.getFormValues().port).toBe(587)
+
+    dropdown.vm.$emit('update:modelValue', 'none')
+    await flushPromises()
+    expect(wrapper.vm.getFormValues().port).toBe(587)
+  })
+
+  test('keeps a custom port when the security mode changes', async () => {
+    const wrapper = await mountComponent()
+
+    await wrapper.findAll('.form-input__input').at(1).setValue('2525')
+    wrapper
+      .findComponent({ name: 'Dropdown' })
+      .vm.$emit('update:modelValue', 'ssl')
+    await flushPromises()
+
+    expect(wrapper.vm.getFormValues().port).toBe(2525)
+  })
+
+  test('shows SSL/TLS for an integration using implicit SSL', async () => {
+    const wrapper = await mountComponent({
+      defaultValues: {
+        host: 'smtp.strato.de',
+        port: 465,
+        use_tls: false,
+        use_ssl: true,
+        username: 'mailer',
+        has_password: true,
+      },
+    })
+
+    expect(
+      wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
+    ).toBe('ssl')
   })
 
   test('shows validation messages when the host is empty and the port is invalid', async () => {
