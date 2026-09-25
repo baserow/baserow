@@ -111,7 +111,8 @@
         "runNumber": "Ejecución {n}",
         "runCount": "{n} ejecuciones",
         "showResult": "Mostrar resultado",
-        "cancellationAlreadyRequested": "Otra persona ya solicitó la cancelación de esta ejecución. Se detendrá una vez que el nodo actual termine."
+        "cancellationAlreadyRequested": "Otra persona ya solicitó la cancelación de esta ejecución. Se detendrá una vez que el nodo actual termine.",
+        "cancelling": "Cancelando esta ejecución. Se detendrá una vez que el nodo actual termine."
     },
     "nodeType": {
         "triggerDeletionError": "Los disparadores no pueden eliminarse, solo reemplazarse.",
