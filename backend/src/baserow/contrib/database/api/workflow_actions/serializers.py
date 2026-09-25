@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from django.utils.functional import lazy
 
@@ -19,6 +19,11 @@ from baserow.contrib.database.workflow_actions.registries import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.services.models import Service
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.workflow_actions.types import (
+        WorkflowActionsDispatchResult,
+    )
 
 
 class DatabaseWorkflowActionSerializer(WorkflowActionSerializer):
@@ -202,3 +207,65 @@ class DatabaseServiceSerializer(ServiceSerializer):
 
 class DatabasePolymorphicServiceSerializer(PolymorphicServiceSerializer):
     base_class = DatabaseServiceSerializer
+
+
+def dispatch_result_payload(
+    dispatch: "WorkflowActionsDispatchResult", user
+) -> Dict[str, Any]:
+    """
+    What a click hands the browser: one result per server action that ran,
+    and the frontend-only actions still to run, in order. The same body for
+    a click that ran in the request and for one that ran in a job.
+
+    :param dispatch: What the sequence produced.
+    :param user: The clicker, for the client action serializer's context.
+    :return: `results` and `client_actions`.
+    """
+
+    # A client action can read only what ran before it, so a result with
+    # none after it is not sent at all. Configuring a button needs more
+    # permission than clicking one, and an answer from outside Baserow
+    # carries whatever the endpoint sent back, response headers included.
+    last_client_position = max(
+        (
+            dispatch.positions.get(workflow_action.id) or 0
+            for workflow_action in dispatch.client_actions
+        ),
+        default=0,
+    )
+
+    def is_wanted(dispatched):
+        position = dispatch.positions.get(dispatched.workflow_action.id) or 0
+        return 0 < position < last_client_position
+
+    def field_names_for(dispatched):
+        if not is_wanted(dispatched) or not isinstance(dispatched.result.data, dict):
+            return {}
+        workflow_action = dispatched.workflow_action
+        return workflow_action.get_type().get_result_field_names(workflow_action)
+
+    results = [
+        {
+            "workflow_action_id": dispatched.workflow_action.id,
+            # `order` is what the action carries; `position` is where it
+            # really ran, which is what two actions sharing an `order` are
+            # told apart by.
+            "order": dispatched.workflow_action.order,
+            "position": dispatch.positions.get(dispatched.workflow_action.id),
+            "status": "completed",
+            "data": dispatched.result.data if is_wanted(dispatched) else None,
+            "field_names": field_names_for(dispatched),
+        }
+        for dispatched in dispatch.dispatched
+    ]
+
+    client_actions = [
+        database_workflow_action_type_registry.get_serializer(
+            workflow_action,
+            DispatchedClientActionSerializer,
+            context={"user": user, "positions": dispatch.positions},
+        ).data
+        for workflow_action in dispatch.client_actions
+    ]
+
+    return {"results": results, "client_actions": client_actions}

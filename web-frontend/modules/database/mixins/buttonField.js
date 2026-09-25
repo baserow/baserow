@@ -2,14 +2,24 @@ import { reactive } from 'vue'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
+import {
+  ButtonFieldDispatchJobDropped,
+  ButtonFieldDispatchJobType,
+  DISPATCH_JOB_DEADLINE_MS,
+} from '@baserow/modules/database/jobTypes'
+import JobService from '@baserow/modules/core/services/job'
 
 // Keyed by field and row rather than kept per component. The grid swaps an
 // unselected cell for its own component on the first click, and that remount
 // would drop a flag held in `data`, taking the loading state and the double
-// click guard with it.
+// click guard with it. The flag also spans a click whose actions run behind
+// a job: it stays set while that job is polled to its end.
 const dispatchesInFlight = reactive(new Set())
 
 const DISPATCH_OPERATION = 'database.table.field.workflow_action.dispatch'
+
+export { DISPATCH_JOB_DEADLINE_MS }
+export const DISPATCH_JOB_LAST_CHECK_MS = 10 * 1000
 
 /**
  * Dispatches a cell's actions on click and runs the ones the backend hands
@@ -68,8 +78,21 @@ export default {
     dispatchKey() {
       return `${this.field.id}:${this.row.id}`
     },
+    /**
+     * Also true for a click's job still running from before a page reload, so
+     * the button keeps spinning until that job ends.
+     */
     dispatching() {
-      return dispatchesInFlight.has(this.dispatchKey)
+      return (
+        dispatchesInFlight.has(this.dispatchKey) ||
+        this.$store.getters['job/getAll'].some((job) =>
+          ButtonFieldDispatchJobType.isRunningOn(
+            job,
+            this.field.id,
+            this.row.id
+          )
+        )
+      )
     },
   },
   methods: {
@@ -79,7 +102,7 @@ export default {
      * avoids an obvious double fire.
      */
     async dispatchWorkflowActions() {
-      if (this.dispatching) {
+      if (dispatchesInFlight.has(this.dispatchKey)) {
         return
       }
       // Captured up front so the release below cannot miss it if the cell is
@@ -91,17 +114,36 @@ export default {
         // The dispatch takes its own broadcast, so `this.row` can change
         // mid-request. Client actions get the row as it was at click time.
         const clickedRow = clone(this.row)
-        const { data } = await WorkflowActionService(this.$client).dispatch(
+        const openTableId = this.$store.getters['table/getSelectedId']
+        const response = await WorkflowActionService(this.$client).dispatch(
           this.field.id,
           this.row.id
         )
+        // A click with an action that reaches outside Baserow runs behind
+        // the request; the job carries the same body once it has run.
+        const queued = response.status === 202
+        const outcome = queued
+          ? await this.awaitDispatchJob(response.data)
+          : response.data
+        // A job can end minutes later, after the user opened another table.
+        // An Open URL then would navigate them away from it.
+        if (
+          queued &&
+          this.$store.getters['table/getSelectedId'] !== openTableId
+        ) {
+          return
+        }
         await this.runClientActions(
-          data?.client_actions || [],
+          outcome?.client_actions || [],
           clickedRow,
-          this.previousActionResults(data),
+          this.previousActionResults(outcome),
           newTab
         )
       } catch (error) {
+        if (error instanceof ButtonFieldDispatchJobDropped) {
+          // Logged out while the job ran: nothing is left to tell.
+          return
+        }
         // The shared handler stays quiet on a 429, so a refused click would
         // otherwise look like a click that did nothing.
         if (error.handler?.isTooManyRequests?.()) {
@@ -156,6 +198,96 @@ export default {
           tab = null
         },
       }
+    },
+    /**
+     * Waits for the job store to poll the click's job to its end. A failed
+     * job is raised the way a failed inline click is, with its own message,
+     * so the catch above shows it.
+     */
+    async awaitDispatchJob(job) {
+      const tracked = await this.$store.dispatch('job/create', job)
+      try {
+        return await this.settleDispatchJob(tracked)
+      } finally {
+        // Settled or given up on either way, so the store stops polling it.
+        this.$store.dispatch('job/forceDelete', tracked)
+      }
+    },
+    async settleDispatchJob(tracked) {
+      const waiting = ButtonFieldDispatchJobType.waitFor(tracked)
+      let deadlineTimer
+      const deadline = new Promise((resolve, reject) => {
+        deadlineTimer = setTimeout(async () => {
+          ButtonFieldDispatchJobType.forget(tracked)
+          // A poll may have been missed, so the job may have ended unseen.
+          // Asked once more before giving up on it.
+          let job = null
+          try {
+            // Bounded, so a request that never answers cannot keep the
+            // button spinning past its deadline.
+            const { data } = await Promise.race([
+              JobService(this.$client).get(tracked.id),
+              new Promise((resolve, reject) =>
+                setTimeout(
+                  () => reject(new Error('Timed out')),
+                  DISPATCH_JOB_LAST_CHECK_MS
+                )
+              ),
+            ])
+            job = data
+          } catch {
+            // Treated as still running: the message says as much.
+          }
+          if (job?.state === 'finished') {
+            resolve(job)
+          } else if (job?.state === 'failed' || job?.state === 'cancelled') {
+            reject(this.dispatchJobError(job))
+          } else {
+            reject(this.dispatchJobStillRunningError())
+          }
+        }, DISPATCH_JOB_DEADLINE_MS)
+      })
+      try {
+        return await Promise.race([waiting, deadline])
+      } catch (failed) {
+        // The deadline already threw a fully formed error; a rejection from
+        // `waiting` is the failed job's data and still needs wrapping.
+        throw failed instanceof Error ? failed : this.dispatchJobError(failed)
+      } finally {
+        clearTimeout(deadlineTimer)
+      }
+    },
+    dispatchJobError(failed) {
+      // A failure the job type did not map carries no error code, and the
+      // framework's own wording for it, which names the job type.
+      const message = failed.error_code ? failed.human_readable_error : ''
+      const error = new Error(message || 'Button click failed')
+      error.handler = {
+        notifyIf: () => {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('buttonField.dispatchErrorTitle'),
+            message: message || this.$t('buttonField.dispatchErrorMessage'),
+          })
+        },
+      }
+      return error
+    },
+    /**
+     * A job that never reached a final state before the deadline. The
+     * click's actions may still finish server side; this only stops the
+     * button waiting on them forever.
+     */
+    dispatchJobStillRunningError() {
+      const error = new Error('Button click job still running')
+      error.handler = {
+        notifyIf: () => {
+          this.$store.dispatch('toast/error', {
+            title: this.$t('buttonField.stillRunningTitle'),
+            message: this.$t('buttonField.stillRunningMessage'),
+          })
+        },
+      }
+      return error
     },
     /**
      * What the server side actions returned, for a client action to reference.

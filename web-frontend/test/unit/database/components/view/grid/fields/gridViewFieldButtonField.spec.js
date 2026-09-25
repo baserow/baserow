@@ -2,6 +2,10 @@ import { vi } from 'vitest'
 import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewFieldButtonField from '@baserow/modules/database/components/view/grid/fields/GridViewFieldButtonField'
+import {
+  DISPATCH_JOB_DEADLINE_MS,
+  DISPATCH_JOB_LAST_CHECK_MS,
+} from '@baserow/modules/database/mixins/buttonField'
 
 describe('GridViewFieldButtonField', () => {
   let testApp = null
@@ -18,6 +22,7 @@ describe('GridViewFieldButtonField', () => {
   afterEach(() => {
     testApp.afterEach()
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   const field = {
@@ -53,6 +58,7 @@ describe('GridViewFieldButtonField', () => {
     // app, so replace .post with a fresh mock per mount instead of hitting
     // the network mock adapter.
     wrapper.vm.$client.post = vi.fn().mockResolvedValue({
+      status: 200,
       data: { results: [], client_actions: [], ...responseData },
     })
     return wrapper
@@ -288,5 +294,375 @@ describe('GridViewFieldButtonField', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.vm.dispatching).toBe(false)
+  })
+
+  const acceptedJob = () => ({
+    id: 7,
+    type: 'button_field_dispatch',
+    state: 'pending',
+    progress_percentage: 0,
+    human_readable_error: '',
+    results: null,
+    client_actions: null,
+  })
+
+  const finishJob = async (wrapper, values) => {
+    const store = wrapper.vm.$store
+    const job = store.getters['job/get'](acceptedJob().id)
+    await store.dispatch('job/forceUpdate', {
+      job,
+      data: { ...acceptedJob(), ...values },
+    })
+    await flushPromises()
+  }
+
+  test('an accepted click waits on its job and then runs the client actions', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    // Still waiting: the spinner stays and nothing has run.
+    expect(wrapper.vm.dispatching).toBe(true)
+    expect(execute).not.toHaveBeenCalled()
+    expect(wrapper.vm.$store.getters['job/get'](acceptedJob().id)).toBeTruthy()
+
+    await finishJob(wrapper, {
+      state: 'finished',
+      results: [
+        {
+          workflow_action_id: 3,
+          order: 1,
+          position: 1,
+          status: 'completed',
+          data: { id: 99 },
+          field_names: {},
+        },
+      ],
+      client_actions: [{ ...openUrlAction, position: 2 }],
+    })
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(
+      execute.mock.calls[0][0].applicationContext.previousActionResults
+    ).toEqual({
+      3: { data: { id: 99 }, fieldNames: {}, order: 1, position: 1 },
+    })
+    // Settled, so the store no longer polls it.
+    expect(wrapper.vm.$store.getters['job/get'](acceptedJob().id)).toBeFalsy()
+  })
+
+  test('a failed job shows its message and clears the spinner', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await finishJob(wrapper, {
+      state: 'failed',
+      error_code: 'WorkflowActionDispatchError',
+      human_readable_error:
+        'Action 1 ran before action 2 failed: No table selected',
+    })
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).not.toHaveBeenCalled()
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.dispatchErrorTitle',
+      message: 'Action 1 ran before action 2 failed: No table selected',
+    })
+  })
+
+  test('a failure the job type did not map shows the generic message', async () => {
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await finishJob(wrapper, {
+      state: 'failed',
+      error_code: '',
+      human_readable_error:
+        'Something went wrong during the button_field_dispatch job execution.',
+    })
+
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.dispatchErrorTitle',
+      message: 'buttonField.dispatchErrorMessage',
+    })
+  })
+
+  test('a job that ends after another table was opened runs no client actions', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const tableState = wrapper.vm.$store.state.table
+    const selectedBefore = tableState.selected
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    tableState.selected = { id: 42 }
+    try {
+      await finishJob(wrapper, {
+        state: 'finished',
+        results: [],
+        client_actions: [openUrlAction],
+      })
+    } finally {
+      tableState.selected = selectedBefore
+    }
+
+    expect(execute).not.toHaveBeenCalled()
+    expect(wrapper.vm.dispatching).toBe(false)
+  })
+
+  test('logging out while the job runs stops the spinner without a toast', async () => {
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await wrapper.vm.$store.dispatch('job/clearAll')
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(toast).not.toHaveBeenCalledWith('toast/error', expect.anything())
+  })
+
+  test('the spinner survives a remount while the job polls', async () => {
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    // The grid swaps the cell component on selection; the flag is keyed by
+    // field and row outside the component, so the new one still spins.
+    const remounted = await mountCell({ selected: true })
+
+    expect(remounted.vm.dispatching).toBe(true)
+
+    await finishJob(wrapper, {
+      state: 'finished',
+      results: [],
+      client_actions: [],
+    })
+
+    expect(remounted.vm.dispatching).toBe(false)
+  })
+
+  // A click's job loaded into the store after a page reload, so no click in
+  // this page waits on it.
+  const reloadedJob = (values = {}) => ({
+    ...acceptedJob(),
+    id: 21,
+    state: 'started',
+    field_id: field.id,
+    row_id: 1,
+    created_on: new Date().toISOString(),
+    ...values,
+  })
+
+  test('a job still running from before a reload keeps the button spinning', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    const store = wrapper.vm.$store
+    const toast = vi.spyOn(store, 'dispatch')
+    await store.dispatch('job/forceCreate', reloadedJob())
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(true)
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+
+    const job = store.getters['job/get'](21)
+    await store.dispatch('job/forceUpdate', {
+      job,
+      data: reloadedJob({
+        state: 'finished',
+        results: [],
+        client_actions: [openUrlAction],
+      }),
+    })
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(store.getters['job/get'](21)).toBeFalsy()
+    // The page it was clicked on is gone: nothing runs and nothing is said.
+    expect(execute).not.toHaveBeenCalled()
+    expect(toast).not.toHaveBeenCalledWith('toast/error', expect.anything())
+  })
+
+  test('a job from before a reload past the deadline neither spins nor stays', async () => {
+    const wrapper = await mountCell()
+    const store = wrapper.vm.$store
+    const stale = reloadedJob({
+      created_on: new Date(
+        Date.now() - DISPATCH_JOB_DEADLINE_MS - 1000
+      ).toISOString(),
+    })
+    await store.dispatch('job/forceCreate', stale)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
+
+    // The next poll drops it, so the store stops polling it.
+    await store.dispatch('job/forceUpdate', { job: stale, data: stale })
+    await flushPromises()
+
+    expect(store.getters['job/get'](21)).toBeFalsy()
+  })
+
+  test('a job from before a reload on another row leaves this button alone', async () => {
+    const wrapper = await mountCell()
+    await wrapper.vm.$store.dispatch(
+      'job/forceCreate',
+      reloadedJob({ row_id: 2 })
+    )
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+  })
+
+  test('a late job_started for a click that already ended does not spin the button', async () => {
+    const wrapper = await mountCell()
+    const job = reloadedJob({ id: 22, state: 'pending' })
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: job })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    const store = wrapper.vm.$store
+    await store.dispatch('job/forceUpdate', {
+      job: store.getters['job/get'](22),
+      data: { ...job, state: 'finished', results: [], client_actions: [] },
+    })
+    await flushPromises()
+    // The broadcast of the job's start, reaching this tab only now.
+    await store.dispatch('job/create', { ...job, state: 'started' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
+  })
+
+  // Answers the one fetch of the click's job the deadline makes, and leaves
+  // every other request, the job store's own polls included, to the client.
+  const answerJobFetch = (wrapper, job) => {
+    const client = wrapper.vm.$client
+    const originalGet = client.get
+    const get = vi.fn((url, ...args) =>
+      url === `/jobs/${acceptedJob().id}/`
+        ? Promise.resolve({ data: job })
+        : originalGet.call(client, url, ...args)
+    )
+    client.get = get
+    return get
+  }
+
+  test('a click gives up on a job that never reaches a final state', async () => {
+    // Only the timer the deadline itself uses is faked, so the promise
+    // machinery the dispatch, the store and `flushPromises` all rely on
+    // keeps working as normal.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const get = answerJobFetch(wrapper, acceptedJob())
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_DEADLINE_MS + 1)
+    await flushPromises()
+
+    expect(get).toHaveBeenCalledWith(`/jobs/${acceptedJob().id}/`)
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).not.toHaveBeenCalled()
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.stillRunningTitle',
+      message: 'buttonField.stillRunningMessage',
+    })
+  })
+
+  test('a job the poller stopped watching still runs its client actions if it finished by the deadline', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    answerJobFetch(wrapper, {
+      ...acceptedJob(),
+      state: 'finished',
+      results: [],
+      client_actions: [openUrlAction],
+    })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_DEADLINE_MS + 1)
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(toast).not.toHaveBeenCalledWith('toast/error', expect.anything())
+  })
+
+  test('a last check that never answers still clears the spinner', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const client = wrapper.vm.$client
+    const originalGet = client.get
+    client.get = vi.fn((url, ...args) =>
+      url === `/jobs/${acceptedJob().id}/`
+        ? new Promise(() => {})
+        : originalGet.call(client, url, ...args)
+    )
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_DEADLINE_MS + 1)
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(DISPATCH_JOB_LAST_CHECK_MS + 1)
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(toast).toHaveBeenCalledWith('toast/error', {
+      title: 'buttonField.stillRunningTitle',
+      message: 'buttonField.stillRunningMessage',
+    })
   })
 })

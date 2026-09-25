@@ -1,13 +1,16 @@
 import json
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from dataclasses import fields as dataclass_fields
+from datetime import timedelta
 from time import perf_counter
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, ContextManager, Dict, List, Optional
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from loguru import logger
 from opentelemetry import trace
@@ -29,7 +32,10 @@ from baserow.contrib.database.workflow_actions.exceptions import (
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
-from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
+from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
+    DatabaseWorkflowAction,
+)
 from baserow.contrib.database.workflow_actions.operations import (
     DispatchDatabaseWorkflowActionOperationType,
 )
@@ -57,14 +63,13 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
+from baserow.core.jobs.constants import JOB_PENDING, JOB_STARTED
+from baserow.core.jobs.handler import JobHandler
 from baserow.core.services.exceptions import (
-    AddressNotAllowedDispatchException,
     DoesNotExist,
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
     PermissionDeniedDispatchException,
-    RemoteRefusedDispatchException,
-    ResponseTooLargeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
     UnexpectedDispatchException,
@@ -91,42 +96,7 @@ ADDRESS_BEARING_DISPATCH_EXCEPTIONS = (
     UnreachableAddressDispatchException,
 )
 
-# Failures a service raises before it can send anything: a formula it could not
-# resolve, or a body it refused to build. Nothing left the instance, so a click
-# that ends on one of these is not charged for outbound traffic.
-DID_NOT_REACH_OUT_EXCEPTIONS = (
-    InvalidContextDispatchException,
-    InvalidContextContentDispatchException,
-    ServiceImproperlyConfiguredDispatchException,
-    # The address itself was refused, by Advocate rather than by the endpoint,
-    # so nothing was sent even though the message names where it was going.
-    AddressNotAllowedDispatchException,
-)
-
 tracer = trace.get_tracer(__name__)
-
-
-def reached_outside(exc: Exception) -> bool:
-    """
-    Whether a failed external action had already sent its request.
-
-    :param exc: What the action failed with.
-    :return: True when the request went out, so the click owes for it.
-    """
-
-    # Subclasses of the failures above, but raised once the instance had
-    # already reached out, so they are charged like any other.
-    if isinstance(
-        exc,
-        (
-            ResponseTooLargeDispatchException,
-            UnreachableAddressDispatchException,
-            RemoteRefusedDispatchException,
-        ),
-    ):
-        return True
-
-    return not isinstance(exc, DID_NOT_REACH_OUT_EXCEPTIONS)
 
 
 USER_FACING_DISPATCH_EXCEPTIONS = (
@@ -598,6 +568,159 @@ class DatabaseWorkflowActionService:
 
         return list(self.handler.get_workflow_actions(field))
 
+    def accepted_actions(
+        self, workflow_actions: List[DatabaseWorkflowAction]
+    ) -> List[List]:
+        """
+        What a click was accepted with, to tell later whether it still runs
+        the same actions. The type is part of it: a retype keeps the id, and
+        can turn an action the click was not charged for into an external one.
+
+        :param workflow_actions: The actions of the click, in order.
+        :return: One [id, type] pair per action.
+        """
+
+        return [[wa.id, wa.get_type().type] for wa in workflow_actions]
+
+    @contextmanager
+    def cell_lock(self, prefix: str, field: ButtonField, row_id: int, timeout: int):
+        """
+        Holds a lock on one cell of the button for the length of the block.
+        Never waits: a second click is refused rather than queued behind one
+        that still holds it. Released by a script that checks ownership first,
+        so a click whose TTL ran out cannot drop a later click's lock. Keyed on
+        field and row together, so two buttons on one row do not block each
+        other.
+
+        :param prefix: What the lock guards, so two locks on a cell can coexist.
+        :param field: The clicked button field.
+        :param row_id: The clicked row.
+        :param timeout: Seconds after which the lock frees itself.
+        :raises WorkflowActionDispatchInProgress: When the cell is already held.
+        """
+
+        lock = cache.lock(f"{prefix}_{field.id}_{row_id}", timeout=timeout)
+        if not lock.acquire(blocking=False):
+            raise WorkflowActionDispatchInProgress()
+        try:
+            yield
+        finally:
+            try:
+                lock.release()
+            except LockNotOwnedError:
+                # The TTL ran out inside the block, so the key is a later
+                # click's to release.
+                pass
+
+    def has_click_in_flight(
+        self,
+        field: ButtonField,
+        row_id: int,
+        workflow_actions: List[DatabaseWorkflowAction],
+    ) -> bool:
+        """
+        Whether a click on this cell is still waiting for, or running in, a
+        job. A second click is refused while one is.
+
+        A job whose worker died never leaves its state, so each state counts
+        only for as long as it can legitimately last: a started click for the
+        TTL its row lock would have, a pending one until the job cleanup fails
+        it. Past that the cell is free again, as it was when the row lock
+        alone guarded it.
+
+        :param field: The clicked button field.
+        :param row_id: The clicked row.
+        :param workflow_actions: The actions of the new click, which bound how
+            long a started click on the cell can be running.
+        :return: True when a live pending or started job exists for the cell.
+        """
+
+        server_actions = [
+            wa for wa in workflow_actions if not wa.get_type().is_frontend_only
+        ]
+        services = [wa.service.specific for wa in server_actions]
+        now = timezone.now()
+        started_since = now - timedelta(
+            seconds=self._lock_ttl_for(server_actions, services)
+        )
+        pending_since = now - timedelta(seconds=settings.BASEROW_JOB_SOFT_TIME_LIMIT)
+        # On the primary: a replica a moment behind would miss the job a click
+        # just created, and let a second one through.
+        return (
+            ButtonFieldDispatchJob.objects.using(DEFAULT_DB_ALIAS)
+            .filter(field=field, row_id=row_id)
+            .filter(
+                Q(state=JOB_STARTED, updated_on__gte=started_since)
+                | Q(state=JOB_PENDING, updated_on__gte=pending_since)
+            )
+            .exists()
+        )
+
+    def async_dispatch_workflow_actions(
+        self,
+        user: AbstractUser,
+        field: ButtonField,
+        row: Any,
+        workflow_actions: List[DatabaseWorkflowAction],
+        charge: Callable[[], ContextManager] = nullcontext,
+    ) -> ButtonFieldDispatchJob:
+        """
+        Hands a click to a job that runs its actions behind the request.
+        Refuses first what the job would refuse, so a click that cannot run
+        leaves no job behind.
+
+        A pending or started job guards its cell until it ends, so a second
+        click on that cell is refused. The short enqueue lock only serializes
+        that check with the job's creation, so two racing clicks cannot both
+        pass it.
+
+        :param user: The user who clicked.
+        :param field: The clicked button field.
+        :param row: The clicked row.
+        :param workflow_actions: The actions to run, from
+            `get_dispatch_snapshot`. The job runs this list and no other.
+        :param charge: Wraps the job's creation, once the click is accepted,
+            to charge for it. Whatever it charged is its own to give back when
+            the creation raises.
+        :raises WorkflowActionDispatchInProgress: When a click is already
+            waiting or running for this field and row.
+        :return: The job, pending.
+        """
+
+        # Imported here: the job type module reads this service.
+        from baserow.contrib.database.workflow_actions.job_types import (
+            ButtonFieldDispatchJobType,
+        )
+
+        self.check_dispatch_allowed(user, field, workflow_actions)
+        # Before anything is charged, so a receiver refusing the click (a SaaS
+        # quota) answers in the request as it does for an inline click. Sent
+        # again when the job runs, in case the answer changed meanwhile.
+        workflow_actions_before_dispatch.send(
+            self,
+            user=user,
+            field=field,
+            workflow_actions=tuple(
+                wa for wa in workflow_actions if not wa.get_type().is_frontend_only
+            ),
+        )
+
+        # Two requests could otherwise both see the cell free and both create
+        # a job, which a single worker would then run one after the other,
+        # sending every request twice.
+        with self.cell_lock("button_enqueue", field, row.id, timeout=10):
+            if self.has_click_in_flight(field, row.id, workflow_actions):
+                raise WorkflowActionDispatchInProgress()
+
+            with charge():
+                return JobHandler().create_and_start_job(
+                    user,
+                    ButtonFieldDispatchJobType.type,
+                    field=field,
+                    row_id=row.id,
+                    accepted_actions=self.accepted_actions(workflow_actions),
+                )
+
     def _remember_nothing_was_captured(
         self, workflow_action: DatabaseWorkflowAction, reason: str
     ) -> None:
@@ -639,14 +762,84 @@ class DatabaseWorkflowActionService:
                 action_id=workflow_action.id,
             )
 
+    def dispatch_positions(
+        self, workflow_actions: List[DatabaseWorkflowAction]
+    ) -> Dict[int, int]:
+        """
+        Where each action sits in the sequence, by id, counting from one over
+        the whole list, frontend-only actions included, so it matches what the
+        clicker counts in the editor. Taken from the execution order rather
+        than from `order`, which two actions can share.
+
+        :param workflow_actions: The snapshot the click runs.
+        :return: Action id to position.
+        """
+
+        return {
+            workflow_action.id: index
+            for index, workflow_action in enumerate(workflow_actions, start=1)
+        }
+
+    def check_dispatch_allowed(
+        self,
+        user: AbstractUser,
+        field: ButtonField,
+        workflow_actions: List[DatabaseWorkflowAction],
+    ) -> None:
+        """
+        Refuses a click that cannot run as a whole, before anything is locked,
+        reserved or enqueued. In order: the dispatch permission, a deactivated
+        type, a misconfigured action.
+
+        :param user: The user who clicked.
+        :param field: The clicked button field.
+        :param workflow_actions: The snapshot the click would run.
+        :raises PermissionException: When the user may not click this button.
+        :raises WorkflowActionTypeDeactivated: When a type cannot run here.
+        :raises WorkflowActionDispatchError: When an action's saved
+            configuration cannot run, named by its position.
+        """
+
+        # Asked of the field, so it covers every action, frontend-only
+        # included, and a click is refused as a whole (ADR 006 section 7).
+        CoreHandler().check_permissions(
+            user,
+            DispatchDatabaseWorkflowActionOperationType.type,
+            workspace=field.table.database.workspace,
+            context=field,
+        )
+
+        # After the permission check, since the reason describes how this
+        # installation is configured and only a dispatcher may see it. Once
+        # per type, in the order the actions run.
+        checked_types = {}
+        for workflow_action in workflow_actions:
+            workflow_action_type = workflow_action.get_type()
+            checked_types.setdefault(workflow_action_type.type, workflow_action_type)
+        for workflow_action_type in checked_types.values():
+            workflow_action_type.raise_if_deactivated(field.table.database.workspace)
+
+        # An action whose saved configuration cannot run is known before the
+        # click starts, and the actions ahead of it would not be rolled back.
+        positions = self.dispatch_positions(workflow_actions)
+        for workflow_action in workflow_actions:
+            if workflow_action.get_type().is_frontend_only:
+                continue
+            try:
+                workflow_action.get_type().raise_if_misconfigured(workflow_action)
+            except ServiceImproperlyConfiguredDispatchException as exc:
+                raise WorkflowActionDispatchError(
+                    workflow_action.id, str(exc), positions[workflow_action.id]
+                ) from exc
+
     def dispatch_workflow_actions(
         self,
         user: AbstractUser,
         field: ButtonField,
         row: Any,
         workflow_actions: Optional[List[DatabaseWorkflowAction]] = None,
-        on_external_dispatch: Optional[Callable[[DatabaseWorkflowAction], None]] = None,
         on_action_failed: Optional[Callable[[int], None]] = None,
+        before_action: Optional[Callable[[], None]] = None,
     ) -> WorkflowActionsDispatchResult:
         """
         Runs the server-side actions in order as the given user, and hands the
@@ -661,11 +854,10 @@ class DatabaseWorkflowActionService:
         :param row: The clicked row.
         :param workflow_actions: The actions to run, from
             `get_dispatch_snapshot`. Read here when the caller has none.
-        :param on_external_dispatch: Called just before each action that
-            reaches outside Baserow, so the caller learns what the click really
-            sent rather than what the button is configured to send.
         :param on_action_failed: Called with the position of the action that
             failed, whatever it raised.
+        :param before_action: Called before each server action. It may raise to
+            stop the click there, keeping what already ran.
         :raises WorkflowActionDispatchInProgress: When a click is already running
             for this field and row.
         :raises WorkflowActionDispatchError: When an action fails with a message
@@ -704,28 +896,8 @@ class DatabaseWorkflowActionService:
         if not workflow_actions:
             return WorkflowActionsDispatchResult()
 
-        # Asked of the field, so it covers every action, frontend-only
-        # included, and a click is refused as a whole (ADR 006 section 7).
         # Before the lock is taken, so a refused user never holds it.
-        CoreHandler().check_permissions(
-            user,
-            DispatchDatabaseWorkflowActionOperationType.type,
-            workspace=field.table.database.workspace,
-            context=field,
-        )
-
-        # Refused as a whole: a sequence that cannot finish should not start.
-        # After the permission check, since the reason describes how this
-        # installation is configured and only a dispatcher may see it. Once per
-        # type, since it is the type that is unavailable rather than the
-        # action, and in the order the actions run, so a button carrying two of
-        # them names the same one every time.
-        checked_types = {}
-        for workflow_action in workflow_actions:
-            workflow_action_type = workflow_action.get_type()
-            checked_types.setdefault(workflow_action_type.type, workflow_action_type)
-        for workflow_action_type in checked_types.values():
-            workflow_action_type.raise_if_deactivated(field.table.database.workspace)
+        self.check_dispatch_allowed(user, field, workflow_actions)
 
         # Frontend-only actions can't be dispatched here; the caller runs them
         # in the browser.
@@ -735,25 +907,7 @@ class DatabaseWorkflowActionService:
         server_actions = [
             wa for wa in workflow_actions if not wa.get_type().is_frontend_only
         ]
-
-        # Positions come from the whole list, frontend-only actions included, so
-        # they match what the clicker counts in the editor. Taken from the
-        # execution order rather than from `order`, which two actions can share.
-        positions = {
-            workflow_action.id: index
-            for index, workflow_action in enumerate(workflow_actions, start=1)
-        }
-
-        # Refused as a whole too, and for the same reason: an action whose saved
-        # configuration cannot run is known before the click starts, and the
-        # actions ahead of it would not be rolled back.
-        for workflow_action in server_actions:
-            try:
-                workflow_action.get_type().raise_if_misconfigured(workflow_action)
-            except ServiceImproperlyConfiguredDispatchException as exc:
-                raise WorkflowActionDispatchError(
-                    workflow_action.id, str(exc), positions[workflow_action.id]
-                ) from exc
+        positions = self.dispatch_positions(workflow_actions)
 
         # Nothing server side means no state to protect, so no lock: a button
         # that only opens a URL must not reject a second click.
@@ -765,11 +919,6 @@ class DatabaseWorkflowActionService:
                 client_actions=client_actions, positions=positions
             )
 
-        # Taken only when the key is absent, so a double click cannot run the
-        # sequence twice, and released by a script that checks ownership first,
-        # so a click whose TTL ran out cannot drop a later click's lock. Keyed
-        # on field and row together, so two buttons on one row do not block
-        # each other.
         # Resolved once for both: `specific` caches on the instance, but only
         # while these are the objects the dispatch goes on to use.
         services = [
@@ -778,16 +927,13 @@ class DatabaseWorkflowActionService:
         # Before the lock: it holds nothing the lock protects.
         self._resolve_integrations(services)
 
-        lock = cache.lock(
-            f"button_dispatch_{field.id}_{row.id}",
-            timeout=self._lock_ttl_for(server_actions, services),
-        )
-        # Never waits: a second click is refused rather than queued behind one
-        # that is still running.
-        if not lock.acquire(blocking=False):
-            raise WorkflowActionDispatchInProgress()
-
-        try:
+        # So a double click cannot run the sequence twice.
+        with self.cell_lock(
+            "button_dispatch",
+            field,
+            row.id,
+            self._lock_ttl_for(server_actions, services),
+        ):
             # With the lock held, so a receiver only sees a click that goes on
             # to run, and before the audit entry, so a receiver that refuses
             # the click (SaaS quota) leaves nothing behind. A copy: a receiver
@@ -826,6 +972,8 @@ class DatabaseWorkflowActionService:
             # (ADR 006 section 8), while still firing `action_done`.
             with without_undo_redo_registration(user):
                 for workflow_action in server_actions:
+                    if before_action:
+                        before_action()
                     # Each action reads the clicked row itself, so it sees what
                     # the actions before it did to it (ADR 006 section 4).
                     dispatch_context.start_action()
@@ -871,12 +1019,6 @@ class DatabaseWorkflowActionService:
                     if exc is not None:
                         if on_action_failed:
                             on_action_failed(positions[workflow_action.id])
-                        if (
-                            is_external
-                            and on_external_dispatch
-                            and reached_outside(exc)
-                        ):
-                            on_external_dispatch(workflow_action)
                         names_an_address = is_external and isinstance(
                             exc, ADDRESS_BEARING_DISPATCH_EXCEPTIONS
                         )
@@ -932,18 +1074,9 @@ class DatabaseWorkflowActionService:
                                 ],
                             ) from exc
                         raise exc
-                    if is_external and on_external_dispatch:
-                        on_external_dispatch(workflow_action)
                     if may_configure:
                         self._remember_result_shape(workflow_action, result)
 
                     dispatched.append(DispatchedWorkflowAction(workflow_action, result))
 
             return WorkflowActionsDispatchResult(dispatched, client_actions, positions)
-        finally:
-            try:
-                lock.release()
-            except LockNotOwnedError:
-                # The TTL ran out mid-sequence, so the key is a later click's
-                # to release.
-                pass
