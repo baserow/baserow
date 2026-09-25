@@ -2,8 +2,12 @@ from django.db import transaction
 from django.dispatch import receiver
 
 from baserow.contrib.database.application_types import DatabaseApplicationType
-from baserow.contrib.database.fields.models import FileField
-from baserow.contrib.database.fields.signals import field_deleted, field_restored
+from baserow.contrib.database.fields.models import FileField, LongTextField
+from baserow.contrib.database.fields.signals import (
+    field_deleted,
+    field_restored,
+    field_updated,
+)
 from baserow.contrib.database.rows.signals import (
     rows_created,
     rows_deleted,
@@ -14,6 +18,19 @@ from baserow.core.registries import application_type_registry
 from baserow.core.signals import application_created
 
 from .tasks import create_tables_usage_for_new_database, update_table_usage
+
+
+def _field_carries_files(field) -> bool:
+    """
+    Whether a change to this field can change the workspace storage usage.
+
+    :param field: The field instance to check.
+    :return: True for file fields and rich text fields, which can embed images.
+    """
+
+    return isinstance(field, FileField) or (
+        isinstance(field, LongTextField) and field.long_text_enable_rich_text
+    )
 
 
 @receiver(rows_created)
@@ -39,7 +56,7 @@ def on_rows_updated(
 
     for field_object in model.get_field_objects():
         field = field_object["field"]
-        if isinstance(field, FileField) and field.id in updated_field_ids:
+        if field.id in updated_field_ids and _field_carries_files(field):
             transaction.on_commit(lambda: update_table_usage.delay(table.id))
             break
 
@@ -76,5 +93,15 @@ def on_application_created(sender, application, **kwargs):
 # File field signals for storage usage
 @receiver([field_restored, field_deleted])
 def on_field_restored(sender, field, **kwargs):
-    if isinstance(field, FileField):
+    if _field_carries_files(field):
+        transaction.on_commit(lambda: update_table_usage.delay(field.table_id))
+
+
+@receiver(field_updated)
+def on_field_updated(sender, field, old_field=None, **kwargs):
+    # An update can move a field in or out of the usage query without touching a
+    # single row, so check both sides.
+    if _field_carries_files(field) or (
+        old_field is not None and _field_carries_files(old_field)
+    ):
         transaction.on_commit(lambda: update_table_usage.delay(field.table_id))

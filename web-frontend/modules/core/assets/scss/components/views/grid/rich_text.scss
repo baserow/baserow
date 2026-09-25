@@ -8,6 +8,23 @@
   &--preview {
     height: 100%;
     overflow: hidden;
+
+    .field-rich-text--preview & img {
+      display: inline-block;
+      height: 22px;
+      max-height: none;
+      width: auto;
+      margin: 2px 4px 2px 0;
+      border: solid 1px $palette-neutral-400;
+      vertical-align: middle;
+      object-fit: contain;
+
+      @include rounded($rounded);
+    }
+
+    .grid-view--row-height-large .field-rich-text--preview & img {
+      height: 26px;
+    }
   }
 }
 
@@ -29,14 +46,16 @@
 
 .grid-field-rich-text__textarea-expand-icon {
   position: absolute;
-  right: 10px;
-  top: 10px;
+  right: 8px;
+  top: 8px;
   cursor: pointer;
   font-size: 12px;
   line-height: 12px;
-  background-color: white;
+  padding: 4px;
+  border-radius: 4px;
+  background-color: $palette-neutral-0;
 
   &:hover {
-    color: $color-primary-600;
+    color: $palette-blue-700;
   }
 }

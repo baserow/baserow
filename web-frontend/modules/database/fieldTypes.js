@@ -16,6 +16,7 @@ import {
   isValidEmail,
   isValidURL,
 } from '@baserow/modules/core/utils/string'
+import { stripImageUrls } from '@baserow/modules/core/editor/richTextImageUtils'
 import { formulaFieldArrayFilterMixin } from '@baserow/modules/database/arrayFilterMixins'
 import {
   parseNumberValue,
@@ -1373,6 +1374,17 @@ export class LongTextFieldType extends FieldType {
     }
   }
 
+  getFormViewFieldComponents(field) {
+    const components = super.getFormViewFieldComponents(field)
+    if (field?.long_text_enable_rich_text) {
+      // The upload endpoint needs a signed in user, so an anonymous respondent can't use it.
+      components[DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY].properties = {
+        allowImageUpload: false,
+      }
+    }
+    return components
+  }
+
   getCardComponent(field) {
     if (field?.long_text_enable_rich_text) {
       return RowCardFieldRichText
@@ -1410,7 +1422,8 @@ export class LongTextFieldType extends FieldType {
     if (richClipboardData?.richText) {
       return richClipboardData.value
     }
-    return plainTextToMarkdown(clipboardData)
+    // Plain clipboard text isn't from Baserow, so its image URLs must not reach the preview.
+    return stripImageUrls(plainTextToMarkdown(clipboardData))
   }
 
   canUpsert() {
@@ -1418,6 +1431,9 @@ export class LongTextFieldType extends FieldType {
   }
 
   getValidationError(field, value) {
+    if (field.long_text_enable_rich_text && value) {
+      return maxFieldTextLengthError(this.app, stripImageUrls(value))
+    }
     return maxFieldTextLengthError(this.app, value)
   }
 
@@ -1435,7 +1451,11 @@ export class LongTextFieldType extends FieldType {
   }
 
   getDocsDescription(field) {
-    return this.app.$i18n.t('fieldDocs.longText')
+    return this.app.$i18n.t(
+      field.long_text_enable_rich_text
+        ? 'fieldDocs.longTextRichText'
+        : 'fieldDocs.longText'
+    )
   }
 
   getDocsRequestExample(field) {

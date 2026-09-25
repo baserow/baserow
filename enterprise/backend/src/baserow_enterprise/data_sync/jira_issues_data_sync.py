@@ -10,6 +10,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.rich_text_utils import escape_user_file_references
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
@@ -258,7 +259,7 @@ class JiraIssuesDataSyncType(DataSyncType):
             issue_dict = {
                 "jira_id": jira_id,
                 "summary": summary,
-                "description": convert(description),
+                "description": escape_user_file_references(convert(description)),
                 "assignee": assignee,
                 "reporter": reporter,
                 "labels": labels,

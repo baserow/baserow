@@ -12,6 +12,41 @@
 
 <script>
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
+import {
+  IMAGE_PLACEHOLDER,
+  replaceImagesWithPlaceholder,
+  trimUnfinishedImageRef,
+} from '@baserow/modules/core/editor/richTextImageUtils'
+
+const PREVIEW_LENGTH = 200
+// Bounds the work on every scroll render, with room for long signed image URLs.
+const RAW_PREVIEW_LENGTH = 5000
+
+/**
+ * The start of the value as the cell shows it, each image as its placeholder.
+ *
+ * @param {string} value The cell value, with resolved image URLs.
+ * @return {string} Markdown of at most PREVIEW_LENGTH chars plus an ellipsis.
+ */
+function previewMarkdown(value) {
+  const rawCut = value.length > RAW_PREVIEW_LENGTH
+  const visible = replaceImagesWithPlaceholder(
+    rawCut ? trimUnfinishedImageRef(value.slice(0, RAW_PREVIEW_LENGTH)) : value
+  )
+  if (!rawCut && visible.length <= PREVIEW_LENGTH) {
+    return visible
+  }
+  const placeholderStart = visible.lastIndexOf(
+    IMAGE_PLACEHOLDER,
+    PREVIEW_LENGTH - 1
+  )
+  const end =
+    placeholderStart >= 0 &&
+    placeholderStart + IMAGE_PLACEHOLDER.length > PREVIEW_LENGTH
+      ? placeholderStart
+      : PREVIEW_LENGTH
+  return `${visible.slice(0, end).trimEnd()}...`
+}
 
 export default {
   name: 'FunctionalGridViewFieldRichText',
@@ -27,21 +62,13 @@ export default {
   },
   methods: {
     renderFormattedValue() {
-      const maxLen = 200
       const { value, workspaceId } = this
-
-      // Take only a part of the text as a preview to avoid rendering a huge amount of
-      // HTML that could slow down the page and won't be visible anyway
-      let preview = value || ''
-      if (preview.length > maxLen) {
-        preview = value.substring(0, maxLen) + '...'
-      }
-
       const workspace = this.$store.getters['workspace/get'](workspaceId)
       const loggedUserId = this.$store.getters['auth/getUserId']
 
-      return parseMarkdown(preview, {
+      return parseMarkdown(previewMarkdown(value || ''), {
         openLinkOnClick: false,
+        enableImages: false,
         workspaceUsers: workspace ? workspace.users : null,
         loggedUserId,
       })

@@ -203,6 +203,7 @@
     "readOnly": "This is a read only field.",
     "text": "Accepts single line text.",
     "longText": "Accepts multi line text. If the rich text formatting is enabled, you can use markdown to format the text.",
+    "longTextRichText": "Accepts multi line text formatted with markdown. To embed an image, upload it with the upload file endpoint and reference its returned name as ![alt][name]. Responses add a temporary URL, ![alt][name](url), which is ignored when the value is sent back. A value can reference up to 100 images, and every name must be an uploaded image.",
     "linkRow": "Accepts an array containing the identifiers or main field text values of the related rows from table id {table}. All identifiers must be provided every time the relations are updated. If an empty array is provided all relations will be deleted. In case of a text value instead of an identifier, a row with the matching value for its main field will be searched. If more than one match is found, the first one in the order of the table is selected. You can send a string with names separated by comma in which case the string is converted into an array of row names. You can also send only an ID of a row alone.",
     "number": "Accepts a number.",
     "numberPositive": "Accepts a positive number.",
