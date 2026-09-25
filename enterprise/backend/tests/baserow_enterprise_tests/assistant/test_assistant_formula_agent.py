@@ -422,3 +422,17 @@ def test_an_unrecognised_field_id_is_reported_instead_of_silently_dropped(monkey
         generate({892: {"name": "Entry"}}, _StubContext())
 
     assert "999" in str(exc_info.value)
+
+
+def test_generated_formulas_apply_when_the_model_keys_them_by_field_name(monkeypatch):
+    """The request describes each field id with its name; either key is the field."""
+
+    checked: list = []
+    generate = _generation_env(
+        monkeypatch, {"Entry": "get('previous_node.206.0.field_890')"}, checked
+    )
+
+    result = generate({892: {"name": "Entry"}, 893: {"name": "Source"}}, _StubContext())
+
+    assert result == {892: "get('previous_node.206.0.field_890')"}
+    assert checked == ["get('previous_node.206.0.field_890')"]
