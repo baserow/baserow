@@ -458,9 +458,9 @@ def test_a_trashed_button_fails_the_job_with_a_readable_message(
 def test_a_button_retyped_while_its_click_waits_fails_the_job(
     data_fixture, dispatched_clicks
 ):
-    """Changing the type deletes the button row. The job outlives it, so the
-    worker can still say what happened instead of crashing on a missing
-    row."""
+    """Changing the type deletes the button row but keeps the field the job
+    points at, so the retype has no job to update and the worker refuses a
+    field that is no longer a button."""
 
     user = data_fixture.create_user()
     table, name_field, button_field, row = _button(data_fixture, user)
@@ -480,7 +480,7 @@ def test_a_button_retyped_while_its_click_waits_fails_the_job(
         run_async_job(job.id)
 
     job = ButtonFieldDispatchJob.objects.get(id=job.id)
-    assert job.field_id is None
+    assert job.field_id == button_field.id
     assert job.state == JOB_FAILED
     assert job.error_code == "FieldDoesNotExist"
     assert job.human_readable_error == "The button no longer exists."
@@ -645,8 +645,8 @@ def test_a_click_cancelled_while_running_starts_no_further_action(
 
 @pytest.mark.django_db(transaction=True)
 def test_a_button_retyped_while_its_click_runs_still_finishes_the_job(data_fixture):
-    """The retype empties the job's field in the database while the worker
-    still holds the old id; saving the finished job must not write it back."""
+    """A retype mid-run leaves the job's field alone, so the job that already
+    passed its checks finishes."""
 
     user = data_fixture.create_user()
     table, name_field, button_field, row = _button(data_fixture, user)
@@ -669,6 +669,43 @@ def test_a_button_retyped_while_its_click_runs_still_finishes_the_job(data_fixtu
             return answer(*args, **kwargs)
 
         request.side_effect = retype_while_sending
+        run_async_job(job.id)
+
+    job = ButtonFieldDispatchJob.objects.get(id=job.id)
+    assert job.state == JOB_FINISHED
+    assert job.field_id == button_field.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_button_deleted_while_its_click_runs_still_finishes_the_job(
+    data_fixture,
+):
+    """Deleting the field empties the job's field in the database while the
+    worker still holds the old id; saving the finished job must not write it
+    back. The delete's set null is done directly: the delete itself cannot
+    run inside the request the action sends."""
+
+    user = data_fixture.create_user()
+    table, name_field, button_field, row = _button(data_fixture, user)
+    _add_http_action(data_fixture, button_field)
+
+    with patch("baserow.core.jobs.handler.run_async_job"):
+        job = JobHandler().create_and_start_job(
+            user,
+            ButtonFieldDispatchJobType.type,
+            field=button_field,
+            row_id=row.id,
+            accepted_actions=_accepted_ids(button_field),
+        )
+
+    with mock_advocate_request({"ok": True}) as request:
+        answer = request.side_effect
+
+        def delete_while_sending(*args, **kwargs):
+            ButtonFieldDispatchJob.objects.filter(id=job.id).update(field=None)
+            return answer(*args, **kwargs)
+
+        request.side_effect = delete_while_sending
         run_async_job(job.id)
 
     job = ButtonFieldDispatchJob.objects.get(id=job.id)

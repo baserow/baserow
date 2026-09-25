@@ -142,14 +142,16 @@ class ButtonFieldDispatchJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
     the shape the inline response has.
     """
 
-    # Set null rather than cascaded: changing the field's type deletes the
-    # button row, and a job deleted under its worker could not report back.
+    # The base field rather than the button: changing the field's type deletes
+    # the button row but keeps this one, so a retype has no jobs to update.
+    # Set null rather than cascaded, as a job deleted under its worker could
+    # not report back.
     field = models.ForeignKey(
-        "database.ButtonField",
+        "database.Field",
         null=True,
         on_delete=models.SET_NULL,
-        related_name="dispatch_jobs",
-        help_text="The clicked button field. Empty once it is no longer a button.",
+        related_name="+",
+        help_text="The clicked button field. Empty once the field is deleted.",
     )
     row_id = models.PositiveIntegerField(help_text="The clicked row.")
     accepted_actions = models.JSONField(
@@ -167,10 +169,10 @@ class ButtonFieldDispatchJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
     )
 
     def save(self, *args, **kwargs):
-        # The field is written once, on creation. A retype while the click runs
-        # empties it in the database, and the worker's later saves still hold
-        # the old id in memory: writing it back would point at a button that
-        # no longer exists and fail the save.
+        # The field is written once, on creation. Deleting the field while the
+        # click runs empties it in the database, and the worker's later saves
+        # still hold the old id in memory: writing it back would point at a
+        # field that no longer exists and fail the save.
         if not self._state.adding and kwargs.get("update_fields") is None:
             kwargs["update_fields"] = [
                 field.name

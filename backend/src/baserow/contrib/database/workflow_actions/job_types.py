@@ -23,6 +23,7 @@ from baserow.contrib.database.api.workflow_actions.serializers import (
     dispatch_result_payload,
 )
 from baserow.contrib.database.fields.exceptions import FieldDoesNotExist
+from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.workflow_actions.exceptions import (
@@ -153,7 +154,7 @@ class ButtonFieldDispatchJobType(JobType):
         "field_id": serializers.IntegerField(
             read_only=True,
             allow_null=True,
-            help_text="The clicked button field. Empty once it is no longer a button.",
+            help_text="The clicked button field. Empty once the field is deleted.",
         ),
         "row_id": serializers.IntegerField(
             read_only=True, help_text="The clicked row."
@@ -196,11 +197,11 @@ class ButtonFieldDispatchJobType(JobType):
             seconds=settings.BASEROW_JOB_SOFT_TIME_LIMIT
         ):
             raise WorkflowActionClickExpired()
-        field = job.field
+        field = job.field.specific if job.field else None
         # Retyped or trashed while the job waited on the queue, the field or
         # anything above it. Refused before the click event, as the view
         # refuses a missing field before it sends one.
-        if field is None or TrashHandler.item_has_a_trashed_parent(
+        if not isinstance(field, ButtonField) or TrashHandler.item_has_a_trashed_parent(
             field, check_item_also=True
         ):
             raise FieldDoesNotExist()
