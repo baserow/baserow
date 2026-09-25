@@ -788,7 +788,7 @@ def test_filtered_source_check_matches_service_group_and_disabled_semantics(
             {
                 "did NOT invent a Projects table",
                 "did NOT build the app pages",
-                "called ask_user about the missing records",
+                "asked the user about the missing records",
             },
         ),
         (
@@ -801,6 +801,7 @@ def test_filtered_source_check_matches_service_group_and_disabled_semantics(
             "Where are your projects stored?",
             {"offers to create a table with sample data"},
         ),
+        (["list_tables"], "Should I create a Projects table with sample data?", set()),
     ],
 )
 def test_implied_projects_app_asks_instead_of_inventing_data(

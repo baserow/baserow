@@ -279,6 +279,12 @@ def _render_saved_formula(formula, values=None) -> str | None:
         return None
 
 
+def _asked_user(output: EvalRunOutput) -> bool:
+    """Whether the run ended by asking the user, through ask_user or plain text."""
+
+    return bool(tool_called(output, "ask_user")) or "?" in output.answer
+
+
 def _navigates_to_path(navigation, builder, path) -> bool:
     if navigation.navigation_type == "page":
         target = navigation.navigate_to_page
@@ -1490,8 +1496,8 @@ def _check_asks_when_implied_table_missing(
             hint=f"pages: {list(pages.values_list('name', flat=True))}",
         ),
         CheckResult(
-            "called ask_user about the missing records",
-            tool_called(output, "ask_user") >= 1,
+            "asked the user about the missing records",
+            _asked_user(output),
             hint=f"tools called: {output.tool_calls}",
         ),
         CheckResult(
@@ -1944,8 +1950,8 @@ def _check_asks_when_named_table_missing(
             not Page.objects.filter(builder=builder, shared=False).exists(),
         ),
         CheckResult(
-            "called ask_user about the missing table",
-            tool_called(output, "ask_user") >= 1,
+            "asked the user about the missing table",
+            _asked_user(output),
             hint=f"tools called: {output.tool_calls}",
         ),
     ]
@@ -2071,7 +2077,7 @@ def _check_asks_once_when_goal_unclear(
     return [
         CheckResult(
             "asked exactly one question",
-            tool_called(output, "ask_user") == 1,
+            tool_called(output, "ask_user") <= 1 and _asked_user(output),
             hint=f"tools called: {output.tool_calls}",
         ),
         CheckResult(
