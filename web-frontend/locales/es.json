@@ -611,7 +611,7 @@
         "toDateTzDescription": "Devuelve el primer argumento convertido en una fecha dada una cadena de formato de fecha como segundo argumento y la zona horaria proporcionada como tercer argumento.",
         "datetimeFormatTzDescription": "Convierte la fecha en texto dada una forma de formatear la fecha en la zona horaria especificada.",
         "getFileVisibleNameDescription": "Devuelve el nombre de archivo visible de un único archivo devuelto por la función index.",
-        "indexDescription": "Devuelve el elemento en la posición basada en 0 dada desde un valor de array (por ejemplo, de una búsqueda, archivo u otro campo de tipo array). Los índices negativos cuentan desde el final (-1 es el último).",
+        "indexDescription": "Devuelve el elemento en la posición basada en 0 dada desde un valor de `array` (por ejemplo, de una búsqueda, archivo u otro campo de tipo `array`). Los índices negativos cuentan desde el final (-1 es el último).",
         "getFileSizeDescription": "Devuelve el tamaño del archivo de un único archivo devuelto por la función de índice.",
         "encodeUriComponentDescription": "Devuelve un componente de cadena URL codificado a partir del argumento proporcionado.",
         "getImageWidthDescription": "Devuelve el ancho de la imagen de un único archivo devuelto por la función index.",
