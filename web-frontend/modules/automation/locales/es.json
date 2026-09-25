@@ -16,7 +16,7 @@
     },
     "automationHistoryGuidedTourStep": {
         "title": "Ver historial del flujo de trabajo",
-        "content": "Usa el panel de historial para revisar ejecuciones de prueba pasadas y ejecuciones publicadas. Es una excelente manera de depurar o confirmar los resultados."
+        "content": "Usa el panel de historial para revisar ejecuciones de pruebas anteriores y ejecuciones publicadas. Es una excelente manera de depurar o confirmar resultados, y también puedes cancelar desde aquí una ejecución que aún esté en curso."
     },
     "automationPublishGuidedTourStep": {
         "title": "Publica tu flujo de trabajo",
@@ -110,7 +110,8 @@
         "errorShowDetails": "Mostrar detalles",
         "runNumber": "Ejecución {n}",
         "runCount": "{n} ejecuciones",
-        "showResult": "Mostrar resultado"
+        "showResult": "Mostrar resultado",
+        "cancellationAlreadyRequested": "Otra persona ya solicitó la cancelación de esta ejecución. Se detendrá una vez que el nodo actual termine."
     },
     "nodeType": {
         "triggerDeletionError": "Los disparadores no pueden eliminarse, solo reemplazarse.",
