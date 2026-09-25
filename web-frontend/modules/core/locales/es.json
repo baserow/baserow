@@ -257,7 +257,8 @@
         "emptyWorkspaceMessage": "Empieza por crear una nueva base de datos o aplicación.",
         "addNew": "Añadir nuevo...",
         "noWorkspace": "Sin espacio de trabajo",
-        "starOnGitHub": "Apóyanos en GitHub"
+        "starOnGitHub": "Apóyanos en GitHub",
+        "academyMessage": "Sigue cursos y conviértete en un experto"
     },
     "login": {
         "title": "Bienvenido de nuevo",
@@ -550,6 +551,9 @@
                 "userAlreadyInWorkspace": {
                     "title": "El usuario ya está en el grupo.",
                     "text": "No es posible enviar una invitación cuando el usuario ya es miembro del grupo."
+                },
+                "tooManyInvitations": {
+                    "text": "Has enviado demasiadas invitaciones. Por favor, inténtalo de nuevo más tarde."
                 }
             },
             "submit": "Enviar invitación",
@@ -640,7 +644,8 @@
     "integrationCreateEditModal": {
         "editTitle": "Editar integración",
         "createTitle": "Nueva integración",
-        "warningTitle": "Advertencia"
+        "warningTitle": "Advertencia",
+        "credentialRequiredMessage": "Introduce la credencial de nuevo para cambiar a dónde se conecta esta integración."
     },
     "dropdown": {
         "empty": "No hay elementos disponibles"
@@ -761,7 +766,7 @@
         "ollamaHostLabel": "Host",
         "ollamaHostDescription": "Proporciona el nombre del host a tu servidor [Ollama] (https://ollama.com/). Esto normalmente se ejecuta localmente en tu propio dispositivo.",
         "ollamaModelsLabel": "Modelos activados",
-        "openaiApiKeyDescription": "Proporciona una clave de API de OpenAI si deseas activar la integración. [Instrucciones para obtener una clave de API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
+        "openaiApiKeyDescription": "Introduce una clave de API de OpenAI. [Instrucciones para obtener una clave de API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "ollamaModelsDescription": "Proporciona una lista separada por comas de [modelos instalados en Ollama](). Un modelo debe estar descargado e instalado antes de que Baserow pueda usarlo. Por ejemplo: gemma3,qwen3,llama3.3.",
         "anthropicApiKeyLabel": "Clave API",
         "mistralModelsLabel": "Modelos habilitados",
@@ -776,7 +781,7 @@
         "openRouterApiKeyLabel": "Clave API",
         "openRouterOrganization": "Organización (opcional)",
         "openRouter": "OpenRouter",
-        "openRouterApiKeyDescription": "Proporciona una clave API de OpenRouter si deseas habilitar la integración. [Obtener una clave de API](https://openrouter.ai/settings/keys).",
+        "openRouterApiKeyDescription": "Introduce una clave de API de OpenRouter. [Obtén una clave de API](https://openrouter.ai/settings/keys).",
         "openRouterModelsLabel": "Modelos habilitados",
         "openRouterModelsDescription": "Proporciona una lista separada por comas de identificadores de [modelos de OpenRouter] que puedan usarse en Baserow. Por ejemplo: openai/gpt-5.6,anthropic/claude-sonnet-5.",
         "openaiBaseUrl": "URL base",
@@ -786,7 +791,12 @@
         "openaiModelIdentifierDescription": "Ingresa un[ identificador de modelo de OpenAI](https://developers.openai.com/api/docs/models). Por ejemplo: `gpt-5.6`, `gpt-5.6-terra`, o `gpt-5.6-luna`.",
         "anthropicModelIdentifierDescription": "Ingresa un [identificador de modelo de Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Por ejemplo: `claude-sonnet-5`, `claude-opus-4-8`, o `claude-haiku-4-5`.",
         "groqModelsDescription": "Proporciona una lista separada por comas de [identificadores de modelos de Groq](https://console.groq.com/docs/models) que puedan usarse en Baserow. Por ejemplo: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
-        "googleModelsDescription": "Proporciona una lista separada por comas de [identificadores de modelos de Gemini](https://ai.google.dev/gemini-api/docs/models) que puedan usarse en Baserow. Por ejemplo: `gemini-3.6-flash,gemini-3.5-flash`."
+        "googleModelsDescription": "Proporciona una lista separada por comas de [identificadores de modelos de Gemini](https://ai.google.dev/gemini-api/docs/models) que puedan usarse en Baserow. Por ejemplo: `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleApiKeyDescription": "Introduce una clave de API de Google AI Studio. [Crea o consulta una clave de API](https://aistudio.google.com/apikey).",
+        "groqApiKeyDescription": "Introduce una clave de API de Groq. [Crea o consulta una clave de API](https://console.groq.com/keys).",
+        "googleModelIdentifierDescription": "Introduce un [identificador de modelo de Gemini](https://ai.google.dev/gemini-api/docs/models). Por ejemplo: `gemini-3.6-flash` o `gemini-3.5-flash`.",
+        "groqModelIdentifierDescription": "Introduce un [identificador de modelo de Groq](https://console.groq.com/docs/models). Por ejemplo: `openai/gpt-oss-120b` o `openai/gpt-oss-20b`.",
+        "openRouterModelIdentifierDescription": "Introduce un [identificador de modelo de OpenRouter](https://openrouter.ai/models). Por ejemplo: `openai/gpt-5.6` o `anthropic/claude-sonnet-5`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Configuración de la IA generativa",
@@ -796,7 +806,8 @@
         "submitButton": "Actualizar ajustes",
         "hideSettings": "Ocultar ajustes",
         "openSettings": "Abrir ajustes",
-        "providerDescription": "Gestiona los proveedores propios de este espacio de trabajo o habilita y deshabilita los proveedores heredados de la instancia."
+        "providerDescription": "Gestiona los proveedores propios de este espacio de trabajo o habilita y deshabilita los proveedores heredados de la instancia.",
+        "noProvidersDescription": "Añade un proveedor para este espacio de trabajo, o pide a un administrador de la instancia que configure uno."
     },
     "workspaceSettingsModal": {
         "title": "Ajustes del espacio de trabajo"
@@ -1215,7 +1226,8 @@
         "methodsOptionAll": "Todo",
         "methodsOptionDescription": "Controla qué métodos HTTP están permitidos para este webhook. Excluir GET reduce la probabilidad de que el webhook se active accidentalmente.",
         "methodsOptionExcludeGet": "Excluir GET",
-        "waitForResponseDescription": "Espera hasta que se alcance un nodo de Respuesta. Si no se alcanza ninguno, espera a que el flujo de trabajo termine y devuelve la respuesta predeterminada."
+        "waitForResponseDescription": "Espera hasta que se alcance un nodo de Respuesta. Si no se alcanza ninguno, espera a que el flujo de trabajo termine y devuelve la respuesta predeterminada.",
+        "seconds": "segundos"
     },
     "twoFactorAuthEmpty": {
         "title": "Aún no has activado la autenticación de dos factores",
@@ -1226,7 +1238,8 @@
     },
     "nodeHelpTooltip": {
         "exampleLabel": "Ejemplo",
-        "result": "Resultado: {result}"
+        "result": "Resultado: {result}",
+        "clickToInsert": "Haz clic en un ejemplo para insertarlo"
     },
     "enableWithQRCode": {
         "scanQRCode": "Escanear código QR",
@@ -1328,29 +1341,70 @@
     },
     "aiProviderAdmin": {
         "noProvidersDescription": "Añade un proveedor manualmente, o previsualiza y ejecuta el comando de importación del entorno antes de habilitar la función para los usuarios.",
-        "modelDiscoveryEmpty": "Pydantic AI no tiene modelos conocidos para este proveedor. Ingresa un identificador manualmente.",
-        "modelDiscoveryHelp": "Elige un modelo conocido por Pydantic AI o ingresa cualquier identificador personalizado.",
+        "modelDiscoveryEmpty": "No hay modelos conocidos para este proveedor. Introduce un identificador manualmente.",
+        "modelDiscoveryHelp": "Elige un modelo de la lista o introduce cualquier identificador personalizado.",
         "modelDiscoveryNoMatch": "Ningún modelo conocido coincide. Puedes usar el identificador que ingresaste.",
         "deleteProviderDescription": "Esto elimina permanentemente el proveedor y sus modelos.",
         "loadError": "No se pudo cargar la configuración del proveedor de IA.",
         "saveModelError": "No se pudo guardar el modelo del proveedor de IA.",
         "actionError": "No se pudo completar el cambio del proveedor de IA.",
         "disableModelDescription": "El modelo permanece seleccionado donde esté configurado, pero no se puede usar hasta que se habilite de nuevo.",
-        "noFeatureModels": "No hay modelos elegibles disponibles. Edita un modelo y elige qué funciones pueden usarlo."
+        "noFeatureModels": "No hay modelos elegibles disponibles. Edita un modelo y elige qué funciones pueden usarlo.",
+        "modelIdentifierRenamedDescription": "Siguen apuntando al identificador antiguo y dejan de funcionar hasta que se vuelvan a apuntar.",
+        "featureSettingsDescription": "Elige el modelo usado por las funciones que necesitan un modelo predeterminado.",
+        "description": "Gestiona los proveedores y modelos a nivel de instancia disponibles para los espacios de trabajo y las automatizaciones.",
+        "modelFeaturesRemovedDescription": "Las funciones que desmarcaste ya no pueden usar este modelo.",
+        "extraField_organization": "Organización",
+        "extraField_host": "Host",
+        "models": "Modelos",
+        "apiKeyUpdateHint": "Introduce una nueva clave de API para reemplazar la clave existente.",
+        "modelInUse": "{features} usa este modelo. | {features} usan este modelo.",
+        "modelUsageUnknown": "Baserow no pudo comprobar qué sigue usando este modelo.",
+        "modelDiscoveryUnavailable": "Las sugerencias de modelos conocidos no están disponibles. Introduce un identificador manualmente.",
+        "availableForDescription": "Elige qué funciones de IA de la lista pueden usar este modelo.",
+        "kumaInvalidFallback": "Modelo seleccionado no disponible — se usará el modelo heredado del entorno: {model}",
+        "kumaInvalidNoFallback": "Modelo seleccionado no disponible — no hay ningún modelo heredado del entorno configurado",
+        "featureSettingError": "No se pudo guardar la configuración de la función de IA.",
+        "featureSettingErrorDescription": "Actualiza la página y elige un modelo disponible.",
+        "noModels": "No hay modelos configurados para este proveedor.",
+        "saveError": "No se pudo guardar el proveedor de IA."
     },
     "reportAbuseForm": {
-        "descriptionPlaceholder": "Por ejemplo: esta página finge ser una página de inicio de sesión de otra empresa y pide a los visitantes su contraseña."
+        "descriptionPlaceholder": "Por ejemplo: esta página finge ser una página de inicio de sesión de otra empresa y pide a los visitantes su contraseña.",
+        "descriptionHelper": "Por favor, describe en detalle por qué crees que esta página es abusiva.",
+        "descriptionLabel": "¿Por qué estás reportando esta página?"
     },
     "inboundEmailTriggerServiceForm": {
         "limits": "Se aceptan correos electrónicos de hasta {size} MB, y los cuerpos de texto y HTML se transmiten hasta 1 MB cada uno. Los archivos adjuntos no se almacenan: solo su nombre, tipo y tamaño se incluyen en la carga útil.",
         "autoForwardTip": "Consejo: También puedes añadir esta dirección como una regla de reenvío automático en tu propia bandeja de entrada, de modo que el flujo de trabajo se ejecute cada vez que recibas un correo electrónico.",
         "description": "Cualquier correo electrónico enviado a esta dirección iniciará el flujo de trabajo con el remitente, el asunto, el cuerpo y los detalles de los archivos adjuntos del correo como carga útil (payload).",
-        "notConfigured": "Esta instancia de Baserow no está configurada para recibir correo electrónico entrante. Establece la variable de entorno BASEROW_INBOUND_EMAIL_DOMAIN para habilitar este disparador."
+        "notConfigured": "Esta instancia de Baserow no está configurada para recibir correo electrónico entrante. Establece la variable de entorno BASEROW_INBOUND_EMAIL_DOMAIN para habilitar este disparador.",
+        "secretWarning": "Trata esta dirección como un secreto: cualquiera que la conozca puede iniciar este flujo de trabajo."
     },
     "coreManualTriggerServiceForm": {
         "waitForResponseDescription": "Espera hasta que se alcance un nodo de Respuesta. Si no se alcanza ninguno, espera a que el flujo de trabajo termine y devuelve la respuesta predeterminada."
     },
     "coreResponseServiceForm": {
         "nameFieldInvalid": "Los nombres de encabezado solo pueden contener letras, números, guiones y guiones bajos, y no pueden comenzar con un guion o guion bajo."
+    },
+    "allWorkspaces": {
+        "noResultsDescription": "No pudimos encontrar nada para \"{search}\". Comprueba tu ortografía o usa palabras clave diferentes.",
+        "membersCount": "0 miembros | 1 miembro | {count} miembros",
+        "itemsCount": "0 elementos | 1 elemento | {count} elementos",
+        "moreElements": "{count} elemento más | {count} elementos más",
+        "itemsSelected": "{count} tipo de elemento | {count} tipos de elemento"
+    },
+    "subjectType": {
+        "agent": "Agente",
+        "agents": "Agentes"
+    },
+    "abuseReportCreatedNotification": {
+        "title": "{resourceName} ha sido reportado por abuso por {reporterEmail}"
+    },
+    "agents": {
+        "mcpServerPlaceholder": "La configuración del servidor MCP estará disponible aquí."
+    },
+    "academy": {
+        "learnMore": "Aprende más en la academia de Baserow"
     }
 }
