@@ -18,6 +18,19 @@ from baserow_enterprise.assistant.evals import registry, runner
 from baserow_enterprise.assistant.evals.types import EvalCase
 
 
+@pytest.mark.parametrize("version", range(1, runner.HARNESS_VERSION + 1))
+def test_model_settings_remain_verified_after_scoring_version_change(version):
+    label = runner._settings_label(
+        {"harness_version": version, "model_settings": {"temperature": 0.3}}
+    )
+
+    assert label == (
+        "model settings unverified (legacy harness)"
+        if version == 1
+        else "temperature=0.3"
+    )
+
+
 @pytest.fixture(autouse=True)
 def _isolated_registry(monkeypatch):
     monkeypatch.setattr(registry, "_cases", {})
