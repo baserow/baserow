@@ -331,8 +331,8 @@ test.describe("Button field, external actions", () => {
 
     // The stub echoes the URL it was called on, and the following action puts
     // that back in the row, so the row's own name has to come back around.
-    // The click answers with a job now, so this crosses a poll of it before
-    // the row updates; the default expect timeout is too tight for that.
+    // The click answers with a job, so this crosses a poll of it before the
+    // row updates; the default expect timeout is too tight for that.
     await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toContainText("Ada", {
       timeout: 30_000,
     });
@@ -351,9 +351,8 @@ test.describe("Button field, external actions", () => {
     await grid.fieldCellAt(0, FAILING_FIELD_INDEX).locator("button").click();
 
     const toast = page.locator(".toast");
-    // The failure now surfaces once the job is polled to its failed state,
-    // rather than in the response that started it, so it takes longer than
-    // the default expect timeout to appear.
+    // The failure surfaces once the job is polled to its failed state, so it
+    // takes longer than the default expect timeout to appear.
     await expect(toast).toBeVisible({ timeout: 20_000 });
 
     // Named like any other failure, so the clicker can count to it in the
@@ -426,7 +425,7 @@ test.describe("Button field, external actions", () => {
 
   test("once it has answered, the editor offers its body", async ({ page }) => {
     // The 20s poll below for the job's answer, plus the editor navigation
-    // after it, no longer fits the suite's default 30s test timeout.
+    // after it, does not fit the suite's default 30s test timeout.
     test.setTimeout(60_000);
     await resetRows(g, [{ Name: "Ada", Status: "todo" }]);
     const clicker = await freshClicker();

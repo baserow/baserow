@@ -7,15 +7,16 @@ workflow_action_updated = Signal()
 workflow_action_deleted = Signal()
 workflow_actions_reordered = Signal()
 
-# Sent once per click, with the lock held and before the audit entry, with the
-# server-side actions the click is about to run, as a tuple a receiver cannot
-# filter. Not sent for a button with only frontend-only actions, nor for a click
-# refused before the lock (permission, deactivated type, misconfigured action,
-# already running). A receiver may raise to refuse the click; nothing has run
-# yet and the lock is released. A click with an external action runs in a job,
-# and the signal is sent twice for it: in the request before the job is
-# created, so a refusal answers there, and again when the job runs. A receiver
-# must only check, never count the click.
+# Sent before a click runs, with the lock held and before the audit entry, with
+# the server-side actions the click is about to run, as a tuple a receiver
+# cannot filter. Not sent for a button with only frontend-only actions, nor for
+# an inline click refused before the lock (permission, deactivated type,
+# misconfigured action, already running). A receiver may raise to refuse the
+# click; nothing has run yet and the lock is released. A click with an external
+# action runs in a job, and the signal is sent twice for it: in the request,
+# before the enqueue lock, so it also reaches a click then refused as already
+# running or throttled, and again when the job runs. A receiver must only
+# check, never count the click.
 workflow_actions_before_dispatch = Signal()
 
 # Sent once per server-side action with `field`, `succeeded`, `position` and
