@@ -342,13 +342,27 @@ def test_local_baserow_aggregate_rows_dispatch_transform_with_scalar_result_for_
 
 
 @pytest.mark.django_db
-def test_local_baserow_aggregate_rows_dispatch_with_null_result(data_fixture):
-    """An empty min aggregation returns null instead of failing serialization."""
+@pytest.mark.parametrize(
+    "field_factory,aggregation_type",
+    [
+        ("create_autonumber_field", "min"),
+        ("create_rating_field", "max"),
+        ("create_duration_field", "sum"),
+        ("create_number_field", "average"),
+    ],
+)
+def test_local_baserow_aggregate_rows_dispatch_with_null_result(
+    data_fixture, field_factory, aggregation_type
+):
+    """
+    An aggregation over an empty table returns null instead of failing (or, for
+    number fields, returning an empty string) during serialization.
+    """
 
     user = data_fixture.create_user()
     dashboard = data_fixture.create_builder_page(user=user).builder
     table = data_fixture.create_database_table(user=user)
-    field = data_fixture.create_autonumber_field(table=table)
+    field = getattr(data_fixture, field_factory)(table=table)
     integration = data_fixture.create_local_baserow_integration(
         application=dashboard, user=user
     )
@@ -357,7 +371,7 @@ def test_local_baserow_aggregate_rows_dispatch_with_null_result(data_fixture):
         integration=integration,
         table=table,
         field=field,
-        aggregation_type="min",
+        aggregation_type=aggregation_type,
     )
 
     result = service_type.dispatch(service, FakeDispatchContext())
