@@ -1,7 +1,6 @@
 <template>
   <component
     :is="getFieldComponent(field.type)"
-    :workspace-id="workspaceId"
     :row="row"
     :field="field"
     :value="row[`field_${field.id}`]"
@@ -22,11 +21,6 @@ export default {
     row: {
       type: Object,
       required: true,
-    },
-    workspaceId: {
-      type: Number,
-      required: false,
-      default: null,
     },
   },
   methods: {
