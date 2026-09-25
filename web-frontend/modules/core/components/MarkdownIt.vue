@@ -13,7 +13,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
-import MarkdownIt from 'markdown-it'
+import { renderMarkdown } from '@baserow/modules/core/utils/markdown'
 
 defineEmits(['click'])
 
@@ -38,7 +38,7 @@ const props = defineProps({
     default: false,
   },
   /**
-   * The names of the markdown-it rules to switch off for this instance, e.g.
+   * The names of the markdown-it rules to switch off for this component, e.g.
    * `['image', 'link']`. Unknown names are ignored.
    */
   disabledRules: {
@@ -48,37 +48,21 @@ const props = defineProps({
   },
 })
 
-// Keep a single markdown-it instance per component instance.
-const Markdown = MarkdownIt?.default || MarkdownIt
-const md = new Markdown()
-const baseRules = { ...md.renderer.rules }
-// The rules switched off on this instance, so that a change of
-// `disabledRules` first switches the previous ones back on.
-let currentlyDisabled = []
-
 // The hash makes sure the data is updated if the content changes.
 const contentHash = computed(() => generateHash(props.content))
 
 // Use ref + watcher to avoid side effects in computed
 const htmlContent = ref('')
 
-const renderMarkdown = () => {
-  md.renderer.rules = { ...baseRules, ...props.rules }
-  if (currentlyDisabled.length > 0) {
-    md.enable(currentlyDisabled, true)
-  }
-  currentlyDisabled = [...props.disabledRules]
-  if (currentlyDisabled.length > 0) {
-    md.disable(currentlyDisabled, true)
-  }
-  htmlContent.value = props.inline
-    ? md.renderInline(props.content)
-    : md.render(props.content)
-}
-
 watch(
   () => [props.content, props.rules, props.inline, props.disabledRules],
-  renderMarkdown,
+  () => {
+    htmlContent.value = renderMarkdown(props.content, {
+      rules: props.rules,
+      inline: props.inline,
+      disabledRules: props.disabledRules,
+    })
+  },
   {
     deep: true,
     immediate: true,
