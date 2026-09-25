@@ -159,11 +159,11 @@ EXPECTED_CASE_IDS = {
     ],
     "kuma-builder": [
         "builder/asks-once-when-goal-unclear",
+        "builder/asks-when-implied-table-missing",
         "builder/asks-when-named-table-missing",
         "builder/back-button-on-page-not-header",
         "builder/builds-demo-page-without-asking",
         "builder/builds-example-app-without-asking",
-        "builder/builds-projects-app-proactively",
         "builder/changes-theme",
         "builder/creates-app-when-table-exists",
         "builder/creates-app-with-theme",

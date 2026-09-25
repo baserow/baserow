@@ -1408,7 +1408,7 @@ register_case(
 )
 
 # ---------------------------------------------------------------------------
-# Proactive: builds the projects app even though no Projects table exists
+# Data-backed app: asks where the projects come from when no table holds them
 # ---------------------------------------------------------------------------
 
 
@@ -1465,16 +1465,48 @@ def _check_builds_projects_app_without_asking(
     ]
 
 
+def _check_asks_when_implied_table_missing(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    pages = Page.objects.filter(builder__workspace=scenario.workspace, shared=False)
+
+    return [
+        CheckResult(
+            "looked the table up first",
+            tool_called(output, "list_tables") >= 1,
+        ),
+        CheckResult(
+            "did NOT invent a Projects table",
+            tool_called(output, "create_tables") == 0,
+        ),
+        CheckResult(
+            "did NOT build the app pages",
+            tool_called(output, "create_pages") + tool_called(output, "setup_page")
+            == 0,
+        ),
+        CheckResult(
+            "no page created in DB",
+            not pages.exists(),
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
+        ),
+        CheckResult(
+            "called ask_user about the missing records",
+            tool_called(output, "ask_user") >= 1,
+            hint=f"tools called: {output.tool_calls}",
+        ),
+    ]
+
+
 register_case(
     EvalCase(
-        id="builder/builds-projects-app-proactively",
+        id="builder/asks-when-implied-table-missing",
         dataset="kuma-builder",
-        # Fully-described deliverable: missing scaffolding is no reason to ask.
+        # Showing records needs real data: no matching table means ask, not invent.
         prompt=PROMPT_CREATE_PROJECTS_APP,
         scenario="builder-projects-table-missing",
-        checks=_check_builds_projects_app_without_asking,
+        checks=_check_asks_when_implied_table_missing,
         mode=AgentMode.APPLICATION,
-        max_iters=25,
+        max_iters=15,
     )
 )
 
@@ -1862,7 +1894,7 @@ register_case(
 
 
 # ---------------------------------------------------------------------------
-# Intent: missing named data or an unclear goal asks once; everything else builds
+# Intent: missing data or an unclear goal asks once; examples and demos build
 # ---------------------------------------------------------------------------
 
 PROMPT_CUSTOMERS_PAGE = (
@@ -1998,7 +2030,7 @@ register_case(
         id="builder/builds-example-app-without-asking",
         dataset="kuma-builder",
         prompt=PROMPT_EXAMPLE_PROJECTS_APP,
-        # Same state as builds-projects-app-proactively: framing must not matter.
+        # Same state as asks-when-implied-table-missing: an example authorizes samples.
         scenario="builder-projects-table-missing",
         checks=_check_builds_projects_app_without_asking,
         mode=AgentMode.APPLICATION,

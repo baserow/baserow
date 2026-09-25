@@ -19,6 +19,7 @@ from baserow_enterprise.assistant.evals.datasets.automation import (
 )
 from baserow_enterprise.assistant.evals.datasets.builder import (
     _back_button_on_page_not_header_scenario,
+    _check_asks_when_implied_table_missing,
     _check_back_button_on_page_not_header,
     _check_creates_app_when_table_exists,
     _check_creates_contact_form,
@@ -28,6 +29,7 @@ from baserow_enterprise.assistant.evals.datasets.builder import (
     _creates_contact_form_scenario,
     _creates_landing_page_scenario,
     _filtered_data_source_via_view_scenario,
+    _projects_table_missing_scenario,
 )
 from baserow_enterprise.assistant.evals.datasets.docs import _make_docs_checks
 from baserow_enterprise.assistant.evals.registry import get_case
@@ -769,3 +771,31 @@ def test_filtered_source_check_matches_service_group_and_disabled_semantics(
     }
     checks = _check_filtered_data_source_via_view(None, scenario, _output())
     assert all(check.passed for check in checks) is valid, checks
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tool_calls, failed",
+    [
+        (["list_tables", "ask_user"], set()),
+        (
+            ["list_tables", "create_tables", "setup_page"],
+            {
+                "did NOT invent a Projects table",
+                "did NOT build the app pages",
+                "called ask_user about the missing records",
+            },
+        ),
+        (["ask_user"], {"looked the table up first"}),
+    ],
+)
+def test_implied_projects_app_asks_instead_of_inventing_data(
+    data_fixture, tool_calls, failed
+):
+    scenario = _projects_table_missing_scenario(data_fixture)
+
+    checks = _check_asks_when_implied_table_missing(
+        None, scenario, _output(tool_calls=tool_calls)
+    )
+
+    assert {check.name for check in checks if not check.passed} == failed
