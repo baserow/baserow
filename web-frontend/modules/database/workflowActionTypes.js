@@ -145,6 +145,11 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
     return null
   }
 
+  /** Mirrors the backend's `is_frontend_only`: this runs on the server. */
+  get isFrontendOnly() {
+    return false
+  }
+
   get serviceType() {
     throw new Error('Must be set on the type.')
   }
@@ -342,6 +347,11 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
 
   get icon() {
     return 'iconoir-link'
+  }
+
+  /** Mirrors the backend's `is_frontend_only`: the browser opens the URL. */
+  get isFrontendOnly() {
+    return true
   }
 
   /**

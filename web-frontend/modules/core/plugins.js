@@ -206,6 +206,24 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple additional components next to
+   * the action type names in the button field action type dropdown.
+   * @returns {*[]}
+   */
+  getButtonFieldActionTypeContextComponents({ workspace, actionType }) {
+    return []
+  }
+
+  /**
+   * Every registered plugin can display multiple additional components next to
+   * the heading of the button field action list.
+   * @returns {*[]}
+   */
+  getButtonFieldActionListHeadingComponents({ workspace }) {
+    return []
+  }
+
+  /**
    * Provides additional icons before 'standard' icons in the field header in a
    * grid view.
    *
