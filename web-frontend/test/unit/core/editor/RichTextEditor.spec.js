@@ -298,6 +298,57 @@ describe('RichTextEditor images', () => {
       },
     })
 
+  const userFileName = (letter, digit, extension = 'png') =>
+    `${letter.repeat(32)}_${digit.repeat(64)}.${extension}`
+  const FIRST = userFileName('A', '1')
+  const SECOND = userFileName('B', '2')
+  const THIRD = userFileName('C', '3')
+  const userFileUrl = (name) => `https://example.com/media/user_files/${name}`
+  const thumbnail = (size, name, width, height) => ({
+    url: `https://example.com/media/thumbnails/${size}/${name}`,
+    width,
+    height,
+  })
+
+  const uploadResponse = (name, originalName, overrides = {}) => ({
+    data: {
+      size: 3,
+      mime_type: 'image/png',
+      is_image: true,
+      image_width: 1,
+      image_height: 1,
+      uploaded_at: '2026-09-25T10:00:00Z',
+      url: userFileUrl(name),
+      thumbnails: {
+        tiny: thumbnail('tiny', name, null, 21),
+        small: thumbnail('small', name, 48, 48),
+        card_cover: thumbnail('card_cover', name, 300, 160),
+      },
+      name,
+      original_name: originalName,
+      ...overrides,
+    },
+  })
+
+  const imageMarkdown = (alt, name) =>
+    `![${alt}][${name}](${userFileUrl(name)})`
+
+  const deferredUploads = () => {
+    const pending = []
+    const uploadFile = vi.fn(
+      () =>
+        new Promise((resolve, reject) => {
+          pending.push({ resolve, reject })
+        })
+    )
+    return { uploadFile, pending }
+  }
+
+  const uploadPlaceholders = (wrapper) =>
+    wrapper.findAll('.tiptap .rich-text-editor__image-uploading')
+
+  const png = (name) => new File(['png'], name, { type: 'image/png' })
+
   const settleUploads = async () => {
     // Uploads are awaited one by one, so let the promise chain settle.
     for (let i = 0; i < 10; i += 1) {
@@ -316,12 +367,11 @@ describe('RichTextEditor images', () => {
     await settleUploads()
   }
 
-  const dropFiles = async (wrapper, files) => {
-    // jsdom has no layout, so ProseMirror can't map coordinates to a position
-    // (and bails before handleDrop). Resolve every drop to the document end.
+  const dropFiles = async (wrapper, files, pos = null) => {
+    // happy-dom has no layout, so posAtCoords is stubbed to `pos` or the end of the text.
     const { view } = wrapper.vm.editor
     view.posAtCoords = () => ({
-      pos: view.state.doc.content.size - 1,
+      pos: pos ?? view.state.doc.content.size - 1,
       inside: -1,
     })
     await wrapper.find('.tiptap').trigger('drop', {
@@ -357,180 +407,249 @@ describe('RichTextEditor images', () => {
   test('inserts dropped images in drop order, one after the other', async () => {
     const uploadFile = vi
       .fn()
-      .mockResolvedValueOnce({
-        data: {
-          name: 'aaa_111.png',
-          original_name: 'first.png',
-          original_extension: 'png',
-          is_image: true,
-          url: 'https://example.com/user_files/aaa_111.png',
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          name: 'bbb_222.png',
-          original_name: 'second.png',
-          original_extension: 'png',
-          is_image: true,
-          url: 'https://example.com/user_files/bbb_222.png',
-        },
-      })
+      .mockResolvedValueOnce(uploadResponse(FIRST, 'first.png'))
+      .mockResolvedValueOnce(uploadResponse(SECOND, 'second.png'))
     const wrapper = await mountEditor('intro', { uploadFile })
 
-    await dropFiles(wrapper, [
-      new File(['1'], 'first.png', { type: 'image/png' }),
-      new File(['2'], 'second.png', { type: 'image/png' }),
-    ])
+    await dropFiles(wrapper, [png('first.png'), png('second.png')])
 
     expect(uploadFile).toHaveBeenCalledTimes(2)
     const sources = wrapper
       .findAll('.tiptap img')
       .map((image) => image.attributes('src'))
-    expect(sources).toEqual([
-      'https://example.com/user_files/aaa_111.png',
-      'https://example.com/user_files/bbb_222.png',
-    ])
-    const markdown = wrapper.vm.serializeToMarkdown()
-    expect(markdown.indexOf('[aaa_111.png]')).toBeLessThan(
-      markdown.indexOf('[bbb_222.png]')
+    expect(sources).toEqual([userFileUrl(FIRST), userFileUrl(SECOND)])
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `intro${imageMarkdown('first', FIRST)}${imageMarkdown('second', SECOND)}`
     )
   })
 
-  // Each drop captures an absolute ProseMirror position, then uploads
-  // asynchronously. When an earlier drop's upload finishes it inserts an image
-  // and shifts the document, so a position captured by a later drop is stale.
-  // `trackPosition` maps it through the intervening transactions.
+  test('shows a placeholder for every file of a drop, in file order, until each upload finishes', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const wrapper = await mountEditor('intro', { uploadFile })
+
+    await dropFiles(wrapper, [png('first.png'), png('second.png')])
+
+    expect(uploadPlaceholders(wrapper)).toHaveLength(2)
+    expect(wrapper.find('.tiptap img').exists()).toBe(false)
+
+    pending[0].resolve(uploadResponse(FIRST, 'first.png'))
+    await settleUploads()
+
+    expect(uploadPlaceholders(wrapper)).toHaveLength(1)
+
+    pending[1].resolve(uploadResponse(SECOND, 'second.png'))
+    await settleUploads()
+
+    expect(uploadPlaceholders(wrapper)).toHaveLength(0)
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `intro${imageMarkdown('first', FIRST)}${imageMarkdown('second', SECOND)}`
+    )
+  })
+
+  test('keeps drop order when a later drop finishes uploading first', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const wrapper = await mountEditor('intro', { uploadFile })
+
+    await dropFiles(wrapper, [png('first.png')])
+    await dropFiles(wrapper, [png('second.png')])
+    expect(pending).toHaveLength(2)
+
+    pending[1].resolve(uploadResponse(SECOND, 'second.png'))
+    await settleUploads()
+    pending[0].resolve(uploadResponse(FIRST, 'first.png'))
+    await settleUploads()
+
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `intro${imageMarkdown('first', FIRST)}${imageMarkdown('second', SECOND)}`
+    )
+  })
+
+  test('keeps text typed during an upload after the image, and the caret where it was', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const wrapper = await mountEditor('intro', { uploadFile })
+    const { editor } = wrapper.vm
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1)
+
+    await dropFiles(wrapper, [png('shot.png')])
+    editor.commands.insertContent(' more')
+    const caret = editor.state.selection.from
+
+    pending[0].resolve(uploadResponse(FIRST, 'shot.png'))
+    await settleUploads()
+
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `intro${imageMarkdown('shot', FIRST)} more`
+    )
+    expect(editor.state.selection.empty).toBe(true)
+    expect(editor.state.selection.from).toBe(caret)
+  })
+
   test('inserts a concurrently dropped image at the position it was dropped at', async () => {
-    const deferred = []
-    const uploadFile = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          deferred.push(resolve)
-        })
-    )
+    const { uploadFile, pending } = deferredUploads()
     const wrapper = await mountEditor('AAA BBB', { uploadFile })
-    const { view } = wrapper.vm.editor
-    const docEnd = view.state.doc.content.size - 1
 
-    // Drop one image at the very start, a second at the end, before either
-    // upload resolves.
-    view.posAtCoords = () => ({ pos: 1, inside: -1 })
-    wrapper.find('.tiptap').trigger('drop', {
-      clientX: 0,
-      clientY: 0,
-      dataTransfer: {
-        files: [new File(['1'], 'first.png', { type: 'image/png' })],
-        types: ['Files'],
-        getData: () => '',
-      },
-    })
-    view.posAtCoords = () => ({ pos: docEnd, inside: -1 })
-    wrapper.find('.tiptap').trigger('drop', {
-      clientX: 0,
-      clientY: 0,
-      dataTransfer: {
-        files: [new File(['2'], 'second.png', { type: 'image/png' })],
-        types: ['Files'],
-        getData: () => '',
-      },
-    })
-    await settleUploads()
-    expect(deferred).toHaveLength(2)
+    await dropFiles(wrapper, [png('first.png')], 1)
+    await dropFiles(wrapper, [png('second.png')])
+    expect(pending).toHaveLength(2)
 
-    // The first drop resolves first and shifts the document.
-    deferred[0]({
-      data: {
-        name: 'aaa_111.png',
-        original_name: 'first.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/aaa_111.png',
-      },
-    })
+    pending[0].resolve(uploadResponse(FIRST, 'first.png'))
     await settleUploads()
-    deferred[1]({
-      data: {
-        name: 'bbb_222.png',
-        original_name: 'second.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/bbb_222.png',
-      },
-    })
+    pending[1].resolve(uploadResponse(SECOND, 'second.png'))
     await settleUploads()
 
-    // The second image belongs after the text it was dropped past, not next to
-    // the first image at the start.
-    const markdown = wrapper.vm.serializeToMarkdown()
-    expect(markdown.indexOf('[aaa_111.png]')).toBeLessThan(
-      markdown.indexOf('BBB')
-    )
-    expect(markdown.indexOf('BBB')).toBeLessThan(
-      markdown.indexOf('[bbb_222.png]')
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `${imageMarkdown('first', FIRST)}AAA BBB${imageMarkdown('second', SECOND)}`
     )
   })
 
-  // Files of one drop upload one by one. The user may click elsewhere while a
-  // later file is still uploading; it still belongs right after the previous
-  // image of that drop, not at the moved cursor.
-  test('keeps every image of one drop at the drop position', async () => {
-    const deferred = []
-    const uploadFile = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          deferred.push(resolve)
-        })
-    )
+  test('keeps every image of one drop at the drop position when the caret moves', async () => {
+    const { uploadFile, pending } = deferredUploads()
     const wrapper = await mountEditor('AAA BBB', { uploadFile })
-    const { view } = wrapper.vm.editor
-    const docEnd = view.state.doc.content.size - 1
 
-    view.posAtCoords = () => ({ pos: docEnd, inside: -1 })
-    wrapper.find('.tiptap').trigger('drop', {
-      clientX: 0,
-      clientY: 0,
-      dataTransfer: {
-        files: [
-          new File(['1'], 'first.png', { type: 'image/png' }),
-          new File(['2'], 'second.png', { type: 'image/png' }),
-        ],
-        types: ['Files'],
-        getData: () => '',
-      },
-    })
+    await dropFiles(wrapper, [png('first.png'), png('second.png')])
+    pending[0].resolve(uploadResponse(FIRST, 'first.png'))
     await settleUploads()
-    expect(deferred).toHaveLength(1)
-    deferred[0]({
-      data: {
-        name: 'aaa_111.png',
-        original_name: 'first.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/aaa_111.png',
-      },
-    })
-    await settleUploads()
-    expect(deferred).toHaveLength(2)
+    expect(pending).toHaveLength(2)
 
-    // The user clicks at the very start while the second file uploads.
     wrapper.vm.editor.commands.setTextSelection(1)
-    deferred[1]({
-      data: {
-        name: 'bbb_222.png',
-        original_name: 'second.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/bbb_222.png',
-      },
-    })
+    pending[1].resolve(uploadResponse(SECOND, 'second.png'))
     await settleUploads()
 
-    const markdown = wrapper.vm.serializeToMarkdown()
-    expect(markdown.indexOf('BBB')).toBeLessThan(
-      markdown.indexOf('[aaa_111.png]')
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `AAA BBB${imageMarkdown('first', FIRST)}${imageMarkdown('second', SECOND)}`
     )
-    expect(markdown.indexOf('[aaa_111.png]')).toBeLessThan(
-      markdown.indexOf('[bbb_222.png]')
+  })
+
+  test('removes the placeholder of a failed upload', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const wrapper = await mountEditor('intro', { uploadFile })
+    await dropFiles(wrapper, [png('shot.png')])
+    expect(uploadPlaceholders(wrapper)).toHaveLength(1)
+
+    // A real API failure carries an error handler; `notifyIf` rethrows anything without one.
+    const notifyIf = vi.fn()
+    pending[0].reject({ handler: { notifyIf } })
+    await settleUploads()
+
+    expect(notifyIf).toHaveBeenCalledOnce()
+    expect(uploadPlaceholders(wrapper)).toHaveLength(0)
+    expect(wrapper.vm.serializeToMarkdown()).toBe('intro')
+  })
+
+  test('emits upload-settled for each settled upload, once its image is in the document', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const settled = []
+    const wrapper = await mountEditor('intro', {
+      uploadFile,
+      onUploadSettled: () => settled.push(wrapper.vm.serializeToMarkdown()),
+    })
+
+    await dropFiles(wrapper, [png('first.png'), png('second.png')])
+    expect(settled).toEqual([])
+
+    pending[0].resolve(uploadResponse(FIRST, 'first.png'))
+    await settleUploads()
+    pending[1].reject({ handler: { notifyIf: vi.fn() } })
+    await settleUploads()
+
+    const withFirst = `intro${imageMarkdown('first', FIRST)}`
+    expect(settled).toEqual([withFirst, withFirst])
+  })
+
+  test('saves and emits nothing of an upload that is still in progress', async () => {
+    const { uploadFile } = deferredUploads()
+    const wrapper = await mountEditor('intro', { uploadFile })
+
+    await dropFiles(wrapper, [png('shot.png')])
+
+    expect(uploadPlaceholders(wrapper)).toHaveLength(1)
+    expect(wrapper.vm.serializeToMarkdown()).toBe('intro')
+    expect(wrapper.vm.isDirty()).toBe(false)
+    const emitted = wrapper.emitted('update:modelValue') ?? []
+    expect(JSON.stringify(emitted)).not.toContain('"uploadId":"')
+  })
+
+  test('leaves no placeholder behind when the editor is recreated mid-upload', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const wrapper = await mountEditor('intro', {
+      uploadFile,
+      'onUpdate:modelValue': (value) => wrapper.setProps({ modelValue: value }),
+    })
+    await dropFiles(wrapper, [png('shot.png')])
+    expect(uploadPlaceholders(wrapper)).toHaveLength(1)
+
+    await wrapper.setProps({ editable: false })
+    pending[0].resolve(uploadResponse(FIRST, 'shot.png'))
+    await settleUploads()
+
+    expect(uploadPlaceholders(wrapper)).toHaveLength(0)
+    expect(wrapper.find('.tiptap img').exists()).toBe(false)
+    expect(wrapper.vm.serializeToMarkdown()).toBe('intro')
+  })
+
+  test('keeps an upload placeholder when the value is replaced from outside', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const wrapper = await mountEditor('intro', { uploadFile })
+    await dropFiles(wrapper, [png('shot.png')])
+
+    await wrapper.setProps({ modelValue: 'intro and more' })
+
+    expect(uploadPlaceholders(wrapper)).toHaveLength(1)
+
+    pending[0].resolve(uploadResponse(FIRST, 'shot.png'))
+    await settleUploads()
+
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `intro${imageMarkdown('shot', FIRST)} and more`
+    )
+  })
+
+  test('keeps an image pasted into a blank line on that line when its own save comes back mid-upload', async () => {
+    const { uploadFile, pending } = deferredUploads()
+    const wrapper = await mountEditor('intro\n\n\n\noutro', { uploadFile })
+    const { editor } = wrapper.vm
+    editor.commands.setTextSelection(8)
+
+    await pasteFile(wrapper, png('shot.png'))
+
+    expect(wrapper.vm.isDirty()).toBe(false)
+    expect(wrapper.vm.serializeToMarkdown()).toBe('intro\n\n\n\noutro')
+
+    editor.commands.insertContentAt(editor.state.doc.content.size - 1, '!')
+    await wrapper.setProps({ modelValue: wrapper.vm.serializeToMarkdown() })
+    pending[0].resolve(uploadResponse(FIRST, 'shot.png'))
+    await settleUploads()
+
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `intro\n\n${imageMarkdown('shot', FIRST)}\n\noutro!`
+    )
+  })
+
+  test.each([
+    ['dropped', (wrapper, file) => dropFiles(wrapper, [file], 5)],
+    [
+      'pasted',
+      (wrapper, file) => {
+        wrapper.vm.editor.commands.setTextSelection(5)
+        return pasteFile(wrapper, file)
+      },
+    ],
+  ])('puts an image %s inside a code block after the block', async (_, add) => {
+    const { uploadFile, pending } = deferredUploads()
+    const code = '```\nconst a = 1\n```'
+    const wrapper = await mountEditor(code, { uploadFile })
+
+    await add(wrapper, png('shot.png'))
+
+    expect(wrapper.vm.serializeToMarkdown()).toBe(code)
+
+    pending[0].resolve(uploadResponse(FIRST, 'shot.png'))
+    await settleUploads()
+
+    expect(wrapper.findAll('.tiptap pre')).toHaveLength(1)
+    expect(wrapper.find('.tiptap pre').text()).toBe('const a = 1')
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `${code}\n\n${imageMarkdown('shot', FIRST)}`
     )
   })
 
@@ -578,17 +697,11 @@ describe('RichTextEditor images', () => {
     // "Copy image" puts the file on the clipboard next to `<img src=...>` HTML
     // and no plain text. The HTML would be dropped (external images are not
     // supported), so the file is the only thing the user can mean.
-    const uploadFile = vi.fn().mockResolvedValue({
-      data: {
-        name: 'abc123_def456.png',
-        original_name: 'shot.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/abc123_def456.png',
-      },
-    })
+    const uploadFile = vi
+      .fn()
+      .mockResolvedValue(uploadResponse(FIRST, 'shot.png'))
     const wrapper = await mountEditor('', { uploadFile })
-    const file = new File(['png'], 'shot.png', { type: 'image/png' })
+    const file = png('shot.png')
 
     await wrapper.find('.tiptap').trigger('paste', {
       clipboardData: {
@@ -605,14 +718,14 @@ describe('RichTextEditor images', () => {
 
     expect(uploadFile).toHaveBeenCalledOnce()
     expect(wrapper.find('.tiptap img').attributes('src')).toBe(
-      'https://example.com/user_files/abc123_def456.png'
+      userFileUrl(FIRST)
     )
   })
 
   test('pastes text, not the image file, when real text is on the clipboard', async () => {
     const uploadFile = vi.fn()
     const wrapper = await mountEditor('', { uploadFile })
-    const file = new File(['png'], 'shot.png', { type: 'image/png' })
+    const file = png('shot.png')
 
     await wrapper.find('.tiptap').trigger('paste', {
       clipboardData: {
@@ -663,15 +776,11 @@ describe('RichTextEditor images', () => {
   })
 
   test('uploads a dropped image whose extension the browser did not recognise', async () => {
-    const uploadFile = vi.fn().mockResolvedValue({
-      data: {
-        name: 'abc123_def456.jpg',
-        original_name: 'photo.jpg',
-        original_extension: 'jpg',
-        is_image: true,
-        url: 'https://example.com/user_files/abc123_def456.jpg',
-      },
-    })
+    const uploadFile = vi.fn().mockResolvedValue(
+      uploadResponse(userFileName('A', '1', 'jpg'), 'photo.jpg', {
+        mime_type: 'image/jpeg',
+      })
+    )
     const wrapper = await mountEditor('', { uploadFile })
 
     // A real browser gives `photo.jpg)` an empty type.
@@ -686,15 +795,9 @@ describe('RichTextEditor images', () => {
   })
 
   test('uploads a pasted image file with an empty type', async () => {
-    const uploadFile = vi.fn().mockResolvedValue({
-      data: {
-        name: 'abc123_def456.png',
-        original_name: 'shot.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/abc123_def456.png',
-      },
-    })
+    const uploadFile = vi
+      .fn()
+      .mockResolvedValue(uploadResponse(FIRST, 'shot.png'))
     const wrapper = await mountEditor('', { uploadFile })
 
     await pasteFile(wrapper, new File(['png'], 'shot.png)', { type: '' }))
@@ -704,15 +807,12 @@ describe('RichTextEditor images', () => {
   })
 
   test('uploads a dropped file without an extension', async () => {
-    const uploadFile = vi.fn().mockResolvedValue({
-      data: {
-        name: 'abc123_def456.',
-        original_name: 'photo',
-        original_extension: '',
-        is_image: true,
-        url: 'https://example.com/user_files/abc123_def456.',
-      },
-    })
+    const name = userFileName('A', '1', '')
+    const uploadFile = vi
+      .fn()
+      .mockResolvedValue(
+        uploadResponse(name, 'photo', { mime_type: 'image/jpeg' })
+      )
     const wrapper = await mountEditor('', { uploadFile })
 
     await dropFiles(wrapper, [new File(['jpg'], 'photo', { type: '' })])
@@ -720,9 +820,7 @@ describe('RichTextEditor images', () => {
 
     expect(uploadFile).toHaveBeenCalledOnce()
     expect(wrapper.find('.tiptap img').exists()).toBe(true)
-    expect(wrapper.vm.serializeToMarkdown()).toContain(
-      '![photo][abc123_def456.]'
-    )
+    expect(wrapper.vm.serializeToMarkdown()).toContain(`![photo][${name}]`)
   })
 
   test('ignores a dropped file typed as a non-image', async () => {
@@ -738,15 +836,15 @@ describe('RichTextEditor images', () => {
   })
 
   test('shows an error toast instead of embedding a non-image upload', async () => {
-    const uploadFile = vi.fn().mockResolvedValue({
-      data: {
-        name: 'abc123_def456.pdf',
-        original_name: 'doc.pdf',
-        original_extension: 'pdf',
+    const uploadFile = vi.fn().mockResolvedValue(
+      uploadResponse(userFileName('A', '1', 'pdf'), 'doc.pdf', {
+        mime_type: 'application/pdf',
         is_image: false,
-        url: 'https://example.com/user_files/abc123_def456.pdf',
-      },
-    })
+        image_width: null,
+        image_height: null,
+        thumbnails: null,
+      })
+    )
     const dispatch = vi.spyOn(testApp.store, 'dispatch')
     const wrapper = await mountEditor('', { uploadFile })
 
@@ -759,6 +857,7 @@ describe('RichTextEditor images', () => {
 
     expect(uploadFile).toHaveBeenCalledOnce()
     expect(wrapper.find('.tiptap img').exists()).toBe(false)
+    expect(uploadPlaceholders(wrapper)).toHaveLength(0)
     expect(dispatch).toHaveBeenCalledWith('toast/error', {
       title: 'richTextEditor.errorUnsupportedImageTitle',
       message: 'richTextEditor.errorUnsupportedImageMessage',
@@ -767,67 +866,44 @@ describe('RichTextEditor images', () => {
   })
 
   test('stops uploading the rest of the batch when the editor is torn down', async () => {
-    // Control resolution by hand so the teardown lands mid-batch without
-    // depending on any timing.
-    const pending = []
-    const uploadFile = vi.fn(
-      () => new Promise((resolve) => pending.push(resolve))
-    )
+    const { uploadFile, pending } = deferredUploads()
     const wrapper = await mountEditor('', { uploadFile })
 
     const uploading = wrapper.vm.uploadFiles([
-      new File(['1'], 'first.png', { type: 'image/png' }),
-      new File(['2'], 'second.png', { type: 'image/png' }),
+      png('first.png'),
+      png('second.png'),
     ])
     await settleUploads()
 
     expect(uploadFile).toHaveBeenCalledOnce()
-    expect(wrapper.vm.loadings).toHaveLength(2)
 
     wrapper.vm.teardownEditor()
-    pending[0]({
-      data: {
-        name: 'aaa_111.png',
-        original_name: 'first.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/aaa_111.png',
-      },
-    })
+    pending[0].resolve(uploadResponse(FIRST, 'first.png'))
     await uploading
 
     // The first upload resolved after teardown, so it must not be inserted, and
     // the second must never be requested at all.
     expect(uploadFile).toHaveBeenCalledOnce()
-    expect(wrapper.vm.loadings).toHaveLength(0)
+    expect(wrapper.emitted('upload-settled')).toBeUndefined()
   })
 
   test('keeps inserting the batch when one upload fails', async () => {
-    const imageResponse = (name, originalName) => ({
-      data: {
-        name,
-        original_name: originalName,
-        original_extension: 'png',
-        is_image: true,
-        url: `https://example.com/user_files/${name}`,
-      },
-    })
     // A real API failure carries an error handler; `notifyIf` rethrows anything
     // without one, so a bare Error would escape the upload loop.
     const notifyIf = vi.fn()
     const uploadFile = vi
       .fn()
-      .mockResolvedValueOnce(imageResponse('aaa_111.png', 'first.png'))
+      .mockResolvedValueOnce(uploadResponse(FIRST, 'first.png'))
       .mockRejectedValueOnce({ handler: { notifyIf } })
-      .mockResolvedValueOnce(imageResponse('ccc_333.png', 'third.png'))
+      .mockResolvedValueOnce(uploadResponse(THIRD, 'third.png'))
     const wrapper = await mountEditor('', { uploadFile })
 
     // Await the upload loop itself rather than a fixed number of ticks: the
     // rejection adds microtasks, so a tick count would be timing dependent.
     await wrapper.vm.uploadFiles([
-      new File(['1'], 'first.png', { type: 'image/png' }),
-      new File(['2'], 'second.png', { type: 'image/png' }),
-      new File(['3'], 'third.png', { type: 'image/png' }),
+      png('first.png'),
+      png('second.png'),
+      png('third.png'),
     ])
     await settleUploads()
 
@@ -835,20 +911,15 @@ describe('RichTextEditor images', () => {
     const sources = wrapper
       .findAll('.tiptap img')
       .map((image) => image.attributes('src'))
-    expect(sources).toEqual([
-      'https://example.com/user_files/aaa_111.png',
-      'https://example.com/user_files/ccc_333.png',
-    ])
-    // The user is told about the failure, and the loading indicator is cleared
-    // for every file, including the one that failed.
+    expect(sources).toEqual([userFileUrl(FIRST), userFileUrl(THIRD)])
     expect(notifyIf).toHaveBeenCalledOnce()
-    expect(wrapper.vm.loadings).toHaveLength(0)
+    expect(uploadPlaceholders(wrapper)).toHaveLength(0)
   })
 
   test('pastes as text instead of uploading when the clipboard also has text', async () => {
     const uploadFile = vi.fn()
     const wrapper = await mountEditor('', { uploadFile })
-    const file = new File(['1'], 'shot.png', { type: 'image/png' })
+    const file = png('shot.png')
 
     await wrapper.find('.tiptap').trigger('paste', {
       clipboardData: {
@@ -863,52 +934,29 @@ describe('RichTextEditor images', () => {
     expect(wrapper.find('.tiptap img').exists()).toBe(false)
   })
 
-  // The upload is asynchronous. The image belongs where it was pasted, not
-  // wherever the selection is when the upload finishes: otherwise selecting
-  // text meanwhile would get it replaced by the image.
+  // Selecting text while the upload is pending must not get it replaced by the image.
   test('inserts a pasted image at the paste position', async () => {
-    let resolveUpload
-    const uploadFile = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveUpload = resolve
-        })
-    )
+    const { uploadFile, pending } = deferredUploads()
     const wrapper = await mountEditor('AAA BBB', { uploadFile })
     const { editor } = wrapper.vm
     editor.commands.setTextSelection(editor.state.doc.content.size - 1)
 
-    await pasteFile(wrapper, new File(['1'], 'shot.png', { type: 'image/png' }))
-    // Select `AAA` while the upload is pending.
+    await pasteFile(wrapper, png('shot.png'))
     editor.commands.setTextSelection({ from: 1, to: 4 })
-    resolveUpload({
-      data: {
-        name: 'aaa_111.png',
-        original_name: 'shot.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/aaa_111.png',
-      },
-    })
+    pending[0].resolve(uploadResponse(FIRST, 'shot.png'))
     await settleUploads()
 
-    const markdown = wrapper.vm.serializeToMarkdown()
-    expect(markdown).toContain('AAA BBB')
-    expect(markdown.indexOf('BBB')).toBeLessThan(
-      markdown.indexOf('[aaa_111.png]')
+    expect(wrapper.vm.serializeToMarkdown()).toBe(
+      `AAA BBB${imageMarkdown('shot', FIRST)}`
     )
   })
 
   test('drops characters the reference cannot carry from the extension', async () => {
-    const uploadFile = vi.fn().mockResolvedValue({
-      data: {
-        name: 'aaa_111.jpg',
-        original_name: 'a.jpg',
-        original_extension: 'jpg',
-        is_image: true,
-        url: 'https://example.com/user_files/aaa_111.jpg',
-      },
-    })
+    const uploadFile = vi.fn().mockResolvedValue(
+      uploadResponse(userFileName('A', '1', 'jpg'), 'a.jpg', {
+        mime_type: 'image/jpeg',
+      })
+    )
     const wrapper = await mountEditor('', { uploadFile })
 
     await pasteFile(wrapper, new File(['1'], 'a.jpg)', { type: 'image/jpeg' }))
@@ -936,24 +984,18 @@ describe('RichTextEditor images', () => {
   })
 
   test('uploads an image pasted from the clipboard', async () => {
-    const uploadFile = vi.fn().mockResolvedValue({
-      data: {
-        name: 'aaa_111.png',
-        original_name: 'shot.png',
-        original_extension: 'png',
-        is_image: true,
-        url: 'https://example.com/user_files/aaa_111.png',
-      },
-    })
+    const uploadFile = vi
+      .fn()
+      .mockResolvedValue(uploadResponse(FIRST, 'shot.png'))
     const wrapper = await mountEditor('', { uploadFile })
 
-    await pasteFile(wrapper, new File(['1'], 'shot.png', { type: 'image/png' }))
+    await pasteFile(wrapper, png('shot.png'))
 
     expect(uploadFile).toHaveBeenCalledOnce()
     expect(wrapper.find('.tiptap img').attributes('src')).toBe(
-      'https://example.com/user_files/aaa_111.png'
+      userFileUrl(FIRST)
     )
-    expect(wrapper.vm.serializeToMarkdown()).toContain('[aaa_111.png]')
+    expect(wrapper.vm.serializeToMarkdown()).toBe(imageMarkdown('shot', FIRST))
   })
 })
 

@@ -1,9 +1,3 @@
-.rich-text-editor .loading-spinner {
-  position: sticky;
-  top: 50%;
-  left: 50%;
-}
-
 .rich-text-editor--scrollbar-thin {
   /* scrollbar */
   &::-webkit-scrollbar {
@@ -127,10 +121,6 @@
   background-color: white;
 }
 
-.rich-text-editor__content--loading {
-  opacity: 0.2;
-}
-
 .rich-text-editor__content img {
   display: block;
   max-width: 100%;
@@ -156,6 +146,19 @@
   border-radius: 4px;
   color: $palette-neutral-700;
   font-size: 13px;
+}
+
+.rich-text-editor__image-uploading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin: 8px 0;
+  border: 1px dashed $palette-neutral-300;
+  border-radius: 4px;
+
+  @include loading-spinner($palette-neutral-500);
 }
 
 .rich-text-image-placeholder {

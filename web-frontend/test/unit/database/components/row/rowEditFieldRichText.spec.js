@@ -169,6 +169,48 @@ describe('RowEditFieldRichText component', () => {
     expect(newValue).toContain(`![screenshot][${userFileName}]`)
   })
 
+  test('saves an image whose upload finishes after the field lost focus', async () => {
+    let finishUpload
+    testApp.mock.onPost('/user-files/upload-file/').reply(
+      () =>
+        new Promise((resolve) => {
+          finishUpload = () => resolve([200, uploadedUserFile])
+        })
+    )
+    const wrapper = await mountComponent()
+    const editor = wrapper.findComponent(RichTextEditor)
+
+    editor.vm.$emit('focus')
+    await pasteImage(wrapper)
+    editor.vm.$emit('blur')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update')).toBeUndefined()
+
+    finishUpload()
+    await settleUploads()
+
+    const updates = wrapper.emitted('update')
+    expect(updates).toHaveLength(1)
+    expect(updates[0][0]).toContain(`![screenshot][${userFileName}]`)
+  })
+
+  test('leaves saving to the blur when the upload finishes while editing', async () => {
+    testApp.mock.onPost('/user-files/upload-file/').reply(200, uploadedUserFile)
+    const wrapper = await mountComponent()
+    const editor = wrapper.findComponent(RichTextEditor)
+
+    editor.vm.$emit('focus')
+    await pasteImage(wrapper)
+
+    expect(wrapper.emitted('update')).toBeUndefined()
+
+    editor.vm.$emit('blur')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update')).toHaveLength(1)
+  })
+
   test.each([{ readOnly: true }, { allowImageUpload: false }])(
     'does not upload a pasted image when %s',
     async (props) => {
