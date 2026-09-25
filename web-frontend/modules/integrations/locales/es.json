@@ -33,7 +33,8 @@
         "noFilterTitle": "Aún no has creado un filtro de fuente de datos",
         "noFilterText": "Los filtros de fuente de datos le permiten mostrar las filas de la tabla Baserow que se aplican a tus condiciones.",
         "useDefaultForValue": "Utiliza el filtro por defecto para este campo",
-        "textFilterInputPlaceholder": "Escribe el texto…"
+        "textFilterInputPlaceholder": "Escribe el texto…",
+        "useExpressionForValue": "Usa una expresión para este filtro"
     },
     "localBaserowTableServiceSortForm": {
         "noTableChosenForSorting": "Elige una tabla para empezar a utilizar la ordenación de fuentes de datos.",
@@ -141,7 +142,10 @@
         "coreManualTrigger": "Disparador manual",
         "coreStartWorkflow": "Iniciar flujo de trabajo",
         "coreGotoDescription": "Salta a otro punto del flujo de trabajo cuando una condición es verdadera.",
-        "coreResponseDescription": "Devuelve la respuesta del flujo de trabajo solo cuando el disparador admite esperar respuestas y tiene la espera habilitada."
+        "coreResponseDescription": "Devuelve la respuesta del flujo de trabajo solo cuando el disparador admite esperar respuestas y tiene la espera habilitada.",
+        "inboundEmailTriggerDescription": "Se desencadena cuando se recibe un correo electrónico en la dirección de correo generada.",
+        "errorAIModelUnavailable": "El modelo de IA seleccionado está deshabilitado o ya no está disponible",
+        "errorMisconfiguredIntegration": "Falta la integración o ha sido enviada a la papelera"
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
@@ -211,7 +215,9 @@
         "searchFieldPlaceHolder": "Introduce un término de búsqueda…",
         "noTableChosenForFiltering": "Elige una tabla para comenzar a usar filtros de origen de datos.",
         "noTableChosenForSorting": "Elige una tabla para comenzar a usar ordenamientos de origen de datos.",
-        "refinements": "Configuración detallada"
+        "refinements": "Configuración detallada",
+        "noTableChosenForGrouping": "Elige una tabla para empezar a usar grupos de fuentes de datos.",
+        "groupTabTitle": "Agrupar por | 1 grupo | {count} grupos"
     },
     "slackBotForm": {
         "supportSetupDescription": "Según la configuración de tu espacio de trabajo de Slack, es posible que puedas crear una nueva aplicación de Slack. De lo contrario, un administrador tendrá que hacerlo por ti. Si estás reutilizando una aplicación existente que pueda escribir mensajes, pasa a la sección titulada «Emparejamiento con tu aplicación de Slack».",
@@ -229,7 +235,9 @@
         "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» > «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
         "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
         "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con",
-        "supportSetupStep1Link": "página de aplicaciones"
+        "supportSetupStep1Link": "página de aplicaciones",
+        "tokenConfigured": "Hay un token guardado. Déjalo en blanco para conservarlo.",
+        "tokenKeepPlaceholder": "Deja en blanco para conservar el token guardado"
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "Método HTTP",
@@ -275,7 +283,9 @@
         "username": "Nombre de usuario",
         "usernamePlaceholder": "tu-correo{'@'}ejemplo.com",
         "password": "Contraseña",
-        "passwordPlaceholder": "tu-contraseña"
+        "passwordPlaceholder": "tu-contraseña",
+        "passwordConfigured": "Hay una contraseña guardada. Déjalo en blanco para conservarla.",
+        "passwordKeepPlaceholder": "Deja en blanco para conservar la contraseña guardada"
     },
     "smtpEmailForm": {
         "integrationDropdownLabel": "Integración",
@@ -337,12 +347,13 @@
         "minuteFrequencyPlaceholder": "15",
         "dayOfMonthPlaceholder": "1-31",
         "minuteHelper": "Este flujo de trabajo se ejecutará cada minutos especificados",
-        "hourHelper": "Este flujo de trabajo se ejecutará cada hora en el minuto especificado en tu zona horaria local ({timezone})",
-        "dayHelper": "Este flujo de trabajo se ejecutará cada día a la hora especificada en tu zona horaria local ({timezone})",
-        "weekHelper": "Este flujo de trabajo se ejecutará cada semana en el día y hora especificados en tu zona horaria local ({timezone})",
-        "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y la hora especificados en tu zona horaria local ({timezone})",
+        "hourHelper": "Este flujo de trabajo se ejecutará cada hora en el minuto especificado",
+        "dayHelper": "Este flujo de trabajo se ejecutará cada día a la hora especificada",
+        "weekHelper": "Este flujo de trabajo se ejecutará cada semana en el día y hora especificados",
+        "monthHelper": "Este flujo de trabajo se ejecutará cada mes en el día y hora especificados",
         "deactivatedTitle": "Disparador periódico desactivado",
-        "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos."
+        "deactivatedText": "Este disparador periódico ha sido desactivado automáticamente debido a fallos consecutivos.",
+        "timezoneHelper": "La programación mantiene esta hora local cuando cambian los relojes"
     },
     "localBaserowUpsertRowServiceForm": {
         "noTableSelectedMessage": "Elige una tabla para comenzar a configurar tus campos.",
@@ -353,7 +364,8 @@
         "fieldMappingPlaceholderBoolean": "Elige un valor booleano, por ejemplo: «verdadero»",
         "fieldMappingPlaceholderDate": "Elige un valor de fecha, por ejemplo: 2025-07-25",
         "fieldMappingPlaceholderDecimal": "Elige un valor decimal, por ejemplo: 3.14",
-        "fieldMappingPlaceholderDuration": "Elige un valor de duración, por ejemplo: 1:23:40"
+        "fieldMappingPlaceholderDuration": "Elige un valor de duración, por ejemplo: 1:23:40",
+        "noTableAccess": "No tienes acceso a esta tabla, por lo que sus campos no se pueden mostrar aquí."
     },
     "localBaserowServiceForm": {
         "rowIdPlaceholder": "Elige un ID de fila único",
@@ -404,6 +416,11 @@
         "pipe": "Pleca"
     },
     "coreGotoServiceForm": {
-        "conditionDescription": "Cuando esta condición es verdadera, el flujo de trabajo salta al nodo de destino en lugar de continuar con el siguiente nodo."
+        "conditionDescription": "Cuando esta condición es verdadera, el flujo de trabajo salta al nodo de destino en lugar de continuar con el siguiente nodo.",
+        "destinationDescription": "El nodo al que saltar cuando la condición es verdadera.",
+        "conditionPlaceholder": "Si es verdadero, saltamos al nodo de destino."
+    },
+    "aiProviderModelFeature": {
+        "aiAgentDescription": "Ejecuta acciones de Agente de IA en flujos de trabajo de Automatización y del Constructor de Aplicaciones."
     }
 }
