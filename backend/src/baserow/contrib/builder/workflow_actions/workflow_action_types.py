@@ -68,6 +68,12 @@ from baserow.core.services.types import DispatchResult
 from baserow.core.workflow_actions.models import WorkflowAction
 
 
+class ActiveDataSourceIdField(serializers.IntegerField):
+    def get_attribute(self, instance: RefreshDataSourceWorkflowAction):
+        data_source = instance.data_source
+        return data_source.id if data_source and not data_source.trashed else None
+
+
 class NotificationWorkflowActionType(BuilderWorkflowActionType):
     type = "notification"
     model_class = NotificationWorkflowAction
@@ -204,7 +210,7 @@ class RefreshDataSourceWorkflowActionType(BuilderWorkflowActionType):
     model_class = RefreshDataSourceWorkflowAction
     serializer_field_names = ["data_source_id"]
     serializer_field_overrides = {
-        "data_source_id": serializers.IntegerField(
+        "data_source_id": ActiveDataSourceIdField(
             allow_null=True,
             default=None,
             required=False,
@@ -221,6 +227,9 @@ class RefreshDataSourceWorkflowActionType(BuilderWorkflowActionType):
     @property
     def allowed_fields(self):
         return super().allowed_fields + ["data_source_id"]
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).select_related("data_source")
 
     def deserialize_property(
         self,

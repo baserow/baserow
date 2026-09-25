@@ -2,11 +2,20 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { ref } from 'vue'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-const { store, useAsyncData } = vi.hoisted(() => ({
-  store: {
-    dispatch: vi.fn(),
-  },
-  useAsyncData: vi.fn(),
+const { getTokenIfEnoughTimeLeft, navigateTo, store, useAsyncData } =
+  vi.hoisted(() => ({
+    getTokenIfEnoughTimeLeft: vi.fn(),
+    navigateTo: vi.fn(),
+    store: {
+      dispatch: vi.fn(),
+      getters: {},
+    },
+    useAsyncData: vi.fn(),
+  }))
+
+vi.mock('@baserow/modules/core/utils/auth', async (importOriginal) => ({
+  ...(await importOriginal()),
+  getTokenIfEnoughTimeLeft,
 }))
 
 vi.mock('vuex', async (importOriginal) => ({
@@ -21,7 +30,7 @@ vi.mock('@baserow/modules/builder/components/PublicPageContent.vue', () => ({
 vi.mock('#app', async (importOriginal) => ({
   ...(await importOriginal()),
   createError: vi.fn(),
-  navigateTo: vi.fn(),
+  navigateTo,
   useAsyncData,
   useNuxtApp: () => ({
     $i18n: { t: (key) => key },
@@ -47,6 +56,7 @@ const PublicPage = await import('@baserow/modules/builder/pages/publicPage.vue')
 describe('PublicPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    store.getters = {}
     useAsyncData.mockReturnValue({
       data: ref(null),
       error: ref(null),
@@ -71,6 +81,37 @@ describe('PublicPage', () => {
 
     await expect(mountSuspended(PublicPage.default)).rejects.toThrow(
       pageNotFoundError
+    )
+  })
+
+  test('stops loading the stale page after an authentication refresh fails', async () => {
+    const builder = { id: 42, user_sources: [] }
+    store.getters['application/getSelected'] = null
+    store.getters['userSourceUser/isAuthenticated'] = () => false
+    store.dispatch.mockImplementation((type) => {
+      if (type === 'publicBuilder/fetchPreview') {
+        return { id: builder.id }
+      }
+      if (type === 'application/selectById') {
+        return builder
+      }
+      if (type === 'userSourceUser/refreshAuth') {
+        return Promise.reject({ response: { status: 401 } })
+      }
+    })
+    getTokenIfEnoughTimeLeft.mockResolvedValue('expired-refresh-token')
+    navigateTo.mockResolvedValue()
+
+    await mountSuspended(PublicPage.default, {
+      props: { builderId: builder.id, mode: 'preview', pathMatch: 'missing' },
+    })
+    const loadPublicPage = useAsyncData.mock.calls[0][1]
+    await loadPublicPage()
+
+    expect(navigateTo).toHaveBeenCalledOnce()
+    expect(store.dispatch).not.toHaveBeenCalledWith(
+      'dataSource/fetchPublished',
+      expect.anything()
     )
   })
 })

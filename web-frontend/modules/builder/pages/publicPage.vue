@@ -198,7 +198,7 @@ const {
         } catch (error) {
           if (error.response?.status === 401) {
             // We logoff as the token has probably expired or became invalid
-            await logOffAndReturnToLogin({
+            return logOffAndReturnToLogin({
               builder,
               mode,
               store,
@@ -305,7 +305,7 @@ const {
       if (error.response?.status === 401) {
         // this case can happen if the site has been published with changes in the
         // user source. In this case we want to unlog the user.
-        await logOffAndReturnToLogin({
+        return logOffAndReturnToLogin({
           builder,
           mode,
           store,
