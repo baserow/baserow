@@ -702,6 +702,8 @@ def create_layout_elements(
     - NEVER put page-specific content in shared headers (e.g., "back" button,
       page-specific data, breadcrumbs). These vary per page and will be wrong.
     - A menu element inside a header/footer is also shared.
+    - `page_id` is still required for shared elements: pass any existing page of the
+      application, such as the Home page from list_pages. There is no application_id.
     - Shared elements CANNOT reference page-specific data sources.
     """
 

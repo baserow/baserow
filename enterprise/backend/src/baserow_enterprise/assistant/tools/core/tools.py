@@ -95,6 +95,7 @@ def create_builders(
     RETURNS: Created and reused builders with id, name, type.
     HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
     THEME (applications only): Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
+    ASK FIRST: An application needs a purpose — what it manages or shows. For a bare request such as "create an app for my team", call ask_user before creating anything. A request that names the builder or asks for an empty one (e.g. "create an empty automation called X") is enough to create it.
     """
 
     user = ctx.deps.user
