@@ -205,6 +205,39 @@ describe('buttonField new tab actions', () => {
     )
   })
 
+  test.each(['mailto:ada@example.com', 'tel:+441234567890'])(
+    'a new tab %s url goes to another app and leaves no empty tab',
+    async (url) => {
+      const tab = fakeTab()
+      const open = vi.spyOn(window, 'open').mockReturnValue(tab)
+      const originalLocation = window.location
+      Object.defineProperty(window, 'location', {
+        value: { href: 'http://localhost/database/1/table/1' },
+        writable: true,
+        configurable: true,
+      })
+
+      try {
+        const { done, respond } = click({ opens_new_tab: true }, [
+          openUrl('blank', `'${url}'`),
+        ])
+        respond()
+        await done
+
+        expect(followedLink(tab)).toBeNull()
+        expect(tab.close).toHaveBeenCalled()
+        expect(open).toHaveBeenCalledTimes(1)
+        expect(window.location.href).toBe(url)
+      } finally {
+        Object.defineProperty(window, 'location', {
+          value: originalLocation,
+          writable: true,
+          configurable: true,
+        })
+      }
+    }
+  )
+
   test('a button without a new tab action opens no tab', async () => {
     const open = vi.spyOn(window, 'open')
 

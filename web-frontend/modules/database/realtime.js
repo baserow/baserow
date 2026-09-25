@@ -191,9 +191,9 @@ export const registerRealtimeEvents = (realtime) => {
   })
 
   /**
-   * Only `has_workflow_actions` and `requires_reconfiguration` can have
-   * changed, and a cell renders the button from those alone, so the rows stay
-   * as they are. Deliberately not a `field_updated`: that one refetches the
+   * Only `has_workflow_actions`, `requires_reconfiguration` and
+   * `opens_new_tab` can have changed, and a cell renders the button from those
+   * alone, so the rows stay as they are. Deliberately not a `field_updated`: that one refetches the
    * whole grid, and would throw away what someone is typing in a cell.
    */
   realtime.registerEvent('button_fields_updated', async ({ store }, data) => {

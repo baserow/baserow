@@ -323,6 +323,17 @@ export class DatabaseWorkflowActionServiceType extends WorkflowActionType {
  * Opens a URL in the browser. No service: the backend hands it back to the
  * client to run, so this extends the core type rather than the one above.
  */
+/**
+ * Whether the browser loads the URL itself, rather than handing it to another
+ * app the way it does `mailto:`, `tel:` or `ftp:`. A relative URL is this
+ * site's, so it loads.
+ */
+function loadsPage(url) {
+  // Any http base will do: it only has to make a relative URL parse.
+  const { protocol } = new URL(url, 'http://baserow.invalid')
+  return protocol === 'http:' || protocol === 'https:'
+}
+
 export class OpenUrlWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'open_url'
@@ -460,7 +471,7 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
       return false
     }
 
-    if (workflowAction.target === 'blank') {
+    if (workflowAction.target === 'blank' && loadsPage(url)) {
       // The button opened this tab on click, see `openNewTab` in the button
       // field mixin. Without one, or for a second new tab action, fall back
       // to opening it here.
@@ -477,6 +488,8 @@ export class OpenUrlWorkflowActionType extends WorkflowActionType {
         window.open(url, '_blank', 'noopener,noreferrer')
       }
     } else {
+      // Also where a `mailto:` or `tel:` URL goes: another app takes it and
+      // this page stays, where a new tab would be left empty.
       window.location.href = url
     }
     return true
