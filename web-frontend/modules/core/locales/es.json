@@ -222,7 +222,7 @@
     },
     "errorLayout": {
         "notFound": "La página que busca no ha sido encontrada. Esto puede deberse a que la URL es incorrecta o que no tiene permiso para ver esta página.",
-        "error": "Algo salió mal al cargar la página. Nuestros desarrolladores han sido notificados del problema. Intente actualizar o volver al panel de control.",
+        "error": "Algo salió mal al cargar la página. Nuestros desarrolladores han sido notificados del problema. Intente actualizar o regresar a la página de inicio.",
         "backDashboard": "Volver al tablero",
         "backLogin": "Atrás para iniciar sesión",
         "wrong": "Algo salió mal",
@@ -784,7 +784,9 @@
         "ollamaModelIdentifierDescription": "Ingresa el identificador de un [modelo instalado en Ollama](https://ollama.com/library). Por ejemplo: `gemma3`, `qwen3`, o `llama3.3`.",
         "mistralModelIdentifierDescription": "Ingresa un [identificador de modelo de Mistral](https://docs.mistral.ai/models/). Por ejemplo: `mistral-large-latest`, `mistral-medium-latest`, o `mistral-small-latest`.",
         "openaiModelIdentifierDescription": "Ingresa un[ identificador de modelo de OpenAI](https://developers.openai.com/api/docs/models). Por ejemplo: `gpt-5.6`, `gpt-5.6-terra`, o `gpt-5.6-luna`.",
-        "anthropicModelIdentifierDescription": "Ingresa un [identificador de modelo de Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Por ejemplo: `claude-sonnet-5`, `claude-opus-4-8`, o `claude-haiku-4-5`."
+        "anthropicModelIdentifierDescription": "Ingresa un [identificador de modelo de Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Por ejemplo: `claude-sonnet-5`, `claude-opus-4-8`, o `claude-haiku-4-5`.",
+        "groqModelsDescription": "Proporciona una lista separada por comas de [identificadores de modelos de Groq](https://console.groq.com/docs/models) que puedan usarse en Baserow. Por ejemplo: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "googleModelsDescription": "Proporciona una lista separada por comas de [identificadores de modelos de Gemini](https://ai.google.dev/gemini-api/docs/models) que puedan usarse en Baserow. Por ejemplo: `gemini-3.6-flash,gemini-3.5-flash`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Configuración de la IA generativa",
@@ -793,7 +795,8 @@
         "changedDescription": "Los ajustes se han actualizado y ahora se utilizarán en este espacio de trabajo.",
         "submitButton": "Actualizar ajustes",
         "hideSettings": "Ocultar ajustes",
-        "openSettings": "Abrir ajustes"
+        "openSettings": "Abrir ajustes",
+        "providerDescription": "Gestiona los proveedores propios de este espacio de trabajo o habilita y deshabilita los proveedores heredados de la instancia."
     },
     "workspaceSettingsModal": {
         "title": "Ajustes del espacio de trabajo"
@@ -1211,7 +1214,8 @@
         "methodsOptionLabel": "Métodos HTTP permitidos",
         "methodsOptionAll": "Todo",
         "methodsOptionDescription": "Controla qué métodos HTTP están permitidos para este webhook. Excluir GET reduce la probabilidad de que el webhook se active accidentalmente.",
-        "methodsOptionExcludeGet": "Excluir GET"
+        "methodsOptionExcludeGet": "Excluir GET",
+        "waitForResponseDescription": "Espera hasta que se alcance un nodo de Respuesta. Si no se alcanza ninguno, espera a que el flujo de trabajo termine y devuelve la respuesta predeterminada."
     },
     "twoFactorAuthEmpty": {
         "title": "Aún no has activado la autenticación de dos factores",
@@ -1330,9 +1334,23 @@
         "deleteProviderDescription": "Esto elimina permanentemente el proveedor y sus modelos.",
         "loadError": "No se pudo cargar la configuración del proveedor de IA.",
         "saveModelError": "No se pudo guardar el modelo del proveedor de IA.",
-        "actionError": "No se pudo completar el cambio del proveedor de IA."
+        "actionError": "No se pudo completar el cambio del proveedor de IA.",
+        "disableModelDescription": "El modelo permanece seleccionado donde esté configurado, pero no se puede usar hasta que se habilite de nuevo.",
+        "noFeatureModels": "No hay modelos elegibles disponibles. Edita un modelo y elige qué funciones pueden usarlo."
     },
     "reportAbuseForm": {
         "descriptionPlaceholder": "Por ejemplo: esta página finge ser una página de inicio de sesión de otra empresa y pide a los visitantes su contraseña."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "limits": "Se aceptan correos electrónicos de hasta {size} MB, y los cuerpos de texto y HTML se transmiten hasta 1 MB cada uno. Los archivos adjuntos no se almacenan: solo su nombre, tipo y tamaño se incluyen en la carga útil.",
+        "autoForwardTip": "Consejo: También puedes añadir esta dirección como una regla de reenvío automático en tu propia bandeja de entrada, de modo que el flujo de trabajo se ejecute cada vez que recibas un correo electrónico.",
+        "description": "Cualquier correo electrónico enviado a esta dirección iniciará el flujo de trabajo con el remitente, el asunto, el cuerpo y los detalles de los archivos adjuntos del correo como carga útil (payload).",
+        "notConfigured": "Esta instancia de Baserow no está configurada para recibir correo electrónico entrante. Establece la variable de entorno BASEROW_INBOUND_EMAIL_DOMAIN para habilitar este disparador."
+    },
+    "coreManualTriggerServiceForm": {
+        "waitForResponseDescription": "Espera hasta que se alcance un nodo de Respuesta. Si no se alcanza ninguno, espera a que el flujo de trabajo termine y devuelve la respuesta predeterminada."
+    },
+    "coreResponseServiceForm": {
+        "nameFieldInvalid": "Los nombres de encabezado solo pueden contener letras, números, guiones y guiones bajos, y no pueden comenzar con un guion o guion bajo."
     }
 }
