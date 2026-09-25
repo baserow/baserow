@@ -30,7 +30,10 @@
       :edge-in-use-fn="nodeEdgeInUseFn"
       :destinations="gotoDestinations"
       class="margin-top-2"
-      @values-changed="handleNodeChange({ service: $event })"
+      @values-changed="
+        (values, options) =>
+          handleNodeChange({ service: values, immediate: options?.immediate })
+      "
     />
 
     <div class="separator"></div>
@@ -128,9 +131,17 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 
+/**
+ * Applies label or service changes to the selected node. Changes are debounced
+ * so typing batches into one request; `immediate` skips that for one-shot
+ * commands a form fires from a button, such as regenerating the inbound email
+ * address, where the debounce would only delay the spinner and the request. A
+ * form asks for it through the second argument of `values-changed`.
+ */
 const handleNodeChange = async ({
   node: nodeChanges,
   service: serviceChanges,
+  immediate = false,
 }) => {
   let updatedNode = {}
   let anyChanges = false
@@ -184,11 +195,16 @@ const handleNodeChange = async ({
   }
 
   try {
-    await store.dispatch('automationWorkflowNode/updateDebounced', {
-      workflow: workflow.value,
-      node: node.value,
-      values: updatedNode,
-    })
+    await store.dispatch(
+      immediate
+        ? 'automationWorkflowNode/update'
+        : 'automationWorkflowNode/updateDebounced',
+      {
+        workflow: workflow.value,
+        node: node.value,
+        values: updatedNode,
+      }
+    )
   } catch (error) {
     notifyIf(error, 'automationWorkflow')
   }

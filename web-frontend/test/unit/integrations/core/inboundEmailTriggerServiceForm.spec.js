@@ -148,7 +148,7 @@ describe('Core email trigger service form', () => {
     expect(wrapper.find('.button-stub').exists()).toBe(false)
   })
 
-  test('regenerate button emits values-changed with the regenerate flag', async () => {
+  test('regenerate button emits values-changed flagged as immediate', async () => {
     const wrapper = await mountComponent({
       defaultValues: {
         email_address: EMAIL_ADDRESS,
@@ -160,6 +160,11 @@ describe('Core email trigger service form', () => {
 
     const emitted = wrapper.emitted('values-changed')
     expect(emitted).toHaveLength(1)
-    expect(emitted[0]).toStrictEqual([{ regenerate_token: true }])
+    // The second argument asks the side panel to skip the debounce so the
+    // request and spinner are not held back for half a second.
+    expect(emitted[0]).toStrictEqual([
+      { regenerate_token: true },
+      { immediate: true },
+    ])
   })
 })
