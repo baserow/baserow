@@ -115,10 +115,10 @@ def plan_instance_import(
     skipped: list[SkippedProvider] = []
 
     for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
-        values = get_environment_provider_values(provider_type)
-        if not values["configured"]:
-            continue
         try:
+            values = get_environment_provider_values(provider_type)
+            if not values["configured"]:
+                continue
             validate_provider_settings(
                 provider_type,
                 values["api_key"],
@@ -200,8 +200,8 @@ def plan_workspace_import(
     planned: list[PlannedProvider] = []
     skipped: list[SkippedProvider] = []
 
-    # Narrowing to rows that actually hold a supported provider key keeps this off a
-    # full scan, and drops non-object settings the resolver cannot read either.
+    # Only load rows matching a supported provider. The JSON lookup also matches
+    # strings and arrays, so those still need validation below.
     workspaces = (
         _manager(workspace_model, using)
         .filter(
@@ -217,7 +217,11 @@ def plan_workspace_import(
         for provider_type in PROVIDER_ENVIRONMENT_SETTINGS:
             if provider_type not in legacy_settings:
                 continue
-            raw_values = legacy_settings[provider_type]
+            raw_values = (
+                legacy_settings[provider_type]
+                if isinstance(legacy_settings, dict)
+                else legacy_settings
+            )
             if isinstance(raw_values, dict):
                 if not any(raw_values.values()):
                     continue

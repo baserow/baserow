@@ -415,8 +415,10 @@ class AIProviderHandler:
         workspace = provider.workspace
         provider_type = provider.provider_type
         provider.delete()
-        if workspace is not None:
-            legacy_settings = dict(workspace.generative_ai_models_settings or {})
+        if workspace is not None and isinstance(
+            workspace.generative_ai_models_settings, dict
+        ):
+            legacy_settings = dict(workspace.generative_ai_models_settings)
             if legacy_settings.pop(provider_type, None) is not None:
                 workspace.generative_ai_models_settings = legacy_settings
                 workspace.save(update_fields=("generative_ai_models_settings",))

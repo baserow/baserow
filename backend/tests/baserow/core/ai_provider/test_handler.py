@@ -119,6 +119,53 @@ def test_provider_credentials_are_trimmed_on_create_and_update():
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("legacy_settings", ["openai", ["openai"], True, 7])
+def test_delete_replacement_provider_preserves_malformed_legacy_settings(
+    data_fixture, legacy_settings
+):
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings=legacy_settings
+    )
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        workspace=workspace,
+        api_key="replacement-key",
+        models_data=[{"model_identifier": "replacement-model"}],
+    )
+    provider_id = provider.id
+    assert provider.models.get().model_identifier == "replacement-model"
+
+    AIProviderHandler.delete_provider(provider)
+
+    assert not AIProviderConfig.objects.filter(id=provider_id).exists()
+    assert not AIProviderModel.objects.filter(provider_config_id=provider_id).exists()
+    workspace.refresh_from_db()
+    assert workspace.generative_ai_models_settings == legacy_settings
+
+
+@pytest.mark.django_db
+def test_delete_provider_clears_only_its_legacy_settings(data_fixture):
+    other_provider_settings = {"api_key": "anthropic-key", "models": ["claude"]}
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "legacy-key", "models": ["legacy-model"]},
+            "anthropic": other_provider_settings,
+        }
+    )
+    provider = AIProviderHandler.create_provider(
+        "openai", workspace=workspace, api_key="replacement-key"
+    )
+
+    AIProviderHandler.delete_provider(provider)
+
+    workspace.refresh_from_db()
+    assert workspace.generative_ai_models_settings == {
+        "anthropic": other_provider_settings
+    }
+    assert not AIProviderConfig.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
 def test_update_model_does_not_misreport_unexpected_integrity_error():
     provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
     model = AIProviderModel.objects.create(

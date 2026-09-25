@@ -552,7 +552,10 @@ class GenerativeAIModelType(Instance):
         ):
             return None
 
-        values = (workspace.generative_ai_models_settings or {}).get(self.type)
+        legacy_settings = workspace.generative_ai_models_settings
+        if not isinstance(legacy_settings, dict):
+            return None
+        values = legacy_settings.get(self.type)
         return self._get_complete_provider_settings(values)
 
     def _get_complete_provider_settings(self, values: Any) -> Optional[dict[str, Any]]:

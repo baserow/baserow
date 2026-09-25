@@ -38,6 +38,10 @@ LEGACY_SHAPES = [
     {"api_key": "key", "models": ["gpt-5.4"], "unsupported_key": "value"},
     [],
     "nonsense",
+    {"api_key": "key", "models": 7},
+    {"api_key": "key", "models": 1.5},
+    {"api_key": "key", "models": True},
+    {"api_key": "key", "models": {"gpt-5.4": True}},
 ]
 
 
@@ -80,6 +84,130 @@ def test_import_covers_exactly_what_the_resolver_reads(data_fixture, legacy_valu
     )
 
     assert import_plans_it == resolver_reads_legacy
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "legacy_settings",
+    [
+        "openai",
+        ["openai"],
+        {"openai": {"api_key": "invalid-workspace-secret", "models": 7}},
+        {"openai": {"api_key": "invalid-workspace-secret", "models": 1.5}},
+        {"openai": {"api_key": "invalid-workspace-secret", "models": True}},
+        {"openai": {"api_key": "invalid-workspace-secret", "models": False}},
+        {"openai": {"api_key": "invalid-workspace-secret", "models": 0}},
+        {"openai": {"api_key": "invalid-workspace-secret", "models": {}}},
+        {
+            "openai": {
+                "api_key": "invalid-workspace-secret",
+                "models": {"invalid-model-sentinel": True},
+            }
+        },
+    ],
+)
+def test_invalid_legacy_shapes_are_skipped_without_blocking_other_workspaces(
+    data_fixture, settings, legacy_settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["environment-model"]
+    invalid_workspace = data_fixture.create_workspace(
+        generative_ai_models_settings=legacy_settings
+    )
+    valid_workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={
+            "openai": {"api_key": "valid-workspace-key", "models": ["workspace-model"]}
+        }
+    )
+
+    plan = plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace)
+    assert [provider.workspace_id for provider in plan.planned] == [valid_workspace.id]
+    assert [provider.workspace_id for provider in plan.skipped] == [
+        invalid_workspace.id
+    ]
+    assert "invalid-workspace-secret" not in plan.skipped[0].reason
+    assert "invalid-model-sentinel" not in plan.skipped[0].reason
+
+    _import_everything()
+
+    assert not AIProviderConfig.objects.filter(workspace=invalid_workspace).exists()
+    valid_provider = AIProviderConfig.objects.get(workspace=valid_workspace)
+    assert valid_provider.api_key == "valid-workspace-key"
+    assert list(valid_provider.models.values_list("model_identifier", flat=True)) == [
+        "workspace-model"
+    ]
+    invalid_workspace.refresh_from_db()
+    assert invalid_workspace.generative_ai_models_settings == legacy_settings
+
+    # Retained malformed JSON must not break model resolution after the upgrade.
+    model_type = generative_ai_model_type_registry.get("openai")
+    assert model_type._get_complete_legacy_workspace_settings(invalid_workspace) is None
+    assert model_type.get_enabled_models_for_feature(
+        AI_PROVIDER_FEATURE_AI_FIELDS, workspace=invalid_workspace
+    ) == ["environment-model"]
+    assert (
+        model_type.get_model_settings_override("environment-model", invalid_workspace)[
+            "api_key"
+        ]
+        == "environment-key"
+    )
+
+
+@pytest.mark.django_db
+def test_invalid_legacy_settings_preserve_existing_provider(data_fixture):
+    workspace = data_fixture.create_workspace(
+        generative_ai_models_settings={"openai": {"api_key": "old-key", "models": True}}
+    )
+    existing = AIProviderConfig.objects.create(
+        workspace=workspace,
+        provider_type="openai",
+        api_key="database-key",
+        is_active=False,
+    )
+    model = AIProviderModel.objects.create(
+        provider_config=existing, model_identifier="database-model", is_enabled=False
+    )
+
+    plan = plan_workspace_import(AIProviderConfig, AIProviderModel, Workspace)
+    assert plan.planned == []
+    assert [provider.workspace_id for provider in plan.skipped] == [workspace.id]
+    assert apply_import_plan(plan, AIProviderConfig, AIProviderModel) == []
+
+    existing.refresh_from_db()
+    model.refresh_from_db()
+    assert existing.api_key == "database-key"
+    assert not existing.is_active
+    assert not model.is_enabled
+    assert model.model_identifier == "database-model"
+    assert list(AIProviderConfig.objects.values_list("id", flat=True)) == [existing.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("models", [True, 7, 1.5, {}])
+def test_invalid_environment_models_do_not_abort_other_provider_imports(
+    settings, models
+):
+    settings.BASEROW_OPENAI_API_KEY = "invalid-environment-secret"
+    settings.BASEROW_OPENAI_MODELS = models
+    settings.BASEROW_ANTHROPIC_API_KEY = "valid-environment-key"
+    settings.BASEROW_ANTHROPIC_MODELS = ["claude-sonnet"]
+
+    plan = plan_instance_import(AIProviderConfig, AIProviderModel)
+    assert "anthropic" in [provider.provider_type for provider in plan.planned]
+    assert "openai" not in [provider.provider_type for provider in plan.planned]
+    skipped = next(
+        provider for provider in plan.skipped if provider.provider_type == "openai"
+    )
+    assert "invalid-environment-secret" not in skipped.reason
+
+    apply_import_plan(plan, AIProviderConfig, AIProviderModel)
+    assert (
+        AIProviderConfig.objects.get(provider_type="anthropic")
+        .models.get()
+        .model_identifier
+        == "claude-sonnet"
+    )
+    assert not AIProviderConfig.objects.filter(provider_type="openai").exists()
 
 
 @pytest.mark.django_db
