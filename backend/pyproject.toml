@@ -81,6 +81,7 @@ dependencies = [
     "celery-singleton==0.3.1",
     "posthog==7.4.2",
     "prosemirror==0.5.2",
+    "markdown-it-py==4.0.0",
     "rich==15.0.0",
     "tzdata==2026.2",
     "sentry-sdk==2.52.0",

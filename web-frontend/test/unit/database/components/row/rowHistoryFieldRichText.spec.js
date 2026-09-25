@@ -47,6 +47,24 @@ describe('RowHistoryFieldRichText component', () => {
     })
   })
 
+  test('renders image references as alt text placeholders', async () => {
+    const wrapper = await mountComponent({
+      before: { field_1: 'was ![photo][abc123_def456.png]' },
+      after: {
+        field_1:
+          'now ![photo][abc123_def456.png](https://example.com/abc123_def456.png)',
+      },
+    })
+
+    const removed = wrapper.find('.row-history-entry__diff--removed')
+    const added = wrapper.find('.row-history-entry__diff--added')
+    // The stored snapshot is served as-is, so without this the raw markdown
+    // would show up as literal text.
+    expect(removed.text()).toBe('was 🖼︎ photo')
+    expect(added.text()).toBe('now 🖼︎ photo')
+    expect(wrapper.findAll('img')).toHaveLength(0)
+  })
+
   test('renders only the added side when the value was empty before', async () => {
     const wrapper = await mountComponent({
       before: { field_1: '' },

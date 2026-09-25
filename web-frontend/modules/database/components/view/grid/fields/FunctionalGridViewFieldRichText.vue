@@ -12,6 +12,7 @@
 
 <script>
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
+import { trimUnfinishedImageRef } from '@baserow/modules/core/editor/richTextImageUtils'
 
 export default {
   name: 'FunctionalGridViewFieldRichText',
@@ -28,23 +29,28 @@ export default {
   methods: {
     renderFormattedValue() {
       const maxLen = 200
+      // Bound the regex work: large cells re-render on every scroll. The cut can
+      // land inside an image ref, so drop a trailing unfinished one.
+      const sliceMargin = 500
       const { value, workspaceId } = this
 
-      // Take only a part of the text as a preview to avoid rendering a huge amount of
-      // HTML that could slow down the page and won't be visible anyway
-      let preview = value || ''
-      if (preview.length > maxLen) {
-        preview = value.substring(0, maxLen) + '...'
-      }
-
+      const preview = trimUnfinishedImageRef(
+        (value || '').slice(0, sliceMargin)
+      )
       const workspace = this.$store.getters['workspace/get'](workspaceId)
       const loggedUserId = this.$store.getters['auth/getUserId']
 
-      return parseMarkdown(preview, {
+      let html = parseMarkdown(preview, {
         openLinkOnClick: false,
+        enableImages: false,
         workspaceUsers: workspace ? workspace.users : null,
         loggedUserId,
       })
+
+      if (value && value.length > maxLen) {
+        html += '...'
+      }
+      return html
     },
   },
 }

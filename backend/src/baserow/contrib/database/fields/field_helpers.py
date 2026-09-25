@@ -340,6 +340,23 @@ def construct_all_possible_field_kwargs(
     return all_interesting_field_kwargs
 
 
+def get_exported_zip_names(cache: Dict[str, Any], files_zip: ExportZipFile) -> set:
+    """
+    The set of names already added to ``files_zip``, snapshotted once per export
+    in ``cache`` and updated in place by every caller that adds a file. File
+    fields and rich text images share it so a file referenced by both is only
+    written once.
+
+    :param cache: The export cache shared by all fields of the export.
+    :param files_zip: The zip the export is being written to.
+    :return: The mutable set of names in the zip.
+    """
+
+    if "_zip_names" not in cache:
+        cache["_zip_names"] = {item["name"] for item in files_zip.info_list()}
+    return cache["_zip_names"]
+
+
 def prepare_files_for_export(
     records: List[Dict[str, Any]],
     cache: Dict[str, Any],
@@ -364,21 +381,22 @@ def prepare_files_for_export(
     file_names = []
     user_file_handler = UserFileHandler()
 
+    if files_zip is not None:
+        existing_zip_names = get_exported_zip_names(cache, files_zip)
+    else:
+        existing_zip_names = set()
+
     for record in records:
         # Check if the user file object is already in the cache and if not,
         # it must be fetched and added to it.
         file_name = f"{name_prefix}{record['name']}"
         cache_entry = f"user_file_{file_name}"
         if cache_entry not in cache:
-            if files_zip is not None and file_name not in [
-                item["name"] for item in files_zip.info_list()
-            ]:
+            if files_zip is not None and file_name not in existing_zip_names:
                 file_path = user_file_handler.user_file_path(record["name"])
-                # Create chunk generator for the file content and add it to the zip
-                # stream. That file will be read when zip stream is being
-                # written to final zip file
                 chunk_generator = file_chunk_generator(storage, file_path)
                 files_zip.add(chunk_generator, file_name)
+                existing_zip_names.add(file_name)
 
             # This is just used to avoid writing the same file twice.
             cache[cache_entry] = True

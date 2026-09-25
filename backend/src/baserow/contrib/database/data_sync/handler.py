@@ -482,7 +482,9 @@ class DataSyncHandler:
             if new_id not in existing_rows_in_table:
                 rows_to_create.append(
                     {
-                        f"field_{property.field_id}": data[property.key]
+                        f"field_{property.field_id}": key_to_property[
+                            property.key
+                        ].normalize_value(data[property.key])
                         for property in enabled_properties
                     }
                 )
@@ -495,9 +497,9 @@ class DataSyncHandler:
                 changed = False
                 for enabled_property in enabled_properties:
                     key = enabled_property.key
-                    value = new_record_data[key]
-                    baserow_row_value = existing_record[key_to_field_id[key]]
                     data_sync_property = key_to_property[key]
+                    value = data_sync_property.normalize_value(new_record_data[key])
+                    baserow_row_value = existing_record[key_to_field_id[key]]
                     if not data_sync_property.is_equal(baserow_row_value, value):
                         existing_record[key_to_field_id[key]] = value
                         changed = True

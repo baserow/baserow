@@ -12,6 +12,14 @@ import {
   createRichTextContentExtensions,
   MARKDOWN_OPTIONS,
 } from '@baserow/modules/core/editor/richTextExtensions'
+import {
+  demoteExternalImagesToLinks,
+  IMAGE_PLACEHOLDER,
+  preprocessRichTextImages,
+  renderImagePlaceholders,
+  replaceImagesWithPlaceholder,
+  stripUnresolvedImageRefs,
+} from '@baserow/modules/core/editor/richTextImageUtils'
 
 const previewMarkdownManager = new MarkdownManager({
   extensions: createRichTextContentExtensions({ enableImages: true }),
@@ -59,7 +67,34 @@ export const parseMarkdown = (
     loggedUserId = null,
   } = {}
 ) => {
+  // The TipTap round trip must see the value as stored. `preprocessRichTextImages`
+  // below rewrites `![alt][name](url)` to a plain `![alt](url)`, which the round
+  // trip's own `parseMarkdown` then demotes to a link because it carries no
+  // `userFileName` -- an image whose cell also contains `&nbsp;` would render as
+  // a link instead of an image.
+  let content = prepareMarkdownForPreview(value || '')
+
   const md = new Markdown({ html: false })
+  // markdown-it normalises a destination before it lands in `src`, so the
+  // resolved URLs are compared in the same form.
+  let resolvedUrls = new Set()
+
+  if (enableImages) {
+    // External images are not supported: every plain `![alt](url)` becomes a
+    // link, whatever its protocol, so this render never loads an image from a
+    // host the workspace does not control.
+    content = demoteExternalImagesToLinks(content)
+    const { content: processed, nameMap } = preprocessRichTextImages(content)
+    resolvedUrls = new Set(
+      Object.keys(nameMap).map((url) => md.normalizeLink(url))
+    )
+    content = stripUnresolvedImageRefs(processed)
+  } else {
+    // Image-less surfaces (the grid cell preview) show a placeholder for every
+    // image and no link at all, so the URL is never rendered. Runs before the
+    // demotion, which would otherwise turn an external image into a link here.
+    content = replaceImagesWithPlaceholder(content)
+  }
 
   // task lists
   md.use(taskLists, { label: true, enabled: true })
@@ -100,10 +135,20 @@ export const parseMarkdown = (
 
   if (enableImages) {
     md.renderer.rules.image = function (tokens, idx, options, env, self) {
-      // Show only the first image in the preview.
+      // Only the Baserow references resolved above render as `<img>`. Any
+      // other image markdown-it still finds (syntax the demotion regex does
+      // not cover, e.g. deeply nested parentheses in the URL) shows the
+      // placeholder, so no image is ever loaded from a foreign host.
+      const src = tokens[idx].attrGet('src')
+      if (!resolvedUrls.has(src)) {
+        const alt = md.utils.escapeHtml(
+          self.renderInlineAsText(tokens[idx].children || [], options, env)
+        )
+        return alt ? `${IMAGE_PLACEHOLDER} ${alt}` : IMAGE_PLACEHOLDER
+      }
       const style = tokens[idx].attrIndex('style')
       if (style < 0) {
-        tokens[idx].attrPush(['style', 'display: block;'])
+        tokens[idx].attrPush(['style', 'display: block; max-width: 100%;'])
       }
       return self.renderToken(tokens, idx, options)
     }
@@ -114,5 +159,5 @@ export const parseMarkdown = (
   // mentions
   md.use(parseMention(workspaceUsers || [], loggedUserId))
 
-  return md.render(prepareMarkdownForPreview(value || ''))
+  return renderImagePlaceholders(md.render(content))
 }

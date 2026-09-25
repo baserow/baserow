@@ -31,6 +31,7 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.rich_text_utils import MAX_RICH_TEXT_IMAGES
 from baserow.contrib.database.rows.actions import UpdateRowsActionType
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
@@ -5312,3 +5313,86 @@ def test_update_row_succeeds_when_legacy_view_index_exceeds_max_size(
 
     grid_view_2.refresh_from_db()
     assert grid_view_2.db_index_name is None
+
+
+@pytest.mark.django_db
+def test_rich_text_image_limit_is_a_400_not_a_500(api_client, data_fixture):
+    """The image-count limit is raised as a django ValidationError deep in
+    ``LongTextFieldType.prepare_value_for_db``. Only the API layer turns that into
+    a 400 the client can show, so pin the HTTP contract here: the field type unit
+    test asserts the error code, but nothing else asserts the status."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    over_limit = " ".join(
+        f"![x][{'a' * 8}{i:04d}_hash.png]" for i in range(MAX_RICH_TEXT_IMAGES + 1)
+    )
+
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+        {f"field_{field.id}": over_limit},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    # The message has to name the limit, otherwise the toast is unactionable.
+    assert str(MAX_RICH_TEXT_IMAGES) in response_json["detail"]
+
+    # The limit is enforced per write path, so updating an existing row must fail
+    # the same way rather than slipping through a different serializer.
+    row = RowHandler().create_row(user=user, table=table)
+    response = api_client.patch(
+        reverse(
+            "api:database:rows:item",
+            kwargs={"table_id": table.id, "row_id": row.id},
+        ),
+        {f"field_{field.id}": over_limit},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+    # One under the limit is accepted, so the guard is not rejecting everything.
+    files = [
+        data_fixture.create_user_file(original_name=f"{i}.png", is_image=True)
+        for i in range(2)
+    ]
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+        {f"field_{field.id}": " ".join(f"![x][{f.name}]" for f in files)},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_rich_text_markdown_rendered_image_is_a_400(api_client, data_fixture):
+    """A reference definition can make markdown render ``![x][ref]`` as a remote
+    image, which a public view would then load for every reader."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+
+    for value in [
+        "![logo][remote]\n\n[remote]: https://example.com/p.gif",
+        f"![a][{user_file.name}]\n\n[{user_file.name}]: https://example.com/p.gif",
+    ]:
+        response = api_client.post(
+            reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+            {f"field_{field.id}": value},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

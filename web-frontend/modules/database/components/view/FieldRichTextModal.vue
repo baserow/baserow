@@ -22,9 +22,11 @@
           ref="editor"
           class="rich-text-modal__editor"
           :enable-rich-text-formatting="true"
+          :enable-images="true"
           :mentionable-users="mentionableUsers"
           :model-value="modelValue"
           :clipboard-markdown-resolver="resolveClipboardMarkdown"
+          :upload-file="uploadFile"
           @update:model-value="$emit('update:modelValue', $event)"
         ></RichTextEditor>
       </div>
@@ -57,6 +59,10 @@ export default {
     },
     error: {
       type: String,
+      default: null,
+    },
+    uploadFile: {
+      type: Function,
       default: null,
     },
   },

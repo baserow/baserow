@@ -5,7 +5,11 @@ from requests.exceptions import JSONDecodeError, RequestException
 
 from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.data_sync.exceptions import SyncError
-from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
+from baserow.contrib.database.data_sync.registries import (
+    DataSyncProperty,
+    DataSyncType,
+    RichTextDataSyncProperty,
+)
 from baserow.contrib.database.data_sync.utils import (
     compare_date,
     get_data_sync_request_function,
@@ -59,11 +63,8 @@ class GitLabTitleDataSyncProperty(DataSyncProperty):
         return TextField(name=self.name)
 
 
-class GitLabDescriptionDataSyncProperty(DataSyncProperty):
+class GitLabDescriptionDataSyncProperty(RichTextDataSyncProperty):
     immutable_properties = True
-
-    def to_baserow_field(self) -> LongTextField:
-        return LongTextField(name=self.name, long_text_enable_rich_text=True)
 
 
 class GitLabStateDataSyncProperty(DataSyncProperty):
