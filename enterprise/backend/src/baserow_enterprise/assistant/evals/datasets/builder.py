@@ -1494,6 +1494,11 @@ def _check_asks_when_implied_table_missing(
             tool_called(output, "ask_user") >= 1,
             hint=f"tools called: {output.tool_calls}",
         ),
+        CheckResult(
+            "offers to create a table with sample data",
+            "sample" in output.answer.casefold(),
+            hint=f"answer: {output.answer[:300]}",
+        ),
     ]
 
 

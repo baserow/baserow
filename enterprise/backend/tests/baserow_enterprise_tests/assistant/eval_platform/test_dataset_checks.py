@@ -775,27 +775,41 @@ def test_filtered_source_check_matches_service_group_and_disabled_semantics(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "tool_calls, failed",
+    "tool_calls, answer, failed",
     [
-        (["list_tables", "ask_user"], set()),
+        (
+            ["list_tables", "ask_user"],
+            "Create a Projects table with sample data?",
+            set(),
+        ),
         (
             ["list_tables", "create_tables", "setup_page"],
+            "The Projects app is ready with sample data.",
             {
                 "did NOT invent a Projects table",
                 "did NOT build the app pages",
                 "called ask_user about the missing records",
             },
         ),
-        (["ask_user"], {"looked the table up first"}),
+        (
+            ["ask_user"],
+            "Create a Projects table with sample data?",
+            {"looked the table up first"},
+        ),
+        (
+            ["list_tables", "ask_user"],
+            "Where are your projects stored?",
+            {"offers to create a table with sample data"},
+        ),
     ],
 )
 def test_implied_projects_app_asks_instead_of_inventing_data(
-    data_fixture, tool_calls, failed
+    data_fixture, tool_calls, answer, failed
 ):
     scenario = _projects_table_missing_scenario(data_fixture)
 
     checks = _check_asks_when_implied_table_missing(
-        None, scenario, _output(tool_calls=tool_calls)
+        None, scenario, _output(tool_calls=tool_calls, answer=answer)
     )
 
     assert {check.name for check in checks if not check.passed} == failed
