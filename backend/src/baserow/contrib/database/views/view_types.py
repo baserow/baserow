@@ -1317,6 +1317,13 @@ class FormViewType(ViewType):
 
             condition_objects = []
             form_view_field_options_allowed_select_options = []
+            # Conditions can only map their values if they know the field they
+            # apply to, just like view filters.
+            fields_by_id = (
+                self.get_fields_by_id(table)
+                if any(field_option.get("conditions") for field_option in field_options)
+                else {}
+            )
             for field_option in field_options:
                 field_option_copy = field_option.copy()
                 field_option_id = field_option_copy.pop("id")
@@ -1349,9 +1356,16 @@ class FormViewType(ViewType):
                         condition_group_id
                     ] = condition_group_object.id
                 for condition in field_option_conditions:
+                    condition_field_id = id_mapping["database_fields"][
+                        condition["field"]
+                    ]
                     value = view_filter_type_registry.get(
                         condition["type"]
-                    ).set_import_serialized_value(condition["value"], id_mapping)
+                    ).set_import_serialized_value(
+                        condition["value"],
+                        id_mapping,
+                        fields_by_id.get(condition_field_id),
+                    )
                     mapped_group_id = None
                     group = condition.get("group", None)
                     if group:
@@ -1361,7 +1375,7 @@ class FormViewType(ViewType):
                     condition_objects.append(
                         FormViewFieldOptionsCondition(
                             field_option=field_option_object,
-                            field_id=id_mapping["database_fields"][condition["field"]],
+                            field_id=condition_field_id,
                             type=condition["type"],
                             value=value,
                             group_id=mapped_group_id,

@@ -664,3 +664,88 @@ def test_conditional_color_value_provider_type_map_filter_from_config():
 
     assert modified is False
     assert color_conf == expected_conf
+
+
+@pytest.mark.django_db
+def test_import_export_grid_view_conditional_color_maps_select_option_lookup_filter(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    other_table = data_fixture.create_database_table(user=user, database=database)
+    single_select = data_fixture.create_single_select_field(
+        table=other_table, name="target"
+    )
+    option = data_fixture.create_select_option(
+        field=single_select, value="A", color="blue"
+    )
+    imported_option = data_fixture.create_select_option(
+        field=single_select, value="B", color="red"
+    )
+    link_row_field = data_fixture.create_link_row_field(
+        name="link", table=table, link_row_table=other_table
+    )
+    lookup_field = data_fixture.create_lookup_field(
+        table=table,
+        through_field=link_row_field,
+        target_field=single_select,
+        through_field_name=link_row_field.name,
+        target_field_name=single_select.name,
+        setup_dependencies=False,
+    )
+    grid_view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_decoration(
+        view=grid_view,
+        type="left_border_color",
+        value_provider_type="conditional_color",
+        value_provider_conf={
+            "colors": [
+                {
+                    "filter_groups": [{"id": 1}],
+                    "filters": [
+                        {
+                            "type": "has_not_value_equal",
+                            "field": lookup_field.id,
+                            "group": 1,
+                            "value": str(option.id),
+                        },
+                    ],
+                },
+            ]
+        },
+        order=1,
+    )
+
+    id_mapping = {
+        "database_fields": {f.id: f.id for f in table.field_set.all()},
+        "database_field_select_options": {option.id: imported_option.id},
+    }
+    grid_view_type = view_type_registry.get("grid")
+    serialized = grid_view_type.export_serialized(
+        grid_view, ImportExportConfig(include_permission_data=False), {}, None, None
+    )
+    imported_grid_view = grid_view_type.import_serialized(
+        grid_view.table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping,
+        None,
+        None,
+    )
+
+    imported_view_decoration = imported_grid_view.viewdecoration_set.get()
+    assert imported_view_decoration.value_provider_conf["colors"] == [
+        {
+            "id": AnyStr(),
+            "filter_groups": [{"id": 1}],
+            "filters": [
+                {
+                    "type": "has_not_value_equal",
+                    "field": lookup_field.id,
+                    "group": 1,
+                    "value": str(imported_option.id),
+                },
+            ],
+        },
+    ]

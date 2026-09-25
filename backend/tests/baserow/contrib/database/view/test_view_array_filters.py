@@ -6,6 +6,7 @@ from freezegun import freeze_time
 from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.utils.duration import parse_duration_value
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -24,6 +25,8 @@ from baserow.contrib.database.views.array_view_filters import (
     HasNotDateWithinViewFilterType,
 )
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import FormViewFieldOptionsCondition
+from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.contrib.database.views.view_filters import (
     DateIsAfterMultiStepFilterType,
     DateIsBeforeMultiStepFilterType,
@@ -3588,3 +3591,171 @@ def test_date_array_filter_types(
         view_filter.type = array_filter_type_has_not
         view_filter.save()
         apply_filters_and_assert(expected_results_for_has_not)
+
+
+SELECT_OPTION_ARRAY_FILTER_TYPES = [
+    "has_value_equal",
+    "has_not_value_equal",
+    "has_any_select_option_equal",
+    "has_none_select_option_equal",
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("filter_type_name", SELECT_OPTION_ARRAY_FILTER_TYPES)
+@pytest.mark.parametrize(
+    "target_field_factory", [single_select_field_factory, multiple_select_field_factory]
+)
+def test_has_value_equal_filter_types_export_import_select_option_lookup(
+    data_fixture, filter_type_name, target_field_factory
+):
+    test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
+    lookup_field = test_setup.lookup_field
+    view_filter_type = view_filter_type_registry.get(filter_type_name)
+    id_mapping = {"database_field_select_options": {1: 2, 3: 4}}
+
+    assert view_filter_type.get_export_serialized_value("1", {}) == "1"
+    assert (
+        view_filter_type.set_import_serialized_value("1", id_mapping, lookup_field)
+        == "2"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("1,3", id_mapping, lookup_field)
+        == "2,4"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("1,100", id_mapping, lookup_field)
+        == "2"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("wrong", id_mapping, lookup_field)
+        == ""
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("", id_mapping, lookup_field) == ""
+    )
+    assert (
+        view_filter_type.set_import_serialized_value(None, id_mapping, lookup_field)
+        == ""
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("filter_type_name", ["has_value_equal", "has_not_value_equal"])
+def test_has_value_equal_filter_types_export_import_text_lookup(
+    data_fixture, filter_type_name
+):
+    test_setup = setup_linked_table_and_lookup(data_fixture, text_field_factory)
+    lookup_field = test_setup.lookup_field
+    view_filter_type = view_filter_type_registry.get(filter_type_name)
+    id_mapping = {"database_field_select_options": {1: 2}}
+
+    # A text value that happens to look like a mapped id must not be touched.
+    assert (
+        view_filter_type.set_import_serialized_value("1", id_mapping, lookup_field)
+        == "1"
+    )
+    assert (
+        view_filter_type.set_import_serialized_value("text", id_mapping, lookup_field)
+        == "text"
+    )
+
+
+@pytest.mark.django_db
+def test_duplicate_database_maps_has_not_value_equal_filter_on_single_select_lookup(
+    data_fixture,
+):
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
+    test_setup.table.name = "main"
+    test_setup.table.save()
+
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    opt_b = data_fixture.create_select_option(field=test_setup.target_field, value="b")
+    other_row_a = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_a}
+    )
+    other_row_b = test_setup.other_table_model.objects.create(
+        **{f"field_{test_setup.target_field.id}": opt_b}
+    )
+    for linked_row_ids in ([other_row_a.id], [other_row_b.id], []):
+        test_setup.row_handler.create_row(
+            user=test_setup.user,
+            table=test_setup.table,
+            values={f"field_{test_setup.link_row_field.id}": linked_row_ids},
+        )
+    data_fixture.create_view_filter(
+        view=test_setup.grid_view,
+        field=test_setup.lookup_field,
+        type="has_not_value_equal",
+        value=str(opt_a.id),
+    )
+    assert (
+        test_setup.view_handler.apply_filters(
+            test_setup.grid_view, test_setup.model.objects.all()
+        ).count()
+        == 2
+    )
+
+    duplicated_database = CoreHandler().duplicate_application(
+        test_setup.user, test_setup.table.database
+    )
+
+    duplicated_table = duplicated_database.table_set.get(name="main")
+    duplicated_lookup_field = duplicated_table.field_set.get(
+        name=test_setup.lookup_field.name
+    )
+    duplicated_opt_a = SelectOption.objects.get(
+        field__table__database=duplicated_database, value="a"
+    )
+    duplicated_view = duplicated_table.view_set.get().specific
+    duplicated_filter = duplicated_view.viewfilter_set.get()
+    assert duplicated_filter.field_id == duplicated_lookup_field.id
+    assert duplicated_filter.value == str(duplicated_opt_a.id)
+    assert (
+        test_setup.view_handler.apply_filters(
+            duplicated_view, duplicated_table.get_model().objects.all()
+        ).count()
+        == 2
+    )
+
+
+@pytest.mark.django_db
+def test_duplicate_database_maps_form_view_condition_on_single_select_lookup(
+    data_fixture,
+):
+    test_setup = setup_linked_table_and_lookup(
+        data_fixture, single_select_field_factory
+    )
+    test_setup.table.name = "main"
+    test_setup.table.save()
+    opt_a = data_fixture.create_select_option(field=test_setup.target_field, value="a")
+    text_field = data_fixture.create_text_field(table=test_setup.table, name="text")
+    form_view = data_fixture.create_form_view(table=test_setup.table)
+    field_option = data_fixture.create_form_view_field_option(
+        form_view, text_field, enabled=True
+    )
+    FormViewFieldOptionsCondition.objects.create(
+        field_option=field_option,
+        field=test_setup.lookup_field,
+        type="has_value_equal",
+        value=str(opt_a.id),
+    )
+
+    duplicated_database = CoreHandler().duplicate_application(
+        test_setup.user, test_setup.table.database
+    )
+
+    duplicated_table = duplicated_database.table_set.get(name="main")
+    duplicated_opt_a = SelectOption.objects.get(
+        field__table__database=duplicated_database, value="a"
+    )
+    duplicated_condition = FormViewFieldOptionsCondition.objects.get(
+        field_option__form_view__table=duplicated_table
+    )
+    assert (
+        duplicated_condition.field_id
+        == duplicated_table.field_set.get(name=test_setup.lookup_field.name).id
+    )
+    assert duplicated_condition.value == str(duplicated_opt_a.id)
