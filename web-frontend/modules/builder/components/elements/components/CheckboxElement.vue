@@ -7,6 +7,7 @@
       v-model="inputValue"
       :required="element.required"
       :read-only="isEditMode"
+      @update:model-value="handleFormElementChange"
     >
       {{ resolvedLabel }}
       <span

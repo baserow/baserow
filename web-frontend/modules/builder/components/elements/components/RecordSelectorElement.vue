@@ -16,6 +16,7 @@
       :clearable="!element.multiple && !element.required"
       :before-show="beforeShow"
       @hide="onFormElementTouch"
+      @update:model-value="handleFormElementChange"
       @query-change="adhocSearch = $event"
       @scroll="$refs.infiniteScroll.handleScroll($event)"
     >
