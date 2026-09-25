@@ -230,14 +230,15 @@ const SVG_EXTENSIONS = ['svg', 'svgz']
  * Whether an uploaded user file can be embedded as an image in rich text. The
  * backend flags SVG uploads as `is_image: false` (no thumbnails, active content
  * neutralised), but rendering them through `<img>` is safe, so accept them too.
- * Mirrors `is_renderable_user_file` on the backend: only `original_extension`
- * is consulted so the two sides can't disagree on a file.
+ * The extension comes from `name` (`<unique>_<hash>.<original_extension>`).
  */
 export function isRenderableUserFile(userFile) {
   if (!userFile) return false
   if (userFile.is_image) return true
-  const extension = (userFile.original_extension || '').toLowerCase()
-  return SVG_EXTENSIONS.includes(extension)
+  const name = userFile.name || ''
+  const dot = name.indexOf('.')
+  if (dot === -1) return false
+  return SVG_EXTENSIONS.includes(name.slice(dot + 1).toLowerCase())
 }
 
 // Characters a user file name's extension cannot contain for the stored

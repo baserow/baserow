@@ -130,37 +130,56 @@ describe('isRenderableUserFile', () => {
     ).toBe(true)
   })
 
-  test('accepts svg files even though the backend does not flag them', () => {
+  test('accepts svg files by their stored name even though the backend does not flag them', () => {
     expect(
-      isRenderableUserFile({ is_image: false, original_extension: 'svg' })
+      isRenderableUserFile({
+        is_image: false,
+        name: 'abc123_def456.svg',
+        original_name: 'logo.svg',
+      })
     ).toBe(true)
     expect(
-      isRenderableUserFile({ is_image: false, original_extension: 'SVGZ' })
+      isRenderableUserFile({ is_image: false, name: 'abc123_def456.svgz' })
+    ).toBe(true)
+  })
+
+  test('accepts an uppercase svg extension', () => {
+    expect(
+      isRenderableUserFile({
+        is_image: false,
+        name: 'abc123_def456.SVG',
+        original_name: 'LOGO.SVG',
+      })
     ).toBe(true)
   })
 
   test('rejects non-image files', () => {
     expect(
-      isRenderableUserFile({ is_image: false, original_extension: 'pdf' })
+      isRenderableUserFile({
+        is_image: false,
+        name: 'abc123_def456.pdf',
+        original_name: 'doc.pdf',
+      })
     ).toBe(false)
     expect(
       isRenderableUserFile({
         is_image: false,
+        name: 'abc123_def456.pdf',
         original_name: 'doc.svg.pdf',
-        original_extension: 'pdf',
       })
+    ).toBe(false)
+    expect(
+      isRenderableUserFile({ is_image: false, name: 'abc123_def456.' })
     ).toBe(false)
     expect(isRenderableUserFile(null)).toBe(false)
   })
 
   test('ignores original_name so it cannot disagree with the backend', () => {
-    // Backend only checks original_extension; a name ending in .svg with a
-    // different extension must be rejected here too.
     expect(
       isRenderableUserFile({
         is_image: false,
+        name: 'abc123_def456.pdf',
         original_name: 'trick.svg',
-        original_extension: 'pdf',
       })
     ).toBe(false)
     expect(

@@ -629,11 +629,16 @@ describe('RichTextEditor images', () => {
   test('embeds an uploaded svg even though the backend does not flag it as image', async () => {
     const uploadFile = vi.fn().mockResolvedValue({
       data: {
+        size: 11,
+        mime_type: 'application/octet-stream',
+        is_image: false,
+        image_width: null,
+        image_height: null,
+        uploaded_at: '2026-09-25T10:00:00Z',
+        url: 'https://example.com/user_files/abc123_def456.svg',
+        thumbnails: null,
         name: 'abc123_def456.svg',
         original_name: 'logo.svg',
-        original_extension: 'svg',
-        is_image: false,
-        url: 'https://example.com/user_files/abc123_def456.svg',
       },
     })
     const dispatch = vi.spyOn(testApp.store, 'dispatch')
