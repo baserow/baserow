@@ -5,6 +5,7 @@ import { clone } from '@baserow/modules/core/utils/object'
 import {
   ButtonFieldDispatchJobDropped,
   ButtonFieldDispatchJobType,
+  DISPATCH_JOB_DEADLINE_MS,
 } from '@baserow/modules/database/jobTypes'
 import JobService from '@baserow/modules/core/services/job'
 
@@ -17,10 +18,7 @@ const dispatchesInFlight = reactive(new Set())
 
 const DISPATCH_OPERATION = 'database.table.field.workflow_action.dispatch'
 
-// A job that never reaches a final state (its worker died, it stays started
-// until the job cleanup fails it) would otherwise leave the button spinning
-// and refusing clicks until the page is reloaded.
-export const DISPATCH_JOB_DEADLINE_MS = 5 * 60 * 1000
+export { DISPATCH_JOB_DEADLINE_MS }
 export const DISPATCH_JOB_LAST_CHECK_MS = 10 * 1000
 
 /**
@@ -80,8 +78,21 @@ export default {
     dispatchKey() {
       return `${this.field.id}:${this.row.id}`
     },
+    /**
+     * Also true for a click's job still running from before a page reload, so
+     * the button keeps spinning until that job ends.
+     */
     dispatching() {
-      return dispatchesInFlight.has(this.dispatchKey)
+      return (
+        dispatchesInFlight.has(this.dispatchKey) ||
+        this.$store.getters['job/getAll'].some((job) =>
+          ButtonFieldDispatchJobType.isRunningOn(
+            job,
+            this.field.id,
+            this.row.id
+          )
+        )
+      )
     },
   },
   methods: {
@@ -91,7 +102,7 @@ export default {
      * avoids an obvious double fire.
      */
     async dispatchWorkflowActions() {
-      if (this.dispatching) {
+      if (dispatchesInFlight.has(this.dispatchKey)) {
         return
       }
       // Captured up front so the release below cannot miss it if the cell is

@@ -468,6 +468,79 @@ describe('GridViewFieldButtonField', () => {
     expect(remounted.vm.dispatching).toBe(false)
   })
 
+  // A click's job loaded into the store after a page reload, so no click in
+  // this page waits on it.
+  const reloadedJob = (values = {}) => ({
+    ...acceptedJob(),
+    id: 21,
+    state: 'started',
+    field_id: field.id,
+    row_id: 1,
+    created_on: new Date().toISOString(),
+    ...values,
+  })
+
+  test('a job still running from before a reload keeps the button spinning', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
+    const wrapper = await mountCell()
+    const store = wrapper.vm.$store
+    const toast = vi.spyOn(store, 'dispatch')
+    await store.dispatch('job/forceCreate', reloadedJob())
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(true)
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+
+    const job = store.getters['job/get'](21)
+    await store.dispatch('job/forceUpdate', {
+      job,
+      data: reloadedJob({
+        state: 'finished',
+        results: [],
+        client_actions: [openUrlAction],
+      }),
+    })
+    await flushPromises()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(store.getters['job/get'](21)).toBeFalsy()
+    // The page it was clicked on is gone: nothing runs and nothing is said.
+    expect(execute).not.toHaveBeenCalled()
+    expect(toast).not.toHaveBeenCalledWith('toast/error', expect.anything())
+  })
+
+  test('a job from before a reload past the deadline neither spins nor stays', async () => {
+    const wrapper = await mountCell()
+    const store = wrapper.vm.$store
+    const stale = reloadedJob({
+      created_on: new Date(
+        Date.now() - DISPATCH_JOB_DEADLINE_MS - 1000
+      ).toISOString(),
+    })
+    await store.dispatch('job/forceCreate', stale)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
+
+    // The next poll drops it, so the store stops polling it.
+    await store.dispatch('job/forceUpdate', { job: stale, data: stale })
+    await flushPromises()
+
+    expect(store.getters['job/get'](21)).toBeFalsy()
+  })
+
+  test('a job from before a reload on another row leaves this button alone', async () => {
+    const wrapper = await mountCell()
+    await wrapper.vm.$store.dispatch(
+      'job/forceCreate',
+      reloadedJob({ row_id: 2 })
+    )
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+  })
+
   // Answers the one fetch of the click's job the deadline makes, and leaves
   // every other request, the job store's own polls included, to the client.
   const answerJobFetch = (wrapper, job) => {

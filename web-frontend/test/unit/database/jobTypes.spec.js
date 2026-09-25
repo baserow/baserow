@@ -1,10 +1,15 @@
+import { vi } from 'vitest'
 import {
   ButtonFieldDispatchJobDropped,
   ButtonFieldDispatchJobType,
+  DISPATCH_JOB_DEADLINE_MS,
 } from '@baserow/modules/database/jobTypes'
 
 describe('ButtonFieldDispatchJobType', () => {
-  const type = new ButtonFieldDispatchJobType({ app: {} })
+  const store = { dispatch: vi.fn() }
+  const type = new ButtonFieldDispatchJobType({ app: { $store: store } })
+
+  beforeEach(() => store.dispatch.mockClear())
 
   test('a finished job resolves the click waiting on it', async () => {
     const waiting = ButtonFieldDispatchJobType.waitFor({ id: 7 })
@@ -57,6 +62,49 @@ describe('ButtonFieldDispatchJobType', () => {
 
     await expect(second).resolves.toMatchObject({ id: 11 })
     await expect(first).rejects.toMatchObject({ id: 10 })
+  })
+
+  test('a waited job is left for its click to remove', async () => {
+    ButtonFieldDispatchJobType.waitFor({ id: 14 })
+    const done = { id: 14, state: 'finished' }
+
+    await type.afterUpdate(done, done)
+
+    expect(store.dispatch).not.toHaveBeenCalled()
+  })
+
+  test('a job no click waits on is removed once it ends', async () => {
+    const failed = { id: 15, state: 'failed' }
+
+    await type.afterUpdate(failed, failed)
+
+    expect(store.dispatch).toHaveBeenCalledWith('job/forceDelete', failed)
+  })
+
+  test('a job no click waits on stays while it runs', async () => {
+    const started = {
+      id: 16,
+      state: 'started',
+      created_on: new Date().toISOString(),
+    }
+
+    await type.afterUpdate(started, started)
+
+    expect(store.dispatch).not.toHaveBeenCalled()
+  })
+
+  test('a job no click waits on is removed once past the deadline', async () => {
+    const started = {
+      id: 17,
+      state: 'started',
+      created_on: new Date(
+        Date.now() - DISPATCH_JOB_DEADLINE_MS - 1000
+      ).toISOString(),
+    }
+
+    await type.afterUpdate(started, started)
+
+    expect(store.dispatch).toHaveBeenCalledWith('job/forceDelete', started)
   })
 
   test('a job removed from the store drops the click waiting on it', async () => {
