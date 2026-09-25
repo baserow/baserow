@@ -332,7 +332,9 @@
         "errorNavigationUrlMissing": "Falta la propiedad «URL de navegación»",
         "errorDataSourceMissing": "No se ha seleccionado ninguna fuente de datos",
         "refreshDataSourceDescription": "Recarga una fuente de datos y actualiza los elementos que la usan.",
-        "openPageDescription": "Redirige al usuario a otra página o URL."
+        "openPageDescription": "Redirige al usuario a otra página o URL.",
+        "errorNotificationContentMissing": "Una notificación requiere un título o una descripción",
+        "notificationDescription": "Mostrar un mensaje de notificación al usuario."
     },
     "widthTypes": {
         "full": "Anchura completa",
@@ -355,7 +357,8 @@
         "loginToastTitle": "Autenticación exitosa",
         "loginToastMessage": "Has iniciado sesión correctamente.",
         "authorizedToastTitle": "Autenticación requerida",
-        "authorizedToastMessage": "Debes iniciar sesión para acceder a esta página. Por favor, inicia sesión para continuar."
+        "authorizedToastMessage": "Debes iniciar sesión para acceder a esta página. Por favor, inicia sesión para continuar.",
+        "previewSessionExpiredDescription": "Cierra esta pestaña y vuelve a abrir la vista previa desde el Constructor de Aplicaciones."
     },
     "integrationSettings": {
         "integrationMessage": "Puedes crear nuevas integraciones añadiendo una fuente de datos, una acción o una autenticación de usuario.",
@@ -642,7 +645,8 @@
         "emptyValue": "Fuente iFrame vacía...",
         "warningMessage": "El contenido del iFrame está en un entorno restringido en el editor, donde el HTML incrustado puede ejecutar scripts de forma aislada. En las previsualizaciones y aplicaciones publicadas, el HTML incrustado puede ejecutarse sin restricciones, mientras que las URLs externas pueden ejecutar scripts, enviar formularios y abrir ventanas emergentes.",
         "allowSameOriginHelp": "Solo habilita esto para una URL externa de confianza. Permite que el iFrame use cookies, almacenamiento y otras características del mismo origen en previsualizaciones y aplicaciones publicadas.",
-        "editorPreviewPlaceholder": "Este iframe no se muestra en el editor. \nUsa Vista previa para comprobar cómo aparece en tu aplicación."
+        "editorPreviewPlaceholder": "Este iframe no se muestra en el editor. \nUsa Vista previa para comprobar cómo aparece en tu aplicación.",
+        "allowSameOriginLabel": "Permite que el iframe acceda a los datos de su propio sitio"
     },
     "linkNavigationSelection": {
         "navigateTo": "Navegar a",
@@ -1217,6 +1221,8 @@
     },
     "breakpointSettings": {
         "description": "Elige cuándo tu aplicación cambia entre diseños móvil, tableta y escritorio. Los cambios se aplican ahora en el editor y en tu app publicada después de publicarla.",
-        "updatedDescription": "Tus nuevos puntos de interrupción están activos en el editor. Publica tu aplicación para aplicarlos a los visitantes."
+        "updatedDescription": "Tus nuevos puntos de interrupción están activos en el editor. Publica tu aplicación para aplicarlos a los visitantes.",
+        "mobileMustBeLessThanTablet": "El punto de interrupción (breakpoint) móvil debe ser menor que el punto de interrupción de tableta.",
+        "tabletMustBeGreaterThanMobile": "El punto de interrupción (breakpoint) de tableta debe ser mayor que el punto de interrupción móvil."
     }
 }
