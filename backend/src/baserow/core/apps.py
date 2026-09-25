@@ -12,6 +12,11 @@ class CoreConfig(AppConfig):
     name = "baserow.core"
 
     def ready(self):
+        import pydantic_ai
+
+        # Otherwise the first uninstrumented agent run prints a Logfire promo to stderr.
+        pydantic_ai.BANNER_ENABLED = False
+
         # Patch Django's DecimalField to have lenient conversion
         # regarding NaN values
         from django.db.models import DecimalField

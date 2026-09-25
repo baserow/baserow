@@ -448,6 +448,25 @@ class TestCaseTimeout:
         assert model.closed
         assert elapsed < 5, f"took {elapsed:.1f}s — it waited for the model"
 
+    def test_a_timed_out_case_tells_its_tools_to_stop(self, monkeypatch):
+        monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", "0.3")
+        self._register_scenario()
+        created: list[ToolHelpers] = []
+
+        def _recording_tool_helpers(*args, **kwargs) -> ToolHelpers:
+            created.append(ToolHelpers(*args, **kwargs))
+            return created[-1]
+
+        monkeypatch.setattr(
+            "baserow_enterprise.assistant.evals.harness.ToolHelpers",
+            _recording_tool_helpers,
+        )
+
+        with pytest.raises(EvalCaseTimeout):
+            run_case(self._case("db/hangs"), _HangingModel(threading.Event()))
+
+        assert created[0].is_cancelled
+
     def test_a_normal_case_is_untouched_by_the_budget(self):
         self._register_scenario()
 

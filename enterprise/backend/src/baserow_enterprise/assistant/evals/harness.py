@@ -81,7 +81,7 @@ def override_assistant_prompts(prompt_texts: dict[str, str]) -> Iterator[None]:
             agent = PROMPT_AGENT_TARGETS.get(name)
             if agent is not None:
                 instructions = [
-                    text if isinstance(entry, str) else entry
+                    text if isinstance(entry.instruction, str) else entry.instruction
                     for entry in agent._instructions
                 ]
                 stack.enter_context(agent.override(instructions=instructions))
@@ -235,7 +235,7 @@ def get_case_timeout_s() -> float:
 
 
 class EvalCaseTimeout(Exception):
-    """A case outran its budget and its in-flight request was cancelled."""
+    """A case outran its budget: its run was cancelled and its tools told to stop."""
 
 
 def run_case(
@@ -285,6 +285,8 @@ def run_case(
             )
         )
     except (TimeoutError, asyncio.CancelledError) as exc:
+        # Sync tools run in worker threads that task cancellation cannot stop.
+        tool_helpers.cancel()
         raise EvalCaseTimeout(
             f"{case.id} exceeded {timeout_s:g}s and was cancelled"
         ) from exc

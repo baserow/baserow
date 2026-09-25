@@ -1,3 +1,5 @@
+from pydantic_ai.exceptions import UnexpectedModelBehavior
+
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 
 MODEL_NOT_AVAILABLE_MESSAGE = (
@@ -32,6 +34,10 @@ def get_user_friendly_error_message(exc: Exception) -> str:
     :param exc: The exception raised by the provider SDK.
     :return: A concise error message suitable for displaying to users.
     """
+
+    # Its `.body` is a JSON dump of the whole model response, not a message.
+    if isinstance(exc, UnexpectedModelBehavior):
+        return exc.message
 
     # OpenAI / Anthropic APIStatusError exposes a `.body` dict or string
     # with the actual error message from the provider.
