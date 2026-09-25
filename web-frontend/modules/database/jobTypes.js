@@ -172,17 +172,39 @@ export class ButtonFieldDispatchJobType extends JobType {
     waitingClicks.delete(job.id)
   }
 
-  async afterUpdate(job, data) {
+  static settle(job, settle) {
     const waiting = waitingClicks.get(job.id)
-    if (!waiting) {
-      return
-    }
-    if (data.state === 'finished') {
+    if (waiting) {
       waitingClicks.delete(job.id)
-      waiting.resolve(data)
-    } else if (data.state === 'failed' || data.state === 'cancelled') {
-      waitingClicks.delete(job.id)
-      waiting.reject(data)
+      settle(waiting)
     }
+  }
+
+  async onJobDone(job, data) {
+    ButtonFieldDispatchJobType.settle(job, ({ resolve }) => resolve(data))
+  }
+
+  async onJobFailed(job, data) {
+    ButtonFieldDispatchJobType.settle(job, ({ reject }) => reject(data))
+  }
+
+  async onJobCancelled(job, data) {
+    ButtonFieldDispatchJobType.settle(job, ({ reject }) => reject(data))
+  }
+
+  /**
+   * The job left the store without ending, on logout for instance. The click
+   * stops waiting on it, silently: the page it was made on is gone.
+   */
+  beforeDelete(job) {
+    ButtonFieldDispatchJobType.settle(job, ({ reject }) =>
+      reject(new ButtonFieldDispatchJobDropped())
+    )
+  }
+}
+
+export class ButtonFieldDispatchJobDropped extends Error {
+  constructor() {
+    super('Button click job dropped')
   }
 }

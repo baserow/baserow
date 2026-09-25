@@ -1,4 +1,7 @@
-import { ButtonFieldDispatchJobType } from '@baserow/modules/database/jobTypes'
+import {
+  ButtonFieldDispatchJobDropped,
+  ButtonFieldDispatchJobType,
+} from '@baserow/modules/database/jobTypes'
 
 describe('ButtonFieldDispatchJobType', () => {
   const type = new ButtonFieldDispatchJobType({ app: {} })
@@ -7,7 +10,7 @@ describe('ButtonFieldDispatchJobType', () => {
     const waiting = ButtonFieldDispatchJobType.waitFor({ id: 7 })
     const done = { id: 7, state: 'finished', results: [], client_actions: [] }
 
-    await type.afterUpdate({ id: 7 }, done)
+    await type.afterUpdate(done, done)
 
     await expect(waiting).resolves.toEqual(done)
   })
@@ -16,7 +19,7 @@ describe('ButtonFieldDispatchJobType', () => {
     const waiting = ButtonFieldDispatchJobType.waitFor({ id: 8 })
     const failed = { id: 8, state: 'failed', human_readable_error: 'nope' }
 
-    await type.afterUpdate({ id: 8 }, failed)
+    await type.afterUpdate(failed, failed)
 
     await expect(waiting).rejects.toEqual(failed)
   })
@@ -25,7 +28,7 @@ describe('ButtonFieldDispatchJobType', () => {
     const waiting = ButtonFieldDispatchJobType.waitFor({ id: 12 })
     const cancelled = { id: 12, state: 'cancelled' }
 
-    await type.afterUpdate({ id: 12 }, cancelled)
+    await type.afterUpdate(cancelled, cancelled)
 
     await expect(waiting).rejects.toEqual(cancelled)
   })
@@ -36,7 +39,8 @@ describe('ButtonFieldDispatchJobType', () => {
       settled = true
     })
 
-    await type.afterUpdate({ id: 9 }, { id: 9, state: 'started' })
+    const started = { id: 9, state: 'started' }
+    await type.afterUpdate(started, started)
     await Promise.resolve()
 
     expect(settled).toBe(false)
@@ -46,13 +50,20 @@ describe('ButtonFieldDispatchJobType', () => {
     const first = ButtonFieldDispatchJobType.waitFor({ id: 10 })
     const second = ButtonFieldDispatchJobType.waitFor({ id: 11 })
 
-    await type.afterUpdate(
-      { id: 11 },
-      { id: 11, state: 'finished', results: [] }
-    )
-    await type.afterUpdate({ id: 10 }, { id: 10, state: 'failed' })
+    const finished = { id: 11, state: 'finished', results: [] }
+    const failed = { id: 10, state: 'failed' }
+    await type.afterUpdate(finished, finished)
+    await type.afterUpdate(failed, failed)
 
     await expect(second).resolves.toMatchObject({ id: 11 })
     await expect(first).rejects.toMatchObject({ id: 10 })
+  })
+
+  test('a job removed from the store drops the click waiting on it', async () => {
+    const waiting = ButtonFieldDispatchJobType.waitFor({ id: 13 })
+
+    type.beforeDelete({ id: 13, state: 'started' })
+
+    await expect(waiting).rejects.toBeInstanceOf(ButtonFieldDispatchJobDropped)
   })
 })

@@ -403,23 +403,46 @@ describe('GridViewFieldButtonField', () => {
     })
   })
 
-  test('a job that is already final is not left in the store', async () => {
+  test('a job that ends after another table was opened runs no client actions', async () => {
+    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
     const wrapper = await mountCell()
-    wrapper.vm.$client.post = vi.fn().mockResolvedValue({
-      status: 202,
-      data: {
-        ...acceptedJob(),
-        state: 'finished',
-        results: [],
-        client_actions: [],
-      },
-    })
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const tableState = wrapper.vm.$store.state.table
+    const selectedBefore = tableState.selected
 
     await wrapper.find('button').trigger('click')
     await flushPromises()
+    tableState.selected = { id: 42 }
+    try {
+      await finishJob(wrapper, {
+        state: 'finished',
+        results: [],
+        client_actions: [openUrlAction],
+      })
+    } finally {
+      tableState.selected = selectedBefore
+    }
+
+    expect(execute).not.toHaveBeenCalled()
+    expect(wrapper.vm.dispatching).toBe(false)
+  })
+
+  test('logging out while the job runs stops the spinner without a toast', async () => {
+    const wrapper = await mountCell()
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: acceptedJob() })
+    const toast = vi.spyOn(wrapper.vm.$store, 'dispatch')
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    await wrapper.vm.$store.dispatch('job/clearAll')
+    await flushPromises()
 
     expect(wrapper.vm.dispatching).toBe(false)
-    expect(wrapper.vm.$store.getters['job/get'](acceptedJob().id)).toBeFalsy()
+    expect(toast).not.toHaveBeenCalledWith('toast/error', expect.anything())
   })
 
   test('the spinner survives a remount while the job polls', async () => {
@@ -443,26 +466,6 @@ describe('GridViewFieldButtonField', () => {
     })
 
     expect(remounted.vm.dispatching).toBe(false)
-  })
-
-  test('a job that is already finished on the 202 runs its client actions without polling', async () => {
-    const execute = vi.spyOn(openUrlType, 'execute').mockResolvedValue()
-    const wrapper = await mountCell()
-    wrapper.vm.$client.post = vi.fn().mockResolvedValue({
-      status: 202,
-      data: {
-        ...acceptedJob(),
-        state: 'finished',
-        results: [],
-        client_actions: [openUrlAction],
-      },
-    })
-
-    await wrapper.find('button').trigger('click')
-    await flushPromises()
-
-    expect(execute).toHaveBeenCalledTimes(1)
-    expect(wrapper.vm.dispatching).toBe(false)
   })
 
   // Answers the one fetch of the click's job the deadline makes, and leaves

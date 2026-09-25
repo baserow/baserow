@@ -2,7 +2,10 @@ import { reactive } from 'vue'
 import WorkflowActionService from '@baserow/modules/database/services/workflowAction'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
-import { ButtonFieldDispatchJobType } from '@baserow/modules/database/jobTypes'
+import {
+  ButtonFieldDispatchJobDropped,
+  ButtonFieldDispatchJobType,
+} from '@baserow/modules/database/jobTypes'
 import JobService from '@baserow/modules/core/services/job'
 
 // Keyed by field and row rather than kept per component. The grid swaps an
@@ -14,9 +17,9 @@ const dispatchesInFlight = reactive(new Set())
 
 const DISPATCH_OPERATION = 'database.table.field.workflow_action.dispatch'
 
-// A poller that never sees the job reach a final state (the poller's own
-// attempt cap, or one poll that never lands) would otherwise leave the
-// button spinning and refusing clicks until the page is reloaded.
+// A job that never reaches a final state (its worker died, it stays started
+// until the job cleanup fails it) would otherwise leave the button spinning
+// and refusing clicks until the page is reloaded.
 export const DISPATCH_JOB_DEADLINE_MS = 5 * 60 * 1000
 export const DISPATCH_JOB_LAST_CHECK_MS = 10 * 1000
 
@@ -99,22 +102,35 @@ export default {
         // The dispatch takes its own broadcast, so `this.row` can change
         // mid-request. Client actions get the row as it was at click time.
         const clickedRow = clone(this.row)
+        const openTableId = this.$store.getters['table/getSelectedId']
         const response = await WorkflowActionService(this.$client).dispatch(
           this.field.id,
           this.row.id
         )
         // A click with an action that reaches outside Baserow runs behind
         // the request; the job carries the same body once it has run.
-        const outcome =
-          response.status === 202
-            ? await this.awaitDispatchJob(response.data)
-            : response.data
+        const queued = response.status === 202
+        const outcome = queued
+          ? await this.awaitDispatchJob(response.data)
+          : response.data
+        // A job can end minutes later, after the user opened another table.
+        // An Open URL then would navigate them away from it.
+        if (
+          queued &&
+          this.$store.getters['table/getSelectedId'] !== openTableId
+        ) {
+          return
+        }
         await this.runClientActions(
           outcome?.client_actions || [],
           clickedRow,
           this.previousActionResults(outcome)
         )
       } catch (error) {
+        if (error instanceof ButtonFieldDispatchJobDropped) {
+          // Logged out while the job ran: nothing is left to tell.
+          return
+        }
         // The shared handler stays quiet on a 429, so a refused click would
         // otherwise look like a click that did nothing.
         if (error.handler?.isTooManyRequests?.()) {
@@ -151,14 +167,6 @@ export default {
       }
     },
     async settleDispatchJob(tracked) {
-      // Eager backends can answer with a job that is already final, in
-      // which case nothing is worth waiting or polling for.
-      if (tracked.state === 'finished') {
-        return tracked
-      }
-      if (tracked.state === 'failed' || tracked.state === 'cancelled') {
-        throw this.dispatchJobError(tracked)
-      }
       const waiting = ButtonFieldDispatchJobType.waitFor(tracked)
       let deadlineTimer
       const deadline = new Promise((resolve, reject) => {
