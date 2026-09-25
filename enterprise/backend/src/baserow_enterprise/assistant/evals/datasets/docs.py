@@ -161,12 +161,14 @@ _register_docs_case(
         "but it says 'Invalid Syntax'. What am I doing wrong?"
     ),
     ["formula", "understanding-formulas"],
-    ["date_diff", "date diff", "datediff"],
+    # Subtracting the dates is also correct: it returns a duration, not a number.
+    ["date_diff", "date diff", "datediff", "subtract"],
     reference_answer=(
         "Baserow formulas don't start with '=' and there is no DAYS() "
         "function — use date_diff with the unit as the first argument: "
         "date_diff('day', field('Start'), field('End')). Other units include "
-        "'hour', 'week', 'month', and 'year'."
+        "'hour', 'week', 'month', and 'year'. Subtracting the dates, "
+        "field('End') - field('Start'), returns the difference as a duration."
     ),
 )
 

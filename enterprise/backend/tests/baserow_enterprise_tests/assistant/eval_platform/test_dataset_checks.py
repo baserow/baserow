@@ -799,3 +799,29 @@ def test_implied_projects_app_asks_instead_of_inventing_data(
     )
 
     assert {check.name for check in checks if not check.passed} == failed
+
+
+@pytest.mark.parametrize(
+    "answer, accepted",
+    [
+        ("Use date_diff('day', field('Start'), field('End')).", True),
+        ("Subtract the dates: field('End') - field('Start') gives a duration.", True),
+        ("Baserow has no way to compare dates.", False),
+    ],
+)
+def test_date_difference_accepts_either_correct_formula(answer, accepted):
+    case = get_case("docs/date-diff-formula")
+    output = _output(
+        answer=answer,
+        tool_calls=["search_user_docs"],
+        sources=["https://baserow.io/user-docs/understanding-formulas"],
+    )
+
+    checks = {check.name: check.passed for check in case.checks(case, None, output)}
+
+    assert (
+        checks[
+            "answer mentions one of ['date_diff', 'date diff', 'datediff', 'subtract']"
+        ]
+        is accepted
+    )
