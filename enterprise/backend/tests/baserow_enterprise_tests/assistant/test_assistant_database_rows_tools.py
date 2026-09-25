@@ -47,6 +47,27 @@ def test_create_rows_rejects_empty_payload_and_accepts_corrected_call(data_fixtu
 
 
 @pytest.mark.django_db
+def test_create_rows_reports_the_running_total_across_batches(data_fixture):
+    """A requested row count spans batches; the model needs the running total."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare row creation")
+    tool = ctx.deps.dynamic_tools[0]
+
+    def create(count):
+        arguments = tool.function_schema.validator.validate_python(
+            {"rows": [{"Name": f"Row {i}"} for i in range(count)], "thought": "Add"}
+        )
+        return tool.function(**arguments)
+
+    assert create(2)["total_rows_created"] == 2
+    assert create(3)["total_rows_created"] == 5
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("operation", ["create", "update"])
 @pytest.mark.parametrize("multiple", [False, True])
 def test_invalid_link_values_do_not_silently_clear_relationships(

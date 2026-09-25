@@ -1231,6 +1231,7 @@ def _build_row_tools(
     row_model_for_create = get_create_row_model(table, field_ids=field_ids)
     row_model_for_update = get_update_row_model(table)
     link_row_hints = get_link_row_hints(row_model_for_create)
+    total_rows_created = 0
 
     @return_permission_error(f"create_rows_in_table_{table.id}")
     def _create_rows(
@@ -1239,6 +1240,7 @@ def _build_row_tools(
     ) -> dict[str, Any]:
         """Create new rows in the specified table."""
 
+        nonlocal total_rows_created
         require_payload(f"create_rows_in_table_{table.id}", "rows", rows)
 
         tool_helpers.update_status(
@@ -1250,7 +1252,11 @@ def _build_row_tools(
         with transaction.atomic():
             orm_rows = CreateRowsActionType.do(user, table, validated_rows)
 
-        return {"created_row_ids": [r.id for r in orm_rows]}
+        total_rows_created += len(orm_rows)
+        return {
+            "created_row_ids": [r.id for r in orm_rows],
+            "total_rows_created": total_rows_created,
+        }
 
     create_rows_tool = Tool(
         _create_rows,
@@ -1264,7 +1270,8 @@ def _build_row_tools(
             f"Keep batches to at most 20 rows to avoid oversized generated arguments; "
             f"for more rows, call this tool again with the next batch. When the user "
             f"asks for N rows, the batches must add up to exactly N. "
-            f"RETURNS: Created row IDs. "
+            f"RETURNS: Created row IDs and total_rows_created, the rows created in "
+            f"this table so far; use it to reach a requested count exactly. "
             f"DO NOT USE: For other tables — each table has its own create tool. "
             f"HOW: Fill EVERY field including ALL link_row (relationship) fields. Never skip a field unless data is genuinely unavailable."
             f"{link_row_hints}"
