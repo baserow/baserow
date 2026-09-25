@@ -129,7 +129,8 @@
         "invalidCharacters": "Este campo contiene caracteres inválidos.",
         "copyFailed": "Error al copiar al portapapeles. Por favor, inténtalo de nuevo.",
         "nameCantBeEmail": "Por favor ingresa tu nombre, no tu dirección de correo electrónico.",
-        "nameContainsUrl": "Los nombres no pueden contener enlaces, dominios o direcciones web."
+        "nameContainsUrl": "Los nombres no pueden contener enlaces, dominios o direcciones web.",
+        "nameContainsSpam": "Los nombres no pueden contener caracteres decorativos ni números largos."
     },
     "permission": {
         "admin": "Admin",
@@ -449,7 +450,7 @@
         "generativeAIDoesNotExistTitle": "La IA generativa no existe",
         "generativeAIDoesNotExistDescription": "El modelo de IA generativa no existe.",
         "modelDoesNotBelongToTypeTitle": "El modelo seleccionado no pertenece al tipo AI",
-        "modelDoesNotBelongToTypeDescription": "El modelo seleccionado no pertenece al tipo de IA seleccionado.",
+        "modelDoesNotBelongToTypeDescription": "El modelo de IA seleccionado está deshabilitado o ya no está disponible.",
         "outputParserTitle": "Resultado incorrecto",
         "outputParserDescription": "El modelo respondió con una salida incorrecta. Por favor, inténtalo de nuevo.",
         "generateAIPromptTitle": "Error de pregunta",
@@ -735,7 +736,8 @@
         "absDescription": "Devuelve el valor absoluto del argumento.",
         "categoryUtility": "Utilidad",
         "encodeUriComponentDescription": "Codifica el argumento en porcentaje para que pueda usarse de forma segura como una sola parte de una URL, como un segmento de ruta o un parámetro de consulta",
-        "encodeUriDescription": "Codifica en porcentaje los caracteres que no están permitidos en una URL, dejando intacta la estructura de la URL"
+        "encodeUriDescription": "Codifica en porcentaje los caracteres que no están permitidos en una URL, dejando intacta la estructura de la URL",
+        "nowDescription": "Devuelve la fecha y hora actuales."
     },
     "formulaInputContext": {
         "useRegularInput": "Usa entrada regular",
