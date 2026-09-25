@@ -503,15 +503,8 @@ class ViewType(
         id_mapping["database_views"][view_id] = view.id
 
         # Filters and decorations can only map their values if they know the
-        # field they apply to. The model is cached, so this is free for later views.
-        fields_by_id = (
-            {
-                field_id: field_object["field"]
-                for field_id, field_object in table.get_model()._field_objects.items()
-            }
-            if filters or decorations
-            else {}
-        )
+        # field they apply to. Only then is the table model needed.
+        fields_by_id = self.get_fields_by_id(table) if filters or decorations else {}
 
         if self.can_filter:
             for filter_group in filter_groups:
@@ -633,6 +626,21 @@ class ViewType(
             )
 
         return view
+
+    def get_fields_by_id(self, table: "Table") -> Dict[int, "Field"]:
+        """
+        Returns the specific fields of the table keyed by id, taken from the table
+        model because that one is cached and shared with the rest of the import.
+        Generating the model is not free, so only call this when a field is needed.
+
+        :param table: The table to get the fields of.
+        :return: The specific fields keyed by id.
+        """
+
+        return {
+            field_id: field_object["field"]
+            for field_id, field_object in table.get_model()._field_objects.items()
+        }
 
     def _export_default_row_values(self, view, cache, files_zip, storage):
         """

@@ -788,13 +788,16 @@ class TableHandler:
         all_table_dependency_field_ids = {
             field_id: field_id for field_id in all_table_dependency_field_ids
         }
-        # The same applies to the select options of those fields, because filters
-        # on lookup fields can reference them.
-        all_table_dependency_select_option_ids = SelectOption.objects.filter(
-            field_id__in=all_table_dependency_field_ids.keys()
-        ).values_list("id", flat=True)
-        all_table_dependency_select_option_ids = {
-            option_id: option_id for option_id in all_table_dependency_select_option_ids
+        # Filters on lookup fields can reference select options of fields in other
+        # tables, possibly through several lookups, so all the select options
+        # outside of the duplicated table are added to the mapping as well.
+        all_other_table_select_option_ids = (
+            SelectOption.objects.filter(field__table__database_id=database.id)
+            .exclude(field__table_id=table.id)
+            .values_list("id", flat=True)
+        )
+        all_other_table_select_option_ids = {
+            option_id: option_id for option_id in all_other_table_select_option_ids
         }
 
         # It can happen that a field has a reference to another view. We would
@@ -820,7 +823,7 @@ class TableHandler:
             "database_view_decorations": {},
             # We have to create the `database_field_select_options` because that's
             # otherwise not created later on.
-            "database_field_select_options": all_table_dependency_select_option_ids,
+            "database_field_select_options": all_other_table_select_option_ids,
         }
 
         link_fields_to_import_to_existing_tables = (
