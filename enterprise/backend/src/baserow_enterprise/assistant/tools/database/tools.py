@@ -205,9 +205,11 @@ def list_tables(
         "next_steps": (
             "For an app that shows records, use a matching table from these results. "
             "If the requested records are absent (even if unrelated tables exist), "
-            "call ask_user to find their source before creating anything. "
-            "Creating an app does not authorize inventing its records or storage. "
-            "Create tables only if the user requested new data storage or sample data. "
+            "create nothing and call ask_user: say no table holds them and offer to "
+            "create one with sample data, to agree on its fields and data first, or to "
+            "use data the user points to. Exception: when the user asked for an "
+            "example, demo, or sample app, or for new data storage, create the table "
+            "with sample data and build without asking. "
             "Setting up application login is a storage request: setup_user_source "
             "can create its backing users table if none was specified."
         ),
