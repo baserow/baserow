@@ -14,13 +14,6 @@
       :style="getStyleOverride('table')"
       :orientation="orientation"
     >
-      <template #field-name="{ field }">
-        <ABFormattedText
-          :value="resolvedFieldNames[field.__id__]"
-          :format="field.name?.format"
-          profile="inline"
-        />
-      </template>
       <template #cell-content="{ rowIndex, field, value, row }">
         <!--
         -- We force-self-alignment to `auto` here to prevent some self-positioning
@@ -148,23 +141,6 @@ export default {
         ...field,
         __id__: field.id,
       }))
-    },
-    /**
-     * The header text of each field, resolved from its name formula. A raw
-     * name, the default, resolves to its own text.
-     */
-    resolvedFieldNames() {
-      return Object.fromEntries(
-        this.fields.map((field) => {
-          let name = ''
-          try {
-            name = ensureString(this.resolveFormula(field.name))
-          } catch {
-            name = ''
-          }
-          return [field.__id__, name]
-        })
-      )
     },
     rows() {
       if (!this.elementContent) {

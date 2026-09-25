@@ -124,19 +124,6 @@ class BaserowFormulaObject(TypedDict):
         else:
             return cls.create(formula=value)
 
-    @classmethod
-    def to_raw_formula(cls, value) -> "BaserowFormulaObject":
-        """
-        Return a formula object even if it was a plain string, the string being
-        the text itself: a raw-mode formula. This is how the columns that held
-        plain text before they became formulas read their legacy values, and how
-        the old exports and the templates of those columns are imported.
-        """
-
-        if isinstance(value, dict):
-            return value
-        return cls.create(formula=value or "", mode=BASEROW_FORMULA_MODE_RAW)
-
 
 class BaserowFormulaMinified(TypedDict):
     """

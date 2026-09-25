@@ -4,3 +4,7 @@
     user-select: none;
   }
 }
+
+.choice-element__option-value--fake .form-input__input {
+  color: $palette-neutral-700;
+}

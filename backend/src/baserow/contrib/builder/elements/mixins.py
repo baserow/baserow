@@ -39,7 +39,6 @@ from baserow.contrib.builder.elements.types import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
@@ -740,18 +739,22 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         )
 
     def after_create(self, instance: CollectionElementSubClass, values):
-        # The default names are raw-mode formulas: they are plain text (which
-        # may contain quotes once translated), not formula syntax.
         default_fields = [
             {
-                "name": BaserowFormulaObject.create(
-                    formula=_("Column %(count)s") % {"count": count},
-                    mode=BASEROW_FORMULA_MODE_RAW,
-                ),
+                "name": _("Column %(count)s") % {"count": 1},
                 "type": "text",
                 "config": {"value": ""},
-            }
-            for count in (1, 2, 3)
+            },
+            {
+                "name": _("Column %(count)s") % {"count": 2},
+                "type": "text",
+                "config": {"value": ""},
+            },
+            {
+                "name": _("Column %(count)s") % {"count": 3},
+                "type": "text",
+                "config": {"value": ""},
+            },
         ]
 
         fields = values.get("fields", default_fields)

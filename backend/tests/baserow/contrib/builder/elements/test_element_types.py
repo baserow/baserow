@@ -547,8 +547,7 @@ def test_choice_element_import_serialized(data_fixture):
     assert ChoiceElementOption.objects.count() == 2
     assert len(options) == 1
     assert options[0].value == "hello"
-    # A plain string name is exported and imported as a raw-mode formula.
-    assert options[0].name == {"formula": "there", "mode": "raw", "version": "0.1"}
+    assert options[0].name == "there"
     assert options[0].choice_id == choice_element_imported.id
 
 

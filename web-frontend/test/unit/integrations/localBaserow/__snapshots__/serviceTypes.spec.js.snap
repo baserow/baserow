@@ -4,10 +4,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
 [
   {
     "id": "00000000-0000-0000-0000-000000000001",
-    "name": {
-      "formula": "boolean",
-      "mode": "raw",
-    },
+    "name": "boolean",
     "type": "boolean",
     "value": {
       "formula": "get('current_record.field_0')",
@@ -15,10 +12,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
   },
   {
     "id": "00000000-0000-0000-0000-000000000002",
-    "name": {
-      "formula": "rating",
-      "mode": "raw",
-    },
+    "name": "rating",
     "type": "rating",
     "value": {
       "formula": "get('current_record.field_1')",
@@ -29,10 +23,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
     "link_name": {
       "formula": "get('current_record.field_2')",
     },
-    "name": {
-      "formula": "url",
-      "mode": "raw",
-    },
+    "name": "url",
     "navigate_to_page_id": null,
     "navigate_to_url": {
       "formula": "get('current_record.field_2')",
@@ -47,10 +38,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
       "formula": "get('current_record.field_3.*.visible_name')",
     },
     "id": "00000000-0000-0000-0000-000000000004",
-    "name": {
-      "formula": "file",
-      "mode": "raw",
-    },
+    "name": "file",
     "src": {
       "formula": "get('current_record.field_3.*.url')",
     },
@@ -58,10 +46,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
   },
   {
     "id": "00000000-0000-0000-0000-000000000005",
-    "name": {
-      "formula": "created_by",
-      "mode": "raw",
-    },
+    "name": "created_by",
     "type": "text",
     "value": {
       "formula": "get('current_record.field_4.name')",
@@ -69,10 +54,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
   },
   {
     "id": "00000000-0000-0000-0000-000000000006",
-    "name": {
-      "formula": "last_modified_by",
-      "mode": "raw",
-    },
+    "name": "last_modified_by",
     "type": "text",
     "value": {
       "formula": "get('current_record.field_5.name')",
@@ -80,10 +62,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
   },
   {
     "id": "00000000-0000-0000-0000-000000000007",
-    "name": {
-      "formula": "single_select",
-      "mode": "raw",
-    },
+    "name": "single_select",
     "type": "text",
     "value": {
       "formula": "get('current_record.field_6.value')",
@@ -91,10 +70,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
   },
   {
     "id": "00000000-0000-0000-0000-000000000008",
-    "name": {
-      "formula": "multiple_select",
-      "mode": "raw",
-    },
+    "name": "multiple_select",
     "type": "text",
     "value": {
       "formula": "get('current_record.field_7.*.value')",
@@ -102,10 +78,7 @@ exports[`Local baserow service types > List service preserves specialized defaul
   },
   {
     "id": "00000000-0000-0000-0000-000000000009",
-    "name": {
-      "formula": "multiple_collaborators",
-      "mode": "raw",
-    },
+    "name": "multiple_collaborators",
     "type": "text",
     "value": {
       "formula": "get('current_record.field_8.*.name')",
