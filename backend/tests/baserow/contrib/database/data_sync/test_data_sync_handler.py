@@ -2379,3 +2379,35 @@ def test_on_cancelled_does_not_trash_table_after_successful_sync(
     assert TrashEntry.objects.count() == 0
     table.refresh_from_db()
     assert table.trashed is False
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_one_way_sync_does_not_read_the_table_before_the_fetch(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    data_sync = DataSyncHandler().create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "summary"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+    assert data_sync.two_way_sync is False
+
+    with patch.object(
+        DataSyncHandler,
+        "_get_current_model",
+        wraps=DataSyncHandler._get_current_model,
+    ) as get_current_model:
+        DataSyncHandler().sync_data_sync_table(user=user, data_sync=data_sync)
+
+    assert get_current_model.call_count == 1
+    assert data_sync.table.get_model().objects.count() == 1

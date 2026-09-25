@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.utils import timezone
 
@@ -148,4 +149,39 @@ def test_periodic_runs_do_not_consume_the_users_manual_cap(data_fixture):
             data_sync=new_data_sync,
             triggered_by=DATA_SYNC_JOB_TRIGGERED_BY_MANUAL,
         )
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@responses.activate
+def test_a_sync_that_could_not_start_leaves_last_error_alone(data_fixture):
+    """
+    A job that finds another sync holding the lock did no work, so it must not
+    record a failure on the data sync: the previous sync's error, or the absence
+    of one, still describes the last sync that actually ran.
+    """
+
+    responses.add(responses.GET, "https://baserow.io/ical.ics", status=200, body="")
+    user = data_fixture.create_user()
+    data_sync = data_fixture.create_ical_data_sync(
+        user=user, ical_url="https://baserow.io/ical.ics"
+    )
+    data_sync.last_error = "the error of the previous run"
+    data_sync.save(update_fields=("last_error",))
+
+    with patch(
+        "baserow.contrib.database.data_sync.handler.cache.add", return_value=False
+    ):
+        job = JobHandler().create_and_start_job(
+            user, "sync_data_sync_table", sync=True, data_sync_id=data_sync.id
+        )
+
+    job.refresh_from_db()
+    assert job.state == JOB_FAILED
+    assert job.error_code == "SyncDataSyncTableAlreadyRunning"
+
+    data_sync.refresh_from_db()
+    assert data_sync.last_error == "the error of the previous run", (
+        f"a sync that never ran overwrote the previous error with "
+        f"{data_sync.last_error!r}"
     )

@@ -454,8 +454,8 @@ def test_sync_data_sync_table(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
@@ -632,8 +632,8 @@ def test_sync_data_sync_table_empty_issue(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
@@ -730,8 +730,8 @@ def test_sync_data_sync_table_personal_access_token(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
@@ -789,8 +789,8 @@ def test_create_data_sync_table_pagination(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
@@ -804,8 +804,8 @@ def test_create_data_sync_table_pagination(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                     "nextPageToken": "page2token",
                 }
             ),
@@ -869,8 +869,8 @@ def test_create_data_sync_table_invalid_auth(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
@@ -949,8 +949,8 @@ def test_create_data_sync_table_jira_error_message(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
@@ -999,8 +999,8 @@ def test_create_data_sync_table_with_project_key(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "project=TEST ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
@@ -1049,8 +1049,8 @@ def test_create_data_sync_table_jira_not_updated_twice(enterprise_data_fixture):
             query_param_matcher(
                 {
                     "jql": "created IS NOT EMPTY ORDER BY created DESC",
-                    "maxResults": "50",
-                    "fields": "*all",
+                    "maxResults": "100",
+                    "fields": "summary,description,assignee,reporter,labels,created,updated,resolutiondate,duedate,status,project",
                 }
             ),
         ],
