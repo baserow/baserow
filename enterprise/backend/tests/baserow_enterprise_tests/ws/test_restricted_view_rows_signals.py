@@ -38,6 +38,68 @@ def _setup(enterprise_data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.parametrize("web_socket_id", [EDITOR_WEB_SOCKET_ID, None])
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_rows_created_in_restricted_view_exclude_the_creator(
+    mock_broadcast_to_channel_group, enterprise_data_fixture, batch, web_socket_id
+):
+    user, table, field, restricted_view = _setup(enterprise_data_fixture)
+    user.web_socket_id = web_socket_id
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with transaction.atomic():
+        if batch:
+            rows = (
+                RowHandler()
+                .create_rows(user, table, rows_values=[{field.db_column: "keep"}] * 2)
+                .created_rows
+            )
+        else:
+            rows = [
+                RowHandler().create_row(user, table, values={field.db_column: "keep"})
+            ]
+
+    calls = _restricted_view_calls(mock_broadcast_to_channel_group, restricted_view.id)
+    assert len(calls) == 1
+    payload, ignore_web_socket_id = calls[0]
+    assert payload["type"] == "rows_created"
+    assert [row["id"] for row in payload["rows"]] == [row.id for row in rows]
+    # The creator replaces its optimistic rows using the HTTP response. Receiving
+    # this event first would insert them a second time under their persisted IDs.
+    assert ignore_web_socket_id == web_socket_id
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("batch", [False, True])
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_rows_deleted_from_restricted_view_exclude_the_editor(
+    mock_broadcast_to_channel_group, enterprise_data_fixture, batch
+):
+    user, table, field, restricted_view = _setup(enterprise_data_fixture)
+    rows = (
+        RowHandler()
+        .create_rows(user, table, rows_values=[{field.db_column: "keep"}] * 2)
+        .created_rows
+    )
+    mock_broadcast_to_channel_group.reset_mock()
+
+    with transaction.atomic():
+        if batch:
+            RowHandler().delete_rows(user, table, row_ids=[row.id for row in rows])
+        else:
+            rows = rows[:1]
+            RowHandler().delete_row(user, table, rows[0])
+
+    calls = _restricted_view_calls(mock_broadcast_to_channel_group, restricted_view.id)
+    assert len(calls) == 1
+    payload, ignore_web_socket_id = calls[0]
+    assert payload["type"] == "rows_deleted"
+    assert payload["row_ids"] == [row.id for row in rows]
+    assert ignore_web_socket_id == EDITOR_WEB_SOCKET_ID
+
+
+@pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
 def test_row_edited_out_of_restricted_view_deletes_it_for_the_editor(
     mock_broadcast_to_channel_group, enterprise_data_fixture
