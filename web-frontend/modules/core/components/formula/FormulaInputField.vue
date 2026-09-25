@@ -36,6 +36,17 @@
           />
         </slot>
       </div>
+      <button
+        v-if="showFormatBadge"
+        type="button"
+        class="formula-input-field__format-badge"
+        :title="formatBadgeTitle"
+        :disabled="disabled"
+        @mousedown.prevent
+        @click="focusEditor"
+      >
+        {{ formatBadge }}
+      </button>
       <ButtonIcon
         v-if="allowRawValues && !readOnly"
         class="formula-input-field__mode-toggle"
@@ -48,26 +59,6 @@
         :title="rawModeToggleTitle"
         @click="toggleRawMode"
       />
-    </div>
-
-    <div v-if="showFormatPicker" class="formula-input-field__format">
-      <span class="formula-input-field__format-label">
-        {{ $t('formulaInputField.formatLabel') }}
-      </span>
-      <Dropdown
-        class="formula-input-field__format-dropdown"
-        :value="format"
-        :show-search="false"
-        :disabled="disabled"
-        @input="$emit('update:format', $event)"
-      >
-        <DropdownItem
-          v-for="option in formatOptions"
-          :key="option.value"
-          :name="option.name"
-          :value="option.value"
-        />
-      </Dropdown>
     </div>
 
     <FormulaInputErrorContext
@@ -88,10 +79,13 @@
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
       :enabled-modes="enabledModes"
+      :format="format"
+      :format-options="formatOptions"
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @example-click="handleExampleSelected"
       @mode-changed="handleModeChange"
+      @format-changed="$emit('update:format', $event)"
       @mousedown="onContextMouseDown"
     />
 
@@ -217,6 +211,13 @@ export function disambiguateMinusOperator(formula) {
 const FORMAT_LABEL_KEYS = {
   [BASEROW_FORMULA_FORMAT_PLAIN]: 'formulaInputField.formatPlain',
   [BASEROW_FORMULA_FORMAT_MARKDOWN]: 'formulaInputField.formatMarkdown',
+}
+
+// The letter shown on the input while a non-plain format is selected. The
+// picker itself lives in the explorer context, which only exists while the
+// field is focused, so the badge is what keeps the format visible.
+const FORMAT_BADGES = {
+  [BASEROW_FORMULA_FORMAT_MARKDOWN]: 'M',
 }
 
 export default {
@@ -360,9 +361,25 @@ export default {
         ? this.$t('formulaInputField.useFormulaMode')
         : this.$t('formulaInputField.useRawMode')
     },
-    showFormatPicker() {
-      return this.allowedFormats.length > 1 && !this.readOnly
+    showFormatBadge() {
+      return (
+        this.allowedFormats.length > 1 &&
+        !this.readOnly &&
+        this.format !== BASEROW_FORMULA_FORMAT_PLAIN
+      )
     },
+    formatBadge() {
+      return FORMAT_BADGES[this.format] || this.format.charAt(0).toUpperCase()
+    },
+    formatBadgeTitle() {
+      return this.$t('formulaInputField.formatBadgeTitle', {
+        format: this.$t(FORMAT_LABEL_KEYS[this.format] || this.format),
+      })
+    },
+    /**
+     * The options of the format picker, which the explorer context renders in
+     * its footer when there is more than one.
+     */
     formatOptions() {
       return this.allowedFormats.map((format) => ({
         value: format,
@@ -924,6 +941,16 @@ export default {
       if (this.editor && !this.disabled && !this.readOnly) {
         this.editor.commands.showContext()
       }
+    },
+    /**
+     * The format badge is a shortcut to the picker: focusing the editor opens
+     * the explorer context that hosts it. The badge prevents the default of
+     * its mousedown, so an already focused editor keeps the focus and the
+     * context doesn't close and reopen.
+     */
+    focusEditor() {
+      if (this.isRawMode || this.disabled || this.readOnly) return
+      this.editor?.commands.focus()
     },
     handleModeChange(newMode) {
       // If switching from advanced to simple, clear the content

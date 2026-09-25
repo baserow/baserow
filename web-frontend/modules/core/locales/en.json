@@ -973,14 +973,15 @@
     "invalidSyntax": "Not a valid expert formula, please check the syntax.",
     "useFormulaMode": "Use formula mode",
     "useRawMode": "Use raw mode",
-    "formatLabel": "Format",
     "formatPlain": "Plain text",
-    "formatMarkdown": "Markdown"
+    "formatMarkdown": "Markdown",
+    "formatBadgeTitle": "Format: {format}. Click to change it."
   },
   "formulaInputErrorContext": {
     "viewFullError": "View full error"
   },
   "formulaInputExplorerContext": {
+    "formatLabel": "Format",
     "variables": "Variables",
     "functions": "Functions",
     "operators": "Operators",

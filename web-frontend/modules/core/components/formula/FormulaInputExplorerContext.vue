@@ -17,11 +17,9 @@
       @node-unselected="$emit('node-unselected')"
       @example-click="$emit('example-click', $event)"
     />
-    <div
-      v-if="advancedModeEnabled"
-      class="formula-input-explorer-context__footer"
-    >
+    <div v-if="showFooter" class="formula-input-explorer-context__footer">
       <ButtonText
+        v-if="advancedModeEnabled"
         type="primary"
         icon="iconoir-input-field"
         size="small"
@@ -32,6 +30,19 @@
             : $t('formulaInputExplorerContext.useAdvancedInput')
         }}</ButtonText
       >
+      <div
+        v-if="formatPickerEnabled"
+        class="formula-input-explorer-context__format"
+        role="group"
+        :aria-label="$t('formulaInputExplorerContext.formatLabel')"
+      >
+        <SegmentControl
+          size="small"
+          :segments="formatSegments"
+          :active-index="activeFormatIndex"
+          @update:active-index="changeFormat"
+        ></SegmentControl>
+      </div>
     </div>
 
     <FormulaInputModeChangeModal
@@ -55,7 +66,10 @@
 import context from '@baserow/modules/core/mixins/context'
 import NodeExplorer from '@baserow/modules/core/components/nodeExplorer/NodeExplorer'
 import FormulaInputModeChangeModal from '@baserow/modules/core/components/formula/FormulaInputModeChangeModal'
-import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
+import {
+  BASEROW_FORMULA_MODES,
+  BASEROW_FORMULA_FORMAT_PLAIN,
+} from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'FormulaInputExplorerContext',
@@ -113,8 +127,31 @@ export default {
       type: Array,
       required: true,
     },
+    /**
+     * The format the surface renders the resolved formula in.
+     */
+    format: {
+      type: String,
+      required: false,
+      default: BASEROW_FORMULA_FORMAT_PLAIN,
+    },
+    /**
+     * The `{ value, name }` formats the surface can render. The format picker
+     * in the footer only shows when there is more than one.
+     */
+    formatOptions: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
   },
-  emits: ['mode-changed', 'node-selected', 'node-unselected', 'example-click'],
+  emits: [
+    'mode-changed',
+    'format-changed',
+    'node-selected',
+    'node-unselected',
+    'example-click',
+  ],
   data() {
     return {
       searchQuery: '',
@@ -128,6 +165,21 @@ export default {
     },
     isAdvancedMode() {
       return this.mode === 'advanced'
+    },
+    formatPickerEnabled() {
+      return this.formatOptions.length > 1
+    },
+    showFooter() {
+      return this.advancedModeEnabled || this.formatPickerEnabled
+    },
+    formatSegments() {
+      return this.formatOptions.map(({ name }) => ({ label: name }))
+    },
+    activeFormatIndex() {
+      const index = this.formatOptions.findIndex(
+        ({ value }) => value === this.format
+      )
+      return index === -1 ? 0 : index
     },
   },
   watch: {
@@ -206,6 +258,12 @@ export default {
         'mode-changed',
         this.mode === 'advanced' ? 'simple' : 'advanced'
       )
+    },
+    changeFormat(index) {
+      const option = this.formatOptions[index]
+      if (option && option.value !== this.format) {
+        this.$emit('format-changed', option.value)
+      }
     },
   },
 }
