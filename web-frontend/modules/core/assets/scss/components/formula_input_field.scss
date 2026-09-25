@@ -77,22 +77,29 @@
   }
 }
 
-.formula-input-field__format {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.formula-input-field__format-label {
+.formula-input-field__format-badge {
   flex: 0 0 auto;
-  font-size: 12px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 0;
+  background: $palette-neutral-100;
   color: $palette-neutral-900;
-}
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 20px;
+  cursor: pointer;
 
-.formula-input-field__format-dropdown {
-  flex: 0 1 auto;
-  min-width: 140px;
+  @include rounded($rounded);
+
+  &:hover:not([disabled]) {
+    background: $palette-neutral-200;
+  }
+
+  &[disabled] {
+    color: $palette-neutral-700;
+    cursor: not-allowed;
+  }
 }
 
 .formula-input-field--focused {
