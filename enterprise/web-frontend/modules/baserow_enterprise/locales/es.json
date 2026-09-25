@@ -125,7 +125,8 @@
         "samlResponseSettings": "Atributos de respuesta SAML",
         "emailAttrKeyHelper": "El correo electrónico que se utilizará como nombre de usuario para el usuario.",
         "lastNameAttrKey": "Apellido",
-        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borre este valor para proporcionar el nombre completo a través de «Nombre»."
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borre este valor para proporcionar el nombre completo a través de «Nombre».",
+        "emailVerificationNotice": "Asegúrate de que tu proveedor de identidad exija direcciones de correo electrónico verificadas antes de autenticar a los usuarios. Las firmas SAML autentican al proveedor, no la propiedad del correo."
     },
     "createSettingsAuthProviderModal": {
         "title": "Añadir un nuevo {tipo}"
@@ -157,7 +158,8 @@
         "errorDifferentProvider": "utilice el proveedor con el que se registró originalmente.",
         "errorSsoFeatureNotActive": "La función SSO no está activa. Consulta a tu administrador.",
         "errorSignupDisabled": "El administrador ha desactivado el registro.",
-        "errorWorkspaceInvitationEmailMismatch": "su dirección de correo electrónico no coincide con la invitación."
+        "errorWorkspaceInvitationEmailMismatch": "su dirección de correo electrónico no coincide con la invitación.",
+        "errorUnverifiedEmail": "el proveedor de identidad no ha verificado tu dirección de correo electrónico. Por favor, verifica tu correo con el proveedor e inténtalo de nuevo."
     },
     "roles": {
         "builder": {
@@ -289,7 +291,8 @@
         "emailAttrKeyHelper": "La dirección de correo electrónico que se usará como nombre de usuario para el usuario. ",
         "lastNameAttrKey": "Apellidos",
         "firstNameAttrKeyHelper": "El primer nombre del usuario, o el nombre completo si no se indica los 'Apellidos'.",
-        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borra este valor para proporcionar el nombre completo mediante ‘Nombre’."
+        "lastNameAttrKeyHelper": "Apellido del usuario (opcional). Borra este valor para proporcionar el nombre completo mediante ‘Nombre’.",
+        "emailVerificationNotice": "Asegúrate de que tu proveedor de identidad exija direcciones de correo electrónico verificadas antes de autenticar a los usuarios. Baserow confía en la dirección de correo electrónico reportada por el proveedor."
     },
     "manageTeamModals": {
         "subheading": "Los equipos permiten conceder o restringir permisos en bloque a varias personas."
@@ -667,7 +670,8 @@
         "nobodyTitle": "Nadie",
         "nobodyDescription": "Ningún usuario",
         "allowInForms": "Permitir que este campo se establezca en filas creadas mediante formularios",
-        "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada."
+        "linkRowWarning": "Este es un campo «Enlace a la tabla». Para asegurarte de que los valores no puedan cambiarse desde la tabla vinculada, por favor asegúrate de establecer también los permisos correctos en la tabla vinculada.",
+        "customDescription": "Solo los usuarios, agentes y miembros de equipos seleccionados que ya tengan un rol de Editor, Constructor o Administrador"
     },
     "builderSettingTypes": {
         "customCode": "CSS/JS personalizados"
@@ -916,5 +920,15 @@
         "context": "La persona que pregunta trabaja en {industry}, en el equipo {team}. Usa eso para elegir tablas, campos y filas de ejemplo realistas.",
         "prompt": "Crea una base de datos que incluya tablas, campos, filas de ejemplo y vistas de ejemplo que coincidan con esta descripción: {prompt}",
         "language": "Escribe todo lo que generes en el idioma con código ISO 639-1 \"{language}\"."
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "La selección no otorga acceso a la tabla. Un usuario seleccionado, un agente, o un miembro de un equipo seleccionado debe tener además un rol de Editor, Constructor o Administrador donde esta tabla se encuentra.",
+        "noSelectedSubjects": "Nadie está seleccionado todavía. Usa la búsqueda de arriba para añadir un usuario, agente o equipo."
+    },
+    "applicationUserLimitNotification": {
+        "titleReachedEnforced": "{workspaceName} ha alcanzado el límite de usuarios de aplicación de {limit}. Una vez que se supere, nadie podrá iniciar sesión en sus aplicaciones publicadas hasta que actualices el plan."
+    },
+    "graphElementForm": {
+        "labelsHelper": "La fórmula debe resolverse en un `array`. Cada elemento se convierte en una etiqueta del gráfico."
     }
 }
