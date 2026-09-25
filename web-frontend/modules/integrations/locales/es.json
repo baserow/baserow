@@ -140,7 +140,8 @@
         "errorNoRowsSelected": "No se seleccionaron filas",
         "coreManualTrigger": "Disparador manual",
         "coreStartWorkflow": "Iniciar flujo de trabajo",
-        "coreGotoDescription": "Salta a otro punto del flujo de trabajo cuando una condición es verdadera."
+        "coreGotoDescription": "Salta a otro punto del flujo de trabajo cuando una condición es verdadera.",
+        "coreResponseDescription": "Devuelve la respuesta del flujo de trabajo solo cuando el disparador admite esperar respuestas y tiene la espera habilitada."
     },
     "userSourceType": {
         "localBaserow": "Autenticación de la tabla de Baserow"
@@ -168,7 +169,8 @@
     },
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot de Slack",
-        "slackBotNoToken": "Bot de Slack – No configurado"
+        "slackBotNoToken": "Bot de Slack – No configurado",
+        "slackBotWarning": "Cualquiera que pueda construir en esta aplicación puede enviar mensajes a través de este bot, y puede reemplazar su token. Usa un bot cuyo acceso te gustaría compartir."
     },
     "aiIntegrationType": {
         "inheritingWorkspace": "Configuración heredada de IA del espacio de trabajo",
@@ -177,7 +179,7 @@
     "aiForm": {
         "description": "Configura los ajustes del proveedor de IA para esta integración. Por defecto, se heredan los ajustes de IA del espacio de trabajo.",
         "workspaceSettingsTitle": "Ajustes de IA del espacio de trabajo",
-        "workspaceSettingsDescription": "Esta integración hereda los ajustes del proveedor de IA de tu espacio de trabajo por defecto. Puedes reemplazar los proveedores específicos a continuación.",
+        "workspaceSettingsDescription": "Esta integración hereda los ajustes del proveedor de IA de tu espacio de trabajo por defecto. Una anulación del proveedor es autónoma: incluye sus propias credenciales o host, porque los campos de conexión nunca se combinan con credenciales heredadas.",
         "overrideWorkspaceSettings": "Sobrescribe la configuración del espacio de trabajo para este proveedor",
         "inherited": "Heredado",
         "overridden": "Sobrescrito"
@@ -369,7 +371,7 @@
         "rowsLabel": "Filas"
     },
     "coreStartWorkflowServiceForm": {
-        "workflowHelperText": "Solo los flujos de trabajo publicados con un disparador manual pueden iniciarse. Si este flujo de trabajo tiene cambios no publicados, se ejecutará la última versión publicada.",
+        "workflowHelperText": "Solo se pueden iniciar los flujos de trabajo publicados cuyo disparador pueda iniciarse bajo demanda, como un disparador manual o periódico. Si este flujo de trabajo tiene cambios no publicados, se ejecutará la última versión publicada.",
         "automation": "Automatización",
         "workflow": "Flujo de trabajo"
     },
