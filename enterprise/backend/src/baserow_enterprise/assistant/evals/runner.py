@@ -537,9 +537,7 @@ def _settings_label(metadata: dict[str, Any]) -> str | None:
     """Compact "temperature=0.3 reasoning=none" for the results table."""
 
     settings = metadata.get("model_settings") or {}
-    if settings and metadata.get("harness_version") not in range(
-        2, HARNESS_VERSION + 1
-    ):
+    if settings and metadata.get("harness_version") != HARNESS_VERSION:
         return "model settings unverified (legacy harness)"
     parts = [
         f"{key.replace('openai_reasoning_effort', 'reasoning')}={settings[key]}"

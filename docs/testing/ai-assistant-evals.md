@@ -89,11 +89,6 @@ configuration that produced it without writing anything down. The **Notes**
 field adds free text for whatever that does not cover; both the settings and
 the note show under the model in the Results tab.
 
-The Docker runner receives the branch and commit label when its container is
-created. After changing commits, wait for active runs to finish, then run
-`just dc-dev up -d --no-deps assistant-eval-runner` to refresh that label before
-starting another experiment.
-
 > **Warning:** the runner hot-reloads on any mounted `.py` change (including
 > a lint/format pass), which kills queued and running experiments — don't
 > edit backend Python while a run is in flight.
@@ -152,10 +147,8 @@ just dc-dev exec assistant-eval-runner just b manage sync_knowledge_base
 The command indexes the repository's `enterprise/backend/website_export.csv`.
 Wait for it to finish before running docs cases. If it reports unavailable
 embeddings or pgvector, fix that prerequisite and run it again. When the knowledge
-base is unavailable, a docs run fails before creating an experiment and its log
-shows the setup command. Historical runs may contain skipped cases: a finished
-executor does not mean the evals passed. Check the run log and per-case Phoenix
-results.
+base is unavailable, docs cases are skipped: a finished executor does not mean
+the evals passed. Check the run log and per-case Phoenix results.
 
 ## Writing a new eval
 

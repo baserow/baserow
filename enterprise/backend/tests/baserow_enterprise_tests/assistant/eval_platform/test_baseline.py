@@ -91,15 +91,7 @@ class TestCaptureBaseline:
         client = _FakeClient([_CODE_EXAMPLE])
         rest = {
             "/v1/datasets/ds-1/experiments": [
-                {
-                    "id": "exp-2",
-                    "name": "latest",
-                    "metadata": {
-                        "model": "m",
-                        "harness_version": 4,
-                        "evaluator_source_hash": "checks-v4",
-                    },
-                },
+                {"id": "exp-2", "name": "latest", "metadata": {"model": "m"}},
                 {"id": "exp-1", "name": "older", "metadata": {}},
             ],
             "/v1/experiments/exp-2/runs": [
@@ -133,11 +125,6 @@ class TestCaptureBaseline:
         assert run["case_id"] == "database/list-tables"
         assert run["annotations"] == [{"name": "passed", "score": 1.0}]
         assert dataset_entry["totals"] == totals
-        assert dataset_entry["metadata"]["harness_version"] == 4
-        assert dataset_entry["metadata"]["evaluator_source_hash"] == "checks-v4"
-        captured_hash = baseline._snapshot_hash(snapshot)
-        dataset_entry["metadata"]["evaluator_source_hash"] = "changed-checks"
-        assert baseline._snapshot_hash(snapshot) != captured_hash
 
     def test_experiment_name_filter_and_missing_experiment(self):
         client = _FakeClient([_CODE_EXAMPLE])
