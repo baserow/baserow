@@ -107,6 +107,23 @@ describe('ButtonFieldDispatchJobType', () => {
     expect(store.dispatch).toHaveBeenCalledWith('job/forceDelete', started)
   })
 
+  test('a started copy of a job its click already settled counts as ended', async () => {
+    ButtonFieldDispatchJobType.waitFor({ id: 18 })
+    const done = { id: 18, state: 'finished' }
+    await type.afterUpdate(done, done)
+
+    const late = {
+      id: 18,
+      type: 'button_field_dispatch',
+      state: 'started',
+      field_id: 2,
+      row_id: 1,
+      created_on: new Date().toISOString(),
+    }
+
+    expect(ButtonFieldDispatchJobType.isRunningOn(late, 2, 1)).toBe(false)
+  })
+
   test('a job removed from the store drops the click waiting on it', async () => {
     const waiting = ButtonFieldDispatchJobType.waitFor({ id: 13 })
 

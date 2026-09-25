@@ -542,6 +542,29 @@ describe('GridViewFieldButtonField', () => {
     expect(wrapper.vm.dispatching).toBe(false)
   })
 
+  test('a late job_started for a click that already ended does not spin the button', async () => {
+    const wrapper = await mountCell()
+    const job = reloadedJob({ id: 22, state: 'pending' })
+    wrapper.vm.$client.post = vi
+      .fn()
+      .mockResolvedValue({ status: 202, data: job })
+
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+    const store = wrapper.vm.$store
+    await store.dispatch('job/forceUpdate', {
+      job: store.getters['job/get'](22),
+      data: { ...job, state: 'finished', results: [], client_actions: [] },
+    })
+    await flushPromises()
+    // The broadcast of the job's start, reaching this tab only now.
+    await store.dispatch('job/create', { ...job, state: 'started' })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.dispatching).toBe(false)
+    expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
+  })
+
   // Answers the one fetch of the click's job the deadline makes, and leaves
   // every other request, the job store's own polls included, to the client.
   const answerJobFetch = (wrapper, job) => {

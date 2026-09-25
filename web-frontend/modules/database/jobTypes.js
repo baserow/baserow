@@ -1,4 +1,5 @@
 import { JobType } from '@baserow/modules/core/jobTypes'
+import { FINISHED_STATES } from '@baserow/modules/core/store/job'
 
 import SidebarItemPendingJob from '@baserow/modules/core/components/sidebar/SidebarItemPendingJob.vue'
 
@@ -144,11 +145,14 @@ export class AirtableJobType extends JobType {
 // and refusing clicks until the page is reloaded.
 export const DISPATCH_JOB_DEADLINE_MS = 5 * 60 * 1000
 
-const FINAL_STATES = ['finished', 'failed', 'cancelled']
-
 // Clicks waiting on their job, by job id. The button mixin keeps its own
 // state outside any component, so this lives here rather than in one.
 const waitingClicks = new Map()
+
+// Ids of the jobs whose click has already been told how it ended. The
+// `job_started` broadcast also reaches the tab that clicked, and on a single
+// worker it only arrives once the job has ended, with a `started` copy of it.
+const settledClicks = new Set()
 
 export class ButtonFieldDispatchJobType extends JobType {
   static getType() {
@@ -181,11 +185,13 @@ export class ButtonFieldDispatchJobType extends JobType {
 
   /**
    * A job past the deadline a click waits for counts as ended, so a job whose
-   * worker died does not keep its button spinning.
+   * worker died does not keep its button spinning. So does a job its click
+   * already settled, whatever state a late copy of it carries.
    */
   static hasEnded(job) {
     return (
-      FINAL_STATES.includes(job.state) ||
+      settledClicks.has(job.id) ||
+      FINISHED_STATES.includes(job.state) ||
       !(Date.now() - Date.parse(job.created_on) < DISPATCH_JOB_DEADLINE_MS)
     )
   }
@@ -204,6 +210,7 @@ export class ButtonFieldDispatchJobType extends JobType {
     const waiting = waitingClicks.get(job.id)
     if (waiting) {
       waitingClicks.delete(job.id)
+      settledClicks.add(job.id)
       settle(waiting)
     }
   }
