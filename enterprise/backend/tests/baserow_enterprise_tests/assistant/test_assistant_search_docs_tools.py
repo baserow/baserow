@@ -468,3 +468,45 @@ async def test_hybrid_context_retains_midrank_semantic_evidence(data_fixture):
     assert sum(len(passage["content"]) for passage in passages) <= 30_000
     assert result["sources"] == ["https://example.com/topic-11"]
     assert result["reliability"] == 1.0
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_search_user_docs_searches_with_the_users_own_words(data_fixture):
+    """A rewritten question can drop the concern that decides the relevant page."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = make_test_ctx(user, workspace)
+    ctx.prompt = "Where is the save button? I don't want to lose my work."
+    chunk = MagicMock(content="Baserow saves every change automatically.")
+    chunk.source_document = MagicMock(
+        title="Basics", source_url="https://example.com/basics"
+    )
+    with (
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
+        ) as handler,
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.search_docs_agent.run",
+            new_callable=AsyncMock,
+        ) as run,
+    ):
+        handler.return_value.search.return_value = [chunk]
+        run.return_value = MagicMock(
+            output=SearchDocsResult(
+                answer="Changes save automatically.",
+                sources=["https://example.com/basics"],
+                reliability=0.9,
+            )
+        )
+        await search_user_docs(
+            ctx, question="Where is the save button in Baserow?", thought="user asks"
+        )
+
+    handler.return_value.search.assert_called_once_with(
+        "Where is the save button in Baserow?\n"
+        "Where is the save button? I don't want to lose my work.",
+        30,
+    )
+    assert "I don't want to lose my work." in run.call_args.args[0]

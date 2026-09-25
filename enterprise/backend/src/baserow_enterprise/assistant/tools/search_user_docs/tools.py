@@ -209,6 +209,29 @@ async def search_user_docs(
         }
 
 
+MAX_USER_WORDS_CHARS = 1000
+
+
+def _with_user_words(question: str, user_prompt: Any) -> str:
+    """
+    Append the user's own message to a rewritten documentation question.
+
+    A rewrite can drop why the user is asking ("I don't want to lose my work"),
+    which is often what decides the relevant page.
+
+    :param question: The question the model wrote for the search.
+    :param user_prompt: The user's message for this run, when it is text.
+    :return: The question, followed by the user's words when they add anything.
+    """
+
+    if not isinstance(user_prompt, str):
+        return question
+    user_words = user_prompt.strip()[:MAX_USER_WORDS_CHARS]
+    if not user_words or user_words in question:
+        return question
+    return f"{question}\n{user_words}"
+
+
 async def _search_user_docs_impl(
     ctx: RunContext[AssistantDeps],
     question: str,
@@ -233,6 +256,7 @@ async def _search_user_docs_impl(
         chunks = KnowledgeBaseHandler().search(question, 30)
         return list(chunks)
 
+    question = _with_user_words(question, ctx.prompt)
     relevant_chunks = await _search(question)
 
     if not relevant_chunks:
