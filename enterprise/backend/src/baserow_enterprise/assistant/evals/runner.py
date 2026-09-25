@@ -516,10 +516,12 @@ query ($datasetId: ID!) {
             name
             createdAt
             metadata
+            repetitions
             runCount
+            expectedRunCount
             averageRunLatencyMs
             costSummary { total { cost tokens } }
-            annotationSummaries { annotationName meanScore }
+            annotationSummaries { annotationName meanScore scoreCount }
           }
         }
       }
@@ -537,7 +539,9 @@ def _settings_label(metadata: dict[str, Any]) -> str | None:
     """Compact "temperature=0.3 reasoning=none" for the results table."""
 
     settings = metadata.get("model_settings") or {}
-    if settings and metadata.get("harness_version") != HARNESS_VERSION:
+    if settings and metadata.get("harness_version") not in range(
+        2, HARNESS_VERSION + 1
+    ):
         return "model settings unverified (legacy harness)"
     parts = [
         f"{key.replace('openai_reasoning_effort', 'reasoning')}={settings[key]}"
@@ -610,6 +614,16 @@ def _results_json() -> bytes:
                 run_count = node.get("runCount")
                 if run_count is None:
                     run_count = totals.get("run_count")
+                expected_run_count = node.get("expectedRunCount")
+                annotation_summaries = node.get("annotationSummaries", [])
+                score_counts = {
+                    summary["annotationName"]: summary.get("scoreCount") or 0
+                    for summary in annotation_summaries
+                }
+                mandatory_score_counts = [
+                    score_counts.get(name, 0) for name in ("checklist", "passed")
+                ]
+                scored_run_count = min(mandatory_score_counts)
                 avg_latency_ms = node.get("averageRunLatencyMs") or totals.get(
                     "average_run_latency_ms"
                 )
@@ -626,7 +640,6 @@ def _results_json() -> bytes:
                         "name": node.get("name") or "",
                         "created_at": node.get("createdAt"),
                         "status": state.status if state else "unknown",
-                        "run_count": run_count,
                         "prompts": metadata.get("prompts"),
                         "prompt_overrides": metadata.get("prompt_overrides", []),
                         "model": metadata.get("model"),
@@ -635,9 +648,19 @@ def _results_json() -> bytes:
                         "settings": _settings_label(metadata),
                         "scores": {
                             s["annotationName"]: s["meanScore"]
-                            for s in node.get("annotationSummaries", [])
+                            for s in annotation_summaries
                             if s.get("meanScore") is not None
                         },
+                        "run_count": run_count,
+                        "expected_run_count": expected_run_count,
+                        "repetitions": node.get("repetitions") or 1,
+                        "scored_run_count": scored_run_count,
+                        "score_counts": score_counts,
+                        "complete": bool(expected_run_count)
+                        and all(
+                            count == expected_run_count
+                            for count in mandatory_score_counts
+                        ),
                         "time_s": (
                             avg_latency_ms * run_count / 1000
                             if avg_latency_ms and run_count

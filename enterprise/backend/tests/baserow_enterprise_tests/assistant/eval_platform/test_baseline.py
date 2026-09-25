@@ -91,7 +91,15 @@ class TestCaptureBaseline:
         client = _FakeClient([_CODE_EXAMPLE])
         rest = {
             "/v1/datasets/ds-1/experiments": [
-                {"id": "exp-2", "name": "latest", "metadata": {"model": "m"}},
+                {
+                    "id": "exp-2",
+                    "name": "latest",
+                    "metadata": {
+                        "model": "m",
+                        "harness_version": 4,
+                        "evaluator_source_hash": "checks-v4",
+                    },
+                },
                 {"id": "exp-1", "name": "older", "metadata": {}},
             ],
             "/v1/experiments/exp-2/runs": [
@@ -125,6 +133,11 @@ class TestCaptureBaseline:
         assert run["case_id"] == "database/list-tables"
         assert run["annotations"] == [{"name": "passed", "score": 1.0}]
         assert dataset_entry["totals"] == totals
+        assert dataset_entry["metadata"]["harness_version"] == 4
+        assert dataset_entry["metadata"]["evaluator_source_hash"] == "checks-v4"
+        captured_hash = baseline._snapshot_hash(snapshot)
+        dataset_entry["metadata"]["evaluator_source_hash"] = "changed-checks"
+        assert baseline._snapshot_hash(snapshot) != captured_hash
 
     def test_experiment_name_filter_and_missing_experiment(self):
         client = _FakeClient([_CODE_EXAMPLE])
@@ -277,3 +290,36 @@ class TestImportBaseline:
         results = import_baseline(client)
 
         assert results["kuma-database"] == "dataset not found in Phoenix"
+
+
+class TestDumpSnapshot:
+    def test_round_trips_and_keeps_each_run_on_one_line(self):
+        """The one-line-per-run format caps the committed file's line count
+        (a pretty-printed snapshot is ~20k diff lines) without losing data."""
+
+        snapshot = {
+            "captured_at": "2026-09-02T00:00:00+00:00",
+            "datasets": {
+                "kuma-core": {
+                    "experiment_name": "run-x",
+                    "metadata": {"model": "m"},
+                    "totals": {"total_cost": 1.5},
+                    "runs": [
+                        {"case_id": "core/a", "output": {"answer": "hi\nthere"}},
+                        {"case_id": "core/b", "output": {}},
+                    ],
+                },
+                "kuma-docs": {
+                    "experiment_name": None,
+                    "metadata": {},
+                    "totals": {},
+                    "runs": [],
+                },
+            },
+        }
+
+        text = baseline._dump_snapshot(snapshot)
+
+        assert json.loads(text) == snapshot
+        run_lines = [line for line in text.splitlines() if '"case_id"' in line]
+        assert len(run_lines) == 2
