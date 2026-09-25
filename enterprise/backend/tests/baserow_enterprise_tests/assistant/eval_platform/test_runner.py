@@ -353,6 +353,7 @@ class TestResultsEndpoint:
                 "repetitions": 2,
                 "runCount": 2,
                 "expectedRunCount": 2,
+                "datasetVersion": {"id": "version-1"},
                 "averageRunLatencyMs": 6000.0,
                 "costSummary": {"total": {"cost": 0.05, "tokens": 120000}},
                 "annotationSummaries": [
@@ -394,6 +395,7 @@ class TestResultsEndpoint:
             "answer_quality": 0,
         }
         assert experiment["complete"] is True
+        assert experiment["dataset_version_id"] == "version-1"
         assert experiment["git_label"] == "b@c"
         assert experiment["time_s"] == 12.0
         assert experiment["cost"] == 0.05
@@ -447,6 +449,9 @@ class TestResultsEndpoint:
     def test_results_summary_query_requests_completeness_counts(self):
         assert "expectedRunCount" in runner._EXPERIMENT_SUMMARIES_QUERY
         assert "scoreCount" in runner._EXPERIMENT_SUMMARIES_QUERY
+
+    def test_results_summary_query_requests_the_case_population(self):
+        assert "datasetVersion { id }" in runner._EXPERIMENT_SUMMARIES_QUERY
 
     def test_results_json_falls_back_to_frozen_baseline_totals(self, monkeypatch):
         _register_case("database/list-tables")
@@ -509,14 +514,27 @@ class TestResultsEndpoint:
         assert (
             "experiment.expected_run_count === baseline.expected_run_count" not in page
         )
-        assert (
-            "var comparable = experimentComplete && baseline && baseline.complete;"
-            in page
-        )
         assert "candidate.repetitions" in page
         assert 'perPass(experiment, "time_s")' in page
         assert 'perPass(baseline, "cost")' in page
         assert "time and cost shown per pass" in page
+
+    def test_results_tab_compares_only_the_same_case_population(self):
+        """A baseline captured before cases were added, removed or edited ran a
+        different dataset version, so its means are not comparable."""
+
+        _register_case("database/list-tables")
+        app = runner.make_wsgi_app()
+
+        _status, _headers, body = _call_wsgi(app, "GET", "/")
+
+        page = body.decode("utf-8")
+        assert (
+            "var comparable = experimentComplete && baseline && baseline.complete &&\n"
+            "          experiment.dataset_version_id === baseline.dataset_version_id;"
+            in page
+        )
+        assert "baseline ran a different case set" in page
 
     def test_results_tab_requires_full_metric_coverage_on_both_sides(self):
         """answer_quality only compares when the judge scored every run in both

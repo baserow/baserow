@@ -519,6 +519,7 @@ query ($datasetId: ID!) {
             repetitions
             runCount
             expectedRunCount
+            datasetVersion { id }
             averageRunLatencyMs
             costSummary { total { cost tokens } }
             annotationSummaries { annotationName meanScore scoreCount }
@@ -653,6 +654,9 @@ def _results_json() -> bytes:
                         },
                         "run_count": run_count,
                         "expected_run_count": expected_run_count,
+                        "dataset_version_id": (node.get("datasetVersion") or {}).get(
+                            "id"
+                        ),
                         "repetitions": node.get("repetitions") or 1,
                         "scored_run_count": scored_run_count,
                         "score_counts": score_counts,

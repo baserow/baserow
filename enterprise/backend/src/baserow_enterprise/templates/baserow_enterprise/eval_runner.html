@@ -789,7 +789,8 @@
         var experiment = byName[selected];
         var baseline = byName["baseline"];
         var experimentComplete = experiment && experiment.complete;
-        var comparable = experimentComplete && baseline && baseline.complete;
+        var comparable = experimentComplete && baseline && baseline.complete &&
+          experiment.dataset_version_id === baseline.dataset_version_id;
         // Scores are already means; time and cost are totals over the repetitions.
         var repetitions = function (candidate) {
           return (candidate && candidate.repetitions) || 1;
@@ -825,6 +826,11 @@
             incomplete.textContent = "incomplete (" + experiment.scored_run_count +
               "/" + experiment.expected_run_count + " scored)";
             modelCell.appendChild(incomplete);
+          } else if (baseline && baseline.complete && !comparable) {
+            var otherCases = document.createElement("small");
+            otherCases.className = "experiment-note";
+            otherCases.textContent = "baseline ran a different case set";
+            modelCell.appendChild(otherCases);
           }
           var runReps = repetitions(experiment);
           var baseReps = baseline ? repetitions(baseline) : 1;
@@ -925,7 +931,7 @@
       body.appendChild(table);
       var note = document.createElement("p");
       note.className = "results-note";
-      note.textContent = "Scores are experiment means per dataset, so they compare across repetition counts; answer_quality exists only where a judge ran. Incomplete datasets are not compared. Overall includes only complete datasets, weighs scores by case count, and sums time/cost. Time and cost are shown per pass over the dataset, so a --runs 3 experiment is divided by 3 and compares with a single-pass baseline. Time is the sum of run latencies; cost comes from Phoenix's token prices (baseline values are frozen at capture time).";
+      note.textContent = "Scores are experiment means per dataset, so they compare across repetition counts; answer_quality exists only where a judge ran. Incomplete datasets, and datasets whose baseline ran a different case set, are not compared. Overall includes only complete datasets, weighs scores by case count, and sums time/cost. Time and cost are shown per pass over the dataset, so a --runs 3 experiment is divided by 3 and compares with a single-pass baseline. Time is the sum of run latencies; cost comes from Phoenix's token prices (baseline values are frozen at capture time).";
       body.appendChild(note);
     }
 
