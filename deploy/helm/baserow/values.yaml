@@ -202,6 +202,93 @@ migration:
     seccompProfile:
       type: ""
 
+## @section Baserow inbound email receiver configuration
+## The email receiver runs mox and forwards messages to the backend for the
+## "Start workflow by email" automation trigger. Configure
+## BASEROW_INBOUND_EMAIL_DOMAIN in backendConfigMap and
+## BASEROW_INBOUND_EMAIL_WEBHOOK_SECRET in backendSecrets before enabling it.
+## Point the inbound domain's MX record at the external address assigned to the
+## SMTP LoadBalancer service.
+##
+## @param baserow-email-receiver.enabled Enable the inbound email receiver
+## @param baserow-email-receiver.image.repository Email receiver Docker image repository
+## @param baserow-email-receiver.persistence.size Persistent storage requested for mox data
+## @param baserow-email-receiver.persistence.storageClass Persistent storage class
+## @param baserow-email-receiver.persistence.existingClaim Existing PVC for mox data
+## @param baserow-email-receiver.additionalServices.smtp.type SMTP service type
+## @param baserow-email-receiver.additionalServices.smtp.port Externally exposed SMTP port
+## @param baserow-email-receiver.additionalServices.smtp.annotations SMTP service annotations
+baserow-email-receiver:
+  enabled: false
+  image:
+    repository: backend
+  workingDir: /baserow/backend
+  args:
+    - email-receiver
+  replicaCount: 1
+  strategy:
+    type: Recreate
+  service:
+    type: ClusterIP
+    name: webapi
+    port: 8880
+    targetPort: 8880
+  additionalServices:
+    smtp:
+      type: LoadBalancer
+      port: 25
+      targetPort: 25
+      protocol: TCP
+      annotations: {}
+  persistence:
+    enabled: true
+    existingClaim: ""
+    mountPath: /baserow/data/mox
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+    storageClass: ""
+    annotations: {}
+  containerSecurityContext:
+    enabled: true
+    seLinuxOptions: {}
+    runAsUser: 0
+    runAsGroup: 0
+    runAsNonRoot: false
+    privileged: false
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      add:
+        - NET_BIND_SERVICE
+      drop: []
+    seccompProfile:
+      type: RuntimeDefault
+  livenessProbe:
+    enabled: true
+    exec:
+      command:
+        - /bin/bash
+        - -c
+        - /baserow/backend/docker/docker-entrypoint.sh email-receiver-healthcheck
+    failureThreshold: 3
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    successThreshold: 1
+    timeoutSeconds: 5
+  readinessProbe:
+    enabled: true
+    exec:
+      command:
+        - /bin/bash
+        - -c
+        - /baserow/backend/docker/docker-entrypoint.sh email-receiver-healthcheck
+    failureThreshold: 3
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    successThreshold: 1
+    timeoutSeconds: 5
+
 ## @section Baserow Backend ASGI Configuration
 ## Configuration for the ASGI server that serves the Baserow backend application.
 ## This section includes the Docker image repository and arguments for running the ASGI server,
