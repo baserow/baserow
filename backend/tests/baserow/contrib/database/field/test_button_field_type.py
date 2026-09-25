@@ -522,10 +522,10 @@ def test_listing_fields_does_not_query_per_button_field(api_client, data_fixture
     assert all(field["requires_reconfiguration"] is True for field in buttons), (
         "The fixture's row actions have no table, so every button needs one."
     )
-    assert [field["opens_new_tab"] for field in buttons] == [
-        False,
-        True,
-        True,
-        True,
-    ]
+    assert {field["label"]: field["opens_new_tab"] for field in buttons} == {
+        "One": False,
+        "Two": True,
+        "Three": True,
+        "Four": True,
+    }
     assert four_button_queries == one_button_queries
