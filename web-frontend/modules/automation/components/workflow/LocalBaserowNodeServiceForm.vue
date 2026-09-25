@@ -13,7 +13,7 @@
       :service-type="serviceType"
       :databases="databases"
       :default-values="defaultValues"
-      @values-changed="$emit('values-changed', $event)"
+      @values-changed="(...args) => $emit('values-changed', ...args)"
     />
   </div>
 </template>

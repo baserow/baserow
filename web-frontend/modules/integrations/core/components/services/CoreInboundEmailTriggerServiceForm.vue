@@ -115,10 +115,16 @@ export default {
      * The `regenerate_token` flag is deliberately not part of `values`:
      * it's a write-only request field, and keeping it in the form values
      * would re-send it on every subsequent change, regenerating the
-     * address each time. It's emitted once instead.
+     * address each time. It's emitted once instead, flagged as immediate:
+     * value changes are normally debounced to batch keystrokes, which for
+     * a button click only delays the spinner and the request.
      */
     regenerateAddress() {
-      this.$emit('values-changed', { regenerate_token: true })
+      this.$emit(
+        'values-changed',
+        { regenerate_token: true },
+        { immediate: true }
+      )
     },
   },
 }
