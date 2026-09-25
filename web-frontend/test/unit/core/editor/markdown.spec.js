@@ -574,13 +574,29 @@ describe('parseMarkdown image handling', () => {
     expect(html).toContain('src="https://cdn.example.com/file2.jpg"')
   })
 
-  test('applies max-width style to images', () => {
+  test('leaves image sizing to the surface stylesheet', () => {
     const html = parseMarkdown(
       '![img][test_file.png](https://example.com/test.png)',
       { enableImages: true }
     )
+    const image = new DOMParser()
+      .parseFromString(html, 'text/html')
+      .querySelector('img')
 
-    expect(html).toContain('max-width: 100%')
+    expect(image).not.toBeNull()
+    expect(image.hasAttribute('style')).toBe(false)
+  })
+
+  test('keeps the alt text of a resolved image', () => {
+    const html = parseMarkdown(
+      'before ![a *red* car][test_file.png](https://example.com/test.png)',
+      { enableImages: true }
+    )
+    const image = new DOMParser()
+      .parseFromString(html, 'text/html')
+      .querySelector('img')
+
+    expect(image.getAttribute('alt')).toBe('a red car')
   })
 })
 

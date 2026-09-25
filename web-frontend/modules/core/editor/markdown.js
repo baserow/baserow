@@ -123,6 +123,7 @@ export const parseMarkdown = (
   }
 
   if (enableImages) {
+    const renderImage = md.renderer.rules.image
     md.renderer.rules.image = function (tokens, idx, options, env, self) {
       // Only Baserow references resolved above render; external images are placeholders.
       const src = tokens[idx].attrGet('src')
@@ -132,11 +133,7 @@ export const parseMarkdown = (
         )
         return alt ? `${IMAGE_PLACEHOLDER} ${alt}` : IMAGE_PLACEHOLDER
       }
-      const style = tokens[idx].attrIndex('style')
-      if (style < 0) {
-        tokens[idx].attrPush(['style', 'display: block; max-width: 100%;'])
-      }
-      return self.renderToken(tokens, idx, options)
+      return renderImage(tokens, idx, options, env, self)
     }
   } else {
     md.disable('image')
