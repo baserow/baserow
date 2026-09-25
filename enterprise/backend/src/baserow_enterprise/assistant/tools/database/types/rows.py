@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from pydantic import ConfigDict, Field, create_model
+from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.fields.field_types import LinkRowFieldType
 from baserow.contrib.database.fields.models import SelectOption as OrmSelectOption
@@ -152,8 +153,13 @@ def _link_row_field_def(orm_field, orm_field_type):
         if value is not None:
             try:
                 return LinkRowFieldType().prepare_value_for_db(orm_field, value)
-            except ValidationError:
-                pass
+            except ValidationError as exc:
+                raise ModelRetry(
+                    f"Invalid value for link field '{orm_field.name}': {exc}. "
+                    "Nothing was changed. Use list_rows on linked table "
+                    f"{orm_field.link_row_table_id} to find existing row IDs or "
+                    "exact values, then retry with those links."
+                ) from exc
         return []
 
     def from_django_orm(value):
@@ -168,6 +174,11 @@ def _link_row_field_def(orm_field, orm_field_type):
     else:
         desc = "Single value (as string) or ID (as integer) from the linked table."
         field_type = str | int | None
+    desc += (
+        f" Linked table ID: {orm_field.link_row_table_id}. "
+        "Names must exactly match existing rows; this does not create linked rows. "
+        "Use the examples below or list_rows on the linked table to find valid values."
+    )
     if examples:
         desc += (
             " Examples: "

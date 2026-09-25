@@ -6,7 +6,20 @@ the RunContext + FunctionToolset pattern.
 """
 
 import pytest
+from pydantic import ValidationError
+from pydantic_ai import ModelRetry
 
+from baserow.contrib.builder.elements.models import ButtonElement, HeadingElement
+from baserow.contrib.builder.elements.operations import UpdateElementOperationType
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.operations import (
+    CreateBuilderWorkflowActionOperationType,
+)
+from baserow.core.exceptions import PermissionDenied
+from baserow_enterprise.assistant.tools.builder.agents import (
+    update_element_formulas,
+    update_single_element_formulas,
+)
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_actions,
     create_collection_elements,
@@ -20,6 +33,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     list_elements,
     list_pages,
     set_theme,
+    setup_page,
     update_data_source,
     update_element,
     update_element_style,
@@ -34,6 +48,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     DataSourceSort,
     DataSourceUpdate,
     DisplayElementCreate,
+    ElementItemCreate,
     ElementStyleUpdate,
     ElementUpdate,
     FormElementCreate,
@@ -47,6 +62,7 @@ from baserow_enterprise.assistant.tools.builder.types import (
     TableFieldConfig,
     TypographyStyleOverride,
 )
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     ensure_valid_formula,
     formula_desc,
@@ -56,6 +72,8 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     needs_formula,
     wrap_static_string,
 )
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import Role
 
 from .utils import create_fake_tool_helpers, make_test_ctx
 
@@ -81,7 +99,7 @@ def mock_formula_generators(monkeypatch):
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_single_element_formulas",
-        noop,
+        lambda *args, **kwargs: ([], []),
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.agents.update_single_data_source_formulas",
@@ -187,18 +205,26 @@ class TestFormulaUtils:
 
 
 @pytest.mark.django_db
-def test_list_pages(data_fixture):
+@pytest.mark.parametrize("has_page", [False, True])
+def test_list_pages(data_fixture, has_page):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    if has_page:
+        page = data_fixture.create_builder_page(
+            builder=builder, name="Home", path="/home"
+        )
 
     ctx = make_test_ctx(user, workspace)
     result = list_pages(ctx, application_id=builder.id, thought="test")
 
-    assert len(result["pages"]) == 1
-    assert result["pages"][0]["name"] == "Home"
-    assert result["pages"][0]["id"] == page.id
+    assert len(result["pages"]) == int(has_page)
+    if has_page:
+        assert result["pages"][0]["name"] == "Home"
+        assert result["pages"][0]["id"] == page.id
+    assert result["application_id"] == builder.id
+    assert "create_pages" in result["next_steps"]
+    assert "existing page" in result["next_steps"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -229,6 +255,38 @@ def test_create_pages(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "parameters", [None, [PagePathParam(name="id", type="numeric")]]
+)
+def test_create_page_derives_omitted_path_parameters(data_fixture, parameters):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    request = {"name": "Edit", "path": "/edit/:id"}
+    if parameters is not None:
+        request["path_params"] = parameters
+    result = create_pages(
+        make_test_ctx(user, workspace),
+        application_id=builder.id,
+        pages=[PageCreate(**request)],
+        thought="Create the editing page",
+    )
+    page = result["created_pages"][0]
+    assert page["path_params"] == [
+        {"name": "id", "type": "text" if parameters is None else "numeric"}
+    ]
+
+
+@pytest.mark.parametrize(
+    "path, parameters",
+    [("/edit/:id/:id", []), ("/edit/:id", [PagePathParam(name="other")])],
+)
+def test_create_page_still_rejects_inconsistent_path_parameters(path, parameters):
+    with pytest.raises(ValidationError, match="Path parameters must match"):
+        PageCreate(name="Edit", path=path, path_params=parameters)
+
+
+@pytest.mark.django_db(transaction=True)
 def test_create_pages_skips_duplicates(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -249,6 +307,41 @@ def test_create_pages_skips_duplicates(data_fixture):
     assert len(result["created_pages"]) == 1
     assert result["created_pages"][0]["name"] == "About"
     assert len(result["existing_pages"]) == 1
+
+
+# ===========================================================================
+# Empty payload guard tests
+# ===========================================================================
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tool,kwargs,arg_name",
+    [
+        (create_pages, {"application_id": 1, "pages": []}, "pages"),
+        (create_data_sources, {"page_id": 1, "data_sources": []}, "data_sources"),
+        (create_display_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_layout_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_form_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_collection_elements, {"page_id": 1, "elements": []}, "elements"),
+        (create_actions, {"page_id": 1, "actions": []}, "actions"),
+    ],
+)
+def test_create_tools_reject_an_empty_payload(data_fixture, tool, kwargs, arg_name):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(ModelRetry, match=f"empty `{arg_name}`"):
+        tool(make_test_ctx(user, workspace), thought="test", **kwargs)
+
+
+@pytest.mark.django_db
+def test_setup_page_rejects_an_empty_payload(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(ModelRetry, match="no content"):
+        setup_page(make_test_ctx(user, workspace), page_id=1, thought="test")
 
 
 # ===========================================================================
@@ -384,6 +477,181 @@ def test_create_heading_element(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_created_elements_are_reported_when_formula_update_is_denied(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles, monkeypatch
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    builder = data_fixture.create_builder_application(user=owner, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    role = Role.objects.create(
+        name="Create elements without updates", workspace=workspace
+    )
+    role.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=UpdateElementOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=role, scope=builder.application_ptr
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.get_formula_generator",
+        lambda *args: lambda *args: {"value": "'Welcome'"},
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",
+        update_element_formulas,
+    )
+
+    result = create_display_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(
+                ref="heading", type="heading", value="$formula: the welcome text"
+            )
+        ],
+        thought="Create the heading",
+    )
+
+    element = HeadingElement.objects.get(page=page)
+    assert [item["id"] for item in result["created_elements"]] == [element.id]
+    assert element.value["formula"] != "'Welcome'"
+    assert result["errors"] == [
+        "Permission denied while configuring element 'heading'. "
+        "The element was created, but its formulas were not applied. "
+        "Do not retry the denied operation."
+    ]
+
+
+@pytest.mark.django_db
+def test_formula_update_denial_preserves_previous_value(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles, monkeypatch
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    builder = data_fixture.create_builder_application(user=owner, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_heading_element(
+        page=page, value=formula_object("'Original'")
+    )
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    role = Role.objects.create(
+        name="Read elements without updates", workspace=workspace
+    )
+    role.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=UpdateElementOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=role, scope=builder.application_ptr
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.get_formula_generator",
+        lambda *args: lambda *args: {"value": "'Changed'"},
+    )
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.agents.update_single_element_formulas",
+        update_single_element_formulas,
+    )
+
+    result = update_element(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        element=ElementUpdate(
+            element_id=element.id, value="$formula: a changed heading"
+        ),
+        thought="Update the heading.",
+    )
+    element.refresh_from_db()
+    assert element.value["formula"] == "'Original'"
+    assert result["status"] == "error"
+    assert result["updated_fields"] == []
+    assert result["errors"] == [
+        "Permission denied while applying element formulas. "
+        "Previous formula values were retained. Do not retry the denied operation."
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_setup_page_reports_elements_when_action_phase_is_denied(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    builder = data_fixture.create_builder_application(user=owner, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    role = Role.objects.create(
+        name="Create elements without actions", workspace=workspace
+    )
+    role.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=CreateBuilderWorkflowActionOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=role, scope=builder.application_ptr
+    )
+    ctx = make_test_ctx(user, workspace)
+
+    result = setup_page(
+        ctx,
+        page_id=page.id,
+        data_sources=[],
+        elements=[ElementItemCreate(ref="button", type="button", value="Notify")],
+        actions=[ActionCreate(type="notification", element="button", title="Done")],
+        thought="Set up the notification page",
+    )
+
+    element = ButtonElement.objects.get(page=page)
+    assert [item["id"] for item in result["created_elements"]] == [element.id]
+    assert not BuilderWorkflowAction.objects.filter(page=page).exists()
+    assert result["error"] == "setup_page stopped because permission was denied."
+    assert "Earlier changes may have been applied" in result["next_steps"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_elements_propagates_permission_denied(data_fixture, monkeypatch):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    def deny(*args, **kwargs):
+        raise PermissionDenied()
+
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.builder.helpers.create_element", deny
+    )
+
+    with pytest.raises(PermissionDenied):
+        create_display_elements(
+            make_test_ctx(user, workspace),
+            page_id=page.id,
+            elements=[
+                DisplayElementCreate(ref="h1", type="heading", value="Welcome", level=1)
+            ],
+            thought="test",
+        )
+
+
+@pytest.mark.django_db(transaction=True)
 def test_assistant_created_element_is_undoable(data_fixture):
     # The assistant runs its element mutations through the undoable action types,
     # registered under the user's session + a per-message action group (set on the
@@ -478,6 +746,111 @@ def test_create_column_with_children(data_fixture):
     assert result["created_elements"][1]["type"] == "heading"
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "element_type", ["simple_container", "column", "repeat", "form_container"]
+)
+def test_empty_container_response_directs_requested_content_completion(
+    data_fixture, element_type
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    ctx = make_test_ctx(user, workspace)
+    if element_type == "repeat":
+        source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=page
+        )
+        tool = create_collection_elements
+        element = CollectionElementCreate(
+            ref="container", type=element_type, data_source=source.id
+        )
+    elif element_type == "form_container":
+        tool = create_form_elements
+        element = FormElementCreate(ref="container", type=element_type)
+    else:
+        tool = create_layout_elements
+        element = LayoutElementCreate(ref="container", type=element_type)
+
+    result = tool(ctx, page_id=page.id, elements=[element], thought="Add the layout.")
+    assert result["empty_containers"] == result["created_elements"]
+    assert "requested content" in result["next_steps"]
+    assert "parent_element" in result["next_steps"]
+    assert "current_record" in result["next_steps"]
+    if element_type == "form_container":
+        assert "create_actions" in result["next_steps"]
+        assert "submit" in result["next_steps"]
+
+
+@pytest.mark.django_db
+def test_empty_container_response_uses_actual_children_created_in_same_batch(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    result = create_layout_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="outer", type="simple_container"),
+            LayoutElementCreate(
+                ref="inner", type="simple_container", parent_element="outer"
+            ),
+        ],
+        thought="Group the requested content.",
+    )
+    assert result["empty_containers"] == [result["created_elements"][1]]
+
+
+@pytest.mark.django_db
+def test_empty_container_response_identifies_ids_when_refs_repeat(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    result = create_layout_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="card", type="simple_container"),
+            LayoutElementCreate(ref="card", type="simple_container"),
+            LayoutElementCreate(
+                ref="child", type="simple_container", parent_element="card"
+            ),
+        ],
+        thought="Create the requested groups.",
+    )
+    assert result["empty_containers"] == [
+        result["created_elements"][0],
+        result["created_elements"][2],
+    ]
+
+
+@pytest.mark.django_db
+def test_empty_container_response_excludes_failed_creation(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    result = create_layout_elements(
+        make_test_ctx(user, workspace),
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(
+                ref="card", type="simple_container", parent_element="missing"
+            )
+        ],
+        thought="Add the requested content container.",
+    )
+    assert not result["created_elements"]
+    assert result["errors"]
+    assert "empty_containers" not in result
+    assert "next_steps" not in result
+
+
 @pytest.mark.django_db(transaction=True)
 def test_create_form_container_with_inputs(data_fixture):
     user = data_fixture.create_user()
@@ -519,6 +892,8 @@ def test_create_form_container_with_inputs(data_fixture):
     assert result["created_elements"][0]["type"] == "form_container"
     assert result["created_elements"][1]["type"] == "input_text"
     assert result["created_elements"][2]["type"] == "input_text"
+    assert "empty_containers" not in result
+    assert "create_actions" in result["next_steps"]
 
 
 @pytest.mark.django_db
@@ -532,31 +907,6 @@ def test_list_elements(data_fixture):
     result = list_elements(ctx, page_id=page.id, thought="test")
 
     assert result["elements"] == []
-
-
-@pytest.mark.django_db
-def test_list_elements_on_populated_page(data_fixture):
-    # Regression: from_orm must only read attributes that survived b70bc968d.
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
-
-    data_fixture.create_builder_heading_element(page=page)
-    data_fixture.create_builder_form_container_element(page=page)
-    data_fixture.create_builder_table_element(page=page)
-    data_fixture.create_builder_column_element(page=page)
-
-    ctx = make_test_ctx(user, workspace)
-    result = list_elements(ctx, page_id=page.id, thought="test")
-
-    assert {el["type"] for el in result["elements"]} == {
-        "heading",
-        "form_container",
-        "table",
-        "column",
-    }
-    assert all(el["id"] for el in result["elements"])
 
 
 @pytest.mark.django_db(transaction=True)
@@ -663,7 +1013,7 @@ def test_create_open_page_action(data_fixture):
 
     tool_helpers = create_fake_tool_helpers()
     ctx = make_test_ctx(user, workspace, tool_helpers)
-    el_result = create_display_elements(
+    create_display_elements(
         ctx,
         page_id=page.id,
         elements=[
@@ -728,6 +1078,17 @@ def test_open_page_action_no_formulas_for_static():
     assert formulas == {}
 
 
+@pytest.mark.parametrize("page_id", [0, -7])
+def test_action_create_rejects_a_non_positive_id(page_id):
+    with pytest.raises(ValueError, match="never a valid ID"):
+        ActionCreate(type="open_page", element="btn", navigate_to_page_id=page_id)
+
+
+def test_action_create_names_the_missing_required_fields():
+    with pytest.raises(ValueError, match="Missing: table_id, row_id"):
+        ActionCreate(type="delete_row", element="btn")
+
+
 @pytest.mark.django_db(transaction=True)
 def test_create_row_action(data_fixture):
     user = data_fixture.create_user()
@@ -742,7 +1103,7 @@ def test_create_row_action(data_fixture):
     ctx = make_test_ctx(user, workspace, tool_helpers)
 
     # Create form with submit button
-    el_result = create_form_elements(
+    create_form_elements(
         ctx,
         page_id=page.id,
         elements=[
@@ -1141,7 +1502,7 @@ def test_update_column_amount(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_update_ignores_irrelevant_fields(data_fixture):
-    """Update a heading with column_amount — should be dropped by extract_allowed."""
+    """An unsupported field must not be acknowledged as a successful update."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -1161,23 +1522,87 @@ def test_update_ignores_irrelevant_fields(data_fixture):
     )
     element_id = el_result["created_elements"][0]["id"]
 
-    # column_amount is irrelevant for heading — should not cause an error
-    result = update_element(
-        ctx,
-        page_id=page.id,
-        element=ElementUpdate(
-            element_id=element_id, value="Updated Title", column_amount=3
-        ),
-        thought="test",
-    )
-
-    assert result["status"] == "ok"
-    assert result["element_type"] == "heading"
+    with pytest.raises(ToolInputError, match="column_amount"):
+        update_element(
+            ctx,
+            page_id=page.id,
+            element=ElementUpdate(
+                element_id=element_id, value="Updated Title", column_amount=3
+            ),
+            thought="test",
+        )
 
     from baserow.contrib.builder.elements.handler import ElementHandler
 
     el = ElementHandler().get_element(element_id).specific
-    assert el.value["formula"] == "'Updated Title'"
+    assert el.value["formula"] == "'Title'"
+
+
+@pytest.mark.django_db
+def test_button_navigation_requires_a_saved_click_action(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    target = data_fixture.create_builder_page(builder=builder)
+    ctx = make_test_ctx(user, builder.workspace)
+
+    invalid = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(
+                ref="cta",
+                type="button",
+                value="Go",
+                navigation_type="custom",
+                navigate_to_url="/contact",
+            )
+        ],
+        thought="Add navigation.",
+    )
+    assert invalid["created_elements"] == []
+    assert "create_actions" in invalid["errors"][0]
+    assert not ButtonElement.objects.filter(page=page).exists()
+
+    created = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[DisplayElementCreate(ref="cta", type="button", value="Go")],
+        thought="Create the button before its action.",
+    )
+    button_id = created["created_elements"][0]["id"]
+    with pytest.raises(ToolInputError, match="create_actions"):
+        update_element(
+            ctx,
+            page_id=page.id,
+            element=ElementUpdate(
+                element_id=button_id,
+                navigation_type="page",
+                navigate_to_page_id=target.id,
+            ),
+            thought="Configure navigation.",
+        )
+    assert not BuilderWorkflowAction.objects.filter(element_id=button_id).exists()
+
+    result = create_actions(
+        ctx,
+        page_id=page.id,
+        actions=[
+            ActionCreate(
+                type="open_page",
+                element=button_id,
+                event="click",
+                navigate_to_page_id=target.id,
+            )
+        ],
+        thought="Attach the button's click navigation.",
+    )
+    action = BuilderWorkflowAction.objects.get(
+        id=result["created_actions"][0]["id"]
+    ).specific
+    assert action.element_id == button_id
+    assert action.event == "click"
+    assert action.navigate_to_page_id == target.id
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1506,6 +1931,7 @@ def test_update_menu_items(data_fixture):
         thought="test",
     )
     menu_id = result["ref_to_id_map"]["nav"]
+    assert "empty_containers" not in result
 
     # Update to 3 items
     update_result = update_element(
@@ -1535,6 +1961,41 @@ def test_update_menu_items(data_fixture):
     assert items[1].navigate_to_page_id == page2.id
     assert items[2].name == "Contact"
     assert items[2].navigate_to_page_id == page3.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("element_type", ["header", "footer"])
+def test_update_shared_container_clears_menu_items(data_fixture, element_type):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    ctx = make_test_ctx(user, builder.workspace)
+    created = create_layout_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(
+                ref="container",
+                type=element_type,
+                menu_items=[MenuItemCreate(name="Home", page_id=page.id)],
+            )
+        ],
+        thought="Create shared navigation.",
+    )
+    from baserow.contrib.builder.elements.models import MenuElement
+
+    element_id = created["created_elements"][0]["id"]
+    menu = MenuElement.objects.get(page__builder=builder)
+    assert menu.parent_element_id == element_id
+    assert menu.menu_items.count() == 1
+    result = update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(element_id=element_id, menu_items=[]),
+        thought="Clear the navigation items.",
+    )
+    assert result["updated_fields"] == ["menu_items"]
+    assert not menu.menu_items.exists()
 
 
 # ===========================================================================
@@ -2219,9 +2680,9 @@ def test_update_table_element_replace_columns(data_fixture):
     page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
-    name_field = data_fixture.create_text_field(table=table, name="Name")
-    email_field = data_fixture.create_text_field(table=table, name="Email")
-    phone_field = data_fixture.create_text_field(table=table, name="Phone")
+    data_fixture.create_text_field(table=table, name="Name")
+    data_fixture.create_text_field(table=table, name="Email")
+    data_fixture.create_text_field(table=table, name="Phone")
 
     tool_helpers = create_fake_tool_helpers()
     ctx = make_test_ctx(user, workspace, tool_helpers)

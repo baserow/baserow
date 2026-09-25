@@ -3,6 +3,7 @@ from pydantic import ValidationError
 from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.assistant.agents import dynamic_toolset
 from baserow_enterprise.assistant.tools.database import tools as database_tools
 from baserow_enterprise.assistant.tools.database.tools import (
@@ -43,6 +44,71 @@ def test_create_rows_rejects_empty_payload_and_accepts_corrected_call(data_fixtu
     assert list(model.objects.values_list("id", name_field.db_column)) == [
         (result["created_row_ids"][0], "Created after retry")
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("operation", ["create", "update"])
+@pytest.mark.parametrize("multiple", [False, True])
+def test_invalid_link_values_do_not_silently_clear_relationships(
+    data_fixture, operation, multiple
+):
+    user = data_fixture.create_user()
+    table, linked_table, link = data_fixture.create_two_linked_tables(user=user)
+    link.link_row_multiple_relationships = multiple
+    link.save()
+    primary = table.get_primary_field()
+    linked_primary = linked_table.get_primary_field()
+    linked_row = RowHandler().create_row(
+        user, linked_table, {linked_primary.db_column: "Existing category"}
+    )
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], [operation], thought="Prepare rows")
+    tool = ctx.deps.dynamic_tools[0]
+    model = table.get_model()
+    valid_link = [linked_row.id] if multiple else linked_row.id
+    invalid_link = (
+        [linked_row.id, "Unknown category"] if multiple else "Unknown category"
+    )
+    rows = [
+        {primary.name: "First", link.name: valid_link},
+        {primary.name: "Second", link.name: invalid_link},
+    ]
+    original_rows = []
+    if operation == "update":
+        for i, values in enumerate(rows):
+            row = RowHandler().create_row(
+                user,
+                table,
+                {primary.db_column: f"Original {i}", link.db_column: [linked_row.id]},
+            )
+            values["id"] = row.id
+            original_rows.append(row)
+
+    arguments = tool.function_schema.validator.validate_python(
+        {"rows": rows, "thought": "Write the rows"}
+    )
+    with pytest.raises(ModelRetry, match="Unknown category"):
+        tool.function(**arguments)
+
+    assert model.objects.count() == len(original_rows)
+    for i, row in enumerate(original_rows):
+        row.refresh_from_db()
+        assert getattr(row, primary.db_column) == f"Original {i}"
+        assert list(getattr(row, link.db_column).values_list("id", flat=True)) == [
+            linked_row.id
+        ]
+
+    rows[1][link.name] = ["Existing category"] if multiple else "Existing category"
+    arguments = tool.function_schema.validator.validate_python(
+        {"rows": rows, "thought": "Use existing linked rows"}
+    )
+    result = tool.function(**arguments)
+    row_ids = result[f"{operation}d_row_ids"]
+    assert len(row_ids) == 2
+    for row in model.objects.filter(id__in=row_ids):
+        assert list(getattr(row, link.db_column).values_list("id", flat=True)) == [
+            linked_row.id
+        ]
 
 
 @pytest.mark.django_db
@@ -470,6 +536,49 @@ def test_create_rows(data_fixture):
     created_row_ids = result["created_row_ids"]
     assert len(created_row_ids) == 2
     assert created_row_ids == [4, 5]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dynamic_row_tool_returns_permission_denied_result(data_fixture, monkeypatch):
+    resources = _create_simple_database_with_linked_tables_and_rows(data_fixture)
+    table = resources["table_a"]
+    ctx = make_test_ctx(resources["user"], resources["workspace"])
+    load_row_tools(ctx, [table.id], ["create"], thought="test")
+    create_tool = ctx.deps.dynamic_tools[0]
+
+    def deny(*args, **kwargs):
+        raise PermissionDenied()
+
+    monkeypatch.setattr(
+        "baserow_enterprise.assistant.tools.database.tools.CreateRowsActionType.do",
+        deny,
+    )
+    arguments = create_tool.function_schema.validator.validate_python(
+        {
+            "rows": [
+                {
+                    "primary": "Blocked",
+                    "Text field": "",
+                    "Long text field": "",
+                    "Number field": None,
+                    "Date field": None,
+                    "Datetime field": None,
+                    "Single select": None,
+                    "Multiple select": [],
+                    "Single link to B": None,
+                    "link": [],
+                }
+            ],
+            "thought": "test",
+        }
+    )
+
+    result = create_tool.function(**arguments)
+
+    assert result["error"] == (
+        f"create_rows_in_table_{table.id} stopped because permission was denied."
+    )
+    assert "Do not retry or claim" in result["next_steps"]
 
 
 @pytest.mark.django_db(transaction=True)

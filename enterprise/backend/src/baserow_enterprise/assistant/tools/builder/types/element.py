@@ -26,9 +26,11 @@ from pydantic import Field, model_validator
 
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.graph.types import GraphPointPosition
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
     formula_object,
+    is_valid_formula,
     literal_or_placeholder,
     needs_formula,
     wrap_static_string,
@@ -79,6 +81,22 @@ CONTAINER_ELEMENT_TYPES = {
 
 # Elements that live on the shared page (visible across all pages).
 _SHARED_PAGE_TYPES = {"header", "footer"}
+
+_NAVIGATION_FIELDS = {
+    "navigation_type",
+    "navigate_to_page_id",
+    "navigate_to_url",
+    "link_variant",
+    "link_page_parameters",
+    "link_target",
+}
+
+BUTTON_NAVIGATION_GUIDANCE = (
+    "Buttons do not store navigation properties. Create the button with its value, "
+    "then call create_actions with type='open_page', event='click', and the button "
+    "ID/ref plus the navigation target. Alternatively create a link element with "
+    "link_variant='button' and navigation properties."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +192,7 @@ def _text_orm(el: "ElementItemCreate", user, page) -> dict:
 
 
 def _button_orm(el: "ElementItemCreate", user, page) -> dict:
-    text = el.value or el.label or ""
+    text = el.value if el.value is not None else (el.label or "")
     return {
         "value": formula_object(
             literal_or_placeholder(text)
@@ -572,8 +590,11 @@ _POST_CREATE: dict[str, Any] = {
 
 def _value_formula(el: "ElementItemCreate", orm_element, context) -> dict[str, str]:
     """Get formulas for elements with a ``value`` field."""
-    if el.value and needs_formula(el.value):
-        return {"value": formula_desc(el.value)}
+    value = el.value
+    if value is None and el.type == "button":
+        value = el.label
+    if value and needs_formula(value):
+        return {"value": formula_desc(value)}
     return {}
 
 
@@ -764,6 +785,7 @@ def _convert_table_fields(
     *,
     data_source_id: int | None = None,
     fields: list | None = None,
+    allow_formula_generation: bool = True,
 ) -> list[dict]:
     """Convert TableFieldConfig list to ORM collection field format.
 
@@ -778,9 +800,23 @@ def _convert_table_fields(
     table_fields = _resolve_table_fields(data_source_id)
     result = []
     for field_cfg in fields or []:
+        raw_value = field_cfg.label if field_cfg.type == "button" else field_cfg.value
+        explicit_formula = None
+        if not allow_formula_generation and needs_formula(raw_value):
+            explicit_formula = formula_desc(raw_value)
+            if not is_valid_formula(explicit_formula):
+                raise ToolInputError(
+                    f"Table field '{field_cfg.name}' requires an explicit formula "
+                    "when updating fields. Supply a literal value or a runtime "
+                    "expression such as get('current_record.field_<id>'); "
+                    "implicit formula generation is supported during creation only. "
+                    "No changes were applied."
+                )
         if field_cfg.type == "text":
             value = field_cfg.value or ""
-            if value and not needs_formula(value):
+            if explicit_formula is not None:
+                value_formula = explicit_formula
+            elif value and not needs_formula(value):
                 value_formula = wrap_static_string(value)
             else:
                 match = table_fields.get(field_cfg.name.lower())
@@ -798,7 +834,9 @@ def _convert_table_fields(
             )
         elif field_cfg.type == "button":
             label = field_cfg.label or field_cfg.name
-            if needs_formula(label):
+            if explicit_formula is not None:
+                label_formula = explicit_formula
+            elif needs_formula(label):
                 label_formula = "''"
             else:
                 label_formula = wrap_static_string(label)
@@ -1029,6 +1067,19 @@ class ElementItemCreate(BaseModel):
 
     def to_orm_kwargs(self, user: "AbstractUser", page: "Page") -> dict:
         """Return kwargs for ``ElementService.create_element()``."""
+        navigation = sorted(
+            name for name in _NAVIGATION_FIELDS if getattr(self, name) is not None
+        )
+        if self.type != "link" and navigation:
+            guidance = (
+                BUTTON_NAVIGATION_GUIDANCE
+                if self.type == "button"
+                else "Navigation properties are supported by link elements."
+            )
+            raise ValueError(
+                f"Unsupported properties for {self.type}: {', '.join(navigation)}. "
+                f"{guidance}"
+            )
         fn = _TO_ORM.get(self.type)
         kwargs = fn(self, user, page) if fn else {}
 
@@ -1342,7 +1393,7 @@ def _text_update(el: "ElementUpdate") -> dict:
 
 def _button_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
-    text = el.value or el.label
+    text = el.value if el.value is not None else el.label
     if text is not None:
         kwargs["value"] = formula_object(
             literal_or_placeholder(text)
@@ -1552,7 +1603,7 @@ def _table_update(el: "ElementUpdate") -> dict:
         if el.fields is not None:
             # Full replace
             kwargs["fields"] = _convert_table_fields(
-                data_source_id=ds_id, fields=el.fields
+                data_source_id=ds_id, fields=el.fields, allow_formula_generation=False
             )
         else:
             # Incremental: start from existing fields
@@ -1576,7 +1627,9 @@ def _table_update(el: "ElementUpdate") -> dict:
             # Append new columns
             if el.add_fields:
                 new_fields = _convert_table_fields(
-                    data_source_id=ds_id, fields=el.add_fields
+                    data_source_id=ds_id,
+                    fields=el.add_fields,
+                    allow_formula_generation=False,
                 )
                 existing.extend(new_fields)
 
@@ -1641,6 +1694,11 @@ def _update_value_formula(el: "ElementUpdate", orm_element, context) -> dict[str
     return {}
 
 
+def _update_button_formula(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
+    value = el.value if el.value is not None else el.label
+    return {"value": formula_desc(value)} if needs_formula(value) else {}
+
+
 def _update_link_formulas(el: "ElementUpdate", orm_element, context) -> dict[str, str]:
     formulas: dict[str, str] = {}
     if el.value and needs_formula(el.value):
@@ -1670,10 +1728,11 @@ def _update_default_value_formula(
 _GET_UPDATE_FORMULAS: dict[str, Any] = {
     "heading": _update_value_formula,
     "text": _update_value_formula,
-    "button": _update_value_formula,
+    "button": _update_button_formula,
     "link": _update_link_formulas,
     "image": _update_image_formulas,
     "input_text": _update_default_value_formula,
+    "record_selector": _update_default_value_formula,
     "choice": _update_default_value_formula,
     "checkbox": _update_default_value_formula,
     "datetime_picker": _update_default_value_formula,
@@ -1869,6 +1928,34 @@ class ElementUpdate(BaseModel):
             if name not in skip and getattr(self, name) is not None
         ]
 
+    def unsupported_fields(self, element_type: str, kwargs: dict) -> list[str]:
+        """Identify requested properties that the type's converter did not apply."""
+
+        aliases = {
+            "button": {"label": "value"},
+            "link": {"link_variant": "variant", "link_target": "target"},
+            "column": {"column_alignment": "alignment"},
+            "menu": {"menu_orientation": "orientation", "menu_alignment": "alignment"},
+            "table": {"add_fields": "fields", "remove_fields": "fields"},
+        }.get(element_type, {})
+        handled = set(kwargs)
+        if element_type in ("header", "footer"):
+            # These are applied to a child menu by the helper's post-update step.
+            handled.add("menu_items")
+        unsupported = [
+            name
+            for name in self.get_updated_field_names()
+            if aliases.get(name, name) not in handled
+        ]
+        if (
+            element_type == "button"
+            and self.value is not None
+            and self.label is not None
+            and self.value != self.label
+        ):
+            unsupported.append("label (conflicts with value)")
+        return unsupported
+
 
 class ElementItem(BaseModel):
     """Existing element with ID."""
@@ -1896,7 +1983,13 @@ class ElementItem(BaseModel):
 
     @classmethod
     def from_orm(cls, element) -> "ElementItem":
-        """Create ElementItem from ORM Element instance."""
+        """
+        Create ElementItem from ORM Element instance.
+
+        :param element: The ORM element to describe.
+        :return: The serialisable element description.
+        """
+
         element_type = element.get_type().type
         page = element.page
         page_name = "[shared]" if page.shared else page.name
