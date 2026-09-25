@@ -214,15 +214,11 @@ export function replaceImagesWithPlaceholder(content) {
 const PLAIN_IMAGE_REGEX =
   /!\[([^[\]\\]*(?:\\.[^[\]\\]*)*)\]\(((?:[^()]|\([^()]*\))*)\)/g
 
-// An image token that starts but never closes before the end of the input, e.g.
-// `![alt` or `![alt][name](url`. A complete token followed by anything does not
-// match because the anchors require the end. The URL tails stop at an
-// unbalanced `(` for the same reason as the regexes above: otherwise every `![`
-// would scan to the end of the input.
-const ALT_TAIL = String.raw`[^[\]\\\n]*(?:\\.[^[\]\\\n]*)*`
+// URL tails stop at an unbalanced `(`, otherwise every `![` would scan to the end.
+const ALT_TAIL = String.raw`[^[\]\\]*(?:\\[^\n][^[\]\\]*)*\\?`
 const PLAIN_URL_TAIL = String.raw`(?:[^()\n]|\([^()\n]*\))*(?:\([^()\n]*)?`
 const UNFINISHED_IMAGE_TAIL_REGEX = new RegExp(
-  String.raw`!\[${ALT_TAIL}(?:\]\[[^\]\n]*(?:\]\([^()\n]*)?|\]\(${PLAIN_URL_TAIL})?$`
+  String.raw`!\[${ALT_TAIL}(?:\](?:\[[^\]\n]*(?:\]\([^()\n]*)?|\(${PLAIN_URL_TAIL})?)?$`
 )
 
 /**
