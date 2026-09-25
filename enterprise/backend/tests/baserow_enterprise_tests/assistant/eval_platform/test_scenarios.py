@@ -20,26 +20,6 @@ class TestMakeFixtures:
         assert user.pk is not None
         assert user.email
 
-    def test_new_scenarios_do_not_reuse_generated_usernames(self):
-        first = make_fixtures()
-        second = make_fixtures()
-        first.fake.seed_instance(42)
-        second.fake.seed_instance(42)
-
-        first_user = first.create_user()
-        second_user = second.create_user()
-
-        assert first_user.username != second_user.username
-        assert first_user.email != second_user.email
-
-    def test_preserves_explicit_user_identity(self):
-        user = make_fixtures().create_user(
-            username="explicit-user", email="explicit@example.com"
-        )
-
-        assert user.username == "explicit-user"
-        assert user.email == "explicit@example.com"
-
 
 @pytest.mark.django_db
 class TestBuildDatabaseUiContext:

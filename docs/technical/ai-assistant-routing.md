@@ -116,13 +116,3 @@ and current-turn evidence. Domain
 tool tests verify saved state and reconciliation. For live model runs, use the
 [eval platform](../testing/ai-assistant-evals.md) with a disposable database and
 record the source revision, model settings, case population, and failures.
-Generated eval user identities use UUIDs because the database persists across
-scenarios and Faker's per-instance uniqueness cache does not.
-Eval harness version 5 preserves version 3's exclusion of required mode-switch
-redirects from the tool-error budget. Genuine argument and output-validation
-failures still count. It also matches production's sequential tool execution,
-records request-limit, model/tool retry exhaustion, and other case errors as
-failures without retrying or aborting the suite, and checks
-saved Builder navigation and card values across multiple records. Metadata records
-the evaluator source hash. Older score totals must be interpreted with their
-recorded checks, harness version, and configuration.
