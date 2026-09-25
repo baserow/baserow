@@ -840,3 +840,27 @@ def test_date_difference_accepts_either_correct_formula(answer, accepted):
         ]
         is accepted
     )
+
+
+@pytest.mark.parametrize(
+    "answer, accepted",
+    [
+        ("Store invoices in a **File** field and add an **AI Prompt field**.", True),
+        ("Use the AI field on your file field.", True),
+        ("Baserow cannot read files.", False),
+    ],
+)
+def test_ocr_answer_matches_despite_markdown_and_the_field_type_name(answer, accepted):
+    case = get_case("docs/ocr-scan")
+    output = _output(
+        answer=answer,
+        tool_calls=["search_user_docs"],
+        sources=["https://baserow.io/user-docs/ai-field"],
+    )
+
+    checks = {check.name: check.passed for check in case.checks(case, None, output)}
+
+    assert (
+        checks["answer mentions one of ['ai field', 'ai prompt', 'file field']"]
+        is accepted
+    )

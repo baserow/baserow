@@ -7,6 +7,8 @@ keywords) triple varies per case.
 
 from __future__ import annotations
 
+import re
+
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.harness import tool_called
 from baserow_enterprise.assistant.evals.registry import (
@@ -40,6 +42,7 @@ def _normalize_keyword_text(text: str) -> str:
 
     text = text.casefold().replace("\u2018", "'").replace("\u2019", "'")
     text = text.replace("\u2010", "-").replace("\u2011", "-")
+    text = re.sub(r"[*_`]+", "", text)
     return " ".join(text.split())
 
 
@@ -1069,7 +1072,7 @@ _register_docs_case(
         "full of scanned invoices and I want to pull the text out of them."
     ),
     ["ai-field", "file-field"],
-    ["ai field", "file field"],
+    ["ai field", "ai prompt", "file field"],
     reference_answer=(
         "Yes, via the AI field (a paid feature): point it at your file "
         "field and it can read the attachments — including images and PDFs "
