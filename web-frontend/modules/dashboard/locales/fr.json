@@ -1,6 +1,8 @@
 {
     "dashboard": {
-        "descriptionPlaceholder": "Description"
+        "descriptionPlaceholder": "Description",
+        "addWidget": "Ajouter un widget",
+        "widgetsLoading": "Chargement de votre tableau de bord..."
     },
     "dashboardHeader": {
         "doneEditing": "Edition terminée"
@@ -43,5 +45,8 @@
     },
     "trashType": {
         "widget": "widget"
+    },
+    "lastViewedItemType": {
+        "dashboard": "Tableau de bord"
     }
 }

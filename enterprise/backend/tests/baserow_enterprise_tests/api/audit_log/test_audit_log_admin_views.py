@@ -203,10 +203,13 @@ def test_audit_log_action_types_are_translated_in_the_admin_language(
     )
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
-        "count": 1,
+        "count": 2,
         "next": None,
         "previous": None,
-        "results": [{"id": "create_group", "value": "Crea progetto"}],
+        "results": [
+            {"id": "create_group", "value": "Crea progetto"},
+            {"id": "create_initial_workspace", "value": "Crea progetto iniziale"},
+        ],
     }
 
 
