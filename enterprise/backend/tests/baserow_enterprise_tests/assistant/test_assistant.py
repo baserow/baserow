@@ -17,6 +17,7 @@ from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
     PartStartEvent,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
     ToolReturnPart,
@@ -69,6 +70,7 @@ from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.types import (
     AiMessage,
     AiMessageChunk,
+    AiReasoningChunk,
     AiStartedMessage,
     AiThinkingMessage,
     ApplicationUIContext,
@@ -1474,6 +1476,39 @@ def test_stream_agent_run_drives_the_real_pydantic_ai_stream(enterprise_data_fix
     answer, run_result = result
     assert answer == "hello"
     assert run_result.all_messages_json()
+
+
+@pytest.mark.django_db
+def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fixture):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="Chat")
+    assistant = Assistant(chat)
+    queue = asyncio.Queue()
+    rejected = '{"name": "create_rows", "arguments": {"rows": []}}'
+
+    async def stream(messages, info):
+        retried = any(
+            isinstance(part, RetryPromptPart)
+            for message in messages
+            if isinstance(message, ModelRequest)
+            for part in message.parts
+        )
+        yield "Which table should I add the rows to?" if retried else rejected
+
+    async def run():
+        return await assistant._stream_agent_run("add rows", None, queue)
+
+    with patch.object(assistant, "_model", FunctionModel(stream_function=stream)):
+        async_to_sync(run)()
+
+    reasoning = []
+    while not queue.empty():
+        message = queue.get_nowait().message
+        if isinstance(message, AiReasoningChunk):
+            reasoning.append(message.content)
+    assert "" in reasoning
+    assert not any(rejected in chunk and "Which table" in chunk for chunk in reasoning)
 
 
 @pytest.mark.django_db

@@ -550,6 +550,11 @@ class Assistant:
                 reasoning = ""
                 continue
 
+            # A rejected text answer emits no event, so the next response resets it.
+            if isinstance(event, PartStartEvent) and event.index == 0 and reasoning:
+                reasoning = ""
+                await self._enqueue_reasoning(queue, "")
+
             if content := self._get_content_delta(event):
                 reasoning = await self._append_reasoning(queue, reasoning, content)
 
