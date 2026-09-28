@@ -105,6 +105,12 @@
   i {
     color: var(--workflow-node-icon-color, $palette-neutral-900);
     font-size: 20px;
+    width: 20px;
+    height: 20px;
+
+    &.loading {
+      border-width: 2px;
+    }
   }
 
   &:has(img) {
