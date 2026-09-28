@@ -12,8 +12,8 @@
         "sidebarTooltip": "Ihr Konto hat global Zugriff auf die Enterprise-Funktionen",
         "rbac": "RBAC",
         "sso": "SSO",
-        "licenseDescription": "Betrachter sind bei Baserow Enterprise kostenlos. Wenn ein Benutzer eine andere Rolle in irgendeinem Arbeitsbereich hat, wird automatisch ein kostenpflichtiger Platz verwendet.",
-        "overflowWarning": "Sie haben zu viele Nicht-Betrachter-Benutzer und haben alle Ihre kostenpflichtigen Plätze aufgebraucht. Ändern Sie die Benutzer auf der Mitgliederseite jedes Arbeitsbereichs zu Betrachtern.",
+        "licenseDescription": "Betrachter und Kommentatoren sind in diesem Plan kostenlos. Wenn ein Benutzer eine andere Rolle in irgendeinem Arbeitsbereich hat, wird automatisch ein kostenpflichtiger Platz verwendet.",
+        "overflowWarning": "Sie haben zu viele Benutzer, die weder Betrachter noch Kommentatoren sind, und haben alle Ihre kostenpflichtigen Plätze aufgebraucht. Ändern Sie die Benutzer auf der Mitgliederseite jedes Arbeitsbereichs zu Betrachtern.",
         "deactivated": "Verfügbar in der Advanced/Enterprise-Version",
         "enterpriseOnlyDeactivated": "Verfügbar in der Enterprise-Version"
     },
@@ -37,9 +37,12 @@
         "submit": "Speichern",
         "nameTitle": "Name",
         "roleTitle": "Standard-Rolle",
-        "inviteMembers": "Mitglieder hinzufügen",
-        "membersTitle": "Mitglieder",
-        "noSubjectsSelected": "Klicken Sie auf '{buttonLabel}', um optional Teambenutzer hinzuzufügen.",
+        "inviteMembers": "Zugriff verwalten",
+        "agentLabel": "Agent",
+        "membersTitle": "Teammitglieder",
+        "noSubjectsSelected": "Noch niemand hat über dieses Team Zugriff.",
+        "accessModalTitle": "Teamzugriff verwalten",
+        "accessModalDescription": "Wählen Sie die Personen und Agenten aus, die zu diesem Team gehören.",
         "roleHelpText": "Benutzerspezifische Rollen haben immer Vorrang vor Teamrollen."
     },
     "editTeamContext": {
@@ -57,6 +60,13 @@
     },
     "subjectSampleField": {
         "titleAttr": "{subjectCount} Mitglieder in diesem Team."
+    },
+    "enterpriseAgents": {
+        "teams": "Teams",
+        "noTeams": "Keine Teams",
+        "teamsLoadError": "Die Teams konnten nicht geladen werden.",
+        "teamsLoadErrorDescription": "Überprüfen Sie die Verbindung und versuchen Sie es erneut.",
+        "retry": "Erneut versuchen"
     },
     "teamsSettings": {
         "teamsTabTitle": "Teams"
@@ -153,6 +163,11 @@
         "titlePlural": "{count} neue Ergebnisse für {scanName} gefunden",
         "description": "Überprüfen Sie die Ergebnisse im Admin-Daten-Scanner."
     },
+    "applicationUserLimitNotification": {
+        "titleWarning": "{workspaceName} hat {usage} der {limit} verfügbaren Anwendungsbenutzer verwendet.",
+        "titleReached": "{workspaceName} hat das Limit von {limit} Anwendungsbenutzern erreicht. Bitte führen Sie ein Upgrade durch.",
+        "titleReachedEnforced": "{workspaceName} hat das Limit von {limit} Anwendungsbenutzern erreicht. Sobald es überschritten wird, kann sich niemand mehr bei den veröffentlichten Anwendungen anmelden, bis Sie ein Upgrade durchführen."
+    },
     "auditLog": {
         "adminTitle": "Audit-Protokoll",
         "workspaceTitle": "Audit-Protokoll - {workspaceName}",
@@ -218,7 +233,8 @@
         "firstNameAttrKey": "Vorname",
         "firstNameAttrKeyHelper": "Der Vorname des Benutzers oder der vollständige Name, wenn 'Nachname' nicht angegeben ist.",
         "lastNameAttrKey": "Nachname",
-        "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben."
+        "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben.",
+        "emailVerificationNotice": "Stellen Sie sicher, dass Ihr Identitätsanbieter verifizierte E-Mail-Adressen verlangt, bevor Benutzer authentifiziert werden. SAML-Signaturen authentifizieren den Anbieter, nicht den Besitz der E-Mail-Adresse."
     },
     "createSettingsAuthProviderModal": {
         "title": "Neuen {type} hinzufügen"
@@ -249,8 +265,10 @@
         "errorProviderDoesNotExist": "Dieser Authentifizierungsanbieter existiert nicht oder ist nicht verfügbar.",
         "errorAuthFlowError": "Während des Authentifizierungsvorgangs mit dem ausgewählten Anbieter ist ein Fehler aufgetreten.",
         "errorDifferentProvider": "Bitte verwenden Sie den Anbieter, mit dem Sie sich ursprünglich registriert haben.",
+        "errorUnverifiedEmail": "der Identitätsanbieter hat Ihre E-Mail-Adresse nicht verifiziert. Bitte verifizieren Sie Ihre E-Mail-Adresse beim Anbieter und versuchen Sie es erneut.",
         "errorWorkspaceInvitationEmailMismatch": "Ihre E-Mail-Adresse stimmt nicht mit der Einladung überein.",
-        "errorSignupDisabled": "Die Registrierung wurde vom Administrator deaktiviert."
+        "errorSignupDisabled": "Die Registrierung wurde vom Administrator deaktiviert.",
+        "errorApplicationUserLimitReached": "Die Anmeldung ist vorübergehend nicht verfügbar. Bitte kontaktieren Sie den Betreiber der Website oder versuchen Sie es später erneut."
     },
     "roles": {
         "admin": {
@@ -347,6 +365,7 @@
     },
     "roleAssignmentModal": {
         "membersTab": "Mitglieder",
+        "agentsTab": "Agenten",
         "teamsTab": "Teams",
         "subjectTypeNameMembers": "Mitglieder",
         "subjectTypeNameTeams": "Teams"
@@ -359,13 +378,22 @@
         "searchPlaceholder": "Teams finden...",
         "selectedAmountLabel": "{count} Teams ausgewählt"
     },
+    "selectAgentsList": {
+        "searchPlaceholder": "Agenten suchen...",
+        "selectedAmountLabel": "{count} Agenten ausgewählt"
+    },
+    "subjectType": {
+        "team": "Team",
+        "teams": "Teams"
+    },
     "selectSubjectsListFooter": {
         "invite": "{count} {type} einladen",
         "types": {
             "members": "Mitglieder",
+            "agents": "Agenten",
             "teams": "Teams"
         },
-        "helpTooltip": "Mitglieds-Rollenzuweisungen überschreiben Team-Rollenzuweisungen."
+        "helpTooltip": "Rollenzuweisungen von Mitgliedern und Agenten überschreiben Team-Rollenzuweisungen."
     },
     "membersRoleField": {
         "noAccessHelpText": "Dieser Benutzer benötigt expliziten Zugriff auf Ressourcen.",
@@ -395,7 +423,8 @@
         "lastNameAttrKey": "Nachname",
         "firstNameAttrKeyHelper": "Der Vorname des Benutzers oder der vollständige Name, wenn 'Nachname' nicht angegeben ist.",
         "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben.",
-        "callbackUrl": "Callback-URL"
+        "callbackUrl": "Callback-URL",
+        "emailVerificationNotice": "Stellen Sie sicher, dass Ihr Identitätsanbieter verifizierte E-Mail-Adressen verlangt, bevor Benutzer authentifiziert werden. Baserow vertraut der vom Anbieter übermittelten E-Mail-Adresse."
     },
     "loginButton": {
         "continueWith": "Weiter mit"
@@ -421,6 +450,8 @@
         "builderBrandingContent": "Versehen Sie das Branding Ihrer Anwendung mit einem White-Label, indem Sie das 'Made with Baserow'-Branding im Footer Ihrer Anwendung entfernen.",
         "builderFileInputElement": "Datei-Eingabeelement",
         "builderFileInputElementContent": "Mit dem Datei-Eingabeelement können Sie Ihren Anwendungsseiten ein Feld zum Hochladen von Dateien hinzufügen. Geben Sie Ihren Benutzern die Möglichkeit, wichtige Dokumente oder Bilder zu speichern.",
+        "builderGraphElement": "Diagramm-Element",
+        "builderGraphElementContent": "Zeigen Sie formelbasierte Daten als Diagramm auf Anwendungsseiten an.",
         "builderCustomCode": "Benutzerdefinierter Code für Anwendungen",
         "builderCustomCodeContent": "Sie können benutzerdefinierten CSS-/JavaScript-Code hinzufügen, um das Aussehen und Verhalten Ihrer Anwendung weiter anzupassen. Beispielsweise können Sie externe Dienste wie Analytics oder soziale Medien integrieren.",
         "dateDependency": "Datumsabhängigkeit",
@@ -730,10 +761,23 @@
         "builderDescription": "Benutzer mit den Rollen Ersteller und Administrator",
         "adminTitle": "Nur Administratoren",
         "adminDescription": "Benutzer mit Administratorrollen",
+        "customTitle": "Bestimmte Benutzer, Agenten oder Teams",
+        "customDescription": "Nur ausgewählte Benutzer, Agenten und Teammitglieder, die bereits eine Editor-, Builder- oder Admin-Rolle haben",
         "nobodyTitle": "Niemand",
         "nobodyDescription": "Keine Benutzer",
         "allowInForms": "Erlauben, dass dieses Feld in Zeilen gesetzt wird, die über Formulare erstellt werden",
         "linkRowWarning": "Dies ist ein 'Verknüpfung mit Tabelle'-Feld. Um sicherzustellen, dass die Werte nicht über die verknüpfte Tabelle geändert werden können, stellen Sie bitte sicher, dass auch die richtigen Berechtigungen für die verknüpfte Tabelle festgelegt sind."
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "Die Auswahl gewährt keinen Zugriff auf die Tabelle. Ein ausgewählter Benutzer, Agent oder ein Mitglied eines ausgewählten Teams muss außerdem dort, wo sich diese Tabelle befindet, eine Editor-, Builder- oder Admin-Rolle haben.",
+        "canEdit": "Ausgewählte Benutzer, Agenten und Teams",
+        "noSelectedSubjects": "Noch niemand ausgewählt. Verwenden Sie die Suche oben, um einen Benutzer, Agenten oder ein Team hinzuzufügen.",
+        "addPeopleOrTeams": "Benutzer, Agenten oder Teams hinzufügen",
+        "searchPlaceholder": "Benutzer, Agenten oder Teams suchen",
+        "searchHint": "Nach Name suchen",
+        "teamDescription": "Team",
+        "teamSearchDescription": "Team · {count} Mitglied | Team · {count} Mitglieder",
+        "remove": "{subject} entfernen"
     },
     "builderSettingTypes": {
         "customCode": "Benutzerdefiniertes CSS/JS"
@@ -766,8 +810,31 @@
         "crossoriginTypeCredentials": "Anmeldeinformationen verwenden"
     },
     "elementType": {
+        "graph": "Diagramm",
+        "graphDescription": "Zeigen Sie formelbasierte Daten als Diagramm an.",
         "errorUserSourceHasNoLoginOption": "Die ausgewählte Benutzerquelle hat keine Anmeldeoption",
         "errorUserSourceMissing": "Keine Benutzerquelle ausgewählt"
+    },
+    "graphElementForm": {
+        "labels": "Beschriftungen",
+        "labelsHelper": "Die Formel muss ein Array ergeben. Jedes Element wird zu einer Beschriftung im Diagramm.",
+        "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+        "seriesList": "Reihen",
+        "series": "Reihe {number}",
+        "addSeries": "Reihe hinzufügen",
+        "seriesLabel": "Reihenbeschriftung",
+        "seriesLabelPlaceholder": "'Umsatz'",
+        "seriesValues": "Werte",
+        "seriesValuesHelper": "Die Formel muss einen numerischen Wert pro Beschriftung ergeben.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "Diagrammtyp",
+        "seriesColor": "Farbe",
+        "barChart": "Balken",
+        "lineChart": "Linie"
+    },
+    "graphElement": {
+        "series": "Reihe {number}",
+        "noData": "Keine Diagrammdaten"
     },
     "fieldPermissionsMenuItem": {
         "label": "Feldberechtigungen bearbeiten"
@@ -867,6 +934,15 @@
     "assistantOnboardingMessage": {
         "instructing": "Kuma wird angewiesen, Ihre Datenbank zu erstellen."
     },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Betreibt den KI-Assistenten Kuma."
+    },
+    "assistantDashboardPrompt": {
+        "title": "Sagen Sie uns, was Sie erstellen möchten",
+        "placeholder": "Tracker für Firmeninventar erstellen",
+        "build": "Erstellen"
+    },
     "serviceType": {
         "coreCode": "Code ausführen",
         "coreCodeDescription": "Führt beliebigen JavaScript-Code aus.",
@@ -881,11 +957,11 @@
         "codePlaceholder": "Geben Sie den auszuführenden Code ein",
         "editCode": "Code bearbeiten",
         "injectionsLabel": "Dateninjektionen",
-        "injectionsHelperText": "Injektionen sind Formeln, die ausgewertet werden, bevor der Code ausgeführt wird. Jeder Injektionsname wird zu einer Eigenschaft von context. Eine Injektion mit dem Namen customerName ist zum Beispiel als context.customerName verfügbar.",
+        "injectionsHelperText": "Injektionen sind Ausdrücke, die ausgewertet werden, bevor der Code ausgeführt wird. Jeder Injektionsname wird zu einer Eigenschaft von context. Eine Injektion mit dem Namen customerName ist zum Beispiel als context.customerName verfügbar.",
         "nameLabel": "Name",
         "namePlaceholder": "Variablenname",
         "valueLabel": "Wert",
-        "valuePlaceholder": "Wertformel",
+        "valuePlaceholder": "Wertausdruck",
         "addInjection": "Injektion hinzufügen",
         "nameFieldRequired": "Das Namensfeld ist erforderlich.",
         "nameFieldInvalid": "Der Name muss ein gültiger Variablenname sein."

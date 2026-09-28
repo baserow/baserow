@@ -477,7 +477,30 @@
         "filterTypeNotFound": "Het filtertype is niet compatibel.",
         "noCompatibleFilterTypesErrorTitle": "Geen compatibele filtertypes",
         "noCompatibleFilterTypesErrorMessage": "Geen van uw velden heeft een compatibel filtertype",
+        "copyFromView": "Kopiëren van een andere weergave",
         "addFilterGroup": "Filtergroep toevoegen"
+    },
+    "copyViewConfigurationModal": {
+        "title": "Configuratie kopiëren naar {name}",
+        "sourceView": "Kopiëren van weergave",
+        "selectAll": "Selecteer alles",
+        "clearAll": "Alles wissen",
+        "copy": "Configuratie kopiëren"
+    },
+    "copyViewConfigurationOption": {
+        "fieldVisibility": "Zichtbaarheid van velden",
+        "fieldOrder": "Volgorde van velden",
+        "fieldWidths": "Veldbreedtes",
+        "viewSettings": "Instellingen ({settings})",
+        "viewSettingsRowHeightSize": "rijhoogte",
+        "viewSettingsFrozenColumnCount": "vastgezette kolommen",
+        "viewSettingsRowIdentifierType": "rij-identificatie",
+        "viewSettingsGroupByLayout": "groepsindeling",
+        "filters": "Filters",
+        "sorts": "Sorteringen",
+        "groupBys": "Groepen",
+        "decorations": "Decoraties",
+        "defaultRowValues": "Standaard rijwaarden"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "afbeelding",
@@ -548,6 +571,7 @@
         "deleteView": "Weergave verwijderen",
         "webhooks": "Webhooks",
         "duplicateView": "View dupliceren",
+        "copyConfiguration": "Configuratie kopiëren van weergave",
         "importFile": "Bestand importeren",
         "toPersonal": "Naar persoonlijk",
         "toCollaborative": "Naar gedeeld",
@@ -654,7 +678,7 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "{name} database API documentatie",
-        "back": "Terug naar dashboard",
+        "back": "Terug naar overzicht",
         "openDatabase": "open databank"
     },
     "apiDocsComponent": {
@@ -663,7 +687,7 @@
         "settings": "instellingen",
         "selectApplicationTitle": "Voor welke database wilt je de documentatie zien?",
         "signIn": "Log in om te beginnen",
-        "back": "Terug naar dashboard"
+        "back": "Terug naar overzicht"
     },
     "viewAggregationType": {
         "emptyCount": "Leeg",
@@ -698,7 +722,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Deel een link naar je Base",
-        "airtableShareLinkDescription": "Om uw Airtable basis te importeren, moet u een gedeelde link hebben naar uw volledige basis. In Airtable, klik op de share knop in de rechter bovenhoek na het openen van uw basis. Daarna moet u de optie \"Access to base\" kiezen. In de share-modal kunt u klikken op de \"Create a shared link to the whole base\" knop en vervolgens op \"Private read-only link\". Kopieer de publieke link en plak deze in de onderstaande invoer.",
+        "airtableShareLinkDescription": "Om je Airtable base te importeren, heb je een gedeelde link naar je volledige base nodig. Klik in Airtable, na het openen van je base, op de share-knop in de rechterbovenhoek. Kies daarna de optie \"Share via link\". In de share-modal kun je op het tabblad \"Share publicly\" klikken en vervolgens op “Enable shared base link”. Kopieer de publieke link en plak deze in het onderstaande invoerveld. Een link naar een openbaar gedeelde weergave wordt ook geaccepteerd en wordt geïmporteerd als een database met die ene tabel.",
         "airtableShareLinkBeta": "Houd er rekening mee dat deze functie in bèta is, uw tabellen, velden (behalve formule, opzoeken en tellen) en gegevens worden geïmporteerd. Uw weergaven worden niet geïmporteerd.",
         "airtableShareLinkPaste": "Plak de link hier",
         "importButtonLabel": "Importeren uit Airtable",
@@ -723,7 +747,7 @@
         "skipFiles": "Bestanden importeren overslaan",
         "skipFilesHelper": "Een Airtable base met veel bestanden kan het importeren vertragen. Als je dit inschakelt, wordt het importeren van de bestanden overgeslagen.",
         "sessionLabel": "Sessiecookie (__Host-airtable-session)",
-        "sessionDescription": "Als de import antwoordt met \"The Airtable base requires authentication.\", dan kan het zijn dat de organisatorische instellingen in Airtable de toegang tot de Airtable-basis verhinderen zonder eerst te authenticeren. Om dit te doen, moeten de sessie en handtekening handmatig worden geëxtraheerd. Bezoek de URL van de publiekelijk gedeelde basis in uw browser en meld u aan, indien nodig. Klik op het applicatiemenu door in de rechterbovenhoek te klikken -> \"More tools\" -> \"Developer tools\"\". Open het tabblad \"Toepassing\" (in Firefox \"Opslag\") en klik op \"https://airtable.com\". Zoek nu de cookiewaarden \"__Host-airtable-session\" en \"__Host-airtable-session.sig\" en plak deze in de onderstaande ingangen.",
+        "sessionDescription": "Als de import mislukt omdat de base authenticatie vereist, dan kan het zijn dat de organisatie-instellingen in Airtable toegang tot de Airtable base zonder eerst te authenticeren verhinderen. In dat geval moeten de sessie en handtekening handmatig worden opgehaald. Bezoek de URL van de openbaar gedeelde base in je browser en log in, indien nodig. Klik op het applicatiemenu in de rechterbovenhoek -> \"More tools\" -> \"Developer tools\". Open het tabblad \"Application\" (in Firefox \"Storage\") en klik op \"https://airtable.com\". Zoek nu de cookiewaarden \"__Host-airtable-session\" en \"__Host-airtable-session.sig\" en plak deze in de onderstaande invoervelden.",
         "useSession": "Sessie-authenticatie",
         "useSessionHelper": "Gebruik dit als de publiekelijk gedeelde basis verificatie vereist.",
         "sessionSignatureLabel": "Cookie voor sessiehandtekening (__Host-airtable-session.sig)"
@@ -971,7 +995,10 @@
         "hiddenFieldWarning": "Een of meer groeperingen verwijzen naar verborgen velden die niet zichtbaar zijn voor editors en gebruikers met een lagere rol.",
         "maxGroupBysReached": "Je kunt op maximaal {count} velden groeperen.",
         "collapseAllGroups": "Alles inklappen",
-        "expandAllGroups": "Alles uitklappen"
+        "expandAllGroups": "Alles uitklappen",
+        "layout": "Groepsindeling",
+        "layoutSection": "Secties",
+        "layoutColumn": "Kolommen"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",
@@ -1009,7 +1036,11 @@
         "enableRichTextFormatting": "Opmaak met rijke tekst inschakelen"
     },
     "dataProviderTypes": {
-        "fieldsName": "Velden"
+        "fieldsName": "Velden",
+        "rowName": "Aangeklikte rij",
+        "rowId": "Rij-ID",
+        "previousActionName": "Vorige actie",
+        "previousActionRowId": "Id"
     },
     "userMentionInRichTextFieldNotification": {
         "title": "{sender} heeft u vermeld in veld {fieldName} van rij {rowId} in {tableName}",
@@ -1294,9 +1325,70 @@
     "fieldButtonSubForm": {
         "label": "Label",
         "labelPlaceholder": "Openen",
+        "unresolvedReferenceTitle": "Actie niet opgeslagen",
+        "unresolvedReferenceMessage": "Een actie gebruikt een resultaat van een actie die er niet vóór wordt uitgevoerd. Verplaats de actie terug of verwijder de verwijzing en sla daarna opnieuw op.",
         "url": "URL",
         "urlPlaceholder": "bijv. concat('https://example.com/', get('fields.field_1'))",
         "invalidUrl": "De URL-formule is ongeldig."
+    },
+    "databaseWorkflowActionWithService": {
+        "nothingCapturedYet": "Klik op deze knop in een rij om vast te leggen wat het endpoint antwoordt, zodat de acties erna de velden ervan kunnen gebruiken. De andere acties van de knop worden ook uitgevoerd.",
+        "payloadModalTitle": "Vastgelegde response voor {actionLabel}",
+        "payloadModalSubTitle": "JSON-payload"
+    },
+    "databaseWorkflowActionType": {
+        "openUrl": "URL openen",
+        "sendEmail": "Stuur e-mail",
+        "deleteRow": "Een rij verwijderen",
+        "noUrl": "Voer een URL in om te openen.",
+        "staleReference": "Deze actie gebruikt een resultaat van een actie die er niet meer vóór wordt uitgevoerd.",
+        "unreadableReference": "Deze actie gebruikt een resultaat van een actie die er geen meer teruggeeft.",
+        "writesToTrashedField": "Deze actie schrijft naar een veld dat in de prullenbak staat. Herstel het veld om de actie weer uit te voeren.",
+        "tableTrashed": "Deze actie gebruikt een tabel die in de prullenbak staat of niet meer bestaat. Herstel de tabel of kies een andere.",
+        "requiresReconfiguration": "Deze actie verwijst naar een tabel, veld of integratie die in de prullenbak staat of verdwenen is.",
+        "noInstanceSmtp": "Deze Baserow instantie heeft geen SMTP-server geconfigureerd, dus een knop kan geen e-mail versturen.",
+        "instanceSmtpTurnedOff": "Versturen via de eigen SMTP-server van deze Baserow instantie is uitgeschakeld, dus een knop kan geen e-mail versturen.",
+        "slackOk": "OK",
+        "slackChannel": "Kanaal",
+        "slackTs": "Tijdstempel van bericht",
+        "slackTokenMissing": "Deze bot heeft geen token. Voeg een nieuwe bot met zijn token toe, of plak er een in deze bot, voordat de knop berichten kan plaatsen.",
+        "slackData": "Data",
+        "startWorkflowMissing": "De workflow van deze actie kan niet worden gevonden. Mogelijk is deze verwijderd, of heb je er geen toegang toe. Kies een andere workflow, of vraag het aan iemand die deze wel kan zien.",
+        "startWorkflowUnpublished": "Deze workflow is nog niet gepubliceerd. Publiceer de workflow voordat de knop hem kan starten.",
+        "startWorkflowNotLive": "Deze workflow is gepauzeerd of uitgeschakeld. Hervat de workflow voordat de knop hem kan starten."
+    },
+    "openUrlWorkflowActionForm": {
+        "url": "URL",
+        "urlPlaceholder": "URL...",
+        "openIn": "Openen in",
+        "sameTab": "Zelfde tab",
+        "newTab": "Nieuw tabblad"
+    },
+    "openUrlWorkflowAction": {
+        "invalidUrlTitle": "Kan de URL niet openen",
+        "invalidUrlMessage": "De URL kon voor deze rij niet worden bepaald, of gebruikt een protocol dat niet is toegestaan."
+    },
+    "buttonFieldActionList": {
+        "actions": "Acties",
+        "addAction": "Actie toevoegen",
+        "chooseAction": "Kies een actie...",
+        "searchActions": "Acties zoeken",
+        "misconfigured": "Ten minste één actie is verkeerd geconfigureerd",
+        "toggleAction": "Deze actie tonen of verbergen",
+        "moveAction": "Actie verplaatsen, gebruik de pijltjestoetsen om de volgorde te wijzigen"
+    },
+    "buttonField": {
+        "dispatchErrorTitle": "Kan de acties niet uitvoeren",
+        "dispatchErrorMessage": "Er is iets misgegaan bij het uitvoeren van de acties van de knop. Probeer het opnieuw.",
+        "rateLimitedTitle": "Te vaak geklikt",
+        "rateLimitedMessage": "Er is te vaak op deze knop geklikt. Wacht even en probeer het opnieuw.",
+        "requiresReconfiguration": "Deze knop moet opnieuw worden geconfigureerd voordat erop kan worden geklikt.",
+        "noPermission": "Je hebt geen toestemming om op deze knop te klikken.",
+        "stillRunningTitle": "Nog bezig",
+        "stillRunningMessage": "De acties van de knop worden mogelijk nog op de achtergrond uitgevoerd."
+    },
+    "rowEditFieldButtonField": {
+        "createRowBefore": "De acties kunnen worden uitgevoerd nadat de rij is aangemaakt."
     },
     "editRowLink": {
         "editRow": "Rij bewerken"
@@ -1304,6 +1396,9 @@
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Link kopiëren",
         "noFormView": "Geen formulier weergave geconfigureerd"
+    },
+    "lastViewedItemType": {
+        "databaseView": "Weergave {name}"
     },
     "gridViewFreezeHandle": {
         "freeze": "0 kolommen vastzetten | 1 kolom vastzetten | {count} kolommen vastzetten",

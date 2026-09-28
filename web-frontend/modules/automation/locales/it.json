@@ -16,7 +16,7 @@
     },
     "automationHistoryGuidedTourStep": {
         "title": "Visualizza la cronologia del flusso di lavoro",
-        "content": "Utilizza il pannello Cronologia per rivedere le esecuzioni di test precedenti e quelle pubblicate. È un ottimo modo per eseguire il debug o confermare i risultati."
+        "content": "Utilizza il pannello Cronologia per rivedere le esecuzioni di test precedenti e quelle pubblicate. È un ottimo modo per eseguire il debug o confermare i risultati, e da qui puoi anche annullare un'esecuzione ancora in corso."
     },
     "automationPublishGuidedTourStep": {
         "title": "Pubblica il tuo flusso di lavoro",
@@ -106,13 +106,20 @@
         "statusStarted": "In elaborazione...",
         "statusSuccess": "Eseguito con successo",
         "statusError": "Impossibile eseguire",
+        "statusCancelled": "Annullato",
         "statusSuccessBadge": "Completato",
         "statusErrorBadge": "Fallito",
+        "statusSkippedBadge": "Saltato",
         "statusDisabled": "Disabilitato da Baserow",
+        "startedBy": "Avviato da {name}",
         "successfulRuns": "Esecuzioni riuscite",
         "completedInSeconds": "Completato in {s} secondi.",
         "completedInLessThanSecond": "Completato in meno di 1 secondo.",
         "running": "In esecuzione per {at}s",
+        "cancelRun": "Annulla questa esecuzione del flusso di lavoro",
+        "cancelling": "Annullamento dell'esecuzione in corso. Si fermerà al termine del nodo corrente.",
+        "cancellationAlreadyRequestedTitle": "Annullamento già richiesto",
+        "cancellationAlreadyRequested": "Qualcun altro ha già richiesto l'annullamento di questa esecuzione. Si fermerà al termine del nodo corrente.",
         "failedRuns": "Esecuzioni fallite",
         "errorHideDetails": "Nascondi i dettagli",
         "errorShowDetails": "Mostra i dettagli",
@@ -126,15 +133,27 @@
         "localBaserowRowsCreatedLabel": "Vengono create righe in {tableName}",
         "localBaserowRowsUpdatedLabel": "Le righe vengono aggiornate in {tableName}",
         "localBaserowRowsDeletedLabel": "Le righe vengono eliminate in {tableName}",
+        "localBaserowFieldsUpdatedLabel": "{fieldName} viene aggiornato in {tableName}",
+        "localBaserowFieldsUpdatedMultipleLabel": "I valori di {count} campi vengono aggiornati in {tableName}",
+        "localBaserowFieldsUpdatedNoFieldLabel": "I valori di campi specifici vengono aggiornati in una tabella",
         "localBaserowCreateRowLabel": "Crea una riga in {tableName}",
+        "localBaserowCreateRowsLabel": "Crea righe in blocco in {tableName}",
         "localBaserowUpdateRowLabel": "Aggiorna una riga in {tableName}",
+        "localBaserowUpdateRowsLabel": "Aggiorna righe in blocco in {tableName}",
         "localBaserowDeleteRowLabel": "Elimina una riga in {tableName}",
         "localBaserowGetRowLabel": "Leggi una riga in {tableName}",
         "localBaserowListRowsLabel": "Elenca le righe in {tableName}",
         "localBaserowAggregateRowsLabel": "Riepiloga le righe in {tableName}",
         "httpRequestLabel": "Invia una richiesta HTTP",
+        "csvFileReaderLabel": "Leggi un file CSV",
+        "startWorkflowLabel": "Avvia {workflowName}",
         "smtpEmailLabel": "Invia un'e-mail",
         "routerLabel": "Segui 1 dei {edgeCount} rami",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "Vai al nodo",
+        "gotoNodeLabelWithDestination": "Vai al nodo → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}",
+        "responseLabel": "Risposta",
         "iterationLabel": "Iterare sugli elementi",
         "defaultEdgeLabelFallback": "Predefinito",
         "routerWithOutputNodesDeleteError": "Non può essere eliminato finché non vengono rimossi i suoi {outputCount} nodi di output.",
@@ -160,13 +179,15 @@
         "moreReplace": "Sostituisci",
         "nodeOptions": "Opzioni nodo",
         "displayLabelDebug": "ID: {id} | Precedente: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Duplica"
+        "moreDuplicate": "Duplica",
+        "gotoMarkerSource": "Salta al marcatore {marker}",
+        "gotoMarkerDestination": "Destinazione del marcatore {marker}"
     },
     "workflowAddNode": {
         "displayTitle": "Crea nodo di automazione"
     },
     "workflowNodeContext": {
-        "searchPlaceholderTrigger": "Cerca un trigger...",
+        "searchPlaceholderTrigger": "Cerca un evento...",
         "searchPlaceholderActions": "Cerca azioni...",
         "noResults": "Nessun risultato trovato"
     },
@@ -176,7 +197,10 @@
         "periodicTriggerTriggeredAt": "Attivato alle",
         "errorIntervalMissing": "È necessario un intervallo.",
         "coreHTTPTrigger": "Trigger HTTP",
-        "coreHTTPTriggerDescription": "Ricevere richieste HTTP per attivare flussi di lavoro"
+        "coreHTTPTriggerDescription": "Ricevere richieste HTTP per attivare flussi di lavoro",
+        "coreManualTrigger": "Trigger manuale",
+        "coreManualTriggerDescription": "Si avvia solo quando un'altra azione del flusso di lavoro avvia questo flusso di lavoro",
+        "responseLabel": "Risposta"
     },
     "workflowEditor": {
         "chooseEvent": "Scegli un evento..."
@@ -198,5 +222,8 @@
         "sampleDataCopy": "Copia",
         "errorOccurred": "Si è verificato un errore...",
         "sampleDataCopied": "Il payload è stato copiato negli appunti"
+    },
+    "lastViewedItemType": {
+        "automationWorkflow": "Flusso di lavoro"
     }
 }

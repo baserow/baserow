@@ -40,7 +40,20 @@
         "integrationsName": "Integraties",
         "domainsName": "Domeinen",
         "userSourcesName": "Gebruikers",
-        "generalName": "Algemeen"
+        "generalName": "Algemeen",
+        "breakpointsName": "Breakpoints"
+    },
+    "breakpointSettings": {
+        "titleOverview": "Breakpoints",
+        "description": "Kies wanneer je app wisselt tussen de lay-outs voor mobiel, tablet en desktop. Wijzigingen gelden direct in de editor en voor je gepubliceerde app nadat je publiceert.",
+        "mobileLabel": "Breakpoint mobiel",
+        "tabletLabel": "Breakpoint tablet",
+        "desktopLabel": "Breakpoint desktop",
+        "desktopDescription": "Boven {breakpoint}px",
+        "updatedTitle": "Breakpoints opgeslagen",
+        "updatedDescription": "Je nieuwe breakpoints zijn actief in de editor. Publiceer je app om ze voor bezoekers toe te passen.",
+        "mobileMustBeLessThanTablet": "Het breakpoint voor mobiel moet kleiner zijn dan het breakpoint voor tablet.",
+        "tabletMustBeGreaterThanMobile": "Het breakpoint voor tablet moet groter zijn dan het breakpoint voor mobiel."
     },
     "elementMenu": {
         "moveUp": "Verplaats omhoog",
@@ -132,10 +145,11 @@
         "errorImageUrlMissing": "Ontbrekende URL-eigenschap voor afbeelding",
         "errorNoWorkflowAction": "Geen workflowactie geconfigureerd",
         "errorOptionsMissing": "Geen optie geconfigureerd",
+        "errorOptionNameMissing": "Een optie heeft geen naam",
         "errorIframeUrlMissing": "Ontbrekende IFrame URL eigenschap",
         "errorIframeContentMissing": "Ontbrekende IFrame-inhoud",
         "errorNoMenuItem": "Geen menu-item geconfigureerd",
-        "errorMenuItemInError": "Ten minste één menu is verkeerd geconfigureerd",
+        "errorMenuItemInError": "Ten minste één menu-item is verkeerd geconfigureerd",
         "errorSubMenuItemInError": "Ten minste één submenu is verkeerd geconfigureerd"
     },
     "addElementButton": {
@@ -301,8 +315,11 @@
     "publicPage": {
         "siteNotFound": "Site niet gevonden",
         "pageNotFound": "Pagina niet gevonden",
+        "previewSessionExpiredTitle": "Voorbeeldsessie verlopen",
+        "previewSessionExpiredDescription": "Sluit dit tabblad en open het voorbeeld opnieuw vanuit de applicatiebouwer.",
         "loginToastTitle": "Authenticatie succesvol",
         "loginToastMessage": "Je bent succesvol aangemeld.",
+        "loginErrorToastTitle": "Authenticatie mislukt",
         "authorizedToastTitle": "Authenticatie vereist",
         "authorizedToastMessage": "Je moet ingelogd zijn om toegang te krijgen tot deze pagina. Log in om verder te gaan."
     },
@@ -314,16 +331,16 @@
     "dataSourceForm": {
         "addIntegration": "Nieuwe integratie toevoegen",
         "noIntegrations": "je hebt nog geen integratie",
-        "integrationPlaceholder": "Selecteer een integratie",
+        "integrationPlaceholder": "Kies een verbinding...",
         "searchActionPlaceholder": "Acties zoeken",
         "noActionsFound": "Geen acties gevonden",
         "errorUniqueName": "Data bron naam moet uniek zijn.",
         "selectTypeFirst": "Selecteer eerst de dienst",
-        "servicePlaceholder": "Selecteer een dienst",
+        "servicePlaceholder": "Kies een actie...",
         "namePlaceholder": "Bron naam",
         "actionLabel": "Actie",
         "nameLabel": "Naam",
-        "integrationLabel": "Integratie"
+        "integrationLabel": "Verbinding"
     },
     "dataSourceContext": {
         "addDataSource": "Nieuwe gegevensbron toevoegen",
@@ -474,6 +491,7 @@
         "createRowLabel": "Rij maken",
         "notificationLabel": "Melding tonen",
         "notificationDescription": "Toon een notificatiebericht aan de gebruiker.",
+        "errorNotificationContentMissing": "Een melding vereist een titel of beschrijving",
         "openPageLabel": "Pagina openen",
         "openPageDescription": "Navigeer de gebruiker naar een andere pagina of URL.",
         "logoutLabel": "Uitloggen",
@@ -671,7 +689,8 @@
         "heightLabel": "Hoogte (px)",
         "heightPlaceholder": "Hoogte in pixels",
         "missingValue": "IFrame bron ontbreekt...",
-        "emptyValue": "Lege IFrame bron..."
+        "emptyValue": "Lege IFrame bron...",
+        "editorPreviewPlaceholder": "Dit iframe wordt niet weergegeven in de editor.\nGebruik Voorbeeld om te zien hoe het eruitziet in je applicatie."
     },
     "dropdownOptionSelector": {
         "label": "Opties",
@@ -734,7 +753,7 @@
         "errorFetchingRolesTitle": "Kan gebruikersrollen niet ophalen",
         "errorFetchingRolesMessage": "Er is een probleem opgetreden tijdens het ophalen van gebruikersrollen.",
         "visibilityCondition": "Zichtbaarheid voorwaarde",
-        "visibilityConditionHelper": "Als het resultaat van deze formule waar is en de bezoekerskeuze hierboven waar is, zal het element zichtbaar zijn. Deze voorwaarde beïnvloedt alleen de zichtbaarheid van het element. Als u in plaats daarvan gegevens wilt uitsluiten van het serverantwoord, gebruikt u de bovenstaande filteroptie voor gebruikersrollen.",
+        "visibilityConditionHelper": "Als het resultaat van deze expressie waar is en de bezoekerskeuze hierboven waar is, zal het element zichtbaar zijn. Deze voorwaarde beïnvloedt alleen de zichtbaarheid van het element. Als je in plaats daarvan gegevens wilt uitsluiten van het serverantwoord, gebruik dan de bovenstaande filteroptie voor gebruikersrollen.",
         "visibilityConditionPlaceholder": "Voorwaarde...",
         "documentationLink": "documentatie"
     },
@@ -1227,6 +1246,11 @@
         "title": "Je app bekijken en publiceren",
         "content": "Klik op **Preview** om je app privé te testen. Als je klaar bent, klik je op **Publiceer** om de app te delen met het publiek via een domein."
     },
+    "trashType": {
+        "builder_page": "pagina",
+        "builder_data_source": "gegevensbron",
+        "builder_workflow_action": "workflowactie"
+    },
     "builderToast": {
         "details": "Details",
         "defaultTitle": "Onverwachte fout",
@@ -1248,5 +1272,8 @@
     "pageElementBehaviour": {
         "normal": "Normaal",
         "fixed": "Vast"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Pagina"
     }
 }

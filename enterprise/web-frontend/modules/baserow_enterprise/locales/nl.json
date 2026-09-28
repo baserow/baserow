@@ -4,8 +4,8 @@
         "sidebarTooltip": "Je account heeft globaal toegang tot de enterprise functies",
         "rbac": "RBAC",
         "sso": "SSO",
-        "deactivated": "Beschikbaar in enterprise-versie",
-        "licenseDescription": "Kijkers zijn gratis met Baserow Enterprise. Als een gebruiker een andere rol heeft, in een werkruimte, dan gebruikt hij automatisch een betaalde seat.",
+        "deactivated": "Beschikbaar in de advanced/enterprise-versie",
+        "licenseDescription": "Kijkers en commentatoren zijn gratis in dit plan. Als een gebruiker een andere rol heeft, in welke werkruimte dan ook, dan gebruikt die automatisch een betaalde plaats.",
         "overflowWarning": "Je hebt te veel niet-kijkers en hebt al je betaalde plaatsen opgebruikt. Verander gebruikers in kijkers op de ledenpagina van elke werkruimte.",
         "enterpriseOnlyDeactivated": "Beschikbaar in enterprise-versie"
     },
@@ -29,10 +29,13 @@
         "submit": "Opslaan",
         "nameTitle": "Naam",
         "roleTitle": "Standaard rol",
-        "inviteMembers": "Leden toevoegen",
-        "membersTitle": "Leden",
+        "inviteMembers": "Toegang beheren",
+        "agentLabel": "Agent",
+        "membersTitle": "Teamleden",
         "roleHelpText": "Gebruikersspecifieke rollen hebben altijd voorrang op Teamrollen.",
-        "noSubjectsSelected": "Klik op '{buttonLabel}' om eventueel teamgebruikers toe te voegen."
+        "noSubjectsSelected": "Nog niemand heeft toegang via dit team.",
+        "accessModalTitle": "Teamtoegang beheren",
+        "accessModalDescription": "Kies de personen en agents die bij dit team horen."
     },
     "editTeamContext": {
         "remove": "Verwijder team",
@@ -44,11 +47,18 @@
         "createdColumn": "Gemaakt op",
         "subjectsColumn": "Leden",
         "roleColumn": "Standaard rol",
-        "title": "{teamCount} teams in {groupName}",
+        "title": "{teamCount} teams in {workspaceName}",
         "roleHelpText": "Kan worden overschreven met rollen in databases en tabellen."
     },
     "subjectSampleField": {
         "titleAttr": "{subjectCount} leden in dit team."
+    },
+    "enterpriseAgents": {
+        "teams": "Teams",
+        "noTeams": "Geen teams",
+        "teamsLoadError": "De teams konden niet worden geladen.",
+        "teamsLoadErrorDescription": "Controleer de verbinding en probeer het opnieuw.",
+        "retry": "Opnieuw proberen"
     },
     "teamsSettings": {
         "teamsTabTitle": "Teams"
@@ -103,7 +113,7 @@
         "cannotDisableAllAuthProvidersDescription": "Het is niet mogelijk de laatst ingeschakelde provider uit te schakelen of te verwijderen."
     },
     "samlSettingsForm": {
-        "domain": "Domein",
+        "domain": "SAML-domein",
         "domainPlaceholder": "Voer de bedrijfsdomeinnaam in...",
         "invalidDomain": "Ongeldige domeinnaam",
         "metadata": "Metadata",
@@ -118,6 +128,7 @@
         "firstNameAttrKey": "Voornaam",
         "firstNameAttrKeyHelper": "De voornaam van de gebruiker of de volledige naam als 'Achternaam' niet is opgegeven.",
         "lastNameAttrKeyHelper": "Achternaam van de gebruiker (optioneel). Wis deze waarde om de volledige naam op te geven via 'Voornaam'.",
+        "emailVerificationNotice": "Zorg ervoor dat je identiteitsprovider geverifieerde e-mailadressen vereist voordat gebruikers worden geauthenticeerd. SAML-handtekeningen authenticeren de provider, niet het eigendom van het e-mailadres.",
         "defaultAttrs": "Standaard",
         "customAttrs": "Maatwerk",
         "samlResponseSettings": "SAML antwoord attributen",
@@ -147,11 +158,13 @@
         "errorProviderDoesNotExist": "deze authenticatie provider bestaat niet of is niet beschikbaar.",
         "errorAuthFlowError": "er is een fout opgetreden tijdens de authenticatie flow met de geselecteerde provider.",
         "errorDifferentProvider": "gebruik de provider waarmee u zich oorspronkelijk hebt aangemeld.",
+        "errorUnverifiedEmail": "de identiteitsprovider heeft je e-mailadres niet geverifieerd. Verifieer je e-mailadres bij de provider en probeer het opnieuw.",
         "errorWorkspaceInvitationEmailMismatch": "je e-mailadres komt niet overeen met de uitnodiging.",
         "loginText": "Heb je al een account?",
         "errorSsoFeatureNotActive": "De SSO-functie is niet actief. Neem contact op met je beheerder.",
         "errorInvalidSamlResponse": "SAML antwoord is ongeldig.",
         "errorSignupDisabled": "aanmelden is uitgeschakeld door de beheerder.",
+        "errorApplicationUserLimitReached": "Inloggen is tijdelijk niet mogelijk. Neem contact op met de eigenaar van de website of probeer het later opnieuw.",
         "errorInvalidSamlRequest": "SAML verzoek is ongeldig.",
         "errorUserDeactivated": "gebruiker is uitgeschakeld."
     },
@@ -229,6 +242,7 @@
     },
     "roleAssignmentModal": {
         "membersTab": "Leden",
+        "agentsTab": "Agents",
         "teamsTab": "Teams",
         "subjectTypeNameMembers": "leden",
         "subjectTypeNameTeams": "teams"
@@ -241,13 +255,22 @@
         "searchPlaceholder": "Teams zoeken...",
         "selectedAmountLabel": "{count} teams geselecteerd"
     },
+    "selectAgentsList": {
+        "searchPlaceholder": "Agents zoeken...",
+        "selectedAmountLabel": "{count} agents geselecteerd"
+    },
+    "subjectType": {
+        "team": "Team",
+        "teams": "Teams"
+    },
     "selectSubjectsListFooter": {
         "invite": "Nodig {count} {type} uit",
         "types": {
             "members": "leden",
+            "agents": "agents",
             "teams": "teams"
         },
-        "helpTooltip": "Toewijzingen van leden rollen hebben voorrang op toewijzingen van team rollen.",
+        "helpTooltip": "Roltoewijzingen van leden en agents hebben voorrang op roltoewijzingen van teams.",
         "roleSelectorBuilderDataWarningTooltip": "Ze kunnen formule- en opzoekvelden maken die alle velden in gekoppelde tabellen blootleggen."
     },
     "membersRoleField": {
@@ -264,6 +287,7 @@
         "baseUrlPlaceholder": "De basis URL van de provider",
         "invalidBaseUrl": "De ingevoerde URL is geen geldige provider URL",
         "callbackUrl": "Callback URL",
+        "emailVerificationNotice": "Zorg ervoor dat je identiteitsprovider geverifieerde e-mailadressen vereist voordat gebruikers worden geauthenticeerd. Baserow vertrouwt het e-mailadres dat door de provider wordt doorgegeven.",
         "baseUrl": "URL",
         "duplicateBaseUrl": "De ingevoerde URL bestaat al bij een andere provider",
         "defaultAttrs": "Standaard",
@@ -287,8 +311,8 @@
         "chartWidget": "Grafiek widget",
         "advancedWebhooks": "Geavanceerde webhooks",
         "ssoContent": "Maak veilig en naadloos inloggen mogelijk met SAML, Google, Facebook, GitHub, GitLab of OpenID Connect. Ondersteunt meerdere providers tegelijk. Merk op dat zowel Baserow als tool en het authenticatiesysteem van de applicatiebouwer SSO ondersteunen.",
-        "rbacContent": "Beheer machtigingen met precisie. Wijs rollen toe zoals admin, builder, editor, commentator of viewer op werkruimte-, database- of tabelniveau. Je kunt de toegang ook per team beheren.",
-        "dataSyncContent": "Houd tabellen automatisch up-to-date door te synchroniseren met andere Baserow-tabellen of externe bronnen zoals Jira, GitHub, GitLab of HubSpot.",
+        "rbacContent": "Beheer machtigingen met precisie. Wijs rollen toe zoals admin, builder, editor, commentator of viewer op werkruimte-, database-, tabel- en weergaveniveau. Je kunt de toegang ook per team beheren.",
+        "dataSyncContent": "Houd tabellen automatisch up-to-date door te synchroniseren met andere Baserow-tabellen of externe bronnen zoals Jira, GitHub, GitLab of HubSpot. Je kunt ook periodiek synchroniseren, en voor ondersteunde synchronisatietypes is tweerichtingssynchronisatie mogelijk.",
         "coBrandingContent": "Pas de Baserow-interface aan met je eigen logo. Let op dat \"powered by Baserow\" is toegevoegd.",
         "supportContent": "Krijg hulp wanneer je die nodig hebt. Neem rechtstreeks vanuit het platform contact op met het Baserow-team.",
         "advancedWebhooksContent": "Trigger webhooks wanneer een rij een specifieke weergave binnenkomt - geweldig voor het automatiseren van workflows op basis van filtervoorwaarden.",
@@ -299,6 +323,8 @@
         "builderBrandingContent": "White label de branding van je applicatie door de 'Gemaakt met Baserow'-branding in de voettekst van je applicatie te verwijderen.",
         "builderFileInputElement": "Bestandsinvoerelement",
         "builderFileInputElementContent": "Met het bestandsinvoerelement kun je een veld toevoegen aan je applicatiepagina's om bestanden te uploaden. Geef je gebruikers de mogelijkheid om belangrijke documenten of afbeeldingen op te slaan.",
+        "builderGraphElement": "Grafiekelement",
+        "builderGraphElementContent": "Toon gegevens op basis van formules als grafiek op applicatiepagina's.",
         "builderCustomCode": "Aangepaste code voor applicaties",
         "builderCustomCodeContent": "Je kunt aangepaste CSS/JavaScript-code toevoegen om het uiterlijk en het gedrag van je applicatie verder aan te passen. Je kunt bijvoorbeeld externe services zoals analytics of sociale media integreren.",
         "assistant": "AI-assistent",
@@ -388,7 +414,7 @@
         "showBaserowHelpMessageDescription": "Geeft aan of het bericht met de hulpvraag moet worden weergegeven op het dashboard.",
         "showBaserowHelpMessage": "Helpbericht tonen",
         "coBrandingLogo": "Logo",
-        "coBrandingLogoDescription": "Vervangt het Baserow-logo voor een aangepast co-branded alternatief (176x29)."
+        "coBrandingLogoDescription": "Vervangt het Baserow-logo door een aangepast co-branded alternatief (176x29). Indien ingesteld, wordt ook de Baserow-beschrijving in de footer van alle e-mails verwijderd."
     },
     "enterpriseModal": {
         "title": "Upgrade om de {name} te gebruiken",
@@ -589,11 +615,24 @@
         "builderDescription": "Gebruikers met de rollen Builder en Admin",
         "adminTitle": "Alleen admins",
         "adminDescription": "Gebruikers met admin rollen",
+        "customTitle": "Specifieke gebruikers, agents of teams",
+        "customDescription": "Alleen geselecteerde gebruikers, agents en teamleden die al een rol als Editor, Builder of Admin hebben",
         "allowInForms": "Sta toe dat dit veld wordt ingesteld in rijen die zijn gemaakt via formulieren",
         "nobodyTitle": "Niemand",
         "description": "Kies wie waarden in {fieldName} kan bewerken.",
         "nobodyDescription": "Geen gebruikers",
         "linkRowWarning": "Dit is een 'Link naar tabel' veld. Om ervoor te zorgen dat waarden niet kunnen worden gewijzigd vanuit de gekoppelde tabel, moet je ervoor zorgen dat je ook de juiste rechten instelt op de gekoppelde tabel."
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "Een selectie geeft geen toegang tot de tabel. Een geselecteerde gebruiker, agent of lid van een geselecteerd team moet ook een rol als Editor, Builder of Admin hebben op de plek waar deze tabel staat.",
+        "canEdit": "Geselecteerde gebruikers, agents en teams",
+        "noSelectedSubjects": "Er is nog niemand geselecteerd. Gebruik de zoekfunctie hierboven om een gebruiker, agent of team toe te voegen.",
+        "addPeopleOrTeams": "Gebruikers, agents of teams toevoegen",
+        "searchPlaceholder": "Gebruikers, agents of teams zoeken",
+        "searchHint": "Zoeken op naam",
+        "teamDescription": "Team",
+        "teamSearchDescription": "Team · {count} lid | Team · {count} leden",
+        "remove": "{subject} verwijderen"
     },
     "fieldPermissionsMenuItem": {
         "label": "Veldmachtigingen bewerken"
@@ -633,8 +672,31 @@
         "crossoriginTypeCredentials": "Gebruik referenties"
     },
     "elementType": {
+        "graph": "Grafiek",
+        "graphDescription": "Toon gegevens op basis van formules als grafiek.",
         "errorUserSourceHasNoLoginOption": "De geselecteerde gebruikersbron heeft geen aanmeldingsoptie",
         "errorUserSourceMissing": "Geen gebruikersbron geselecteerd"
+    },
+    "graphElementForm": {
+        "labels": "Labels",
+        "labelsHelper": "De formule moet een array opleveren. Elk item wordt één label in de grafiek.",
+        "labelsPlaceholder": "to_array('Jan,Feb,Mar')",
+        "seriesList": "Series",
+        "series": "Serie {number}",
+        "addSeries": "Series toevoegen",
+        "seriesLabel": "Serielabel",
+        "seriesLabelPlaceholder": "'Omzet'",
+        "seriesValues": "Waarden",
+        "seriesValuesHelper": "De formule moet per label één numerieke waarde opleveren.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "Grafiektype",
+        "seriesColor": "Kleur",
+        "barChart": "Staaf",
+        "lineChart": "Lijn"
+    },
+    "graphElement": {
+        "series": "Serie {number}",
+        "noData": "Geen grafiekgegevens"
     },
     "pieChartWidget": {
         "name": "Cirkeldiagram",
@@ -652,7 +714,7 @@
         "realtimePushDescription": "Hiermee kunnen de celwaarden direct in Baserow worden bewerkt en in realtime naar de gegevenssynchronisatiebron worden gepusht. Merk op dat de wijzigingen niet in real-time worden opgehaald omdat ze afhankelijk zijn van de (periodieke) synchronisatie actie om te voltooien. Het wordt sterk aangeraden om back-ups te maken van de PostgreSQL database om onbedoelde wijzigingen te voorkomen."
     },
     "assistantSidebarItem": {
-        "title": "AI-assistent"
+        "title": "Kuma AI"
     },
     "assistantPanel": {
         "title": "AI-assistent",
@@ -662,7 +724,7 @@
     },
     "assistantWelcomeMessage": {
         "greet": "Hé {name}",
-        "question": "hoe kan ik helpen?",
+        "question": "mijn naam is Kuma!",
         "subtitle": "Ik ben er om je te ondersteunen bij het omgaan met je gegevens.",
         "subtitleWithoutSuggestions": "Ik help je de last te dragen zodat het nooit zwaar aanvoelt. Vertel me gewoon wat je nodig hebt!",
         "promptCreateDatabaseTitle": "Een database maken",
@@ -802,6 +864,15 @@
     "assistantOnboardingMessage": {
         "instructing": "Kuma krijgt de instructie om je database te maken."
     },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Voor de Kuma AI-assistent."
+    },
+    "assistantDashboardPrompt": {
+        "title": "Vertel ons wat je wilt maken",
+        "placeholder": "Maak een tracker voor bedrijfsmiddelen",
+        "build": "Bouwen"
+    },
     "dataScanner": {
         "title": "Datascanner",
         "scansTab": "Scans",
@@ -889,6 +960,11 @@
         "titlePlural": "{count} nieuwe resultaten gevonden voor {scanName}",
         "description": "Bekijk de resultaten in de admin-datascanner."
     },
+    "applicationUserLimitNotification": {
+        "titleWarning": "{workspaceName} heeft {usage} van de {limit} beschikbare applicatiegebruikers gebruikt.",
+        "titleReached": "{workspaceName} heeft de limiet van {limit} applicatiegebruikers bereikt. Upgrade alsjeblieft.",
+        "titleReachedEnforced": "{workspaceName} heeft de limiet van {limit} applicatiegebruikers bereikt. Zodra deze wordt overschreden, kan niemand meer inloggen op de gepubliceerde apps totdat je upgradet."
+    },
     "serviceType": {
         "coreCode": "Code uitvoeren",
         "coreCodeDescription": "Voert willekeurige JavaScript-code uit.",
@@ -903,11 +979,11 @@
         "codePlaceholder": "Voer de uit te voeren code in",
         "editCode": "Code bewerken",
         "injectionsLabel": "Gegevensinjecties",
-        "injectionsHelperText": "Injecties zijn formules die worden geëvalueerd voordat de code wordt uitgevoerd. Elke injectienaam wordt een eigenschap van context. Een injectie met de naam customerName is bijvoorbeeld beschikbaar als context.customerName.",
+        "injectionsHelperText": "Injecties zijn expressies die worden geëvalueerd voordat de code wordt uitgevoerd. Elke injectienaam wordt een eigenschap van context. Een injectie met de naam customerName is bijvoorbeeld beschikbaar als context.customerName.",
         "nameLabel": "Naam",
         "namePlaceholder": "Variabelenaam",
         "valueLabel": "Waarde",
-        "valuePlaceholder": "Waardeformule",
+        "valuePlaceholder": "Waarde-expressie",
         "addInjection": "Injectie toevoegen",
         "nameFieldRequired": "Het naamveld is verplicht.",
         "nameFieldInvalid": "De naam moet een geldige variabelenaam zijn."

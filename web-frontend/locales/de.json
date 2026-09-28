@@ -24,6 +24,13 @@
         "saturday": "Samstag",
         "sunday": "Sonntag",
         "value": "Wert",
+        "created": "Erstellt",
+        "lastViewed": "Zuletzt angesehen",
+        "nameAsc": "Name (A–Z)",
+        "nameDesc": "Name (Z–A)",
+        "neverViewed": "Nie angesehen",
+        "createdAgo": "Erstellt {ago}",
+        "viewedAgo": "Angesehen {ago}",
         "workspace": "Arbeitsbereich"
     },
     "action": {
@@ -127,6 +134,7 @@
         "alreadyInUse": "Dieser Feldname wird bereits verwendet.",
         "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen. Bitte versuchen Sie es erneut.",
         "nameContainsUrl": "Namen dürfen keine Links, Domains oder Webadressen enthalten.",
+        "nameContainsSpam": "Namen dürfen keine dekorativen Zeichen oder langen Zahlen enthalten.",
         "nameCantBeEmail": "Bitte geben Sie Ihren Namen ein, nicht Ihre E-Mail-Adresse."
     },
     "permission": {
@@ -352,6 +360,7 @@
     },
     "trashType": {
         "workspace": "Arbeitsbereich",
+        "agent": "Agent",
         "application": "Applikation",
         "automation_workflow": "Automatisierungs-Workflow",
         "automation_node": "Automatisierungs-Knoten",
@@ -360,6 +369,7 @@
         "row": "Zeile",
         "rows": "Zeilen",
         "view": "Ansicht",
+        "database_workflow_action": "Button-Aktion",
         "builder_page": "Builder-Seite",
         "builder_element": "Builder-Element"
     },
@@ -462,8 +472,8 @@
         "cannotCreateFieldTypeDescription": "Der gewünschte Feldtyp kann derzeit nicht erstellt werden. Möglicherweise handelt es sich nur um ein vorübergehendes Problem mit älteren Tabellen. Bitte versuchen Sie es später noch einmal.",
         "generativeAIDoesNotExistTitle": "Generative KI existiert nicht",
         "generativeAIDoesNotExistDescription": "Das generative KI-Modell existiert nicht.",
-        "modelDoesNotBelongToTypeTitle": "Das ausgewählte Modell gehört nicht zum KI-Typ",
-        "modelDoesNotBelongToTypeDescription": "Das ausgewählte Modell gehört nicht zum ausgewählten KI-Typ.",
+        "modelDoesNotBelongToTypeTitle": "KI-Modell nicht verfügbar",
+        "modelDoesNotBelongToTypeDescription": "Das ausgewählte KI-Modell ist deaktiviert oder nicht mehr verfügbar.",
         "generateAIPromptTitle": "Eingabeaufforderungs-Fehler",
         "generateAIPromptDescription": "Etwas stimmte mit der konstruierten Eingabeaufforderung nicht.",
         "fieldIsAlreadyPrimaryTitle": "Das Feld ist bereits das Primärfeld",
@@ -685,6 +695,7 @@
         "minuteDescription": "Gibt die Minute aus dem Datum-Zeit-Argument zurück.",
         "secondDescription": "Gibt die Sekunde aus dem Datum-Zeit-Argument zurück.",
         "todayDescription": "Gibt das aktuelle Datum zurück.",
+        "nowDescription": "Gibt das aktuelle Datum und die aktuelle Uhrzeit zurück.",
         "getPropertyDescription": "Gibt die Eigenschaft aus dem Objekt zurück.",
         "randomIntDescription": "Gibt eine zufällige Ganzzahl aus dem durch die Argumente angegebenen Bereich zurück.",
         "randomFloatDescription": "Gibt eine zufällige Gleitkommazahl aus dem durch die Argumente angegebenen Bereich zurück.",

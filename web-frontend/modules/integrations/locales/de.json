@@ -6,7 +6,7 @@
     "integrationType": {
         "localBaserow": "Lokales Baserow",
         "smtp": "SMTP-E-Mail",
-        "slackBot": "Slack-Bot",
+        "slackBot": "Slack",
         "ai": "KI"
     },
     "localBaserowIntegrationType": {
@@ -18,9 +18,14 @@
         "inheritingWorkspace": "Übernimmt die KI-Einstellungen des Arbeitsbereichs",
         "overridingProviders": "Überschreibt {count} Anbieter | Überschreibt {count} Anbieter"
     },
+    "aiProviderModelFeature": {
+        "aiAgent": "KI-Agent",
+        "aiAgentDescription": "Führen Sie KI-Agent-Aktionen in Workflows der Automatisierung und des Application Builders aus."
+    },
     "slackBotIntegrationType": {
         "slackBotSummary": "Slack-Bot",
-        "slackBotNoToken": "Slack-Bot – Nicht konfiguriert"
+        "slackBotNoToken": "Slack-Bot – Nicht konfiguriert",
+        "slackBotWarning": "Jeder, der in dieser Anwendung bauen kann, kann über diesen Bot Nachrichten senden und dessen Token ersetzen. Verwenden Sie einen Bot, dessen Zugriff Sie bedenkenlos teilen können."
     },
     "serviceType": {
         "localBaserowGetRow": "Einzelne Zeile abfragen",
@@ -33,16 +38,18 @@
         "localBaserowCreateRowDescription": "Erstellt eine neue Zeile in einer Baserow-Tabelle.",
         "localBaserowUpdateRow": "Eine Zeile aktualisieren",
         "localBaserowUpdateRowDescription": "Aktualisiert eine bestehende Zeile in einer Baserow-Tabelle.",
-        "localBaserowDeleteRow": "Eine Zeile löschen",
-        "localBaserowDeleteRowDescription": "Löscht eine Zeile in einer Baserow-Tabelle.",
+        "localBaserowDeleteRow": "Zeilen löschen",
+        "localBaserowDeleteRowDescription": "Löscht eine oder mehrere Zeilen in einer Baserow-Tabelle.",
         "localBaserowRowsCreated": "Zeilen werden erstellt",
         "localBaserowRowsCreatedDescription": "Wird ausgelöst, wenn Zeilen in einer Baserow-Tabelle erstellt werden.",
         "localBaserowRowsUpdated": "Zeilen werden aktualisiert",
-        "localBaserowRowsUpdatedDescription": "Wird ausgelöst, wenn Zeilen in einer Baserow-Tabelle aktualisiert werden.",
+        "localBaserowRowsUpdatedDescription": "Wird ausgelöst, wenn Zeilen in beliebigen Feldern einer Baserow-Tabelle aktualisiert werden.",
         "localBaserowRowsDeleted": "Zeilen werden gelöscht",
         "localBaserowRowsDeletedDescription": "Wird ausgelöst, wenn Zeilen in einer Baserow-Tabelle gelöscht werden.",
         "coreHTTPTrigger": "Eine HTTP-Anfrage empfangen",
         "coreHTTPTriggerDescription": "Wird ausgelöst, wenn eine HTTP-Anfrage empfangen wird.",
+        "inboundEmailTrigger": "E-Mail-Auslöser",
+        "inboundEmailTriggerDescription": "Wird ausgelöst, wenn eine E-Mail an der generierten E-Mail-Adresse empfangen wird.",
         "coreHTTPRequest": "Eine HTTP-Anfrage senden",
         "coreHTTPRequestDescription": "Sendet eine HTTP-Anfrage an einen angegebenen Endpunkt.",
         "coreSMTPEmail": "E-Mail versenden",
@@ -63,9 +70,10 @@
         "trashedField": "Verworfenes Feld",
         "errorUrlMissing": "Fehlende URL-Eigenschaft",
         "errorNoTableSelected": "Keine Tabelle ausgewählt",
+        "errorMisconfiguredIntegration": "Die Integration fehlt oder wurde in den Papierkorb verschoben",
         "errorFilterInError": "Mindestens ein Filter ist falsch konfiguriert",
         "errorSortingInError": "Mindestens eine Sortierung ist falsch konfiguriert",
-        "errorNoFieldSelected": "Kein Feld ausgewählt",
+        "errorNoFieldSelected": "Keine Felder ausgewählt",
         "errorNoAggregationTypeSelected": "Kein Aggregationstyp ausgewählt",
         "corePeriodic": "Periodischer Auslöser",
         "corePeriodicDescription": "Löst den Workflow in regelmäßigen Abständen zu festgelegten Zeitpunkten aus",
@@ -76,6 +84,7 @@
         "errorNoIntegrationSelected": "Keine Integration ausgewählt",
         "errorNoAIProviderSelected": "Kein KI-Anbieter ausgewählt",
         "errorNoAIModelSelected": "Kein KI-Modell ausgewählt",
+        "errorAIModelUnavailable": "Das ausgewählte KI-Modell ist deaktiviert oder nicht mehr verfügbar",
         "errorNoPromptProvided": "Kein Prompt angegeben",
         "errorNoChoicesProvided": "Keine Auswahlmöglichkeiten für den Ausgabetyp \"Auswahl\" angegeben",
         "slackWriteMessage": "Eine Slack-Nachricht senden",
@@ -95,7 +104,10 @@
         "coreCSVFileReaderDescription": "Liest Zeilen aus einer CSV-Datei.",
         "coreStartWorkflow": "Workflow starten",
         "coreStartWorkflowDescription": "Startet einen Automatisierungs-Workflow.",
+        "coreResponse": "Antwort",
+        "coreResponseDescription": "Gibt die Workflow-Antwort nur zurück, wenn der Auslöser das Warten auf Antworten unterstützt und das Warten aktiviert ist.",
         "errorNoRowsSelected": "Keine Zeilen ausgewählt",
+        "errorNoRowIdSelected": "Keine Zeilen-ID ausgewählt",
         "errorCSVFileMissing": "Fehlende CSV-Datei-Eigenschaft",
         "errorCSVContentMissing": "Fehlende CSV-Daten-Eigenschaft",
         "errorNoWorkflowSelected": "Kein Workflow ausgewählt",
@@ -111,7 +123,7 @@
     "aiForm": {
         "description": "Konfigurieren Sie die Einstellungen des KI-Anbieters für diese Integration. Standardmäßig werden die KI-Einstellungen des Arbeitsbereichs übernommen.",
         "workspaceSettingsTitle": "KI-Einstellungen des Arbeitsbereichs",
-        "workspaceSettingsDescription": "Diese Integration übernimmt standardmäßig die Einstellungen des KI-Anbieters aus Ihrem Arbeitsbereich. Sie können bestimmte Anbieter unten überschreiben.",
+        "workspaceSettingsDescription": "Diese Integration übernimmt standardmäßig die Einstellungen des KI-Anbieters aus Ihrem Arbeitsbereich. Eine Anbieter-Überschreibung ist in sich geschlossen: Geben Sie eigene Zugangsdaten oder einen eigenen Host an, da Verbindungsfelder nie mit übernommenen Zugangsdaten kombiniert werden.",
         "overrideWorkspaceSettings": "Einstellungen des Arbeitsbereichs für diesen Anbieter überschreiben",
         "inherited": "Übernommen",
         "overridden": "Überschrieben"
@@ -156,10 +168,12 @@
     },
     "serviceRefinementForms": {
         "filterTabTitle": "Filter | 1 Filter | {count} Filter",
+        "groupTabTitle": "Gruppieren nach | 1 Gruppe | {count} Gruppen",
         "sortTabTitle": "Sortierung | 1 Sortierung | {count} Sortierungen",
         "searchTabTitle": "Suche | 1 Suche | {count} Suchen",
         "searchFieldPlaceHolder": "Geben Sie einen Suchbegriff ein...",
         "noTableChosenForFiltering": "Wählen Sie eine Tabelle aus, um mit der Verwendung von Datenquellen-Filtern zu beginnen.",
+        "noTableChosenForGrouping": "Wählen Sie eine Tabelle, um die Datenquellen-Gruppierung zu verwenden.",
         "noTableChosenForSorting": "Wählen Sie eine Tabelle aus, um mit der Verwendung von Datenquellen-Sortierungen zu beginnen.",
         "refinements": "Verfeinerungen"
     },
@@ -170,7 +184,7 @@
         "noTableChosenForFiltering": "Wählen Sie eine Tabelle, um mit der Verwendung von Datenquellenfiltern zu beginnen."
     },
     "localBaserowTableServiceConditionalForm": {
-        "addFilter": "Zusätzliche Filter hinzufügen",
+        "addFilter": "Filter hinzufügen",
         "addFilterGroup": "Filtergruppe hinzufügen",
         "noFilterTitle": "Sie haben bisher keinen Datenquellen-Filter erstellt",
         "noFilterText": "Datenquellen-Filter ermöglichen Ihnen, nur die Zeilen einer Baserow-Tabelle anzuzeigen, auf welche die Bedingungen zutreffen.",
@@ -237,7 +251,9 @@
         "supportPairingHeading": "2. Kopplung mit Ihrer Slack-App",
         "supportPairingStep1": "Falls Ihre App neu ist: Navigieren Sie zu „Settings\" > „Install App\". Klicken Sie auf den grünen Button, um die App in Ihrem Arbeitsbereich zu installieren.",
         "supportPairingStep2": "Kopieren Sie Ihr „Bot User OAuth Token\" und speichern Sie es im Feld „Bot-User-Token\" in diesem Formular.",
-        "supportPairingStep3": "Falls Ihre App neu ist: Laden Sie sie schließlich in Slack mit {command} in Ihren gewünschten Kanal ein."
+        "supportPairingStep3": "Falls Ihre App neu ist: Laden Sie sie schließlich in Slack mit {command} in Ihren gewünschten Kanal ein.",
+        "tokenKeepPlaceholder": "Leer lassen, um das gespeicherte Token zu behalten",
+        "tokenConfigured": "Ein Token ist gespeichert. Leer lassen, um es zu behalten."
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Diese Aktion muss mit einer Slack-App gekoppelt werden. Bitte folgen Sie der Anleitung im Integrations-Popup, um zu beginnen.",
@@ -268,7 +284,9 @@
         "username": "Benutzername",
         "usernamePlaceholder": "ihre-email{'@'}beispiel.de",
         "password": "Passwort",
-        "passwordPlaceholder": "ihr-passwort"
+        "passwordPlaceholder": "ihr-passwort",
+        "passwordConfigured": "Ein Passwort ist gespeichert. Leer lassen, um es zu behalten.",
+        "passwordKeepPlaceholder": "Leer lassen, um das gespeicherte Passwort zu behalten"
     },
     "smtpEmailForm": {
         "smtpConfigurationMode": "SMTP-Konfiguration",
@@ -325,15 +343,17 @@
         "minuteFrequency": "Alle Minuten",
         "dayOfWeek": "Wochentag",
         "dayOfMonth": "Tag eines Monats",
+        "timezone": "Zeitzone",
+        "timezoneHelper": "Der Zeitplan behält diese Ortszeit bei, wenn die Uhren umgestellt werden",
         "hourPlaceholder": "0-23",
         "minutePlaceholder": "0-59",
         "minuteFrequencyPlaceholder": "15",
         "dayOfMonthPlaceholder": "1-31",
         "minuteHelper": "Dieser Workflow wird in den festgelegten Minutenabständen ausgeführt",
-        "hourHelper": "Dieser Workflow wird jede Stunde zur angegebenen Minute in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
-        "dayHelper": "Dieser Workflow wird jeden Tag zur angegebenen Zeit in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
-        "weekHelper": "Dieser Workflow wird jede Woche am angegebenen Tag und zur angegebenen Zeit in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
-        "monthHelper": "Dieser Workflow wird jeden Monat am angegebenen Tag und zur angegebenen Zeit in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
+        "hourHelper": "Dieser Workflow wird jede Stunde zur angegebenen Minute ausgeführt",
+        "dayHelper": "Dieser Workflow wird jeden Tag zur angegebenen Zeit ausgeführt",
+        "weekHelper": "Dieser Workflow wird jede Woche am angegebenen Tag und zur angegebenen Zeit ausgeführt",
+        "monthHelper": "Dieser Workflow wird jeden Monat am angegebenen Tag und zur angegebenen Zeit ausgeführt",
         "deactivatedTitle": "Periodischer Auslöser deaktiviert",
         "deactivatedText": "Dieser periodische Auslöser wurde aufgrund aufeinanderfolgender Fehler automatisch deaktiviert."
     },
@@ -351,6 +371,7 @@
         "fieldMappingPlaceholderDecimal": "Wählen Sie einen Dezimalwert, z. B. 3,14",
         "fieldMappingPlaceholderDuration": "Wählen Sie einen Dauerwert, z. B. 1:23:40",
         "noTableSelectedMessage": "Wählen Sie eine Tabelle aus, um Ihre Felder zu konfigurieren.",
+        "noTableAccess": "Sie haben keinen Zugriff auf diese Tabelle, daher können ihre Felder hier nicht angezeigt werden.",
         "noWritableFields": "Diese Tabelle enthält keine beschreibbaren Felder."
     },
     "localBaserowFieldsUpdatedForm": {
@@ -379,7 +400,7 @@
     "coreStartWorkflowServiceForm": {
         "automation": "Automatisierung",
         "workflow": "Workflow",
-        "workflowHelperText": "Es können nur veröffentlichte Workflows mit einem manuellen Auslöser gestartet werden. Wenn dieser Workflow unveröffentlichte Änderungen hat, wird die zuletzt veröffentlichte Version ausgeführt."
+        "workflowHelperText": "Es können nur veröffentlichte Workflows gestartet werden, deren Auslöser bei Bedarf starten kann, z. B. ein manueller oder periodischer Auslöser. Wenn dieser Workflow unveröffentlichte Änderungen hat, wird die zuletzt veröffentlichte Version ausgeführt."
     },
     "coreGotoServiceForm": {
         "conditionLabel": "Bedingung",
@@ -397,11 +418,11 @@
     "localBaserowCreateRowsServiceForm": {
         "rowsLabel": "Zeilen",
         "rowsPlaceholder": "Wählen Sie eine Liste von Zeilenobjekten",
-        "rowsHelper": "Die Formel muss ein Array von Zeilenobjekten zurückgeben oder eine JSON-Zeichenkette, die zu einem solchen geparst werden kann. Verwenden Sie Feldnamen oder Feld-IDs als Objektschlüssel. Es können bis zu {limit} Zeilen gleichzeitig erstellt werden."
+        "rowsHelper": "Der Ausdruck muss ein Array von Zeilenobjekten zurückgeben oder eine JSON-Zeichenkette, die zu einem solchen geparst werden kann. Verwenden Sie Feldnamen oder Feld-IDs als Objektschlüssel. Es können bis zu {limit} Zeilen gleichzeitig erstellt werden."
     },
     "localBaserowUpdateRowsServiceForm": {
         "rowsLabel": "Zeilen",
         "rowsPlaceholder": "Wählen Sie eine Liste von Zeilenobjekten mit IDs",
-        "rowsHelper": "Die Formel muss ein Array von Zeilenobjekten zurückgeben oder eine JSON-Zeichenkette, die zu einem solchen geparst werden kann. Jedes Objekt muss eine id-Eigenschaft enthalten. Verwenden Sie Feldnamen oder Feld-IDs als Objektschlüssel. Es können bis zu {limit} Zeilen gleichzeitig aktualisiert werden."
+        "rowsHelper": "Der Ausdruck muss ein Array von Zeilenobjekten zurückgeben oder eine JSON-Zeichenkette, die zu einem solchen geparst werden kann. Jedes Objekt muss eine id-Eigenschaft enthalten. Verwenden Sie Feldnamen oder Feld-IDs als Objektschlüssel. Es können bis zu {limit} Zeilen gleichzeitig aktualisiert werden."
     }
 }

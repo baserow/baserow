@@ -16,6 +16,10 @@
         },
         "deactivated": "Disponibile nella versione premium"
     },
+    "paidFeaturesModal": {
+        "description": "Questa funzionalità è disponibile con il piano {plan}. Per accedervi, effettua l'upgrade del tuo account sottoscrivendo un abbonamento. Clicca sul pulsante qui sotto per vedere le opzioni di prezzo.",
+        "viewPricing": "Vedi prezzi"
+    },
     "rowCommentSidebar": {
         "onlyPremium": "I commenti di riga sono disponibili solo nella versione premium.",
         "readOnlyNoComment": "Nessun commento per questa riga.",
@@ -69,6 +73,9 @@
     "tableXMLExporter": {
         "encoding": "Codifica"
     },
+    "tableExcelExporter": {
+        "includeHeader": "Includi i nomi dei campi come intestazione"
+    },
     "kanbanViewStackContext": {
         "createCard": "Crea scheda",
         "editStack": "Modifica pila",
@@ -88,6 +95,9 @@
         "title": "Raggruppa per campo",
         "chooseField": "Per quale campo di selezione singola le schede devono essere raggruppate?",
         "addSelectField": "aggiungi campo di selezione singola"
+    },
+    "kanbanView": {
+        "addStack": "Aggiungi pila"
     },
     "kanbanViewStack": {
         "uncategorized": "Senza categoria",
@@ -111,6 +121,7 @@
         "expired": "Scaduto",
         "validity": "Valido da {start} a {end}",
         "seats": "posti",
+        "applicationUsers": "Utenti dell'applicazione",
         "premiumFeatures": "Funzionalità premium"
     },
     "license": {
@@ -132,6 +143,8 @@
         "lastCheckDescription": "La licenza viene controllata periodicamente per eventuali cambiamenti. Se ad esempio l'hai rinnovata o aggiornata, le modifiche diventano attive dopo il controllo.",
         "checkNow": "controlla",
         "seats": "Posti (quantità di utenti)",
+        "applicationUsers": "Utenti dell'applicazione",
+        "applicationUsersDescription": "Il numero totale di utenti dell'applicazione nelle sorgenti utenti delle applicazioni pubblicate.",
         "licensedTo": "Licenza per",
         "premiumFeatures": "Funzionalità premium",
         "applications": "Applicazioni/database",
@@ -139,11 +152,12 @@
         "rowUsage": "Utilizzo riga",
         "storeUsage": "Utilizzo archiviazione",
         "disconnectLicense": "Disconnetti licenza",
-        "disconnectDescription": "Sei sicuro di voler disconnettere questa licenza? Se la disconnetti mentre è attiva, tutti gli utenti collegati non avranno più accesso alle funzionalità del piano. La licenza verrà quindi rimossa. Se vuoi usare questa licenza in un'altra istanza self-hosted, contatta il nostro team di supporto tramite {contact}.",
+        "disconnectDescription": "Sei sicuro di voler disconnettere questa licenza? Se la disconnetti mentre è attiva, gli utenti collegati non avranno più accesso alle funzionalità del piano. La licenza verrà di fatto rimossa da questa istanza. Puoi cambiare l'ID istanza del tuo abbonamento dalla pagina degli abbonamenti su {subscriptions} oppure contattando il nostro team di supporto tramite {contact} se hai un piano enterprise.",
         "contactSalesMoreSeats": "Contatta il nostro team di vendita per avere più postazioni",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} postazioni paganti e {free_users_count} postazioni libere in uso",
         "moreSeatsNeededTitle": "È necessario aumentare il numero di postazioni",
         "premiumFeatureName": "Premium",
+        "advancedFeatureName": "Avanzato",
         "enterpriseFeatureName": "Enterprise",
         "supportFeatureName": "Assistenza"
     },
@@ -185,17 +199,32 @@
     },
     "premiumFeatures": {
         "kanbanView": "Vista Kanban",
+        "kanbanViewContent": "Organizza visivamente i tuoi dati su una bacheca Kanban. Le schede sono raggruppate in pile in base a un campo di selezione singola e puoi trascinarle facilmente da una pila all'altra.",
         "admin": "Pagina di amministrazione",
         "rowColoring": "Colorazione righe",
+        "rowColoringContent": "Evidenzia le righe con colori basati su un campo di selezione singola o su condizioni personalizzate. Così è più facile individuare schemi e priorità.",
+        "rowNotifications": "Notifiche di riga",
+        "rowNotificationsContent": "Rimani aggiornato con notifiche personalizzabili sui commenti di riga. Scegli se ricevere avvisi per tutti i commenti o solo quando vieni menzionato.",
         "rowComments": "Commenti di riga",
-        "exports": "Esportazione in formato JSON e XML",
+        "rowCommentsContent": "Collabora direttamente nella tua tabella. Aggiungi commenti alle singole righe, menziona i membri del team e mantieni la conversazione nel suo contesto.",
+        "exports": "Esportazione tabella",
+        "exportsContent": "Esporta facilmente i tuoi dati in formati aggiuntivi come Excel, JSON e XML, oppure scarica in blocco tutti i file di una tabella: perfetto per backup, report e condivisione con altri.",
         "surveyForm": "Sondaggio",
+        "surveyFormContent": "Raccogli le risposte una domanda alla volta con la modalità sondaggio. Una versione semplificata della vista modulo, ottimizzata per la concentrazione e la facilità d'uso.",
         "publicLogoRemoval": "Rimozione logo",
+        "publicLogoRemovalContent": "Rimuovi il logo Baserow dalle viste pubbliche per dare ai tuoi contenuti condivisi un aspetto più pulito e personalizzato.",
         "calendarView": "Vista calendario",
+        "calendarViewContent": "Visualizza facilmente le tue righe su un calendario, usando un campo data a tua scelta. Perfetto per tenere sotto controllo scadenze, eventi e programmi a colpo d'occhio.",
         "personalViews": "Vista personale",
-        "aiFeatures": "Campo IA",
+        "personalViewsContent": "Crea viste che solo l'autore può vedere. Così hai lo spazio per sperimentare, filtrare e ordinare i dati senza influire sul progetto per gli altri.",
+        "aiFeatures": "Funzionalità IA",
         "timelineView": "Timeline",
-        "aiFeaturesContent": "Usa l'IA per automatizzare e potenziare i tuoi flussi di lavoro. Con il tipo di campo prompt IA puoi generare testo, riassunti o approfondimenti direttamente nelle celle basandoti su prompt dinamici che possono fare riferimento ad altri campi. Separatamente, puoi anche chiedere all'IA di creare formule per te."
+        "timelineViewContent": "Mostra le righe lungo una timeline orizzontale usando date di inizio e di fine. Ideale per la pianificazione di progetti e roadmap.",
+        "aiFeaturesContent": "Usa l'IA per automatizzare e potenziare i tuoi flussi di lavoro. Con il tipo di campo prompt IA puoi generare testo, riassunti o approfondimenti direttamente nelle celle basandoti su prompt dinamici che possono fare riferimento ad altri campi. Separatamente, puoi anche chiedere all'IA di creare formule per te.",
+        "chartWidget": "Widget grafico",
+        "chartWidgetContent": "Visualizza i tuoi dati con grafici nelle dashboard. Usa qualsiasi tabella come sorgente dati, aggiungi più serie e raggruppa o ordina per campi con ricche opzioni di aggregazione.",
+        "groupedAggregateRowsDataSource": "Raggruppa e aggrega righe",
+        "groupedAggregateRowsDataSourceContent": "Raggruppa le righe di una tabella Baserow e calcola aggregazioni da usare nelle pagine del costruttore di applicazioni."
     },
     "premiumModal": {
         "title": "Fai l'upgrade per usare {name}",
@@ -216,7 +245,8 @@
         "baserowLogo": {
             "label": "Nascondi il logo di Baserow nella viste pubbliche",
             "premiumModalName": "rimozione logo"
-        }
+        },
+        "allowPublicExportLabel": "Consenti l'esportazione nella vista condivisa"
     },
     "calendarViewHeader": {
         "displayedBy": "Visto da “{fieldName}”",
@@ -269,6 +299,7 @@
     },
     "gridViewFieldAI": {
         "regenerate": "Rigenera",
+        "promptBroken": "Il prompt non è valido e deve essere corretto prima di poter generare i valori.",
         "generate": "Genera"
     },
     "fieldAISubForm": {
@@ -278,10 +309,18 @@
         "AIType": "Tipo IA",
         "emptyFileField": "Nessuno",
         "fileFieldHelp": "Verrà utilizzato il primo file compatibile. I file compatibili sono file di testo con estensioni .txt, .md, .pdf, .docx.",
+        "outputType": "Tipo di output",
+        "outputTypeTooltip": "Seleziona il formato di output desiderato per guidare l'LLM nella generazione di risposte corrispondenti alle opzioni desiderate.",
+        "outputTypeChangedWarning": "Cancella i valori delle celle generati.",
+        "autoUpdate": "Aggiornamento automatico",
+        "autoUpdateHelp": "Se abilitato, il valore del campo IA verrà rigenerato automaticamente quando viene aggiornato uno qualsiasi dei campi a cui fa riferimento il prompt.",
+        "autoUpdateDescription": "Rigenera quando i campi referenziati cambiano",
+        "invalidPrompt": "La formula del prompt non è valida.",
         "promptPlaceholder": "Cos'è Baserow?"
     },
     "rowEditFieldAI": {
         "createRowBefore": "Il valore IA può essere generato dopo che la riga è stata creata.",
+        "promptBroken": "Il prompt non è valido e deve essere corretto prima di poter generare i valori.",
         "generate": "Genera"
     },
     "premiumFieldType": {
@@ -294,7 +333,7 @@
         "labelDescription": "Descrivi la formula che vuoi generare",
         "generate": "Genera",
         "description": "In alcuni casi la formula generata potrebbe funzionare diversamente da",
-        "noModels": "La tua istanza e il workspace di Baserow non hanno modelli di intelligenza artificiale configurati. Clicca sui tre punti accanto al tuo workspace, poi su impostazioni per configurarli."
+        "noModels": "La tua istanza e il progetto di Baserow non hanno modelli IA configurati. Vai alla homepage, clicca sul nome del tuo progetto e poi su impostazioni per configurarli."
     },
     "formulaFieldAI": {
         "generateWithAI": "Genera usando l'AI",
@@ -342,13 +381,100 @@
         "day": "Giorno",
         "hour": "Ora",
         "year": "Anno",
+        "disabledTooltip": "Questa opzione è disponibile solo per i campi data con `include time` abilitato.",
         "quarter": "Trimestre"
     },
     "aiOutputType": {
         "text": "Testo",
-        "choice": "Scelta"
+        "textDescription": "Genera testo libero in base al prompt.",
+        "choice": "Scelta",
+        "choiceDescription": "Sceglie una sola delle opzioni del campo."
     },
     "publicViewExport": {
         "export": "Esporta"
+    },
+    "chart": {
+        "true": "vero",
+        "false": "falso",
+        "other": "Altro"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Serie",
+        "addSeries": "Aggiungi serie",
+        "data": "Dati",
+        "sourceFieldLabel": "Sorgente",
+        "viewFieldLabel": "Vista",
+        "notSelected": "Non selezionato"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "Serie",
+        "addSeries": "Aggiungi serie"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "Raggruppa e aggrega righe",
+        "localBaserowGroupedAggregateRowsDescription": "Raggruppa le righe di una tabella Baserow e calcola aggregazioni.",
+        "errorNoAggregationSeriesDefined": "Nessuna serie di aggregazione definita.",
+        "errorIncompleteAggregationSeries": "Una o più serie di aggregazione sono incomplete.",
+        "errorTrashedAggregationField": "Almeno uno dei campi configurati è stato spostato nel cestino."
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Riepilogo",
+        "deleteSeries": "Elimina serie",
+        "chartType": "Tipo di grafico",
+        "barChart": "Barre",
+        "lineChart": "Linee",
+        "pieChart": "Torta",
+        "doughnutChart": "Ciambella",
+        "polarAreaChart": "Area polare"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Raggruppa",
+        "groupByNone": "Nessuno",
+        "groupByRowId": "ID riga",
+        "rowIdDisabledTooltip": "Il raggruppamento per ID riga non è al momento disponibile perché il campo primario può contenere più valori."
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Ordina per",
+        "none": "Nessuno",
+        "ascending": "Crescente",
+        "descending": "Decrescente"
+    },
+    "generateAIValuesModal": {
+        "title": "Genera tutti i valori IA",
+        "noPreviousJobs": "Nessun processo precedente",
+        "started": "Avviato",
+        "finished": "Completato",
+        "running": "In esecuzione",
+        "failed": "Non riuscito",
+        "cancelled": "Annullato",
+        "pending": "In attesa",
+        "view": "Vista: {name}",
+        "table": "Tabella: tutte le righe",
+        "deletedView": "Vista: ID {viewId} (eliminata)",
+        "rows": "Righe: {count} righe",
+        "autoUpdate": "Aggiornamento automatico: campi referenziati modificati"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Ambito",
+        "entireTable": "Intera tabella",
+        "skipPopulated": "Genera valori solo per le celle vuote",
+        "warningTitle": "Avviso sull'utilizzo dei token",
+        "warningMessage": "La generazione di tutti i valori IA consumerà token API e potrebbe richiedere molto tempo a seconda del numero di righe."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Genera con IA",
+        "close": "Chiudi"
+    },
+    "jobType": {
+        "generateAIValues": "Rigenera i valori del campo IA"
+    },
+    "viewOwnershipType": {
+        "personal": "Personale",
+        "personalDescription": "Solo tu puoi vedere la vista."
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "Campi IA",
+        "aiFieldsDescription": "Genera valori nei campi IA."
     }
 }

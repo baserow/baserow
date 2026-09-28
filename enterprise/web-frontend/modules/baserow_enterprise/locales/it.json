@@ -4,8 +4,8 @@
         "sidebarTooltip": "Il tuo account ha accesso alle funzionalità enterprise",
         "rbac": "RBAC",
         "sso": "SSO",
-        "deactivated": "Disponibile con licenza advanced/enterprise",
-        "licenseDescription": "I Viewers sono gratuiti. Se un utente ha un altro ruolo, una licenza a pagamento verrà assegnata in automatico.",
+        "deactivated": "Disponibile nella versione advanced/enterprise",
+        "licenseDescription": "In questo piano Viewer e Commenter sono gratuiti. Se un utente ha qualsiasi altro ruolo, in qualsiasi progetto, utilizzerà automaticamente un posto a pagamento.",
         "overflowWarning": "Le licenze disponibili sono terminate. Imposta gli utenti come \"viewers\" per liberare le licenze necessarie.",
         "enterpriseOnlyDeactivated": "Disponibile nella versione enterprise"
     },
@@ -33,9 +33,12 @@
         "submit": "Salva",
         "nameTitle": "Nome",
         "roleTitle": "Ruolo di default",
-        "inviteMembers": "Aggiungi membri",
-        "membersTitle": "Membri",
-        "noSubjectsSelected": "Clicca '{buttonLabel}' per aggiungere utenti al team.",
+        "inviteMembers": "Gestisci accesso",
+        "agentLabel": "Agente",
+        "membersTitle": "Membri del team",
+        "noSubjectsSelected": "Nessuno ha ancora accesso tramite questo team.",
+        "accessModalTitle": "Gestisci accesso al team",
+        "accessModalDescription": "Scegli le persone e gli agenti che fanno parte di questo team.",
         "roleHelpText": "I permessi specifici dell'utente hanno la precedenza rispetto ai permessi dati al team."
     },
     "editTeamContext": {
@@ -53,6 +56,13 @@
     },
     "subjectSampleField": {
         "titleAttr": "{subjectCount} membri in questo team."
+    },
+    "enterpriseAgents": {
+        "teams": "Team",
+        "noTeams": "Nessun team",
+        "teamsLoadError": "Impossibile caricare i team.",
+        "teamsLoadErrorDescription": "Controlla la connessione e riprova.",
+        "retry": "Riprova"
     },
     "adminType": {
         "Authentication": "Autenticazione",
@@ -103,13 +113,19 @@
         "invalidMetadata": "XML non valido",
         "relayStateUrl": "Default Relay State URL",
         "providerIsVerified": "Il provider è stato verificato",
-        "domain": "Dominio",
+        "domain": "Dominio SAML",
         "domainAlreadyExists": "Un provider SAML per questo dominio esiste giá",
         "acsUrl": "Single Sign On URL",
         "samlResponseSettings": "Attributi risposta SAML",
         "defaultAttrs": "Default",
         "customAttrs": "Personalizzato",
-        "emailAttrKey": "Email"
+        "emailAttrKey": "Email",
+        "emailAttrKeyHelper": "L'indirizzo email che verrà usato come nome utente.",
+        "firstNameAttrKey": "Nome",
+        "firstNameAttrKeyHelper": "Il nome dell'utente o il nome completo se 'Cognome' non è specificato.",
+        "lastNameAttrKey": "Cognome",
+        "lastNameAttrKeyHelper": "Cognome dell'utente (facoltativo). Svuota questo valore per fornire il nome completo tramite 'Nome'.",
+        "emailVerificationNotice": "Assicurati che il tuo identity provider richieda indirizzi email verificati prima di autenticare gli utenti. Le firme SAML autenticano il provider, non la proprietà dell'email."
     },
     "createSettingsAuthProviderModal": {
         "title": "Aggiungi un nuovo {type}"
@@ -136,7 +152,11 @@
         "delete": "Elimina"
     },
     "authProviderTypes": {
-        "password": "Autenticazione tramite email e password"
+        "password": "Autenticazione tramite email e password",
+        "saml": "Provider SSO SAML",
+        "ssoSamlProviderName": "SSO SAML: {domain}",
+        "ssoSamlProviderNameUnconfigured": "SSO SAML non configurato",
+        "ssoOIDCProviderNameUnconfigured": "OpenID Connect non configurato"
     },
     "loginError": {
         "title": "Qualcosa è andato storto:",
@@ -151,7 +171,9 @@
         "errorInvalidSamlResponse": "Risposta SAML non valida.",
         "errorUserDeactivated": "l'utente è stato disabilitato.",
         "errorDifferentProvider": "Per favore, usa lo stesso meccanismo di login utilizzato in fase di registrazione dell'account.",
-        "errorSignupDisabled": "La registrazione è stata disabilitata dall'amministratore."
+        "errorUnverifiedEmail": "l'identity provider non ha verificato il tuo indirizzo email. Verifica la tua email presso il provider e riprova.",
+        "errorSignupDisabled": "La registrazione è stata disabilitata dall'amministratore.",
+        "errorApplicationUserLimitReached": "L'accesso è temporaneamente non disponibile. Contatta il proprietario del sito o riprova più tardi."
     },
     "roles": {
         "admin": {
@@ -201,7 +223,14 @@
             "title": "Tabella {name}",
             "selectMembers": "Seleziona membri",
             "onlyYouHaveAccess": "Solo tu puoi accedere alla tabella."
-        }
+        },
+        "title": "{type} {name}",
+        "selectMembers": "Seleziona membri",
+        "everyoneHasAccess": "Tutti nel progetto {name} possono accedere a questo elemento ({type}).",
+        "onlyYouHaveAccess": "Solo tu puoi accedere a questo elemento ({type}).",
+        "warningTitle": "Altri utenti potrebbero ereditare l'accesso!",
+        "warningMessage": "Altri utenti potrebbero ereditare l'accesso tramite i rispettivi ruoli sul livello superiore ({parent}).",
+        "headerTooltip": "I ruoli su questo elemento ({type}) hanno priorità rispetto ai ruoli di {overrides}."
     },
     "memberRolesShareToggle": {
         "label": "Condividi con tutti in {name}",
@@ -215,16 +244,25 @@
     },
     "selectSubjectsListFooter": {
         "invite": "Invita {count} {type}",
-        "helpTooltip": "I ruoli assegnati ai singoli membri hanno priorità rispetto ai ruoli dei team.",
+        "helpTooltip": "I ruoli assegnati ai singoli membri e agenti hanno priorità rispetto ai ruoli dei team.",
         "roleSelectorBuilderDataWarningTooltip": "Saranno in grado di creare formule e campi lookup in grado di esporre campi di tabelle collegate.",
         "types": {
             "members": "membri",
+            "agents": "agenti",
             "teams": "team"
         }
     },
     "selectTeamsList": {
         "selectedAmountLabel": "{count} team selezionati",
         "searchPlaceholder": "Trova team..."
+    },
+    "selectAgentsList": {
+        "searchPlaceholder": "Trova agenti...",
+        "selectedAmountLabel": "{count} agenti selezionati"
+    },
+    "subjectType": {
+        "team": "Team",
+        "teams": "Team"
     },
     "membersPagePlugin": {
         "roleHelpText": "Possono essere sovrascritti con ruoli a livello di database e tabella."
@@ -234,12 +272,24 @@
         "providerNamePlaceholder": "Nome provider",
         "clientId": "Client ID",
         "callbackUrl": "URL di callback",
+        "emailVerificationNotice": "Assicurati che il tuo identity provider richieda indirizzi email verificati prima di autenticare gli utenti. Baserow si fida dell'indirizzo email comunicato dal provider.",
         "clientIdPlaceholder": "Client ID del provider",
         "secret": "Chiave segreta",
         "secretPlaceholder": "Chiave segreta del provider",
         "baseUrl": "URL",
         "baseUrlPlaceholder": "URL del provider",
-        "invalidBaseUrl": "L'URL inserito non è un URL valido"
+        "duplicateBaseUrl": "L'URL inserito esiste già in un altro provider",
+        "invalidBaseUrl": "L'URL inserito non è un URL valido",
+        "useIdToken": "Usa l'id token per ottenere le informazioni dell'utente",
+        "responseSettings": "Attributi risposta OIDC",
+        "defaultAttrs": "Default",
+        "customAttrs": "Personalizzato",
+        "emailAttrKey": "Email",
+        "emailAttrKeyHelper": "L'indirizzo email che verrà usato come nome utente.",
+        "firstNameAttrKey": "Nome",
+        "lastNameAttrKey": "Cognome",
+        "firstNameAttrKeyHelper": "Il nome dell'utente o il nome completo se 'Cognome' non è specificato.",
+        "lastNameAttrKeyHelper": "Cognome dell'utente (facoltativo). Svuota questo valore per fornire il nome completo tramite 'Nome'."
     },
     "memberRolesModal": {
         "memberRolesDatabaseTabTitle": "Database",
@@ -247,7 +297,8 @@
             "title": "Non è stato possibile ottenere i dati",
             "description": "Un errore imprevisto ha impedito di ottenere i dati."
         },
-        "memberRolesTableTabTitle": "Tabella"
+        "memberRolesTableTabTitle": "Tabella",
+        "memberRolesViewTabTitle": "Vista"
     },
     "memberRolesTableContexItem": {
         "label": "Gestisci membri",
@@ -256,6 +307,7 @@
     "roleAssignmentModal": {
         "subjectTypeNameTeams": "team",
         "membersTab": "Membri",
+        "agentsTab": "Agenti",
         "teamsTab": "Team",
         "subjectTypeNameMembers": "membri"
     },
@@ -277,12 +329,82 @@
     "enterpriseFeatures": {
         "sso": "Single Sign On",
         "rbac": "Role-based access control",
+        "rbacContent": "Gestisci i permessi con precisione. Assegna ruoli come admin, builder, editor, commenter o viewer a livello di progetto, database, tabella e vista. Puoi anche gestire l'accesso per team.",
         "coBranding": "Sostituzione logo co-branding",
+        "coBrandingContent": "Personalizza l'interfaccia di Baserow con il tuo logo. Nota che viene aggiunto \"powered by Baserow\".",
         "auditLogs": "Registro attività",
+        "auditLogsContent": "Tieni traccia di tutto ciò che accade. Visualizza la cronologia completa delle azioni nella tua istanza o nel tuo progetto, filtrabile per utente, azione e altro.",
         "support": "Supporto diretto",
+        "supportContent": "Ricevi aiuto quando ne hai bisogno. Contatta il team di Baserow direttamente dalla piattaforma.",
+        "advancedWebhooks": "Webhook avanzati",
+        "advancedWebhooksContent": "Attiva i webhook quando una riga entra in una vista specifica, ideale per automatizzare i flussi di lavoro in base alle condizioni dei filtri.",
+        "fieldLevelPermissions": "Permessi a livello di campo",
+        "fieldLevelPermissionsContent": "Controlla chi può modificare campi specifici di una tabella. Imposta i permessi per editor, builder, admin, oppure disabilita completamente la modifica dei valori del campo.",
+        "builderBranding": "Branding dell'applicazione",
+        "builderBrandingContent": "Rendi la tua applicazione white label rimuovendo il marchio 'Made with Baserow' dal footer.",
+        "builderFileInputElement": "Elemento di caricamento file",
+        "builderFileInputElementContent": "L'elemento di caricamento file ti permette di aggiungere alle pagine della tua applicazione un campo per caricare file. Dai ai tuoi utenti la possibilità di archiviare documenti o immagini importanti.",
+        "builderGraphElement": "Elemento grafico",
+        "builderGraphElementContent": "Mostra dati basati su formule come grafico nelle pagine dell'applicazione.",
+        "builderCustomCode": "Codice personalizzato per le applicazioni",
+        "builderCustomCodeContent": "Puoi aggiungere codice CSS/JavaScript personalizzato per personalizzare ulteriormente l'aspetto e il comportamento della tua applicazione. Ad esempio, puoi integrare servizi esterni come strumenti di analisi o social media.",
+        "codeRunner": "Esecuzione di codice",
+        "codeRunnerContent": "Esegui codice JavaScript nei nodi di automazione e nelle azioni dei flussi di lavoro del costruttore di applicazioni.",
+        "xlsFileReader": "Lettore di file XLS",
+        "xlsFileReaderContent": "Leggi righe da file XLS e XLSX nei nodi di automazione e nelle azioni dei flussi di lavoro del costruttore di applicazioni.",
+        "dateDependency": "Dipendenza tra date",
+        "dateDependencyContent": "Puoi definire una dipendenza tra due date e una durata come data di inizio/fine e durata. Con la dipendenza tra date, se un valore cambia, gli altri valori vengono adeguati di conseguenza.",
+        "dataScanner": "Scanner di dati",
+        "dataScannerContent": "Scansiona tutti i dati della tua istanza Baserow alla ricerca di pattern sensibili come codici IBAN o identificativi medici, oppure confrontali con elenchi di valori noti. Configura pianificazioni di scansione automatiche e visualizza risultati dettagliati.",
         "dataSync": "Sync dei dati",
         "dataSyncContent": "Mantieni automaticamente le tabelle aggiornate sincronizzandole con altre tabelle Baserow o fonti esterne come Jira, GitHub, GitLab o HubSpot. Consente anche di sincronizzare periodicamente e abilita la sincronizzazione dei dati bidirezionale per i tipi di sincronizzazione dati supportati.",
         "ssoContent": "Abilita accessi sicuri e senza interruzioni con SAML, Google, Facebook, GitHub, GitLab o OpenID Connect. Supporta più provider contemporaneamente. Nota che sia Baserow come strumento, sia il sistema di autenticazione del costruttore di applicazioni supportano SSO."
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma AI"
+    },
+    "assistantPanel": {
+        "title": "Assistente IA",
+        "close": "Chiudi assistente IA",
+        "history": "Cronologia chat",
+        "back": "Indietro"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Ciao {name}",
+        "question": "mi chiamo Kuma!",
+        "subtitle": "Ti aiuto a portare il carico, così non ti sembrerà mai pesante. Scegli uno dei prompt qui sotto o dimmi semplicemente di cosa hai bisogno!",
+        "subtitleWithoutSuggestions": "Ti aiuto a portare il carico, così non ti sembrerà mai pesante. Dimmi semplicemente di cosa hai bisogno!",
+        "promptCreateDatabaseTitle": "Crea un database",
+        "promptCreateDatabasePrompt": "Crea un database per la gestione dei progetti.",
+        "promptCreateAutomationTitle": "Crea un'automazione",
+        "promptCreateAutomationPrompt": "Crea un'automazione che ogni martedì mattina chieda nel canale Slack degli sviluppatori se c'è qualcosa da mostrare in demo.",
+        "promptInviteUsersTitle": "Invita utenti",
+        "promptInviteUsersPrompt": "Come invito utenti nel mio progetto?",
+        "promptCreateTableTitle": "Crea una tabella",
+        "promptCreateTablePrompt": "Crea una nuova tabella chiamata attività.",
+        "promptWhichTablesTitle": "Quali tabelle",
+        "promptWhichTablesPrompt": "Quali tabelle ho in questo database?",
+        "promptCreateFormTitle": "Crea un modulo",
+        "promptCreateFormPrompt": "Crea un modulo per questa tabella.",
+        "promptCreateFilterTitle": "Crea un filtro",
+        "promptCreateFilterPrompt": "Mostra solo le righe in cui il campo primario è vuoto."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "L'assistente è pronto ad aiutarti",
+        "statusRunning": "In esecuzione...",
+        "placeholder": "Chiedimi qualsiasi cosa...",
+        "send": "Invia messaggio",
+        "stop": "Interrompi generazione"
+    },
+    "assistant": {
+        "statusThinking": "Sto pensando...",
+        "statusAnswering": "Sto rispondendo...",
+        "statusCancelling": "Annullamento in corso...",
+        "messageCancelled": "Messaggio annullato"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Nessuna cronologia chat disponibile",
+        "loading": "Caricamento cronologia chat..."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Supporto diretto"
@@ -292,6 +414,9 @@
     },
     "snapshotModalWarning": {
         "message": "Ricorda che gli snapshots includeranno tutti i permessi impostati a livello di applicazione e tabelle."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Tieni presente che un'esportazione non includerà i permessi impostati sull'applicazione e sulle sue tabelle."
     },
     "auditLogSidebarWorkspace": {
         "title": "Audit log",
@@ -311,16 +436,23 @@
         "notConfigured": "Non configurato"
     },
     "appAuthProviderType": {
-        "localBaserowPassword": "Email/Password"
+        "localBaserowPassword": "Email/Password",
+        "commonSaml": "SSO SAML",
+        "openIdConnect": "OpenID Connect"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Scegli il campo password",
         "noFields": "Nessun campo compatibile"
     },
+    "commonSamlSettingForm": {
+        "relayStateTitle": "Default Relay State URL (clicca per copiare)",
+        "acsTitle": "URL Single Sign On (clicca per copiare)",
+        "addDomainNotice": "Disponibile quando sono stati aggiunti uno o più domini"
+    },
     "enterpriseSettings": {
         "deactivated": "Disponibile in enterprise",
         "coBrandingLogo": "Logo",
-        "coBrandingLogoDescription": "Sostituisce il logo Baserow con un'alternativa personalizzata di co-branding (176x29).",
+        "coBrandingLogoDescription": "Sostituisce il logo Baserow con un'alternativa personalizzata di co-branding (176x29). Se impostato, rimuove anche la descrizione di Baserow nel footer di tutte le email.",
         "showBaserowHelpMessage": "Mostra messaggio di aiuto",
         "branding": "Branding",
         "uploadFileButton": "Carica immagine",
@@ -346,7 +478,11 @@
         "selectOrConfigureUserSourceFirst": "Scegli una sorgente utenti per iniziare ad usare questo elemento."
     },
     "enterpriseDataSyncType": {
-        "localBaserowTable": "Sincronizza con una tabella Baserow"
+        "localBaserowTable": "Sincronizza con una tabella Baserow",
+        "jiraIssues": "Sincronizza issue Jira",
+        "githubIssues": "Sincronizza issue GitHub",
+        "gitlabIssues": "Sincronizza issue GitLab",
+        "hubspotContacts": "Sincronizza contatti HubSpot"
     },
     "localBaserowTableDataSync": {
         "name": "ID della tabella sorgente",
@@ -354,10 +490,35 @@
         "authorizing": "Stai abilitando il tuo account per prelevare i dati dalla tabella sorgente.",
         "workspace": "Workspace",
         "database": "Database",
-        "view": "Vista"
+        "view": "Vista",
+        "viewHelper": "Vengono sincronizzati solo i campi visibili e le righe che corrispondono ai filtri."
+    },
+    "jiraIssuesDataSync": {
+        "jiraUrl": "URL dell'istanza Jira",
+        "urlHelper": "L'URL di base della tua istanza Jira (es. https://your-domain.atlassian.net).",
+        "authenticationLabel": "Autenticazione",
+        "authenticationHelper": "Scegli come autenticarti con Jira.",
+        "projectKey": "Chiave del progetto Jira (facoltativa)",
+        "projectKeyHelper": "La chiave del progetto Jira (es. PROJ). Puoi trovarla cliccando su `Project settings` in Jira. Se non specificata, verranno restituite tutte le issue.",
+        "jiraUsername": "Nome utente Jira",
+        "usernameHelper": "Il nome utente dell'account Jira usato per l'autenticazione. È l'email che usi per accedere.",
+        "apiToken": "Token API Jira",
+        "apiTokenHelper": "Il token API dell'account Jira usato per l'autenticazione. Può essere creato su https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "personalAccessToken": "Personal Access Token Jira",
+        "personalAccessTokenHelper": "Il token API dell'account Jira usato per l'autenticazione. Può essere creato su https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "assistantMessageSources": {
         "sources": "{count} sorgente | {count} sorgenti"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma può commettere errori, verifica sempre le risposte"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Aiutaci a migliorare",
+        "feedbackContextPlaceholder": "Cosa potremmo migliorare? (facoltativo)",
+        "copiedToClipboard": "Copiato negli appunti",
+        "copiedContentToast": "Il contenuto della risposta dell'assistente è stato copiato negli appunti",
+        "copyFailed": "Impossibile copiare negli appunti"
     },
     "advanced": {
         "license": "Avanzato",
@@ -365,35 +526,235 @@
     },
     "githubIssuesDataSync": {
         "owner": "Proprietario",
-        "repo": "Repository"
+        "ownerHelper": "Nome utente o proprietario del repository. Di solito si trova in alto a sinistra `owner / repo`",
+        "repo": "Repository",
+        "repoHelper": "Il nome del repository. Di solito si trova in alto a sinistra `owner / repo`",
+        "apiToken": "Token API",
+        "apiTokenHelper": "Può essere generato qui https://github.com/settings/tokens cliccando su `Generate new token`, seleziona `All repositories`, poi in `Repository permissions` imposta `Issues` su `read-only`."
     },
     "commonOidcSettingForm": {
+        "callbackTitle": "URL di callback (clicca per copiare)",
+        "callbackHelperText": "Aggiungi questi URL alle impostazioni degli URI di reindirizzamento del tuo provider OpenID Connect.",
         "preview": "Anteprima"
     },
     "configureDataSyncPeriodicInterval": {
+        "title": "Impostazioni periodiche",
         "saved": "Salvato",
-        "deactivatedText": "La sincronizzazione dei dati periodica è stata disattivata perché ha fallito troppe volte consecutive. Per favore prova a sincronizzare manualmente, e se funziona come previsto, allora clicca sul pulsante di attivazione."
+        "deactivatedTitle": "Sincronizzazione periodica dei dati disattivata",
+        "deactivatedText": "La sincronizzazione dei dati periodica è stata disattivata perché ha fallito troppe volte consecutive. Per favore prova a sincronizzare manualmente, e se funziona come previsto, allora clicca sul pulsante di attivazione.",
+        "activate": "Attiva sincronizzazione periodica",
+        "enterprise": "La sincronizzazione periodica dei dati è una funzionalità advanced/enterprise.",
+        "more": "Maggiori informazioni"
     },
     "dataSyncPeriodicIntervalForm": {
         "intervalLabel": "Intervallo",
+        "intervalHelper": "Con quale frequenza la sincronizzazione dei dati deve avvenire automaticamente.",
         "manual": "Manuale",
         "daily": "Giornaliero",
         "hourly": "Orario",
+        "whenHelper": "Indica l'ora, il minuto e il secondo esatti in cui deve avvenire la sincronizzazione dei dati.",
+        "whenHourlyHelper": "Indica il minuto e il secondo esatti in cui deve avvenire la sincronizzazione dei dati.",
         "hour": "Ora",
         "minute": "Minuto",
         "second": "Secondo"
     },
+    "oidcAuthLink": {
+        "placeholderWithOIDC": "{login} con {provider}"
+    },
+    "chartWidget": {
+        "name": "Grafico",
+        "bar": "Grafico a barre",
+        "line": "Grafico a linee"
+    },
+    "pieChartWidget": {
+        "name": "Grafico a torta",
+        "pie": "Grafico a torta",
+        "doughnut": "Grafico a ciambella",
+        "polarArea": "Grafico ad area polare"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Serie",
+        "addSeries": "Aggiungi serie",
+        "data": "Dati",
+        "sourceFieldLabel": "Sorgente",
+        "viewFieldLabel": "Vista",
+        "notSelected": "Non selezionato"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Riepilogo",
+        "deleteSeries": "Elimina serie",
+        "chartType": "Tipo di grafico",
+        "barChart": "Barre",
+        "lineChart": "Linee",
+        "pieChart": "Torta",
+        "doughnutChart": "Ciambella",
+        "polarAreaChart": "Area polare"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Raggruppa",
+        "groupByNone": "Nessuno",
+        "groupByRowId": "ID riga"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Ordina per",
+        "none": "Nessuno",
+        "ascending": "Crescente",
+        "descending": "Decrescente"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "failure": "La sincronizzazione periodica dei dati di {name} è stata disattivata perché ha fallito troppe volte consecutive.",
+        "licenseUnavailable": "La sincronizzazione periodica dei dati di {name} è stata disabilitata perché il progetto non ha più una licenza valida. Aggiorna la tua licenza per ripristinare la sincronizzazione automatica."
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "Aggiornamento della sincronizzazione bidirezionale di {name} non riuscito: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "Sincronizzazione bidirezionale di {name} disattivata perché un aggiornamento ha fallito troppe volte consecutive. Sincronizza manualmente e riattivala quando il problema è stato risolto."
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Righe entrano nella vista"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "Attivato quando delle righe entrano nella vista.",
+        "helpTriggerWhenRowsEnterView": "Si attiva solo quando è selezionato `Rows enter view` e righe che ora corrispondono ai filtri entrano nella vista."
+    },
     "enterpriseTwoWaySyncStrategyType": {
         "realtimePushDescription": "Consente di modificare i valori delle celle direttamente in Baserow e li spinge in tempo reale alla fonte di sincronizzazione dei dati. Nota che le modifiche non vengono recuperate in tempo reale perché dipendono dall'azione di sincronizzazione (periodica) per completarsi. È altamente raccomandato creare backup del database PostgreSQL per evitare modifiche accidentali."
     },
+    "dateDependencyModal": {
+        "errorTitle": "Dipendenza tra date",
+        "dependencyFieldTooltip": "Configura dipendenze tra date",
+        "dependencyFieldTooltipError": "Una regola del campo contiene un errore",
+        "contextMenuItemLabel": "Configura dipendenze tra date",
+        "title": "Dipendenza tra date per {tableName}",
+        "description": "Specifica quali righe dipendono da altre. Quando una riga viene ripianificata, le righe dipendenti vengono adeguate automaticamente.",
+        "enableDateDependency": "Abilita le dipendenze tra date per i progetti",
+        "startDateFieldLabel": "Data di inizio",
+        "endDateFieldLabel": "Data di fine",
+        "durationFieldLabel": "Durata",
+        "durationFieldHint": "Questo campo deve usare il formato “d h”.",
+        "dependencyLinkrowFieldLabel": "Predecessori",
+        "dependencyLinkrowFieldHint": "Usa un campo Collega a tabella per collegare una riga ai suoi predecessori.",
+        "dependencyBufferTypeLabel": "Logica di ripianificazione",
+        "durationBufferLabel": "Margine di tempo",
+        "dependencyConnectionTypeLabel": "Tipo",
+        "advancedSettingsLabel": "Impostazioni avanzate",
+        "includeWeekendsLabel": "Includi i fine settimana nel calcolo delle durate",
+        "dependencyFieldForReaderTooltip": "Questo campo è incluso nella regola del campo di dipendenza tra date",
+        "fieldInvalidTitle": "Errore del campo di dipendenza tra date",
+        "addNewField": "Aggiungi nuovo campo",
+        "linkRowFieldTitle": "Genitori"
+    },
+    "dateDependency": {
+        "invalidChildRow": "La riga successore non è valida",
+        "invalidParentRow": "La riga predecessore non è valida",
+        "invalidParentEndDateAfterChildStartDate": "La data di fine della riga predecessore è successiva alla data di inizio del successore",
+        "invalidStartDateEmpty": "La data di inizio è vuota",
+        "invalidEndDateEmpty": "La data di fine è vuota",
+        "invalidEndDateBeforeStartDate": "La data di fine è precedente alla data di inizio",
+        "invalidDurationEmpty": "La durata è vuota",
+        "invalidDurationValue": "Il valore della durata non è valido",
+        "invalidDurationMismatch": "Il valore della durata non corrisponde"
+    },
+    "viewOwnershipType": {
+        "restricted": "Limitata",
+        "restrictedDescription": "Gli editor e i ruoli inferiori possono vedere solo i dati filtrati e i campi visibili. È possibile gestire i membri."
+    },
+    "restrictedViewFilterContext": {
+        "matchTitle": "I valori predefiniti della vista corrispondono ai filtri",
+        "matchSubtitle": "Gli editor vedranno le righe che creano.",
+        "mismatchTitle": "I valori predefiniti non corrispondono ai filtri",
+        "mismatchSubtitle": "Gli editor potranno creare righe ma non le vedranno.",
+        "removeDefaultValue": "Rimuovi valore predefinito",
+        "removeDefaultValueHelper": "Questo campo ha un valore predefinito ma nessun filtro. Puoi rimuoverlo qui oppure gestire tutti i valori predefiniti cliccando sui tre puntini accanto alla vista e poi su \"Valori predefiniti delle righe\"."
+    },
+    "databaseStep": {
+        "ai": "Kuma AI"
+    },
+    "aiDatabaseOnboardingForm": {
+        "progress": "Domanda {current} di {total}",
+        "explanation": "Kuma crea il tuo progetto al posto tuo. Rispondendo a un paio di domande potrà suggerirti cosa creare per primo, così inizierai con qualcosa di adatto al lavoro che svolgi davvero.",
+        "industryLabel": "In quale settore lavori?",
+        "industryDescription": "Bastano poche parole, come \"Manifattura\", \"Aerospaziale\" o \"Marketing digitale\".",
+        "industryPlaceholder": "es. Marketing digitale",
+        "teamLabel": "In quale team lavori?",
+        "teamDescription": "Ad esempio \"Servizio clienti\", \"Finanza\" o \"Operations\".",
+        "teamPlaceholder": "es. Servizio clienti"
+    },
+    "aiPromptStep": {
+        "title": "Cosa deve creare Kuma per te?",
+        "description": "Abbiamo scritto un primo suggerimento in base alle tue risposte. Modificalo o scegline un altro qui sotto.",
+        "label": "Descrivi il tuo database",
+        "placeholder": "es. Monitora i progetti dei clienti con scadenze, responsabili e stato.",
+        "generating": "Kuma sta scrivendo un suggerimento per te…",
+        "suggestionsTitle": "Oppure inizia con uno di questi",
+        "editDetails": "Modifica dettagli",
+        "modelNotSupportedTitle": "Kuma non è disponibile",
+        "modelNotSupportedMessage": "Kuma non è raggiungibile perché non è configurato alcun modello IA funzionante, quindi al momento non può creare un database per te. Riprovare non servirà finché il problema non sarà risolto.",
+        "errorOtherOptions": "Torna indietro per creare un database in un altro modo, ad esempio da un modello, da un'importazione o da zero."
+    },
+    "aiOnboardingDetailsModal": {
+        "title": "Modifica i tuoi dettagli",
+        "submit": "Aggiorna suggerimenti"
+    },
+    "aiPromptOnboardingType": {
+        "prompt": "Crea un database con tabelle, campi, righe di esempio e viste di esempio corrispondenti a questa descrizione: {prompt}",
+        "context": "La persona che fa la richiesta lavora nel settore {industry}, nel team {team}. Usa queste informazioni per scegliere tabelle, campi e righe di esempio realistici.",
+        "language": "Scrivi tutto ciò che crei nella lingua con codice ISO 639-1 \"{language}\"."
+    },
+    "assistantOnboardingMessage": {
+        "instructing": "Sto dando istruzioni a Kuma per creare il tuo database."
+    },
+    "aiProviderModelFeature": {
+        "kuma": "Kuma",
+        "kumaDescription": "Alimenta l'assistente IA Kuma."
+    },
+    "assistantDashboardPrompt": {
+        "title": "Dicci cosa vuoi creare",
+        "placeholder": "Crea un tracker degli asset aziendali",
+        "build": "Crealo"
+    },
     "hubspotContactsDataSync": {
+        "accessToken": "Token di accesso della private app",
         "accessTokenHelper": "Per generare un token di accesso privato per l'app in HubSpot, clicca su Impostazioni nella barra superiore, naviga su Integrazioni > App Private e crea una nuova app privata. Assegna i seguenti ambiti: crm.objects.contacts.read, crm.schemas.contacts.read e crm.objects.custom.read. Infine, clicca su Crea app per generare il token."
     },
+    "samlAuthLink": {
+        "placeholderWithSaml": "{login} con SAML",
+        "provideEmail": "Inserisci l'email del tuo account SAML",
+        "emailPlaceholder": "Inserisci la tua email..."
+    },
+    "configureDataSyncModal": {
+        "periodicInterval": "Impostazioni periodiche"
+    },
     "gitlabIssuesDataSync": {
-        "projectIdHelper": "L'ID del progetto da cui vuoi sincronizzare le issue. Può essere trovato andando alla tua pagina del progetto (ad esempio https://gitlab.com/baserow/baserow), cliccando sui tre punti nell'angolo in alto a destra e poi su 'Copy project ID: 12345678'."
+        "url": "URL di base",
+        "urlHelper": "L'URL di base della tua istanza GitLab. (es. https://gitlab.com)",
+        "projectId": "ID progetto",
+        "projectIdHelper": "L'ID del progetto da cui vuoi sincronizzare le issue. Può essere trovato andando alla tua pagina del progetto (ad esempio https://gitlab.com/baserow/baserow), cliccando sui tre punti nell'angolo in alto a destra e poi su 'Copy project ID: 12345678'.",
+        "accessToken": "Token di accesso",
+        "accessTokenHelper": "Può essere generato qui https://gitlab.com/-/user_settings/personal_access_tokens cliccando su `Add new token`, seleziona `read_api`."
     },
     "fileInputElementForm": {
-        "fileTypesHelper": "Scegli quali estensioni di file sono consentite (una per riga) dall'input file (ad esempio jpg, png, svg, pdf). Puoi specificare image/*, video/* o audio/* per consentire tutti i file di questi tipi. Lascia vuoto per permettere tutti i tipi di file."
+        "defaultNameTitle": "Nome file iniziale|Nomi file iniziali",
+        "defaultNamePlaceholder": "Inserisci un nome file...|Inserisci i nomi dei file...",
+        "defaultNameHelp": "Il numero di nomi deve corrispondere al numero di URL.",
+        "defaultUrlTitle": "URL file iniziale|URL file iniziali",
+        "defaultUrlPlaceholder": "Inserisci un URL predefinito...|Inserisci gli URL predefiniti...",
+        "helpTextTitle": "Testo di aiuto",
+        "helpTextPlaceholder": "Lascia vuoto per il valore predefinito...",
+        "multiple": "File multipli?",
+        "required": "Richiesto",
+        "fileTypes": "Tipi di file",
+        "fileTypesHelper": "Scegli quali estensioni di file sono consentite (una per riga) dall'input file (ad esempio jpg, png, svg, pdf). Puoi specificare image/*, video/* o audio/* per consentire tutti i file di questi tipi. Lascia vuoto per permettere tutti i tipi di file.",
+        "preview": "Anteprima immagini?",
+        "maxFileSize": "Dimensione massima file",
+        "maxFileSizePlaceholder": "Inserisci un numero...",
+        "addFileType": "Aggiungi tipo di file"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Trascina qui i file o clicca per selezionarli",
+        "fileSizeExceeded": "File troppo grande. Max {max}MB."
     },
     "dataScanner": {
         "wholeWordsCheckbox": "Riconosci solo parole intere",
@@ -477,8 +838,103 @@
         "confirmation": "Sei sicuro di voler eliminare questa scansione dei dati? Tutti i risultati della scansione verranno eliminati definitivamente.",
         "delete": "Elimina scansione"
     },
+    "dataScanNewResultsNotification": {
+        "titleSingular": "{count} nuovo risultato trovato per {scanName}",
+        "titlePlural": "{count} nuovi risultati trovati per {scanName}",
+        "description": "Controlla i risultati nello scanner di dati dell'amministrazione."
+    },
+    "applicationUserLimitNotification": {
+        "titleWarning": "{workspaceName} ha utilizzato {usage} dei {limit} utenti dell'applicazione disponibili.",
+        "titleReached": "{workspaceName} ha raggiunto il limite di {limit} utenti dell'applicazione. Effettua l'upgrade.",
+        "titleReachedEnforced": "{workspaceName} ha raggiunto il limite di {limit} utenti dell'applicazione. Una volta superato, nessuno potrà accedere alle sue applicazioni pubblicate finché non effettui l'upgrade."
+    },
     "fieldPermissionModal": {
+        "title": "Modifica permessi del campo",
+        "description": "Scegli chi può modificare i valori in {fieldName}.",
+        "question": "Chi può modificare questo campo?",
+        "editorTitle": "Editor e superiori (default)",
+        "editorDescription": "Utenti con ruolo Editor, Builder e Admin",
+        "builderTitle": "Builder e superiori",
+        "builderDescription": "Utenti con ruolo Builder e Admin",
+        "adminTitle": "Solo Admin",
+        "adminDescription": "Utenti con ruolo Admin",
+        "customTitle": "Utenti, agenti o team specifici",
+        "customDescription": "Solo gli utenti, gli agenti e i membri dei team selezionati che hanno già un ruolo Editor, Builder o Admin",
+        "nobodyTitle": "Nessuno",
+        "nobodyDescription": "Nessun utente",
+        "allowInForms": "Consenti di impostare questo campo nelle righe create tramite moduli",
         "linkRowWarning": "Questo è un campo 'Link to table'. Per assicurare che i valori non possano essere cambiati dalla tabella collegata, per favore assicurati di impostare i permessi giusti anche sulla tabella collegata."
+    },
+    "fieldPermissionSubjectsSelector": {
+        "accessNote": "La selezione non concede l'accesso alla tabella. Un utente o agente selezionato, o un membro di un team selezionato, deve avere anche un ruolo Editor, Builder o Admin dove si trova questa tabella.",
+        "canEdit": "Utenti, agenti e team selezionati",
+        "noSelectedSubjects": "Nessuno è ancora selezionato. Usa la ricerca qui sopra per aggiungere un utente, un agente o un team.",
+        "addPeopleOrTeams": "Aggiungi utenti, agenti o team",
+        "searchPlaceholder": "Cerca utenti, agenti o team",
+        "searchHint": "Cerca per nome",
+        "teamDescription": "Team",
+        "teamSearchDescription": "Team · {count} membro | Team · {count} membri",
+        "remove": "Rimuovi {subject}"
+    },
+    "builderSettingTypes": {
+        "customCode": "CSS/JS personalizzato"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "CSS personalizzato",
+        "customJS": "JavaScript personalizzato",
+        "customCSSPlaceholder": "Inserisci del codice CSS personalizzato...",
+        "customJSPlaceholder": "Inserisci del codice JS personalizzato...",
+        "externalScripts": "Script / fogli di stile esterni",
+        "noScript": "Migliora la tua applicazione con script o fogli di stile esterni",
+        "customCodeTitle": "Codice personalizzato",
+        "customCodeHelp": "Il codice personalizzato è visibile solo in anteprima o nelle applicazioni pubblicate. I risultati non sono visibili nell'editor.",
+        "addExternalScript": "Aggiungi uno script esterno"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Tipo",
+        "loadType": "Tipo di caricamento",
+        "url": "URL",
+        "urlPlaceholder": "Inserisci l'URL dello script...",
+        "crossorigin": "Cross origin",
+        "includeCredentials": "Includi credenziali",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normale",
+        "loadTypeDefer": "Defer",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normale",
+        "crossoriginTypeAnonymous": "Anonimo",
+        "crossoriginTypeCredentials": "Usa credenziali"
+    },
+    "elementType": {
+        "graph": "Grafico",
+        "graphDescription": "Mostra dati basati su formule come grafico.",
+        "errorUserSourceHasNoLoginOption": "La sorgente utenti selezionata non ha un'opzione di login",
+        "errorUserSourceMissing": "Nessuna sorgente utenti selezionata"
+    },
+    "graphElementForm": {
+        "labels": "Etichette",
+        "labelsHelper": "La formula deve restituire un array. Ogni elemento diventa un'etichetta del grafico.",
+        "labelsPlaceholder": "to_array('Gen,Feb,Mar')",
+        "seriesList": "Serie",
+        "series": "Serie {number}",
+        "addSeries": "Aggiungi serie",
+        "seriesLabel": "Etichetta della serie",
+        "seriesLabelPlaceholder": "'Ricavi'",
+        "seriesValues": "Valori",
+        "seriesValuesHelper": "La formula deve restituire un valore numerico per ogni etichetta.",
+        "seriesValuesPlaceholder": "to_array('10,20,30')",
+        "chartType": "Tipo di grafico",
+        "seriesColor": "Colore",
+        "barChart": "Barre",
+        "lineChart": "Linee"
+    },
+    "graphElement": {
+        "series": "Serie {number}",
+        "noData": "Nessun dato per il grafico"
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Modifica permessi del campo"
     },
     "serviceType": {
         "coreCode": "Esegui codice",

@@ -1,6 +1,8 @@
 {
     "dashboard": {
-        "descriptionPlaceholder": "Beschrijving"
+        "descriptionPlaceholder": "Beschrijving",
+        "addWidget": "Widget toevoegen",
+        "widgetsLoading": "Je dashboard wordt geladen..."
     },
     "dashboardHeader": {
         "doneEditing": "Klaar met aanpassen"
@@ -43,5 +45,8 @@
     },
     "trashType": {
         "widget": "widget"
+    },
+    "lastViewedItemType": {
+        "dashboard": "Dashboard"
     }
 }

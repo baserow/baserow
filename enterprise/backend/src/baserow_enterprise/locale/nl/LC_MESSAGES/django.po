@@ -7,11 +7,11 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-01-26 15:50+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: 2025-02-04 01:45+0000\n"
 "Last-Translator: Bram <bram@baserow.io>\n"
-"Language-Team: Dutch <https://hosted.weblate.org/projects/baserow/"
-"enterprise-backend/nl/>\n"
+"Language-Team: Dutch <https://hosted.weblate.org/projects/baserow/enterprise-"
+"backend/nl/>\n"
 "Language: nl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -19,120 +19,18 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Weblate 5.10-dev\n"
 
-#: audit_log/job_types.py:143
-msgid "User Email"
-msgstr "Gebruiker e-mail"
+#: src/baserow_enterprise/application_users/notification_types.py:49
+msgid "Application user limit reached"
+msgstr "Limiet voor applicatiegebruikers bereikt"
 
-#: audit_log/job_types.py:144
-msgid "User ID"
-msgstr "Gebruikers-ID"
-
-#: audit_log/job_types.py:145
-msgid "Group Name"
-msgstr "Naam werkruimte"
-
-#: audit_log/job_types.py:146
-msgid "Group ID"
-msgstr "Werkruimte ID"
-
-#: audit_log/job_types.py:147
-msgid "Action Type"
-msgstr "Actie Type"
-
-#: audit_log/job_types.py:148
-msgid "Description"
-msgstr "Beschrijving"
-
-#: audit_log/job_types.py:149
-msgid "Timestamp"
-msgstr "Timestamp"
-
-#: audit_log/job_types.py:150
-msgid "IP Address"
-msgstr "IP adres"
-
-#: audit_log/models.py:30
-msgid "DONE"
-msgstr "KLAAR"
-
-#: audit_log/models.py:31
-msgid "UNDONE"
-msgstr "ONGEDAAN"
-
-#: audit_log/models.py:32
-msgid "REDONE"
-msgstr "VERNIEUWD"
-
-#: role/actions.py:28
-msgid "Assign multiple roles"
-msgstr "Meerdere rollen toewijzen"
-
-#: role/actions.py:29
-msgid "Multiple roles have been assigned"
-msgstr "Meerdere rollen zijn toegewezen"
-
-#: role/actions.py:32
-#, fuzzy, python-format
-msgid ""
-"Role %(role_uid)s assigned to subject type \"%(subject_type_name)s"
-"\" (%(subject_id)s) on scope type \"%(scope_type_name)s\" (%(scope_id)s)."
-msgstr ""
-"Rol %(role_uid)s toegewezen aan onderwerp type \"%(subject_type_name)s\" "
-"(%(subject_id)s) op scope type \"%(scope_type_name)s\" (%(scope_id)s)."
-
-#: teams/actions.py:21
-#, fuzzy, python-format
-msgid "in team \"%(team_name)s\" (%(team_id)s) "
-msgstr "in team \"%(team_name)s\" (%(team_id)s) "
-
-#: teams/actions.py:27
-msgid "Create team"
-msgstr "Team maken"
-
-#: teams/actions.py:28
+#: src/baserow_enterprise/application_users/notification_types.py:53
 #, python-format
-msgid "Team \"%(name)s\" (%(team_id)s) created."
-msgstr "Team \"%(name)s\" (%(team_id)s) gemaakt."
+msgid "%(usage)s of %(limit)s application users used"
+msgstr "%(usage)s van %(limit)s applicatiegebruikers gebruikt"
 
-#: teams/actions.py:101
-msgid "Update team"
-msgstr "Team updaten"
-
-#: teams/actions.py:102
-#, fuzzy, python-format
-msgid "Team \"%(name)s\" (%(team_id)s) updated."
-msgstr "Team \"%(name)s\" (%(team_id)s) bijgewerkt."
-
-#: teams/actions.py:193
-msgid "Delete team"
-msgstr "Verwijder team"
-
-#: teams/actions.py:194
-#, python-format
-msgid "Team \"%(team_name)s\" (%(team_id)s) deleted."
-msgstr "Team \"%(team_name)s\" (%(team_id)s) verwijderd."
-
-#: teams/actions.py:240
-msgid "Create team subject"
-msgstr "Maak team onderwerp"
-
-#: teams/actions.py:240
-#, python-format
-msgid "Subject (%(subject_id)s) created"
-msgstr "Onderwerp (%(subject_id)s) gemaakt"
-
-#: teams/actions.py:320
-msgid "Delete team subject"
-msgstr "Team onderwerp verwijderen"
-
-#: teams/actions.py:321
-#, python-format
-msgid "Subject (%(subject_id)s) deleted"
-msgstr "Onderwerp (%(subject_id)s) verwijderd"
-
-#: src/baserow_enterprise/assistant/tools/automation/agents.py:112
-#: src/baserow_enterprise/assistant/tools/automation/tools.py:128
-#: src/baserow_enterprise/assistant/tools/automation/tools.py:292
+#: src/baserow_enterprise/assistant/tools/automation/agents.py:126
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:130
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:290
 #, python-format
 msgid "Generating formulas for node '%(label)s'..."
 msgstr "Formules voor knooppunt '%(label)s' worden gegenereerd..."
@@ -147,147 +45,147 @@ msgstr "Workflow '%(name)s' wordt aangemaakt..."
 msgid "Creating node '%(label)s'..."
 msgstr "Knooppunt '%(label)s' wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/automation/helpers.py:272
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:278
 #, python-format
 msgid "Updating node '%(label)s'..."
 msgstr "Knooppunt '%(label)s' wordt bijgewerkt..."
 
-#: src/baserow_enterprise/assistant/tools/automation/tools.py:40
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:42
 msgid "Listing workflows..."
 msgstr "Workflows worden opgehaald..."
 
-#: src/baserow_enterprise/assistant/tools/automation/tools.py:72
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:74
 msgid "Listing nodes..."
 msgstr "Knooppunten worden opgehaald..."
 
-#: src/baserow_enterprise/assistant/tools/automation/tools.py:112
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:114
 msgid "Adding nodes to workflow..."
 msgstr "Knooppunten worden toegevoegd aan de workflow..."
 
-#: src/baserow_enterprise/assistant/tools/automation/tools.py:342
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:338
 #, python-format
 msgid "Deleting node %(node_id)s..."
 msgstr "Knooppunt %(node_id)s wordt verwijderd..."
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:401
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:405
 #, python-format
 msgid "Generating formulas for element '%(ref)s'..."
 msgstr "Formules voor element '%(ref)s' worden gegenereerd..."
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:447
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:456
 #, python-format
 msgid "Generating formulas for data source '%(name)s'..."
 msgstr "Formules voor gegevensbron '%(name)s' worden gegenereerd..."
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:495
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:512
 #, python-format
 msgid "Generating formulas for data source %(id)d..."
 msgstr "Formules voor gegevensbron %(id)d worden gegenereerd..."
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:575
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:603
 #, python-format
 msgid "Generating formulas for element %(id)d..."
 msgstr "Formules voor element %(id)d worden gegenereerd..."
 
-#: src/baserow_enterprise/assistant/tools/builder/agents.py:644
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:679
 #, python-format
 msgid "Generating formulas for action on '%(ref)s'..."
 msgstr "Formules voor actie op '%(ref)s' worden gegenereerd..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:106
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:107
 #, python-format
 msgid "Listing pages in %(app_name)s..."
 msgstr "Pagina's in %(app_name)s worden opgehaald..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:175
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:176
 #, python-format
 msgid "Creating page %(name)s..."
 msgstr "Pagina %(name)s wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:235
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:236
 #, python-format
 msgid "Updating page %(id)d..."
 msgstr "Pagina %(id)d wordt bijgewerkt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:272
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:273
 #, python-format
 msgid "Listing data sources on %(name)s..."
 msgstr "Gegevensbronnen op %(name)s worden opgehaald..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:339
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1131
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:340
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1160
 #, python-format
 msgid "Creating data source '%(name)s'..."
 msgstr "Gegevensbron '%(name)s' wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:409
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:410
 #, python-format
 msgid "Updating data source %(id)d..."
 msgstr "Gegevensbron %(id)d wordt bijgewerkt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:459
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:460
 #, python-format
 msgid "Listing elements on %(name)s..."
 msgstr "Elementen op %(name)s worden opgehaald..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:484
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1179
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:486
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1208
 #, python-format
 msgid "Creating %(count)d elements on %(name)s..."
 msgstr "%(count)d elementen worden aangemaakt op %(name)s..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:776
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:806
 #, python-format
 msgid "Updating element %(id)d..."
 msgstr "Element %(id)d wordt bijgewerkt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:845
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:875
 #, python-format
 msgid "Styling element %(id)d..."
 msgstr "Element %(id)d wordt opgemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:912
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:942
 #, python-format
 msgid "Moving %(count)d elements on %(name)s..."
 msgstr "%(count)d elementen worden verplaatst op %(name)s..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:966
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:995
 #, python-format
 msgid "Listing actions on %(name)s..."
 msgstr "Acties op %(name)s worden opgehaald..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1029
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1241
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1058
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1270
 #, python-format
 msgid "Creating %(type)s action..."
 msgstr "%(type)s-actie wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1083
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1112
 #, python-format
 msgid "Adding field mapping to action %(id)d..."
 msgstr "Veldtoewijzing wordt toegevoegd aan actie %(id)d..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1450
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1489
 msgid "Setting up user source..."
 msgstr "Gebruikersbron wordt ingesteld..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1456
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1495
 msgid "Validating existing table..."
 msgstr "Bestaande tabel wordt gevalideerd..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1461
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1500
 msgid "Creating users table..."
 msgstr "Gebruikerstabel wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1466
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1505
 msgid "Creating user source..."
 msgstr "Gebruikersbron wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1476
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1515
 msgid "Creating login page..."
 msgstr "Inlogpagina wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/builder/tools.py:1526
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1565
 #, python-format
 msgid "Applying %(theme)s theme to %(app)s..."
 msgstr "Thema %(theme)s wordt toegepast op %(app)s..."
@@ -302,17 +200,17 @@ msgstr "%(builder_types)ss worden opgehaald..."
 msgid "Creating %(builder_type)s %(builder_name)s..."
 msgstr "%(builder_type)s %(builder_name)s wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/core/tools.py:197
+#: src/baserow_enterprise/assistant/tools/core/tools.py:204
 #, python-format
 msgid "Updating %(app_name)s..."
 msgstr "%(app_name)s wordt bijgewerkt..."
 
-#: src/baserow_enterprise/assistant/tools/database/agents.py:126
+#: src/baserow_enterprise/assistant/tools/database/agents.py:378
 #, python-format
 msgid "Fixing formula for %(name)s..."
 msgstr "Formule voor %(name)s wordt hersteld..."
 
-#: src/baserow_enterprise/assistant/tools/database/agents.py:227
+#: src/baserow_enterprise/assistant/tools/database/agents.py:472
 msgid "Generating example rows for these new tables..."
 msgstr "Voorbeeldrijen voor deze nieuwe tabellen worden gegenereerd..."
 
@@ -346,41 +244,41 @@ msgstr "Weergaven in %(table_name)s worden opgehaald..."
 msgid "Creating table %(table_name)s..."
 msgstr "Tabel %(table_name)s wordt aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:641
+#: src/baserow_enterprise/assistant/tools/database/tools.py:647
 #, python-format
 msgid "Updating field %(field_id)s..."
 msgstr "Veld %(field_id)s wordt bijgewerkt..."
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:697
+#: src/baserow_enterprise/assistant/tools/database/tools.py:705
 #, python-format
 msgid "Deleting field %(field_id)s..."
 msgstr "Veld %(field_id)s wordt verwijderd..."
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:755
+#: src/baserow_enterprise/assistant/tools/database/tools.py:802
 #, python-format
 msgid "Creating %(view_type)s view %(view_name)s"
 msgstr "%(view_type)s-weergave %(view_name)s wordt aangemaakt"
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:834
+#: src/baserow_enterprise/assistant/tools/database/tools.py:914
 #, python-format
 msgid "Creating filters in %(view_name)s..."
 msgstr "Filters in %(view_name)s worden aangemaakt..."
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:910
+#: src/baserow_enterprise/assistant/tools/database/tools.py:994
 msgid "Generating formula..."
 msgstr "Formule wordt gegenereerd..."
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1038
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1134
 #, python-format
 msgid "Creating rows in %(table_name)s "
 msgstr "Rijen in %(table_name)s worden aangemaakt "
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1075
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1177
 #, python-format
 msgid "Updating rows in %(table_name)s "
 msgstr "Rijen in %(table_name)s worden bijgewerkt "
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1111
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1214
 #, python-format
 msgid "Deleting rows in %(table_name)s "
 msgstr "Rijen in %(table_name)s worden verwijderd "
@@ -390,7 +288,7 @@ msgstr "Rijen in %(table_name)s worden verwijderd "
 msgid "Navigating to %(location)s..."
 msgstr "Navigeren naar %(location)s..."
 
-#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:149
+#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:150
 msgid "Exploring the knowledge base..."
 msgstr "Kennisbank wordt doorzocht..."
 
@@ -418,15 +316,59 @@ msgstr "workflow %(workflow_name)s"
 msgid "page %(page_name)s"
 msgstr "pagina %(page_name)s"
 
+#: src/baserow_enterprise/audit_log/job_types.py:36
+msgid "User Email"
+msgstr "Gebruiker e-mail"
+
+#: src/baserow_enterprise/audit_log/job_types.py:40
+msgid "User ID"
+msgstr "Gebruikers-ID"
+
+#: src/baserow_enterprise/audit_log/job_types.py:44
+msgid "Group Name"
+msgstr "Naam werkruimte"
+
+#: src/baserow_enterprise/audit_log/job_types.py:48
+msgid "Group ID"
+msgstr "Werkruimte ID"
+
+#: src/baserow_enterprise/audit_log/job_types.py:52
+msgid "Action Type"
+msgstr "Actie Type"
+
+#: src/baserow_enterprise/audit_log/job_types.py:56
+msgid "Description"
+msgstr "Beschrijving"
+
+#: src/baserow_enterprise/audit_log/job_types.py:60
+msgid "Timestamp"
+msgstr "Timestamp"
+
+#: src/baserow_enterprise/audit_log/job_types.py:64
+msgid "IP Address"
+msgstr "IP adres"
+
+#: src/baserow_enterprise/audit_log/models.py:30
+msgid "DONE"
+msgstr "KLAAR"
+
+#: src/baserow_enterprise/audit_log/models.py:31
+msgid "UNDONE"
+msgstr "ONGEDAAN"
+
+#: src/baserow_enterprise/audit_log/models.py:32
+msgid "REDONE"
+msgstr "VERNIEUWD"
+
 #: src/baserow_enterprise/automation/nodes/node_types.py:20
 msgid "Code"
 msgstr "Code"
 
-#: src/baserow_enterprise/builder/elements/element_types.py:31
+#: src/baserow_enterprise/builder/elements/element_types.py:67
 msgid "Auth form"
 msgstr "Authenticatieformulier"
 
-#: src/baserow_enterprise/builder/elements/element_types.py:139
+#: src/baserow_enterprise/builder/elements/element_types.py:191
 msgid "File input"
 msgstr "Bestandsinvoer"
 
@@ -533,8 +475,8 @@ msgstr "Periodieke datasynchronisatie %(name)s is gedeactiveerd."
 
 #: src/baserow_enterprise/data_sync/notification_types.py:115
 msgid ""
-"The periodic data sync has been disabled because the workspace no longer "
-"has a valid license for data sync features. Please update your license to "
+"The periodic data sync has been disabled because the workspace no longer has "
+"a valid license for data sync features. Please update your license to "
 "restore automatic syncing."
 msgstr ""
 "De periodieke datasynchronisatie is uitgeschakeld omdat de werkruimte geen "
@@ -571,11 +513,11 @@ msgstr ""
 "achter elkaar is mislukt. Synchroniseer handmatig en activeer opnieuw "
 "wanneer het probleem is opgelost."
 
-#: src/baserow_enterprise/field_permissions/actions.py:25
+#: src/baserow_enterprise/field_permissions/actions.py:26
 msgid "Update field permissions"
 msgstr "Veldrechten bijwerken"
 
-#: src/baserow_enterprise/field_permissions/actions.py:27
+#: src/baserow_enterprise/field_permissions/actions.py:28
 #, python-format
 msgid ""
 "Field \"%(field_name)s\" (%(field_id)s): permissions updated to role "
@@ -584,3 +526,70 @@ msgstr ""
 "Veld \"%(field_name)s\" (%(field_id)s): rechten bijgewerkt naar rol "
 "\"%(role)s\" en \"toestaan in formulieren\" ingesteld op "
 "\"%(allow_in_forms)s\""
+
+#: src/baserow_enterprise/role/actions.py:28
+msgid "Assign multiple roles"
+msgstr "Meerdere rollen toewijzen"
+
+#: src/baserow_enterprise/role/actions.py:29
+msgid "Multiple roles have been assigned"
+msgstr "Meerdere rollen zijn toegewezen"
+
+#: src/baserow_enterprise/role/actions.py:32
+#, python-format
+msgid ""
+"Role %(role_uid)s assigned to subject type \"%(subject_type_name)s\" "
+"(%(subject_id)s) on scope type \"%(scope_type_name)s\" (%(scope_id)s)."
+msgstr ""
+"Rol %(role_uid)s toegewezen aan onderwerptype \"%(subject_type_name)s\" "
+"(%(subject_id)s) op scopetype \"%(scope_type_name)s\" (%(scope_id)s)."
+
+#: src/baserow_enterprise/teams/actions.py:21
+#, python-format
+msgid "in team \"%(team_name)s\" (%(team_id)s) "
+msgstr "in team \"%(team_name)s\" (%(team_id)s) "
+
+#: src/baserow_enterprise/teams/actions.py:27
+msgid "Create team"
+msgstr "Team maken"
+
+#: src/baserow_enterprise/teams/actions.py:28
+#, python-format
+msgid "Team \"%(name)s\" (%(team_id)s) created."
+msgstr "Team \"%(name)s\" (%(team_id)s) gemaakt."
+
+#: src/baserow_enterprise/teams/actions.py:105
+msgid "Update team"
+msgstr "Team updaten"
+
+#: src/baserow_enterprise/teams/actions.py:106
+#, python-format
+msgid "Team \"%(name)s\" (%(team_id)s) updated."
+msgstr "Team \"%(name)s\" (%(team_id)s) bijgewerkt."
+
+#: src/baserow_enterprise/teams/actions.py:203
+msgid "Delete team"
+msgstr "Verwijder team"
+
+#: src/baserow_enterprise/teams/actions.py:204
+#, python-format
+msgid "Team \"%(team_name)s\" (%(team_id)s) deleted."
+msgstr "Team \"%(team_name)s\" (%(team_id)s) verwijderd."
+
+#: src/baserow_enterprise/teams/actions.py:253
+msgid "Create team subject"
+msgstr "Maak team onderwerp"
+
+#: src/baserow_enterprise/teams/actions.py:253
+#, python-format
+msgid "Subject (%(subject_id)s) created"
+msgstr "Onderwerp (%(subject_id)s) gemaakt"
+
+#: src/baserow_enterprise/teams/actions.py:338
+msgid "Delete team subject"
+msgstr "Team onderwerp verwijderen"
+
+#: src/baserow_enterprise/teams/actions.py:339
+#, python-format
+msgid "Subject (%(subject_id)s) deleted"
+msgstr "Onderwerp (%(subject_id)s) verwijderd"

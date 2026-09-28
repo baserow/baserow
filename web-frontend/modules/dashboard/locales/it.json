@@ -1,6 +1,8 @@
 {
     "dashboard": {
-        "descriptionPlaceholder": "Descrizione"
+        "descriptionPlaceholder": "Descrizione",
+        "addWidget": "Aggiungi widget",
+        "widgetsLoading": "Caricamento della dashboard..."
     },
     "dashboardHeader": {
         "doneEditing": "Fatto la modifica"
@@ -9,5 +11,42 @@
         "title": "Questa dashboard non ha nessun widget",
         "subtitle": "Inizia aggiungendone uno.",
         "addWidget": "Aggiungi widget"
+    },
+    "dashboardHeaderMenuItems": {
+        "editMode": "Modalità modifica"
+    },
+    "createWidgetModal": {
+        "title": "Aggiungi nuovo widget"
+    },
+    "widget": {
+        "fixConfiguration": "Correggi configurazione"
+    },
+    "summaryWidget": {
+        "name": "Riepilogo"
+    },
+    "emptyDashboardSidebar": {
+        "title": "Nessun elemento selezionato",
+        "message": "Clicca su uno degli elementi per vederne i dettagli."
+    },
+    "widgetSettings": {
+        "title": "Titolo",
+        "description": "Descrizione"
+    },
+    "aggregateRowsDataSourceForm": {
+        "data": "Dati",
+        "sourceFieldLabel": "Sorgente",
+        "viewFieldLabel": "Vista",
+        "notSelected": "Non selezionato",
+        "aggregationFieldLabel": "Campo",
+        "aggregationTypeLabel": "Riepilogo"
+    },
+    "widgetContext": {
+        "delete": "Elimina"
+    },
+    "trashType": {
+        "widget": "widget"
+    },
+    "lastViewedItemType": {
+        "dashboard": "Dashboard"
     }
 }

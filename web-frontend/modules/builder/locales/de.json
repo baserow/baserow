@@ -45,10 +45,23 @@
     },
     "builderSettingTypes": {
         "generalName": "Allgemein",
+        "breakpointsName": "Breakpoints",
         "integrationsName": "Integrationen",
         "themeName": "Theme",
         "domainsName": "Domänen",
         "userSourcesName": "Benutzer"
+    },
+    "breakpointSettings": {
+        "titleOverview": "Breakpoints",
+        "description": "Legen Sie fest, wann Ihre Anwendung zwischen Mobil-, Tablet- und Desktop-Layout wechselt. Änderungen gelten sofort im Editor und nach dem Veröffentlichen auch in Ihrer veröffentlichten Anwendung.",
+        "mobileLabel": "Mobil-Breakpoint",
+        "tabletLabel": "Tablet-Breakpoint",
+        "desktopLabel": "Desktop-Breakpoint",
+        "desktopDescription": "Über {breakpoint}px",
+        "updatedTitle": "Breakpoints gespeichert",
+        "updatedDescription": "Ihre neuen Breakpoints sind im Editor aktiv. Veröffentlichen Sie Ihre Anwendung, um sie für Besucher zu übernehmen.",
+        "mobileMustBeLessThanTablet": "Der Mobil-Breakpoint muss kleiner als der Tablet-Breakpoint sein.",
+        "tabletMustBeGreaterThanMobile": "Der Tablet-Breakpoint muss größer als der Mobil-Breakpoint sein."
     },
     "createPageModal": {
         "header": "Seite erstellen",
@@ -165,10 +178,11 @@
         "errorImageUrlMissing": "Fehlende Eigenschaft \"Bild-URL\"",
         "errorNoWorkflowAction": "Keine Workflow-Aktion konfiguriert",
         "errorOptionsMissing": "Keine Option konfiguriert",
+        "errorOptionNameMissing": "Einer Option fehlt ein Name",
         "errorIframeUrlMissing": "Fehlende Eigenschaft \"IFrame-URL\"",
         "errorIframeContentMissing": "Fehlender IFrame-Inhalt",
         "errorNoMenuItem": "Kein Menüpunkt konfiguriert",
-        "errorMenuItemInError": "Mindestens ein Menü ist falsch konfiguriert",
+        "errorMenuItemInError": "Mindestens ein Menüeintrag ist falsch konfiguriert",
         "errorSubMenuItemInError": "Mindestens ein Untermenü ist falsch konfiguriert"
     },
     "addElementButton": {
@@ -337,6 +351,7 @@
     "iframeElementForm": {
         "missingValue": "Fehlende IFrame-Quelle...",
         "emptyValue": "Leere IFrame-Quelle...",
+        "editorPreviewPlaceholder": "Dieser iframe wird im Editor nicht angezeigt.\nVerwenden Sie die Vorschau, um zu prüfen, wie er in Ihrer Anwendung aussieht.",
         "sourceTypeLabel": "Quellen-Typ",
         "urlLabel": "URL",
         "urlPlaceholder": "Link zur externen Ressource, welche eingebettet werden soll",
@@ -521,8 +536,11 @@
     "publicPage": {
         "siteNotFound": "Seite nicht gefunden",
         "pageNotFound": "Seite nicht gefunden",
+        "previewSessionExpiredTitle": "Vorschausitzung abgelaufen",
+        "previewSessionExpiredDescription": "Schließen Sie diesen Tab und öffnen Sie die Vorschau erneut aus dem Application Builder.",
         "loginToastTitle": "Authentifizierung erfolgreich",
         "loginToastMessage": "Sie wurden erfolgreich eingeloggt.",
+        "loginErrorToastTitle": "Authentifizierung fehlgeschlagen",
         "authorizedToastTitle": "Authentifizierung erforderlich",
         "authorizedToastMessage": "Sie müssen angemeldet sein, um auf diese Seite zugreifen zu können. Bitte loggen Sie sich ein, um fortzufahren."
     },
@@ -535,9 +553,9 @@
         "namePlaceholder": "Quellenname",
         "nameLabel": "Name",
         "actionLabel": "Aktion",
-        "integrationLabel": "Integration",
-        "servicePlaceholder": "Wählen Sie einen Dienst aus",
-        "integrationPlaceholder": "Wählen Sie eine Integration aus",
+        "integrationLabel": "Verbindung",
+        "servicePlaceholder": "Aktion auswählen...",
+        "integrationPlaceholder": "Verbindung auswählen...",
         "searchActionPlaceholder": "Aktionen suchen",
         "noActionsFound": "Keine Aktionen gefunden",
         "errorUniqueName": "Der Name der Datenquelle muss eindeutig sein."
@@ -841,6 +859,7 @@
     "workflowActionTypes": {
         "notificationLabel": "Benachrichtigung anzeigen",
         "notificationDescription": "Dem Benutzer eine Benachrichtigung anzeigen.",
+        "errorNotificationContentMissing": "Eine Benachrichtigung benötigt einen Titel oder eine Beschreibung",
         "openPageLabel": "Seite öffnen",
         "openPageDescription": "Den Benutzer zu einer anderen Seite oder URL navigieren.",
         "logoutLabel": "Abmelden",
@@ -988,7 +1007,7 @@
         "errorFetchingRolesTitle": "Konnte Benutzerrollen nicht abrufen",
         "errorFetchingRolesMessage": "Beim Abrufen der Benutzerrollen ist ein Fehler aufgetreten.",
         "visibilityCondition": "Sichtbarkeitsbedingung",
-        "visibilityConditionHelper": "Wenn das Ergebnis dieser Formel wahr ist und die obige Besucherauswahl wahr ist, wird das Element sichtbar sein. Diese Bedingung wirkt sich nur auf die Sichtbarkeit des Elements aus. Um Daten stattdessen aus der Server-Antwort auszuschließen, verwenden Sie die obige Filteroption für Benutzerrollen.",
+        "visibilityConditionHelper": "Wenn das Ergebnis dieses Ausdrucks wahr ist und die obige Besucherauswahl wahr ist, wird das Element sichtbar sein. Diese Bedingung wirkt sich nur auf die Sichtbarkeit des Elements aus. Um Daten stattdessen aus der Server-Antwort auszuschließen, verwenden Sie die obige Filteroption für Benutzerrollen.",
         "visibilityConditionPlaceholder": "Bedingung..."
     },
     "userDataProviderType": {
@@ -1106,9 +1125,17 @@
         "title": "Vorschau & Veröffentlichung Ihrer Anwendung",
         "content": "Klicken Sie auf **Vorschau**, um Ihre Anwendung privat zu testen. Wenn Sie bereit sind, klicken Sie auf **Veröffentlichen**, um sie über eine Domäne mit der Öffentlichkeit zu teilen."
     },
+    "trashType": {
+        "builder_page": "Seite",
+        "builder_data_source": "Datenquelle",
+        "builder_workflow_action": "Workflow-Aktion"
+    },
     "pageElementBehaviour": {
         "normal": "Normal",
         "fixed": "Fixiert"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Seite"
     },
     "workflowAction": {
         "sampleDataModalTitle": "Payload für {actionLabel}",
