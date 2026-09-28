@@ -4,7 +4,7 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import RetryPromptPart, ToolReturnPart, UserPromptPart
 from pydantic_ai.toolsets import FunctionToolset
 
-from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
+from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.output_validation import validate_final_answer
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.tools.routing import is_mode_redirect
@@ -144,7 +144,7 @@ def dynamic_tool_catalog(ctx) -> str:
     if not catalog:
         return ""
 
-    if ctx.deps.mode == AgentMode.DATABASE and ctx.deps.dynamic_tools:
+    if ctx.deps.dynamic_tools:
         names = ", ".join(tool.name for tool in ctx.deps.dynamic_tools)
         catalog = f"{catalog}\n- database row tools: {names}"
 
@@ -157,10 +157,10 @@ def dynamic_toolset(ctx: RunContext[AssistantDeps]):
     Make dynamically loaded tools available to the agent.
 
     :param ctx: The agent run context.
-    :return: A toolset with the dynamic row tools in database mode, or None.
+    :return: A toolset with the loaded row tools, or None.
     """
 
-    if ctx.deps.mode == AgentMode.DATABASE and ctx.deps.dynamic_tools:
+    if ctx.deps.dynamic_tools:
         ts = FunctionToolset()
         for tool in ctx.deps.dynamic_tools:
             ts.add_tool(tool)

@@ -4,7 +4,8 @@ from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.exceptions import PermissionDenied
-from baserow_enterprise.assistant.agents import dynamic_toolset
+from baserow_enterprise.assistant.agents import dynamic_tool_catalog, dynamic_toolset
+from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.tools.database import tools as database_tools
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
@@ -65,6 +66,22 @@ def test_create_rows_reports_the_running_total_across_batches(data_fixture):
 
     assert create(2)["total_rows_created"] == 2
     assert create(3)["total_rows_created"] == 5
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("mode", [AgentMode.APPLICATION, AgentMode.AUTOMATION])
+def test_loaded_row_tools_stay_available_after_a_mode_switch(data_fixture, mode):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, table.database.workspace)
+    ctx.deps.tool_catalog = "- database: list_tables"
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare row creation")
+
+    ctx.deps.mode = mode
+
+    assert f"create_rows_in_table_{table.id}" in dynamic_toolset(ctx).tools
+    assert f"create_rows_in_table_{table.id}" in dynamic_tool_catalog(ctx)
 
 
 @pytest.mark.django_db
