@@ -2,9 +2,10 @@
   <div class="general-side-panel">
     <Alert
       v-if="elementFormVisible && elementType.isFormElement"
-      type="info-neutral"
+      type="info-primary"
       class="margin-bottom-2"
     >
+      <template #title>{{ $t('elementForms.formValidationTitle') }}</template>
       {{ $t('elementForms.formValidationHint') }}
     </Alert>
     <component
