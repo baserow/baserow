@@ -1,6 +1,7 @@
 """Keep a bounded memory of verified tool actions."""
 
 import json
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from hashlib import sha256
@@ -56,6 +57,7 @@ _REPORTED_ERROR_RESULT_PREFIXES = (
     "setup_",
 )
 _RESULT_ERROR_KEYS = ("errors", "field_errors", "formula_errors", "notes")
+_ROW_WRITE_TOOL = re.compile(r"^(?:create|update)_rows_in_table_\d+$")
 
 
 @dataclass(frozen=True)
@@ -314,13 +316,32 @@ def _request_fingerprint(tool_name: str | None, arguments: Any) -> str:
     return sha256(request.encode()).hexdigest()
 
 
+def _remembered_arguments(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """
+    Keep row counts and IDs instead of cell values, which others may have written.
+
+    :param tool_name: The executed tool's name.
+    :param arguments: The tool arguments without the model's thought.
+    :return: The arguments to remember for later turns.
+    """
+
+    if not _ROW_WRITE_TOOL.match(tool_name):
+        return arguments
+    rows = arguments.get("rows")
+    rows = rows if isinstance(rows, list) else []
+    row_ids = [row["id"] for row in rows if isinstance(row, dict) and "id" in row]
+    return {"row_count": len(rows), **({"row_ids": row_ids} if row_ids else {})}
+
+
 def _verified_outcome(execution: _ToolExecution) -> dict[str, Any]:
     arguments = dict(execution.arguments)
     arguments.pop("thought", None)
     evidence = _mutation_evidence(execution)
     return {
         "tool": execution.tool_name,
-        "arguments": _compact_value(arguments),
+        "arguments": _compact_value(
+            _remembered_arguments(execution.tool_name, arguments)
+        ),
         "result": _compact_value(execution.result),
         "changed": evidence.changed,
         "completed": evidence.completed,
