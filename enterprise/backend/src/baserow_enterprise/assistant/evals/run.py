@@ -37,7 +37,6 @@ from baserow_enterprise.assistant.evals.harness import (
     EvalCaseCleanupError,
     EvalCaseTimeout,
     ensure_worker_safe,
-    get_case_timeout_s,
     override_assistant_prompts,
     run_case,
     tool_called,
