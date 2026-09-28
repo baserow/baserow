@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adds a floating button to create rows from the grid view",
+    "issue_origin": "github",
+    "issue_number": 2272,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-28"
+}
