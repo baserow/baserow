@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-01-18 13:32+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,10 +18,446 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: src/baserow/api/authentication.py:25
+#: src/baserow/api/authentication.py:28
 msgid "Token contained no recognizable user identification"
-msgstr ""
+msgstr "Le jeton ne contenait aucune identification d'utilisateur reconnue"
 
-#: src/baserow/api/authentication.py:33
+#: src/baserow/api/authentication.py:43
 msgid "User not found"
+msgstr "Utilisateur introuvable"
+
+#: src/baserow/contrib/automation/action_scopes.py:10
+#: src/baserow/contrib/automation/actions.py:4
+#, python-format
+msgid "in automation \"%(automation_name)s\" (%(automation_id)s)."
+msgstr "dans l'automatisation \"%(automation_name)s\" (%(automation_id)s)."
+
+#: src/baserow/contrib/automation/action_scopes.py:14
+#, python-format
+msgid ""
+"of type (%(node_type)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
 msgstr ""
+"de type (%(node_type)s) dans l'automatisation \"%(automation_name)s\" "
+"(%(automation_id)s)."
+
+#: src/baserow/contrib/automation/actions.py:8
+#, python-format
+msgid ""
+"in workflow (%(workflow_id)s) in automation \"%(automation_name)s\" "
+"(%(automation_id)s)."
+msgstr ""
+"dans le scénario (%(workflow_id)s) de l'automatisation "
+"\"%(automation_name)s\" (%(automation_id)s)."
+
+#: src/baserow/contrib/automation/automation_init_application.py:29
+msgid "Workflow"
+msgstr "Scénario"
+
+#: src/baserow/contrib/automation/automation_init_application.py:30
+msgid "Local Baserow"
+msgstr "Baserow local"
+
+#: src/baserow/contrib/automation/nodes/actions.py:26
+msgid "Create automation node"
+msgstr "Créer un nœud d'automatisation"
+
+#: src/baserow/contrib/automation/nodes/actions.py:27
+#, python-format
+msgid "Node (%(node_id)s) created"
+msgstr "Nœud (%(node_id)s) créé"
+
+#: src/baserow/contrib/automation/nodes/actions.py:91
+msgid "Update automation node"
+msgstr "Modifier le nœud d'automatisation"
+
+#: src/baserow/contrib/automation/nodes/actions.py:92
+#, python-format
+msgid "Node (%(node_id)s) updated"
+msgstr "Nœud (%(node_id)s) modifié"
+
+#: src/baserow/contrib/automation/nodes/actions.py:160
+msgid "Delete automation node"
+msgstr "Supprimer le nœud d'automatisation"
+
+#: src/baserow/contrib/automation/nodes/actions.py:161
+#, python-format
+msgid "Node (%(node_id)s) deleted"
+msgstr "Nœud (%(node_id)s) supprimé"
+
+#: src/baserow/contrib/automation/nodes/actions.py:218
+msgid "Duplicate automation node"
+msgstr "Dupliquer le nœud d'automatisation"
+
+#: src/baserow/contrib/automation/nodes/actions.py:219
+#, python-format
+msgid "Node (%(node_id)s) duplicated"
+msgstr "Nœud (%(node_id)s) dupliqué"
+
+#: src/baserow/contrib/automation/nodes/actions.py:290
+msgid "Replace automation node"
+msgstr "Remplacer le nœud d'automatisation"
+
+#: src/baserow/contrib/automation/nodes/actions.py:292
+#, python-format
+msgid ""
+"Node (%(node_id)s) changed from a type of %(original_node_type)s to "
+"%(node_type)s"
+msgstr ""
+"Type du nœud (%(node_id)s) modifié de %(original_node_type)s à %(node_type)s"
+
+#: src/baserow/contrib/automation/nodes/actions.py:378
+msgid "Moved automation node"
+msgstr "Nœud d'automatisation déplacé"
+
+#: src/baserow/contrib/automation/nodes/actions.py:379
+#, python-format
+msgid "Node (%(node_id)s) moved"
+msgstr "Nœud (%(node_id)s) déplacé"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:167
+msgid "Local Baserow create row"
+msgstr "Créer une ligne dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:186
+msgid "Local Baserow update row"
+msgstr "Modifier une ligne dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:203
+msgid "Local Baserow delete row"
+msgstr "Supprimer une ligne dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:211
+msgid "Local Baserow get row"
+msgstr "Obtenir une ligne dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:219
+msgid "Local Baserow list rows"
+msgstr "Lister les lignes dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:227
+msgid "Local Baserow aggregate rows"
+msgstr "Résumer les lignes dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:235
+msgid "HTTP request"
+msgstr "Requête HTTP"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:242
+msgid "Iterator"
+msgstr "Itérateur"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:255
+msgid "Send email"
+msgstr "Envoyer un e-mail"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:286
+msgid "Response"
+msgstr "Réponse"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:314
+msgid "AI agent"
+msgstr "Agent IA"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:321
+msgid "Router"
+msgstr "Routeur"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:387
+msgid "Branch"
+msgstr "Branche"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:783
+msgid "Local Baserow rows created"
+msgstr "Lignes créées dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:791
+msgid "Local Baserow rows updated"
+msgstr "Lignes modifiées dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:799
+msgid "Local Baserow rows deleted"
+msgstr "Lignes supprimées dans Baserow local"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:815
+msgid "Periodic trigger"
+msgstr "Déclencheur périodique"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:822
+msgid "HTTP trigger"
+msgstr "Déclencheur HTTP"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:829
+msgid "Email trigger"
+msgstr "Déclencheur d'e-mail"
+
+#: src/baserow/contrib/automation/nodes/node_types.py:848
+msgid "Slack write message"
+msgstr "Envoyer un message Slack"
+
+#: src/baserow/contrib/automation/nodes/registries.py:50
+msgid "Unnamed node"
+msgstr "Nœud sans nom"
+
+#: src/baserow/contrib/automation/notification_types.py:57
+#, python-format
+msgid "%(name)s workflow was disabled."
+msgstr "Le scénario %(name)s a été désactivé."
+
+#: src/baserow/contrib/automation/workflows/actions.py:28
+msgid "Create automation workflow"
+msgstr "Créer un scénario d'automatisation"
+
+#: src/baserow/contrib/automation/workflows/actions.py:29
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) created"
+msgstr "Scénario \"%(workflow_name)s\" (%(workflow_id)s) créé"
+
+#: src/baserow/contrib/automation/workflows/actions.py:90
+msgid "Update automation workflow"
+msgstr "Modifier le scénario d'automatisation"
+
+#: src/baserow/contrib/automation/workflows/actions.py:91
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) updated"
+msgstr "Scénario \"%(workflow_name)s\" (%(workflow_id)s) modifié"
+
+#: src/baserow/contrib/automation/workflows/actions.py:170
+msgid "Delete workflow"
+msgstr "Supprimer le scénario"
+
+#: src/baserow/contrib/automation/workflows/actions.py:171
+#, python-format
+msgid "Workflow \"%(workflow_name)s\" (%(workflow_id)s) deleted"
+msgstr "Scénario \"%(workflow_name)s\" (%(workflow_id)s) supprimé"
+
+#: src/baserow/contrib/automation/workflows/actions.py:227
+msgid "Duplicate automation workflow"
+msgstr "Dupliquer le scénario d'automatisation"
+
+#: src/baserow/contrib/automation/workflows/actions.py:229
+#, python-format
+msgid ""
+"Workflow \"%(workflow_name)s\" (%(workflow_id)s) duplicated "
+"from\"%(original_workflow_name)s\" (%(original_workflow_id)s) "
+msgstr ""
+"Scénario \"%(workflow_name)s\" (%(workflow_id)s) dupliqué à partir de "
+"\"%(original_workflow_name)s\" (%(original_workflow_id)s) "
+
+#: src/baserow/contrib/automation/workflows/actions.py:299
+msgid "Order workflows"
+msgstr "Ordonner les scénarios"
+
+#: src/baserow/contrib/automation/workflows/actions.py:300
+msgid "Workflow order changed"
+msgstr "Ordre des scénarios modifié"
+
+#: src/baserow/contrib/dashboard/actions.py:3
+#, python-format
+msgid "in dashboard \"%(dashboard_name)s\" (%(dashboard_id)s)."
+msgstr "dans le tableau de bord \"%(dashboard_name)s\" (%(dashboard_id)s)."
+
+#: src/baserow/contrib/dashboard/data_sources/actions.py:19
+msgid "Update dashboard data source"
+msgstr "Modifier la source de données du tableau de bord"
+
+#: src/baserow/contrib/dashboard/data_sources/actions.py:20
+#, python-format
+msgid "Data source \"%(data_source_name)s\" (%(data_source_id)s) updated"
+msgstr ""
+"Source de données \"%(data_source_name)s\" (%(data_source_id)s) modifiée"
+
+#: src/baserow/contrib/dashboard/data_sources/service.py:148
+msgid "Data source"
+msgstr "Source de données"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:20
+msgid "Create widget"
+msgstr "Créer un widget"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:21
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) created"
+msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) créé"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:121
+msgid "Update widget"
+msgstr "Modifier le widget"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:122
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) updated"
+msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) modifié"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:192
+msgid "Update widget layout"
+msgstr "Modifier la disposition du widget"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:193
+msgid "Dashboard widget layout updated"
+msgstr "Disposition du widget du tableau de bord modifiée"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:274
+msgid "Delete widget"
+msgstr "Supprimer le widget"
+
+#: src/baserow/contrib/dashboard/widgets/actions.py:275
+#, python-format
+msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
+msgstr "Widget \"%(widget_title)s\" (%(widget_id)s) supprimé"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1413
+msgid "Branch taken"
+msgstr "Branche suivie"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1418
+msgid "Label"
+msgstr "Libellé"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1420
+msgid "The label of the branch that matched the condition."
+msgstr "Le libellé de la branche qui correspondait à la condition."
+
+#: src/baserow/contrib/integrations/core/service_types.py:1613
+msgid "Condition"
+msgstr "Condition"
+
+#: src/baserow/contrib/integrations/core/service_types.py:1615
+msgid "Whether the condition evaluated to true and the jump was followed."
+msgstr ""
+"Indique si la condition a été évaluée comme vraie et si le saut a été "
+"effectué."
+
+#: src/baserow/contrib/integrations/core/service_types.py:2061
+msgid "Previous scheduled run"
+msgstr "Exécution planifiée précédente"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2065
+msgid "Next scheduled run"
+msgstr "Prochaine exécution planifiée"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2742
+msgid "Name"
+msgstr "Nom"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2743
+msgid "Address"
+msgstr "Adresse"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2748
+msgid "From"
+msgstr "De"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2751
+msgid "To"
+msgstr "À"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2756
+msgid "Cc"
+msgstr "Cc"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2761
+msgid "Reply to"
+msgstr "Répondre à"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2764
+msgid "Recipient"
+msgstr "Destinataire"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2765
+msgid "Recipient tag"
+msgstr "Balise du destinataire"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2766
+msgid "Subject"
+msgstr "Objet"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2767
+msgid "Body (text)"
+msgstr "Corps (texte)"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2768
+msgid "Body (HTML)"
+msgstr "Corps (HTML)"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2771
+msgid "Body (text) truncated"
+msgstr "Corps (texte) tronqué"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2775
+msgid "Body (HTML) truncated"
+msgstr "Corps (HTML) tronqué"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2777
+msgid "Message ID"
+msgstr "ID du message"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2778
+msgid "In reply to"
+msgstr "En réponse à"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2779
+msgid "Received at"
+msgstr "Reçu le"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2782
+msgid "Attachments"
+msgstr "Pièces jointes"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2786
+msgid "Filename"
+msgstr "Nom du fichier"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2789
+msgid "Content type"
+msgstr "Type de contenu"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2791
+msgid "Size"
+msgstr "Taille"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2797
+msgid "Sender validated"
+msgstr "Expéditeur validé"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2801
+msgid "DKIM verified domains"
+msgstr "Domaines vérifiés par DKIM"
+
+#: src/baserow/contrib/integrations/core/service_types.py:2804
+msgid "Remote IP"
+msgstr "Adresse IP distante"
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:1841
+msgid "No rows found"
+msgstr "Aucune ligne trouvée"
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2521
+#, python-format
+msgid "The %(operation)s action can process at most %(limit)s rows at once."
+msgstr ""
+"L'action %(operation)s peut traiter au maximum %(limit)s lignes à la fois."
+
+#: src/baserow/contrib/integrations/local_baserow/service_types.py:2887
+#, python-format
+msgid ""
+"The batch delete rows action can process at most %(limit)s rows at once."
+msgstr ""
+"L'action de suppression groupée peut traiter au maximum %(limit)s lignes à "
+"la fois."
+
+#: src/baserow/contrib/integrations/slack/service_types.py:252
+msgid "OK"
+msgstr "OK"
+
+#: src/baserow/contrib/integrations/slack/service_types.py:253
+msgid "Channel"
+msgstr "Canal"
+
+#: src/baserow/contrib/integrations/slack/service_types.py:254
+msgid "Message timestamp"
+msgstr "Horodatage du message"
+
+#: src/baserow/contrib/integrations/slack/service_types.py:264
+msgid "Data"
+msgstr "Données"

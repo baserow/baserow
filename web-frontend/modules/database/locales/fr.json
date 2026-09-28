@@ -202,7 +202,7 @@
         "pythonClient": "Exemple en Python de la requête d'API :"
     },
     "apiDocsTableListFields": {
-        "description": "Afin de lister les champs de la table {name} une requête de type {get} doit être envoyé auprès du point d'accès des champs de celle-ci. Le jeton d'authentification doit avoir les droits de création, modification et suppression afin de pouvoir lister les champs de la table.",
+        "description": "Pour lister les champs de la table {name}, une requête `GET` doit être envoyée au point d'accès des champs de {name}. Le jeton de base de données doit disposer des autorisations de lecture, de création ou de modification.",
         "resultFieldProperties": "Propriétés des champs de la réponse",
         "id": "Clé primaire du champ. Permet de générer le nom de la colonne en base de données en ajoutant le prefix `field_`.",
         "name": "Nom du champ.",
@@ -477,7 +477,8 @@
         "relatedFieldNotFound": "Le champ associé n'a pas était trouvé.",
         "noCompatibleFilterTypesErrorTitle": "Aucun filtre compatible",
         "noCompatibleFilterTypesErrorMessage": "Aucun de vos champs n'a de filtre compatible",
-        "addFilterGroup": "Ajouter un groupe de filtres"
+        "addFilterGroup": "Ajouter un groupe de filtres",
+        "copyFromView": "Copier depuis une autre vue"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "Image",
@@ -551,7 +552,8 @@
         "importFile": "Importer un fichier",
         "toPersonal": "Vers Personnelle",
         "toCollaborative": "Vers Collaborative",
-        "defaultRowValues": "Valeurs par défaut des lignes"
+        "defaultRowValues": "Valeurs par défaut des lignes",
+        "copyConfiguration": "Copier la configuration depuis une vue"
     },
     "deleteViewModal": {
         "title": "Supprimer la vue {name}",
@@ -654,7 +656,7 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "Documentation de l'API de la base {name}",
-        "back": "Retour à l'accueil",
+        "back": "Retour à la vue d'ensemble",
         "openDatabase": "Voir la base de données"
     },
     "apiDocsComponent": {
@@ -663,7 +665,7 @@
         "settings": "compte",
         "selectApplicationTitle": "Choisissez une base de donnée :",
         "signIn": "S'identifier pour commencer",
-        "back": "Retourner à l'accueil"
+        "back": "Retour à la vue d'ensemble"
     },
     "viewAggregationType": {
         "checkedCount": "Cochées",
@@ -825,7 +827,7 @@
         "nameAlreadyExists": "Une sauvegarde portant ce nom existe déjà."
     },
     "deleteSnapshotModal": {
-        "content": "Êtes-vous sûr·e de vouloir supprimer définitivement la sauvegarde {nom} ?",
+        "content": "Êtes-vous sûr·e de vouloir supprimer définitivement la sauvegarde {name} ?",
         "confirm": "Supprimer",
         "title": "Supprimer la sauvegarde"
     },
@@ -971,7 +973,10 @@
         "hiddenFieldWarning": "Un ou plusieurs regroupements font référence à des champs masqués qui ne seront pas visibles pour les Éditeurs et les utilisateurs ayant des rôles inférieurs.",
         "maxGroupBysReached": "Vous pouvez regrouper les données selon un maximum de {count} colonnes.",
         "collapseAllGroups": "Replier tout",
-        "expandAllGroups": "Déplier tout"
+        "expandAllGroups": "Déplier tout",
+        "layout": "Disposition des groupes",
+        "layoutSection": "Sections",
+        "layoutColumn": "Colonnes"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} vous a assigné à {fieldName} dans la ligne {rowId} de la table {tableName}",
@@ -1009,7 +1014,11 @@
         "allowEndpointAuthenticationHelp": "Cela expose un endpoint où l'ID de la ligne et le mot de passe peuvent être vérifiés s'ils sont corrects. Cela permet d'utiliser Baserow comme backend d'authentification."
     },
     "dataProviderTypes": {
-        "fieldsName": "Champs"
+        "fieldsName": "Champs",
+        "rowName": "Ligne cliquée",
+        "rowId": "ID de ligne",
+        "previousActionName": "Action précédente",
+        "previousActionRowId": "ID"
     },
     "userMentionInRichTextFieldNotification": {
         "deletedUser": "Un utilisateur a été supprimé",
@@ -1296,7 +1305,9 @@
         "labelPlaceholder": "Ouvrir",
         "url": "URL",
         "urlPlaceholder": "ex. concat('https://example.com/', get('fields.field_1'))",
-        "invalidUrl": "La formule d'URL est invalide."
+        "invalidUrl": "La formule d'URL est invalide.",
+        "unresolvedReferenceTitle": "Action non enregistrée",
+        "unresolvedReferenceMessage": "Une action utilise le résultat d'une action qui ne s'exécute pas avant elle. Déplacez-la vers l'arrière ou supprimez la référence, puis enregistrez à nouveau."
     },
     "editRowLink": {
         "editRow": "Modifier la ligne"
@@ -1326,7 +1337,91 @@
         "collapseGroup": "Replier le groupe"
     },
     "gridViewFreezeHandle": {
-        "freeze": "Figer 0 colonne | Figer 1 colonne | Figer {nombre} colonnes",
+        "freeze": "Figer 0 colonne | Figer 1 colonne | Figer {count} colonnes",
         "hoverHint": "Faites glisser pour verrouiller des colonnes"
+    },
+    "buttonField": {
+        "stillRunningTitle": "Toujours en cours d'exécution",
+        "stillRunningMessage": "Les actions du bouton sont peut-être toujours en cours d'exécution en arrière-plan.",
+        "dispatchErrorTitle": "Impossible d'exécuter les actions",
+        "dispatchErrorMessage": "Une erreur s'est produite lors de l'exécution des actions du bouton. Veuillez réessayer.",
+        "rateLimitedTitle": "Trop de clics",
+        "rateLimitedMessage": "Ce bouton a été cliqué trop souvent. Patientez un instant, puis réessayez.",
+        "requiresReconfiguration": "Ce bouton doit être reconfiguré avant de pouvoir être cliqué.",
+        "noPermission": "Vous n'avez pas l'autorisation de cliquer sur ce bouton."
+    },
+    "copyViewConfigurationModal": {
+        "title": "Copier la configuration vers {name}",
+        "sourceView": "Copier depuis la vue",
+        "selectAll": "Tout sélectionner",
+        "clearAll": "Tout effacer",
+        "copy": "Copier la configuration"
+    },
+    "copyViewConfigurationOption": {
+        "fieldVisibility": "Visibilité des champs",
+        "fieldOrder": "Ordre des champs",
+        "fieldWidths": "Largeur des champs",
+        "viewSettings": "Paramètres ({settings})",
+        "viewSettingsRowHeightSize": "hauteur des lignes",
+        "viewSettingsFrozenColumnCount": "colonnes figées",
+        "viewSettingsRowIdentifierType": "identifiant de ligne",
+        "viewSettingsGroupByLayout": "disposition des groupes",
+        "filters": "Filtres",
+        "sorts": "Tris",
+        "groupBys": "Groupes",
+        "decorations": "Décorations",
+        "defaultRowValues": "Valeurs par défaut des lignes"
+    },
+    "databaseWorkflowActionWithService": {
+        "nothingCapturedYet": "Cliquez sur ce bouton dans une ligne pour enregistrer la réponse du point d'accès afin que les actions suivantes puissent utiliser ses champs. Les autres actions du bouton s'exécutent également.",
+        "payloadModalTitle": "Réponse enregistrée pour {actionLabel}",
+        "payloadModalSubTitle": "Données JSON"
+    },
+    "databaseWorkflowActionType": {
+        "openUrl": "Ouvrir une URL",
+        "sendEmail": "Envoyer un e-mail",
+        "deleteRow": "Supprimer une ligne",
+        "noUrl": "Saisissez une URL à ouvrir.",
+        "staleReference": "Cette action utilise le résultat d'une action qui ne s'exécute plus avant elle.",
+        "unreadableReference": "Cette action utilise le résultat d'une action qui ne renvoie plus de résultat.",
+        "writesToTrashedField": "Cette action écrit dans un champ placé dans la corbeille. Restaurez le champ pour exécuter à nouveau l'action.",
+        "tableTrashed": "Cette action utilise une table placée dans la corbeille ou qui n'existe plus. Restaurez la table ou choisissez-en une autre.",
+        "requiresReconfiguration": "Cette action fait référence à une table, un champ ou une intégration placé dans la corbeille ou supprimé.",
+        "noInstanceSmtp": "Cette instance Baserow n'a aucun serveur SMTP configuré. Un bouton ne peut donc pas envoyer d'e-mail.",
+        "instanceSmtpTurnedOff": "L'envoi via le serveur SMTP de cette instance Baserow est désactivé. Un bouton ne peut donc pas envoyer d'e-mail.",
+        "slackOk": "OK",
+        "slackChannel": "Canal",
+        "slackTs": "Horodatage du message",
+        "slackTokenMissing": "Ce bot n'a pas de jeton. Ajoutez un nouveau bot avec son jeton ou collez-en un dans ce bot avant que le bouton puisse publier.",
+        "slackData": "Données",
+        "startWorkflowMissing": "Le scénario de cette action est introuvable. Il a peut-être été supprimé ou vous n'y avez peut-être pas accès. Choisissez un autre scénario ou demandez à une personne qui y a accès.",
+        "startWorkflowUnpublished": "Ce scénario n'a pas encore été publié. Publiez-le avant que le bouton puisse le lancer.",
+        "startWorkflowNotLive": "Ce scénario est en pause ou désactivé. Reprenez-le avant que le bouton puisse le lancer."
+    },
+    "openUrlWorkflowActionForm": {
+        "url": "URL",
+        "urlPlaceholder": "URL...",
+        "openIn": "Ouvrir dans",
+        "sameTab": "Le même onglet",
+        "newTab": "Un nouvel onglet"
+    },
+    "openUrlWorkflowAction": {
+        "invalidUrlTitle": "Impossible d'ouvrir l'URL",
+        "invalidUrlMessage": "L'URL n'a pas pu être déterminée pour cette ligne ou utilise un protocole non autorisé."
+    },
+    "buttonFieldActionList": {
+        "actions": "Actions",
+        "addAction": "Ajouter une action",
+        "chooseAction": "Choisir une action...",
+        "searchActions": "Rechercher des actions",
+        "misconfigured": "Au moins une action est mal configurée",
+        "toggleAction": "Afficher ou masquer cette action",
+        "moveAction": "Déplacer l'action, utilisez les touches fléchées pour la réordonner"
+    },
+    "rowEditFieldButtonField": {
+        "createRowBefore": "Les actions peuvent être exécutées après la création de la ligne."
+    },
+    "lastViewedItemType": {
+        "databaseView": "Vue {name}"
     }
 }

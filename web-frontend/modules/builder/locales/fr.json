@@ -34,7 +34,20 @@
         "themeName": "Thème",
         "domainsName": "Domaines",
         "userSourcesName": "Utilisateurs",
-        "generalName": "Général"
+        "generalName": "Général",
+        "breakpointsName": "Points de rupture"
+    },
+    "breakpointSettings": {
+        "titleOverview": "Points de rupture",
+        "description": "Choisissez quand votre application bascule entre les mises en page mobile, tablette et ordinateur. Les modifications s'appliquent immédiatement dans l'éditeur et à l'application publiée après sa publication.",
+        "mobileLabel": "Point de rupture mobile",
+        "tabletLabel": "Point de rupture tablette",
+        "desktopLabel": "Point de rupture ordinateur",
+        "desktopDescription": "Au-dessus de {breakpoint} px",
+        "updatedTitle": "Points de rupture enregistrés",
+        "updatedDescription": "Vos nouveaux points de rupture sont actifs dans l'éditeur. Publiez votre application pour les appliquer aux visiteurs.",
+        "mobileMustBeLessThanTablet": "Le point de rupture mobile doit être inférieur à celui de la tablette.",
+        "tabletMustBeGreaterThanMobile": "Le point de rupture tablette doit être supérieur à celui du mobile."
     },
     "builderForm": {
         "submit": "Ajouter une application"
@@ -85,6 +98,7 @@
         "choice": "Sélecteur",
         "choiceDescription": "Pour la sélection d'une ou plusieurs valeurs",
         "recordSelector": "Sélecteur d'enregistrement",
+        "errorOptionNameMissing": "Une option n'a pas de nom",
         "recordSelectorDescription": "Pour sélectionner les enregistrements d'une source",
         "dateTimePicker": "Sélecteur de date",
         "dateTimePickerDescription": "Un champ de saisie de la date et de l'heure",
@@ -325,7 +339,10 @@
         "authorizedToastTitle": "Authentification requise",
         "loginToastTitle": "Authentification réussie",
         "loginToastMessage": "Vous avez été authentifié·e avec succès.",
-        "authorizedToastMessage": "Vous devez être authentifié·e pour accéder à cette page. Veuillez vous connecter pour continuer."
+        "authorizedToastMessage": "Vous devez être authentifié·e pour accéder à cette page. Veuillez vous connecter pour continuer.",
+        "previewSessionExpiredTitle": "Session d'aperçu expirée",
+        "previewSessionExpiredDescription": "Fermez cet onglet et rouvrez l'aperçu depuis le générateur d'applications.",
+        "loginErrorToastTitle": "Échec de l'authentification"
     },
     "integrationSettings": {
         "title": "Intégrations",
@@ -471,7 +488,7 @@
     },
     "currentRecordDataProviderType": {
         "index": "Index",
-        "firstPartName": "Source de données : {nom}",
+        "firstPartName": "Source de données : {name}",
         "schemaProperty": "{prefixName} : {schemaProperty}"
     },
     "domainForm": {
@@ -536,7 +553,8 @@
         "errorNavigateToPageMissing": "Propriété Naviguer vers manquante",
         "errorPageParameterInError": "Au moins un paramètre de page est mal configuré",
         "errorNavigationUrlMissing": "Propriété URL de destination manquante",
-        "errorDataSourceMissing": "Aucune source de données sélectionnée"
+        "errorDataSourceMissing": "Aucune source de données sélectionnée",
+        "errorNotificationContentMissing": "Une notification doit comporter un titre ou une description"
     },
     "getFormulaComponent": {
         "errorTooltip": "Référence invalide"
@@ -661,7 +679,8 @@
         "heightLabel": "Hauteur (px)",
         "heightPlaceholder": "Hauteur en pixels",
         "emptyValue": "Source vide...",
-        "missingValue": "Source manquante..."
+        "missingValue": "Source manquante...",
+        "editorPreviewPlaceholder": "Cette iframe n'est pas affichée dans l'éditeur.\nUtilisez l'aperçu pour vérifier son apparence dans votre application."
     },
     "linkNavigationSelection": {
         "paramPlaceholder": "Saisir une valeur...",
@@ -1243,12 +1262,20 @@
         "invalidContentMessage": "Un ou plusieurs champs contiennent des valeurs non valides.",
         "serviceMisconfiguredTitle": "Configuration incomplète",
         "serviceMisconfiguredMessage": "Veuillez vérifier la configuration.",
-        "errorWorkflowActionDispatch": "L'action « {nom} » a échoué : ",
+        "errorWorkflowActionDispatch": "L'action « {name} » a échoué : ",
         "errorDataSourceDispatch": "Échec du chargement de « {name} » : "
     },
     "workflowAction": {
         "sampleDataModalTitle": "Données pour {actionLabel}",
         "sampleDataModalSubTitle": "Données JSON",
         "testActionDescription": "Exécutez cette action en mode aperçu pour enregistrer son résultat et le mettre à la disposition des actions suivantes."
+    },
+    "trashType": {
+        "builder_page": "page",
+        "builder_data_source": "source de données",
+        "builder_workflow_action": "action de scénario"
+    },
+    "lastViewedItemType": {
+        "builderPage": "Page"
     }
 }

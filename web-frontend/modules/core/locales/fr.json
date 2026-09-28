@@ -33,7 +33,13 @@
         "adminTools": "Administration",
         "adminSettings": "Paramètres",
         "general": "Général",
-        "people": "Utilisateurs"
+        "people": "Utilisateurs",
+        "recents": "Récents",
+        "allWorkspaces": "Tous les projets",
+        "recentlyViewed": "Consultés récemment",
+        "backToHome": "Retour à l'accueil",
+        "templates": "Modèles",
+        "replayGuidedTour": "Relancer la visite guidée"
     },
     "accountForm": {
         "nameLabel": "Votre nom",
@@ -147,7 +153,8 @@
         "title": "Modèles"
     },
     "templateHeader": {
-        "use": "Utiliser ce modèle"
+        "use": "Utiliser ce modèle",
+        "selectWorkspace": "Choisir un projet"
     },
     "trashSidebar": {
         "title": "Corbeille",
@@ -222,11 +229,12 @@
     },
     "errorLayout": {
         "notFound": "La page que vous essayez de consulter n'a pas été trouvée. L'URL est incorrecte ou vous n'avez pas les permissions nécessaires pour voir cette page.",
-        "error": "Une erreur est survenue lors du chargement de la page. Nos développeurs ont été notifiés de ce problème. Veuillez essayer de recharger la page ou retournez à l'accueil.",
-        "backDashboard": "Retourner à l'accueil",
+        "error": "Une erreur est survenue lors du chargement de la page. Nos développeurs ont été informés du problème. Essayez d'actualiser la page ou retournez à l'accueil.",
+        "backDashboard": "Retour à l'accueil",
         "backLogin": "Retourner à l'identification",
         "wrong": "Une erreur est survenue",
-        "refresh": "Actualiser la page"
+        "refresh": "Actualiser la page",
+        "pageNotFoundTitle": "Page introuvable"
     },
     "dashboard": {
         "title": "Accueil",
@@ -257,7 +265,11 @@
         "addNew": "Ajouter...",
         "noWorkspace": "Aucun projet",
         "noWorkspaceDescription": "Pour commencer, créez un nouveau projet",
-        "starOnGitHub": "Suivez-nous sur GitHub"
+        "starOnGitHub": "Suivez-nous sur GitHub",
+        "templates": "Modèles",
+        "templatesMessage": "Commencez avec une solution prête à l'emploi",
+        "academy": "Baserow Academy",
+        "academyMessage": "Suivez des cours et devenez expert"
     },
     "login": {
         "title": "Bienvenue",
@@ -700,7 +712,9 @@
     "integrationCreateEditModal": {
         "editTitle": "Modifier l’intégration",
         "warningTitle": "Avertissement",
-        "createTitle": "Nouvelle intégration"
+        "createTitle": "Nouvelle intégration",
+        "credentialRequiredTitle": "Identifiant requis",
+        "credentialRequiredMessage": "Saisissez à nouveau l'identifiant pour modifier la destination de cette intégration."
     },
     "integrationEditForm": {
         "name": "Nom",
@@ -754,7 +768,9 @@
         "errorInvalidFormula": "La formule est invalide.",
         "advancedFormulaMode": "Mode formule avancée",
         "invalidFormulaTitle": "Formule invalide",
-        "invalidSyntax": "Formule experte invalide, veuillez vérifier la syntaxe."
+        "invalidSyntax": "Formule experte invalide, veuillez vérifier la syntaxe.",
+        "useFormulaMode": "Utiliser le mode formule",
+        "useRawMode": "Utiliser le mode valeur brute"
     },
     "userPasswordChangedToast": {
         "title": "Mot de passe modifié",
@@ -764,7 +780,8 @@
         "noIntegrations": "Aucune intégration trouvée.",
         "addIntegration": "Ajouter une nouvelle intégration",
         "integrationPlaceholder": "Sélectionnez une intégration",
-        "selectTypeFirst": "Choisir d'abord le type"
+        "selectTypeFirst": "Choisir d'abord le type",
+        "editIntegration": "Modifier l'intégration"
     },
     "richTextEditorBubbleMenu": {
         "bold": "Gras",
@@ -791,7 +808,8 @@
         "title": "Paramètres du projet"
     },
     "workspaceSettingType": {
-        "generativeAI": "IA générative"
+        "generativeAI": "IA générative",
+        "aiProviders": "Fournisseurs d'IA"
     },
     "generativeAIModelType": {
         "openaiOrganization": "Organisation (facultatif)",
@@ -827,7 +845,19 @@
         "openRouterApiKeyLabel": "Clé API",
         "openRouterOrganization": "Organisation (facultatif)",
         "openaiBaseUrl": "URL de base",
-        "openaiBaseUrlDescription": "Utilise l'URL de base OpenAI par défaut si elle est vide. Elle peut être remplacée par https://eu.api.openai.com/v1, https://&lt;votre-nom-de-ressource&gt;.openai.azure.com, ou toute autre API compatible avec OpenAI."
+        "openaiBaseUrlDescription": "Utilise l'URL de base OpenAI par défaut si elle est vide. Elle peut être remplacée par https://eu.api.openai.com/v1, https://&lt;votre-nom-de-ressource&gt;.openai.azure.com, ou toute autre API compatible avec OpenAI.",
+        "google": "Google Gemini",
+        "googleApiKeyLabel": "Clé API",
+        "googleApiKeyDescription": "Saisissez une clé API Google AI Studio. [Créer ou afficher une clé API](https://aistudio.google.com/apikey).",
+        "googleModelsLabel": "Modèles activés",
+        "googleModelsDescription": "Fournissez une liste d'[identifiants de modèles Gemini](https://ai.google.dev/gemini-api/docs/models) séparés par des virgules et utilisables dans Baserow. Par exemple : `gemini-3.6-flash,gemini-3.5-flash`.",
+        "googleModelIdentifierDescription": "Saisissez un [identifiant de modèle Gemini](https://ai.google.dev/gemini-api/docs/models). Par exemple : `gemini-3.6-flash` ou `gemini-3.5-flash`.",
+        "groq": "Groq",
+        "groqApiKeyLabel": "Clé API",
+        "groqApiKeyDescription": "Saisissez une clé API Groq. [Créer ou afficher une clé API](https://console.groq.com/keys).",
+        "groqModelsLabel": "Modèles activés",
+        "groqModelsDescription": "Fournissez une liste d'[identifiants de modèles Groq](https://console.groq.com/docs/models) séparés par des virgules et utilisables dans Baserow. Par exemple : `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
+        "groqModelIdentifierDescription": "Saisissez un [identifiant de modèle Groq](https://console.groq.com/docs/models). Par exemple : `openai/gpt-oss-120b` ou `openai/gpt-oss-20b`."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Paramètres de l'IA générative",
@@ -836,7 +866,16 @@
         "submitButton": "Enregistrer",
         "description": "Ces paramètres peuvent être utilisés pour définir la configuration de l'IA générative au niveau da Projet. Des fonctionnalités telles que le champ IA peuvent être désactivées parce qu'elles ne disposent pas d'une clé API pour l'un des modèles pris en charge. En fournissant les paramètres ici, vous pouvez activer ces fonctionnalités. Si vous laissez une valeur vide, les paramètres globaux de l'instance sont rétablis par défaut. Notez que tous les utilisateurs du Projet partageront ces paramètres.",
         "openSettings": "Ouvrir la configuration",
-        "hideSettings": "Fermer"
+        "hideSettings": "Fermer",
+        "providerTitle": "Fournisseurs d'IA",
+        "providerDescription": "Gérez les fournisseurs appartenant à ce projet ou activez et désactivez ceux hérités de l'instance.",
+        "sharedModelsTitle": "Partagés entre les projets",
+        "addWorkspaceConfiguration": "Ajouter une configuration de projet",
+        "overridden": "Remplacé",
+        "overriddenByWorkspace": "Remplacé par le projet",
+        "disabledInWorkspace": "Désactivé dans le projet",
+        "noProviders": "Aucun fournisseur d'IA disponible",
+        "noProvidersDescription": "Ajoutez un fournisseur pour ce projet ou demandez à un administrateur de l'instance d'en configurer un."
     },
     "dashboardVerifyEmail": {
         "title": "Veuillez vérifier votre boîte aux lettres et cliquer sur le lien pour vérifier votre adresse électronique.",
@@ -1018,12 +1057,12 @@
         "removeModel": "Supprimer le modèle",
         "editModel": "Modifier le modèle",
         "modelIdentifier": "Identifiant du modèle",
-        "modelDiscoveryHelp": "Choisissez un modèle connu de Pydantic AI ou saisissez un identifiant personnalisé.",
+        "modelDiscoveryHelp": "Choisissez un modèle dans la liste ou saisissez un identifiant personnalisé.",
         "modelDiscoveryUnavailable": "Les suggestions de modèles connus sont indisponibles. Saisissez un identifiant manuellement.",
-        "modelDiscoveryEmpty": "Pydantic AI ne connaît aucun modèle pour ce fournisseur. Saisissez un identifiant manuellement.",
+        "modelDiscoveryEmpty": "Aucun modèle connu pour ce fournisseur. Saisissez un identifiant manuellement.",
         "modelDiscoveryNoMatch": "Aucun modèle connu ne correspond. Vous pouvez utiliser l'identifiant saisi.",
         "noProviders": "Aucun fournisseur d'IA configuré pour l'instance",
-        "noProvidersDescription": "Ajoutez un fournisseur manuellement, ou prévisualisez et exécutez la commande d'import depuis l'environnement avant d'activer la fonctionnalité pour les utilisateurs.",
+        "noProvidersDescription": "Ajoutez un fournisseur pour configurer les modèles disponibles dans vos projets.",
         "noModels": "Aucun modèle n'est configuré pour ce fournisseur.",
         "active": "Actif",
         "inactive": "Inactif",
@@ -1045,7 +1084,46 @@
         "retry": "Réessayer",
         "saveError": "Le fournisseur d'IA n'a pas pu être enregistré.",
         "saveModelError": "Le modèle du fournisseur d'IA n'a pas pu être enregistré.",
-        "actionError": "La modification du fournisseur d'IA n'a pas pu être effectuée."
+        "actionError": "La modification du fournisseur d'IA n'a pas pu être effectuée.",
+        "availableFor": "Disponible pour",
+        "availableForDescription": "Choisissez les fonctionnalités d'IA répertoriées qui peuvent utiliser ce modèle.",
+        "availableForList": "Disponible pour : {features}",
+        "availableForNone": "Indisponible pour toutes les fonctionnalités répertoriées",
+        "featureSettingsTitle": "Fonctionnalités d'IA",
+        "featureSettingsDescription": "Choisissez un modèle de fournisseur configuré pour chaque fonctionnalité. Les modèles d'environnement sont obsolètes.",
+        "kumaDisabled": "Désactivé",
+        "kumaInvalidFallback": "Modèle sélectionné indisponible — utilisation du modèle d'environnement obsolète : {model}",
+        "kumaInvalidNoFallback": "Modèle sélectionné indisponible — aucun modèle d'environnement configuré",
+        "kumaDisabledInWorkspace": "Désactivé dans ce projet",
+        "kumaUseInstance": "Utiliser le paramètre de l'instance — {model}",
+        "kumaInheritedUnavailable": "modèle d'instance sélectionné indisponible",
+        "kumaUseLegacy": "Utiliser le modèle d'environnement (obsolète) : {model}",
+        "kumaLegacyFallback": "modèle d'environnement (obsolète) : {model}",
+        "kumaLegacyEmpty": "vide",
+        "kumaNotConfigured": "non configuré",
+        "featureModelLabel": "Modèle pour {feature}",
+        "modelScopeInstance": "Instance",
+        "modelScopeWorkspace": "Projet",
+        "noFeatureModels": "Aucun modèle éligible n'est disponible. Modifiez un modèle et choisissez les fonctionnalités qui peuvent l'utiliser.",
+        "featureSettingError": "Le paramètre de la fonctionnalité d'IA n'a pas pu être enregistré.",
+        "featureSettingErrorDescription": "Actualisez la page et choisissez un modèle disponible.",
+        "inherited": "Hérité",
+        "moreActions": "Autres actions",
+        "testAllModels": "Tester tous les modèles",
+        "testModel": "Tester le modèle",
+        "someTestsFailed": "Certains tests ont échoué",
+        "featureTestPassed": "{feature} : réussi",
+        "featureTestFailed": "{feature} : {error}",
+        "testing": "Test en cours…",
+        "disableModelTitle": "Désactiver {name} ?",
+        "disableModelDescription": "Le modèle reste sélectionné là où il est configuré, mais il ne peut plus être utilisé tant qu'il n'est pas réactivé.",
+        "modelFeaturesRemovedTitle": "Modifier les disponibilités de {name} ?",
+        "modelFeaturesRemovedDescription": "Les fonctionnalités décochées ne peuvent plus utiliser ce modèle.",
+        "modelInUse": "{features} utilise ce modèle. | {features} utilisent ce modèle.",
+        "modelUsageUnknown": "Baserow n'a pas pu vérifier ce qui utilise encore ce modèle.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "Renommer {name} ?",
+        "modelIdentifierRenamedDescription": "Les références existantes continuent de pointer vers l'ancien identifiant et cessent de fonctionner jusqu'à leur mise à jour."
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Liste des projets",
@@ -1125,7 +1203,7 @@
     },
     "editUserModal": {
         "delete": "Supprimer l'utilisateur",
-        "edit": "Modifier {username}"
+        "edit": "Modifier { username }"
     },
     "adminDashboard": {
         "title": "Statistiques",
@@ -1161,7 +1239,8 @@
         "gotIt": "Compris",
         "next": "Suivant",
         "back": "Retour",
-        "watchVideo": "Regarder la vidéo"
+        "watchVideo": "Regarder la vidéo",
+        "stopTour": "Arrêter la visite"
     },
     "guidedTourVideoModal": {
         "previous": "Vidéo précédente",
@@ -1301,7 +1380,12 @@
         "methodsOptionLabel": "Méthodes HTTP autorisées",
         "methodsOptionDescription": "Contrôle les méthodes HTTP autorisées pour ce webhook. L'exclusion de GET réduit le risque de déclenchement accidentel du webhook.",
         "methodsOptionAll": "Toutes",
-        "methodsOptionExcludeGet": "Exclure GET"
+        "methodsOptionExcludeGet": "Exclure GET",
+        "responseOptionsLabel": "Réponse",
+        "waitForResponse": "Attendre la réponse du scénario",
+        "waitForResponseDescription": "Attendez qu'un nœud Réponse soit atteint. Si aucun ne l'est, attendez la fin du scénario et renvoyez la réponse par défaut.",
+        "responseTimeout": "Délai d'attente de la réponse",
+        "seconds": "secondes"
     },
     "twoFactorAuthEmpty": {
         "title": "Vous n'avez pas encore activé 2FA",
@@ -1311,8 +1395,9 @@
         "notAllowedDescription": "L'ajout de 2FA n'est possible que pour les comptes basés sur un mot de passe."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "Exemple",
-        "result": "Résultat : {result}"
+        "exampleLabel": "Exemple | Exemples",
+        "result": "Résultat : {result}",
+        "clickToInsert": "Cliquez sur un exemple pour l'insérer"
     },
     "enableWithQRCode": {
         "scanQRCode": "Scanner un QR code",
@@ -1394,7 +1479,8 @@
         "showErrorLabel": "Afficher l'erreur",
         "downloadFullPayload": "Télécharger la donnée complète",
         "truncatedLabel": "[Sortie tronquée]",
-        "truncatedPayloadWarning": "Seuls les {size} premiers caractères sont affichés. Téléchargez l'intégralité de la donnée pour l'examiner sur votre ordinateur."
+        "truncatedPayloadWarning": "Seuls les {size} premiers caractères sont affichés. Téléchargez l'intégralité de la donnée pour l'examiner sur votre ordinateur.",
+        "noHtmlContent": "Cet e-mail ne contient aucun corps HTML."
     },
     "workspaceOutdatedToast": {
         "title": "Trop de changements",
@@ -1410,5 +1496,125 @@
     },
     "editWorkspace": {
         "invalidNameTitle": "Nom du projet non autorisé"
+    },
+    "allWorkspaces": {
+        "title": "Vos projets",
+        "searchResults": "Résultats de recherche",
+        "searchPlaceholder": "Rechercher",
+        "allItems": "Tous les éléments",
+        "itemsSelected": "{count} type d'élément | {count} types d'éléments",
+        "createWorkspace": "Créer un projet",
+        "expandedView": "Vue développée",
+        "compactView": "Vue compacte",
+        "collapseAll": "Tout replier",
+        "expandAll": "Tout déplier",
+        "workspacesSection": "Projets",
+        "itemsSection": "Éléments",
+        "noResultsTitle": "Aucun résultat trouvé",
+        "noResultsDescription": "Aucun résultat trouvé pour « {search} ». Vérifiez l'orthographe ou utilisez d'autres mots-clés.",
+        "clearSearch": "Effacer la recherche",
+        "membersCount": "0 membre | 1 membre | {count} membres",
+        "itemsCount": "0 élément | 1 élément | {count} éléments",
+        "moreElements": "{count} élément supplémentaire | {count} éléments supplémentaires",
+        "noApplications": "Aucun générateur pour le moment",
+        "noFilterMatches": "Aucun élément ne correspond aux types sélectionnés.",
+        "create": "Créer",
+        "members": "Membres",
+        "settings": "Paramètres"
+    },
+    "recentlyViewed": {
+        "title": "Consultés récemment",
+        "yourItems": "Vos éléments",
+        "name": "Nom",
+        "lastViewed": "Dernière consultation",
+        "workspace": "Projet",
+        "allWorkspaces": "Tous les projets",
+        "workspacesSelected": "{count} projet | {count} projets",
+        "allItems": "Tous les éléments",
+        "itemTypesSelected": "{count} type d'élément | {count} types d'éléments",
+        "tableView": "Tableau",
+        "cardsView": "Cartes",
+        "loadMore": "Charger plus",
+        "emptyTitle": "Aucun élément consulté récemment",
+        "emptyDescription": "Les vues, pages, tableaux de bord et scénarios que vous ouvrez apparaissent ici.",
+        "noFilterMatchesTitle": "Aucun élément ne correspond aux filtres sélectionnés",
+        "noFilterMatchesDescription": "Essayez de sélectionner d'autres projets ou types d'éléments.",
+        "clearFilters": "Effacer les filtres",
+        "goToWorkspaces": "Accéder à vos projets"
+    },
+    "trashType": {
+        "integration": "intégration",
+        "user_source": "source d'utilisateurs"
+    },
+    "subjectType": {
+        "user": "Utilisateur",
+        "users": "Utilisateurs",
+        "agent": "Agent",
+        "agents": "Agents"
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Réponse",
+        "waitForResponse": "Attendre la réponse du scénario",
+        "waitForResponseDescription": "Attendez qu'un nœud Réponse soit atteint. Si aucun ne l'est, attendez la fin du scénario et renvoyez la réponse par défaut.",
+        "responseTimeout": "Délai d'attente de la réponse",
+        "seconds": "secondes"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Code d'état",
+        "statusCode200": "200 - OK",
+        "statusCode201": "201 - Créé",
+        "statusCode202": "202 - Accepté",
+        "statusCode204": "204 - Aucun contenu",
+        "statusCode400": "400 - Requête incorrecte",
+        "statusCode401": "401 - Non autorisé",
+        "statusCode403": "403 - Interdit",
+        "statusCode404": "404 - Introuvable",
+        "statusCode405": "405 - Méthode non autorisée",
+        "statusCode409": "409 - Conflit",
+        "statusCode422": "422 - Contenu non traitable",
+        "statusCode429": "429 - Trop de requêtes",
+        "bodyType": "Type de corps",
+        "bodyTypeEmpty": "Vide",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Texte",
+        "body": "Corps",
+        "bodyPlaceholder": "Corps de la réponse",
+        "headers": "En-têtes",
+        "name": "Nom",
+        "value": "Valeur",
+        "namePlaceholder": "Nom de l'en-tête",
+        "valuePlaceholder": "Valeur de l'en-tête",
+        "addHeader": "Ajouter un en-tête",
+        "nameFieldRequired": "Le nom de l'en-tête est obligatoire.",
+        "nameFieldInvalid": "Les noms d'en-têtes ne peuvent contenir que des lettres, des chiffres, des tirets et des traits de soulignement, et ne peuvent pas commencer par un tiret ou un trait de soulignement."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "Adresse e-mail",
+        "addressVersionTest": "Test",
+        "addressVersionPublished": "Publiée",
+        "copyAddress": "Copier l'adresse e-mail",
+        "description": "Tout e-mail envoyé à cette adresse lancera le scénario avec l'expéditeur, l'objet, le corps et les informations sur les pièces jointes comme données d'entrée.",
+        "limits": "Les e-mails jusqu'à {size} Mo sont acceptés, et les corps texte et HTML sont transmis jusqu'à 1 Mo chacun. Les pièces jointes ne sont pas stockées : seuls leur nom, leur type et leur taille sont inclus dans les données d'entrée.",
+        "autoForwardTip": "Astuce : vous pouvez également ajouter cette adresse comme règle de transfert automatique dans votre boîte de réception afin que le scénario s'exécute à chaque e-mail reçu.",
+        "secretWarning": "Traitez cette adresse comme un secret : toute personne qui la connaît peut lancer ce scénario.",
+        "regenerate": "Régénérer l'adresse",
+        "notConfigured": "Cette instance Baserow n'est pas configurée pour recevoir des e-mails entrants. Définissez la variable d'environnement BASEROW_INBOUND_EMAIL_DOMAIN pour activer ce déclencheur."
+    },
+    "agents": {
+        "saved": "Modifications enregistrées",
+        "tabTitle": "Agents",
+        "title": "{count} agents dans {workspace}",
+        "create": "Créer un agent",
+        "createTitle": "Créer un agent",
+        "updateTitle": "Modifier l'agent",
+        "save": "Enregistrer l'agent",
+        "edit": "Modifier l'agent",
+        "delete": "Supprimer l'agent",
+        "general": "Général",
+        "mcpServerPlaceholder": "Les paramètres du serveur MCP seront bientôt disponibles ici.",
+        "name": "Nom",
+        "invalidNameTitle": "Nom d'agent non autorisé",
+        "lastActive": "Dernière activité",
+        "workspaceRole": "Rôle dans le projet"
     }
 }

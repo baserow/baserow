@@ -216,7 +216,9 @@
         "exportsContent": "Exportez facilement vos données dans des formats supplémentaires tels qu'Excel, JSON et XML, ou téléchargez en masse tous les fichiers d'une table - idéal pour les sauvegardes, les rapports et le partage avec d'autres personnes.",
         "personalViewsContent": "Créez des vues que seul l'auteur peut voir. Cela vous permet d'expérimenter, de filtrer et de trier les données sans affecter l'espace de travail des autres.",
         "publicLogoRemovalContent": "Supprimez le logo Baserow des vues publiques pour donner à votre contenu partagé un aspect plus professionnel.",
-        "kanbanViewContent": "Organisez visuellement vos données sur un Kanban. Les cartes sont regroupées en colonnes sur la base d'un champ de sélection, et vous pouvez facilement les faire glisser et les déposer d'une colonne à l'autre."
+        "kanbanViewContent": "Organisez visuellement vos données sur un Kanban. Les cartes sont regroupées en colonnes sur la base d'un champ de sélection, et vous pouvez facilement les faire glisser et les déposer d'une colonne à l'autre.",
+        "groupedAggregateRowsDataSource": "Grouper et résumer les lignes",
+        "groupedAggregateRowsDataSourceContent": "Groupez les lignes d'une table Baserow et calculez des résumés à utiliser dans les pages du générateur d'applications."
     },
     "formViewModePreviewSurvey": {
         "deactivated": "Les sondages sont disponibles dans la version premium.",
@@ -427,5 +429,51 @@
     "viewOwnershipType": {
         "personal": "Personnelle",
         "personalDescription": "Vous êtes le seul à voir cette Vue."
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Séries",
+        "addSeries": "Ajouter une série",
+        "data": "Données",
+        "sourceFieldLabel": "Source",
+        "viewFieldLabel": "Vue",
+        "notSelected": "Non sélectionné"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "Séries",
+        "addSeries": "Ajouter une série"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "Grouper et résumer les lignes",
+        "localBaserowGroupedAggregateRowsDescription": "Groupe les lignes d'une table Baserow et calcule des résumés.",
+        "errorNoAggregationSeriesDefined": "Aucune série de résumé définie.",
+        "errorIncompleteAggregationSeries": "Une ou plusieurs séries de résumé sont incomplètes.",
+        "errorTrashedAggregationField": "Au moins un champ configuré a été placé dans la corbeille."
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Champ",
+        "aggregationTypeLabel": "Résumé",
+        "deleteSeries": "Supprimer la série",
+        "chartType": "Type de graphique",
+        "barChart": "Barres",
+        "lineChart": "Courbes",
+        "pieChart": "Secteurs",
+        "doughnutChart": "Anneau",
+        "polarAreaChart": "Aire polaire"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Grouper par",
+        "groupByNone": "Aucun",
+        "groupByRowId": "ID de ligne",
+        "rowIdDisabledTooltip": "Le regroupement par ID de ligne est actuellement indisponible, car le champ principal peut contenir plusieurs valeurs."
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Trier par",
+        "none": "Aucun",
+        "ascending": "Croissant",
+        "descending": "Décroissant"
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "Champs IA",
+        "aiFieldsDescription": "Générez des valeurs dans les champs IA."
     }
 }

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-01-26 15:50+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: 2025-03-18 13:24+0000\n"
 "Last-Translator: Jérémie Pardou-Piquemal <jrmi@jeremiez.net>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/baserow/"
@@ -19,113 +19,579 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
 "X-Generator: Weblate 5.11-dev\n"
 
-#: audit_log/job_types.py:143
+#: src/baserow_enterprise/application_users/notification_types.py:49
+msgid "Application user limit reached"
+msgstr "Limite d'utilisateurs d'application atteinte"
+
+#: src/baserow_enterprise/application_users/notification_types.py:53
+#, python-format
+msgid "%(usage)s of %(limit)s application users used"
+msgstr "%(usage)s utilisateurs d'application utilisés sur %(limit)s"
+
+#: src/baserow_enterprise/assistant/tools/automation/agents.py:126
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:130
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:290
+#, python-format
+msgid "Generating formulas for node '%(label)s'..."
+msgstr "Génération des formules pour le nœud « %(label)s »..."
+
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:187
+#, python-format
+msgid "Creating workflow '%(name)s'..."
+msgstr "Création du scénario « %(name)s »..."
+
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:228
+#, python-format
+msgid "Creating node '%(label)s'..."
+msgstr "Création du nœud « %(label)s »..."
+
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:278
+#, python-format
+msgid "Updating node '%(label)s'..."
+msgstr "Modification du nœud « %(label)s »..."
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:42
+msgid "Listing workflows..."
+msgstr "Liste des scénarios..."
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:74
+msgid "Listing nodes..."
+msgstr "Liste des nœuds..."
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:114
+msgid "Adding nodes to workflow..."
+msgstr "Ajout de nœuds au scénario..."
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:338
+#, python-format
+msgid "Deleting node %(node_id)s..."
+msgstr "Suppression du nœud %(node_id)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:405
+#, python-format
+msgid "Generating formulas for element '%(ref)s'..."
+msgstr "Génération des formules pour l'élément « %(ref)s »..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:456
+#, python-format
+msgid "Generating formulas for data source '%(name)s'..."
+msgstr "Génération des formules pour la source de données « %(name)s »..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:512
+#, python-format
+msgid "Generating formulas for data source %(id)d..."
+msgstr "Génération des formules pour la source de données %(id)d..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:603
+#, python-format
+msgid "Generating formulas for element %(id)d..."
+msgstr "Génération des formules pour l'élément %(id)d..."
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:679
+#, python-format
+msgid "Generating formulas for action on '%(ref)s'..."
+msgstr "Génération des formules pour l'action sur « %(ref)s »..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:107
+#, python-format
+msgid "Listing pages in %(app_name)s..."
+msgstr "Liste des pages de %(app_name)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:176
+#, python-format
+msgid "Creating page %(name)s..."
+msgstr "Création de la page %(name)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:236
+#, python-format
+msgid "Updating page %(id)d..."
+msgstr "Modification de la page %(id)d..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:273
+#, python-format
+msgid "Listing data sources on %(name)s..."
+msgstr "Liste des sources de données de %(name)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:340
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1160
+#, python-format
+msgid "Creating data source '%(name)s'..."
+msgstr "Création de la source de données « %(name)s »..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:410
+#, python-format
+msgid "Updating data source %(id)d..."
+msgstr "Modification de la source de données %(id)d..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:460
+#, python-format
+msgid "Listing elements on %(name)s..."
+msgstr "Liste des éléments de %(name)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:486
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1208
+#, python-format
+msgid "Creating %(count)d elements on %(name)s..."
+msgstr "Création de %(count)d éléments sur %(name)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:806
+#, python-format
+msgid "Updating element %(id)d..."
+msgstr "Modification de l'élément %(id)d..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:875
+#, python-format
+msgid "Styling element %(id)d..."
+msgstr "Mise en forme de l'élément %(id)d..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:942
+#, python-format
+msgid "Moving %(count)d elements on %(name)s..."
+msgstr "Déplacement de %(count)d éléments sur %(name)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:995
+#, python-format
+msgid "Listing actions on %(name)s..."
+msgstr "Liste des actions de %(name)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1058
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1270
+#, python-format
+msgid "Creating %(type)s action..."
+msgstr "Création de l'action %(type)s..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1112
+#, python-format
+msgid "Adding field mapping to action %(id)d..."
+msgstr "Ajout de l'association de champs à l'action %(id)d..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1489
+msgid "Setting up user source..."
+msgstr "Configuration de la source d'utilisateurs..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1495
+msgid "Validating existing table..."
+msgstr "Validation de la table existante..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1500
+msgid "Creating users table..."
+msgstr "Création de la table des utilisateurs..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1505
+msgid "Creating user source..."
+msgstr "Création de la source d'utilisateurs..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1515
+msgid "Creating login page..."
+msgstr "Création de la page de connexion..."
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1565
+#, python-format
+msgid "Applying %(theme)s theme to %(app)s..."
+msgstr "Application du thème %(theme)s à %(app)s..."
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:43
+#, python-format
+msgid "Listing %(builder_types)ss..."
+msgstr "Liste des %(builder_types)ss..."
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:116
+#, python-format
+msgid "Creating %(builder_type)s %(builder_name)s..."
+msgstr "Création de %(builder_type)s %(builder_name)s..."
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:204
+#, python-format
+msgid "Updating %(app_name)s..."
+msgstr "Modification de %(app_name)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/agents.py:378
+#, python-format
+msgid "Fixing formula for %(name)s..."
+msgstr "Correction de la formule pour %(name)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/agents.py:472
+msgid "Generating example rows for these new tables..."
+msgstr "Génération de lignes d'exemple pour ces nouvelles tables..."
+
+#: src/baserow_enterprise/assistant/tools/database/helpers.py:158
+#, python-format
+msgid "Creating field %(field_name)s..."
+msgstr "Création du champ %(field_name)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:195
+#, python-format
+msgid "Listing tables in %(database_names)s..."
+msgstr "Liste des tables de %(database_names)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:247
+#, python-format
+msgid "Inspecting %(table_names)s schema..."
+msgstr "Inspection du schéma de %(table_names)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:301
+#, python-format
+msgid "Listing rows in %(table_name)s "
+msgstr "Liste des lignes de %(table_name)s "
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:351
+#, python-format
+msgid "Listing views in %(table_name)s..."
+msgstr "Liste des vues de %(table_name)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:385
+#, python-format
+msgid "Creating table %(table_name)s..."
+msgstr "Création de la table %(table_name)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:647
+#, python-format
+msgid "Updating field %(field_id)s..."
+msgstr "Modification du champ %(field_id)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:705
+#, python-format
+msgid "Deleting field %(field_id)s..."
+msgstr "Suppression du champ %(field_id)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:802
+#, python-format
+msgid "Creating %(view_type)s view %(view_name)s"
+msgstr "Création de la vue %(view_type)s %(view_name)s"
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:914
+#, python-format
+msgid "Creating filters in %(view_name)s..."
+msgstr "Création de filtres dans %(view_name)s..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:994
+msgid "Generating formula..."
+msgstr "Génération de la formule..."
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1134
+#, python-format
+msgid "Creating rows in %(table_name)s "
+msgstr "Création de lignes dans %(table_name)s "
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1177
+#, python-format
+msgid "Updating rows in %(table_name)s "
+msgstr "Modification de lignes dans %(table_name)s "
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1214
+#, python-format
+msgid "Deleting rows in %(table_name)s "
+msgstr "Suppression de lignes dans %(table_name)s "
+
+#: src/baserow_enterprise/assistant/tools/navigation/tools.py:46
+#, python-format
+msgid "Navigating to %(location)s..."
+msgstr "Navigation vers %(location)s..."
+
+#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:150
+msgid "Exploring the knowledge base..."
+msgstr "Exploration de la base de connaissances..."
+
+#: src/baserow_enterprise/assistant/types.py:207
+#, python-format
+msgid "table %(table_name)s"
+msgstr "table %(table_name)s"
+
+#: src/baserow_enterprise/assistant/types.py:219
+#, python-format
+msgid "view %(view_name)s"
+msgstr "vue %(view_name)s"
+
+#: src/baserow_enterprise/assistant/types.py:226
+msgid "home"
+msgstr "accueil"
+
+#: src/baserow_enterprise/assistant/types.py:236
+#, python-format
+msgid "workflow %(workflow_name)s"
+msgstr "scénario %(workflow_name)s"
+
+#: src/baserow_enterprise/assistant/types.py:246
+#, python-format
+msgid "page %(page_name)s"
+msgstr "page %(page_name)s"
+
+#: src/baserow_enterprise/audit_log/job_types.py:36
 msgid "User Email"
 msgstr "Email de l'utilisateur"
 
-#: audit_log/job_types.py:144
+#: src/baserow_enterprise/audit_log/job_types.py:40
 msgid "User ID"
 msgstr "Identifiant"
 
-#: audit_log/job_types.py:145
+#: src/baserow_enterprise/audit_log/job_types.py:44
 msgid "Group Name"
 msgstr "Nom du projet"
 
-#: audit_log/job_types.py:146
+#: src/baserow_enterprise/audit_log/job_types.py:48
 msgid "Group ID"
 msgstr "Identifiant"
 
-#: audit_log/job_types.py:147
+#: src/baserow_enterprise/audit_log/job_types.py:52
 msgid "Action Type"
 msgstr "Type d'action"
 
-#: audit_log/job_types.py:148
+#: src/baserow_enterprise/audit_log/job_types.py:56
 msgid "Description"
 msgstr "Description"
 
-#: audit_log/job_types.py:149
+#: src/baserow_enterprise/audit_log/job_types.py:60
 msgid "Timestamp"
 msgstr "Heure"
 
-#: audit_log/job_types.py:150
+#: src/baserow_enterprise/audit_log/job_types.py:64
 msgid "IP Address"
 msgstr "Adresse IP"
 
-#: audit_log/models.py:30
+#: src/baserow_enterprise/audit_log/models.py:30
 msgid "DONE"
 msgstr "Fait"
 
-#: audit_log/models.py:31
+#: src/baserow_enterprise/audit_log/models.py:31
 msgid "UNDONE"
 msgstr "Annulée"
 
-#: audit_log/models.py:32
+#: src/baserow_enterprise/audit_log/models.py:32
 msgid "REDONE"
 msgstr "Fait"
 
-#: role/actions.py:28
+#: src/baserow_enterprise/automation/nodes/node_types.py:20
+msgid "Code"
+msgstr "Code"
+
+#: src/baserow_enterprise/builder/elements/element_types.py:67
+msgid "Auth form"
+msgstr "Formulaire d'authentification"
+
+#: src/baserow_enterprise/builder/elements/element_types.py:191
+msgid "File input"
+msgstr "Champ de fichier"
+
+#: src/baserow_enterprise/data_scanner/actions.py:18
+msgid "Create data scan"
+msgstr "Créer une analyse de données"
+
+#: src/baserow_enterprise/data_scanner/actions.py:19
+#, python-format
+msgid "Data scan \"%(scan_name)s\" (%(scan_id)s) created"
+msgstr "Analyse de données \"%(scan_name)s\" (%(scan_id)s) créée"
+
+#: src/baserow_enterprise/data_scanner/actions.py:45
+msgid "Update data scan"
+msgstr "Modifier l'analyse de données"
+
+#: src/baserow_enterprise/data_scanner/actions.py:46
+#, python-format
+msgid "Data scan \"%(scan_name)s\" (%(scan_id)s) updated"
+msgstr "Analyse de données \"%(scan_name)s\" (%(scan_id)s) modifiée"
+
+#: src/baserow_enterprise/data_scanner/actions.py:72
+msgid "Delete data scan"
+msgstr "Supprimer l'analyse de données"
+
+#: src/baserow_enterprise/data_scanner/actions.py:73
+#, python-format
+msgid "Data scan \"%(scan_name)s\" (%(scan_id)s) deleted"
+msgstr "Analyse de données \"%(scan_name)s\" (%(scan_id)s) supprimée"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:34
+msgid "Scan Name"
+msgstr "Nom de l'analyse"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:38
+msgid "Workspace Name"
+msgstr "Nom du projet"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:42
+msgid "Database Name"
+msgstr "Nom de la base de données"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:46
+msgid "Table Name"
+msgstr "Nom de la table"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:50
+msgid "Field Name"
+msgstr "Nom du champ"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:54
+msgid "Row ID"
+msgstr "ID de ligne"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:58
+msgid "Matched Value"
+msgstr "Valeur correspondante"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:62
+msgid "First Identified On"
+msgstr "Première détection le"
+
+#: src/baserow_enterprise/data_scanner/job_types.py:66
+msgid "Last Identified On"
+msgstr "Dernière détection le"
+
+#: src/baserow_enterprise/data_scanner/notification_types.py:80
+#, python-format
+msgid "%(count)d new result found for %(scan_name)s"
+msgid_plural "%(count)d new results found for %(scan_name)s"
+msgstr[0] "%(count)d nouveau résultat trouvé pour %(scan_name)s"
+msgstr[1] "%(count)d nouveaux résultats trouvés pour %(scan_name)s"
+
+#: src/baserow_enterprise/data_scanner/notification_types.py:92
+#, python-format
+msgid ""
+"The data scanner \"%(scan_name)s\" found %(count)d new match during its "
+"latest run. Review the results in the admin panel."
+msgid_plural ""
+"The data scanner \"%(scan_name)s\" found %(count)d new matches during its "
+"latest run. Review the results in the admin panel."
+msgstr[0] ""
+"Le détecteur de données \"%(scan_name)s\" a trouvé %(count)d nouvelle "
+"correspondance lors de sa dernière exécution. Consultez les résultats dans "
+"le panneau d'administration."
+msgstr[1] ""
+"Le détecteur de données \"%(scan_name)s\" a trouvé %(count)d nouvelles "
+"correspondances lors de sa dernière exécution. Consultez les résultats dans "
+"le panneau d'administration."
+
+#: src/baserow_enterprise/data_sync/actions.py:21
+msgid "Update periodic data sync interval"
+msgstr "Modifier l'intervalle de synchronisation périodique des données"
+
+#: src/baserow_enterprise/data_sync/actions.py:22
+#, python-format
+msgid "Data sync table \"%(table_name)s\" (%(table_id)s) updated"
+msgstr "Table synchronisée \"%(table_name)s\" (%(table_id)s) modifiée"
+
+#: src/baserow_enterprise/data_sync/notification_types.py:106
+#, python-format
+msgid "%(name)s periodic data sync has been deactivated."
+msgstr "La synchronisation périodique des données %(name)s a été désactivée."
+
+#: src/baserow_enterprise/data_sync/notification_types.py:115
+msgid ""
+"The periodic data sync has been disabled because the workspace no longer has "
+"a valid license for data sync features. Please update your license to "
+"restore automatic syncing."
+msgstr ""
+"La synchronisation périodique des données a été désactivée car le projet ne "
+"dispose plus d'une licence valide pour les fonctionnalités de "
+"synchronisation. Mettez à jour votre licence pour rétablir la "
+"synchronisation automatique."
+
+#: src/baserow_enterprise/data_sync/notification_types.py:121
+#, python-format
+msgid ""
+"The periodic data sync failed more than %(max_failures)s consecutive times "
+"and was therefore deactivated."
+msgstr ""
+"La synchronisation périodique des données a échoué plus de %(max_failures)s "
+"fois consécutives et a donc été désactivée."
+
+#: src/baserow_enterprise/data_sync/notification_types.py:150
+#, python-format
+msgid "%(table_name)s two-way sync update failed."
+msgstr ""
+"Échec de la mise à jour de la synchronisation bidirectionnelle de "
+"%(table_name)s."
+
+#: src/baserow_enterprise/data_sync/notification_types.py:180
+#, python-format
+msgid "%(table_name)s two-way sync deactivated."
+msgstr "Synchronisation bidirectionnelle de %(table_name)s désactivée."
+
+#: src/baserow_enterprise/data_sync/notification_types.py:187
+msgid ""
+"The two-way sync was deactivated because an update failed too many times "
+"consecutively. Please manually sync, and reactivate when the problem is "
+"resolved."
+msgstr ""
+"La synchronisation bidirectionnelle a été désactivée car une mise à jour a "
+"échoué trop de fois consécutives. Effectuez une synchronisation manuelle et "
+"réactivez-la une fois le problème résolu."
+
+#: src/baserow_enterprise/field_permissions/actions.py:26
+msgid "Update field permissions"
+msgstr "Modifier les autorisations du champ"
+
+#: src/baserow_enterprise/field_permissions/actions.py:28
+#, python-format
+msgid ""
+"Field \"%(field_name)s\" (%(field_id)s): permissions updated to role "
+"\"%(role)s\" and \"allow in forms\" set to \"%(allow_in_forms)s\""
+msgstr ""
+"Champ \"%(field_name)s\" (%(field_id)s) : autorisations définies sur le rôle "
+"\"%(role)s\" et option \"autoriser dans les formulaires\" définie sur "
+"\"%(allow_in_forms)s\""
+
+#: src/baserow_enterprise/role/actions.py:28
 msgid "Assign multiple roles"
 msgstr "Assigner plusieurs roles"
 
-#: role/actions.py:29
+#: src/baserow_enterprise/role/actions.py:29
 msgid "Multiple roles have been assigned"
 msgstr "Plusieurs rôles assignés"
 
-#: role/actions.py:32
+#: src/baserow_enterprise/role/actions.py:32
 #, python-format
 msgid ""
-"Role %(role_uid)s assigned to subject type \"%(subject_type_name)s"
-"\" (%(subject_id)s) on scope type \"%(scope_type_name)s\" (%(scope_id)s)."
+"Role %(role_uid)s assigned to subject type \"%(subject_type_name)s\" "
+"(%(subject_id)s) on scope type \"%(scope_type_name)s\" (%(scope_id)s)."
 msgstr ""
 "Role %(role_uid)s assigné au sujet de type « %(subject_type_name)s » "
 "(%(subject_id)s) sur l'objet de type « %(scope_type_name)s » (%(scope_id)s)."
 
-#: teams/actions.py:21
+#: src/baserow_enterprise/teams/actions.py:21
 #, python-format
 msgid "in team \"%(team_name)s\" (%(team_id)s) "
 msgstr "dans l'équipe \"%(team_name)s\" (%(team_id)s) "
 
-#: teams/actions.py:27
+#: src/baserow_enterprise/teams/actions.py:27
 msgid "Create team"
 msgstr "Création d'un équipe"
 
-#: teams/actions.py:28
+#: src/baserow_enterprise/teams/actions.py:28
 #, python-format
 msgid "Team \"%(name)s\" (%(team_id)s) created."
 msgstr "Équipe \"%(name)s\" (%(team_id)s) créée."
 
-#: teams/actions.py:101
+#: src/baserow_enterprise/teams/actions.py:105
 msgid "Update team"
 msgstr "Mise à jour d'une équipe"
 
-#: teams/actions.py:102
+#: src/baserow_enterprise/teams/actions.py:106
 #, python-format
 msgid "Team \"%(name)s\" (%(team_id)s) updated."
 msgstr "Équipe \"%(name)s\" (%(team_id)s) mise à jour."
 
-#: teams/actions.py:193
+#: src/baserow_enterprise/teams/actions.py:203
 msgid "Delete team"
 msgstr "Suppression d'une équipe"
 
-#: teams/actions.py:194
+#: src/baserow_enterprise/teams/actions.py:204
 #, python-format
 msgid "Team \"%(team_name)s\" (%(team_id)s) deleted."
 msgstr "Équipe \"%(team_name)s\" (%(team_id)s) supprimée."
 
-#: teams/actions.py:240
+#: src/baserow_enterprise/teams/actions.py:253
 msgid "Create team subject"
 msgstr "Création d'une équipe"
 
-#: teams/actions.py:240
+#: src/baserow_enterprise/teams/actions.py:253
 #, python-format
 msgid "Subject (%(subject_id)s) created"
 msgstr "Sujet (%(subject_id)s) créé"
 
-#: teams/actions.py:320
+#: src/baserow_enterprise/teams/actions.py:338
 msgid "Delete team subject"
 msgstr "Suppression du sujet d'une équipe"
 
-#: teams/actions.py:321
+#: src/baserow_enterprise/teams/actions.py:339
 #, python-format
 msgid "Subject (%(subject_id)s) deleted"
 msgstr "Sujet (%(subject_id)s) supprimé"

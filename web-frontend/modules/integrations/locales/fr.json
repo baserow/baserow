@@ -1,4 +1,8 @@
 {
+    "aiProviderModelFeature": {
+        "aiAgent": "Agent IA",
+        "aiAgentDescription": "Exécute des actions d'agent IA dans les scénarios d'automatisation et du générateur d'applications."
+    },
     "integrationType": {
         "localBaserowSummary": "Baserow local - {name}, {username}",
         "localBaserow": "Baserow local",
@@ -84,7 +88,14 @@
         "errorCSVFileMissing": "Fichier CSV manquant",
         "errorCSVContentMissing": "La propriété Fichier CSV est manquante",
         "errorNoWorkflowSelected": "Aucun scénario n'a été sélectionné",
-        "errorWorkflowNotImmediateDispatch": "Le scénario sélectionné doit utiliser un déclencheur pouvant être activé immédiatement."
+        "errorWorkflowNotImmediateDispatch": "Le scénario sélectionné doit utiliser un déclencheur pouvant être activé immédiatement.",
+        "inboundEmailTrigger": "Déclencheur d'e-mail",
+        "inboundEmailTriggerDescription": "Se déclenche lorsqu'un e-mail est reçu à l'adresse générée.",
+        "coreResponse": "Réponse",
+        "coreResponseDescription": "Renvoie la réponse du scénario uniquement lorsque le déclencheur permet d'attendre une réponse et que cette attente est activée.",
+        "errorMisconfiguredIntegration": "L'intégration est manquante ou a été placée dans la corbeille",
+        "errorNoRowIdSelected": "Aucun ID de ligne sélectionné",
+        "errorAIModelUnavailable": "Le modèle d'IA sélectionné est désactivé ou n'est plus disponible"
     },
     "localBaserowForm": {
         "user": "Utilisateur",
@@ -196,15 +207,17 @@
     },
     "serviceRefinementForms": {
         "filterTabTitle": "Filtre | 1 filtre | {count} filtres",
+        "groupTabTitle": "Grouper par | 1 groupe | {count} groupes",
         "sortTabTitle": "Trier | 1 Tri | {count} Tris",
         "searchTabTitle": "Recherche | 1 recherche | {count} recherches",
         "searchFieldPlaceHolder": "Entrez une recherche...",
         "noTableChosenForFiltering": "Choisissez une table pour commencer à utiliser les filtres de source de données.",
+        "noTableChosenForGrouping": "Choisissez une table pour commencer à utiliser les groupes de source de données.",
         "noTableChosenForSorting": "Choisissez une table pour commencer à utiliser les tris de sources de données.",
         "refinements": "Affinages"
     },
     "smtpIntegrationType": {
-        "smtpSummary": "SMTP - {hote} : {port}"
+        "smtpSummary": "SMTP - {host} : {port}"
     },
     "smtpForm": {
         "host": "Hôte SMTP",
@@ -215,7 +228,9 @@
         "username": "Nom d'utilisateur",
         "usernamePlaceholder": "email{'@'}exemple.com",
         "password": "Mot de passe",
-        "passwordPlaceholder": "mot-de-passe"
+        "passwordPlaceholder": "mot-de-passe",
+        "passwordConfigured": "Un mot de passe est enregistré. Laissez ce champ vide pour le conserver.",
+        "passwordKeepPlaceholder": "Laissez ce champ vide pour conserver le mot de passe enregistré"
     },
     "smtpEmailForm": {
         "integrationDropdownLabel": "Intégration",
@@ -270,10 +285,12 @@
         "minutePlaceholder": "0-59",
         "dayOfMonthPlaceholder": "1-31",
         "minuteHelper": "Ce scénario sera exécuté toutes les X minutes",
-        "hourHelper": "Ce scénario s'exécutera toutes les heures à la minute spécifiée dans votre fuseau horaire local ({timezone})",
-        "dayHelper": "Ce scénario sera exécuté chaque jour à l'heure spécifiée dans votre fuseau horaire local ({timezone})",
-        "weekHelper": "Ce scénario sera exécuté chaque semaine au jour et à l'heure spécifiés dans votre fuseau horaire local ({timezone})",
-        "monthHelper": "Ce scénario sera exécuté chaque mois le jour et l'heure spécifiés dans votre fuseau horaire local ({timezone})",
+        "hourHelper": "Ce scénario s'exécutera toutes les heures à la minute spécifiée",
+        "dayHelper": "Ce scénario sera exécuté chaque jour à l'heure spécifiée",
+        "weekHelper": "Ce scénario sera exécuté chaque semaine au jour et à l'heure spécifiés",
+        "monthHelper": "Ce scénario sera exécuté chaque mois le jour et à l'heure spécifiés",
+        "timezone": "Fuseau horaire",
+        "timezoneHelper": "La planification conserve cette heure locale lors des changements d'heure",
         "deactivatedTitle": "Déclenchement périodique désactivé",
         "deactivatedText": "Ce déclencheur périodique a été automatiquement désactivé en raison d'échecs consécutifs.",
         "everyMinuteDefault": "Toutes les X minutes",
@@ -287,7 +304,7 @@
     "aiForm": {
         "description": "Configurer les paramètres du service d'IA pour cette intégration. Par défaut, les paramètres d'IA du projet sont hérités.",
         "workspaceSettingsTitle": "Paramètres de configuration d'IA du projet",
-        "workspaceSettingsDescription": "Cette intégration hérite par défaut des configurations d'IA de votre Projet. Vous pouvez remplacer des services spécifiques ci-dessous.",
+        "workspaceSettingsDescription": "Cette intégration hérite par défaut des paramètres des fournisseurs d'IA de votre projet. Le remplacement d'un fournisseur est autonome : indiquez ses propres identifiants ou son propre hôte, car les champs de connexion ne sont jamais combinés avec les identifiants hérités.",
         "overrideWorkspaceSettings": "Remplacer les paramètres du projet pour ce service",
         "inherited": "Héritée",
         "overridden": "Remplacé"
@@ -318,7 +335,8 @@
     },
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot Slack",
-        "slackBotNoToken": "Bot Slack - Non configuré"
+        "slackBotNoToken": "Bot Slack - Non configuré",
+        "slackBotWarning": "Toute personne pouvant créer dans cette application peut envoyer des messages avec ce bot et remplacer son jeton. Utilisez un bot dont vous acceptez de partager l'accès."
     },
     "slackBotForm": {
         "tokenLabel": "Token utilisateur pour le bot",
@@ -336,7 +354,9 @@
         "supportPairingStep1": "Si votre application est nouvelle : visitez la page 'Paramètres > Installer application'. Cliquez sur le bouton vert pour installer l'application dans votre Projet.",
         "supportPairingStep2": "Copiez votre 'Bot User OAuth Token' et stockez-le dans le champ 'Jeton utilisateur Bot' dans ce formulaire.",
         "supportPairingStep3": "Enfin, si votre application est nouvelle : dans Slack, invitez votre application dans le canal choisi avec {command}",
-        "supportSetupStep1Link": "page des applications"
+        "supportSetupStep1Link": "page des applications",
+        "tokenKeepPlaceholder": "Laissez ce champ vide pour conserver le jeton enregistré",
+        "tokenConfigured": "Un jeton est enregistré. Laissez ce champ vide pour le conserver."
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Cette action doit être associée à une application Slack. Suivez le guide dans la fenêtre de configuration de l'intégration pour procéder.",
@@ -361,7 +381,8 @@
         "fieldMappingPlaceholderDecimal": "Choisissez une valeur décimale, par exemple 3.14",
         "fieldMappingPlaceholderDuration": "Choisissez une durée, par exemple 1:23:40",
         "noTableSelectedMessage": "Choisissez une table pour commencer à configurer vos champs.",
-        "noWritableFields": "Cette table ne contient pas de champs modifiables."
+        "noWritableFields": "Cette table ne contient pas de champs modifiables.",
+        "noTableAccess": "Vous n'avez pas accès à cette table. Ses champs ne peuvent donc pas être affichés ici."
     },
     "localBaserowFieldsUpdatedForm": {
         "fieldLabel": "Colonnes",
@@ -389,7 +410,7 @@
     "coreStartWorkflowServiceForm": {
         "automation": "Automatisation",
         "workflow": "Scénario",
-        "workflowHelperText": "Seuls les scénarios publiés dotés d'un déclencheur manuel peuvent être lancés. Si ce scénario comporte des modifications non publiées, c'est la dernière version publiée qui s'exécutera."
+        "workflowHelperText": "Seuls les scénarios publiés dont le déclencheur peut être lancé à la demande, comme un déclencheur manuel ou périodique, peuvent être lancés. Si ce scénario comporte des modifications non publiées, c'est la dernière version publiée qui s'exécutera."
     },
     "coreGotoServiceForm": {
         "conditionLabel": "Condition",

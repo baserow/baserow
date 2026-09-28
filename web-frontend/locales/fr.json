@@ -26,7 +26,14 @@
         "saturday": "Samedi",
         "sunday": "Dimanche",
         "value": "valeur",
-        "workspace": "projet"
+        "workspace": "projet",
+        "created": "Créé",
+        "lastViewed": "Dernière consultation",
+        "nameAsc": "Nom (A-Z)",
+        "nameDesc": "Nom (Z-A)",
+        "neverViewed": "Jamais consulté",
+        "createdAgo": "Créé {ago}",
+        "viewedAgo": "Consulté {ago}"
     },
     "action": {
         "upload": "Envoyer",
@@ -129,7 +136,8 @@
         "invalidCharacters": "Ce champ contient des caractères invalides.",
         "copyFailed": "La copie dans le presse-papiers a échoué. Veuillez réessayer.",
         "nameContainsUrl": "Les noms ne peuvent pas contenir de liens, de noms de domaine ou d'adresses Web.",
-        "nameCantBeEmail": "Veuillez saisir votre nom, et non votre adresse e-mail."
+        "nameCantBeEmail": "Veuillez saisir votre nom, et non votre adresse e-mail.",
+        "nameContainsSpam": "Les noms ne peuvent pas contenir de caractères décoratifs ni de longues suites de chiffres."
     },
     "permission": {
         "admin": "Admin",
@@ -200,8 +208,8 @@
         "linkRow": "Accepte un tableau contenant les identifiants ou les valeurs textuelles des champs principaux des lignes liées de la table {table}. Tous les identifiants doivent être fournis à chaque fois que les relations sont mises à jour. Si un tableau vide est fourni, toutes les relations seront supprimées. Dans le cas d'une valeur textuelle au lieu d'un identifiant, une ligne avec la valeur correspondante pour son champ principal sera recherchée. Si plusieurs correspondances sont trouvées, la première dans l'ordre du tableau est sélectionnée. Vous pouvez également envoyer un chaine de caractères avec les noms séparés par des virgules, dans ce cas la chaine sera convertie en une liste de noms. Vous pouvez également envoyer un unique ID de ligne.",
         "number": "Accepte un entier.",
         "numberPositive": "Accepte un entier positive.",
-        "decimal": "Accepte un nombre décimal.",
-        "decimalPositive": "Accepte un nombre décimal positif.",
+        "decimal": "Accepte un nombre décimal avec {places} décimales après le point.",
+        "decimalPositive": "Accepte un nombre décimal positif avec {places} décimales après le point.",
         "rating": "Accepte un nombre entier.",
         "boolean": "Accepte une valeur booléenne.",
         "date": "Accepte une date au format ISO.",
@@ -348,7 +356,9 @@
         "automation_workflow": "scénario",
         "automation_node": "nœud de scénario",
         "builder_page": "Page d'application",
-        "builder_element": "Élément"
+        "builder_element": "Élément",
+        "agent": "agent",
+        "database_workflow_action": "action de bouton"
     },
     "webhook": {
         "request": "Requête",
@@ -696,6 +706,7 @@
         "minuteDescription": "Renvoie les minutes de la date fournie en argument.",
         "secondDescription": "Renvoie les secondes de la date fournie en argument.",
         "todayDescription": "Retourne la date courante.",
+        "nowDescription": "Renvoie la date et l'heure actuelles.",
         "getPropertyDescription": "Renvoie la propriété de l'objet.",
         "randomIntDescription": "Renvoie un nombre entier aléatoire dans l'intervalle spécifié par les arguments.",
         "randomFloatDescription": "Renvoie un flottant aléatoire dans l'intervalle spécifié par les arguments.",
