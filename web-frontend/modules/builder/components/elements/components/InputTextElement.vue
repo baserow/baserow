@@ -1,6 +1,7 @@
 <template>
   <ABFormGroup
     :label="resolvedLabel"
+    :label-format="element.label?.format"
     :error-message="errorMessage"
     :autocomplete="isEditMode ? 'off' : ''"
     :required="element.required"

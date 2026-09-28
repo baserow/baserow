@@ -57,7 +57,12 @@ from baserow.contrib.integrations.slack.service_types import (
 from baserow.core.db import specific_queryset
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.serializers import FormulaSerializerField
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
+    BASEROW_FORMULA_MODE_SIMPLE,
+    BaserowFormulaObject,
+)
 from baserow.core.integrations.models import Integration
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
@@ -75,10 +80,18 @@ class NotificationWorkflowActionType(BuilderWorkflowActionType):
     serializer_field_names = ["title", "description"]
     serializer_field_overrides = {
         "title": FormulaSerializerField(
+            allowed_formats=[
+                BASEROW_FORMULA_FORMAT_PLAIN,
+                BASEROW_FORMULA_FORMAT_MARKDOWN,
+            ],
             help_text="The title of the notification. Must be an formula.",
             required=False,
         ),
         "description": FormulaSerializerField(
+            allowed_formats=[
+                BASEROW_FORMULA_FORMAT_PLAIN,
+                BASEROW_FORMULA_FORMAT_MARKDOWN,
+            ],
             help_text="The description of the notification. Must be an formula.",
             required=False,
         ),

@@ -1,6 +1,7 @@
 <template>
   <ABFormGroup
     :label="labelResolved"
+    :label-format="element.label?.format"
     :required="element.required"
     :error-message="displayFormDataError ? $t('error.requiredField') : ''"
     :style="getStyleOverride('input')"
@@ -17,12 +18,40 @@
       :clearable="!element.multiple && !element.required"
       @hide="onFormElementTouch"
     >
+      <!--
+      -- The selected option(s) are rendered here rather than by the dropdown
+      -- itself, so that a markdown name doesn't show its raw syntax once
+      -- selected.
+      -->
+      <template #value>
+        <span class="ab-dropdown__selected-text">
+          <template
+            v-for="(option, index) in selectedOptions"
+            :key="`${index}-${option.value}`"
+          >
+            <template v-if="index > 0">, </template>
+            <ABFormattedText
+              :value="optionLabel(option)"
+              :format="option.nameFormat"
+              profile="inline"
+              :allow-links="false"
+            />
+          </template>
+        </span>
+      </template>
       <ABDropdownItem
         v-for="option in optionsResolved"
         :key="option.id"
-        :name="option.name || (option.value ? `${option.value}` : '')"
+        :name="optionLabel(option)"
         :value="option.value"
-      />
+      >
+        <ABFormattedText
+          :value="optionLabel(option)"
+          :format="option.nameFormat"
+          profile="inline"
+          :allow-links="false"
+        />
+      </ABDropdownItem>
     </ABDropdown>
     <template v-else>
       <template v-if="canHaveOptions">
@@ -35,7 +64,12 @@
             :model-value="inputValue.includes(option.value)"
             @update:model-value="onOptionChange(option, $event)"
           >
-            {{ option.name || option.value }}
+            <ABFormattedText
+              :value="optionLabel(option)"
+              :format="option.nameFormat"
+              profile="inline"
+              :allow-links="false"
+            />
           </ABCheckbox>
         </template>
         <template v-else>
@@ -47,7 +81,12 @@
             :model-value="option.value === inputValue"
             @update:model-value="onOptionChange(option, $event)"
           >
-            {{ option.name || option.value }}
+            <ABFormattedText
+              :value="optionLabel(option)"
+              :format="option.nameFormat"
+              profile="inline"
+              :allow-links="false"
+            />
           </ABRadio>
         </template>
       </template>
@@ -74,8 +113,8 @@ export default {
      * @property {boolean} show_as_dropdown - If the choice element should be displayed as a dropdown
      * @property {Array} options - The options of the choice element
      * @property {string} option_type - The type of the options
-     * @property {string} formula_name - The expression for the name of the option
-     * @property {string} formula_value - The expression for the value of the option
+     * @property {Object} formula_name - The formula for the name of the options
+     * @property {Object} formula_value - The formula for the value of the options
      */
     element: {
       type: Object,
@@ -98,6 +137,18 @@ export default {
         this.applicationContext
       )
     },
+    /**
+     * The resolved options matching the current value(s), for the closed
+     * dropdown.
+     */
+    selectedOptions() {
+      const selectedValues = Array.isArray(this.inputValue)
+        ? this.inputValue
+        : [this.inputValue]
+      return this.optionsResolved.filter((option) =>
+        selectedValues.includes(option.value)
+      )
+    },
   },
   watch: {
     'element.multiple'() {
@@ -105,6 +156,13 @@ export default {
     },
   },
   methods: {
+    /**
+     * The text shown for an option: its resolved name, or its value when the
+     * name is empty.
+     */
+    optionLabel(option) {
+      return option.name || (option.value ? `${option.value}` : '')
+    },
     onOptionChange(option, value) {
       if (value) {
         if (this.element.multiple) {

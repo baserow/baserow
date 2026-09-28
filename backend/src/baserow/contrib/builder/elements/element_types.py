@@ -101,6 +101,8 @@ from baserow.core.formula import (
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_FORMAT_MARKDOWN,
+    BASEROW_FORMULA_FORMAT_PLAIN,
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormula,
     BaserowFormulaObject,
@@ -608,6 +610,10 @@ class RecordSelectorElementType(
                 required=False,
             ),
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=RecordSelectorElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -1517,7 +1523,11 @@ class RatingInputElementType(InputElementType):
 
         return super().serializer_field_overrides | {
             "label": FormulaSerializerField(
-                help_text=RatingInputElement._meta.get_field("label").help_text
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
+                help_text=RatingInputElement._meta.get_field("label").help_text,
             ),
             "required": serializers.BooleanField(
                 help_text=RatingInputElement._meta.get_field("required").help_text,
@@ -1597,6 +1607,10 @@ class InputTextElementType(InputElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=InputTextElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -1762,6 +1776,10 @@ class CheckboxElementType(InputElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=CheckboxElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -1882,6 +1900,10 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=ChoiceElement._meta.get_field("label").help_text,
             ),
             "default_value": FormulaSerializerField(
@@ -1918,6 +1940,10 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
                 help_text=ChoiceElement._meta.get_field("formula_value").help_text,
             ),
             "formula_name": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=ChoiceElement._meta.get_field("formula_name").help_text,
             ),
             "styles": DynamicConfigBlockSerializer(
@@ -2235,6 +2261,10 @@ class DateTimePickerElementType(FormElementTypeMixin, ElementType):
 
         overrides = {
             "label": FormulaSerializerField(
+                allowed_formats=[
+                    BASEROW_FORMULA_FORMAT_PLAIN,
+                    BASEROW_FORMULA_FORMAT_MARKDOWN,
+                ],
                 help_text=DateTimePickerElement._meta.get_field("label").help_text,
             ),
             "required": serializers.BooleanField(

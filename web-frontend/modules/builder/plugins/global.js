@@ -9,6 +9,7 @@ import ABCheckbox from '@baserow/modules/builder/components/elements/baseCompone
 import ABRadio from '@baserow/modules/builder/components/elements/baseComponents/ABRadio.vue'
 import ABImage from '@baserow/modules/builder/components/elements/baseComponents/ABImage.vue'
 import ABParagraph from '@baserow/modules/builder/components/elements/baseComponents/ABParagraph.vue'
+import ABFormattedText from '@baserow/modules/builder/components/elements/baseComponents/ABFormattedText.vue'
 import ABTag from '@baserow/modules/builder/components/elements/baseComponents/ABTag.vue'
 import ABTable from '@baserow/modules/builder/components/elements/baseComponents/ABTable.vue'
 import ABFileInput from '@baserow/modules/builder/components/elements/baseComponents/ABFileInput'
@@ -29,6 +30,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('ABRadio', ABRadio)
   nuxtApp.vueApp.component('ABImage', ABImage)
   nuxtApp.vueApp.component('ABParagraph', ABParagraph)
+  nuxtApp.vueApp.component('ABFormattedText', ABFormattedText)
   nuxtApp.vueApp.component('ABTag', ABTag)
   nuxtApp.vueApp.component('ABTable', ABTable)
   nuxtApp.vueApp.component('ABFileInput', ABFileInput)

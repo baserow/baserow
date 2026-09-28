@@ -10,6 +10,7 @@
       <InjectedFormulaInput
         v-model="values.value"
         :placeholder="$t('textFieldForm.fieldValuePlaceholder')"
+        :allowed-formats="allowedFormats"
       />
       <template #after-input>
         <CustomStyleButton
@@ -30,6 +31,7 @@
 import collectionFieldForm from '@baserow/modules/builder/mixins/collectionFieldForm'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
 import CustomStyleButton from '@baserow/modules/builder/components/elements/components/forms/style/CustomStyleButton'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'TextField',
@@ -42,6 +44,7 @@ export default {
         value: {},
         styles: {},
       },
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
 }

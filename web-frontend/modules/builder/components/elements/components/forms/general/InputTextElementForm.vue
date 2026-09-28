@@ -15,6 +15,7 @@
       <InjectedFormulaInput
         v-model="v$.values.label.$model"
         :placeholder="$t('generalForm.labelPlaceholder')"
+        :allowed-formats="allowedFormats"
       />
     </FormGroup>
     <FormGroup
@@ -130,6 +131,7 @@ import {
   maxValue,
   helpers,
 } from '@vuelidate/validators'
+import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'InputTextElementForm',
@@ -164,6 +166,7 @@ export default {
         type: 'text',
         styles: {},
       },
+      allowedFormats: BASEROW_FORMULA_FORMATS,
     }
   },
   computed: {
