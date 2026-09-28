@@ -8,12 +8,14 @@ from django.core.cache import cache
 from django.utils import translation
 
 from loguru import logger
+from pydantic_ai import UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai._thinking_part import split_content_into_text_and_thinking
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     ModelMessage,
     ModelMessagesTypeAdapter,
+    ModelResponse,
     PartDeltaEvent,
     PartStartEvent,
     TextPart,
@@ -71,6 +73,10 @@ from .types import (
 
 _CANCELLATION_KEY_TTL = 300  # seconds
 _THINKING_TAGS = ("<think>", "</think>")
+_UNFINISHED_ANSWER = (
+    "I couldn't finish my answer, but some changes may already have been made. "
+    "Please check them, then tell me how to continue."
+)
 
 
 @dataclass
@@ -442,7 +448,7 @@ class Assistant:
     async def _emit_answer(
         self,
         answer: str,
-        run_result: Any,
+        messages_json: bytes,
         queue: asyncio.Queue[QueueEvent],
     ) -> None:
         """Push the final answer and result events onto *queue*."""
@@ -457,7 +463,7 @@ class Assistant:
             QueueEvent(
                 kind=QueueEventKind.RESULT,
                 answer=answer,
-                messages_json=run_result.all_messages_json(),
+                messages_json=messages_json,
             )
         )
 
@@ -479,19 +485,37 @@ class Assistant:
         """
 
         try:
-            with self._telemetry.trace(
-                self._chat,
-                user_prompt,
-                cancelled_by_user=lambda: self._tool_helpers.is_cancelled,
-            ) as tracer:
-                result = await self._stream_agent_run(
-                    user_prompt, message_history, queue
-                )
-                if result is None:
-                    raise RuntimeError("Agent stream ended without a result event")
-                answer, run_result = result
-                tracer.set_trace_output(answer)
-                await self._emit_answer(answer, run_result, queue)
+            with capture_run_messages() as run_messages:
+                try:
+                    with self._telemetry.trace(
+                        self._chat,
+                        user_prompt,
+                        cancelled_by_user=lambda: self._tool_helpers.is_cancelled,
+                    ) as tracer:
+                        result = await self._stream_agent_run(
+                            user_prompt, message_history, queue
+                        )
+                        if result is None:
+                            raise RuntimeError(
+                                "Agent stream ended without a result event"
+                            )
+                        answer, run_result = result
+                        tracer.set_trace_output(answer)
+                        await self._emit_answer(
+                            answer, run_result.all_messages_json(), queue
+                        )
+                except UnexpectedModelBehavior:
+                    # Tools may have changed data, so keep the turn instead of failing it.
+                    logger.exception("Main agent ended without an accepted answer")
+                    history = [
+                        *run_messages,
+                        ModelResponse(parts=[TextPart(content=_UNFINISHED_ANSWER)]),
+                    ]
+                    await self._emit_answer(
+                        _UNFINISHED_ANSWER,
+                        ModelMessagesTypeAdapter.dump_json(history),
+                        queue,
+                    )
         except Exception as exc:
             logger.exception("Error running main agent")
             queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))

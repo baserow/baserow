@@ -23,7 +23,7 @@ from pydantic_ai.messages import (
     ToolReturnPart,
     UserPromptPart,
 )
-from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.function import DeltaToolCall, FunctionModel
 from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -48,7 +48,7 @@ from baserow_enterprise.assistant.assistant import (
     Assistant,
     _get_workspace_license_type,
 )
-from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.deps import AssistantDeps, QueueEventKind
 from baserow_enterprise.assistant.exceptions import (
     AssistantConfiguredModelNotAvailableError,
     AssistantModelDisabledError,
@@ -1509,6 +1509,48 @@ def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fi
             reasoning.append(message.content)
     assert "" in reasoning
     assert not any(rejected in chunk and "Which table" in chunk for chunk in reasoning)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_exhausted_output_retries_still_answer_and_keep_the_run(
+    enterprise_data_fixture,
+):
+    """Tools may already have changed data, so the turn must not end in an error."""
+
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="Chat")
+    assistant = Assistant(chat)
+    queue = asyncio.Queue()
+
+    async def stream(messages, info):
+        if len([m for m in messages if isinstance(m, ModelRequest)]) == 1:
+            yield {
+                0: DeltaToolCall(
+                    name="list_builders",
+                    json_args='{"builder_types": null, "thought": "look"}',
+                    tool_call_id="call-1",
+                )
+            }
+        else:
+            yield '{"name": "create_rows", "arguments": {"rows": []}}'
+
+    with patch.object(assistant, "_model", FunctionModel(stream_function=stream)):
+        async_to_sync(assistant._run_agent)("add rows", None, queue)
+
+    events = []
+    while not queue.empty():
+        events.append(queue.get_nowait())
+    kinds = [event.kind for event in events]
+    result = next(event for event in events if event.kind == QueueEventKind.RESULT)
+    history = ModelMessagesTypeAdapter.validate_json(result.messages_json)
+    assert QueueEventKind.ERROR not in kinds
+    assert "may already have been made" in result.answer
+    assert any(
+        isinstance(part, ToolCallPart) and part.tool_name == "list_builders"
+        for message in history
+        for part in message.parts
+    )
 
 
 @pytest.mark.django_db
