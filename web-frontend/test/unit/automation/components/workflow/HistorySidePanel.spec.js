@@ -224,6 +224,42 @@ describe('HistorySidePanel pagination', () => {
     expect(wrapper.find('.iconoir-cancel').exists()).toBe(true)
   })
 
+  test.each([200, 500])(
+    'keeps the submitted page visible until the request completes with %s',
+    async (status) => {
+      const wrapper = await mountPanel()
+      if (status === 500) testApp.dontFailOnErrorResponses()
+      let finishLoad
+      testApp.mock.onGet('automation/workflows/7/history/').reply(
+        () =>
+          new Promise((resolve) => {
+            finishLoad = resolve
+          })
+      )
+      const input = wrapper.get('.paginator input')
+      input.element.value = '3'
+      await input.trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+      expect(input.element.value).toBe('3')
+      expect(wrapper.find('.loading').exists()).toBe(true)
+      expect(testApp.mock.history.get).toHaveLength(2)
+
+      // Blurring before the response arrives must not submit the page again.
+      await input.trigger('change')
+      await flushPromises()
+      expect(input.element.value).toBe('3')
+      expect(testApp.mock.history.get).toHaveLength(2)
+
+      finishLoad([status, { count: 45, results: histories.slice(40) }])
+      await flushPromises()
+      expect(input.element.value).toBe(status === 200 ? '3' : '1')
+      expect(wrapper.find('.loading').exists()).toBe(false)
+      expect(wrapper.findAll('.workflow-history__header')).toHaveLength(
+        status === 200 ? 5 : 20
+      )
+    }
+  )
+
   test('keeps the current page when loading another page fails and allows retry', async () => {
     const wrapper = await mountPanel()
     testApp.dontFailOnErrorResponses()

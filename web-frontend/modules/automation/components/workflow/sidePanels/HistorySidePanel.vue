@@ -80,7 +80,10 @@ const loading = computed(() => {
   const request = store.state.automationHistory.request
   return request !== null && !request.refresh
 })
-const page = computed(() => store.state.automationHistory.page)
+const page = computed(() => {
+  const historyState = store.state.automationHistory
+  return historyState.request?.page ?? historyState.page
+})
 const content = ref(null)
 const history = computed(() =>
   store.getters['automationHistory/getWorkflowHistory']()
