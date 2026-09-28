@@ -43,7 +43,7 @@ secret again.
 
 Use inference profile IDs such as `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`:
 newer models reject their base model ID. AI fields can send images (JPEG, PNG, GIF,
-WebP; up to 20, 3.75 MB each) and documents (PDF, Word, Excel, CSV, HTML, text,
+WebP; up to 20, 3.75 MB each) and documents (PDF, Word, Excel, CSV, text,
 Markdown; up to 5, 4.5 MB each). Whether a model reads them depends on the model:
 Claude and Amazon Nova do, text-only models such as gpt-oss return an error.
 

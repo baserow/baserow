@@ -26,7 +26,6 @@ _BEDROCK_DOCUMENT_EXTENSIONS = {
     ".csv",
     ".doc",
     ".docx",
-    ".html",
     ".md",
     ".pdf",
     ".txt",

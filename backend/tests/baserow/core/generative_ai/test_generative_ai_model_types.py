@@ -977,6 +977,19 @@ def test_bedrock_prepare_files_uses_native_blocks_and_inlines_small_text():
     assert isinstance(contents["small.txt"], TextContent)
 
 
+def test_bedrock_prepare_files_never_embeds_html_as_a_document():
+    # Uploads store HTML as application/octet-stream, which Converse can't map.
+    files = [
+        _make_ai_file("large.html", 20 * 1024, "application/octet-stream", b"<p>x</p>"),
+        _make_ai_file("small.html", 10, "application/octet-stream", b"<p>hi</p>"),
+    ]
+
+    prepared = BedrockGenerativeAIModelType().prepare_files(files)
+
+    assert [ai_file.name for ai_file in prepared] == ["small.html"]
+    assert isinstance(prepared[0].content, TextContent)
+
+
 def test_bedrock_prepare_files_respects_per_kind_limits():
     images = [
         _make_ai_file(f"{index}.png", 10, "image/png", b"png") for index in range(11)
