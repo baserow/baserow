@@ -256,22 +256,24 @@ def _run_periodic_field_type_update_per_workspace(
     if qs is None:
         return
 
-    fields = list(
-        qs.filter(
-            table__database__workspace_id=workspace.id,
-            table__database__trashed=False,
-            table__trashed=False,
+    # In a transaction so the batch deadline's statement_timeout covers these too.
+    with transaction.atomic():
+        fields = list(
+            qs.filter(
+                table__database__workspace_id=workspace.id,
+                table__database__trashed=False,
+                table__trashed=False,
+            )
+            .select_related("table")
+            .order_by("table__database_id")
         )
-        .select_related("table")
-        .order_by("table__database_id")
-    )
-    # Nothing due for this field type: skip before refreshing `now` so an idle
-    # workspace isn't touched (and this is the only place we filter the fields).
-    if not fields:
-        return
+        # Nothing due for this field type: skip before refreshing `now` so an idle
+        # workspace isn't touched (and this is the only place we filter the fields).
+        if not fields:
+            return
 
-    if update_now:
-        workspace.refresh_now()
+        if update_now:
+            workspace.refresh_now()
     add_baserow_trace_attrs(update_now=update_now, workspace_id=workspace.id)
 
     # Grouping by database will allow us to pass the `database_id` to the update
@@ -392,7 +394,9 @@ def finish_periodic_fields_update(token: str):
 def _update_workspace_periodic_fields(
     workspace_id: int, update_now: bool = True
 ) -> None:
-    workspace = Workspace.objects.filter(id=workspace_id, trashed=False).first()
+    # In a transaction so the batch deadline's statement_timeout covers it.
+    with transaction.atomic():
+        workspace = Workspace.objects.filter(id=workspace_id, trashed=False).first()
     if workspace is None:
         return
 

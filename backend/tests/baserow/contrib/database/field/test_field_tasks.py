@@ -1179,3 +1179,29 @@ def test_update_workspaces_periodic_fields_stops_on_soft_time_limit_in_formula_c
 
     assert getattr(model.objects.get(), formula_field.db_column) is not None
     assert Workspace.objects.get(id=workspace_2.id).now == now_before
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_workspaces_periodic_fields_stops_stalled_refresh_now_at_deadline(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    def stalled_refresh_now(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_sleep(10)")
+
+    # A 14s soft limit minus the 10s margin leaves the batch 4 seconds.
+    with (
+        patch("baserow.contrib.database.fields.tasks.BATCH_UPDATE_SOFT_TIME_LIMIT", 14),
+        patch.object(Workspace, "refresh_now", stalled_refresh_now),
+    ):
+        started_at = time.monotonic()
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
+        elapsed = time.monotonic() - started_at
+
+    assert elapsed < 5.5
