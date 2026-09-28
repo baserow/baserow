@@ -177,9 +177,9 @@ def test_an_oversized_answer_is_not_remembered(data_fixture, settings):
 @pytest.mark.django_db
 def test_the_editor_is_told_when_a_click_answered_with_an_error(data_fixture):
     """
-    A 404, or a timeout, is a successful dispatch that describes nothing. The
-    note asking for a click would otherwise stay exactly as it was, so nobody
-    could tell the click had happened.
+    A 404, or a timeout, fails the click and describes nothing. The note
+    asking for a click would otherwise stay exactly as it was, so nobody could
+    tell the click had happened.
     """
 
     user = data_fixture.create_user()
@@ -190,7 +190,10 @@ def test_the_editor_is_told_when_a_click_answered_with_an_error(data_fixture):
         data_fixture, button_field, url="'http://example.notexist/p?token=shhh'"
     )
 
-    with mock_advocate_request({"error": "not found"}, status_code=404):
+    with (
+        mock_advocate_request({"error": "not found"}, status_code=404),
+        pytest.raises(WorkflowActionDispatchError),
+    ):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
@@ -220,7 +223,10 @@ def test_a_failed_click_does_not_replace_an_answer_already_learned(data_fixture)
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
-    with mock_advocate_request({"error": "not found"}, status_code=404):
+    with (
+        mock_advocate_request({"error": "not found"}, status_code=404),
+        pytest.raises(WorkflowActionDispatchError),
+    ):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
@@ -362,7 +368,10 @@ def test_an_unsuccessful_answer_does_not_replace_what_was_learned(data_fixture):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
-    with mock_advocate_request({"error": "not found"}, status_code=404):
+    with (
+        mock_advocate_request({"error": "not found"}, status_code=404),
+        pytest.raises(WorkflowActionDispatchError),
+    ):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
@@ -704,14 +713,20 @@ def test_the_reason_the_last_click_left_is_replaced_by_the_next_one(data_fixture
     row = table.get_model().objects.create()
     action = _http_action(data_fixture, button_field)
 
-    with mock_advocate_request({"error": "not found"}, status_code=404):
+    with (
+        mock_advocate_request({"error": "not found"}, status_code=404),
+        pytest.raises(WorkflowActionDispatchError),
+    ):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )
     action.service.refresh_from_db()
     assert "404" in action.service.sample_data["_error"]
 
-    with mock_advocate_request(raise_exception=request_exceptions.Timeout()):
+    with (
+        mock_advocate_request(raise_exception=request_exceptions.Timeout()),
+        pytest.raises(WorkflowActionDispatchError),
+    ):
         DatabaseWorkflowActionService().dispatch_workflow_actions(
             user, button_field, row
         )

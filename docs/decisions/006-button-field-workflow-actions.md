@@ -224,7 +224,9 @@ through the normal row-update signals. A click that runs as a job can leave a ga
 while an endpoint answers; showing it to other viewers is still deferred.
 
 Failure behavior matches the builder: execution stops at the first failing action, the
-rest are skipped, and the user sees an error toast. Nothing is rolled back, since
+rest are skipped, and the user sees an error toast. Unlike the builder, an HTTP request
+answered with an error status, a timeout included, counts as failing: an automation can
+branch on the status, a click cannot. Nothing is rolled back, since
 sequences can contain irreversible effects (an email cannot be unsent). Retries,
 on-error action stacks, and per-click run history are out of scope, and so is rate
 limiting until external action types arrive.

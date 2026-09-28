@@ -919,11 +919,11 @@ def test_an_action_interrupted_by_a_worker_timeout_is_still_counted(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_click_whose_endpoint_refused_counts_the_error_status(
+def test_a_click_whose_endpoint_refused_fails(
     api_client, data_fixture, django_capture_on_commit_callbacks
 ):
-    """The action reaches outside Baserow, so the click runs in a job; the
-    signal it sends is the same one a local click would send."""
+    """The action reaches outside Baserow, so the click runs in a job. The
+    endpoint's error status fails the click at that action."""
 
     user, token = data_fixture.create_user_and_token()
     table, button_field, row = _button(data_fixture, user)
@@ -938,10 +938,8 @@ def test_a_click_whose_endpoint_refused_counts_the_error_status(
             response = _click(api_client, token, button_field, row.id)
 
     assert response.status_code == HTTP_202_ACCEPTED
-    # Baserow ran the sequence in the job; the endpoint is what refused.
-    assert calls[0]["outcome"] == DispatchOutcome.COMPLETED
-    assert calls[0]["failed_position"] is None
-    assert calls[0]["error_status_count"] == 1
+    assert calls[0]["outcome"] == DispatchOutcome.FAILED
+    assert calls[0]["failed_position"] == 2
 
 
 @pytest.mark.django_db(transaction=True)
