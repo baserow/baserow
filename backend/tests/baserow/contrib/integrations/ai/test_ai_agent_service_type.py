@@ -1871,6 +1871,49 @@ def test_complete_override_does_not_inherit_optional_connection_settings(
 
 
 @pytest.mark.django_db
+def test_override_with_blank_optional_settings_uses_default_openai_endpoint(
+    data_fixture, settings, monkeypatch
+):
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    settings.BASEROW_OPENAI_BASE_URL = "https://instance.example/v1"
+    settings.BASEROW_OPENAI_ORGANIZATION = "instance-organization"
+    user = data_fixture.create_user()
+    application = data_fixture.create_automation_application(user=user)
+    integration = IntegrationService().create_integration(
+        user,
+        AIIntegrationType(),
+        application=application,
+        ai_settings={
+            "openai": {
+                "api_key": "integration-key",
+                "organization": "",
+                "base_url": "",
+                "models": ["integration-model"],
+            }
+        },
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="integration-model",
+        ai_output_type="text",
+        ai_prompt="'Test'",
+    )
+
+    with mock_ai_prompt() as prompt:
+        service.get_type().dispatch(service, FakeDispatchContext())
+
+    settings_override = prompt.call_args.kwargs["settings_override"]
+    ai_model = generative_ai_model_type_registry.get("openai").get_ai_model(
+        "integration-model", application.workspace, settings_override
+    )
+    assert ai_model.base_url == "https://api.openai.com/v1/"
+    assert ai_model.client.api_key == "integration-key"
+    assert ai_model.client.organization is None
+
+
+@pytest.mark.django_db
 def test_prepare_values_rejects_unknown_env_model_without_database_provider(
     data_fixture, settings
 ):

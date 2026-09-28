@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Makes the OpenAI base URL optional when overriding AI integration settings",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-09-28"
+}
