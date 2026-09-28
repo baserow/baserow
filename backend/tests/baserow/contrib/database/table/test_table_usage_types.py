@@ -18,7 +18,7 @@ from baserow.core.usage.registries import USAGE_UNIT_MB
 from baserow.test_utils.setup_formulas import iter_formula_pgsql_functions
 
 RICH_TEXT_FILE_UNIQUES_FUNC = import_module(
-    "baserow.contrib.database.migrations.0224_rich_text_file_uniques"
+    "baserow.contrib.database.migrations.0225_rich_text_file_uniques"
 ).RICH_TEXT_FILE_UNIQUES_FUNC
 
 pytestmark = pytest.mark.enable_signals(

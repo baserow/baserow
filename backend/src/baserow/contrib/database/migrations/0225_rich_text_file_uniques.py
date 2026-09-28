@@ -115,7 +115,7 @@ def reverse(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0223_gridview_group_by_layout"),
+        ("database", "0224_buttonfielddispatchjob"),
     ]
 
     operations = [
