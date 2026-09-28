@@ -1,6 +1,6 @@
 <template>
   <PublicPageContent
-    v-if="!pending && !error"
+    v-if="!pending && !error && asyncDataResult"
     :workspace="workspace"
     :builder="builder"
     :page="currentPage"
@@ -13,7 +13,13 @@
 <script setup>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
-import { useAsyncData, useNuxtApp, navigateTo, createError } from '#app'
+import {
+  useAsyncData,
+  useNuxtApp,
+  navigateTo,
+  reloadNuxtApp,
+  createError,
+} from '#app'
 import {
   resolveApplicationRoute,
   resolveBuilderPagePath,
@@ -35,12 +41,16 @@ import {
   getBuilderPreviewUserSourceCookieName,
 } from '@baserow/modules/builder/utils/preview'
 
-const logOffAndReturnToLogin = async ({ builder, mode, store, redirect }) => {
+const logOffAndReturnToLogin = async ({ builder, mode, store, isHomePage }) => {
   await store.dispatch('userSourceUser/logoff', {
     application: builder,
   })
   // Redirect to home page after logout
-  return redirect(prefixInternalResolvedUrl('/', 'page', mode, builder.id))
+  const homePath = prefixInternalResolvedUrl('/', 'page', mode, builder.id)
+  if (import.meta.client && isHomePage) {
+    return reloadNuxtApp({ path: homePath, force: true })
+  }
+  return navigateTo(homePath)
 }
 
 defineOptions({
@@ -202,7 +212,7 @@ const {
               builder,
               mode,
               store,
-              redirect: navigateTo,
+              isHomePage: routePathMatch === '',
             })
           } else {
             throw error
@@ -309,7 +319,7 @@ const {
           builder,
           mode,
           store,
-          redirect: navigateTo,
+          isHomePage: routePathMatch === '',
         })
       } else if (
         error.response?.status === 404 &&
