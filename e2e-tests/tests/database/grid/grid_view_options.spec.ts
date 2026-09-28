@@ -1409,6 +1409,7 @@ test.describe("15.1 Public shared grid", () => {
       }),
     ).toBeVisible();
     await expect(page.locator(".grid-view__add-row")).toHaveCount(0);
+    await expect(page.locator(".grid-view .button-floating")).toHaveCount(0);
     await page
       .locator(".grid-view__left .grid-view__row")
       .first()

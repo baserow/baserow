@@ -391,6 +391,42 @@ These add-in-group scenarios exercise the per-leaf add-row lines in Sections.
 - The optimistic row is removed and group counters revert.
 - Error toast is visible.
 
+### 1.7.1 Create a row from the floating add button
+
+- The floating add button is visible in an editable grid.
+- Clicking it opens the create row modal.
+- After filling the primary field and clicking Create, the POST includes the
+  view id and the modal closes.
+- Row count increments.
+- The new row is visible at the bottom.
+- The new row is not selected.
+
+### 1.7.2 Create from the floating add button away from the bottom
+
+- The table has more rows than the buffer holds and the grid is at the top.
+- After Create, the modal closes and the grid keeps its scroll position.
+- The footer row count increments.
+- Scrolling to the bottom shows the new row as the last row.
+
+### 1.7.3 Create from the floating add button with group-by
+
+- The new row is inserted at the bottom of the group derived from its values.
+- That group's counter increments.
+- Other groups keep their rows and order.
+
+### 1.7.4 Backend returns 500 on a floating-button create
+
+- POST request returns 500.
+- The modal stays open and shows an error.
+- Row count is unchanged.
+
+### 1.7.5 Floating-button create with an active sort or filter
+
+- TODO (covered by unit tests, not e2e):
+    - With a regular-field sort, the new row appears at its sorted position.
+    - A new row that does not match the active filters is not shown and the
+      row count is unchanged.
+
 ## Row Updates
 
 ### 2.1.1 Edit primary field and press Enter
@@ -1207,6 +1243,7 @@ flat/group-by runs, the same way filters and sorts do.
 - Public shared grid route renders without an authenticated session.
 - Visible rows are loaded.
 - Add row control is hidden.
+- Floating add row button is hidden.
 - Row mutation context-menu actions are hidden.
 
 ## Row Ordering
@@ -1318,5 +1355,6 @@ flat/group-by runs, the same way filters and sorts do.
   close.
 - 16.x: Realtime multi-user row events.
 - 17.x: Realtime metadata and presence.
-- 18.x: Data-sync read-only mode — add row button and delete row option are hidden
-  when the table has a data sync without two-way sync enabled.
+- 18.x: Data-sync read-only mode — add row button, floating add row button, and
+  delete row option are hidden when the table has a data sync without two-way
+  sync enabled (floating add row button covered by unit tests, not e2e).
