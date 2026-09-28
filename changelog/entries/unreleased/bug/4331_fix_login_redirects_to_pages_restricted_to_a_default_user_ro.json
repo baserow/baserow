@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fix login redirects to pages restricted to a default user role after publishing an application",
+    "message": "Fixed users being sent back to the login page in published applications when a page only allows the user source's default role. Existing applications must be re-published for the fix to take effect.",
     "issue_origin": "github",
     "issue_number": 4331,
     "domain": "builder",

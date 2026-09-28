@@ -1071,6 +1071,13 @@ def test_sanitize_element_roles_removes_invalid_roles(
     [
         (
             (100, 7777),
+            [f"{DEFAULT_USER_ROLE_PREFIX}100"],
+            [f"{DEFAULT_USER_ROLE_PREFIX}100", f"{DEFAULT_USER_ROLE_PREFIX}7777"],
+            # Preserve explicit roles even if they match an old default role.
+            [f"{DEFAULT_USER_ROLE_PREFIX}100"],
+        ),
+        (
+            (100, 7777),
             [],
             [f"{DEFAULT_USER_ROLE_PREFIX}7777"],
             # existing roles is empty, so despite there existing a Default User

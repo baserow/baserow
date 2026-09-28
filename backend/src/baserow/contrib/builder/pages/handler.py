@@ -52,9 +52,9 @@ from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace_handler
-from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.user_source_user import UserSourceUser
+from baserow.core.user_sources.utils import remap_user_source_roles
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, find_unused_name
 
 BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS = 60 * 60
@@ -828,14 +828,9 @@ class PageHandler:
         else:
             # Publishing/importing an application creates new user sources, so
             # page restrictions must refer to their new default roles as well.
-            default_role_mapping = {
-                f"{DEFAULT_USER_ROLE_PREFIX}{old_id}": (
-                    f"{DEFAULT_USER_ROLE_PREFIX}{new_id}"
-                )
-                for old_id, new_id in id_mapping.get("user_sources", {}).items()
-            }
             roles = serialized_page.get("roles", [])
-            if any(role in default_role_mapping for role in roles):
+            user_sources_mapping = id_mapping.get("user_sources", {})
+            if roles and user_sources_mapping:
                 if cache is None:
                     cache = {}
                 existing_roles = cache.setdefault("existing_roles", {})
@@ -843,10 +838,9 @@ class PageHandler:
                     existing_roles[builder.id] = (
                         UserSourceHandler().get_all_roles_for_application(builder)
                     )
-                # Explicit role values can match the default-role format. Like
-                # element imports, preserve roles exposed by the new sources.
-                for role in existing_roles[builder.id]:
-                    default_role_mapping.pop(role, None)
+                roles = remap_user_source_roles(
+                    roles, existing_roles[builder.id], user_sources_mapping
+                )
             # Note: serialized pages exported before the page visibility feature
             # will not contain the `visibility`, `role_type` or `roles` keys,
             # so we use the default values for all three values instead.
@@ -860,7 +854,7 @@ class PageHandler:
                 shared=False,
                 visibility=serialized_page.get("visibility", Page.VISIBILITY_TYPES.ALL),
                 role_type=serialized_page.get("role_type", Page.ROLE_TYPES.ALLOW_ALL),
-                roles=[default_role_mapping.get(role, role) for role in roles],
+                roles=roles,
                 graph=serialized_page.get("graph", {}),
             )
 
