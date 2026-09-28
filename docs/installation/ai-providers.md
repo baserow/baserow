@@ -33,8 +33,8 @@ Bedrock needs a region, such as `eu-central-1`, and one of two credentials:
   `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`.
 - **Bedrock API key**: leave **Access key ID** empty and paste the key. The key's
   identity also needs `bedrock:CallWithBearerToken`. AWS recommends long-term API
-  keys only for exploration, and short-term keys expire within 12 hours and are often
-  too long to save, so prefer an IAM access key for production.
+  keys only for exploration, and short-term keys expire within 12 hours, so prefer an
+  IAM access key for production.
 
 Baserow only uses the credentials entered here. It never falls back to `AWS_*`
 environment variables or the server's IAM role, and it ignores AWS endpoint settings

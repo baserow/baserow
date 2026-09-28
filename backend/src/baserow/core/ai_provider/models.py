@@ -42,7 +42,7 @@ class AIProviderConfig(CreatedAndUpdatedOnMixin, models.Model):
         related_name="ai_provider_configs",
     )
     provider_type = models.CharField(max_length=32)
-    api_key = models.CharField(max_length=512, blank=True, default="", db_default="")
+    api_key = models.CharField(max_length=4096, blank=True, default="", db_default="")
     extra_settings = models.JSONField(default=dict, blank=True, db_default={})
     is_active = models.BooleanField(default=True, db_default=True)
 

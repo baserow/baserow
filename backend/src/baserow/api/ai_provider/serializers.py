@@ -192,7 +192,7 @@ class AIProviderModelDiscoveryRequestSerializer(AIProviderScopeRequestSerializer
 class AIProviderCreateSerializer(serializers.Serializer):
     provider_type = serializers.CharField(max_length=32)
     api_key = serializers.CharField(
-        max_length=512, required=False, allow_blank=True, write_only=True, default=""
+        max_length=4096, required=False, allow_blank=True, write_only=True, default=""
     )
     extra_settings = serializers.DictField(required=False, default=dict)
     models = AIProviderModelWriteSerializer(many=True, required=False, default=list)
@@ -200,7 +200,7 @@ class AIProviderCreateSerializer(serializers.Serializer):
 
 class AIProviderUpdateSerializer(serializers.Serializer):
     api_key = serializers.CharField(
-        max_length=512, required=False, allow_blank=True, write_only=True
+        max_length=4096, required=False, allow_blank=True, write_only=True
     )
     extra_settings = serializers.DictField(required=False)
     is_active = serializers.BooleanField(required=False)

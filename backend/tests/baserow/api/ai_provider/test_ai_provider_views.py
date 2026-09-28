@@ -1402,3 +1402,41 @@ def test_bedrock_provider_rejects_an_api_key_with_an_embedded_newline(
     content = response.content.decode()
     assert "bedrock-secretA" not in content
     assert "bedrock-secretB" not in content
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_accepts_short_term_api_keys_up_to_4096_characters(
+    api_client, staff_headers
+):
+    # Short-term Bedrock API keys are presigned URLs of about 2,500 characters.
+    short_term_key = "bedrock-api-key-" + "a" * 2524
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": short_term_key,
+            "extra_settings": {"region": "eu-central-1"},
+            "models": [{"model_identifier": "eu.amazon.nova-pro-v1:0"}],
+        },
+        format="json",
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_201_CREATED
+    provider = AIProviderConfig.objects.get(provider_type="bedrock")
+    assert provider.api_key == short_term_key
+
+    item_url = reverse("api:ai_provider:item", kwargs={"provider_id": provider.id})
+    longest_key = "k" * 4096
+    response = api_client.patch(
+        item_url, {"api_key": longest_key}, format="json", **staff_headers
+    )
+    assert response.status_code == HTTP_200_OK
+    provider.refresh_from_db()
+    assert provider.api_key == longest_key
+
+    response = api_client.patch(
+        item_url, {"api_key": "k" * 4097}, format="json", **staff_headers
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    provider.refresh_from_db()
+    assert provider.api_key == longest_key
