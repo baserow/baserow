@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes Builder application imports with non-standard page graph outputs",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-09-28"
+}
