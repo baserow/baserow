@@ -315,7 +315,7 @@ class FileInputElementType(InputElementType):
     def is_allowed_content_type(
         self, element: FileInputElement, content_type: str
     ) -> bool:
-        allowed_filetypes = element.allowed_filetypes
+        allowed_filetypes = [t.lower() for t in element.allowed_filetypes]
 
         if not allowed_filetypes:
             return True
@@ -328,10 +328,7 @@ class FileInputElementType(InputElementType):
 
         for allowed_type in allowed_filetypes:
             if "/" in allowed_type:
-                allowed_mime_type = allowed_type.lower()
-                allowed_mime_type = mime_aliases.get(
-                    allowed_mime_type, allowed_mime_type
-                )
+                allowed_mime_type = mime_aliases.get(allowed_type, allowed_type)
                 if allowed_mime_type == content_type:
                     return True
                 major_type, subtype = allowed_mime_type.split("/", 1)
