@@ -1,7 +1,9 @@
+import time
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from django.core.cache import cache
+from django.db import connection
 from django.test import override_settings
 
 import pytest
@@ -1031,3 +1033,149 @@ def test_run_periodic_field_type_reraises_soft_time_limit(data_fixture, settings
     ):
         with pytest.raises(SoftTimeLimitExceeded):
             _update_workspace_periodic_fields(workspace.id, True)
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_stops_statements_at_deadline(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace_1 = _workspace_with_now_formula(data_fixture)
+    workspace_2 = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    started_workspace_ids = []
+    finished_statements = []
+
+    def slow_update(fields, **kwargs):
+        started_workspace_ids.append(fields[0].table.database.workspace_id)
+        with connection.cursor() as cursor:
+            for _ in range(2):
+                cursor.execute("SELECT pg_sleep(3)")
+                finished_statements.append(1)
+        return []
+
+    # A 14s soft limit minus the 10s margin leaves the batch 4 seconds, so the
+    # second statement is cancelled when the deadline is reached.
+    with (
+        patch("baserow.contrib.database.fields.tasks.BATCH_UPDATE_SOFT_TIME_LIMIT", 14),
+        patch.object(FormulaFieldType, "run_periodic_update", side_effect=slow_update),
+    ):
+        started_at = time.monotonic()
+        update_workspaces_periodic_fields(
+            [workspace_1.id, workspace_2.id], True, batch_index=0, run_token="held"
+        )
+        elapsed = time.monotonic() - started_at
+
+    assert elapsed < 5.5
+    assert len(finished_statements) == 1
+    assert started_workspace_ids == [workspace_1.id]
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_skips_workspaces_after_deadline(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    now_before = workspace.now
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    # A soft limit below the margin puts the deadline in the past.
+    with patch("baserow.contrib.database.fields.tasks.BATCH_UPDATE_SOFT_TIME_LIMIT", 5):
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
+
+    # Not started, so it keeps its old `now` and stays first in line next cycle.
+    workspace.refresh_from_db()
+    assert workspace.now == now_before
+
+
+def _show_statement_timeout():
+    with connection.cursor() as cursor:
+        cursor.execute("SHOW statement_timeout")
+        return cursor.fetchone()[0]
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_keeps_stricter_statement_timeout(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+    with connection.cursor() as cursor:
+        cursor.execute("SET LOCAL statement_timeout = '2s'")
+
+    timeouts_during_update = []
+
+    def record_timeout(fields, **kwargs):
+        timeouts_during_update.append(_show_statement_timeout())
+        return []
+
+    with patch.object(
+        FormulaFieldType, "run_periodic_update", side_effect=record_timeout
+    ):
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
+
+    assert timeouts_during_update == ["2s"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_workspaces_periodic_fields_statement_timeout_does_not_leak(
+    data_fixture, settings
+):
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace = _workspace_with_now_formula(data_fixture)
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+    timeout_before = _show_statement_timeout()
+
+    timeouts_during_update = []
+
+    def record_timeout(fields, **kwargs):
+        timeouts_during_update.append(_show_statement_timeout())
+        return []
+
+    with patch.object(
+        FormulaFieldType, "run_periodic_update", side_effect=record_timeout
+    ):
+        update_workspaces_periodic_fields(
+            [workspace.id], True, batch_index=0, run_token="held"
+        )
+
+    # Applied during the update, and gone once its transaction ended.
+    assert len(timeouts_during_update) == 1
+    assert timeouts_during_update[0] != timeout_before
+    assert _show_statement_timeout() == timeout_before
+
+
+@pytest.mark.django_db
+def test_update_workspaces_periodic_fields_stops_on_soft_time_limit_in_formula_code(
+    data_fixture, settings
+):
+    # Outside tests, formula errors are reported and replaced with an empty value.
+    settings.TESTS = False
+    settings.BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = 5
+    workspace_1 = _workspace_with_now_formula(data_fixture)
+    workspace_2 = _workspace_with_now_formula(data_fixture)
+    now_before = Workspace.objects.get(id=workspace_2.id).now
+    table = workspace_1.application_set.get().specific.table_set.get()
+    formula_field = table.field_set.get().specific
+    model = table.get_model()
+    assert getattr(model.objects.get(), formula_field.db_column) is not None
+    SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL).acquire("held")
+
+    with patch(
+        "baserow.contrib.database.formula.expression_generator.generator."
+        "BaserowExpressionToDjangoExpressionGenerator.__init__",
+        side_effect=SoftTimeLimitExceeded(),
+    ):
+        update_workspaces_periodic_fields(
+            [workspace_1.id, workspace_2.id], True, batch_index=0, run_token="held"
+        )
+
+    assert getattr(model.objects.get(), formula_field.db_column) is not None
+    assert Workspace.objects.get(id=workspace_2.id).now == now_before

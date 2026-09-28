@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes date formulas going stale or empty when a periodic update runs out of time",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-09-28"
+}

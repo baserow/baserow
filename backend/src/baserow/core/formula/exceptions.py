@@ -1,5 +1,6 @@
 from django.conf import settings
 
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
@@ -41,6 +42,10 @@ def formula_exception_handler(e):
     :param e: The exception to report.
     """
 
+    if isinstance(e, SoftTimeLimitExceeded):
+        # The task is out of time. Swallowing this would let it write empty values
+        # and run on until the hard time limit kills it.
+        raise e
     if settings.DEBUG or settings.TESTS:
         # We want to see any issues immediately in debug mode.
         raise e

@@ -6,7 +6,7 @@ from typing import Optional, Type
 from uuid import uuid4
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from celery import chord, group
@@ -43,6 +43,59 @@ BATCH_UPDATE_HARD_TIME_LIMIT = BATCH_UPDATE_SOFT_TIME_LIMIT + 30
 # backstop; batches heartbeat it so a serialized cycle can't expire mid-flight.
 RUN_LOCK_KEY = "periodic_fields_update_running"
 RUN_LOCK_TTL = BATCH_UPDATE_HARD_TIME_LIMIT + 60
+
+# A batch stops this many seconds before its soft limit. The soft limit can't interrupt
+# a running SQL statement, so statements get a Postgres statement_timeout that ends
+# them by this deadline instead.
+BATCH_UPDATE_DEADLINE_MARGIN_SECONDS = 10
+
+# Lowers statement_timeout for the rest of the transaction, but keeps a stricter one
+# that is already configured.
+_TIGHTEN_STATEMENT_TIMEOUT_SQL = """
+SELECT set_config('statement_timeout', %s, true)
+WHERE current_setting('statement_timeout')::interval = interval '0'
+   OR current_setting('statement_timeout')::interval > %s::interval
+""".strip()
+
+
+class PeriodicFieldUpdateTimeBudgetExceeded(SoftTimeLimitExceeded):
+    """
+    The batch ran out of time before this update could finish. It subclasses the soft
+    limit exception so it's handled the same way everywhere.
+    """
+
+
+def _ensure_time_left(deadline: float) -> int:
+    """
+    Returns the milliseconds left until the deadline. Raises if less than a second is
+    left.
+    """
+
+    time_left_ms = int((deadline - time.monotonic()) * 1000)
+    if time_left_ms < 1000:
+        raise PeriodicFieldUpdateTimeBudgetExceeded()
+    return time_left_ms
+
+
+def _statement_deadline(deadline: float):
+    """
+    A `connection.execute_wrapper` that stops each query from running past the
+    deadline. Postgres applies statement_timeout per statement, so it is lowered
+    again before every query in a transaction. Queries outside a transaction can't
+    get a local timeout, so they are only checked before they start.
+    """
+
+    def wrapper(execute, sql, params, many, context):
+        time_left_ms = _ensure_time_left(deadline)
+        if context["connection"].in_atomic_block:
+            timeout = f"{time_left_ms}ms"
+            # The raw cursor skips this wrapper, so it doesn't recurse.
+            context["cursor"].cursor.execute(
+                _TIGHTEN_STATEMENT_TIMEOUT_SQL, [timeout, timeout]
+            )
+        return execute(sql, params, many, context)
+
+    return wrapper
 
 
 def filter_distinct_workspace_ids_per_fields(
@@ -237,8 +290,8 @@ def _run_periodic_field_type_update_per_workspace(
                     database_id=database_id,
                 )
         except SoftTimeLimitExceeded:
-            # One-shot signal: let it propagate so the batch stops cleanly instead of
-            # being swallowed and running until the hard limit SIGKILLs the task.
+            # Let it propagate so the batch stops cleanly instead of being swallowed
+            # and running until the hard limit SIGKILLs the task.
             raise
         except Exception:
             tb = traceback.format_exc()
@@ -280,39 +333,53 @@ def update_workspaces_periodic_fields(
     the next serialized batch still finds the lock held when it dequeues.
     """
 
+    deadline = (
+        time.monotonic()
+        + BATCH_UPDATE_SOFT_TIME_LIMIT
+        - BATCH_UPDATE_DEADLINE_MARGIN_SECONDS
+    )
     flag = SingletonAutoRescheduleFlag(RUN_LOCK_KEY, timeout=RUN_LOCK_TTL)
-    for workspace_id in workspace_ids:
-        if not flag.extend_if(run_token):
-            # Warn (not info): this drops the rest of the batch's work for the cycle,
-            # so operators should see it. A newer cycle owns the lock or it expired.
-            logger.warning(
-                "update_workspaces_periodic_fields batch {batch_index} stopped: the run "
-                "lock is no longer held by this cycle, so its remaining workspaces are "
-                "skipped this cycle.",
-                batch_index=batch_index,
-            )
-            return
-        try:
-            _update_workspace_periodic_fields(workspace_id, update_now)
-        except SoftTimeLimitExceeded:
-            # The soft limit fired: stop cleanly so the task succeeds and the chord
-            # callback releases the lock. Continuing would run until the hard limit
-            # SIGKILLs the batch, stranding the lock until its TTL. The unprocessed
-            # workspaces keep their stale `now` and are picked up next cycle.
-            logger.warning(
-                "update_workspaces_periodic_fields batch {batch_index} hit the soft time "
-                "limit; stopping so the lock is released and the rest run next cycle.",
-                batch_index=batch_index,
-            )
-            return
-        except Exception:
-            # Keep going so one failing workspace can't fail the whole batch. A failed
-            # batch would skip the chord callback and leave the run lock stranded until
-            # its TTL expires.
-            logger.exception(
-                "Periodic field update failed for workspace {workspace_id}.",
-                workspace_id=workspace_id,
-            )
+    with connection.execute_wrapper(_statement_deadline(deadline)):
+        for index, workspace_id in enumerate(workspace_ids):
+            if not flag.extend_if(run_token):
+                # Warn (not info): this drops the rest of the batch's work for the
+                # cycle, so operators should see it. A newer cycle owns the lock or it
+                # expired.
+                logger.warning(
+                    "update_workspaces_periodic_fields batch {batch_index} stopped: the "
+                    "run lock is no longer held by this cycle, so its remaining "
+                    "{skipped} workspace(s) are skipped this cycle.",
+                    batch_index=batch_index,
+                    skipped=len(workspace_ids) - index,
+                )
+                return
+            try:
+                # Checked before starting, so a workspace that can't be processed keeps
+                # its `now` and is first in line next cycle.
+                _ensure_time_left(deadline)
+                _update_workspace_periodic_fields(workspace_id, update_now)
+            except SoftTimeLimitExceeded:
+                # Out of time: stop cleanly so the task succeeds and the chord callback
+                # releases the lock. Continuing would run until the hard limit SIGKILLs
+                # the batch, stranding the lock until its TTL. The unprocessed
+                # workspaces keep their stale `now` and are picked up next cycle.
+                logger.warning(
+                    "update_workspaces_periodic_fields batch {batch_index} ran out of "
+                    "time at workspace {workspace_id}; stopping so the lock is "
+                    "released. {skipped} workspace(s) are skipped this cycle.",
+                    batch_index=batch_index,
+                    workspace_id=workspace_id,
+                    skipped=len(workspace_ids) - index,
+                )
+                return
+            except Exception:
+                # Keep going so one failing workspace can't fail the whole batch. A
+                # failed batch would skip the chord callback and leave the run lock
+                # stranded until its TTL expires.
+                logger.exception(
+                    "Periodic field update failed for workspace {workspace_id}.",
+                    workspace_id=workspace_id,
+                )
 
 
 @app.task(queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME)
