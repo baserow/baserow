@@ -262,6 +262,10 @@
   }
 }
 
+.grid-view__add-row-button {
+  bottom: 48px + 20px;
+}
+
 .grid-view__placeholder {
   position: relative;
   background-color: $white;

@@ -394,6 +394,7 @@ These add-in-group scenarios exercise the per-leaf add-row lines in Sections.
 ### 1.7.1 Create a row from the floating add button
 
 - The floating add button is visible in an editable grid.
+- It sits 20px above the footer, clear of the footer aggregations.
 - Clicking it opens the create row modal.
 - After filling the primary field and clicking Create, the POST includes the
   view id and the modal closes.

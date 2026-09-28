@@ -669,6 +669,17 @@ export class GridPage {
     return this.gridRoot().locator(".button-floating");
   }
 
+  async expectFloatingAddRowButtonAboveFooter(): Promise<void> {
+    const button = await this.floatingAddRowButton().boundingBox();
+    const footer = await this.page
+      .locator(".grid-view__foot")
+      .first()
+      .boundingBox();
+    expect(button).not.toBeNull();
+    expect(footer).not.toBeNull();
+    expect(footer!.y - (button!.y + button!.height)).toBeCloseTo(20, 0);
+  }
+
   async openCreateRowModal(): Promise<void> {
     await this.floatingAddRowButton().click();
     await expect(this.rowEditModal()).toBeVisible({ timeout: 10_000 });

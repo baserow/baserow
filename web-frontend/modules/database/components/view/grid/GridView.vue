@@ -261,6 +261,7 @@
     </Context>
     <ButtonFloating
       v-if="canCreateRow"
+      class="grid-view__add-row-button"
       icon="iconoir-plus"
       position="fixed"
       @click="$refs.rowCreateModal.show()"

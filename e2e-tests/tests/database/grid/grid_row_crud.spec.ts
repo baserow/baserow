@@ -1274,6 +1274,7 @@ test.describe("1.7 Create from the floating add button", () => {
           `/api/database/rows/table/${g.table.id}/`,
     );
 
+    await grid.expectFloatingAddRowButtonAboveFooter();
     await grid.openCreateRowModal();
     await grid.fillRowModalTextField("Name", "Bob");
     await grid.submitCreateRowModal();
