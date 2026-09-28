@@ -3,6 +3,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 
 import CoreResponseServiceForm from '@baserow/modules/integrations/core/components/services/CoreResponseServiceForm'
+import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
 
 const FormGroupStub = defineComponent({
   name: 'FormGroup',
@@ -11,6 +12,10 @@ const FormGroupStub = defineComponent({
       type: String,
       required: false,
       default: '',
+    },
+    required: {
+      type: Boolean,
+      default: false,
     },
   },
   template:
@@ -70,8 +75,9 @@ const DropdownItemStub = defineComponent({
   template: '<div />',
 })
 
-async function mountComponent() {
+async function mountComponent(props = {}) {
   return await mountSuspended(CoreResponseServiceForm, {
+    props,
     global: {
       stubs: {
         FormGroup: FormGroupStub,
@@ -182,5 +188,121 @@ describe('CoreResponseServiceForm', () => {
       'coreResponseServiceForm.body',
       'coreResponseServiceForm.headers',
     ])
+  })
+
+  test('defaults an empty JSON body to an object', async () => {
+    const wrapper = await mountComponent()
+    const statusDropdown = wrapper.findComponent({ name: 'Dropdown' })
+    statusDropdown.vm.$emit('update:modelValue', '200')
+    await flushPromises()
+
+    const bodyTypeDropdown = wrapper.findAllComponents({ name: 'Dropdown' })[1]
+    bodyTypeDropdown.vm.$emit('update:modelValue', 'json')
+    await flushPromises()
+
+    const bodyInput = wrapper.findAllComponents({
+      name: 'InjectedFormulaInput',
+    })[1]
+
+    expect(bodyInput.props('modelValue')).toEqual({
+      formula: "'{}'",
+      mode: 'simple',
+      version: '0.1',
+    })
+  })
+
+  test('preserves an existing body when JSON is selected', async () => {
+    const wrapper = await mountComponent()
+    const statusDropdown = wrapper.findComponent({ name: 'Dropdown' })
+    statusDropdown.vm.$emit('update:modelValue', '200')
+    await flushPromises()
+
+    const bodyTypeDropdown = wrapper.findAllComponents({ name: 'Dropdown' })[1]
+    bodyTypeDropdown.vm.$emit('update:modelValue', 'text')
+    await flushPromises()
+
+    const bodyInput = wrapper.findAllComponents({
+      name: 'InjectedFormulaInput',
+    })[1]
+    bodyInput.vm.$emit('update:modelValue', {
+      formula: 'Existing body',
+      mode: 'simple',
+    })
+    await flushPromises()
+
+    bodyTypeDropdown.vm.$emit('update:modelValue', 'json')
+    await flushPromises()
+
+    expect(bodyInput.props('modelValue')).toEqual({
+      formula: 'Existing body',
+      mode: 'simple',
+    })
+  })
+
+  test('clears the body when the empty body type is selected', async () => {
+    const emittedValues = []
+    const wrapper = await mountComponent({
+      onValuesChanged(values) {
+        emittedValues.push(JSON.parse(JSON.stringify(values)))
+      },
+    })
+    const statusDropdown = wrapper.findComponent({ name: 'Dropdown' })
+    statusDropdown.vm.$emit('update:modelValue', '200')
+    await flushPromises()
+
+    const bodyTypeDropdown = wrapper.findAllComponents({ name: 'Dropdown' })[1]
+    bodyTypeDropdown.vm.$emit('update:modelValue', 'text')
+    await flushPromises()
+
+    const bodyInput = wrapper.findAllComponents({
+      name: 'InjectedFormulaInput',
+    })[1]
+    bodyInput.vm.$emit('update:modelValue', {
+      formula: 'Existing body',
+      mode: 'simple',
+      version: '0.1',
+    })
+    await flushPromises()
+
+    bodyTypeDropdown.vm.$emit('update:modelValue', 'empty')
+    await flushPromises()
+
+    const emptyPayloads = emittedValues.filter(
+      (values) => values.body_type === 'empty'
+    )
+    expect(emptyPayloads.at(-1).body).toEqual({
+      formula: '',
+      mode: 'simple',
+      version: '0.1',
+    })
+  })
+
+  test('never emits a JSON body type with an empty body', async () => {
+    const emittedValues = []
+    const wrapper = await mountComponent({
+      onValuesChanged(values) {
+        emittedValues.push(JSON.parse(JSON.stringify(values)))
+      },
+    })
+    const statusDropdown = wrapper.findComponent({ name: 'Dropdown' })
+    statusDropdown.vm.$emit('update:modelValue', '200')
+    await flushPromises()
+
+    const bodyTypeDropdown = wrapper.findAllComponents({ name: 'Dropdown' })[1]
+    bodyTypeDropdown.vm.$emit('update:modelValue', 'json')
+    await flushPromises()
+
+    const jsonPayloads = emittedValues.filter(
+      (values) => values.body_type === 'json'
+    )
+    expect(jsonPayloads).toHaveLength(1)
+    expect(jsonPayloads[0].body).toEqual({
+      formula: "'{}'",
+      mode: 'simple',
+      version: '0.1',
+    })
+    expect(() =>
+      parseBaserowFormula(jsonPayloads[0].body.formula)
+    ).not.toThrow()
   })
 })

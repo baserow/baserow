@@ -78,6 +78,7 @@
     "coreStartWorkflowDescription": "Starts an automation workflow.",
     "coreResponse": "Response",
     "coreResponseDescription": "Returns the workflow response only when the trigger supports waiting for responses and has waiting enabled.",
+    "errorResponseBodyMissing": "The JSON response body cannot be empty.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",
