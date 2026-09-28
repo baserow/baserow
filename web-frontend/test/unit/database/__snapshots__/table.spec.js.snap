@@ -331,6 +331,9 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div class="context visibility-hidden context--overflow-scroll">
             <!--v-if-->
           </div>
+        </teleport-stub><button class="button-floating button-floating--fixed button-floating--primary button-floating--regular"><i class="button-floating__icon iconoir-plus"></i></button>
+        <teleport-stub to="body">
+          <!--v-if-->
         </teleport-stub>
         <teleport-stub to="body">
           <!--v-if-->
@@ -674,6 +677,9 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div class="context visibility-hidden context--overflow-scroll">
             <!--v-if-->
           </div>
+        </teleport-stub><button class="button-floating button-floating--fixed button-floating--primary button-floating--regular"><i class="button-floating__icon iconoir-plus"></i></button>
+        <teleport-stub to="body">
+          <!--v-if-->
         </teleport-stub>
         <teleport-stub to="body">
           <!--v-if-->

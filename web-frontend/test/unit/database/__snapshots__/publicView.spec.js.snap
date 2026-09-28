@@ -794,6 +794,8 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               <!--v-if-->
             </div>
           </teleport-stub>
+          <!--v-if-->
+          <!--v-if-->
           <teleport-stub
             to="body"
           >
