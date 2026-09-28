@@ -1,4 +1,8 @@
-import { prepareRequestHeaders } from '@baserow/modules/core/plugins/clientHandler'
+import {
+  ClientErrorMap,
+  ErrorHandler,
+  prepareRequestHeaders,
+} from '@baserow/modules/core/plugins/clientHandler'
 
 const makeStore = (webSocketId) => ({
   getters: {
@@ -31,5 +35,27 @@ describe('prepareRequestHeaders', () => {
     const config = prepareRequestHeaders(makeStore(null))({ headers: {} })
 
     expect(config.headers.WebSocketId).toBeUndefined()
+  })
+})
+
+describe('ErrorHandler.getErrorMessage', () => {
+  const app = { $i18n: { t: (key) => key } }
+
+  test('explains a rich text image that does not exist', () => {
+    // Sent under a dedicated code, because the detail of a request body
+    // validation error is never shown.
+    const handler = new ErrorHandler(
+      makeStore(null),
+      app,
+      new ClientErrorMap(app),
+      { status: 400 },
+      'ERROR_USER_FILE_DOES_NOT_EXIST',
+      "The user files ['abc_def.png'] do not exist."
+    )
+
+    expect(handler.getErrorMessage()).toEqual({
+      title: 'clientHandler.userFileDoesNotExistTitle',
+      message: 'clientHandler.userFileDoesNotExistDescription',
+    })
   })
 })

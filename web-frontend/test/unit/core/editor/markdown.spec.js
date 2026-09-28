@@ -819,6 +819,35 @@ describe('empty paragraph round trip with images', () => {
     }
   )
 
+  // The backend reads a line starting with four backticks as a code fence and
+  // returns what it holds as sent, but the round trip escapes those backticks
+  // and brings the image out of code.
+  const FENCED = '````![a][zzz_yyy.png](https://evil.example.com/x.png)```'
+
+  test.each([
+    ['blank lines before and after', `x\n\n\n\ny\n${FENCED}`],
+    ['blank lines before', `x\n\n\n\n${FENCED}`],
+    ['blank lines after', `${FENCED}\n\n\n\ny`],
+    ['an empty paragraph', `&nbsp;\n\n${FENCED}`],
+  ])(
+    'never renders an image the round trip brings out of code (%s)',
+    (_, markdown) => {
+      const html = parseMarkdown(markdown, { enableImages: true })
+
+      expect(html).not.toContain('<img')
+      expect(html).not.toContain('evil.example.com')
+    }
+  )
+
+  test('renders a resolved image next to blank lines', () => {
+    const html = parseMarkdown(`x\n\n\n\n![photo][${NAME}](${URL})`, {
+      enableImages: true,
+    })
+
+    expect(html).toContain('<img')
+    expect(html).toContain(URL)
+  })
+
   test('never renders an external image next to an empty paragraph', () => {
     const html = parseMarkdown('![x](https://example.com/x.png)\n\n&nbsp;', {
       enableImages: true,

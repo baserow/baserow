@@ -62,6 +62,10 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.invalidFileUrlTitle'),
         $i18n.t('clientHandler.invalidFileUrlDescription')
       ),
+      ERROR_USER_FILE_DOES_NOT_EXIST: new ResponseErrorMessage(
+        $i18n.t('clientHandler.userFileDoesNotExistTitle'),
+        $i18n.t('clientHandler.userFileDoesNotExistDescription')
+      ),
       USER_ADMIN_CANNOT_DEACTIVATE_SELF: new ResponseErrorMessage(
         $i18n.t('clientHandler.adminCannotDeactivateSelfTitle'),
         $i18n.t('clientHandler.adminCannotDeactivateSelfDescription')

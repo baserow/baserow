@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from baserow.api.decorators import map_exceptions
-from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.schemas import get_error_schema
 from baserow.api.user_files.errors import ERROR_FILE_SIZE_TOO_LARGE, ERROR_INVALID_FILE
 from baserow.api.user_files.serializers import UserFileSerializer
@@ -20,6 +19,7 @@ from baserow.contrib.database.api.rows.errors import (
     ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
     ERROR_ROW_DOES_NOT_EXIST,
 )
+from baserow.contrib.database.api.rows.exceptions import row_values_validation_error
 from baserow.contrib.database.api.rows.serializers import (
     get_example_row_serializer_class,
     get_row_serializer_class,
@@ -133,6 +133,13 @@ class SubmitFormViewView(APIView):
         request=get_example_row_serializer_class(example_type="post"),
         responses={
             200: FormViewSubmittedSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
+                ]
+            ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM"]),
             404: get_error_schema(["ERROR_FORM_DOES_NOT_EXIST"]),
         },
@@ -181,7 +188,7 @@ class SubmitFormViewView(APIView):
             # so a rich text image reference that fails validation would otherwise
             # escape this `AllowAny` view as a 500. Converted here the same way the
             # row endpoints do it, so the respondent gets an actionable 400.
-            raise RequestBodyValidationException(detail=e.message)
+            raise row_values_validation_error(e) from e
 
         form.row_id = created_row.id
         return Response(FormViewSubmittedSerializer(form).data)
@@ -297,7 +304,14 @@ class EditRowFormViewView(APIView):
                     "ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM",
                 ]
             ),
-            400: get_error_schema(["ERROR_FIELD_DATA_CONSTRAINT"]),
+            400: get_error_schema(
+                [
+                    "ERROR_FIELD_DATA_CONSTRAINT",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_FORM_DOES_NOT_EXIST",
@@ -346,9 +360,14 @@ class EditRowFormViewView(APIView):
         )
         values = validate_data(validation_serializer, data, return_validated=True)
 
-        updated_row = action_type_registry.get_by_type(EditFormRowActionType).do(
-            request.user, form, row.id, values, model, options
-        )
+        try:
+            updated_row = action_type_registry.get_by_type(EditFormRowActionType).do(
+                request.user, form, row.id, values, model, options
+            )
+        except ValidationError as e:
+            # Same as the submit endpoint: a rich text image reference that fails
+            # validation must not escape this `AllowAny` view as a 500.
+            raise row_values_validation_error(e) from e
 
         form.row_id = updated_row.id
         return Response(FormViewSubmittedSerializer(form).data)

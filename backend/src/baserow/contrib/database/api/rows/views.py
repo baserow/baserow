@@ -6,7 +6,6 @@ from django.core.exceptions import ValidationError
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import APIException
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -22,10 +21,7 @@ from baserow.api.decorators import (
     validate_query_parameters,
 )
 from baserow.api.errors import ERROR_DATABASE_DEADLOCK, ERROR_USER_NOT_IN_GROUP
-from baserow.api.exceptions import (
-    QueryParameterValidationException,
-    RequestBodyValidationException,
-)
+from baserow.api.exceptions import QueryParameterValidationException
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
@@ -48,7 +44,6 @@ from baserow.contrib.database.api.fields.errors import (
     ERROR_INCOMPATIBLE_FIELD_TYPE,
     ERROR_ORDER_BY_FIELD_NOT_FOUND,
     ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
-    ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
 )
 from baserow.contrib.database.api.rows.errors import (
     ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
@@ -57,7 +52,10 @@ from baserow.contrib.database.api.rows.errors import (
     ERROR_ROW_DOES_NOT_EXIST,
     ERROR_ROW_IDS_NOT_UNIQUE,
 )
-from baserow.contrib.database.api.rows.exceptions import InvalidJoinParameterException
+from baserow.contrib.database.api.rows.exceptions import (
+    InvalidJoinParameterException,
+    row_values_validation_error,
+)
 from baserow.contrib.database.api.rows.serializers import (
     GetRowAdjacentSerializer,
     GetRowQueryParamsSerializer,
@@ -162,22 +160,6 @@ from .serializers import (
     get_example_row_serializer_class,
     get_row_serializer_class,
 )
-
-
-def row_values_validation_error(exc: ValidationError) -> APIException:
-    """
-    Maps an error raised while preparing row values to the error the client gets.
-
-    :param exc: A single message validation error.
-    :return: The rich text image limit error, or a request body validation error.
-    """
-
-    if exc.code == "too_many_images":
-        error, status_code, _ = ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED
-        api_exception = APIException({"error": error, "detail": exc.message})
-        api_exception.status_code = status_code
-        return api_exception
-    return RequestBodyValidationException(detail=exc.message)
 
 
 def build_response_with_metadata(
@@ -573,6 +555,7 @@ class RowsView(APIView):
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -984,6 +967,7 @@ class RowView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -1392,6 +1376,7 @@ class BatchRowsView(APIView):
                     "ERROR_ROW_IDS_NOT_UNIQUE",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
@@ -1562,6 +1547,7 @@ class BatchRowsView(APIView):
                     "ERROR_ROW_IDS_NOT_UNIQUE",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED",
+                    "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),

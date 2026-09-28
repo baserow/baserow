@@ -67,7 +67,8 @@ export const parseMarkdown = (
   } = {}
 ) => {
   // Round trip first: after `preprocessRichTextImages` a reference has lost its file name.
-  let content = prepareMarkdownForPreview(value || '')
+  const original = value || ''
+  let content = prepareMarkdownForPreview(original)
 
   const md = new Markdown({ html: false })
   // markdown-it normalises a destination before it lands in `src`, so the
@@ -76,8 +77,16 @@ export const parseMarkdown = (
 
   if (enableImages) {
     const { content: processed, nameMap } = preprocessRichTextImages(content)
+    // The round trip can move text out of code, so only a URL the backend
+    // resolved in the value itself is trusted.
+    const originalNameMap =
+      content === original
+        ? nameMap
+        : preprocessRichTextImages(original).nameMap
     resolvedUrls = new Set(
-      Object.keys(nameMap).map((url) => md.normalizeLink(url))
+      Object.keys(nameMap)
+        .filter((url) => originalNameMap[url] === nameMap[url])
+        .map((url) => md.normalizeLink(url))
     )
     content = stripUnresolvedImageRefs(processed)
   } else {

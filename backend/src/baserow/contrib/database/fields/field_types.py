@@ -224,6 +224,7 @@ from .exceptions import (
     InvalidRollupThroughField,
     LinkRowTableNotInSameDatabase,
     LinkRowTableNotProvided,
+    RichTextImageDoesNotExist,
     RichTextImageLimitExceeded,
     SelfReferencingLinkRowCannotHaveRelatedField,
 )
@@ -819,7 +820,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             Defaults to the number of distinct names.
         :raises ValidationError: If too many files are referenced or one is not
             an image.
-        :raises UserFileDoesNotExist: If a referenced name has no user file.
+        :raises RichTextImageDoesNotExist: If a referenced name has no user file.
         """
 
         if reference_count is None:
@@ -834,7 +835,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
 
         missing = sorted(name for name in names if name not in user_files_by_name)
         if missing:
-            raise UserFileDoesNotExist(missing)
+            raise RichTextImageDoesNotExist(missing)
 
         not_renderable = sorted(
             name

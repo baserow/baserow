@@ -922,8 +922,16 @@ const queryParametersForParsing = [
   },
   {
     fieldType: new LongTextFieldType(),
-    input: { value: 'test', field: {} },
+    input: { value: 'test', field: { field: {} } },
     output: 'test',
+  },
+  {
+    fieldType: new LongTextFieldType(),
+    input: {
+      value: '![x][abc_def.png](https://evil.example.com/p.png)',
+      field: { field: { long_text_enable_rich_text: true } },
+    },
+    output: '![x][abc_def.png]',
   },
   {
     fieldType: new NumberFieldType(),

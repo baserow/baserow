@@ -4362,7 +4362,10 @@ def test_submit_form_view_with_missing_user_file_is_a_client_error(
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json() == {
+        "error": "ERROR_USER_FILE_DOES_NOT_EXIST",
+        "detail": "The user files ['zzzzzzzz_yyyyyyyy.png'] do not exist.",
+    }
 
 
 @pytest.mark.django_db
@@ -4397,7 +4400,7 @@ def test_submit_form_view_with_too_many_images_is_a_client_error(
     response = api_client.post(url, {f"field_{field.id}": value}, format="json")
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["error"] == "ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED"
 
 
 @pytest.mark.django_db
@@ -4412,3 +4415,35 @@ def test_submit_form_view_with_rich_text_plain_text_still_succeeds(
     )
 
     assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_edit_row_form_view_with_missing_user_file_is_a_client_error(
+    api_client, data_fixture
+):
+    table, field, form = _public_form_with_rich_text_field(data_fixture)
+    user = table.database.workspace.users.first()
+    edit_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="form_view_edit_row",
+        name="Edit link",
+        form_view_id=form.id,
+    )
+    row = RowHandler().create_row(user=user, table=table, values={})
+    cell_uuid = _get_cell_uuid(table, edit_field.id, row.id)
+    token = generate_row_edit_token(form.slug, edit_field.id, cell_uuid)
+    url = reverse(
+        "api:database:views:form:edit_row",
+        kwargs={"slug": form.slug, "row_token": token},
+    )
+
+    response = api_client.patch(
+        url, {f"field_{field.id}": "hi ![x][zzzzzzzz_yyyyyyyy.png]"}, format="json"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_USER_FILE_DOES_NOT_EXIST",
+        "detail": "The user files ['zzzzzzzz_yyyyyyyy.png'] do not exist.",
+    }

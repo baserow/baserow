@@ -5409,4 +5409,35 @@ def test_rich_text_reference_cannot_smuggle_a_foreign_url(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["error"] == "ERROR_USER_FILE_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_rich_text_missing_image_has_its_own_error_code(api_client, data_fixture):
+    """The frontend shows a string body validation detail as an unknown error."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    row = RowHandler().create_row(user=user, table=table)
+
+    missing = {f"field_{field.id}": "see ![x][zzzzzzzz_yyyyyyyy.png]"}
+    list_url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    item_url = reverse(
+        "api:database:rows:item", kwargs={"table_id": table.id, "row_id": row.id}
+    )
+    batch_url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    for send, url, body in [
+        (api_client.post, list_url, missing),
+        (api_client.patch, item_url, missing),
+        (api_client.post, batch_url, {"items": [missing]}),
+        (api_client.patch, batch_url, {"items": [{"id": row.id, **missing}]}),
+    ]:
+        response = send(url, body, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_400_BAD_REQUEST, url
+        assert response.json() == {
+            "error": "ERROR_USER_FILE_DOES_NOT_EXIST",
+            "detail": "The user files ['zzzzzzzz_yyyyyyyy.png'] do not exist.",
+        }, url

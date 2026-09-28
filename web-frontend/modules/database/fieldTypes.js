@@ -1443,6 +1443,14 @@ export class LongTextFieldType extends FieldType {
     return stripImageUrls(plainTextToMarkdown(clipboardData))
   }
 
+  parseQueryParameter(field, value, options) {
+    // A prefill comes from a link anyone can craft, not from the backend, so
+    // its image URLs must not be trusted.
+    return field.field.long_text_enable_rich_text
+      ? stripImageUrls(value)
+      : value
+  }
+
   canUpsert() {
     return true
   }

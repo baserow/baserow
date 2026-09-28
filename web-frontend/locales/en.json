@@ -430,6 +430,8 @@
     "fileUrlCouldNotBeReachedDescription": "The provided file URL could not be reached.",
     "invalidFileUrlTitle": "Invalid URL",
     "invalidFileUrlDescription": "The provided file URL is invalid or not allowed.",
+    "userFileDoesNotExistTitle": "Image doesn't exist",
+    "userFileDoesNotExistDescription": "The value references an image that doesn't exist anymore. Remove it and try again.",
     "adminCannotDeactivateSelfTitle": "Action not allowed.",
     "adminCannotDeactivateSelfDescription": "You cannot de-activate or un-staff yourself.",
     "adminCannotDeleteSelfTitle": "Action not allowed.",

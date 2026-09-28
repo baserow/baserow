@@ -5,6 +5,7 @@ from baserow.core.exceptions import (
     InstanceTypeDoesNotExist,
     LockConflict,
 )
+from baserow.core.user_files.exceptions import UserFileDoesNotExist
 
 
 class FieldTypeAlreadyRegistered(InstanceTypeAlreadyRegistered):
@@ -266,6 +267,14 @@ class FailedToLockFieldDueToConflict(LockConflict):
     """
     Raised when a user tried to update a field which was locked by another
     concurrent operation
+    """
+
+
+class RichTextImageDoesNotExist(UserFileDoesNotExist):
+    """
+    Raised when a rich text value references an image no user file backs. A
+    subclass, so the file field keeps answering a missing file with a request
+    body validation error.
     """
 
 
