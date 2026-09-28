@@ -89,7 +89,7 @@
         "errorCSVContentMissing": "La propriété Fichier CSV est manquante",
         "errorNoWorkflowSelected": "Aucun scénario n'a été sélectionné",
         "errorWorkflowNotImmediateDispatch": "Le scénario sélectionné doit utiliser un déclencheur pouvant être activé immédiatement.",
-        "inboundEmailTrigger": "Déclencheur d'e-mail",
+        "inboundEmailTrigger": "Réception d'e-mail",
         "inboundEmailTriggerDescription": "Se déclenche lorsqu'un e-mail est reçu à l'adresse générée.",
         "coreResponse": "Réponse",
         "coreResponseDescription": "Renvoie la réponse du scénario uniquement lorsque le déclencheur permet d'attendre une réponse et que cette attente est activée.",
