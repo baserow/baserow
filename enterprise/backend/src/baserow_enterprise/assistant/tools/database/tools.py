@@ -514,11 +514,6 @@ def _create_sample_rows(
         rows = generate_sample_rows(
             user, workspace, tool_helpers, tables, data_brief=data_brief
         )
-    except PermissionException:
-        return {}, [
-            "Permission denied while creating sample rows. The tables were created. "
-            "Some rows may already exist; inspect them and do not retry the denied operation."
-        ]
     except Exception as exc:
         logger.exception(
             "[assistant] generate_sample_rows raised unexpectedly: {}", exc
