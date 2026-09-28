@@ -41,7 +41,7 @@
         "triggerButton": "Tester le webhook",
         "deactivated": {
             "title": "Le webhook est désactivé",
-            "content": "Ce webhook a été désactivé car il produisait trop d'échecs consécutifs. Veuillez vérifier l'historique des appels pour plus d'information. Cliquez sur le bouton ci-dessous pour l'activer de nouveau. Pensez à enregistrer le webhook avant de l'activer.",
+            "content": "Ce webhook a été désactivé car il produisait trop d'échecs consécutifs. Veuillez vérifier l'historique des appels pour plus d'informations. Cliquez sur le bouton ci-dessous pour l'activer de nouveau. Pensez à enregistrer le webhook avant de l'activer.",
             "activate": "Activer"
         },
         "deprecatedEventType": {
@@ -60,8 +60,8 @@
         "triggerDescription": "Déclenché par tous les événements | Déclenché par un événement | Déclenché par {count} événements"
     },
     "createWebhook": {
-        "errorTableWebhookMaxLimitExceededTitle": "Nombre maximum de webhook dépassé",
-        "errorTableWebhookMaxLimitExceededDescription": "Vous ne pouvez pas créer de webhook car le nombre maximum de webhook par table a été atteint."
+        "errorTableWebhookMaxLimitExceededTitle": "Nombre maximum de webhooks dépassé",
+        "errorTableWebhookMaxLimitExceededDescription": "Vous ne pouvez pas créer de webhook car le nombre maximum de webhooks par table a été atteint."
     },
     "sidebar": {
         "viewAPI": "Documentation de l'API",
@@ -158,7 +158,7 @@
         "errorCode": "Code d'erreur",
         "name": "Nom",
         "description": "Description",
-        "okDescription": "La requête a été executée avec succès.",
+        "okDescription": "La requête a été exécutée avec succès.",
         "badRequestDescription": "La requête contient des valeurs invalides ou le contenu JSON n'a pas pu être décodé.",
         "unauthorizedDescription": "Le jeton d'authentification utilisé est invalide.",
         "notFoundDescription": "La ligne ou la table n'a pas été trouvée.",
@@ -177,13 +177,13 @@
         "compatibleFilters": "Filtres compatibles"
     },
     "apiDocsTableListRows": {
-        "description": "Afin de lister les lignes de la table *{name}* une requête de type `GET` doit être envoyée au point d'accès de la table *{name}*. La réponse est paginée et par défault la première page est retournée. La page désirée peut-être récupérée en définissant les paramètres de requête `page` et `size`.",
+        "description": "Afin de lister les lignes de la table *{name}*, une requête de type `GET` doit être envoyée au point d'accès de la table *{name}*. La réponse est paginée et, par défaut, la première page est retournée. La page désirée peut être récupérée en définissant les paramètres de requête `page` et `size`.",
         "page": "Permet de choisir la page.",
-        "size": "Permet de définir le nombre de ligne par page.",
-        "userFieldNames": "Quand la valeur fournie pour le paramètre GET `user_field_names` est une des valeur suivante : `y`, `yes`, `true`, `t`, `on`, `1`, ou `\"\"`, les noms des champs du résultat seront ceux définis par l'utilisateur.\n\nSi le paramêtre `user_field_names` n'est pas défini ou n'est pas l'une des valeurs citées plus haut, alors les noms des champs seront `field_` suivis par l'identifiant du champ. Par exemple `field_1` fait référence au champ avec l'identifiant `1`.\n\n De plus, quand `user_field_names` est défini, vous devez également fournir les noms définis par l'utilisateur pour les paramètres `order_by`, `include` et `exclude`.",
+        "size": "Permet de définir le nombre de lignes par page.",
+        "userFieldNames": "Quand la valeur fournie pour le paramètre GET `user_field_names` est l'une des valeurs suivantes : `y`, `yes`, `true`, `t`, `on`, `1`, ou `\"\"`, les noms des champs du résultat seront ceux définis par l'utilisateur.\n\nSi le paramètre `user_field_names` n'est pas défini ou n'est pas l'une des valeurs citées plus haut, alors les noms des champs seront `field_` suivis par l'identifiant du champ. Par exemple `field_1` fait référence au champ avec l'identifiant `1`.\n\nDe plus, quand `user_field_names` est défini, vous devez également fournir les noms définis par l'utilisateur pour les paramètres `order_by`, `include` et `exclude`.",
         "search": "Quand ce paramètre est défini, seules les lignes qui satisfont la recherche seront retournées.",
         "orderBy": "Ce paramètre permet d'ordonner les lignes du résultat à l'aide d'une liste de champs séparés par une virgule. Par défaut ou s'il est préfixé par un `+` un champ est ordonné par ordre croissant (A-Z), en le préfixant par un `-` il sera ordonné par ordre décroissant (Z-A).\n\n #### Avec `user_field_names` :\n\n `order_by` doit être une liste de noms définis par l'utilisateur des champs sur lesquels s'appuient l'ordre séparés par des virgules. Par exemple si vous fournissez la valeur suivante `order_by=Mon champ,-Mon champ 2` les lignes seront ordonnées par le champ appelé `Mon champ` par ordre croissant. Si certaines lignes ont la même valeur pour `Mon champ` ce sous ensemble sera ordonné par la valeur du champ `Mon champ 2` par ordre décroissant.\n\n Assurez vous que les champs qui commencent par un `+` ou un `-` soit explicitement préfixés par un autre `+` ou `-`. Ex : `+-Nom`.\n\n Le nom des champs contenant des virgules doit être entouré par des guillemets : `\"Nom ,\"`. Si le nom des champs contient des guillemets, ceux-ci doivent être protégés en utilisant le caractère `\\`. Ex : `Nom \\\"`.\n\n #### Sans `user_field_names` :\n\n `order_by` doit être une liste de `field_` suivi par l'identifiant du champ à ordonner, séparés par des virgules. Par exemple si vous fournissez la valeur suivante pour ce paramètre `order_by=field_1,-field_2` les lignes seront ordonnées par le champ `field_1` par ordre croissant. Si certaines lignes ont la même valeur pour ce champ, ce sous ensemble sera ordonné par la valeur du champ `field_2` par ordre décroissant.",
-        "filter": "Ce paramètre permet de filtrer les lignes avec les même filtres que ceux disponibles pour les vues. Plusieurs filtres peuvent être définis simultanéement s'il suivent le même format. La variable `field` permet d'indiquer le champ à filtrer, tandis que `filter` permet de choiser le type de filtre.\n\n#### Avec l'option `user_field_names` :\n\nPar exemple si vous utilisez la valeur suivante : `filter__Nom__equal=test`, seule les lignes pour lesquelles la valeur du champ nommé `Nom` est égale à *test* seront retournées. Cette méthode est rétro-compatible et test également en utilisant `field_id` si le test échoue pour le champ `Nom`.\n\n#### Sans l'option `user_field_names` :\n\nPar exemple si vous utilisez la valeur suivante : `filter__field_1__equal=test`, seule les lignes pour lesquelles la valeur du champ `field_1` est égale à *test* seront retournées.\n\nVeuillez notez que si le paramètre `filters` est fournie, ce paramètre sera ignoré. ",
+        "filter": "Ce paramètre permet de filtrer les lignes avec les mêmes filtres que ceux disponibles pour les vues. Plusieurs filtres peuvent être définis simultanément s'ils suivent le même format. La variable `field` permet d'indiquer le champ à filtrer, tandis que `filter` permet de choisir le type de filtre.\n\n#### Avec l'option `user_field_names` :\n\nPar exemple, si vous utilisez la valeur suivante : `filter__Nom__equal=test`, seules les lignes pour lesquelles la valeur du champ nommé `Nom` est égale à *test* seront retournées. Cette méthode est rétrocompatible et teste également `field_id` si le test échoue pour le champ `Nom`.\n\n#### Sans l'option `user_field_names` :\n\nPar exemple, si vous utilisez la valeur suivante : `filter__field_1__equal=test`, seules les lignes pour lesquelles la valeur du champ `field_1` est égale à *test* seront retournées.\n\nVeuillez noter que si le paramètre `filters` est fourni, ce paramètre sera ignoré.",
         "filterLink": "Une liste des filtres disponibles peut être consultée ici.",
         "filterType": "- `AND` : indique que les lignes doivent satisfaire tous les filtres définis.\n- `OR` : indique que les lignes doivent satisfaire au moins l'un des filtres définis pour être retournées.\n\n Cela fonctionne uniquement quand au moins 2 filtres sont définis.",
         "include": "Par défaut, tous les champs de la table sont retournés. Vous pouvez définir le sous ensemble des champs qui seront dans les résultats en fournissant une valeur pour ce paramètre.\n\n#### Avec `user_field_names` :\n\n`include` doit être une liste des noms définis par l'utilisateur des champs que vous souhaitez conserver, séparés par une virgule. Par exemple, si vous fournissez la valeur suivante `include=Mon champ,-Mon champ 2` alors seul ces champs seront retournés dans les résultats (sauf si vous les avez explicitement exclus avec le paramètre suivant).\n\nLe nom des champs contenant des virgules doit être entouré par des guillemets : `\"Nom ,\"`. Si le nom des champs contient des guillemets, ceux-ci doivent être protégés en utilisant le caractère `\\`. Ex : `Nom \\\"`.\n\n#### Sans `user_field_names` :\n\n`include` doit être une liste de `field_` suivis par l'identifiant d'un champ à inclure dans le résultat, séparé par des virgules. Par exemple, si vous fournissez la valeur suivante `include=field_1,field_2` alors les champs d'identifiant `1` et `2` seront les champs présents dans le résultat (sauf si vous les avez explicitement exclus avec le paramètre suivant).",
@@ -244,7 +244,7 @@
         "deprecated": "obsolète"
     },
     "fieldTextSubForm": {
-        "placeholder": "Texte par défault"
+        "placeholder": "Texte par défaut"
     },
     "fieldSingleSelectSubForm": {
         "optionsLabel": "Options",
@@ -446,7 +446,7 @@
     },
     "fieldFormulaInitialSubForm": {
         "formulaInputPlaceholder": "Cliquez pour éditer la formule",
-        "refreshFormulaOptions": "Rafraichir les options"
+        "refreshFormulaOptions": "Rafraîchir les options"
     },
     "formulaFieldItemDescription": {
         "syntax": "Syntaxe",
@@ -773,7 +773,7 @@
     },
     "apiDocsTableCreateRows": {
         "description": "Créer de nouvelles lignes {name}.",
-        "before": "Si il est fourni, les lignes nouvellement créées seront positionnées avant la ligne avec l’identifiant spécifié."
+        "before": "S'il est fourni, les lignes nouvellement créées seront positionnées avant la ligne avec l’identifiant spécifié."
     },
     "importer": {
         "loading": "Chargement du fichier",
@@ -811,7 +811,7 @@
     "snapshotsModal": {
         "title": "sauvegardes",
         "snapshotRestoredErrorMessage": "La sauvegarde n'a pas pu être restaurée. Veuillez réessayer plus tard.",
-        "description": "Les sauvegardes sont une copie complète de votre {applicationTypeName} au moment où elles ont été créés. Une duplication des données sera créée lors de la restauration. Les sauvegardes sont automatiquement supprimées après un an.",
+        "description": "Les sauvegardes sont une copie complète de votre {applicationTypeName} au moment où elles ont été créées. Une duplication des données sera créée lors de la restauration. Les sauvegardes sont automatiquement supprimées après un an.",
         "descriptionLimits": "Vous pouvez avoir un maximum de 0 sauvegarde par projet. | Vous pouvez avoir un maximum de 1 sauvegarde par projet. | Vous pouvez avoir un maximum de {n} sauvegardes par projet.",
         "createLabel": "Créer une nouvelle sauvegarde",
         "create": "Créer une sauvegarde",

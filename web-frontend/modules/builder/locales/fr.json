@@ -520,7 +520,7 @@
         "emptyValue": "Texte du bouton vide..."
     },
     "tableElement": {
-        "empty": "Aucun résultat n'a été trouvée.",
+        "empty": "Aucun résultat n'a été trouvé.",
         "showMore": "Afficher plus"
     },
     "fontSidePanelForm": {
@@ -775,7 +775,7 @@
     },
     "repeatElement": {
         "showMore": "Afficher plus",
-        "empty": "Aucun résultat n'a été trouvée.",
+        "empty": "Aucun résultat n'a été trouvé.",
         "missingDataSourceTooltip": "Choisissez une source de données pour commencer à ajouter des éléments.",
         "missingSchemaPropertyTooltip": "Choisissez une propriété pour commencer à ajouter des éléments.",
         "emptyState": "Aucun enregistrement n'a été trouvé."
@@ -993,7 +993,7 @@
         "empty": "Aucune option disponible"
     },
     "abTable": {
-        "empty": "Aucun résultat n'a été trouvée.",
+        "empty": "Aucun résultat n'a été trouvé.",
         "loading": "Chargement..."
     },
     "collectionElementForm": {

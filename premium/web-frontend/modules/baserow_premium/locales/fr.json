@@ -42,7 +42,7 @@
         "titleRegisterLicense": "Activer une licence",
         "registerLicense": "Activer la licence",
         "viewPricing": "Consultez les tarifs",
-        "licenseDescription": "Une licence peut-être obtenue uniquement sur baserow.io. Si vous avez déjà acheté une licence, elle vous sera envoyée par email et vous pourrez la consulter dans votre compte. Copiez-collez la clé de licence dans le champ ci-dessous et cliquez sur le bouton afin d'activer la licence pour cette instance de Baserow. Il n'est pas possible d'utiliser la même clé pour plusieurs instances. {pricingLink} si vous n'avez pas encore de clé.",
+        "licenseDescription": "Une licence peut être obtenue uniquement sur baserow.io. Si vous avez déjà acheté une licence, elle vous sera envoyée par e-mail et vous pourrez la consulter dans votre compte. Copiez-collez la clé de licence dans le champ ci-dessous et cliquez sur le bouton afin d'activer la licence pour cette instance de Baserow. Il n'est pas possible d'utiliser la même clé pour plusieurs instances. {pricingLink} si vous n'avez pas encore de clé.",
         "licenseError": {
             "invalidTitle": "Invalide",
             "invalid": "La licence fournie est invalide.",
@@ -74,7 +74,7 @@
         "editStack": "Modifier la colonne",
         "deleteStack": "Supprimer la colonne",
         "delete": "Supprimer {name}",
-        "deleteDescription": "Êtes-vous sur·e de vouloir supprimer la colonne {name} ? Supprimer une valeur revient à supprimer l'option correspondante de la liste déroulante, ce qui peut impliquer une perte d'information car les lignes contenant cette valeur auront désormais une valeur vide à la place pour ce champ."
+        "deleteDescription": "Êtes-vous sûr·e de vouloir supprimer la colonne {name} ? Supprimer une valeur revient à supprimer l'option correspondante de la liste déroulante, ce qui peut impliquer une perte d'information car les lignes contenant cette valeur auront désormais une valeur vide à la place pour ce champ."
     },
     "kanbanViewHeader": {
         "stackBy": "Regrouper par",
@@ -136,13 +136,13 @@
         "premiumFeatures": "Fonctionnalités premium",
         "applications": "Applications / Bases de données",
         "unlimited": "Illimité",
-        "rowUsage": "Nombre de ligne",
+        "rowUsage": "Nombre de lignes",
         "storeUsage": "Espace disponible",
         "disconnectLicense": "Déconnecter la licence",
-        "disconnectDescription": "Êtes-vous sûr.e de vouloir désactiver cette licence ? Si vous désactivez cette licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence pour cette instance. Vous pouvez changer l'identifiant d'instance via la page de gestion des abbonements sur {subscriptions} ou via notre support {contact} si vous disposez d'une licence Entreprise.",
-        "moreSeatsNeededTitle": "Besoin de plus d´utilisateurs",
+        "disconnectDescription": "Êtes-vous sûr·e de vouloir désactiver cette licence ? Si vous désactivez cette licence alors que celle-ci est active, les utilisateurs associés n'auront plus accès aux fonctionnalités qu'elle offre. Cela retire définitivement la licence pour cette instance. Vous pouvez changer l'identifiant d'instance via la page de gestion des abonnements sur {subscriptions} ou via notre support {contact} si vous disposez d'une licence Entreprise.",
+        "moreSeatsNeededTitle": "Besoin de plus d'utilisateurs",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} utilisateurs payants et {free_users_count} utilisateurs gratuits",
-        "contactSalesMoreSeats": "Contacter un Vendeur pour plus d´utilisateurs",
+        "contactSalesMoreSeats": "Contacter un vendeur pour plus d'utilisateurs",
         "premiumFeatureName": "Premium",
         "supportFeatureName": "Support",
         "enterpriseFeatureName": "Enterprise",
