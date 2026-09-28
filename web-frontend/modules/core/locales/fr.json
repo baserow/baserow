@@ -1383,7 +1383,7 @@
         "methodsOptionExcludeGet": "Exclure GET",
         "responseOptionsLabel": "Réponse",
         "waitForResponse": "Attendre la réponse du scénario",
-        "waitForResponseDescription": "Attendre qu'un nœud Réponse soit atteint. Si aucun ne l'est, attend la fin du scénario et renvoie la réponse par défaut.",
+        "waitForResponseDescription": "Attend qu'un nœud Réponse soit atteint. Si aucun ne l'est, attend la fin du scénario et renvoie la réponse par défaut.",
         "responseTimeout": "Délai d'attente de la réponse",
         "seconds": "secondes"
     },

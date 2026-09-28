@@ -970,7 +970,7 @@
     "fieldPermissionSubjectsSelector": {
         "accessNote": "La sélection n'accorde pas l'accès à la table. Un utilisateur ou agent sélectionné, ou un membre d'une équipe sélectionnée, doit également disposer d'un rôle Éditeur, Architecte ou Administrateur à l'emplacement de cette table.",
         "canEdit": "Utilisateurs, agents et équipes sélectionnés",
-        "noSelectedSubjects": "Personne n'est encore sélectionné. Utilisez la recherche ci-dessus pour ajouter un utilisateur, un agent ou une équipe.",
+        "noSelectedSubjects": "Personne n'est encore sélectionnée. Utilisez la recherche ci-dessus pour ajouter un utilisateur, un agent ou une équipe.",
         "addPeopleOrTeams": "Ajouter des utilisateurs, des agents ou des équipes",
         "searchPlaceholder": "Rechercher des utilisateurs, des agents ou des équipes",
         "searchHint": "Rechercher par nom",
