@@ -1662,7 +1662,7 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import drop_expected_asyncio_websocket_disconnect_events
+    from baserow.core.sentry import drop_expected_asyncio_disconnect_events
     from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
@@ -1723,7 +1723,7 @@ if SENTRY_DSN:
         ],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
-        before_send=drop_expected_asyncio_websocket_disconnect_events,
+        before_send=drop_expected_asyncio_disconnect_events,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
         transport=sentry_transport,

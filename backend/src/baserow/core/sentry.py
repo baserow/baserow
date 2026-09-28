@@ -1,8 +1,10 @@
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 
 from loguru import logger
 
@@ -45,12 +47,19 @@ def log_sentry_event_to_console(event: dict[str, Any]) -> None:
 # disconnects from worker restarts) and protocol errors.
 _OK_CLOSE_LOG = "ConnectionClosedOK exception in shielded future"
 _ERR_CLOSE_LOG = "ConnectionClosedError exception in shielded future"
+# Logged since Python 3.14 when a timed-out health probe cancels its request.
+_CANCELLED_REQUEST_LOG = "CancelledError exception in shielded future"
 
 
-def drop_expected_asyncio_websocket_disconnect_events(
+def _is_health_check_event(event: dict[str, Any]) -> bool:
+    url = (event.get("request") or {}).get("url") or ""
+    return urlparse(url).path == reverse("api:health:public_health_check")
+
+
+def drop_expected_asyncio_disconnect_events(
     event: dict[str, Any], hint: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Sentry before_send hook that drops expected websocket-close noise."""
+    """Sentry before_send hook that drops expected client-disconnect noise."""
 
     log_record = hint.get("log_record")
     if not isinstance(log_record, logging.LogRecord):
@@ -70,6 +79,8 @@ def drop_expected_asyncio_websocket_disconnect_events(
     if message.startswith(_OK_CLOSE_LOG):
         return None
     if message.startswith(_ERR_CLOSE_LOG) and "keepalive ping timeout" in message:
+        return None
+    if message.startswith(_CANCELLED_REQUEST_LOG) and _is_health_check_event(event):
         return None
 
     return event
