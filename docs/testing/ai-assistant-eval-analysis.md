@@ -41,14 +41,14 @@ Phoenix compares within one dataset. For **all datasets in one view**, use
 the runner page's **Results** tab: pick an experiment name (a run started
 from the page lands under the same name in every dataset it touched) and see
 each dataset's mean scores, execution status, and recorded run count. Baseline
-deltas and the overall aggregate are deferred; use Phoenix for per-case
-comparisons. Skipped and ungraded cases are excluded from scores, so check their
+deltas appear only where the experiment and the baseline ran the same dataset
+version, so both scored the same cases; use Phoenix for per-case comparisons. Skipped and ungraded cases are excluded from scores, so check their
 coverage in Phoenix even when the selected cases match.
 
-The committed snapshot predates the fix that applies production orchestrator
-settings and retries in evals. Its settings are unverified. A fresh baseline is
-part of the comparison follow-up; the old snapshot remains useful as historical
-per-case output.
+The committed snapshot holds three repetitions of every case, with the source
+commit, model settings, and harness version in its metadata. Recapture it from a
+clean commit whenever cases, checks, or prompts change: a dataset whose cases
+changed since the capture shows no deltas.
 
 The tab also shows **time and cost** per dataset: time is the
 sum of run latencies (the runner executes sequentially, so it approximates

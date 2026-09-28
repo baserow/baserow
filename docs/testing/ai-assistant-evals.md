@@ -50,7 +50,7 @@ chatter (httpx, pydantic-ai retries) still goes to
 
 Every case has a wall-clock budget — `BASEROW_EVAL_CASE_TIMEOUT`, default
 120s. For scale: across the committed baseline's 366 runs the slowest
-case takes 50s and the median 6s, so the budget only ever fires on a genuine
+case takes 44s and the median 6s, so the budget only ever fires on a genuine
 hang. Without it a single stuck case blocks the one worker indefinitely, and
 the per-request timeouts don't bound it: `max_iters` requests times the
 per-request timeout, plus retries, runs into several minutes.
