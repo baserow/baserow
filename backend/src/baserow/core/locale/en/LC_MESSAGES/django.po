@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-11 12:44+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -41,7 +41,7 @@ msgid ""
 "%(description)s"
 msgstr ""
 
-#: src/baserow/core/action/scopes.py:9
+#: src/baserow/core/action/scopes.py:11
 #, python-format
 msgid "in group \"%(group_name)s\" (%(group_id)s)."
 msgstr ""
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Unlabeled"
 msgstr ""
 
-#: src/baserow/core/handler.py:2241 src/baserow/core/user/handler.py:284
+#: src/baserow/core/handler.py:2404 src/baserow/core/user/handler.py:285
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -299,29 +299,29 @@ msgstr ""
 msgid "Integration (%(integration_id)s) created"
 msgstr ""
 
-#: src/baserow/core/integrations/actions.py:87
+#: src/baserow/core/integrations/actions.py:95
 msgid "Update integration"
 msgstr ""
 
-#: src/baserow/core/integrations/actions.py:88
+#: src/baserow/core/integrations/actions.py:96
 #, python-format
 msgid "Integration (%(integration_id)s) updated"
 msgstr ""
 
-#: src/baserow/core/integrations/actions.py:150
+#: src/baserow/core/integrations/actions.py:158
 msgid "Delete integration"
 msgstr ""
 
-#: src/baserow/core/integrations/actions.py:151
+#: src/baserow/core/integrations/actions.py:159
 #, python-format
 msgid "Integration (%(integration_id)s) deleted"
 msgstr ""
 
-#: src/baserow/core/integrations/actions.py:203
+#: src/baserow/core/integrations/actions.py:211
 msgid "Move integration"
 msgstr ""
 
-#: src/baserow/core/integrations/actions.py:204
+#: src/baserow/core/integrations/actions.py:212
 #, python-format
 msgid "Integration (%(integration_id)s) moved"
 msgstr ""

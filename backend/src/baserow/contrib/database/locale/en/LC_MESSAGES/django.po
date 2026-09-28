@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-11 12:44+0000\n"
+"POT-Creation-Date: 2026-09-28 10:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -69,7 +69,7 @@ msgid ""
 "\"%(airtable_share_id)s\""
 msgstr ""
 
-#: src/baserow/contrib/database/application_types.py:411
+#: src/baserow/contrib/database/application_types.py:412
 msgid "Table"
 msgstr ""
 
@@ -99,7 +99,7 @@ msgstr ""
 msgid "The data sync synchronized"
 msgstr ""
 
-#: src/baserow/contrib/database/data_sync/handler.py:256
+#: src/baserow/contrib/database/data_sync/handler.py:262
 #: src/baserow/contrib/database/table/handler.py:476
 msgid "Grid"
 msgstr ""
@@ -766,4 +766,55 @@ msgid ""
 "The payload for the %(name)s webhook with event ID %(event_id)s was too "
 "large. The content has been split into multiple batches, but data above the "
 "batch limit of %(batch_limit)s was discarded."
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:94
+msgid "Create button action"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:96
+#, python-format
+msgid ""
+"Action (%(workflow_action_id)s) created on button field \"%(field_name)s\" "
+"(%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:181
+msgid "Update button action"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:183
+#, python-format
+msgid ""
+"Action (%(workflow_action_id)s) updated on button field \"%(field_name)s\" "
+"(%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:388
+msgid "Delete button action"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:390
+#, python-format
+msgid ""
+"Action (%(workflow_action_id)s) deleted from button field \"%(field_name)s\" "
+"(%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:469
+msgid "Order button actions"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:470
+#, python-format
+msgid "Actions ordered on button field \"%(field_name)s\" (%(field_id)s)"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:538
+msgid "Click button"
+msgstr ""
+
+#: src/baserow/contrib/database/workflow_actions/actions.py:539
+#, python-format
+msgid "Button \"%(field_name)s\" (%(field_id)s) clicked on row %(row_id)s"
 msgstr ""
