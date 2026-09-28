@@ -5,11 +5,7 @@ from requests.exceptions import JSONDecodeError, RequestException
 
 from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.database.data_sync.exceptions import SyncError
-from baserow.contrib.database.data_sync.registries import (
-    DataSyncProperty,
-    DataSyncType,
-    RichTextDataSyncProperty,
-)
+from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
 from baserow.contrib.database.data_sync.utils import (
     compare_date,
     get_data_sync_request_function,
@@ -21,6 +17,7 @@ from baserow.contrib.database.fields.models import (
     TextField,
     URLField,
 )
+from baserow.contrib.database.fields.rich_text_utils import escape_user_file_references
 from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
@@ -63,8 +60,11 @@ class GitLabTitleDataSyncProperty(DataSyncProperty):
         return TextField(name=self.name)
 
 
-class GitLabDescriptionDataSyncProperty(RichTextDataSyncProperty):
+class GitLabDescriptionDataSyncProperty(DataSyncProperty):
     immutable_properties = True
+
+    def to_baserow_field(self) -> LongTextField:
+        return LongTextField(name=self.name, long_text_enable_rich_text=True)
 
 
 class GitLabStateDataSyncProperty(DataSyncProperty):
@@ -357,7 +357,9 @@ class GitLabIssuesDataSyncType(DataSyncType):
                     "iid": get_value_at_path(issue, "iid", ""),
                     "project_id": get_value_at_path(issue, "project_id", ""),
                     "title": get_value_at_path(issue, "title", ""),
-                    "description": get_value_at_path(issue, "description", ""),
+                    "description": escape_user_file_references(
+                        get_value_at_path(issue, "description", "")
+                    ),
                     "state": get_value_at_path(issue, "state", ""),
                     "created_at": created_at,
                     "updated_at": updated_at,

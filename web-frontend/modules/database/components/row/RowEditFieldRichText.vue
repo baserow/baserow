@@ -16,9 +16,10 @@
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
-      :upload-file="readOnly ? null : uploadUserFile"
+      :upload-file="readOnly || !allowImageUpload ? null : uploadUserFile"
       @focus="select()"
       @blur="unselect()"
+      @upload-settled="saveSettledUpload()"
     ></RichTextEditor>
 
     <div v-show="touched && !isValid()" class="error">
@@ -38,6 +39,13 @@ import { getRichTextClipboardContent } from '@baserow/modules/database/utils/cli
 export default {
   components: { RichTextEditor },
   mixins: [rowEditField, rowEditFieldInput],
+  props: {
+    allowImageUpload: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+  },
   data() {
     return {
       // local copy of the value storing the JSON representation of the rich text editor
@@ -72,6 +80,12 @@ export default {
     unselect() {
       this.$super(rowEditFieldInput).unselect()
       this.editing = false
+    },
+    saveSettledUpload() {
+      // While editing, the blur saves it; after the blur, nothing else would.
+      if (!this.editing && this.isValid()) {
+        this.save()
+      }
     },
     getMenuContainer() {
       // Body-level so floating-ui's fixed strategy anchors to the viewport, not a modal ancestor.

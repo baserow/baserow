@@ -56,9 +56,7 @@ from django.db.models.functions import (
     Cast,
     Coalesce,
     Left,
-    Length,
     LPad,
-    Replace,
     RowNumber,
 )
 
@@ -299,14 +297,12 @@ from .rich_text_utils import (
     MARKDOWN_IMAGE_REGEX,
     MAX_RICH_TEXT_IMAGES,
     append_user_file_urls,
-    contains_markdown_image,
     count_image_references,
+    escape_user_file_references,
     extract_user_file_names,
     is_renderable_user_file,
     keep_first_image_references,
     map_outside_code,
-    neutralize_markdown_images,
-    normalize_rich_text_for_storage,
     replace_user_file_images_with_alt,
     resolve_user_file_urls,
     strip_user_file_urls,
@@ -580,11 +576,9 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         to_field_kwargs,
     ):
         """
-        Enabling rich text, or converting another field into a rich text one, turns
-        existing values into rendered images without passing through
-        ``prepare_value_for_db``. Enforce the same image bound as ordinary writes
-        on the converted values. The field update runs in a transaction, so
-        raising here rolls the conversion back.
+        Makes converted values saveable, since ``prepare_value_for_db`` never saw them.
+
+        :raises RichTextImageLimitExceeded: If a value references too many images.
         """
 
         was_rich_text = isinstance(from_field, LongTextField) and bool(
@@ -594,19 +588,66 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             return
 
         column = to_field.db_column
-        # Every reference starts with `![`, so only rows with more openers than
-        # the limit can exceed it. The exact count skips code, done in Python.
-        opener_count = (
-            Length(column) - Length(Replace(column, Value("!["), Value("")))
-        ) / 2
-        candidates = (
-            to_model.objects_and_trash.annotate(_rich_text_openers=opener_count)
-            .filter(_rich_text_openers__gt=MAX_RICH_TEXT_IMAGES)
-            .values_list(column, flat=True)
+        rows = (
+            self._rows_with_image_references(to_model, column)
+            .values_list("id", column)
+            .iterator(chunk_size=100)
         )
-        for value in candidates.iterator(chunk_size=100):
-            if count_image_references(value) > MAX_RICH_TEXT_IMAGES:
+        user_file_exists: Dict[str, bool] = {}
+        for chunk in grouper(100, rows):
+            values = dict(chunk)
+            escaped = self._escape_missing_user_file_references(
+                values, user_file_exists
+            )
+            values.update(escaped)
+            if any(
+                count_image_references(value) > MAX_RICH_TEXT_IMAGES
+                for value in values.values()
+            ):
                 raise RichTextImageLimitExceeded(MAX_RICH_TEXT_IMAGES)
+            if escaped:
+                to_model.objects_and_trash.bulk_update(
+                    [
+                        to_model(id=row_id, **{column: value})
+                        for row_id, value in escaped.items()
+                    ],
+                    [column],
+                )
+
+    def should_backup_field_data_for_same_type_update(
+        self, old_field: LongTextField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        """
+        Backs up the values enabling rich text may escape, so undo restores them.
+
+        :param old_field: The field before the update.
+        :param new_field_attrs: The attributes being updated.
+        :return: Whether the update may escape references in some rows.
+        """
+
+        enables_rich_text = not old_field.long_text_enable_rich_text and bool(
+            new_field_attrs.get("long_text_enable_rich_text")
+        )
+        if not enables_rich_text:
+            return False
+
+        model = old_field.table.get_model(fields=[old_field], field_ids=[])
+        return self._rows_with_image_references(model, old_field.db_column).exists()
+
+    def _rows_with_image_references(
+        self, model: "GeneratedTableModel", column: str
+    ) -> QuerySet:
+        """
+        Returns the rows, trashed included, whose value may contain a reference.
+
+        :param model: The table model.
+        :param column: The long text column.
+        :return: A superset of those rows; the exact match must skip code in Python.
+        """
+
+        return model.objects_and_trash.filter(
+            Q(**{f"{column}__contains": "!["}) & Q(**{f"{column}__contains": "]["})
+        )
 
     def can_be_primary_field(self, field_or_values: Union[Field, dict]) -> bool:
         if isinstance(field_or_values, dict):
@@ -722,6 +763,46 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             if user_file.name in names
         }
 
+    def _get_missing_user_file_names(
+        self, names: Set[str], user_file_exists: Dict[str, bool]
+    ) -> Set[str]:
+        """
+        Returns the names no user file has, querying only the names not seen before.
+
+        :param names: The user file names to check.
+        :param user_file_exists: Whether a name has a user file, filled in as it goes.
+        :return: The names without a user file.
+        """
+
+        unseen = names - user_file_exists.keys()
+        if unseen:
+            existing = self._fetch_rich_text_user_files(unseen)
+            user_file_exists.update((name, name in existing) for name in unseen)
+        return {name for name in names if not user_file_exists[name]}
+
+    def _escape_missing_user_file_references(
+        self, values: Dict[Any, str], user_file_exists: Dict[str, bool]
+    ) -> Dict[Any, str]:
+        """
+        Escapes the references no user file backs, which would fail every later save.
+
+        :param values: The rich text values, keyed by anything.
+        :param user_file_exists: Whether a name has a user file, filled in as it goes.
+        :return: The values that had to be escaped, keyed like ``values``.
+        """
+
+        names_by_key = {
+            key: extract_user_file_names(value) for key, value in values.items()
+        }
+        missing = self._get_missing_user_file_names(
+            set().union(*names_by_key.values()), user_file_exists
+        )
+        return {
+            key: escape_user_file_references(values[key], missing)
+            for key, names in names_by_key.items()
+            if names & missing
+        }
+
     def _validate_rich_text_references(
         self,
         names: set[str],
@@ -767,29 +848,11 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 code="not_an_image",
             )
 
-    def _validate_no_markdown_images(self, value: str):
-        """
-        Rejects a value for which markdown itself would render an image, such as
-        ``![x][ref]`` with a ``[ref]: https://...`` definition. Only user files may
-        be embedded, and those are stored as unresolved references.
-
-        :param value: The value, already normalized for storage.
-        :raises ValidationError: If markdown-it renders an image for the value.
-        """
-
-        if contains_markdown_image(value):
-            raise ValidationError(
-                "Rich text values can only embed uploaded user files, external "
-                "images are not supported.",
-                code="external_image_not_supported",
-            )
-
     def prepare_value_for_db(self, instance, value):
         if not instance.long_text_enable_rich_text or not value:
             return value
 
-        value = normalize_rich_text_for_storage(value)
-        self._validate_no_markdown_images(value)
+        value = strip_user_file_urls(value)
         names = extract_user_file_names(value)
         if not names:
             return value
@@ -813,15 +876,8 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         for row_index, value in values_by_row.items():
             if not value:
                 continue
-            value = normalize_rich_text_for_storage(value)
+            value = strip_user_file_urls(value)
             values_by_row[row_index] = value
-            try:
-                self._validate_no_markdown_images(value)
-            except ValidationError as e:
-                if continue_on_error:
-                    values_by_row[row_index] = e
-                    continue
-                raise
             names = extract_user_file_names(value)
             if names:
                 names_by_row[row_index] = names
@@ -932,11 +988,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             # The archive can carry resolved URLs from the instance that produced
             # it. Those point at storage this instance does not own, so strip them
             # to the stored `![alt][name]` form, like `prepare_value_for_db` does.
-            content = normalize_rich_text_for_storage(content)
-            # One bad cell can't abort the whole import, so an image markdown would
-            # render (e.g. through a reference definition) is escaped instead of
-            # rejected like the API does.
-            content = neutralize_markdown_images(content)
+            content = strip_user_file_urls(content)
             # Bound the references before touching the zip, so surplus images are
             # never uploaded only to end up unreferenced.
             content = self._sanitize_imported_rich_text(content)
@@ -960,10 +1012,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         which every viewer of the table then has to render. Raising would abort
         the whole import over one cell, so the surplus is degraded to alt text.
 
-        Existence is not re-checked: a reference whose file is not in the zip is
-        resolved through the existing user file when importing into the same
-        storage. Nor is renderability -- ``_rewrite_image_names`` re-uploads
-        through ``upload_user_file``, which re-derives ``is_image`` by sniffing.
+        Only a zip import checks the files exist, in ``_rewrite_image_names``.
 
         :param content: The imported rich text value.
         :return: The value with surplus image references replaced by alt text.
@@ -974,7 +1023,25 @@ class LongTextFieldType(CollationSortMixin, FieldType):
 
         return content
 
-    def _rewrite_image_names(self, value, cache, files_zip, storage, originals=None):
+    def _rewrite_image_names(
+        self,
+        value: str,
+        cache: Dict[str, Any],
+        files_zip: ZipFile,
+        storage: Optional[Storage],
+        originals: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """
+        Re-uploads the referenced zip files and escapes references no user file backs.
+
+        :param value: The imported rich text value.
+        :param cache: The import cache, shared by every imported value.
+        :param files_zip: The zip file of the import.
+        :param storage: The storage to upload the images to.
+        :param originals: The original file names, keyed by the exported names.
+        :return: The value with its references rewritten or escaped.
+        """
+
         names = extract_user_file_names(value)
         if not names:
             return value
@@ -1017,6 +1084,13 @@ class LongTextFieldType(CollationSortMixin, FieldType):
 
             name_mapping[name] = user_file.name
             cache[cache_entry] = user_file.name
+
+        missing = self._get_missing_user_file_names(
+            names - name_mapping.keys(),
+            cache.setdefault("_rich_text_user_file_exists", {}),
+        )
+        if missing:
+            value = escape_user_file_references(value, missing)
 
         if not name_mapping:
             return value

@@ -105,68 +105,16 @@ const normalizeNode = (schema, state, nodeJson) => {
 
   let children = (nodeJson.content ?? []).flatMap((child) => {
     const normalized = normalizeNode(schema, state, child)
-    if (!normalized) return []
-    return Array.isArray(normalized) ? normalized : [normalized]
+    return normalized ? [normalized] : []
   })
-  if (nodeType.name === 'paragraph' && children.length > 0) {
-    const firstText = children.find((c) => c.isText)
-    const isNbspSentinel =
-      firstText && ['&nbsp;', '\u00a0'].includes(firstText.text)
-    if (
-      isNbspSentinel &&
-      children.every(
-        (c) => c === firstText || c.type.name === 'hardBreak' || c.isBlock
-      )
-    ) {
-      const blockChildren = children.filter((c) => c.isBlock)
-      if (blockChildren.length > 0) {
-        const emptyPara = nodeType.createAndFill(null, null, marks)
-        return emptyPara ? [emptyPara, ...blockChildren] : blockChildren
-      }
-      children = []
-    }
-  }
-
-  // When a paragraph contains block-level children (e.g. an image node with
-  // group:'block'), ProseMirror's content model rejects them as inline content.
-  // Instead of marking the entire document as lossy, hoist block children out of
-  // the paragraph so they become siblings in the parent node.
   if (
     nodeType.name === 'paragraph' &&
-    children.some((child) => child.isBlock)
+    children.length === 1 &&
+    children[0].isText &&
+    ['&nbsp;', '\u00a0'].includes(children[0].text)
   ) {
-    const result = []
-    let inlines = []
-
-    for (const child of children) {
-      if (child.isBlock) {
-        if (inlines.length > 0) {
-          const para = nodeType.createAndFill(
-            nodeJson.attrs,
-            Fragment.from(inlines),
-            marks
-          )
-          if (para) result.push(para)
-          inlines = []
-        }
-        result.push(child)
-      } else {
-        inlines.push(child)
-      }
-    }
-
-    if (inlines.length > 0) {
-      const para = nodeType.createAndFill(
-        nodeJson.attrs,
-        Fragment.from(inlines),
-        marks
-      )
-      if (para) result.push(para)
-    }
-
-    return result.length === 1 ? result[0] : result
+    children = []
   }
-
   const content = fitContent(schema, state, nodeType, children)
 
   const normalized = nodeType.createAndFill(nodeJson.attrs, content, marks)
@@ -261,8 +209,45 @@ const tagLineStartTextNodes = (children) =>
       : child
   })
 
+const linkMarkOf = (node) => node?.marks?.find(({ type }) => type === 'link')
+
+// The serializer never wraps an inline node in its marks, and a link shared with text reopens as a stray `[`.
+const moveImageLinkOutOfMarks = (image) => {
+  const link = linkMarkOf(image)
+  if (!link) {
+    return image
+  }
+  return {
+    ...image,
+    marks: image.marks.filter((mark) => mark !== link),
+    markdownLink: link.attrs,
+  }
+}
+
+const isSameLink = (a, b) =>
+  Boolean(a && b) &&
+  a.attrs?.href === b.attrs?.href &&
+  a.attrs?.title === b.attrs?.title
+
+// With an image's link moved out, a space sharing only that link would save as an empty `[](href)`.
+const unlinkSpacesNextToLinkedImages = (children) =>
+  children.map((child, index) => {
+    const link = linkMarkOf(child)
+    if (child.type !== 'text' || !link || child.text?.trim()) {
+      return child
+    }
+    const sharesLinkWithImage = [children[index - 1], children[index + 1]].some(
+      (neighbour) =>
+        neighbour?.type === 'image' && isSameLink(linkMarkOf(neighbour), link)
+    )
+    return sharesLinkWithImage
+      ? { ...child, marks: child.marks.filter((mark) => mark !== link) }
+      : child
+  })
+
 export const prepareMarkdownDocumentForSerialization = (node) => {
-  const prepared = { ...node }
+  const prepared =
+    node.type === 'image' ? moveImageLinkOutOfMarks(node) : { ...node }
   if (node.type === 'text' && node.marks?.length) {
     const hasCodeMark = node.marks.some(({ type }) => type === 'code')
     if (hasCodeMark) {
@@ -281,7 +266,9 @@ export const prepareMarkdownDocumentForSerialization = (node) => {
     )
   }
   if (node.content?.length) {
-    let children = assignBulletListMarkers(node.content)
+    let children = unlinkSpacesNextToLinkedImages(
+      assignBulletListMarkers(node.content)
+    )
     if (node.type === 'paragraph') {
       children = tagLineStartTextNodes(children)
     }

@@ -848,8 +848,8 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_data_sync_table_body_with_image_is_stable(enterprise_data_fixture):
-    """The rich text body demotes `![alt](url)` to a link on write. The second
-    sync must compare in that stored form, or every run rewrites the row."""
+    """An external image is stored as written, so the second sync sees no change
+    and doesn't rewrite the row."""
 
     issue = deepcopy(SINGLE_ISSUE)
     issue["body"] = (
@@ -889,9 +889,7 @@ def test_sync_data_sync_table_body_with_image_is_stable(enterprise_data_fixture)
     body_field = specific_iterator(data_sync.table.field_set.all().order_by("id"))[1]
     model = data_sync.table.get_model()
     row = model.objects.get()
-    assert getattr(row, f"field_{body_field.id}") == (
-        "Screenshot [shot](https://user-images.githubusercontent.com/1/a.png)"
-    )
+    assert getattr(row, f"field_{body_field.id}") == issue["body"]
     updated_on = row.updated_on
 
     with patch(
@@ -906,13 +904,16 @@ def test_sync_data_sync_table_body_with_image_is_stable(enterprise_data_fixture)
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @responses.activate
-def test_sync_data_sync_table_body_escapes_reference_images(enterprise_data_fixture):
-    """The API rejects a body markdown would render as an external image through
-    a reference definition. One such issue must not fail the whole sync, so the
-    image is escaped instead, and the second sync sees no change."""
+def test_sync_data_sync_table_body_with_reference_text_is_escaped(
+    enterprise_data_fixture,
+):
+    """A body can't point at this instance's user files, so text shaped like a
+    reference is escaped instead of failing the field's validation and the sync."""
 
     issue = deepcopy(SINGLE_ISSUE)
-    issue["body"] = "![logo][remote]\n\n[remote]: https://e.com/p.png"
+    issue["body"] = "Before ![before][shot_v2.png] " + " ".join(
+        "![i][shot_v2.png]" for _ in range(101)
+    )
     for _ in range(2):
         responses.add(
             responses.GET,
@@ -946,9 +947,9 @@ def test_sync_data_sync_table_body_escapes_reference_images(enterprise_data_fixt
 
     body_field = specific_iterator(data_sync.table.field_set.all().order_by("id"))[1]
     model = data_sync.table.get_model()
-    assert getattr(model.objects.get(), f"field_{body_field.id}") == (
-        "\\![logo][remote]\n\n[remote]: https://e.com/p.png"
-    )
+    assert getattr(model.objects.get(), f"field_{body_field.id}") == issue[
+        "body"
+    ].replace("![", "!\\[")
 
     with patch(
         "baserow.contrib.database.data_sync.handler.RowHandler.update_rows"

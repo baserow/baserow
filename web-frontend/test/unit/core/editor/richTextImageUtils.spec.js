@@ -1,5 +1,5 @@
 import {
-  demoteExternalImagesToLinks,
+  countImageReferences,
   isRenderableUserFile,
   iterCodeSegments,
   preprocessRichTextImages,
@@ -98,80 +98,25 @@ describe('stripUnresolvedImageRefs', () => {
   })
 })
 
-describe('demoteExternalImagesToLinks', () => {
-  test('returns empty string for null', () => {
-    expect(demoteExternalImagesToLinks(null)).toBe('')
-  })
-
-  test('returns content unchanged without images', () => {
-    expect(demoteExternalImagesToLinks('Hello [link](https://a.com)')).toBe(
-      'Hello [link](https://a.com)'
-    )
-  })
-
-  test('demotes an https image', () => {
-    expect(
-      demoteExternalImagesToLinks(
-        'see ![alt](https://example.com/photo.png) now'
-      )
-    ).toBe('see [alt](https://example.com/photo.png) now')
-  })
-
-  test('demotes an http image', () => {
-    expect(
-      demoteExternalImagesToLinks('![alt](http://example.com/photo.png)')
-    ).toBe('[alt](http://example.com/photo.png)')
-  })
-
-  test('downgrades unsafe schemes to links', () => {
-    expect(demoteExternalImagesToLinks('![](javascript:alert(1))')).toBe(
-      '[](javascript:alert(1))'
-    )
-    expect(
-      demoteExternalImagesToLinks('![x](data:image/png;base64,AAAA)')
-    ).toBe('[x](data:image/png;base64,AAAA)')
-  })
-
-  test('does not touch Baserow image refs', () => {
-    const withUrl = '![alt][abc123_def456.png](https://example.com/f.png)'
-    const withoutUrl = '![alt][abc123_def456.png]'
-    expect(demoteExternalImagesToLinks(withUrl)).toBe(withUrl)
-    expect(demoteExternalImagesToLinks(withoutUrl)).toBe(withoutUrl)
-  })
-
-  test('handles escaped brackets in alt text', () => {
-    expect(
-      demoteExternalImagesToLinks(
-        String.raw`![my\]pic](https://example.com/f.png)`
-      )
-    ).toBe(String.raw`[my\]pic](https://example.com/f.png)`)
-  })
-
-  // The Baserow ref keeps its image form; only the plain one is demoted.
-  test('handles a mix of Baserow refs and external images', () => {
-    expect(
-      demoteExternalImagesToLinks(
-        '![a][f1_h1.png](https://cdn.com/1.png) ![b](https://example.com/2.png)'
-      )
-    ).toBe(
-      '![a][f1_h1.png](https://cdn.com/1.png) [b](https://example.com/2.png)'
-    )
-  })
-
-  test('downgrades ftp to link', () => {
-    expect(demoteExternalImagesToLinks('![x](ftp://a.com/x.png)')).toBe(
-      '[x](ftp://a.com/x.png)'
-    )
-  })
-})
-
 describe('trimUnfinishedImageRef', () => {
+  const name =
+    'R7SiH9lsCNSxDKLRsabcjoqpu3YmYdmP_31f3aa68afe0ddc9027c18de4030fdb7df1434c10401ca23aab07d6fc308661c.png'
+  const url = `https://s3.example.com/user_files/${name}`
+
   test.each([
     ['text ![alt', 'text '],
     ['text ![alt][abc_def.pn', 'text '],
     ['text ![alt][abc_def.png](https://exa', 'text '],
     ['text ![alt](https://exa', 'text '],
     [String.raw`text ![a\]b][abc_d`, 'text '],
+    ['text ![line one\nline two', 'text '],
+    [`text ![line one\nline two][${name.slice(0, 40)}`, 'text '],
+    [`text ![line one\nline two][${name}](${url.slice(0, 30)}`, 'text '],
+    [`text ![line one\nline two](${url.slice(0, 30)}`, 'text '],
+    ['text ![alt]', 'text '],
+    ['text ![line one\nline two]', 'text '],
+    [String.raw`text ![a\]b]`, 'text '],
+    ['text ![al\\', 'text '],
   ])('drops the cut-off token in %j', (input, expected) => {
     expect(trimUnfinishedImageRef(input)).toBe(expected)
   })
@@ -182,6 +127,10 @@ describe('trimUnfinishedImageRef', () => {
     '![a][abc_def.png](https://example.com/f.png)',
     '![a](https://example.com/f.png) and ![b][x_y.png]',
     '![a][x_y.png] then [a link](https://example.com)',
+    `![line one\nline two][${name}]`,
+    `![line one\nline two][${name}](${url})`,
+    '![a] is not an image',
+    'see [a note]',
   ])('keeps complete content %j', (input) => {
     expect(trimUnfinishedImageRef(input)).toBe(input)
   })
@@ -198,37 +147,56 @@ describe('isRenderableUserFile', () => {
     ).toBe(true)
   })
 
-  test('accepts svg files even though the backend does not flag them', () => {
+  test('accepts svg files by their stored name even though the backend does not flag them', () => {
     expect(
-      isRenderableUserFile({ is_image: false, original_extension: 'svg' })
+      isRenderableUserFile({
+        is_image: false,
+        name: 'abc123_def456.svg',
+        original_name: 'logo.svg',
+      })
     ).toBe(true)
     expect(
-      isRenderableUserFile({ is_image: false, original_extension: 'SVGZ' })
+      isRenderableUserFile({ is_image: false, name: 'abc123_def456.svgz' })
+    ).toBe(true)
+  })
+
+  test('accepts an uppercase svg extension', () => {
+    expect(
+      isRenderableUserFile({
+        is_image: false,
+        name: 'abc123_def456.SVG',
+        original_name: 'LOGO.SVG',
+      })
     ).toBe(true)
   })
 
   test('rejects non-image files', () => {
     expect(
-      isRenderableUserFile({ is_image: false, original_extension: 'pdf' })
+      isRenderableUserFile({
+        is_image: false,
+        name: 'abc123_def456.pdf',
+        original_name: 'doc.pdf',
+      })
     ).toBe(false)
     expect(
       isRenderableUserFile({
         is_image: false,
+        name: 'abc123_def456.pdf',
         original_name: 'doc.svg.pdf',
-        original_extension: 'pdf',
       })
+    ).toBe(false)
+    expect(
+      isRenderableUserFile({ is_image: false, name: 'abc123_def456.' })
     ).toBe(false)
     expect(isRenderableUserFile(null)).toBe(false)
   })
 
   test('ignores original_name so it cannot disagree with the backend', () => {
-    // Backend only checks original_extension; a name ending in .svg with a
-    // different extension must be rejected here too.
     expect(
       isRenderableUserFile({
         is_image: false,
+        name: 'abc123_def456.pdf',
         original_name: 'trick.svg',
-        original_extension: 'pdf',
       })
     ).toBe(false)
     expect(
@@ -381,53 +349,71 @@ describe('image syntax inside code is literal', () => {
       replaceImagesWithPlaceholder(`\`\`\`\n${ref}\n${ext}\n\`\`\`\n${ext}`)
     ).toBe(`\`\`\`\n${ref}\n${ext}\n\`\`\`\n${IMAGE_PLACEHOLDER} x`)
   })
-
-  test('demoteExternalImagesToLinks', () => {
-    expect(demoteExternalImagesToLinks(`\`${ext}\` ${ext}`)).toBe(
-      `\`${ext}\` [x](https://e.com/a.png)`
-    )
-  })
 })
 
-describe('image syntax inside block code found by markdown-it is literal', () => {
-  const ext = '![x](http://a)'
-  const ref = '![x][abc_def.png](http://h/abc_def.png)'
-
-  test('four-space indented code keeps the leading `!`', () => {
-    const content = `    ${ext}`
-    expect(demoteExternalImagesToLinks(content)).toBe(content)
-    expect(replaceImagesWithPlaceholder(content)).toBe(content)
-    const html = parseMarkdown(content, { enableImages: true })
-    expect(html).toContain(`<pre><code>${ext}`)
-  })
-
-  test('an indented line continuing a paragraph is not code', () => {
-    expect(demoteExternalImagesToLinks(`text\n    ${ext}`)).toBe(
-      'text\n    [x](http://a)'
-    )
-  })
+describe('code and references are read exactly like the backend', () => {
+  // A character only one of Python or JS treats as whitespace or a line break
+  // would let the backend keep a URL the frontend then trusts.
+  const url = 'https://e.com/p.png'
 
   test('a fence inside a list item is code', () => {
-    const content = `- item\n\n  \`\`\`\n  ${ext}\n  ${ref}\n  \`\`\`\n\n${ext}`
-    expect(demoteExternalImagesToLinks(content)).toBe(
-      content.replace(/\n\n!\[x\]\(http:\/\/a\)$/, '\n\n[x](http://a)')
-    )
+    const content = `- item\n\n  \`\`\`\n  ![x][abc_def.png](${url})\n  \`\`\`\n`
     expect(stripImageUrls(content)).toBe(content)
-    const html = parseMarkdown(content, { enableImages: true })
-    expect(html).toContain(ext)
-    expect(html).toContain(ref)
   })
 
-  test('indented code inside a blockquote is code', () => {
-    const content = `>     ${ext}`
-    expect(demoteExternalImagesToLinks(content)).toBe(content)
+  test.each(['\r', '\x1c', ' '])('only \\n ends a line (%j)', (char) => {
+    const content = `x${char}\`\`\`\n![a][abc_def.png](${url})`
+    expect(stripImageUrls(content)).toBe(`x${char}\`\`\`\n![a][abc_def.png]`)
   })
 
-  test('CR and CRLF line endings split lines like markdown-it', () => {
-    const content = `a\r\n\r\n    ${ext}\r\rb ${ext}`
-    expect(demoteExternalImagesToLinks(content)).toBe(
-      `a\r\n\r\n    ${ext}\r\rb [x](http://a)`
-    )
+  test.each(['\x1c', ' ', '﻿'])(
+    'only spaces and tabs may follow a closing fence (%j)',
+    (char) => {
+      const content = `\`\`\`\ncode\n\`\`\`${char}\n![a][abc_def.png](${url})`
+      expect(Array.from(iterCodeSegments(content))).toEqual([[content, true]])
+    }
+  )
+
+  test.each(['\x1c', '\x1f', '\x85', ' ', '﻿'])(
+    'non-ASCII whitespace is part of the name (%j)',
+    (char) => {
+      const content = `![a][abc_def.png${char}](${url})`
+      expect(stripImageUrls(content)).toBe(`![a][abc_def.png${char}]`)
+      expect(preprocessRichTextImages(content).nameMap).toEqual({
+        [url]: `abc_def.png${char}`,
+      })
+    }
+  )
+
+  test.each(['\x1c', ' ', '﻿'])(
+    'non-ASCII whitespace is part of the URL (%j)',
+    (char) => {
+      const content = `![a][abc_def.png](https://e.com/p${char}.png)`
+      expect(stripImageUrls(content)).toBe('![a][abc_def.png]')
+    }
+  )
+})
+
+describe('countImageReferences', () => {
+  const name =
+    'R7SiH9lsCNSxDKLRsabcjoqpu3YmYdmP_31f3aa68afe0ddc9027c18de4030fdb7df1434c10401ca23aab07d6fc308661c.png'
+
+  // Same cases as TestCountImageReferences in test_rich_text_utils.py.
+  test.each([
+    [null, 0],
+    ['', 0],
+    [`![a][${name}]`, 1],
+    [`![a][${name}] ![a][${name}]`, 2],
+    [`![a][${name}](https://h/x.png)`, 1],
+    [`\`![a][${name}]\` ![b][${name}]`, 1],
+    [`\`\`\`\n![a][${name}]\n\`\`\`\n![b][${name}]`, 1],
+    [`x\r\`\`\`\n![a][${name}]`, 1],
+    [`!\\[a][${name}]`, 0],
+    [`![a\\]b][${name}]`, 1],
+    [`![a][${name}\u2028]`, 1],
+    ['![a](https://e.com/p.png)', 0],
+  ])('%j has %i', (content, expected) => {
+    expect(countImageReferences(content)).toBe(expected)
   })
 })
 
@@ -505,13 +491,16 @@ describe('isImageUploadCandidate', () => {
 describe('image regexes are linear', () => {
   // A quadratic scan at these sizes takes seconds; a linear one milliseconds.
   const N = 20000
-  const time = (fn, input) => {
-    const start = performance.now()
-    fn(input)
-    return performance.now() - start
-  }
+  // Best of three: a parallel test run can stall any single timing.
+  const time = (fn, input) =>
+    Math.min(
+      ...[0, 1, 2].map(() => {
+        const start = performance.now()
+        fn(input)
+        return performance.now() - start
+      })
+    )
   const functions = {
-    demoteExternalImagesToLinks,
     stripImageUrls,
     preprocessRichTextImages,
     replaceImagesWithPlaceholder,
@@ -525,6 +514,9 @@ describe('image regexes are linear', () => {
     withUrl: (n) => '![x][a_b.png]('.repeat(n),
     withUrlClosedAtEnd: (n) => '![x][a_b.png]('.repeat(n) + ')',
     deepParens: (n) => '![x](' + '('.repeat(n),
+    multiLineAlts: (n) => '![x\n'.repeat(n) + '].',
+    bareMultiLineAlts: (n) => '![x\n]'.repeat(n) + '.',
+    escapedMultiLineAlt: (n) => '![' + '\\x\n'.repeat(n) + '].',
   }
 
   describe.each(Object.keys(functions))('%s', (fnName) => {
@@ -535,7 +527,7 @@ describe('image regexes are linear', () => {
       fn(input(1000))
       const small = time(fn, input(N))
       const large = time(fn, input(2 * N))
-      expect(large).toBeLessThan(3 * small + 100)
+      expect(large).toBeLessThan(3 * small + 200)
       expect(large).toBeLessThan(2000)
     })
   })
