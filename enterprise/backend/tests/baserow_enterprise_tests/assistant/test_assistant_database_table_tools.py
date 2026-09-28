@@ -9,6 +9,7 @@ from baserow.contrib.database.formula.registries import formula_function_registr
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.assistant.model_profiles import UTILITY
+from baserow_enterprise.assistant.prompts import MISSING_RECORDS_QUESTION
 from baserow_enterprise.assistant.tools.database.agents import FormulaGenerationResult
 from baserow_enterprise.assistant.tools.database.reconciliation import (
     plan_table_creation,
@@ -466,6 +467,7 @@ def test_list_tables_tool(data_fixture):
         ),
     )
     assert "unrelated tables exist" in response["next_steps"]
+    assert MISSING_RECORDS_QUESTION in response["next_steps"]
     info = response["_info"]
     assert "no tables matching" in info or "No tables found" in info
 

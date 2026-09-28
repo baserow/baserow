@@ -66,7 +66,10 @@ from baserow_enterprise.assistant.models import (
     AssistantChatMessage,
 )
 from baserow_enterprise.assistant.output_validation import validate_final_answer
-from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
+from baserow_enterprise.assistant.prompts import (
+    AGENT_SYSTEM_PROMPT,
+    MISSING_RECORDS_QUESTION,
+)
 from baserow_enterprise.assistant.types import (
     AiMessage,
     AiMessageChunk,
@@ -1044,6 +1047,7 @@ class TestAssistantLicenseTier:
             "A request to display existing data does not authorize"
             in AGENT_SYSTEM_PROMPT
         )
+        assert MISSING_RECORDS_QUESTION in AGENT_SYSTEM_PROMPT
 
     def test_agent_system_prompt_covers_production_regressions(self):
         assert "Cross-mode routing is automatic" in AGENT_SYSTEM_PROMPT

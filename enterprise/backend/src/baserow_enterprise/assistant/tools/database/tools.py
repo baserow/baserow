@@ -33,6 +33,7 @@ from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AssistantDeps, ResourceChanges
+from baserow_enterprise.assistant.prompts import MISSING_RECORDS_QUESTION
 from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
     require_payload,
@@ -205,9 +206,8 @@ def list_tables(
         "next_steps": (
             "For an app that shows records, use a matching table from these results. "
             "If the requested records are absent (even if unrelated tables exist), "
-            "create nothing and call ask_user: say no table holds them and offer to "
-            "create one with sample data, to agree on its fields and data first, or to "
-            "use data the user points to. Exception: when the user asked for an "
+            "create nothing and call ask_user with this question, naming the records: "
+            f'"{MISSING_RECORDS_QUESTION}" Exception: when the user asked for an '
             "example, demo, or sample app, or for new data storage, create the table "
             "with sample data and build without asking. "
             "Setting up application login is a storage request: setup_user_source "

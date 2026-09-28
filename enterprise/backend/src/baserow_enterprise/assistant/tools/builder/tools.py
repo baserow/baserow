@@ -1084,9 +1084,9 @@ def create_actions(
     REQUIRED: `page_id` and `actions` must arrive in the same call. The ID says where to act; the payload says what to create. A call carrying only the ID creates nothing and is rejected.
 
     ## Attaching Actions
-    - element_ref: attach to newly created element (auto-tracked)
-    - element_id: attach to existing element (from list_elements)
+    - element: a ref from the same batch, or an existing element ID (from list_elements)
     - event: "click" for buttons/links, "submit" for form containers
+    - Per-row buttons (e.g. Edit on each table row): add a column with type "button" to the table element, then attach the action to the table element with event "click". Pass the row with page_parameters, e.g. {"name": "id", "value": "$formula: current_record.id"}.
 
     ## Action Types
     - notification: Show a message (title/description are formulas)
