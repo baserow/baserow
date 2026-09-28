@@ -13,6 +13,7 @@ from django.db.models import (
 
 from baserow.contrib.database.fields.models import ButtonField, LinkRowField
 from baserow.contrib.database.workflow_actions.models import (
+    CoreSMTPEmailWorkflowAction,
     DatabaseWorkflowAction,
     DatabaseWorkflowServiceAction,
     LocalBaserowCreateRowWorkflowAction,
@@ -22,6 +23,7 @@ from baserow.contrib.database.workflow_actions.models import (
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
+from baserow.contrib.integrations.core.models import CoreSMTPEmailService
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowTableServiceFieldMapping,
@@ -60,23 +62,33 @@ def _unusable_integration_by_action_model() -> dict[
     return unusable
 
 
-def _blank_row_id() -> Q:
+def _blank_formula(column: str) -> Q:
     """
-    An update row service that names no row, which the dispatch refuses every
-    time (`UpdateRowRequiresRowIdMixin`). Matched on the column rather than on
-    the `BaserowFormulaObject` it reads back as: `FormulaField` is a text column
-    holding a serialized formula context, or a raw formula string until its row
-    is saved again.
+    A `FormulaField` column with no formula in it. Matched on the column rather
+    than on the `BaserowFormulaObject` it reads back as: `FormulaField` is a
+    text column holding a serialized formula context, or a raw formula string
+    until its row is saved again.
+
+    :param column: The name of the formula column.
     """
 
     return (
-        Q(row_id__isnull=True)
+        Q(**{f"{column}__isnull": True})
         # A raw formula string with nothing in it.
-        | Q(row_id__regex=r"^\s*$")
-        # A formula context whose formula has nothing in it. Whitespace inside
-        # the string is JSON escaped, so it can't be confused for the quotes.
-        | Q(row_id__regex=r'"f":\s*"\s*"')
+        | Q(**{f"{column}__regex": r"^\s*$"})
+        # A formula context whose formula is null, or a string of spaces and
+        # the whitespace JSON escapes (`\n`, `\r`, `\t`).
+        | Q(**{f"{column}__regex": r'"f":\s*(null|"(\s|\\[nrt])*")'})
     )
+
+
+def _blank_row_id() -> Q:
+    """
+    An update row service that names no row, which the dispatch refuses every
+    time (`UpdateRowRequiresRowIdMixin`).
+    """
+
+    return _blank_formula("row_id")
 
 
 def _unusable_table() -> Q:
@@ -103,8 +115,8 @@ def _broken_services_by_action_model() -> dict[
 
     A mapping on a trashed field only counts without an integration: with one,
     the dispatch drops the mapping rather than failing. A trashed integration
-    always counts, and so does none on an action whose service needs one, and
-    so does an update row left without a row id.
+    always counts, and so does none on an action whose service needs one, an
+    update row left without a row id and an email without recipients.
     """
 
     mapping_on_trashed_field = Exists(
@@ -126,6 +138,11 @@ def _broken_services_by_action_model() -> dict[
     ]
     broken[LocalBaserowDeleteRowWorkflowAction] = [
         (LocalBaserowDeleteRow, _unusable_table())
+    ]
+    # A workspace export blanks the recipients, and an email with nobody to
+    # send it to is refused on every click.
+    broken[CoreSMTPEmailWorkflowAction] = [
+        (CoreSMTPEmailService, _blank_formula("to_emails"))
     ]
     for action_model, unusable in _unusable_integration_by_action_model().items():
         broken.setdefault(action_model, []).append((Service, unusable))

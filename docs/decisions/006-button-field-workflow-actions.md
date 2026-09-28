@@ -578,7 +578,8 @@ the natural place to narrow this further when it is wanted.
   a table that is trashed or in a trashed database or workspace. The cell renders a
   disabled button with a warning. An action whose integration is trashed, or that has
   none while its service needs one, puts the button in the same state, and so does an
-  update row action left without a row id, which the dispatch refuses on every click.
+  update row action left without a row id or an email without recipients, which the
+  dispatch refuses on every click. A workspace export leaves an email without them.
   Each action carries its own `requires_reconfiguration`, and the field's flag is
   whether any action has it, so the editor names every action behind the state,
   including a trashed table or integration it can't see in its own lists. Not every

@@ -344,9 +344,48 @@ def test_an_email_action_without_an_integration_does_not_need_reconfiguring(
     )
     service = action.service.specific
     service.use_instance_smtp_settings = True
+    service.to_emails = "'someone@example.com'"
     service.save()
 
     assert _requires_reconfiguration(button_field) is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "stored",
+    [
+        # How the column holds a formula context once its row is saved.
+        '{"m": "simple", "v": "0.1", "f": ""}',
+        '{"m": "simple", "v": "0.1", "f": "  "}',
+        '{"m": "simple", "v": "0.1", "f": "\\n"}',
+        '{"m": "simple", "v": "0.1", "f": null}',
+        # A raw formula string, until its row is saved again.
+        "",
+        "  ",
+    ],
+)
+def test_an_email_action_without_recipients_needs_reconfiguring(
+    data_fixture, setup, stored
+):
+    """The dispatch refuses an email with nobody to send it to, which is what a
+    workspace export leaves behind."""
+
+    *_, button_field = setup
+    action = data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field
+    )
+    service = action.service.specific
+    service.use_instance_smtp_settings = True
+    service.save()
+    # Written past `FormulaField`, which would wrap every value in a context.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {type(service)._meta.db_table} SET to_emails = %s "
+            "WHERE service_ptr_id = %s",
+            [stored, service.id],
+        )
+
+    assert _requires_reconfiguration(button_field) is True
 
 
 @pytest.mark.django_db

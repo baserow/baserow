@@ -4,6 +4,7 @@ import pytest
 
 from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.workflow_actions.handler import (
@@ -1200,6 +1201,9 @@ def test_a_workspace_export_carries_no_message(data_fixture):
     # How it sends still travels, so only the message has to be written again.
     assert imported_service.use_instance_smtp_settings is True
     assert imported_service.body_type == "plain"
+    # With nobody to send to, a click is sure to fail, so the button says so
+    # rather than failing only when clicked.
+    assert ButtonField.objects.get(id=imported_button.id).requires_reconfiguration
 
 
 @pytest.mark.django_db
