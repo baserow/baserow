@@ -1,0 +1,8 @@
+{
+    "type": "bug",
+    "message": "Fix newly created rows sometimes appearing twice in restricted views.",
+    "domain": "database",
+    "issue_number": 6119,
+    "bullet_points": [],
+    "created_at": "2026-09-28"
+}

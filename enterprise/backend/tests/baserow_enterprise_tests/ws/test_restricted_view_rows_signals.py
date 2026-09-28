@@ -39,7 +39,7 @@ def _setup(enterprise_data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
-def test_row_edited_out_of_restricted_view_deletes_it_for_the_editor(
+def test_row_edited_out_of_restricted_view_excludes_the_editor(
     mock_broadcast_to_channel_group, enterprise_data_fixture
 ):
     user, table, field, restricted_view = _setup(enterprise_data_fixture)
@@ -54,12 +54,12 @@ def test_row_edited_out_of_restricted_view_deletes_it_for_the_editor(
     payload, ignore_web_socket_id = calls[0]
     assert payload["type"] == "rows_deleted"
     assert payload["row_ids"] == [row.id]
-    assert ignore_web_socket_id is None
+    assert ignore_web_socket_id == EDITOR_WEB_SOCKET_ID
 
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
-def test_row_edited_into_restricted_view_creates_it_for_the_editor(
+def test_row_edited_into_restricted_view_excludes_the_editor(
     mock_broadcast_to_channel_group, enterprise_data_fixture
 ):
     user, table, field, restricted_view = _setup(enterprise_data_fixture)
@@ -74,7 +74,7 @@ def test_row_edited_into_restricted_view_creates_it_for_the_editor(
     payload, ignore_web_socket_id = calls[0]
     assert payload["type"] == "rows_created"
     assert [r["id"] for r in payload["rows"]] == [row.id]
-    assert ignore_web_socket_id is None
+    assert ignore_web_socket_id == EDITOR_WEB_SOCKET_ID
 
 
 @pytest.mark.django_db(transaction=True)

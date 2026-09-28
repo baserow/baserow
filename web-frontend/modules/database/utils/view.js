@@ -717,6 +717,34 @@ export function getDefaultView(app, store, workspaceId, showRowModal) {
   })
 }
 
+/**
+ * The backend only includes the ids of the rows that are not visible in the view
+ * if the view filters are unknown to the client, like in a restricted view.
+ */
+export function getRowIdsNotVisibleInView(data) {
+  return new Set(data.metadata?.row_ids_not_visible_in_view || [])
+}
+
+/**
+ * Explains to the user why the rows they just created or updated disappeared.
+ */
+export function notifyRowsNotVisibleInView(dispatch, i18n, count, created) {
+  if (count === 0) {
+    return
+  }
+  const messageKey = created
+    ? 'rowsNotVisibleInView.createdMessage'
+    : 'rowsNotVisibleInView.updatedMessage'
+  dispatch(
+    'toast/info',
+    {
+      title: i18n.t('rowsNotVisibleInView.title', { count }),
+      message: i18n.t(messageKey, { count }),
+    },
+    { root: true }
+  )
+}
+
 /*
  * Extracts the metadata from the provided data to populate the row.
  */

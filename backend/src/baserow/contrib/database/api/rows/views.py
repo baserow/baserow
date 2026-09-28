@@ -135,6 +135,8 @@ from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import (
     ReadAdjacentViewRowOperationType,
 )
+from baserow.contrib.database.views.registries import view_ownership_type_registry
+from baserow.contrib.database.views.row_checker import get_row_ids_not_visible_in_view
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
@@ -169,13 +171,15 @@ def build_response_with_metadata(
     serializer_class,
     updated_field_ids: list | None = None,
     cascade_update: CascadeUpdatedRows | None = None,
+    view: View | None = None,
 ) -> Response:
     """
     Helper to build view's response with optional operation metadata structure.
 
     If the request contains `include_metadata` flag, then the response should include
     `metadata` field with information about the operation performed. At the moment,
-    this includes a list of fields that have been changed.
+    this includes a list of fields that have been changed, and if the view filters
+    are enforced for the user, the ids of the rows that are not visible in the view.
     """
 
     data = {"items": rows}
@@ -190,6 +194,14 @@ def build_response_with_metadata(
                 "rows": cascade_update.updated_rows,
                 "field_ids": cascade_update.field_ids,
             }
+        # A user whose view filters are enforced doesn't receive the filters, so it
+        # can't determine by itself whether the rows still match the view.
+        if view is not None and view_ownership_type_registry.get(
+            view.ownership_type
+        ).enforce_apply_filters(request.user, view):
+            row_ids_not_visible = get_row_ids_not_visible_in_view(rows, view)
+            if row_ids_not_visible is not None:
+                data["metadata"]["row_ids_not_visible_in_view"] = row_ids_not_visible
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
 
@@ -1469,6 +1481,7 @@ class BatchRowsView(APIView):
             request=request,
             model=model,
             serializer_class=response_serializer_class,
+            view=view,
         )
 
     @extend_schema(
@@ -1637,6 +1650,7 @@ class BatchRowsView(APIView):
             serializer_class=response_serializer_class,
             updated_field_ids=updated_data.updated_field_ids,
             cascade_update=updated_data.cascade_update,
+            view=view,
         )
 
 

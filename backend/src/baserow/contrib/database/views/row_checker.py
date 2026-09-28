@@ -39,6 +39,36 @@ class FilteredViewRows:
         return iter((self.view, self.allowed_row_ids))
 
 
+def remember_views_where_rows_are_visible(
+    rows: Iterable[GeneratedTableModel], filtered_views: List[FilteredViewRows]
+):
+    """
+    Stores the already computed visibility on the row instances, so that the API
+    response can reuse it without querying the view filters again.
+    """
+
+    for row in rows:
+        row._visible_in_view_ids = {
+            filtered_view.view.id
+            for filtered_view in filtered_views
+            if filtered_view.all_allowed() or row.id in filtered_view.allowed_row_ids
+        }
+
+
+def get_row_ids_not_visible_in_view(
+    rows: Iterable[GeneratedTableModel], view: View
+) -> Optional[List[int]]:
+    """
+    Returns the ids of the rows that are not visible in the provided view, based on
+    what `remember_views_where_rows_are_visible` stored. Returns `None` if the
+    visibility was not computed, e.g. when no realtime update was sent.
+    """
+
+    if not all(hasattr(row, "_visible_in_view_ids") for row in rows):
+        return None
+    return [row.id for row in rows if view.id not in row._visible_in_view_ids]
+
+
 class FilteredViewRowChecker:
     """
     A helper class to check in which views a row is visible. It will pre-calculate

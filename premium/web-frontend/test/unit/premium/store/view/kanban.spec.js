@@ -208,6 +208,80 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[0].id).toBe(11)
   })
 
+  test('updateRowValue removes the row not visible in view according to backend', async () => {
+    const stacks = {}
+    stacks['1'] = {
+      count: 2,
+      results: [
+        { id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'keep' },
+        { id: 11, order: '11.00', field_1: { id: 1 }, field_2: 'keep' },
+      ],
+    }
+    const state = Object.assign(kanbanStore.state(), {
+      lastKanbanId: 1,
+      singleSelectFieldId: 1,
+      stacks,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+    const fields = [
+      { id: 1, name: 'Stack', type: 'single_select', select_options: [] },
+      { id: 2, name: 'Name', type: 'text' },
+    ]
+    testApp.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+      items: [{ id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'drop' }],
+      metadata: { updated_field_ids: [2], row_ids_not_visible_in_view: [10] },
+    })
+
+    await store.dispatch('kanban/updateRowValue', {
+      view,
+      table: { id: 1 },
+      row: store.state.kanban.stacks['1'].results[0],
+      field: fields[1],
+      fields,
+      value: 'drop',
+      oldValue: 'keep',
+    })
+
+    expect(store.state.kanban.stacks['1'].count).toBe(1)
+    expect(store.state.kanban.stacks['1'].results.map((row) => row.id)).toEqual(
+      [11]
+    )
+  })
+
+  test('createNewRow does not add the row not visible in view according to backend', async () => {
+    const stacks = {}
+    stacks['1'] = {
+      count: 1,
+      results: [{ id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'a' }],
+    }
+    const state = Object.assign(kanbanStore.state(), {
+      lastKanbanId: 1,
+      singleSelectFieldId: 1,
+      stacks,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+    const fields = [
+      { id: 1, name: 'Stack', type: 'single_select', select_options: [] },
+      { id: 2, name: 'Name', type: 'text' },
+    ]
+    testApp.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+      items: [{ id: 11, order: '11.00', field_1: { id: 1 }, field_2: 'b' }],
+      metadata: { updated_field_ids: [2], row_ids_not_visible_in_view: [11] },
+    })
+
+    await store.dispatch('kanban/createNewRow', {
+      view,
+      table: { id: 1 },
+      fields,
+      values: { field_1: { id: 1 }, field_2: 'b' },
+    })
+
+    expect(store.state.kanban.stacks['1'].count).toBe(1)
+    expect(store.state.kanban.stacks['1'].results.map((row) => row.id)).toEqual(
+      [10]
+    )
+  })
+
   test('updatedExistingRow', async () => {
     const stacks = {}
     stacks.null = {

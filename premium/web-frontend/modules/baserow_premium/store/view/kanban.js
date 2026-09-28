@@ -9,6 +9,8 @@ import {
   getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
+  getRowIdsNotVisibleInView,
+  notifyRowsNotVisibleInView,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
@@ -434,20 +436,26 @@ export const actions = {
     { dispatch, commit, getters },
     { view, table, fields, values }
   ) {
-    const { $registry, $client } = this
+    const { $registry, $client, $i18n } = this
     const preparedRow = prepareRowForRequest(values, fields, $registry)
 
     commit('SET_CREATING', true)
-    const { data } = await RowService($client).create(
+    const { data } = await RowService($client).batchCreate(
       table.id,
-      preparedRow,
+      [preparedRow],
+      null,
       null,
       getters.getLastKanbanId
     )
     commit('SET_CREATING', false)
+    const [createdRow] = data.items
+    if (getRowIdsNotVisibleInView(data).has(createdRow.id)) {
+      notifyRowsNotVisibleInView(dispatch, $i18n, 1, true)
+      return
+    }
     return await dispatch('createdNewRow', {
       view,
-      values: data,
+      values: createdRow,
       fields,
     })
   },
@@ -944,7 +952,7 @@ export const actions = {
     { commit, dispatch, getters },
     { view, table, row, field, fields, value, oldValue }
   ) {
-    const { $client, $registry } = this
+    const { $client, $registry, $i18n } = this
     const { newRowValues, oldRowValues, updateRequestValues } =
       prepareNewOldAndUpdateRequestValues(
         row,
@@ -984,6 +992,11 @@ export const actions = {
           null,
           getters.getLastKanbanId
         )
+        if (getRowIdsNotVisibleInView(data).has(row.id)) {
+          notifyRowsNotVisibleInView(dispatch, $i18n, 1, false)
+          await dispatch('deletedExistingRow', { view, row, fields })
+          return
+        }
         const updatedFieldIds = data.metadata?.updated_field_ids || []
 
         const readOnlyData = extractChangedFields(

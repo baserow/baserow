@@ -1168,6 +1168,161 @@ describe('Grid view store', () => {
     expect(row1).toBeUndefined()
   })
 
+  describe('rows not visible in the view according to the backend', () => {
+    // A restricted view doesn't expose its filters, so the backend reports which
+    // rows are not visible anymore.
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+    }
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+    }
+
+    const createRestrictedStore = () => {
+      const restrictedStore = testApp.createStore({
+        modules: {
+          grid: {
+            ...gridStore,
+            actions: {
+              ...gridStore.actions,
+              fetchByScrollTopDelayed: vi.fn(),
+              fetchAllFieldAggregationData: vi.fn(),
+            },
+          },
+        },
+      })
+      const state = Object.assign(gridStore.state(), {
+        lastGridId: 1,
+        count: 2,
+        bufferStartIndex: 0,
+        bufferLimit: 10,
+        rows: [
+          {
+            id: 1,
+            order: '1.00',
+            field_1: 'keep',
+            _: { ...rowMetadata, persistentId: 'r1' },
+          },
+          {
+            id: 2,
+            order: '2.00',
+            field_1: 'keep',
+            _: { ...rowMetadata, persistentId: 'r2' },
+          },
+        ],
+      })
+      restrictedStore.replaceState({ ...restrictedStore.state, grid: state })
+      return restrictedStore
+    }
+
+    test('updateRowValue removes the row', async () => {
+      const restrictedStore = createRestrictedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 1, order: '1.00', field_1: 'drop' }],
+        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [1] },
+      })
+
+      const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
+      await restrictedStore.dispatch('grid/updateRowValue', {
+        table: { id: 1 },
+        view,
+        fields,
+        row: restrictedStore.getters['grid/getAllRows'][0],
+        field: fields[0],
+        value: 'drop',
+        oldValue: 'keep',
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([2])
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        'toast/info',
+        expect.objectContaining({ title: expect.any(String) })
+      )
+      expect(restrictedStore.getters['grid/getCount']).toBe(1)
+    })
+
+    test('updateDataIntoCells removes only the rows not visible', async () => {
+      const restrictedStore = createRestrictedStore()
+      mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+        items: [
+          { id: 1, order: '1.00', field_1: 'drop' },
+          { id: 2, order: '2.00', field_1: 'keep' },
+        ],
+        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [1] },
+      })
+
+      const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
+      await restrictedStore.dispatch('grid/updateDataIntoCells', {
+        table: { id: 1 },
+        view,
+        allVisibleFields: fields,
+        allFieldsInTable: fields,
+        getScrollTop: () => 0,
+        textData: [['drop'], ['keep']],
+        rowIndex: 0,
+        fieldIndex: 0,
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([2])
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        'toast/info',
+        expect.objectContaining({ title: expect.any(String) })
+      )
+      expect(restrictedStore.getters['grid/getCount']).toBe(1)
+    })
+
+    test('createNewRows removes the created row', async () => {
+      const restrictedStore = createRestrictedStore()
+      mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+        items: [{ id: 3, order: '3.00', field_1: '' }],
+        metadata: { updated_field_ids: [], row_ids_not_visible_in_view: [3] },
+      })
+
+      const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
+      await restrictedStore.dispatch('grid/createNewRows', {
+        view,
+        table: { id: 1 },
+        fields,
+        rows: [{}],
+      })
+
+      expect(
+        restrictedStore.getters['grid/getAllRows'].map((row) => row.id)
+      ).toEqual([1, 2])
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        'toast/info',
+        expect.objectContaining({ title: expect.any(String) })
+      )
+      expect(restrictedStore.getters['grid/getCount']).toBe(2)
+    })
+  })
+
   test('updateRowValue discards a save for a row without an id (row modal closed mid-edit)', async () => {
     const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
     const view = { id: 1, filters: [], sortings: [], group_bys: [] }

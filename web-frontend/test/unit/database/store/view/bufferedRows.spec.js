@@ -1,3 +1,4 @@
+import { vi } from 'vitest'
 import bufferedRows from '@baserow/modules/database/store/view/bufferedRows'
 import viewStore from '@baserow/modules/database/store/view'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -2045,6 +2046,93 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[9].id).toBe(12)
     expect(rowsInStore[10].id).toBe(14)
     expect(rowsInStore[11]).toBe(null)
+  })
+
+  test('created row not visible in view according to backend is not added', async () => {
+    const view = {
+      id: 1,
+      filters_disabled: false,
+      filter_type: 'AND',
+      filters: [],
+      filter_groups: [],
+      sortings: [],
+      ownership_type: 'restricted',
+    }
+    const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
+    const populateRow = (row) => {
+      row._ = {}
+      return row
+    }
+    const state = {
+      visibleRange: { startIndex: 0, endIndex: 0 },
+      requestSize: 4,
+      viewId: 1,
+      rows: [{ id: 1, order: '1.00000000000000000000', field_1: 'a', _: {} }],
+    }
+    const store = createStore({ service: null, populateRow }, state)
+    const dispatchSpy = vi.spyOn(store, 'dispatch')
+    testApp.mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+      items: [{ id: 2, order: '2.00000000000000000000', field_1: 'b' }],
+      metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [2] },
+    })
+
+    await store.dispatch('test/createNewRow', {
+      view,
+      table: { id: 1 },
+      fields,
+      values: { field_1: 'b' },
+    })
+
+    expect(store.getters['test/getRows'].map((row) => row.id)).toEqual([1])
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      'toast/info',
+      expect.objectContaining({ title: expect.any(String) })
+    )
+  })
+
+  test('updated row not visible in view according to backend is removed', async () => {
+    const view = {
+      id: 1,
+      filters_disabled: false,
+      filter_type: 'AND',
+      filters: [],
+      filter_groups: [],
+      sortings: [],
+      ownership_type: 'restricted',
+    }
+    const fields = [{ id: 1, name: 'Name', type: 'text', primary: true }]
+    const populateRow = (row) => {
+      row._ = {}
+      return row
+    }
+    const state = {
+      visibleRange: { startIndex: 0, endIndex: 1 },
+      requestSize: 4,
+      viewId: 1,
+      rows: [
+        { id: 1, order: '1.00000000000000000000', field_1: 'keep', _: {} },
+        { id: 2, order: '2.00000000000000000000', field_1: 'keep', _: {} },
+      ],
+    }
+    const store = createStore({ service: null, populateRow }, state)
+    testApp.mockServer.mock
+      .onPatch('/database/rows/table/1/batch/')
+      .reply(200, {
+        items: [{ id: 1, order: '1.00000000000000000000', field_1: 'drop' }],
+        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [1] },
+      })
+
+    await store.dispatch('test/updatePreparedRowValues', {
+      table: { id: 1 },
+      view,
+      fields,
+      row: store.getters['test/getRows'][0],
+      values: { field_1: 'drop' },
+      oldValues: { field_1: 'keep' },
+      updateRequestValues: { field_1: 'drop' },
+    })
+
+    expect(store.getters['test/getRows'].map((row) => row.id)).toEqual([2])
   })
 })
 

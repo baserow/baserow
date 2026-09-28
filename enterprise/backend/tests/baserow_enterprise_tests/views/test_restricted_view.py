@@ -3581,3 +3581,102 @@ def test_editor_on_restricted_view_can_redo_delete_rows(restricted_view_editor_s
     assert len(actions_redone) == 1
     assert actions_redone[0].error is None
     assert model.objects.filter(id__in=[row_one.id, row_two.id]).count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_batch_update_response_includes_rows_not_visible_in_view(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    row_1, row_2 = (
+        RowHandler()
+        .create_rows(
+            admin,
+            table,
+            [{f"field_{name_field.id}": "keep"}, {f"field_{name_field.id}": "keep"}],
+        )
+        .created_rows
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={view.id}",
+        {
+            "items": [
+                {"id": row_1.id, f"field_{name_field.id}": "drop"},
+                {"id": row_2.id, f"field_{name_field.id}": "keep"},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["metadata"]["row_ids_not_visible_in_view"] == [row_1.id]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_batch_create_response_includes_rows_not_visible_in_view(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    response = api_client.post(
+        f"{url}?include_metadata=true&view={view.id}",
+        {
+            "items": [
+                {f"field_{name_field.id}": "keep"},
+                {f"field_{name_field.id}": "drop"},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["metadata"]["row_ids_not_visible_in_view"] == [
+        response_json["items"][1]["id"]
+    ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_batch_update_response_excludes_rows_not_visible_in_view_if_not_enforced(
+    api_client, enterprise_data_fixture, restricted_view_editor_setup
+):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=name_field, type="equal", value="keep"
+    )
+    row = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "keep"}
+    )
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+    items = {"items": [{"id": row.id, f"field_{name_field.id}": "drop"}]}
+
+    # The admin knows the filters, so it can determine visibility by itself.
+    response = api_client.patch(
+        f"{url}?include_metadata=true&view={view.id}",
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(admin)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "row_ids_not_visible_in_view" not in response.json()["metadata"]
+
+    response = api_client.patch(
+        f"{url}?include_metadata=true",
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(admin)}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "row_ids_not_visible_in_view" not in response.json()["metadata"]

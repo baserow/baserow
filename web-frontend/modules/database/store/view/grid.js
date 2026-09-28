@@ -24,6 +24,8 @@ import {
   getOrderBy,
   canRowsBeOptimisticallyUpdatedInView,
   viewHasRulesThatCanMoveOrHideRows,
+  getRowIdsNotVisibleInView,
+  notifyRowsNotVisibleInView,
 } from '@baserow/modules/database/utils/view'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
@@ -4589,8 +4591,17 @@ export const actions = {
           fields: fieldsToFinalize,
         })
 
+        const rowIdsNotVisible = getRowIdsNotVisibleInView(data)
+        notifyRowsNotVisibleInView(dispatch, $i18n, rowIdsNotVisible.size, true)
         for (let i = 0; i < data.items.length; i += 1) {
           const item = data.items[i]
+          if (rowIdsNotVisible.has(item.id)) {
+            const row = getters.getRow(item.id)
+            if (row) {
+              await dispatch('deletedExistingRow', { view, fields, row })
+            }
+            continue
+          }
           // Use the updated row in the buffer if it exists, otherwise use the populated
           // row object to update inner state.
           const row = getters.getRow(item.id) || rowsPopulated[i]
@@ -5187,6 +5198,14 @@ export const actions = {
           field.id,
         ])
 
+        const rowIdsNotVisible = getRowIdsNotVisibleInView(batchResponse.data)
+        notifyRowsNotVisibleInView(
+          dispatch,
+          $i18n,
+          rowIdsNotVisible.size,
+          false
+        )
+
         for (const updatedRowData of updatedRows) {
           // Extract only the read-only values because we don't want to update the other
           // values that might have been updated in the meantime.
@@ -5202,6 +5221,18 @@ export const actions = {
           // update it.
           const existing = getters.getRow(rowData.id)
           if (existing === undefined) {
+            continue
+          }
+          if (rowIdsNotVisible.has(existing.id)) {
+            await dispatch('deletedExistingRow', {
+              view,
+              fields,
+              row: existing,
+            })
+            await dispatch('fetchByScrollTopDelayed', {
+              scrollTop: getters.getScrollTop,
+              fields,
+            })
             continue
           }
           // Update the remaining values like formula, which depend on the backend.
@@ -5518,6 +5549,8 @@ export const actions = {
       getters.getLastGridId
     )
     const updatedRows = responseData.items
+    const rowIdsNotVisible = getRowIdsNotVisibleInView(responseData)
+    notifyRowsNotVisibleInView(dispatch, $i18n, rowIdsNotVisible.size, false)
     // Create extra missing rows
     if (newRowsCount > 0) {
       await dispatch('createNewRows', {
@@ -5541,6 +5574,14 @@ export const actions = {
     for (const row of oldRowsInOrder) {
       // The values are the updated row returned by the response.
       const values = updatedRows.find((updatedRow) => updatedRow.id === row.id)
+      if (rowIdsNotVisible.has(row.id)) {
+        await dispatch('deletedExistingRow', {
+          view,
+          fields: allFieldsInTable,
+          row,
+        })
+        continue
+      }
       // Calling the updatedExistingRow will automatically remove the row from the
       // view if it doesn't matter the filters anymore and it will also be moved to
       // the right position if changed.
