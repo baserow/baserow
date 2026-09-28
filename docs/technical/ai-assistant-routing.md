@@ -18,8 +18,8 @@ Incomplete calls return `changed: false` with instructions to reissue the call
 using the full schema, without consuming the tool-error retry budget. Those
 pending calls remain visible until reissued, and routing-only results are
 excluded from verified action memory. Tool execution is sequential so later calls
-see earlier results and mode changes. Dynamic row tools are available in database
-mode and are refreshed when their table schema changes.
+see earlier results and mode changes. Dynamic row tools stay available in every
+mode once loaded and are refreshed when their table schema changes.
 
 When adding a tool, register it in its domain's tool functions and ensure the
 routing map assigns it an owner. A mode switch never grants permissions or makes
@@ -30,8 +30,10 @@ an unavailable tool group discoverable.
 Chat history is compacted to user prompts and final answers, retaining at most
 20 messages. `action_memory.py` also stores recent mutation outcomes in versioned
 message metadata. This ledger retains at most 12 outcomes and 4,000 serialized
-characters. Large values are truncated, while request fingerprints use the full
-arguments to distinguish similar requests.
+characters. Large values are truncated, and row writes keep row IDs and counts
+instead of cell values, while request fingerprints use the full arguments to
+distinguish similar requests. The ledger reaches the model as data it must not
+follow as instructions.
 
 The ledger provides prior resource IDs and partial or failed outcomes to the
 model. It is bounded context, not an audit log or an idempotency guarantee. Old
@@ -41,7 +43,8 @@ resource state and enforce permissions before acting.
 Completion validation uses only live tool results after the latest user prompt.
 A prior success, a reused resource, or an explicit no-op cannot by itself justify
 claiming a new change. A partial result can support an answer that acknowledges
-unfinished work. Output-validation retries stay within the same user turn.
+unfinished work. Output-validation retries stay within the same user turn. When
+they run out, Kuma says its answer is unfinished and keeps the turn's tool results.
 
 The answer checks are English text heuristics. They catch common unsupported
 success claims, printed tool calls, false mode limitations, and unnecessary
