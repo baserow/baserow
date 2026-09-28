@@ -8788,6 +8788,242 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getCount']).toBe(3)
   })
 
+  describe('createNewRowConfirmed', () => {
+    const nameField = {
+      id: 1,
+      name: 'Name',
+      type: 'text',
+      primary: true,
+      _: { type: { type: 'text' } },
+    }
+    const baseView = {
+      id: 5,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: false,
+      sortings: [],
+      group_bys: [],
+      ownership_type: 'collaborative',
+    }
+    const row = (id, name) => ({
+      id,
+      order: `${id}.00000000000000000000`,
+      field_1: name,
+    })
+
+    const createConfirmedStore = (stateOverrides) => {
+      const fetchByScrollTopDelayed = vi.fn()
+      const fetchAllFieldAggregationDataDebounced = vi.fn()
+      const confirmedStore = testApp.createStore({
+        modules: {
+          grid: {
+            ...gridStore,
+            actions: {
+              ...gridStore.actions,
+              fetchByScrollTopDelayed,
+              fetchAllFieldAggregationDataDebounced,
+            },
+          },
+        },
+      })
+      confirmedStore.replaceState({
+        ...confirmedStore.state,
+        grid: Object.assign(gridStore.state(), stateOverrides),
+      })
+      return {
+        confirmedStore,
+        fetchByScrollTopDelayed,
+        fetchAllFieldAggregationDataDebounced,
+      }
+    }
+
+    test('posts with the view id and appends the confirmed row when the buffer reaches the end', async () => {
+      const {
+        confirmedStore,
+        fetchByScrollTopDelayed,
+        fetchAllFieldAggregationDataDebounced,
+      } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: baseView,
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'c' },
+      })
+
+      const request = mockServer.mock.history.post[0]
+      expect(request.params).toEqual({ view: 5 })
+      expect(JSON.parse(request.data)).toEqual({ field_1: 'c' })
+      const rows = confirmedStore.getters['grid/getAllRows']
+      expect(rows.map((r) => r.id)).toEqual([1, 2, 3])
+      expect(rows[2]._.selected).toBe(false)
+      expect(confirmedStore.getters['grid/getCount']).toBe(3)
+      expect(fetchByScrollTopDelayed).toHaveBeenCalledOnce()
+      expect(fetchAllFieldAggregationDataDebounced).toHaveBeenCalledWith(
+        expect.anything(),
+        { view: baseView }
+      )
+    })
+
+    test('inserts the confirmed row at its sorted position inside the buffer', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'c')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'b'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: {
+          ...baseView,
+          sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        },
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'b' },
+      })
+
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 3, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(3)
+    })
+
+    test('only increments the count when the row lands outside the buffer', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 10,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(11, 'k'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: baseView,
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'k' },
+      })
+
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(11)
+    })
+
+    test('does not show a confirmed row that fails the active filters', async () => {
+      const { confirmedStore } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(200, row(3, 'c'))
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: {
+          ...baseView,
+          filters: [
+            {
+              id: 1,
+              view: 5,
+              field: 1,
+              type: EqualViewFilterType.getType(),
+              value: 'nomatch',
+              preload_values: {},
+              group: null,
+            },
+          ],
+        },
+        table: { id: 1 },
+        fields: [nameField],
+        values: { field_1: 'c' },
+      })
+
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(2)
+    })
+
+    test('puts the confirmed row into its value-derived group', async () => {
+      const teamField = {
+        id: 2,
+        name: 'Team',
+        type: 'text',
+        _: { type: { type: 'text' } },
+      }
+      const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+      const { confirmedStore } = createConfirmedStore({
+        activeGroupBys: groupBys,
+        count: 0,
+        fieldOptions: {
+          1: { hidden: false, order: 0 },
+          2: { hidden: false, order: 1 },
+        },
+        groupBy: {
+          treeNodes: [],
+          truncated: false,
+          collapse: { mode: 'expand', paths: [] },
+          sectionRows: {},
+          rowLocations: {},
+        },
+      })
+      mockServer.mock
+        .onPost('/database/rows/table/1/')
+        .reply(200, { ...row(11, 'Dan'), field_2: 'B' })
+
+      await confirmedStore.dispatch('grid/createNewRowConfirmed', {
+        view: { ...baseView, group_bys: groupBys },
+        table: { id: 1 },
+        fields: [nameField, teamField],
+        values: { field_1: 'Dan', field_2: 'B' },
+      })
+
+      const section =
+        confirmedStore.state.grid.groupBy.sectionRows[groupPathKey(2, 'B')]
+      expect(section.map((r) => r.id)).toEqual([11])
+      const node = confirmedStore.state.grid.groupBy.treeNodes.find(
+        (n) => n.path.field_2 === 'B'
+      )
+      expect(node.row_count).toBe(1)
+      expect(confirmedStore.state.grid.count).toBe(1)
+    })
+
+    test('rejects and leaves the store untouched when the backend fails', async () => {
+      const { confirmedStore, fetchByScrollTopDelayed } = createConfirmedStore({
+        bufferStartIndex: 0,
+        bufferLimit: 2,
+        count: 2,
+        rows: [row(1, 'a'), row(2, 'b')],
+      })
+      mockServer.mock.onPost('/database/rows/table/1/').reply(500)
+
+      await expect(
+        confirmedStore.dispatch('grid/createNewRowConfirmed', {
+          view: baseView,
+          table: { id: 1 },
+          fields: [nameField],
+          values: { field_1: 'c' },
+        })
+      ).rejects.toBeTruthy()
+
+      expect(
+        confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
+      ).toEqual([1, 2])
+      expect(confirmedStore.getters['grid/getCount']).toBe(2)
+      expect(fetchByScrollTopDelayed).not.toHaveBeenCalled()
+    })
+  })
+
   test('updatedExistingRow', async () => {
     const state = Object.assign(gridStore.state(), {
       bufferStartIndex: 0,

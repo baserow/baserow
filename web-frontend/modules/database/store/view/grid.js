@@ -4687,6 +4687,30 @@ export const actions = {
       })
     }
   },
+  /** Unlike `createNewRow`, inserts the row only once the backend confirms it. */
+  async createNewRowConfirmed(
+    { dispatch, getters },
+    { view, table, fields, values }
+  ) {
+    const { $client, $registry } = this
+    const { data } = await RowService($client).create(
+      table.id,
+      prepareRowForRequest(values, fields, $registry),
+      null,
+      view.id
+    )
+    await dispatch('createdNewRow', {
+      view,
+      fields,
+      values: data,
+      metadata: {},
+    })
+    dispatch('fetchByScrollTopDelayed', {
+      scrollTop: getters.getScrollTop,
+      fields,
+    })
+    dispatch('fetchAllFieldAggregationDataDebounced', { view })
+  },
   /**
    * Called after a new row has been created, which could be by the user or via
    * another channel. It will only add the row if it belongs inside the views and it
