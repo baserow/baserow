@@ -114,7 +114,10 @@ def test_a_failure_keeps_the_completed_actions_and_skips_the_rest(data_fixture):
     [
         ({"status_code": 500}, "the request was answered with status 500"),
         ({"status_code": 404}, "the request was answered with status 404"),
-        ({"raise_exception": request_exceptions.Timeout()}, "the request timed out"),
+        (
+            {"raise_exception": request_exceptions.Timeout()},
+            "the request timed out or was answered with status 504",
+        ),
     ],
 )
 def test_an_endpoint_answering_an_error_fails_the_click_and_skips_the_rest(

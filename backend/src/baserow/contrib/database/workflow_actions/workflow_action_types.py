@@ -695,9 +695,10 @@ class CoreHTTPRequestWorkflowActionType(DatabaseWorkflowServiceActionType):
 
         if not isinstance(status_code, int) or status_code < 400:
             return None
-        # The service answers a timeout with a 504 of its own.
+        # The service answers a timeout with a 504 of its own, so a 504 can be
+        # either.
         if status_code == 504:
-            return "the request timed out"
+            return "the request timed out or was answered with status 504"
         return f"the request was answered with status {status_code}"
 
 
