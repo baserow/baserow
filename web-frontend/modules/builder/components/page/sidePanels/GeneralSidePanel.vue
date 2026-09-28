@@ -1,5 +1,12 @@
 <template>
   <div class="general-side-panel">
+    <Alert
+      v-if="elementFormVisible && elementType.isFormElement"
+      type="info-neutral"
+      class="margin-bottom-2"
+    >
+      {{ $t('elementForms.formValidationHint') }}
+    </Alert>
     <component
       :is="elementType.generalFormComponent"
       v-if="elementFormVisible"

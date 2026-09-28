@@ -229,6 +229,7 @@
     "footer": "FOOTER"
   },
   "elementForms": {
+    "formValidationHint": "Place this field inside a Form element to show validation errors before submitting data.",
     "textInputPlaceholder": "Enter text...",
     "urlInputPlaceholder": "Enter url..."
   },
