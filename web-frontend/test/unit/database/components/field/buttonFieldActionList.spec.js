@@ -6,6 +6,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import ButtonFieldActionList from '@baserow/modules/database/components/field/ButtonFieldActionList'
 import ButtonFieldActionForm from '@baserow/modules/database/components/field/ButtonFieldActionForm'
 import { CLIENT_ID_KEY } from '@baserow/modules/database/utils/workflowActionReconciliation'
+import { BaserowPlugin } from '@baserow/modules/core/plugins'
 
 // Read rather than imported: the i18n loader turns an imported locale file
 // into compiled message ASTs, which the copy below can't be read off of.
@@ -458,6 +459,69 @@ describe('ButtonFieldActionList', () => {
     expect(
       wrapper.findAllComponents({ name: 'DatabaseWorkflowActionWithService' })
     ).toHaveLength(2)
+  })
+
+  describe('plugin components', () => {
+    const ActionTypeMeta = {
+      name: 'ActionTypeMeta',
+      props: ['workspace', 'actionType'],
+      template:
+        '<span class="action-type-meta">{{ actionType.getType() }}</span>',
+    }
+    const HeadingMeta = {
+      name: 'HeadingMeta',
+      props: ['workspace'],
+      template: '<span class="heading-meta"></span>',
+    }
+
+    class TestPlugin extends BaserowPlugin {
+      static getType() {
+        return 'button_field_test_plugin'
+      }
+
+      getButtonFieldActionTypeContextComponents({ actionType }) {
+        return actionType.isFrontendOnly ? [] : [ActionTypeMeta]
+      }
+
+      getButtonFieldActionListHeadingComponents() {
+        return [HeadingMeta]
+      }
+    }
+
+    afterEach(() => {
+      const registry = testApp.getRegistry()
+      if (registry.exists('plugin', TestPlugin.getType())) {
+        registry.unregister('plugin', TestPlugin.getType())
+      }
+    })
+
+    test('renders nothing extra when no plugin adds components', async () => {
+      const wrapper = await mountList([{ type: null }])
+
+      expect(wrapper.find('.heading-meta').exists()).toBe(false)
+      expect(wrapper.find('.action-type-meta').exists()).toBe(false)
+    })
+
+    test('renders the components a plugin adds', async () => {
+      testApp
+        .getRegistry()
+        .register('plugin', new TestPlugin({ app: testApp.getApp() }))
+      const wrapper = await mountList([{ type: null }])
+
+      expect(wrapper.find('.heading-meta').exists()).toBe(true)
+      // Open URL runs in the browser, so this plugin skips it.
+      expect(
+        wrapper.findAll('.action-type-meta').map((meta) => meta.text())
+      ).toEqual([
+        'http_request',
+        'smtp_email',
+        'local_baserow_create_row',
+        'local_baserow_update_row',
+        'local_baserow_delete_row',
+        'slack_write_message',
+        'start_workflow',
+      ])
+    })
   })
 
   describe('misconfiguration', () => {

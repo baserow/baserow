@@ -1,33 +1,33 @@
 # Baserow AI-Assistant: Quick DevOps Setup
 
-This guide shows how to enable the AI-assistant in Baserow, configure the required
-environment variables, and (optionally) turn on knowledge-base lookups via an embeddings
-server.
+This guide shows how to configure the AI assistant's provider and model in Baserow
+and optionally enable knowledge-base lookups through an embeddings server.
 
 ## 1) Core concepts
 
 - The assistant is built on [**pydantic-ai**](https://ai.pydantic.dev/) — a
   Python agent framework that supports multiple LLM providers out of the box.
-- With database-backed AI providers enabled, an instance administrator configures
-  providers and chooses one Kuma model under **Admin > AI providers > AI features**.
-  A workspace can inherit that choice, select another model available to Kuma, or
-  disable Kuma in its workspace AI provider settings.
-- `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` remains the legacy fallback while the
-  `ai-providers` feature is disabled, or while its Kuma selection is unconfigured
-  or invalid. While the feature is enabled, an explicit instance or workspace
-  disable remains authoritative.
+- An instance administrator configures providers and chooses one Kuma model under
+  **Admin tools → AI providers → AI features**. A workspace admin can inherit that
+  choice, select another model available to Kuma, or disable Kuma in the workspace's
+  **Settings → AI providers**.
+- `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` and its `UDSPY_LM_MODEL` alias are
+  **deprecated**. They remain compatibility fallbacks while the Kuma selection is
+  unconfigured or invalid. An explicit instance or workspace disable remains
+  authoritative.
 - The assistant has been mostly tested with the `gpt-oss-120b` family. Other models can
   work as well.
 
 ## 2) Minimal enablement
 
-For a fresh database-backed setup, enable `ai-providers`, then add a provider and
-its models in the admin UI. On each model, choose whether it is available to Kuma,
-AI Fields, AI Agent actions, or any combination of them, then select the
-Kuma model in the **AI features** section. Availability permits a feature to choose
-a model; it does not force AI Fields or AI Agent actions to use Kuma's model. Use
-**Test model** to check every selected feature. AI Fields and AI Agent actions check
-for a text response, while Kuma also checks tool calling.
+For a fresh setup, add a provider and its models under **Admin tools → AI providers**
+or a workspace's **Settings → AI providers**; see
+[where to configure them](https://baserow.io/docs/installation%2Fai-providers#where-to-configure-them).
+On each model, choose whether it is available to Kuma, AI Fields, AI Agent actions, or
+any combination of them, then select the Kuma model in the **AI features** section.
+Availability permits a feature to choose a model; it does not force AI Fields or AI
+Agent actions to use Kuma's model. Use **Test model** to check every selected feature. AI Fields and AI Agent
+actions check for a text response, while Kuma also checks tool calling.
 
 Changing a model that is already in use is confirmed, not applied silently. Disabling
 or deleting a model, unchecking one of its features, or renaming its identifier first
@@ -43,22 +43,20 @@ is allowed and the Kuma selection follows the model to its new identifier. A con
 gone keeps showing its saved provider and model, marked unavailable, so it can be
 found and repointed.
 
-For an existing installation, see the
-[AI provider upgrade and import instructions](../development/feature-flags.md#preparing-the-ai-providers-feature).
-Schema migrations run during the normal upgrade. Provider imports and republishing
-are needed when adopting database-backed settings, not just to upgrade with the
-feature disabled. Integrations with explicit provider overrides retain their own
-connection settings; check the compatibility notes for model lists, partial overrides,
-and optional endpoints. Review pending draft changes before republishing a site or
-workflow, since those changes will also become live.
+For an existing installation, see
+[Upgrading to Baserow 2.4](https://baserow.io/docs/installation%2Fai-providers#upgrading-to-baserow-24).
+The upgrade imports legacy provider settings automatically. Applications published
+before the upgrade keep the settings copied into them at publish time, and explicit
+integration overrides keep their own credentials; both need separate review before
+they can use centrally managed credentials. Republishing a site or workflow also
+deploys its current draft changes.
 
-The `migrate_ai_provider_settings` command imports legacy AI provider configuration;
-it does not import `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` or the provider-native credentials
-used by Kuma. The assistant therefore stays on its legacy fallback until an
-administrator configures the same provider connection in the database, marks and
+The import does not cover the deprecated Kuma model selector or the provider-native
+credentials used by Kuma. The assistant therefore stays on its legacy fallback until
+an administrator configures the same provider connection in the database, marks and
 tests a model for Kuma, and explicitly selects it. A database selection is
 authoritative, so verify its credentials and endpoint before switching.
-To roll back that selection, choose **Use legacy environment model**, which
+To roll back that selection, choose **Use environment model (deprecated)**, which
 also displays the configured model, in the instance AI feature settings. The choice
 is disabled when neither `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` nor the deprecated
 `UDSPY_LM_MODEL` fallback provides a model **to the web-frontend process**, which is
@@ -71,6 +69,7 @@ When using the legacy fallback with Docker Compose or multiple services, set
 
 ```dotenv
 # Required only for the legacy fallback
+# Deprecated; choose the Kuma model under Admin tools → AI providers → AI features.
 BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL=openai:gpt-5.2
 OPENAI_API_KEY=your_api_key
 
@@ -86,8 +85,18 @@ BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE=0.3
 
 ## 3) Legacy fallback provider presets
 
-Choose **one** provider block and set its variables. pydantic-ai uses the standard
-environment variables for each provider (e.g. `OPENAI_API_KEY`, `GROQ_API_KEY`).
+These presets retain compatibility for existing environment-based setups. Their
+`BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` selector is **deprecated**; use provider
+administration and an explicit Kuma selection when the connection is representable
+there. Native Bedrock authentication and Vertex AI do not currently have an
+equivalent database provider configuration, so those paths must keep their verified
+environment fallback. Do not remove a working fallback before a replacement is
+available and tested.
+
+Choose **one** provider block for a fallback that is still needed. pydantic-ai's
+native credential and connection variables, such as `OPENAI_API_KEY`, `GROQ_API_KEY`,
+AWS credentials, and `OPENAI_BASE_URL`, remain supported; they are separate from the
+deprecated Baserow model selector.
 
 ### OpenAI / OpenAI-compatible
 
@@ -190,9 +199,10 @@ If the assistant is not visible in the sidebar or doesn't work, verify that:
 
 Use one of these configurations:
 
-1. Select a usable Kuma model under **AI providers > AI features** and make sure
-   its model test passes; or
-2. Leave the Kuma selection unconfigured and set the legacy
+1. Select a usable Kuma model under **Admin tools → AI providers → AI features** and
+   make sure its model test passes; or
+2. For an existing compatibility setup, leave the Kuma selection unconfigured and
+   set the deprecated
    `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` in both backend and frontend services,
    with its provider credentials available to the backend.
 
@@ -224,23 +234,23 @@ The assistant previously used [UDSPy](https://github.com/baserow/udspy/) as its 
 framework. It now uses [pydantic-ai](https://ai.pydantic.dev/). Most environment
 variables are unchanged or bridged for backward compatibility.
 
-### What stays the same
+### Environment compatibility
 
 | Variable | Notes |
 |----------|-------|
-| `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` | Continues as the fallback while the database selection is unconfigured or invalid, but not when it is explicitly disabled. Both `provider/model` and `provider:model` formats are accepted. |
+| `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` | **Deprecated.** Kuma uses this model until you make a model available to Kuma and select it under **Admin tools → AI providers → AI features**. It is also used when that selection becomes unavailable, but not when Kuma is set to **Disabled** there. Both `provider/model` and `provider:model` formats are accepted. |
 | `BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE` | Still supported. Overrides the orchestrator temperature when set. |
 | `OPENAI_API_KEY` | Unchanged. |
 | `GROQ_API_KEY` | Unchanged. |
 | `AWS_BEARER_TOKEN_BEDROCK` | Still works — pydantic-ai supports Bedrock bearer token auth natively. |
 
-### Bridged for backward compatibility (no action needed)
+### Bridged for backward compatibility
 
 | Old variable | Equivalent | Notes |
 |--------------|------------|-------|
-| `UDSPY_LM_MODEL` | `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` | If set and the new var is absent, the old value is used automatically. |
-| `UDSPY_LM_API_KEY` | `OPENAI_API_KEY` / `GROQ_API_KEY` / etc. | Propagated to all provider key variables as a fallback. |
-| `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` | `OPENAI_BASE_URL` | Still works; bridged automatically. |
+| `UDSPY_LM_MODEL` | Kuma model under **Admin tools → AI providers → AI features** | **Deprecated.** Used only when `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is not set. Selecting a Kuma model in **AI features** replaces it; renaming it to `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` does not. |
+| `UDSPY_LM_API_KEY` | **API key** of the provider in **Admin tools → AI providers** | **Deprecated.** Only read while Kuma uses its environment model. If you still need that, use the provider's own variable instead, such as `OPENAI_API_KEY` or `GROQ_API_KEY`. |
+| `UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL` | **Base URL** (OpenAI) or **Host** (Ollama) of the provider in **Admin tools → AI providers** | **Deprecated.** Only read while Kuma uses its environment model. If you still need that, use `OPENAI_BASE_URL` or `OLLAMA_BASE_URL` instead. |
 | `AWS_REGION_NAME` | `AWS_DEFAULT_REGION` | Still works; bridged automatically. |
 
 ### New variables

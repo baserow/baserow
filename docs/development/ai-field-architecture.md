@@ -44,11 +44,14 @@ existing legacy environment settings and must not be extended. Override
 temperature at 1.0). If the provider supports file input, provide a
 `FileHandler` implementation.
 
-Register a matching frontend `GenerativeAIModelType` using the same stable type
-identifier and register any database-provider UI metadata and English strings.
-The database-provider API supplies the available provider configuration, while
-the frontend registry supplies presentation and legacy workspace-setting
-behavior.
+Register a matching frontend `BuiltInGenerativeAIModelType` using the same stable
+type identifier and register any database-provider UI metadata and English
+strings. Extending that base is what reports the provider through
+`isBuiltInProviderType()`, which lets an integration override that omits `models`
+inherit the workspace allowlist; plugin providers extend `GenerativeAIModelType`
+directly and keep their own authoritative model list. The database-provider API
+supplies the available provider configuration, while the frontend registry
+supplies presentation.
 
 ## Premium: AIFieldHandler
 

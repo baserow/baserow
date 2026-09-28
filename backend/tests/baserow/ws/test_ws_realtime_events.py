@@ -8,7 +8,7 @@ from django.test import override_settings
 from django.utils import timezone
 
 import pytest
-from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync, sync_to_async
 from channels.testing import WebsocketCommunicator
 from loguru import logger
 
@@ -1868,3 +1868,43 @@ async def test_replay_events_replays_table_events_only_when_subscribed(data_fixt
     assert response["force_refresh"] is False
 
     await communicator.disconnect()
+
+
+class _CollectingChannelLayer:
+    def __init__(self):
+        self.sent = []
+
+    async def group_send(self, group, message):
+        self.sent.append((group, message))
+
+
+# Recording runs on its own connection, which only works outside the test
+# transaction.
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+@override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=200)
+def test_send_messages_skips_recording_when_the_message_opts_out():
+    from baserow.ws.tasks import send_messages_to_channel_group
+    from baserow.ws.types import ChannelGroupMessage
+
+    channel_layer = _CollectingChannelLayer()
+    recorded = {"type": "broadcast_to_users", "user_ids": [1], "payload": {"a": 1}}
+    skipped = {
+        "type": "broadcast_to_users",
+        "user_ids": [1],
+        "payload": {"b": 2},
+        "record": False,
+    }
+    before = RealtimeEvent.objects.count()
+
+    async_to_sync(send_messages_to_channel_group)(
+        channel_layer,
+        [ChannelGroupMessage("users", recorded), ChannelGroupMessage("users", skipped)],
+    )
+
+    # Both are delivered live, but only the first one is kept for replay and
+    # therefore carries an event id.
+    assert [group for group, _ in channel_layer.sent] == ["users", "users"]
+    assert RealtimeEvent.objects.count() == before + 1
+    assert "_event_id" in recorded["payload"]
+    assert "_event_id" not in skipped["payload"]

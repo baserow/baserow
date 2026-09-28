@@ -1,12 +1,7 @@
-import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
-
 export default (client) => {
   return {
-    get(realtimeRecovery = false) {
-      return client.get(
-        '/settings/',
-        realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}
-      )
+    get() {
+      return client.get('/settings/')
     },
     getInstanceID() {
       return client.get('/settings/instance-id/')

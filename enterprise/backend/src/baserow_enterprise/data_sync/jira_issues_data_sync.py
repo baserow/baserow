@@ -18,51 +18,62 @@ from .jira_client import fetch_issues
 from .models import JiraIssuesDataSync
 
 
-class JiraIDDataSyncProperty(DataSyncProperty):
+class JiraDataSyncProperty(DataSyncProperty):
+    """
+    Base class for the Jira properties. `jira_field` names the field of the Jira
+    issue search response the property reads, so the client can ask Jira for
+    exactly the fields the enabled properties need. `None` for the properties
+    derived from the issue's `id` and `key`, which Jira always returns.
+    """
+
+    immutable_properties = True
+    jira_field: Optional[str] = None
+
+
+class JiraIDDataSyncProperty(JiraDataSyncProperty):
     unique_primary = True
-    immutable_properties = True
 
     def to_baserow_field(self) -> TextField:
         return TextField(name=self.name)
 
 
-class JiraSummaryDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraSummaryDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "summary"
 
     def to_baserow_field(self) -> TextField:
         return TextField(name=self.name)
 
 
-class JiraDescriptionDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraDescriptionDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "description"
 
     def to_baserow_field(self) -> LongTextField:
         return LongTextField(name=self.name, long_text_enable_rich_text=True)
 
 
-class JiraAssigneeDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraAssigneeDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "assignee"
 
     def to_baserow_field(self) -> TextField:
         return TextField(name=self.name)
 
 
-class JiraReporterDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraReporterDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "reporter"
 
     def to_baserow_field(self) -> TextField:
         return TextField(name=self.name)
 
 
-class JiraLabelsDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraLabelsDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "labels"
 
     def to_baserow_field(self) -> TextField:
         return TextField(name=self.name)
 
 
-class JiraCreatedDateDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraCreatedDateDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "created"
 
     def to_baserow_field(self) -> DateField:
         return DateField(
@@ -77,8 +88,8 @@ class JiraCreatedDateDataSyncProperty(DataSyncProperty):
         return compare_date(baserow_row_value, data_sync_row_value)
 
 
-class JiraUpdatedDateDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraUpdatedDateDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "updated"
 
     def to_baserow_field(self) -> DateField:
         return DateField(
@@ -93,8 +104,8 @@ class JiraUpdatedDateDataSyncProperty(DataSyncProperty):
         return compare_date(baserow_row_value, data_sync_row_value)
 
 
-class JiraResolvedDateDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraResolvedDateDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "resolutiondate"
 
     def to_baserow_field(self) -> DateField:
         return DateField(
@@ -109,8 +120,8 @@ class JiraResolvedDateDataSyncProperty(DataSyncProperty):
         return compare_date(baserow_row_value, data_sync_row_value)
 
 
-class JiraDueDateDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraDueDateDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "duedate"
 
     def to_baserow_field(self) -> DateField:
         return DateField(
@@ -125,23 +136,21 @@ class JiraDueDateDataSyncProperty(DataSyncProperty):
         return compare_date(baserow_row_value, data_sync_row_value)
 
 
-class JiraStateDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraStateDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "status"
 
     def to_baserow_field(self) -> TextField:
         return TextField(name=self.name)
 
 
-class JiraProjectDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
+class JiraProjectDataSyncProperty(JiraDataSyncProperty):
+    jira_field = "project"
 
     def to_baserow_field(self) -> TextField:
         return TextField(name=self.name)
 
 
-class JiraURLDataSyncProperty(DataSyncProperty):
-    immutable_properties = True
-
+class JiraURLDataSyncProperty(JiraDataSyncProperty):
     def to_baserow_field(self) -> URLField:
         return URLField(name=self.name)
 
@@ -203,7 +212,7 @@ class JiraIssuesDataSyncType(DataSyncType):
             JiraResolvedDateDataSyncProperty("resolved", "Resolved Date"),
             JiraDueDateDataSyncProperty("due", "Due Date"),
             JiraStateDataSyncProperty("status", "State"),
-            JiraStateDataSyncProperty("project", "Project"),
+            JiraProjectDataSyncProperty("project", "Project"),
             JiraURLDataSyncProperty("url", "Issue URL"),
         ]
 
@@ -233,6 +242,11 @@ class JiraIssuesDataSyncType(DataSyncType):
         fetched_issues = fetch_issues(
             instance,
             jql,
+            fields=[
+                p.jira_field
+                for p in self.get_properties(instance)
+                if p.jira_field is not None
+            ],
             progress_builder=progress.create_child_builder(represents_progress=9),
         )
         for issue in fetched_issues:

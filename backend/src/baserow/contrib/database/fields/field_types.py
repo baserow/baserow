@@ -152,7 +152,10 @@ from baserow.contrib.database.views.models import (
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
 )
-from baserow.contrib.database.workflow_actions.models import DatabaseWorkflowAction
+from baserow.contrib.database.workflow_actions.models import (
+    DatabaseWorkflowAction,
+    OpenUrlWorkflowAction,
+)
 from baserow.contrib.database.workflow_actions.registries import (
     database_workflow_action_type_registry,
 )
@@ -8196,6 +8199,7 @@ class ButtonFieldType(ReadOnlyFieldType):
         "label",
         "has_workflow_actions",
         "requires_reconfiguration",
+        "opens_new_tab",
     ]
     serializer_field_overrides = {
         "label": serializers.CharField(
@@ -8220,6 +8224,13 @@ class ButtonFieldType(ReadOnlyFieldType):
             "gone, or updates a row without saying which. The client renders "
             "a disabled button with a warning instead.",
         ),
+        "opens_new_tab": serializers.BooleanField(
+            required=False,
+            read_only=True,
+            help_text="Whether an action opens a URL in a new tab. The client "
+            "then opens the tab as the button is clicked, because a browser "
+            "may block one opened after the click's request returns.",
+        ),
     }
     api_exceptions_map = {
         ButtonFieldLabelNotProvided: ERROR_BUTTON_FIELD_LABEL_NOT_PROVIDED,
@@ -8237,7 +8248,11 @@ class ButtonFieldType(ReadOnlyFieldType):
     field_data_is_derived_from_attrs = True
     # They describe the button's actions rather than the table's data, and each
     # costs a query, so a service's table schema leaves them out.
-    action_state_field_names = ["has_workflow_actions", "requires_reconfiguration"]
+    action_state_field_names = [
+        "has_workflow_actions",
+        "requires_reconfiguration",
+        "opens_new_tab",
+    ]
 
     def get_field_names(self, request_serializer, extra_params, **kwargs):
         names = super().get_field_names(request_serializer, extra_params, **kwargs)
@@ -8289,7 +8304,7 @@ class ButtonFieldType(ReadOnlyFieldType):
     def enhance_field_queryset_for_serialization(
         self, queryset: QuerySet[Field], field: Field
     ) -> QuerySet[Field]:
-        # Both flags are serialized for every button field, so without this a
+        # The flags are serialized for every button field, so without this a
         # table's field list costs queries per button. Not in
         # `enhance_field_queryset`: they depend on other tables, so the cached
         # table model would serve them stale.
@@ -8305,6 +8320,11 @@ class ButtonFieldType(ReadOnlyFieldType):
                 ),
                 ButtonField.REQUIRES_RECONFIGURATION_ANNOTATION: (
                     requires_reconfiguration(OuterRef("pk"))
+                ),
+                ButtonField.OPENS_NEW_TAB_ANNOTATION: Exists(
+                    OpenUrlWorkflowAction.objects.filter(
+                        field_id=OuterRef("pk"), target="blank"
+                    )
                 ),
             }
         )

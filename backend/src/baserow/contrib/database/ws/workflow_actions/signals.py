@@ -28,8 +28,9 @@ from baserow.ws.registries import page_registry
 def button_fields_updated_message(fields: Iterable[ButtonField]) -> dict:
     """
     The payload that carries these button fields out to a page. Only
-    `has_workflow_actions` and `requires_reconfiguration` can have changed, and
-    neither says anything about the rows, so this is a separate message from
+    `has_workflow_actions`, `requires_reconfiguration` and `opens_new_tab` can
+    have changed, and none says anything about the rows, so this is a separate
+    message from
     `field_updated`: that one makes the client refetch the whole grid.
 
     :param fields: The button fields to send, all in the same table.
@@ -55,9 +56,10 @@ def broadcast_button_fields_updated(sender, table_id, fields, user, **kwargs):
 def _broadcast_field(field: ButtonField, user: AbstractUser) -> None:
     """
     Sends the button field out again, so everyone else's copy of
-    `has_workflow_actions` matches what the field now has. A cell renders an
-    inert button or a working one from that alone, and nothing else about an
-    action is of any use outside the editor.
+    `has_workflow_actions` and `opens_new_tab` matches what the field now has.
+    A cell renders an inert button or a working one from the first, and opens
+    a tab on click from the second. Nothing else about an action is of any use
+    outside the editor.
 
     :param field: The button field whose actions changed.
     :param user: The user who changed them, whose own session already knows.

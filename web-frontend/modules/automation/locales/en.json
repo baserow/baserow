@@ -216,5 +216,8 @@
     "testNodeDescription": "Test this node to confirm the configuration is correct. Data from this test can be used in later steps.",
     "sampleDataModalTitle": "Payload for {nodeLabel}",
     "sampleDataModalSubTitle": "JSON payload"
+  },
+  "lastViewedItemType": {
+    "automationWorkflow": "Workflow"
   }
 }

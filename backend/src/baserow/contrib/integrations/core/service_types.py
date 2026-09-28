@@ -6,6 +6,7 @@ import socket
 import time
 import uuid
 from datetime import datetime
+from functools import partial
 from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -86,15 +87,18 @@ from baserow.core.deferred_callbacks import (
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
     BASEROW_FORMULA_MODE_RAW,
     BaserowFormulaObject,
 )
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
+    ensure_deserialized_json,
     ensure_email,
     ensure_file,
     ensure_integer,
+    ensure_json_serializable,
     ensure_string,
 )
 from baserow.core.registries import ImportExportConfig
@@ -2240,11 +2244,19 @@ class CoreResponseServiceType(CoreServiceType):
         )
 
         if service.body_type != RESPONSE_BODY_TYPE.EMPTY:
+            body_ensurer = ensure_string
+            if (
+                service.body_type == RESPONSE_BODY_TYPE.JSON
+                and service.body.get("mode") != BASEROW_FORMULA_MODE_ADVANCED
+            ):
+                body_ensurer = partial(ensure_deserialized_json, strict=True)
+            elif service.body_type == RESPONSE_BODY_TYPE.JSON:
+                body_ensurer = ensure_json_serializable
             formulas.append(
                 FormulaToResolve(
                     "body",
                     service.body,
-                    lambda value: value,
+                    body_ensurer,
                     "'body' property",
                 )
             )

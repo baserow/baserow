@@ -76,15 +76,17 @@ class OllamaSettingsSerializer(GenerativeAIModelsSerializer):
     )
 
     def validate_host(self, value: str) -> str:
-        parsed = urlsplit(value)
+        error_message = "Enter a valid URL starting with http:// or https://."
+        try:
+            parsed = urlsplit(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(error_message) from exc
         if (
             parsed.scheme.lower() not in {"http", "https"}
             or not parsed.netloc
             or parsed.hostname is None
         ):
-            raise serializers.ValidationError(
-                "Enter a valid URL starting with http:// or https://."
-            )
+            raise serializers.ValidationError(error_message)
         return value.rstrip("/")
 
 

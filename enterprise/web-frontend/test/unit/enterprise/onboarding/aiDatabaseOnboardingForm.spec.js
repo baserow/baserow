@@ -59,10 +59,9 @@ const answer = async (wrapper, value) => {
 
 const stepType = new AIDatabaseOnboardingStepType({})
 
-const makeStepType = ({ providersEnabled, legacyModel = '', kuma } = {}) =>
+const makeStepType = ({ legacyModel = '', kuma } = {}) =>
   new AIDatabaseOnboardingStepType({
     app: {
-      $featureFlagIsEnabled: () => providersEnabled,
       $config: {
         public: { baserowEnterpriseAssistantLlmModel: legacyModel },
       },
@@ -73,7 +72,6 @@ const makeStepType = ({ providersEnabled, legacyModel = '', kuma } = {}) =>
 describe('AI database onboarding visibility', () => {
   test('is visible for a database-only Kuma selection', () => {
     const type = makeStepType({
-      providersEnabled: true,
       kuma: { is_enabled: true },
     })
 
@@ -82,7 +80,6 @@ describe('AI database onboarding visibility', () => {
 
   test('respects an explicit database-backed disable', () => {
     const type = makeStepType({
-      providersEnabled: true,
       legacyModel: 'groq:legacy-model',
       kuma: { is_enabled: false },
     })
@@ -90,11 +87,9 @@ describe('AI database onboarding visibility', () => {
     expect(type.isVisible()).toBe(false)
   })
 
-  test('uses the legacy model while database providers are disabled', () => {
+  test('uses the configured environment model when Kuma availability is missing', () => {
     const type = makeStepType({
-      providersEnabled: false,
       legacyModel: 'groq:legacy-model',
-      kuma: { is_enabled: false },
     })
 
     expect(type.isVisible()).toBe(true)

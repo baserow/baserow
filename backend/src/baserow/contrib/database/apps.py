@@ -879,6 +879,12 @@ class DatabaseConfig(AppConfig):
         job_type_registry.register(DuplicateFieldJobType())
         job_type_registry.register(SyncDataSyncTableJobType())
 
+        from baserow.contrib.database.workflow_actions.job_types import (
+            ButtonFieldDispatchJobType,
+        )
+
+        job_type_registry.register(ButtonFieldDispatchJobType())
+
         post_migrate.connect(safely_update_formula_versions, sender=self)
         pre_migrate.connect(clear_generated_model_cache_receiver, sender=self)
 
@@ -905,6 +911,13 @@ class DatabaseConfig(AppConfig):
         object_scope_type_registry.register(DatabaseViewFilterObjectScopeType())
         object_scope_type_registry.register(DatabaseViewFilterGroupObjectScopeType())
         object_scope_type_registry.register(TokenObjectScopeType())
+
+        from baserow.contrib.database.views.last_viewed_types import (
+            DatabaseViewLastViewedItemType,
+        )
+        from baserow.core.registries import last_viewed_item_type_registry
+
+        last_viewed_item_type_registry.register(DatabaseViewLastViewedItemType())
 
         from baserow.contrib.database.views.operations import (
             CanReceiveNotificationOnSubmitFormViewOperationType,

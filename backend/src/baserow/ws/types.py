@@ -24,6 +24,7 @@ class BroadcastToUsersMessage(TypedDict, total=False):
     payload: dict[str, Any]
     ignore_web_socket_id: str | None
     send_to_all_users: bool
+    record: bool
 
 
 class BroadcastToChannelGroupMessage(TypedDict, total=False):

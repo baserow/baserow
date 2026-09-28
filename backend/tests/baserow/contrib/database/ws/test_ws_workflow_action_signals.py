@@ -85,6 +85,30 @@ def test_removing_the_last_action_tells_the_table_the_button_is_inert(
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_switching_an_action_to_a_new_tab_is_broadcast(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    """A cell opens a tab on click only when `opens_new_tab` says so, so the
+    table has to hear when an action's target changes."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field, target="self"
+    )
+
+    DatabaseWorkflowActionService().update_workflow_action(user, action, target="blank")
+
+    group, message, _ = _last_field_message(mock_broadcast_to_channel_group)
+    assert group == f"table-{table.id}"
+    assert message["type"] == "button_fields_updated"
+    assert message["fields"][0]["id"] == button_field.id
+    assert message["fields"][0]["opens_new_tab"] is True
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
 def test_reordering_the_actions_is_broadcast_too(
     mock_broadcast_to_channel_group, data_fixture
 ):

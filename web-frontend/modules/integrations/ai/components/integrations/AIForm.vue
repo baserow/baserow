@@ -194,8 +194,7 @@ export default {
       }
     },
     getFormValues() {
-      // Serialize the ai_settings before submission, similar to
-      // GenerativeAIWorkspaceSettings.vue
+      // Serialize each provider setting before submission.
       const serializedSettings = {}
       this.availableProviders.forEach(({ type }) => {
         if (this.providerOverrides[type] && this.values.ai_settings[type]) {

@@ -14,7 +14,7 @@ const MODEL_UNAVAILABLE_ERROR =
 
 test.describe.configure({ mode: "serial" });
 
-test("AI field availability stays synchronized while visiting admin settings", async ({
+test("instance model availability reaches staff live and the table after a reload", async ({
   browserName,
   goto,
   page,
@@ -129,6 +129,17 @@ test("AI field availability stays synchronized while visiting admin settings", a
       .getByRole("button", { name: "Generate" })
       .first();
 
+    // Instance changes don't update workspace availability live, only on reload.
+    const reloadTable = async () => {
+      await page.evaluate(async (url) => {
+        await (window as any).useNuxtApp().$router.push(url);
+      }, tableUrl);
+      await expect(page).toHaveURL(new RegExp(tableUrl));
+      await page.reload();
+      await tablePage.waitForLoadingOverlayToDisappear();
+      await expect(fieldHeader).toBeVisible();
+    };
+
     await expect(fieldErrorIcon).toHaveCount(0);
     await expect(generateButton).toBeEnabled();
 
@@ -151,10 +162,7 @@ test("AI field availability stays synchronized while visiting admin settings", a
       )
       .toBe(MODEL_UNAVAILABLE_ERROR);
 
-    await page.evaluate(async (url) => {
-      await (window as any).useNuxtApp().$router.push(url);
-    }, tableUrl);
-    await expect(page).toHaveURL(new RegExp(tableUrl));
+    await reloadTable();
     await expect(fieldErrorIcon).toBeVisible();
     await expect(generateButton).toBeDisabled();
 
@@ -177,10 +185,7 @@ test("AI field availability stays synchronized while visiting admin settings", a
       )
       .toBe(null);
 
-    await page.evaluate(async (url) => {
-      await (window as any).useNuxtApp().$router.push(url);
-    }, tableUrl);
-    await expect(page).toHaveURL(new RegExp(tableUrl));
+    await reloadTable();
     await expect(fieldErrorIcon).toHaveCount(0);
     await expect(generateButton).toBeEnabled();
   } finally {

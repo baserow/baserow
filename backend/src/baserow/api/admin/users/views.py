@@ -328,7 +328,11 @@ class UserAdminImpersonateView(GenericAPIView):
         )
 
         serialized_data = {
-            **generate_session_tokens_for_user(user, include_refresh_token=True),
+            **generate_session_tokens_for_user(
+                user,
+                include_refresh_token=True,
+                impersonated_by_user_id=request.user.id,
+            ),
             **get_all_user_data_serialized(user, request),
         }
 

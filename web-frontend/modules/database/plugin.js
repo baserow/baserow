@@ -1,12 +1,14 @@
 import { defineNuxtPlugin } from '#app'
 import { DatabaseViewsAdminType } from '@baserow/modules/database/adminTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import { DatabaseViewLastViewedItemType } from '@baserow/modules/database/lastViewedItemTypes'
 import {
   DuplicateTableJobType,
   SyncDataSyncTableJobType,
   FileImportJobType,
   DuplicateFieldJobType,
   AirtableJobType,
+  ButtonFieldDispatchJobType,
 } from '@baserow/modules/database/jobTypes'
 import {
   GridViewType,
@@ -429,6 +431,10 @@ export default defineNuxtPlugin({
 
     $registry.register('plugin', new DatabasePlugin(context))
     $registry.register('application', new DatabaseApplicationType(context))
+    $registry.register(
+      'lastViewedItem',
+      new DatabaseViewLastViewedItemType(context)
+    )
     $registry.register('admin', new DatabaseViewsAdminType(context))
 
     $registry.register('job', new DuplicateTableJobType(context))
@@ -436,6 +442,7 @@ export default defineNuxtPlugin({
     $registry.register('job', new FileImportJobType(context))
     $registry.register('job', new DuplicateFieldJobType(context))
     $registry.register('job', new AirtableJobType(context))
+    $registry.register('job', new ButtonFieldDispatchJobType(context))
 
     $registry.register('view', new GridViewType(context))
     $registry.register('view', new GalleryViewType(context))

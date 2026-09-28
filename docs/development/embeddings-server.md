@@ -39,7 +39,12 @@ This will schedule a task to import `website_export.csv` containing all the docs
 
 ### Kuma is not available in the sidebar
 
-Make sure `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` is set correctly both in the backend and in the frontend. See [ai-assistant.md](../installation/ai-assistant.md) for more information.
+Configure and test a model available to Kuma, then select it under **AI providers →
+AI features** in instance or workspace settings. For an existing environment-based
+setup, the deprecated `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` fallback must be set
+in both backend and frontend services. See
+[AI assistant setup](../installation/ai-assistant.md) for migration and supported
+fallback configurations.
 
 ### Kuma is visible but it doesn't search the docs
 

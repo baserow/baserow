@@ -372,16 +372,13 @@ export const actions = {
       data,
       'BUMP_FEATURE_SETTINGS_REVISION'
     )
-    // The setting response describes the raw selection, while workspace
-    // availability also accounts for inheritance and legacy fallbacks. Refresh
-    // that authoritative view immediately; realtime remains the cross-tab path.
+    // Availability also reflects inheritance and legacy fallbacks the response omits.
     try {
       await dispatch('workspace/refreshAllGenerativeAIModels', null, {
         root: true,
       })
     } catch {
-      // Saving succeeded, so don't report a false failure if this optional
-      // synchronization request is interrupted. Realtime can still reconcile it.
+      // Saving succeeded, so an interrupted refresh must not report a failure.
     }
     return data
   },

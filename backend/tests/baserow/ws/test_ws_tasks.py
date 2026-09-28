@@ -10,7 +10,6 @@ from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
 from baserow.config.asgi import application
-from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_KUMA
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import (
     AIProviderConfig,
@@ -24,7 +23,9 @@ from baserow.core.ai_provider.registries import (
 from baserow.core.db import IsolationLevel
 from baserow.core.models import WORKSPACE_USER_PERMISSION_MEMBER
 from baserow.ws.tasks import (
-    broadcast_ai_provider_instance_update,
+    AI_PROVIDER_UPDATE_RENDER_LOCK_TIMEOUT,
+    _ai_provider_renderer_lock,
+    _ai_provider_renderer_lock_key,
     broadcast_ai_provider_update,
     broadcast_to_channel_group,
     broadcast_to_group,
@@ -37,9 +38,8 @@ from baserow.ws.tasks import (
 
 @pytest.mark.django_db
 def test_workspace_ai_provider_update_payloads_are_complete_permission_scoped_and_bounded(
-    data_fixture, settings
+    data_fixture,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     staff = data_fixture.create_user(is_staff=True)
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
@@ -105,9 +105,8 @@ def test_workspace_ai_provider_update_payloads_are_complete_permission_scoped_an
 
 @pytest.mark.django_db
 def test_workspace_ai_provider_metadata_update_only_notifies_permitted_users(
-    data_fixture, settings
+    data_fixture,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -132,9 +131,8 @@ def test_workspace_ai_provider_metadata_update_only_notifies_permitted_users(
 
 @pytest.mark.django_db
 def test_oversized_workspace_ai_provider_payloads_use_permission_scoped_markers(
-    data_fixture, settings
+    data_fixture,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -171,9 +169,8 @@ def test_oversized_workspace_ai_provider_payloads_use_permission_scoped_markers(
 
 @pytest.mark.django_db(transaction=True)
 def test_ai_provider_renderer_is_primary_repeatable_and_cross_worker_locked(
-    data_fixture, settings
+    data_fixture,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
     events = []
@@ -200,6 +197,10 @@ def test_ai_provider_renderer_is_primary_repeatable_and_cross_worker_locked(
     ):
         broadcast_ai_provider_update(workspace.id, True)
 
+    mock_cache_lock.assert_called_once_with(
+        _ai_provider_renderer_lock_key(workspace.id),
+        timeout=AI_PROVIDER_UPDATE_RENDER_LOCK_TIMEOUT,
+    )
     lock = mock_cache_lock.return_value
     lock.acquire.assert_called_once_with()
     lock.reacquire.assert_called()
@@ -212,36 +213,72 @@ def test_ai_provider_renderer_is_primary_repeatable_and_cross_worker_locked(
     assert events.index("snapshot_exited") < events.index("sent")
 
 
-@pytest.mark.django_db
-def test_instance_ai_provider_update_schedules_bounded_workspace_batches(
-    data_fixture,
-):
-    workspaces = [data_fixture.create_workspace() for _ in range(5)]
+def test_ai_provider_render_lock_is_scoped_so_unrelated_scopes_do_not_wait() -> None:
+    assert _ai_provider_renderer_lock_key(1) == _ai_provider_renderer_lock_key(1)
+    assert len({_ai_provider_renderer_lock_key(scope) for scope in (1, 2, None)}) == 3
 
+    first_workspace_lock = _ai_provider_renderer_lock(1)
+    second_workspace_lock = _ai_provider_renderer_lock(2)
+    instance_lock = _ai_provider_renderer_lock(None)
+    assert first_workspace_lock.acquire(blocking=False)
+    try:
+        assert second_workspace_lock.acquire(blocking=False)
+        assert instance_lock.acquire(blocking=False)
+        assert not _ai_provider_renderer_lock(1).acquire(blocking=False)
+    finally:
+        for lock in (first_workspace_lock, second_workspace_lock, instance_lock):
+            if lock.owned():
+                lock.release()
+
+
+def _create_workspaces_with_admin_and_member(data_fixture, count: int) -> None:
+    for _ in range(count):
+        data_fixture.create_workspace(
+            user=data_fixture.create_user(), members=[data_fixture.create_user()]
+        )
+
+
+def _run_instance_ai_provider_update() -> tuple[list[str], list]:
     with (
-        patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE", 2),
-        patch(
-            "baserow.ws.tasks.broadcast_ai_provider_workspace_update_batch.delay"
-        ) as mock_workspace_batch,
-        patch(
-            "baserow.ws.tasks.broadcast_ai_provider_instance_update.delay"
-        ) as mock_instance_update,
+        patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast,
+        CaptureQueriesContext(connection) as queries,
     ):
         broadcast_ai_provider_update(None, True)
-
-    assert [call.args for call in mock_workspace_batch.call_args_list] == [
-        ([workspaces[0].id, workspaces[1].id], True),
-        ([workspaces[2].id, workspaces[3].id], True),
-        ([workspaces[4].id], True),
-    ]
-    mock_instance_update.assert_called_once_with(True)
+    return (
+        [query["sql"] for query in queries.captured_queries],
+        mock_broadcast.call_args_list,
+    )
 
 
 @pytest.mark.django_db
-def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_instance_ai_provider_update_never_touches_workspaces(data_fixture, settings):
+    settings.BASEROW_USE_LOCAL_CACHE = False
+    staff_ids = {data_fixture.create_user(is_staff=True).id for _ in range(2)}
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-secret",
+        models_data=[{"model_identifier": "gpt-5"}],
+    )
+
+    _create_workspaces_with_admin_and_member(data_fixture, 1)
+    one_workspace_sql, one_workspace_calls = _run_instance_ai_provider_update()
+    _create_workspaces_with_admin_and_member(data_fixture, 4)
+    five_workspaces_sql, five_workspaces_calls = _run_instance_ai_provider_update()
+
+    for calls in (one_workspace_calls, five_workspaces_calls):
+        assert {user_id for call in calls for user_id in call.args[0]} == staff_ids
+        assert not any(call.kwargs.get("send_to_all_users") for call in calls)
+    workspace_sql = [
+        sql
+        for sql in one_workspace_sql + five_workspaces_sql
+        if '"core_workspace"' in sql or '"core_workspaceuser"' in sql
+    ]
+    assert workspace_sql == []
+    assert len(one_workspace_sql) == len(five_workspaces_sql)
+
+
+@pytest.mark.django_db
+def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(data_fixture):
     staff_users = [data_fixture.create_user(is_staff=True) for _ in range(3)]
     inactive_staff = data_fixture.create_user(is_staff=True, is_active=False)
     data_fixture.create_user()
@@ -256,7 +293,7 @@ def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(
         patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE", 2),
         patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast,
     ):
-        broadcast_ai_provider_instance_update(False)
+        broadcast_ai_provider_update(None, False)
 
     recipient_batches = [call.args[0] for call in mock_broadcast.call_args_list]
     assert recipient_batches == [
@@ -284,9 +321,8 @@ def test_instance_ai_provider_update_payload_is_staff_only_and_bounded(
 
 @pytest.mark.django_db
 def test_oversized_instance_provider_payload_uses_staff_only_refresh_marker(
-    data_fixture, settings
+    data_fixture,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     staff = data_fixture.create_user(is_staff=True)
     data_fixture.create_user()
 
@@ -294,18 +330,11 @@ def test_oversized_instance_provider_payload_uses_staff_only_refresh_marker(
         patch("baserow.ws.tasks.AI_PROVIDER_UPDATE_MAX_ENVELOPE_BYTES", 1),
         patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast,
     ):
-        broadcast_ai_provider_instance_update(True)
+        broadcast_ai_provider_update(None, True)
 
-    public_call = next(
-        call
-        for call in mock_broadcast.call_args_list
-        if call.kwargs.get("send_to_all_users") is True
-    )
-    assert "instance_ai_features" in public_call.args[1]
-
-    staff_call = next(
-        call for call in mock_broadcast.call_args_list if staff.id in call.args[0]
-    )
+    mock_broadcast.assert_called_once()
+    staff_call = mock_broadcast.call_args
+    assert staff_call.args[0] == [staff.id]
     assert staff_call.args[1] == {
         "type": "ai_provider_updated",
         "model_availability_updated": True,
@@ -314,47 +343,6 @@ def test_oversized_instance_provider_payload_uses_staff_only_refresh_marker(
         "refresh_workspace_availability": False,
         "refresh_provider_settings": True,
     }
-
-
-@pytest.mark.django_db
-def test_instance_ai_provider_availability_update_reaches_every_connected_user(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = ["ai-providers"]
-    data_fixture.create_user(is_staff=True)
-    data_fixture.create_user()
-
-    with patch("baserow.ws.tasks.broadcast_to_users") as mock_broadcast:
-        broadcast_ai_provider_instance_update(True)
-
-    public_calls = [
-        call
-        for call in mock_broadcast.call_args_list
-        if call.kwargs.get("send_to_all_users") is True
-    ]
-    assert len(public_calls) == 1
-    public_call = public_calls[0]
-    assert public_call.args[0] == []
-    assert public_call.args[1] == {
-        "type": "ai_provider_updated",
-        "model_availability_updated": True,
-        "instance_ai_features": {
-            AI_PROVIDER_FEATURE_KUMA: {
-                "is_enabled": ai_provider_model_feature_type_registry.get(
-                    AI_PROVIDER_FEATURE_KUMA
-                ).get_workspace_availability(None)["is_enabled"]
-            }
-        },
-    }
-    assert "ai_fields" not in public_call.args[1]["instance_ai_features"]
-
-    staff_calls = [
-        call
-        for call in mock_broadcast.call_args_list
-        if call.kwargs.get("send_to_all_users") is not True
-    ]
-    assert staff_calls
-    assert all("instance_ai_features" not in call.args[1] for call in staff_calls)
 
 
 @pytest.mark.asyncio
@@ -945,11 +933,10 @@ def test_workspace_ai_provider_broadcast_reuses_the_loaded_provider_state(
     data_fixture, settings
 ):
     """
-    The broadcast loads every scope up front, so serializing the providers of a
-    workspace must not go back to the provider tables per workspace.
+    The provider state is loaded once, so serializing the workspace's providers and
+    feature settings must not query the provider tables again.
     """
 
-    settings.FEATURE_FLAGS = ["ai-providers"]
     settings.BASEROW_USE_LOCAL_CACHE = False
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -978,15 +965,12 @@ def test_workspace_ai_provider_broadcast_reuses_the_loaded_provider_state(
 
 
 @pytest.mark.django_db
-def test_broadcast_keeps_instance_disabled_providers_and_models_private(
-    data_fixture, settings
-):
+def test_broadcast_keeps_instance_disabled_providers_and_models_private(data_fixture):
     """
     A workspace must never learn about an instance provider its admin disabled, nor
     about the individual models disabled on an active one.
     """
 
-    settings.FEATURE_FLAGS = ["ai-providers"]
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
     inactive_provider = AIProviderHandler.create_provider(

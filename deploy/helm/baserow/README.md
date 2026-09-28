@@ -96,26 +96,31 @@ baserow-backend-wsgi:
 
 Baserow supports multiple AI providers for generative AI features and the AI assistant. The embeddings service powers semantic search for the AI assistant's documentation lookup feature. For more documentation check the [Baserow AI documentation](/docs/installation/ai-assistant.md).
 
-### Enable AI Assistant
+### Configure providers and models
 
-To enable the AI assistant, you need to configure the LLM model and provide the necessary API keys for the chosen provider.
+After deployment, configure shared connections under **Admin tools > AI providers**,
+or workspace connections under the workspace's **Settings > AI providers**. Add
+models, select their available features, and run **Test model**. Choose Kuma's
+default under **AI features**; AI Fields and AI Agent actions keep their own model
+selections.
 
-```yaml
-global:
-  baserow:
-    assistantLLMModel: "groq:openai/gpt-oss-120b"
-
-backendSecrets:
-  GROQ_API_KEY: "your-groq-api-key"
-```
-
-More information about the available providers can be found here: https://baserow.io/docs/installation%2Fai-assistant
+The provider connection/model environment variables are **deprecated**. Upgrading to
+Baserow 2.4 imports them once into **Admin tools > AI providers**, and after that
+Baserow no longer reads them. See
+[Upgrading to Baserow 2.4](/docs/installation/ai-providers.md#upgrading-to-baserow-24).
+The migrate job must carry the same AI variables as the backend, which it does by
+default through the shared backend config map and secret.
+`global.baserow.assistantLLMModel` is also deprecated but is not imported: Kuma keeps
+using it until you make a model available to Kuma and select it under
+**AI features**. Keep existing settings until the imported configuration is verified,
+including the rollback window. Bedrock and Vertex AI have no equivalent in AI
+providers; keep their environment configuration for Kuma, as described in the
+[AI assistant guide](/docs/installation/ai-assistant.md).
 
 ### Enable Embeddings Service
 
-The AI assistant uses the embeddings service and requires the LLM model to be configured. You need to enable this next to the global ai configuration.
-
-#### Basic Configuration
+Enable the embeddings service for the assistant's documentation lookup feature.
+This setting remains supported and is separate from provider/model configuration.
 
 ```yaml
 baserow-embeddings:
@@ -246,7 +251,7 @@ caddy:
 | `global.baserow.domain`                                            | Configure the domain for the frontend application.                                      | `cluster.local`         |
 | `global.baserow.backendDomain`                                     | Configure the domain for the backend application.                                       | `api.cluster.local`     |
 | `global.baserow.objectsDomain`                                     | Configure the domain for the external facing minio api.                                 | `objects.cluster.local` |
-| `global.baserow.assistantLLMModel`                                 | Configure the environment-based model for the AI assistant. When database-backed AI providers are enabled, it is the fallback. | `""`                    |
+| `global.baserow.assistantLLMModel`                                 | Deprecated. Select the Kuma model under Admin tools > AI providers > AI features. Retained as an environment fallback; explicit disables prevent fallback. | `""`                    |
 | `global.baserow.containerSecurityContext.enabled`                  | Enabled containers' Security Context                                                    | `false`                 |
 | `global.baserow.containerSecurityContext.seLinuxOptions`           | Set SELinux options in container                                                        | `{}`                    |
 | `global.baserow.containerSecurityContext.runAsUser`                | Set containers' Security Context runAsUser                                              | `""`                    |

@@ -69,15 +69,6 @@ export default (client) => {
       acceptInvitation(invitationId) {
         return client.post(`/workspaces/invitations/${invitationId}/accept/`)
       },
-      getGenerativeAISettings(workspaceId) {
-        return client.get(`/workspaces/${workspaceId}/settings/generative-ai/`)
-      },
-      updateGenerativeAISettings(workspaceId, values) {
-        return client.patch(
-          `/workspaces/${workspaceId}/settings/generative-ai/`,
-          values
-        )
-      },
       createInitialWorkspace(values) {
         return client.post('/workspaces/create-initial-workspace/', values)
       },

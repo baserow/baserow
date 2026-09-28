@@ -1014,6 +1014,24 @@ class ButtonField(Field):
         return self.workflow_actions.exists()
 
     # Set alongside `HAS_WORKFLOW_ACTIONS_ANNOTATION`, for the same reason.
+    OPENS_NEW_TAB_ANNOTATION = "opens_new_tab_annotated"
+
+    @property
+    def opens_new_tab(self) -> bool:
+        annotated = getattr(self, self.OPENS_NEW_TAB_ANNOTATION, None)
+        if annotated is not None:
+            return annotated
+
+        # Imported here: the workflow action models import this module.
+        from baserow.contrib.database.workflow_actions.models import (
+            OpenUrlWorkflowAction,
+        )
+
+        return OpenUrlWorkflowAction.objects.filter(
+            field_id=self.id, target="blank"
+        ).exists()
+
+    # Set alongside `HAS_WORKFLOW_ACTIONS_ANNOTATION`, for the same reason.
     REQUIRES_RECONFIGURATION_ANNOTATION = "requires_reconfiguration_annotated"
 
     @property

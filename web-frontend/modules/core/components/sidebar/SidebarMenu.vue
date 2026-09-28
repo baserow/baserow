@@ -30,9 +30,11 @@
               @pointerenter="shouldPrefetch('interaction') && prefetch()"
               @focus="shouldPrefetch('interaction') && prefetch()"
             >
-              <i class="tree__icon iconoir-home-simple"></i>
+              <i class="tree__icon iconoir-clock"></i>
               <span class="tree__link-text">
-                <span class="sidebar__item-name">{{ $t('sidebar.home') }}</span>
+                <span class="sidebar__item-name">{{
+                  $t('sidebar.recents')
+                }}</span>
               </span>
             </a>
           </div>

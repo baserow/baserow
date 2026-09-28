@@ -162,7 +162,6 @@ import IntegrationDropdown from '@baserow/modules/core/components/integrations/I
 import { AIIntegrationType } from '@baserow/modules/integrations/ai/integrationTypes'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 import { AIAgentAIProviderModelFeatureType } from '@baserow/modules/integrations/ai/aiProviderModelFeatureTypes'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 import { getEffectiveAIAgentModels } from '@baserow/modules/integrations/ai/utils'
 
 export default {
@@ -228,20 +227,13 @@ export default {
       return this.$store.getters['workspace/get'](this.application.workspace.id)
     },
     /**
-     * @returns {boolean} Whether database provider eligibility is enforced.
-     */
-    aiProvidersEnabled() {
-      return this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
-    },
-    /**
      * @returns {Object<string, string[]>} Workspace models available to AI Agent
-     *   under the active feature flag, grouped by provider type.
+     *   grouped by provider type.
      */
     workspaceEnabledModels() {
       return getEnabledModelsForAIProviderFeature(
         this.workspace,
-        AIAgentAIProviderModelFeatureType.getType(),
-        this.aiProvidersEnabled
+        AIAgentAIProviderModelFeatureType.getType()
       )
     },
     /**
@@ -275,17 +267,13 @@ export default {
     },
     /**
      * @returns {Array<{type: string, name: string}>} Provider options, retaining
-     *   an unavailable saved provider for diagnosis when eligibility is enforced.
+     *   an unavailable saved provider for diagnosis.
      */
     availableProviders() {
       const providers = [...this.baseAvailableProviders]
 
       const current = this.values.ai_generative_ai_type
-      if (
-        this.aiProvidersEnabled &&
-        current &&
-        !providers.some((provider) => provider.type === current)
-      ) {
+      if (current && !providers.some((provider) => provider.type === current)) {
         const allProviders = this.$registry.getAll('generativeAIModel')
         const modelType = allProviders[current]
         providers.push({
@@ -316,13 +304,13 @@ export default {
     },
     /**
      * @returns {string[]} Model options, retaining an unavailable saved model
-     *   for diagnosis when eligibility is enforced.
+     *   for diagnosis.
      */
     availableModels() {
       const models = this.baseAvailableModels
 
       const current = this.values.ai_generative_ai_model
-      if (this.aiProvidersEnabled && current && !models.includes(current)) {
+      if (current && !models.includes(current)) {
         return [...models, current]
       }
       return models
@@ -332,11 +320,7 @@ export default {
      */
     selectedModelUnavailable() {
       const current = this.values.ai_generative_ai_model
-      return Boolean(
-        this.aiProvidersEnabled &&
-        current &&
-        !this.baseAvailableModels.includes(current)
-      )
+      return Boolean(current && !this.baseAvailableModels.includes(current))
     },
     maxTemperature() {
       if (!this.values.ai_generative_ai_type) {

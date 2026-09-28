@@ -93,6 +93,9 @@ export default (client) => {
     update(values) {
       return client.patch('/user/account/', values)
     },
+    updatePreferences(values) {
+      return client.patch('/user/preferences/', values)
+    },
     deleteAccount() {
       return client.post('/user/schedule-account-deletion/')
     },

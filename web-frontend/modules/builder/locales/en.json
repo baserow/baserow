@@ -1131,5 +1131,8 @@
   "pageElementBehaviour": {
     "normal": "Normal",
     "fixed": "Fixed"
+  },
+  "lastViewedItemType": {
+    "builderPage": "Page"
   }
 }

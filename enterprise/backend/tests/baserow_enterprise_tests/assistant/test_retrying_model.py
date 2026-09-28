@@ -2,8 +2,12 @@
 
 import os
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
 
+import httpx2
 import pytest
+from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.messages import ModelRequest, UserPromptPart
 from pydantic_ai.models import ModelRequestParameters, StreamedResponse
 
 from baserow_enterprise.assistant.retrying_model import (
@@ -18,6 +22,10 @@ class TestIsTransientProviderError:
     def test_groq_parse_error(self):
         exc = Exception("Failed to parse tool call arguments as JSON")
         assert _is_transient_provider_error(exc) is True
+
+    def test_other_providers_server_errors_are_unchanged(self):
+        exc = ModelHTTPError(status_code=503, model_name="test-model")
+        assert _is_transient_provider_error(exc) is False
 
     def test_tool_validation_failed(self):
         exc = Exception("Tool call validation failed: something")
@@ -60,6 +68,151 @@ def _assert_balanced_model_scope(inner_mock, expected_count=1):
 
     assert inner_mock.__aenter__.await_count == expected_count
     assert inner_mock.__aexit__.await_count == expected_count
+
+
+async def _request_anthropic(model, streaming):
+    args = (
+        [ModelRequest(parts=[UserPromptPart("OK")])],
+        {"timeout": 0.01},
+        ModelRequestParameters(),
+    )
+    if streaming:
+        async with model.request_stream(*args) as stream:
+            return [event async for event in stream]
+    return await model.request(*args)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize("from_registry", [False, True])
+@pytest.mark.parametrize(
+    "headers", [{"retry-after": "300"}, {"retry-after-ms": "300000"}]
+)
+async def test_anthropic_long_retry_after_fails_without_nested_retries(
+    monkeypatch, streaming, from_registry, headers
+):
+    from baserow.core.generative_ai.generative_ai_model_types import (
+        AnthropicGenerativeAIModelType,
+    )
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    inner = (
+        AnthropicGenerativeAIModelType().get_ai_model(
+            "claude-sonnet-4-5", settings_override={"api_key": "test"}
+        )
+        if from_registry
+        else "anthropic:claude-sonnet-4-5"
+    )
+    model = RetryingModel(inner)
+    response = httpx2.Response(
+        429,
+        headers=headers,
+        json={
+            "type": "error",
+            "error": {"type": "rate_limit_error", "message": "Busy"},
+        },
+    )
+    with (
+        patch(
+            "httpx2.AsyncHTTPTransport.handle_async_request",
+            new_callable=AsyncMock,
+            return_value=response,
+        ) as send,
+        patch(
+            "anthropic._base_client.anyio.sleep", new_callable=AsyncMock
+        ) as sdk_sleep,
+        patch(
+            "baserow_enterprise.assistant.retrying_model.asyncio.sleep",
+            new_callable=AsyncMock,
+        ) as wrapper_sleep,
+        pytest.raises(ModelHTTPError) as error,
+    ):
+        await _request_anthropic(model, streaming)
+
+    assert error.value.status_code == 429
+    assert send.await_count == 1
+    sdk_sleep.assert_not_awaited()
+    wrapper_sleep.assert_not_awaited()
+    assert model.wrapped.provider.client.is_closed()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize("failure", [408, 409, 429, 500, 503, "connection", "timeout"])
+async def test_anthropic_transient_failures_retry_only_in_wrapper(
+    monkeypatch, streaming, failure
+):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    model = RetryingModel("anthropic:claude-sonnet-4-5")
+    if failure == "connection":
+        failed_response = httpx2.ConnectError("Connection failed")
+    elif failure == "timeout":
+        failed_response = httpx2.ReadTimeout("Read timed out")
+    else:
+        failed_response = httpx2.Response(
+            failure,
+            headers={"retry-after": "2"},
+            json={"type": "error", "error": {"type": "api_error", "message": "Busy"}},
+        )
+    successful_response = httpx2.Response(
+        200,
+        json={
+            "id": "msg-test",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-sonnet-4-5",
+            "content": [{"type": "text", "text": "OK"}],
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 1, "output_tokens": 1},
+        },
+    )
+    with (
+        patch(
+            "httpx2.AsyncHTTPTransport.handle_async_request",
+            new_callable=AsyncMock,
+            side_effect=[failed_response, successful_response],
+        ) as send,
+        patch(
+            "anthropic._base_client.anyio.sleep", new_callable=AsyncMock
+        ) as sdk_sleep,
+        patch(
+            "baserow_enterprise.assistant.retrying_model.asyncio.sleep",
+            new_callable=AsyncMock,
+        ) as wrapper_sleep,
+    ):
+        result = await _request_anthropic(model, streaming)
+
+    assert result
+    assert send.await_count == 2
+    sdk_sleep.assert_not_awaited()
+    wrapper_sleep.assert_awaited_once_with(
+        1.0 if failure in ("connection", "timeout") else 2.0
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+@pytest.mark.parametrize("status", [400, 401, 403])
+async def test_anthropic_non_transient_errors_are_not_retried(
+    monkeypatch, streaming, status
+):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    model = RetryingModel("anthropic:claude-sonnet-4-5")
+    response = httpx2.Response(
+        status,
+        json={"type": "error", "error": {"type": "api_error", "message": "Invalid"}},
+    )
+    with (
+        patch(
+            "httpx2.AsyncHTTPTransport.handle_async_request",
+            new_callable=AsyncMock,
+            return_value=response,
+        ) as send,
+        pytest.raises(ModelHTTPError),
+    ):
+        await _request_anthropic(model, streaming)
+
+    assert send.await_count == 1
 
 
 @pytest.mark.asyncio

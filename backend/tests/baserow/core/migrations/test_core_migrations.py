@@ -125,9 +125,8 @@ def test_0119_initializes_ai_provider_model_features_and_capabilities(
 
 @pytest.mark.once_per_day_in_ci
 def test_0120_makes_existing_ai_provider_models_available_to_ai_agents_and_reverses(
-    migrator, teardown_table_metadata, settings
+    migrator, teardown_table_metadata
 ):
-    settings.FEATURE_FLAGS = []
     old_state = migrator.migrate(
         [("core", "0119_aiproviderfeaturesetting_and_more")]
     )
@@ -235,3 +234,105 @@ def test_0120_makes_existing_ai_provider_models_available_to_ai_agents_and_rever
         database_default_id = cursor.fetchone()[0]
     database_default_model = RolledBackAIProviderModel.objects.get(id=database_default_id)
     assert database_default_model.feature_types == ["ai_fields"]
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0125_imports_legacy_ai_provider_settings(
+    migrator, teardown_table_metadata, settings
+):
+    settings.BASEROW_OPENAI_API_KEY = "environment-key"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-5.4"]
+
+    old_state = migrator.migrate([("core", "0121_agent")])
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    malformed_workspaces = [
+        Workspace.objects.create(
+            name=f"malformed legacy settings {index}",
+            generative_ai_models_settings=legacy_settings,
+            trashed=trashed,
+        )
+        for index, (legacy_settings, trashed) in enumerate(
+            (
+                (["openai"], False),
+                ("openai", False),
+                ({"openai": {"api_key": "workspace-key", "models": 7}}, False),
+                ({"openai": {"api_key": "workspace-key", "models": 1.5}}, False),
+                ({"openai": {"api_key": "workspace-key", "models": True}}, False),
+                (["openai"], True),
+                ({"openai": {"api_key": "workspace-key", "models": True}}, True),
+            )
+        )
+    ]
+    workspace = Workspace.objects.create(
+        name="with legacy settings",
+        generative_ai_models_settings={
+            "openai": {"api_key": "workspace-key", "models": ["gpt-5.4-mini"]}
+        },
+    )
+    trashed_workspace = Workspace.objects.create(
+        name="trashed with valid legacy settings",
+        trashed=True,
+        generative_ai_models_settings={
+            "openai": {"api_key": "trashed-key", "models": ["trashed-model"]}
+        },
+    )
+    without_settings = Workspace.objects.create(name="without legacy settings")
+    original_settings = {
+        candidate.id: candidate.generative_ai_models_settings
+        for candidate in [
+            *malformed_workspaces,
+            workspace,
+            trashed_workspace,
+            without_settings,
+        ]
+    }
+
+    new_state = migrator.migrate([("core", "0125_import_legacy_ai_provider_settings")])
+    AIProviderConfig = new_state.apps.get_model("core", "AIProviderConfig")
+    AIProviderModel = new_state.apps.get_model("core", "AIProviderModel")
+    AIProviderWorkspaceOverride = new_state.apps.get_model(
+        "core", "AIProviderWorkspaceOverride"
+    )
+
+    instance_provider = AIProviderConfig.objects.get(workspace__isnull=True)
+    assert instance_provider.api_key == "environment-key"
+    assert list(
+        instance_provider.models.values_list("model_identifier", flat=True)
+    ) == ["gpt-5.4"]
+    assert instance_provider.models.get().feature_types == ["ai_fields", "ai_agent"]
+
+    workspace_provider = AIProviderConfig.objects.get(workspace_id=workspace.id)
+    assert workspace_provider.api_key == "workspace-key"
+    assert workspace_provider.models.get().model_identifier == "gpt-5.4-mini"
+
+    trashed_provider = AIProviderConfig.objects.get(workspace_id=trashed_workspace.id)
+    assert trashed_provider.api_key == "trashed-key"
+    assert trashed_provider.models.get().model_identifier == "trashed-model"
+    assert AIProviderConfig.objects.count() == 3
+    assert AIProviderModel.objects.count() == 3
+    assert AIProviderWorkspaceOverride.objects.count() == 2
+    assert not AIProviderConfig.objects.filter(
+        workspace_id__in=[candidate.id for candidate in malformed_workspaces]
+    ).exists()
+    assert not AIProviderConfig.objects.filter(
+        workspace_id=without_settings.id
+    ).exists()
+    assert (
+        dict(
+            Workspace.objects.filter(id__in=original_settings).values_list(
+                "id", "generative_ai_models_settings"
+            )
+        )
+        == original_settings
+    )
+
+    # The workspace defined its own connection, so it must not start inheriting the
+    # instance models the import just created.
+    assert set(
+        AIProviderWorkspaceOverride.objects.values_list(
+            "workspace_id", "provider_config_id"
+        )
+    ) == {
+        (workspace.id, instance_provider.id),
+        (trashed_workspace.id, instance_provider.id),
+    }

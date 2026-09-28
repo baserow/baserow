@@ -16,6 +16,7 @@
         v-model:search="search"
         v-model:selected-types="selectedTypes"
         v-model:view-mode="viewMode"
+        v-model:sort-by="sortBy"
         @collapse-all="collapseAll"
         @expand-all="expandAll"
       ></AllWorkspacesHeader>
@@ -26,10 +27,13 @@
           :key="workspace.id"
           :workspace="workspace"
           :role-name="roleNameOf(workspace)"
+          :component-arguments="workspaceComponentArguments"
+          :component-arguments-loading="workspaceComponentArgumentsLoading"
           :applications="filteredApplicationsOf(workspace)"
           :total-application-count="applicationsOf(workspace).length"
           :collapsed="collapsedIds.has(workspace.id)"
           :compact="viewMode === 'compact'"
+          :sort-by="sortBy"
           @toggle-collapsed="toggleCollapsed(workspace.id)"
           @select-application="selectApplication"
         ></AllWorkspacesWorkspaceBox>
@@ -49,6 +53,8 @@
               :key="'search-workspace-' + workspace.id"
               :workspace="workspace"
               :role-name="roleNameOf(workspace)"
+              :component-arguments="workspaceComponentArguments"
+              :component-arguments-loading="workspaceComponentArgumentsLoading"
               :applications="[]"
               :total-application-count="applicationsOf(workspace).length"
               :highlight="query"
@@ -70,6 +76,7 @@
               :application="match.application"
               :workspace="match.workspace"
               :highlight="query"
+              :sort-by="sortBy"
               @click="selectApplication(match.application)"
             ></AllWorkspacesApplicationCard>
           </div>
@@ -97,7 +104,7 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter, useNuxtApp } from '#app'
+import { useRouter, useNuxtApp, useAsyncData } from '#app'
 import { useHead } from '#imports'
 
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -107,10 +114,19 @@ import AllWorkspacesWorkspaceBox from '@baserow/modules/core/components/allWorks
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
 import { getRoleTranslations } from '@baserow/modules/core/store/workspace'
 import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
+import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
+import { matchesQuery } from '@baserow/modules/core/utils/search'
+
 import {
   isTypeFilterActive,
-  matchesQuery,
-} from '@baserow/modules/core/utils/allWorkspacesSearch'
+  SORT_BY_CREATED,
+  SORT_BY_LAST_VIEWED,
+  getApplicationComparator,
+  getSearchResultComparator,
+  sortWorkspaces,
+} from '@baserow/modules/core/utils/allWorkspaces'
+import { useUserPreference } from '@baserow/modules/core/composables/useUserPreference'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
 
 // Role uids meaning the user only has access through a lower scope. Showing them
 // as a badge next to a workspace the user can open would be misleading.
@@ -130,13 +146,64 @@ definePageMeta({
 
 const store = useStore()
 const router = useRouter()
-const { $registry, $i18n } = useNuxtApp()
+const nuxtApp = useNuxtApp()
+const { $registry, $i18n } = nuxtApp
+
+// The page lists the applications of every workspace, so actions performed on
+// them in their own workspace scope must be undoable here. Unlike the workspace
+// and application scopes, which follow the sidebar, this one belongs to the page
+// and must not outlive it.
+store.dispatch(
+  'undoRedo/updateCurrentScopeSet',
+  CORE_ACTION_SCOPES.allWorkspaces(true)
+)
+onBeforeUnmount(() => {
+  store.dispatch(
+    'undoRedo/updateCurrentScopeSet',
+    CORE_ACTION_SCOPES.allWorkspaces(false)
+  )
+})
 
 const workspaceInvitations = computed(
   () => store.getters['auth/getWorkspaceInvitations']
 )
 
 await store.dispatch('auth/fetchWorkspaceInvitations')
+
+/**
+ * Fetches the data the plugins need for the components they add to the
+ * workspace boxes, for all workspaces at once. It doesn't block the page, and
+ * because the data is optional, a failure must not break the page either.
+ */
+async function fetchWorkspaceComponentArguments() {
+  let mergedData = { workspaceComponentArguments: { usageData: [] } }
+
+  for (const plugin of Object.values($registry.getAll('plugin'))) {
+    try {
+      const workspaceData = await plugin.fetchAsyncDashboardData(nuxtApp)
+      if (workspaceData) {
+        mergedData = plugin.mergeDashboardData(mergedData, workspaceData)
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  return mergedData.workspaceComponentArguments
+}
+
+const { data: fetchedComponentArguments, status } = useAsyncData(
+  'all-workspaces-component-arguments',
+  fetchWorkspaceComponentArguments,
+  { lazy: true, server: false }
+)
+const workspaceComponentArguments = computed(
+  () => fetchedComponentArguments.value ?? {}
+)
+// `idle` is the tick before the fetch starts.
+const workspaceComponentArgumentsLoading = computed(() =>
+  ['idle', 'pending'].includes(status.value)
+)
 
 const header = ref(null)
 
@@ -152,10 +219,10 @@ const typeFilterActive = computed(() =>
   isTypeFilterActive(selectedTypes.value, applicationTypeCount)
 )
 
-const viewMode = ref('expanded')
 const collapsedIds = ref(new Set())
 
-const workspaces = computed(() => store.getters['workspace/getAllSorted'])
+const viewMode = useUserPreference('all_workspaces_view_mode', 'expanded')
+const sortBy = useUserPreference('all_workspaces_sort_by', SORT_BY_LAST_VIEWED)
 
 const roleTranslations = getRoleTranslations($registry)
 
@@ -182,8 +249,9 @@ const applicationsByWorkspaceId = computed(() => {
     grouped.get(workspaceId).push(application)
   }
 
+  const comparator = getApplicationComparator(sortBy.value)
   for (const applications of grouped.values()) {
-    applications.sort((a, b) => a.order - b.order)
+    applications.sort(comparator)
   }
 
   return grouped
@@ -210,6 +278,14 @@ function applicationsOf(workspace) {
   return applicationsByWorkspaceId.value.get(workspace.id) ?? []
 }
 
+const workspaces = computed(() =>
+  sortWorkspaces(
+    store.getters['workspace/getAllSorted'],
+    sortBy.value,
+    filteredApplicationsOf
+  )
+)
+
 function filteredApplicationsOf(workspace) {
   return filteredApplicationsByWorkspaceId.value.get(workspace.id) ?? []
 }
@@ -220,15 +296,21 @@ const matchedWorkspaces = computed(() =>
   )
 )
 
-const matchedApplications = computed(() =>
-  workspaces.value.flatMap((workspace) =>
+const matchedApplications = computed(() => {
+  const matches = workspaces.value.flatMap((workspace) =>
     filteredApplicationsOf(workspace)
       .filter((application) =>
         matchesQuery(application.name, application.id, query.value)
       )
       .map((application) => ({ application, workspace }))
   )
-)
+  if (sortBy.value !== SORT_BY_CREATED) {
+    // Matches come grouped per workspace, but this section is a flat list.
+    const comparator = getSearchResultComparator(sortBy.value)
+    matches.sort((a, b) => comparator(a.application, b.application))
+  }
+  return matches
+})
 
 const noResults = computed(
   () =>
@@ -281,6 +363,9 @@ function keydownCapture(event) {
     header.value?.focusSearch()
   }
 }
+
+// The cards show relative dates that must keep ageing while the page is open.
+provideNow()
 
 onMounted(() => {
   document.addEventListener('keydown', keydownCapture, true)

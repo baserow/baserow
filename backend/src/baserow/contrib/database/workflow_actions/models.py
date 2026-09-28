@@ -4,6 +4,8 @@ from django.db.models import OuterRef
 
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.core.formula.field import FormulaField as CoreFormulaModelField
+from baserow.core.jobs.mixins import JobWithUndoRedoIds, JobWithUserIpAddress
+from baserow.core.jobs.models import Job
 from baserow.core.mixins import OrderableMixin
 from baserow.core.registry import ModelRegistryMixin
 from baserow.core.services.models import Service
@@ -131,3 +133,50 @@ class SlackWriteMessageWorkflowAction(DatabaseWorkflowServiceAction): ...
 
 
 class CoreStartWorkflowWorkflowAction(DatabaseWorkflowServiceAction): ...
+
+
+class ButtonFieldDispatchJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
+    """
+    One button click that runs behind the request, because an action of it
+    reaches outside Baserow. Carries what the click produced once it ran, in
+    the shape the inline response has.
+    """
+
+    # The base field rather than the button: changing the field's type deletes
+    # the button row but keeps this one, so a retype has no jobs to update.
+    # Set null rather than cascaded, as a job deleted under its worker could
+    # not report back.
+    field = models.ForeignKey(
+        "database.Field",
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The clicked button field. Empty once the field is deleted.",
+    )
+    row_id = models.PositiveIntegerField(help_text="The clicked row.")
+    accepted_actions = models.JSONField(
+        default=list,
+        help_text="The [id, type] of each action the click was accepted with, in "
+        "order. The job refuses to run a list that differs from it.",
+    )
+    results = models.JSONField(
+        null=True,
+        help_text="One result per server action that ran, once the click finished.",
+    )
+    client_actions = models.JSONField(
+        null=True,
+        help_text="The frontend-only actions the browser runs after the click.",
+    )
+
+    def save(self, *args, **kwargs):
+        # The field is written once, on creation. Deleting the field while the
+        # click runs empties it in the database, and the worker's later saves
+        # still hold the old id in memory: writing it back would point at a
+        # field that no longer exists and fail the save.
+        if not self._state.adding and kwargs.get("update_fields") is None:
+            kwargs["update_fields"] = [
+                field.name
+                for field in self._meta.concrete_fields
+                if not field.primary_key and field.name != "field"
+            ]
+        super().save(*args, **kwargs)

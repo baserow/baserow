@@ -3,10 +3,16 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Prefetch, QuerySet
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 
+from loguru import logger
+
+from baserow.contrib.database.db.atomic import (
+    read_committed_single_table_transaction,
+)
 from baserow.contrib.database.db.schema import safe_django_schema_editor
 from baserow.contrib.database.fields.constants import DeleteFieldStrategyEnum
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -395,15 +401,6 @@ class DataSyncHandler:
             data_sync.save(update_fields=("last_error",))
             return data_sync
 
-        data_sync.last_sync = timezone.now()
-        data_sync.last_error = None
-        data_sync.save(
-            update_fields=(
-                "last_sync",
-                "last_error",
-            )
-        )
-
         table_updated.send(
             self, table=data_sync.table, user=user, force_table_refresh=True
         )
@@ -417,7 +414,7 @@ class DataSyncHandler:
         data_sync_type.before_sync_table(user, data_sync)
         all_properties = data_sync_type.get_properties(data_sync)
         key_to_property = {p.key: p for p in all_properties}
-        progress.increment(by=1)
+        progress.increment(by=1)  # makes the total `1`
 
         # Before doing anything we would need to run the
         # `set_data_sync_synced_properties` with the same visible properties. This is
@@ -434,140 +431,326 @@ class DataSyncHandler:
                 for key in enabled_properties.values_list("key", flat=True)
                 if key in key_to_property.keys()
             ]
-        self.set_data_sync_synced_properties(
-            user,
-            data_sync,
-            synced_properties=flat_enabled_properties,
-            data_sync_properties=all_properties,
-        )
-        progress.increment(by=1)  # makes the total `1`
-
-        model = data_sync.table.get_model()
-        unique_primary_keys = [p.key for p in all_properties if p.unique_primary]
-        # Fetch the data sync properties again because they could have been changed
-        # after calling `set_data_sync_synced_properties`.
-        enabled_properties = DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
-        key_to_field_id = {p.key: f"field_{p.field_id}" for p in enabled_properties}
-        key_to_property = {p.key: p for p in all_properties}
+        # Phase 1: schema. Brings the synced fields in line with the source and the
+        # enabled properties: new ones are added, changed ones altered, obsolete
+        # ones removed. It has to run first because `_fetch_and_write_rows` maps
+        # the source values onto these fields and their select options, and the
+        # source is fetched with the properties as they are after this step. It
+        # commits on its own because `_fetch_and_write_rows` must not run inside a
+        # transaction (see there), and an open ALTER TABLE would lock the table for
+        # the whole fetch.
+        #
+        # Because this commits before the rows are written, a later failure can't
+        # roll it back. That's fine: the schema is then already what the next
+        # successful sync needs. An added column stays empty until that sync fills
+        # it, and an altered or removed one would have ended up the same way once
+        # a sync succeeded.
+        with transaction.atomic():
+            self.set_data_sync_synced_properties(
+                user,
+                data_sync,
+                synced_properties=flat_enabled_properties,
+                data_sync_properties=all_properties,
+            )
         progress.increment(by=1)  # makes the total `2`
 
-        existing_rows_queryset = model.objects.all().values(
-            # There is no need to fetch the rows cell values from the row because we
-            # don't need them.
-            *["id"] + list(key_to_field_id.values())
+        # Phase 2: fetch and write. Deliberately not wrapped in a transaction: the
+        # fetch can take minutes, and an open transaction would hold the table and
+        # field locks for that whole time, blocking users from editing rows and
+        # fields while the sync waits on the source.
+        self._fetch_and_write_rows(
+            user,
+            data_sync,
+            data_sync_type,
+            all_properties,
+            progress,
         )
-        progress.increment(by=6)  # makes the total `9`
 
-        existing_rows_in_table = {
-            tuple(row[key_to_field_id[key]] for key in unique_primary_keys): row
-            for row in existing_rows_queryset
-            # Unique primaries can't be empty. If they are, then they're left dangling
-            # because the primary was removed. They will be deleted later.
-            if all(row[key_to_field_id[key]] for key in unique_primary_keys)
-        }
-        progress.increment(by=1)  # makes the total `10`
+    @staticmethod
+    def _get_current_model(data_sync: DataSync):
+        """
+        Returns the table model as the database has it right now. `get_model()`
+        caches per thread, and a field added by a concurrent request during the
+        fetch (for example through the settings API) is invalidated in that
+        request's process, not in this one. The sync then queries a column the
+        cached model doesn't know and fails, so the cache is bypassed here.
+        """
 
+        return data_sync.table.get_model(use_cache=False)
+
+    @staticmethod
+    def _fingerprint_row(row: dict, field_names: List[str]) -> int:
+        """
+        Reduces the given columns of a row to a single integer that changes
+        whenever one of their values does, so the row can be compared against an
+        earlier read without keeping the values themselves around.
+        """
+
+        return hash(tuple(repr(row.get(name)) for name in field_names))
+
+    def _fetch_and_write_rows(
+        self, user, data_sync, data_sync_type, all_properties, progress
+    ):
+        unique_primary_keys = [p.key for p in all_properties if p.unique_primary]
+
+        # State of the rows that existed before any remote I/O started.
+        #
+        # The ids are used by the delete phase to tell a row the source dropped
+        # apart from one a user created while the fetch was in flight.
+        #
+        # The unique keys are used by the create phase of a two-way sync for the
+        # opposite case: a row a user deleted while the fetch was in flight. That
+        # delete was pushed to the source, but the fetched data predates it, so
+        # the row must not be created again from it.
+        #
+        # The fingerprint of each row's synced cells is used by the update phase to
+        # detect rows a user changed *during* the fetch. Only the synced columns go
+        # into it, so an edit to a column the sync doesn't own can't hold back a
+        # change to one it does. Storing a fingerprint per row rather than the
+        # values themselves keeps the memory footprint to one integer per row; the
+        # write phase re-reads the current values under the table lock anyway.
+        pre_fetch_field_names = []
+        pre_fetch_fingerprints = {}
+        pre_fetch_unique_keys = set()
+        pre_fetch_row_ids = None
+        if data_sync.two_way_sync:
+            pre_fetch_model = self._get_current_model(data_sync)
+            pre_fetch_key_to_field_name = {
+                p.key: f"field_{p.field_id}"
+                for p in DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
+            }
+            pre_fetch_field_names = sorted(pre_fetch_key_to_field_name.values())
+            for row in pre_fetch_model.objects.all().values(
+                "id", *pre_fetch_field_names
+            ):
+                pre_fetch_fingerprints[row["id"]] = self._fingerprint_row(
+                    row, pre_fetch_field_names
+                )
+                pre_fetch_unique_keys.add(
+                    tuple(
+                        row[pre_fetch_key_to_field_name[key]]
+                        for key in unique_primary_keys
+                    )
+                )
+            pre_fetch_row_ids = set(pre_fetch_fingerprints.keys())
+        progress.increment(by=1)  # makes the total `3`
+
+        # --- Fetch phase (outside transaction) ---
+        # HTTP calls to external services (Jira, GitHub, etc.) happen here so that the
+        # database transaction is not held open for the duration of potentially slow
+        # network I/O.
         rows_of_data_sync = {
             tuple(row[key] for key in unique_primary_keys): row
             for row in data_sync_type.get_all_rows(
                 data_sync,
-                progress_builder=progress.create_child_builder(
-                    represents_progress=56  # makes the total `66`
-                ),
+                progress_builder=progress.create_child_builder(represents_progress=56),
             )
         }
+        # The keys the rows were actually fetched with, for the write phase below.
+        # An empty source has no rows to take the keys from, so every property
+        # counts as fetched; there is nothing to look up in that case anyway.
+        fetched_property_keys = set().union(
+            *[row.keys() for row in rows_of_data_sync.values()]
+            or [{p.key for p in all_properties}]
+        )
 
-        rows_to_create = []
-        for new_id, data in rows_of_data_sync.items():
-            if new_id not in existing_rows_in_table:
+        # --- Write phase (inside READ COMMITTED transaction) ---
+        # Re-read schema and existing rows under the field/table lock so the diff is
+        # computed against a schema that can't change underneath it.
+        with read_committed_single_table_transaction(data_sync.table_id):
+            model = self._get_current_model(data_sync)
+            key_to_property = {p.key: p for p in all_properties}
+            # The enabled properties are read again because they can have changed
+            # during the fetch. One enabled since then has no value in the fetched
+            # rows of a source that only returns the enabled columns, and would
+            # `KeyError` below; it's left alone here and filled by the next sync.
+            # One that is no longer known to the source can't be written either.
+            enabled_properties = [
+                p
+                for p in DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
+                if p.key in fetched_property_keys and p.key in key_to_property
+            ]
+            key_to_field_id = {p.key: f"field_{p.field_id}" for p in enabled_properties}
+            progress.increment(by=1)  # makes the total `60`
+
+            # A field removed during the fetch can't be read anymore, and a
+            # fingerprint over a different set of columns would flag every row as
+            # edited. The comparison is only made when the columns are unchanged.
+            model_field_names = {
+                f"field_{field_id}" for field_id in model._field_objects.keys()
+            }
+            fingerprint_field_names = [
+                name for name in pre_fetch_field_names if name in model_field_names
+            ]
+            fingerprints_comparable = fingerprint_field_names == pre_fetch_field_names
+            existing_rows_queryset = model.objects.all().values(
+                *{"id", *key_to_field_id.values(), *fingerprint_field_names}
+            )
+            progress.increment(by=6)  # makes the total `66`
+
+            existing_rows_in_table = {
+                tuple(row[key_to_field_id[key]] for key in unique_primary_keys): row
+                for row in existing_rows_queryset
+                if all(row[key_to_field_id[key]] for key in unique_primary_keys)
+            }
+            progress.increment(by=2)  # makes the total `68`
+
+            rows_to_create = []
+            for new_id, data in rows_of_data_sync.items():
+                if new_id in existing_rows_in_table:
+                    continue
+                # A row that existed when the fetch started but is gone now was
+                # deleted by a user in the meantime. For a two-way sync that
+                # delete has already been pushed to the source, so the fetched
+                # copy is stale and creating it again would undo the user's
+                # delete. The next sync reads the source after the push and
+                # settles it. A one-way synced table is read-only, so a missing
+                # row there is always one the source has to bring back.
+                if data_sync.two_way_sync and new_id in pre_fetch_unique_keys:
+                    logger.warning(
+                        f"Data sync {data_sync.id} skipped creating a row in table "
+                        f"{data_sync.table_id} because it was deleted in Baserow "
+                        f"while the source was being read. The next sync will "
+                        f"settle it."
+                    )
+                    continue
                 rows_to_create.append(
                     {
                         f"field_{property.field_id}": data[property.key]
                         for property in enabled_properties
                     }
                 )
-        progress.increment(by=1)  # makes the total `67`
+            progress.increment(by=1)  # makes the total `69`
 
-        rows_to_update = []
-        for existing_id, existing_record in existing_rows_in_table.items():
-            if existing_id in rows_of_data_sync:
-                new_record_data = rows_of_data_sync[existing_id]
-                changed = False
-                for enabled_property in enabled_properties:
-                    key = enabled_property.key
-                    value = new_record_data[key]
-                    baserow_row_value = existing_record[key_to_field_id[key]]
-                    data_sync_property = key_to_property[key]
-                    if not data_sync_property.is_equal(baserow_row_value, value):
-                        existing_record[key_to_field_id[key]] = value
-                        changed = True
-                if changed:
-                    rows_to_update.append(existing_record)
-        progress.increment(by=2)  # makes the total `69`
+            rows_to_update = []
+            for existing_id, existing_record in existing_rows_in_table.items():
+                if existing_id in rows_of_data_sync:
+                    new_record_data = rows_of_data_sync[existing_id]
+                    row_id = existing_record["id"]
+                    # A row whose synced cells moved since the fetch started was
+                    # edited while the source was being read, so the values in
+                    # hand predate that edit. For a two-way sync the edit has
+                    # already been pushed to the source, which means writing the
+                    # fetched values would overwrite current state with an older
+                    # read of the same source. The row is left alone; the next
+                    # sync reads the source after the push and settles it. Rows
+                    # created during the fetch have no fingerprint and are
+                    # written normally.
+                    pre_fetch_fingerprint = pre_fetch_fingerprints.get(row_id)
+                    if (
+                        fingerprints_comparable
+                        and pre_fetch_fingerprint is not None
+                        and self._fingerprint_row(
+                            existing_record, fingerprint_field_names
+                        )
+                        != pre_fetch_fingerprint
+                    ):
+                        logger.warning(
+                            f"Data sync {data_sync.id} skipped updating row {row_id} "
+                            f"in table {data_sync.table_id} because one of its "
+                            f"synced cells changed in Baserow while the source was "
+                            f"being read. The next sync will settle it."
+                        )
+                        continue
+                    # Only the cells that moved are written. The rows are not
+                    # locked between this read and the write, so a cell a user
+                    # edits in that window survives as long as the sync doesn't
+                    # touch it. A cell the source changed too is overwritten; see
+                    # https://github.com/baserow/baserow/issues/6113.
+                    changed_values = {}
+                    for enabled_property in enabled_properties:
+                        key = enabled_property.key
+                        value = new_record_data[key]
+                        field_name = key_to_field_id[key]
+                        baserow_row_value = existing_record[field_name]
+                        data_sync_property = key_to_property[key]
+                        if data_sync_property.is_equal(baserow_row_value, value):
+                            continue
 
-        row_ids_to_delete = []
-        if data_sync.delete_unmatched_rows:
-            for existing_id in existing_rows_in_table.keys():
-                if existing_id is None or existing_id not in rows_of_data_sync:
-                    row_ids_to_delete.append(existing_rows_in_table[existing_id]["id"])
-            # Loop over the dangling rows and delete those because they can't be
-            # identified anymore.
-            for row in existing_rows_queryset:
-                if any(not row[key_to_field_id[key]] for key in unique_primary_keys):
-                    row_ids_to_delete.append(row["id"])
-        progress.increment(by=1)  # makes the total `70`
+                        changed_values[field_name] = value
+                    if changed_values:
+                        rows_to_update.append({"id": row_id, **changed_values})
+            progress.increment(by=1)  # makes the total `70`
 
-        created_rows = CreatedRowsData([], {}, [], None)
-        if len(rows_to_create) > 0:
-            created_rows = RowHandler().create_rows(
-                user=user,
-                table=data_sync.table,
-                model=model,
-                rows_values=rows_to_create,
-                generate_error_report=False,
-                send_realtime_update=False,
-                send_webhook_events=False,
-                skip_search_update=True,
-                signal_params={"skip_two_way_sync": True},
+            row_ids_to_delete = []
+            if data_sync.delete_unmatched_rows:
+                for existing_id in existing_rows_in_table.keys():
+                    if existing_id is None or existing_id not in rows_of_data_sync:
+                        row_ids_to_delete.append(
+                            existing_rows_in_table[existing_id]["id"]
+                        )
+                for row in existing_rows_queryset:
+                    if any(
+                        not row[key_to_field_id[key]] for key in unique_primary_keys
+                    ):
+                        row_ids_to_delete.append(row["id"])
+                # Rows that did not exist when the fetch started can't be missing
+                # from the source; they were created by a user in the meantime.
+                if pre_fetch_row_ids is not None:
+                    row_ids_to_delete = [
+                        row_id
+                        for row_id in row_ids_to_delete
+                        if row_id in pre_fetch_row_ids
+                    ]
+            progress.increment(by=1)  # makes the total `71`
+
+            created_rows = CreatedRowsData([], {}, [], None)
+            if len(rows_to_create) > 0:
+                created_rows = RowHandler().create_rows(
+                    user=user,
+                    table=data_sync.table,
+                    model=model,
+                    rows_values=rows_to_create,
+                    generate_error_report=False,
+                    send_realtime_update=False,
+                    send_webhook_events=False,
+                    skip_search_update=True,
+                    signal_params={"skip_two_way_sync": True},
+                )
+            progress.increment(by=10)  # makes the total `81`
+
+            updated_rows = UpdatedRowsData([], [], {}, {}, None, [], None)
+            if len(rows_to_update) > 0:
+                updated_rows = RowHandler().update_rows(
+                    user=user,
+                    table=data_sync.table,
+                    rows_values=rows_to_update,
+                    model=model,
+                    send_realtime_update=False,
+                    send_webhook_events=False,
+                    skip_search_update=True,
+                    signal_params={"skip_two_way_sync": True},
+                )
+            progress.increment(by=10)  # makes the total `91`
+
+            if len(row_ids_to_delete) > 0:
+                RowHandler().delete_rows(
+                    user=user,
+                    table=data_sync.table,
+                    row_ids=row_ids_to_delete,
+                    model=model,
+                    send_realtime_update=False,
+                    send_webhook_events=False,
+                    permanently_delete=True,
+                    signal_params={"skip_two_way_sync": True},
+                )
+            progress.increment(by=9)  # makes the total `100`
+
+            self._schedule_search_updates_after_sync(
+                data_sync=data_sync,
+                enabled_properties=enabled_properties,
+                existing_row_count=len(existing_rows_queryset),
+                created_rows=created_rows,
+                updated_rows=updated_rows,
+                row_ids_to_delete=row_ids_to_delete,
             )
-        progress.increment(by=10)  # makes the total `80`
 
-        updated_rows = UpdatedRowsData([], [], {}, {}, None, [], None)
-        if len(rows_to_update) > 0:
-            updated_rows = RowHandler().update_rows(
-                user=user,
-                table=data_sync.table,
-                rows_values=rows_to_update,
-                model=model,
-                send_realtime_update=False,
-                send_webhook_events=False,
-                skip_search_update=True,
-                signal_params={"skip_two_way_sync": True},
-            )
-        progress.increment(by=10)  # makes the total `90`
-
-        if len(row_ids_to_delete) > 0:
-            RowHandler().delete_rows(
-                user=user,
-                table=data_sync.table,
-                row_ids=row_ids_to_delete,
-                model=model,
-                send_realtime_update=False,
-                send_webhook_events=False,
-                # The rows should not be trashed
-                permanently_delete=True,
-                signal_params={"skip_two_way_sync": True},
-            )
-        progress.increment(by=10)  # makes the total `100`
-
-        self._schedule_search_updates_after_sync(
-            data_sync=data_sync,
-            enabled_properties=enabled_properties,
-            existing_row_count=len(existing_rows_queryset),
-            created_rows=created_rows,
-            updated_rows=updated_rows,
-            row_ids_to_delete=row_ids_to_delete,
-        )
+            # Recorded in the same transaction as the rows, so the two can't come
+            # apart: a worker killed right after the commit leaves a data sync
+            # that knows it synced, and one killed before it leaves neither.
+            data_sync.last_sync = timezone.now()
+            data_sync.last_error = None
+            data_sync.save(update_fields=("last_sync", "last_error"))
 
     def set_data_sync_synced_properties(
         self,
@@ -676,8 +859,16 @@ class DataSyncHandler:
 
         handler = FieldHandler()
 
+        # A renamed primary key leaves both properties `unique_primary` here, so
+        # skip the one being deleted or the table ends up without a primary field.
+        removed_field_ids = {p.field_id for p in properties_to_be_removed}
         unique_primary_field = next(
-            (ep.field for ep in enabled_properties if ep.unique_primary), None
+            (
+                ep.field
+                for ep in enabled_properties
+                if ep.unique_primary and ep.field_id not in removed_field_ids
+            ),
+            None,
         )
 
         for data_sync_property_instance in properties_to_be_removed:

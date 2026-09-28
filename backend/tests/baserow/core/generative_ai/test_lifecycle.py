@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from baserow.core.generative_ai.lifecycle import (
@@ -75,4 +77,22 @@ def test_sync_agent_run_closes_model_when_agent_fails():
             model=model,
         )
 
+    assert model.events == ["enter", ("run", "prompt", {}), "exit"]
+
+
+@pytest.mark.asyncio
+async def test_request_deadline_does_not_interrupt_model_cleanup():
+    class SlowClosingModel(LifecycleModel):
+        async def __aexit__(self, *args):
+            await asyncio.sleep(0.02)
+            await super().__aexit__(*args)
+
+    model = SlowClosingModel()
+
+    assert (
+        await run_agent_with_model(
+            FakeAgent(), "prompt", model=model, timeout_seconds=0.01
+        )
+        == "result"
+    )
     assert model.events == ["enter", ("run", "prompt", {}), "exit"]

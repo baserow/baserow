@@ -64,4 +64,15 @@ describe('GenerateAIValuesContextItem component', () => {
 
     expect(wrapper.find('a').classes()).not.toContain('disabled')
   })
+
+  test('disables generation when the selected model is ineligible for AI Fields', async () => {
+    await testApp.getStore().dispatch('workspace/forceCreate', {
+      ...workspace,
+      ai_features: { ai_fields: { models: {} } },
+    })
+
+    const wrapper = await mountComponent(aiField)
+
+    expect(wrapper.find('a').classes()).toContain('disabled')
+  })
 })

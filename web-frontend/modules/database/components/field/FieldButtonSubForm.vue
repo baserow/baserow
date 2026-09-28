@@ -132,6 +132,7 @@ export default {
       // Refreshed after every save, as the field response predates the
       // actions it saved. Null when the last refresh failed or none ran.
       requiresReconfiguration: null,
+      opensNewTab: null,
     }
   },
   computed: {
@@ -449,14 +450,10 @@ export default {
       const service = WorkflowActionService(this.$client)
       const createdIds = []
       const assignedIds = new Map()
-      // The client id of each action the server handed a new id, by that id.
-      // A create and a type change both do.
-      const clientIdByServerId = new Map()
-      const rememberClientId = (action, serverId) => {
-        if (action?.[CLIENT_ID_KEY] != null) {
-          clientIdByServerId.set(serverId, action[CLIENT_ID_KEY])
-        }
-      }
+      // The id a type change handed back, by the id the action had. The
+      // server may recreate the action or keep it, so this is only filled
+      // when the id changed.
+      const retypedIds = new Map()
       let failed = false
       // Captured before the `finally` below re-fetches and replaces the list.
       const serverById = new Map(this.serverActions.map((a) => [a.id, a]))
@@ -474,7 +471,6 @@ export default {
             groupId
           )
           createdIds.push(data.id)
-          rememberClientId(action, data.id)
           // Both ways of naming it are mapped: an unsaved action is referenced
           // by its client id, while one the server has forgotten, deleted by a
           // collaborator say, is referenced by the id it used to have. Neither
@@ -505,10 +501,7 @@ export default {
           }
           const { data } = await service.update(id, payload, groupId)
           if (data?.id != null && data.id !== id) {
-            rememberClientId(
-              this.localActions.find((action) => action.id === id),
-              data.id
-            )
+            retypedIds.set(id, data.id)
           }
           if (defersConfig) {
             const config = this.resolveActionIds(
@@ -556,43 +549,70 @@ export default {
           this.adoptAssignedIds(assignedIds)
         }
         try {
-          // The fetched list has only ids. Keyed by those, a created action's
-          // card would remount and the editor would scroll to the top while
-          // it is still on screen.
+          // The fetched list has only ids. Keyed by those, every card whose
+          // action was edited under a client id would remount, and the editor
+          // would scroll to the top while it is still on screen.
           await this.fetchWorkflowActions(fieldId, {
             keepEdits: failed,
-            clientIds: clientIdByServerId,
+            clientIds: this.clientIdsAfterSave(assignedIds, retypedIds),
           })
         } catch (refreshError) {
           notifyIf(refreshError, 'field')
         }
-        await this.refreshRequiresReconfiguration(fieldId)
+        await this.refreshFieldFlags(fieldId)
       }
     },
     /**
-     * Asks the server whether the saved actions leave the button needing
-     * reconfiguration. On failure the flag is unknown: the next broadcast or
-     * reload corrects it, and a toast here would bury the save's own result.
+     * The client id of every buffered action that has one, by the id the
+     * server knows it under after this save: the one it was created under,
+     * the one a type change gave it, or the one it already had.
      */
-    async refreshRequiresReconfiguration(fieldId) {
+    clientIdsAfterSave(assignedIds, retypedIds) {
+      const clientIds = new Map()
+      for (const action of this.localActions) {
+        const clientId = action[CLIENT_ID_KEY]
+        if (clientId == null) {
+          continue
+        }
+        const serverId =
+          assignedIds.get(clientId) ?? retypedIds.get(action.id) ?? action.id
+        if (serverId != null) {
+          clientIds.set(serverId, clientId)
+        }
+      }
+      return clientIds
+    },
+    /**
+     * Asks the server whether the saved actions leave the button needing
+     * reconfiguration or opening a new tab. On failure the flags are unknown:
+     * the next broadcast or reload corrects them, and a toast here would bury
+     * the save's own result.
+     */
+    async refreshFieldFlags(fieldId) {
       this.requiresReconfiguration = null
+      this.opensNewTab = null
       try {
         const { data } = await FieldService(this.$client).get(fieldId)
         this.requiresReconfiguration = data?.requires_reconfiguration === true
+        this.opensNewTab = data?.opens_new_tab === true
       } catch {
         // Left unknown, see above.
       }
     },
     /**
-     * The field response carries `has_workflow_actions` and
-     * `requires_reconfiguration` computed before these calls, so the store
-     * needs both flags as they ended up. The reconfigure flag is left out when
-     * the refresh failed, so the store keeps what it has.
+     * The field response carries `has_workflow_actions`,
+     * `requires_reconfiguration` and `opens_new_tab` computed before these
+     * calls, so the store needs the flags as they ended up. The reconfigure
+     * and new tab flags are left out when the refresh failed, so the store
+     * keeps what it has.
      */
     fieldValuesAfterSave() {
       const values = { has_workflow_actions: this.serverActions.length > 0 }
       if (this.requiresReconfiguration !== null) {
         values.requires_reconfiguration = this.requiresReconfiguration
+      }
+      if (this.opensNewTab !== null) {
+        values.opens_new_tab = this.opensNewTab
       }
       return values
     },

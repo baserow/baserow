@@ -1444,6 +1444,18 @@ BASEROW_ROW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
 BASEROW_ROW_HISTORY_RETENTION_DAYS = int(
     os.getenv("BASEROW_ROW_HISTORY_RETENTION_DAYS", 180)
 )
+# Delay between a user opening an item and the "last viewed" write, so bursts of
+# requests for the same item collapse into one database write.
+BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS = int(
+    os.getenv("BASEROW_LAST_VIEWED_DEBOUNCE_SECONDS") or 2
+)
+# Minimum age of a stored "last viewed" value before it is refreshed again.
+BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS = int(
+    os.getenv("BASEROW_LAST_VIEWED_UPDATE_INTERVAL_SECONDS") or 60
+)
+BASEROW_LAST_VIEWED_CLEANUP_INTERVAL_MINUTES = int(
+    os.getenv("BASEROW_LAST_VIEWED_CLEANUP_INTERVAL_MINUTES") or 60 * 24
+)
 BASEROW_MAX_ROW_REPORT_ERROR_COUNT = int(
     os.getenv("BASEROW_MAX_ROW_REPORT_ERROR_COUNT", 30)
 )
@@ -1719,6 +1731,9 @@ if SENTRY_DSN:
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
+# Deprecated provider connection/model environment variables. Manage providers and
+# models under AI providers instead. Keep these settings for compatibility and the
+# migrate_ai_provider_settings import command; runtime fallback remains supported.
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
 BASEROW_OPENAI_BASE_URL = os.getenv("BASEROW_OPENAI_BASE_URL", None) or None

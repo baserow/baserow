@@ -90,6 +90,29 @@ describe('Assistant store', () => {
     expect(store.getters['assistant/currentChat'].running).toBe(false)
   })
 
+  test('a late title goes to the chat it was generated for', async () => {
+    await store.dispatch('assistant/createChat', workspace.id)
+    const firstChatId = store.getters['assistant/currentChatId']
+    service.sendMessage.mockImplementation(
+      async (chatUuid, message, uiContext, onUpdate) => {
+        // The user started another chat before this one got its title.
+        await store.dispatch('assistant/clearChat')
+        await store.dispatch('assistant/createChat', workspace.id)
+        await onUpdate({ type: 'chat/title', content: 'First title' })
+        await onUpdate({ type: 'ai/message', content: 'hi' })
+      }
+    )
+
+    await store.dispatch('assistant/sendMessage', {
+      message: 'hello',
+      workspace,
+    })
+
+    const chats = store.getters['assistant/chats']
+    expect(chats.find((c) => c.id === firstChatId).title).toBe('First title')
+    expect(store.getters['assistant/currentChat'].title).toBe('')
+  })
+
   test('fetching chats keeps a current chat that is not persisted yet', async () => {
     await store.dispatch('assistant/createChat', workspace.id)
     const unsavedChatId = store.getters['assistant/currentChatId']

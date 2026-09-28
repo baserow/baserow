@@ -522,7 +522,6 @@ def test_google_and_groq_do_not_fall_back_to_legacy_kuma_credentials(monkeypatch
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("feature_flags", [[], ["ai-providers"]])
 @pytest.mark.parametrize(
     ("model_type", "provider_type", "model_identifier"),
     [
@@ -531,9 +530,8 @@ def test_google_and_groq_do_not_fall_back_to_legacy_kuma_credentials(monkeypatch
     ],
 )
 def test_database_only_providers_ignore_legacy_workspace_settings(
-    data_fixture, settings, feature_flags, model_type, provider_type, model_identifier
+    data_fixture, model_type, provider_type, model_identifier
 ):
-    settings.FEATURE_FLAGS = feature_flags
     workspace = data_fixture.create_workspace(
         generative_ai_models_settings={
             provider_type: {

@@ -1,13 +1,14 @@
 import { Registerable } from '@baserow/modules/core/registry'
 
-export function getEnabledModelsForAIProviderFeature(
-  workspace,
-  featureType,
-  featureFilteringEnabled = true
-) {
-  if (!featureFilteringEnabled) {
-    return workspace?.generative_ai_models_enabled ?? {}
-  }
+/**
+ * Resolve feature eligibility, falling back to generic model availability when
+ * the workspace has no availability metadata for this feature.
+ *
+ * @param {object|null} workspace The workspace with model availability.
+ * @param {string} featureType The AI feature that consumes the models.
+ * @returns {Object<string, string[]>} Available models grouped by provider type.
+ */
+export function getEnabledModelsForAIProviderFeature(workspace, featureType) {
   return (
     workspace?.ai_features?.[featureType]?.models ??
     workspace?.generative_ai_models_enabled ??

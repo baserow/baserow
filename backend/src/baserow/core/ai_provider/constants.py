@@ -67,7 +67,8 @@ AI_PROVIDER_TYPES = {
     },
 }
 
-# Legacy env-var mapping for the import command only; slated for removal, never extend.
+# Deprecated env-var mapping for compatibility resolution, imports, audits, and
+# startup notices; never extend.
 PROVIDER_ENVIRONMENT_SETTINGS = {
     "openai": {
         "api_key": "BASEROW_OPENAI_API_KEY",

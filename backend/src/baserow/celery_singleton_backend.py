@@ -6,16 +6,6 @@ from django.core.cache import cache
 from celery_singleton.backends import RedisBackend
 from django_redis import get_redis_connection
 
-
-class RedisBackendForSingleton(RedisBackend):
-    def __init__(self, *args, **kwargs):
-        """
-        Use the existing redis connection instead of creating a new one.
-        """
-
-        self.redis = get_redis_connection("default")
-
-
 # Compare-and-act on the flag in a single round-trip so we never touch a lock a newer
 # holder has taken over between a read and the write (TOCTOU). `expire` takes seconds.
 _EXTEND_IF_SCRIPT = """
@@ -31,6 +21,40 @@ if redis.call("get", KEYS[1]) == ARGV[1] then
 end
 return 0
 """
+
+
+class RedisBackendForSingleton(RedisBackend):
+    def __init__(self, *args, **kwargs):
+        """
+        Use the existing redis connection instead of creating a new one.
+        """
+
+        self.redis = get_redis_connection("default")
+
+    def extend_lock_if(self, lock: str, task_id: str, expiry: int) -> bool:
+        """
+        Re-arms the expiry of a lock this task still holds. A lock taken over by a
+        newer task in the meantime is left alone.
+
+        :param lock: The key returned by `Singleton.generate_lock`.
+        :param task_id: The id of the task that acquired the lock.
+        :param expiry: The new lifetime in seconds, counted from now.
+        :return: Whether the lock was still held and extended.
+        """
+
+        return bool(self.redis.eval(_EXTEND_IF_SCRIPT, 1, lock, task_id, expiry))
+
+    def release_lock_if(self, lock: str, task_id: str) -> bool:
+        """
+        Releases a lock only while this task still holds it. A task whose lease
+        expired must not remove the lock a newer task acquired since.
+
+        :param lock: The key returned by `Singleton.generate_lock`.
+        :param task_id: The id of the task that acquired the lock.
+        :return: Whether the lock was still held and released.
+        """
+
+        return bool(self.redis.eval(_CLEAR_IF_SCRIPT, 1, lock, task_id))
 
 
 class SingletonAutoRescheduleFlag:

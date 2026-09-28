@@ -5,7 +5,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from baserow.contrib.builder.pages.service import PageService
-from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.contrib.builder.workflow_actions.models import (
+    EventTypes,
+    RefreshDataSourceWorkflowAction,
+)
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
@@ -285,6 +288,57 @@ def test_refresh_data_source_returns_value_from_super_method(
     mock_deserialize.assert_called_once_with(
         *args, files_zip=None, cache=None, storage=None
     )
+
+
+@pytest.mark.django_db
+def test_refresh_data_source_serializes_trashed_data_source_as_null(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    workflow_action = data_fixture.create_workflow_action(
+        RefreshDataSourceWorkflowAction,
+        page=page,
+        data_source=data_source,
+    )
+    workflow_action_type = RefreshDataSourceWorkflowActionType()
+
+    serialized = workflow_action_type.get_serializer(workflow_action).data
+    assert serialized["data_source_id"] == data_source.id
+
+    TrashHandler.trash(user, page.builder.workspace, page.builder, data_source)
+    workflow_action.refresh_from_db()
+
+    serialized = workflow_action_type.get_serializer(workflow_action).data
+    assert serialized["data_source_id"] is None
+
+
+@pytest.mark.django_db
+def test_refresh_data_source_serialization_does_not_query_data_sources(
+    data_fixture, django_assert_num_queries
+):
+    page = data_fixture.create_builder_page()
+    workflow_action_type = RefreshDataSourceWorkflowActionType()
+    for _ in range(2):
+        data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+            page=page
+        )
+        data_fixture.create_workflow_action(
+            RefreshDataSourceWorkflowAction,
+            page=page,
+            data_source=data_source,
+        )
+
+    workflow_actions = list(
+        workflow_action_type.enhance_queryset(
+            RefreshDataSourceWorkflowAction.objects.filter(page=page)
+        )
+    )
+
+    with django_assert_num_queries(0):
+        for workflow_action in workflow_actions:
+            workflow_action_type.get_serializer(workflow_action).data
 
 
 @pytest.mark.django_db

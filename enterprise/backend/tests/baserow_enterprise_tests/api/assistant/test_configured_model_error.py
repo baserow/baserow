@@ -59,9 +59,7 @@ def test_database_configured_model_failure_does_not_reference_legacy_environment
 def test_disabled_kuma_returns_a_disable_specific_chat_error(
     api_client,
     enterprise_data_fixture,
-    settings,
 ):
-    settings.FEATURE_FLAGS = ["ai-providers"]
     user, token = enterprise_data_fixture.create_user_and_token()
     workspace = enterprise_data_fixture.create_workspace(user=user)
     enterprise_data_fixture.enable_enterprise()

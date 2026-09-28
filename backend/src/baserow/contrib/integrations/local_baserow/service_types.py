@@ -1672,7 +1672,12 @@ class LocalBaserowAggregateRowsUserServiceType(
             data["service"].aggregation_type
         )
         serializer_field = aggregation_type.get_result_serializer_field(data["field"])
-        result = serializer_field.to_representation(data["data"]["result"])
+        raw_result = data["data"]["result"]
+        result = (
+            None
+            if raw_result is None
+            else serializer_field.to_representation(raw_result)
+        )
 
         return DispatchResult(data={"result": result})
 

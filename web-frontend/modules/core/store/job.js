@@ -165,14 +165,17 @@ export const actions = {
     commit('SET_LOADING', false)
   },
   /**
-   * Dispatch the update for all the pending jobs and schedule the next update if
-   * no error is raised from the backend.
+   * Dispatch the update for all the pending jobs and schedule the next update,
+   * even when the backend raised an error.
    */
   async updateAllAndScheduleNext({ dispatch }, jobIds) {
     try {
       await dispatch('updateAll', jobIds)
-      await dispatch('tryScheduleNextUpdate')
-    } catch (error) {}
+    } catch (error) {
+      // One failed poll, a proxy error during a redeploy for instance, must
+      // not stop polling for good: a job waited on would never be seen ending.
+    }
+    await dispatch('tryScheduleNextUpdate')
   },
   /**
    * Update the status of all the jobs in the store that are unfinished.
@@ -260,8 +263,11 @@ export const actions = {
     )
     jobs.forEach((job) => commit('DELETE_ITEM', job.id))
   },
-  clearAll({ commit, dispatch }) {
+  clearAll({ commit, dispatch, state }) {
     clearTimeout(this.updateTimeoutId)
+    state.items.forEach((job) =>
+      this.$registry.get('job', job.type).beforeDelete(job, this)
+    )
     commit('SET_ITEMS', [])
     commit('SET_LOADED', false)
   },

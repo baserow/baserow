@@ -12,6 +12,8 @@ import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
+import AssistantDashboardPrompt from '@baserow_enterprise/components/assistant/AssistantDashboardPrompt'
+import { isAssistantConfigured } from '@baserow_enterprise/utils/assistant'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
 import DateDependencyFieldTypeIcon from '@baserow_enterprise/components/dateDependency/DateDependencyFieldTypeIcon'
 import ExportWorkspaceModalWarning from '@baserow_enterprise/components/ExportWorkspaceModalWarning'
@@ -63,11 +65,7 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getRightSidebarWorkspaceComponents(workspace) {
-    const legacyConfigured =
-      !!this.app.$config.public.baserowEnterpriseAssistantLlmModel
-    const isConfigured =
-      workspace.ai_features?.kuma?.is_enabled ?? legacyConfigured
-    return isConfigured ? [AssistantPanel] : []
+    return isAssistantConfigured(this.app, workspace) ? [AssistantPanel] : []
   }
 
   getGridViewFieldTypeIconsBefore(workspace, view, field) {
@@ -112,6 +110,12 @@ export class EnterprisePlugin extends BaserowPlugin {
 
   getSettingsPageComponents() {
     return [EnterpriseSettings]
+  }
+
+  getDashboardTopComponents(workspace) {
+    // The component decides whether the assistant is available, because that
+    // depends on permissions that are loaded after the page first renders.
+    return [AssistantDashboardPrompt]
   }
 
   getDashboardHelpComponents() {

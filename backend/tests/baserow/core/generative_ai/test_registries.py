@@ -35,7 +35,7 @@ class _EmptyGenerativeAIModelType(_StructuredOutputGenerativeAIModelType):
 
 
 class _LegacyPluginGenerativeAIModelType(GenerativeAIModelType):
-    """An out-of-tree provider implementing the pre-ai-providers contract."""
+    """An out-of-tree provider using the legacy workspace settings contract."""
 
     type = "legacy_plugin_generative_ai"
 
@@ -108,10 +108,7 @@ def test_generic_model_map_preserves_enabled_providers_with_no_models():
 
 
 @pytest.mark.django_db
-def test_legacy_plugin_provider_survives_database_provider_feature_flag(
-    data_fixture, settings
-):
-    settings.FEATURE_FLAGS = ["ai-providers"]
+def test_legacy_plugin_provider_resolves_workspace_settings(data_fixture):
     model_type = _LegacyPluginGenerativeAIModelType()
     registry = GenerativeAIModelTypeRegistry()
     registry.register(model_type)

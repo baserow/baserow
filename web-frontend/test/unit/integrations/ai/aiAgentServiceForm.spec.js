@@ -1,4 +1,4 @@
-import { defineComponent, reactive, ref, unref } from 'vue'
+import { defineComponent, reactive } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 
@@ -68,7 +68,6 @@ const workspace = {
 }
 
 async function mountForm({
-  featureFlagEnabled,
   integration,
   integrations = [integration],
   defaultValues,
@@ -92,7 +91,6 @@ async function mountForm({
       },
       mocks: {
         $t: (key) => key,
-        $featureFlagIsEnabled: () => unref(featureFlagEnabled),
         $store: {
           getters: {
             'integration/getIntegrations': () => integrations,
@@ -119,9 +117,8 @@ async function mountForm({
 }
 
 describe('AIAgentServiceForm', () => {
-  test('lists ai_agent feature models when the flag is enabled', async () => {
+  test('lists models available to the ai_agent feature', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       integration: { id: 5, type: 'ai', ai_settings: {} },
       defaultValues: { integration_id: 5, ai_generative_ai_type: 'openai' },
     })
@@ -131,9 +128,9 @@ describe('AIAgentServiceForm', () => {
     expect(wrapper.find('[data-value="legacy-model"]').exists()).toBe(false)
   })
 
-  test('lists legacy workspace models when the flag is disabled', async () => {
+  test('uses generic models when feature availability is missing', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: false,
+      workspace: { ...workspace, ai_features: undefined },
       integration: { id: 5, type: 'ai', ai_settings: {} },
       defaultValues: { integration_id: 5, ai_generative_ai_type: 'openai' },
     })
@@ -143,14 +140,12 @@ describe('AIAgentServiceForm', () => {
     expect(wrapper.find('[data-value="db-model"]').exists()).toBe(false)
   })
 
-  test('preserves the selected model through flag activation and availability changes', async () => {
-    const featureFlagEnabled = ref(false)
+  test('preserves the selected model through availability updates', async () => {
     const workspaceValue = reactive({
       ...workspace,
-      ai_features: { ai_agent: { models: { openai: ['db-model'] } } },
+      ai_features: undefined,
     })
     const wrapper = await mountForm({
-      featureFlagEnabled,
       workspace: workspaceValue,
       integration: { id: 5, type: 'ai', ai_settings: {} },
       defaultValues: {
@@ -167,7 +162,9 @@ describe('AIAgentServiceForm', () => {
     expect(modelField.get('select').element.value).toBe('legacy-model')
     expect(modelField.attributes('data-error')).toBe('false')
 
-    featureFlagEnabled.value = true
+    workspaceValue.ai_features = {
+      ai_agent: { models: { openai: ['db-model'] } },
+    }
     await flushPromises()
 
     expect(modelField.get('select').element.value).toBe('legacy-model')
@@ -186,7 +183,7 @@ describe('AIAgentServiceForm', () => {
       modelField.get('[data-value="legacy-model"]').attributes('aria-disabled')
     ).toBe('false')
 
-    featureFlagEnabled.value = false
+    workspaceValue.ai_features.ai_agent.models.openai = ['legacy-model']
     await flushPromises()
 
     expect(modelField.get('select').element.value).toBe('legacy-model')
@@ -200,7 +197,6 @@ describe('AIAgentServiceForm', () => {
       ai_features: { ai_agent: { models: { openai: ['db-model'] } } },
     })
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       workspace: workspaceValue,
       integration: { id: 5, type: 'ai', ai_settings: {} },
       defaultValues: {
@@ -223,9 +219,9 @@ describe('AIAgentServiceForm', () => {
     expect(modelField.find('[data-value="legacy-model"]').exists()).toBe(false)
   })
 
-  test('limits partial integration settings to legacy workspace models when the flag is disabled', async () => {
+  test('limits partial integration settings to generic workspace models when feature availability is missing', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: false,
+      workspace: { ...workspace, ai_features: undefined },
       integration: {
         id: 5,
         type: 'ai',
@@ -245,7 +241,6 @@ describe('AIAgentServiceForm', () => {
 
   test('complete integration settings override the workspace models', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       integration: {
         id: 5,
         type: 'ai',
@@ -263,20 +258,22 @@ describe('AIAgentServiceForm', () => {
 
   test.each([
     {
-      featureFlagEnabled: true,
+      workspaceValue: workspace,
+      source: 'feature availability',
       available: 'db-model',
       excluded: 'legacy-model',
     },
     {
-      featureFlagEnabled: false,
+      workspaceValue: { ...workspace, ai_features: undefined },
+      source: 'generic availability',
       available: 'legacy-model',
       excluded: 'db-model',
     },
   ])(
-    'inherits available models for an own-key override without models when flag is $featureFlagEnabled',
-    async ({ featureFlagEnabled, available, excluded }) => {
+    'inherits $source for an own-key override without models',
+    async ({ workspaceValue, available, excluded }) => {
       const wrapper = await mountForm({
-        featureFlagEnabled,
+        workspace: workspaceValue,
         integration: {
           id: 5,
           type: 'ai',
@@ -302,28 +299,23 @@ describe('AIAgentServiceForm', () => {
     }
   )
 
-  test.each([true, false])(
-    'keeps an explicit empty own-key model list empty when flag is %s',
-    async (featureFlagEnabled) => {
-      const wrapper = await mountForm({
-        featureFlagEnabled,
-        integration: {
-          id: 5,
-          type: 'ai',
-          ai_settings: { openai: { api_key: 'integration-key', models: [] } },
-        },
-        defaultValues: { integration_id: 5, ai_generative_ai_type: 'openai' },
-      })
-      await flushPromises()
+  test('keeps an explicit empty own-key model list empty', async () => {
+    const wrapper = await mountForm({
+      integration: {
+        id: 5,
+        type: 'ai',
+        ai_settings: { openai: { api_key: 'integration-key', models: [] } },
+      },
+      defaultValues: { integration_id: 5, ai_generative_ai_type: 'openai' },
+    })
+    await flushPromises()
 
-      expect(wrapper.find('[data-value="db-model"]').exists()).toBe(false)
-      expect(wrapper.find('[data-value="legacy-model"]').exists()).toBe(false)
-    }
-  )
+    expect(wrapper.find('[data-value="db-model"]').exists()).toBe(false)
+    expect(wrapper.find('[data-value="legacy-model"]').exists()).toBe(false)
+  })
 
   test('limits partial integration model settings to workspace ai_agent models', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       integration: {
         id: 5,
         type: 'ai',
@@ -343,7 +335,6 @@ describe('AIAgentServiceForm', () => {
 
   test('keeps a stale model visible but marks it unavailable', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       integration: { id: 5, type: 'ai', ai_settings: {} },
       defaultValues: {
         integration_id: 5,
@@ -366,7 +357,6 @@ describe('AIAgentServiceForm', () => {
 
   test('keeps a stale provider visible while editing', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       integration: { id: 5, type: 'ai', ai_settings: {} },
       defaultValues: {
         integration_id: 5,
@@ -381,7 +371,6 @@ describe('AIAgentServiceForm', () => {
 
   test('marks a provider from an uninstalled extension as unavailable', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       integration: { id: 5, type: 'ai', ai_settings: {} },
       workspace: {
         ...workspace,
@@ -405,9 +394,8 @@ describe('AIAgentServiceForm', () => {
     ).toBe('true')
   })
 
-  test('re-validates the selection when switching integration with the flag enabled', async () => {
+  test('re-validates the selection when switching integration', async () => {
     const wrapper = await mountForm({
-      featureFlagEnabled: true,
       integrations: [
         {
           id: 5,
@@ -446,10 +434,9 @@ describe('AIAgentServiceForm', () => {
 })
 
 describe('AIAgentServiceType', () => {
-  const makeServiceType = (integration = null, featureFlagEnabled = true) =>
+  const makeServiceType = (integration = null) =>
     new AIAgentServiceType({
       app: {
-        $featureFlagIsEnabled: () => featureFlagEnabled,
         $i18n: { t: (key) => key },
         $registry: { getAll: () => modelTypes },
         $store: {
@@ -485,13 +472,13 @@ describe('AIAgentServiceType', () => {
     ).toBeNull()
   })
 
-  test('does not enforce database model availability when the flag is disabled', () => {
-    const serviceType = makeServiceType(null, false)
+  test('uses generic model availability when feature payloads have not arrived', () => {
+    const serviceType = makeServiceType()
 
     expect(
       serviceType.getErrorMessage({
         service: makeService('legacy-model'),
-        workspace,
+        workspace: { ...workspace, ai_features: undefined },
       })
     ).toBeNull()
   })

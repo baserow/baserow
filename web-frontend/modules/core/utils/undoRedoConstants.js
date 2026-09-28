@@ -64,13 +64,11 @@ export function getSidebarActionScopes({
 }) {
   if (sidebarType === SIDEBAR_TYPES.ALL_WORKSPACES) {
     return {
-      ...CORE_ACTION_SCOPES.allWorkspaces(true),
       ...CORE_ACTION_SCOPES.workspace(null),
       ...CORE_ACTION_SCOPES.application(null),
     }
   }
   return {
-    ...CORE_ACTION_SCOPES.allWorkspaces(false),
     ...CORE_ACTION_SCOPES.workspace(workspaceId),
     ...CORE_ACTION_SCOPES.application(applicationId),
   }

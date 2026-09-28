@@ -1,9 +1,22 @@
+from datetime import timedelta
+
+from django.test import override_settings
+from django.utils import timezone
+
 import pytest
 
+from baserow.contrib.database.workflow_actions.actions import (
+    DispatchButtonFieldActionType,
+)
+from baserow.contrib.database.workflow_actions.exceptions import (
+    WorkflowActionDispatchError,
+)
 from baserow.contrib.database.workflow_actions.models import (
+    ButtonFieldDispatchJob,
     DatabaseWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowWorkflowAction,
     OpenUrlWorkflowAction,
 )
 from baserow.contrib.database.workflow_actions.registries import (
@@ -15,7 +28,14 @@ from baserow.contrib.database.workflow_actions.service import (
 from baserow.contrib.database.workflow_actions.signals import (
     workflow_action_deleted,
 )
+from baserow.core.action.signals import action_done
 from baserow.core.exceptions import PermissionException
+from baserow.core.jobs.constants import (
+    JOB_FAILED,
+    JOB_FINISHED,
+    JOB_PENDING,
+    JOB_STARTED,
+)
 from baserow.core.services.models import Service
 
 
@@ -221,3 +241,143 @@ def test_order_workflow_actions(data_fixture):
     second.refresh_from_db()
 
     assert second.order < first.order
+
+
+@pytest.mark.django_db
+def test_check_dispatch_allowed_refuses_a_user_outside_the_workspace(data_fixture):
+    user = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    action = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    with pytest.raises(PermissionException):
+        DatabaseWorkflowActionService().check_dispatch_allowed(
+            outsider, button_field, [action]
+        )
+
+
+@pytest.fixture
+def audited_clicks():
+    """The `action_params` of every button click registration."""
+
+    received = []
+
+    def receiver(sender, action_type, action_params, **kwargs):
+        if action_type is DispatchButtonFieldActionType:
+            received.append(action_params)
+
+    action_done.connect(receiver)
+    yield received
+    action_done.disconnect(receiver)
+
+
+@pytest.mark.django_db
+def test_check_dispatch_allowed_refuses_a_misconfigured_action_by_position(
+    data_fixture, audited_clicks
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    fine = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    # An update-row action with no row id formula is misconfigured.
+    broken = data_fixture.create_database_workflow_action(
+        LocalBaserowUpdateRowWorkflowAction, field=button_field
+    )
+
+    with pytest.raises(WorkflowActionDispatchError) as raised:
+        DatabaseWorkflowActionService().check_dispatch_allowed(
+            user, button_field, [fine, broken]
+        )
+
+    assert raised.value.position == 2
+    # A refusal leaves no audit entry for the click.
+    assert audited_clicks == []
+
+
+@pytest.mark.django_db
+def test_dispatch_positions_count_every_action_from_one(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    first = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+    second = data_fixture.create_database_workflow_action(
+        OpenUrlWorkflowAction, field=button_field
+    )
+
+    positions = DatabaseWorkflowActionService().dispatch_positions([first, second])
+
+    assert positions == {first.id: 1, second.id: 2}
+
+
+@pytest.mark.django_db
+def test_has_click_in_flight_sees_only_pending_and_started_jobs(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    service = DatabaseWorkflowActionService()
+
+    def busy(row_id):
+        return service.has_click_in_flight(button_field, row_id, [])
+
+    assert not busy(1)
+
+    for state in (JOB_FINISHED, JOB_FAILED):
+        ButtonFieldDispatchJob.objects.create(
+            user=user, field=button_field, row_id=1, state=state
+        )
+    assert not busy(1)
+
+    ButtonFieldDispatchJob.objects.create(
+        user=user, field=button_field, row_id=1, state=JOB_PENDING
+    )
+    assert busy(1)
+    # Another cell of the same button is free.
+    assert not busy(2)
+
+    ButtonFieldDispatchJob.objects.create(
+        user=user, field=button_field, row_id=2, state=JOB_STARTED
+    )
+    assert busy(2)
+
+
+@pytest.mark.django_db
+@override_settings(
+    DATABASE_BUTTON_DISPATCH_LOCK_TTL_SECONDS=120, BASEROW_JOB_SOFT_TIME_LIMIT=1800
+)
+def test_a_click_job_left_behind_by_a_dead_worker_frees_its_cell(data_fixture):
+    """A killed worker never moves its job out of started, and a lost queue
+    message never moves one out of pending. Each counts only for as long as
+    it could legitimately last, so the cell is not blocked until cleanup."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    service = DatabaseWorkflowActionService()
+    now = timezone.now()
+
+    def job_updated(row_id, state, seconds_ago):
+        job = ButtonFieldDispatchJob.objects.create(
+            user=user, field=button_field, row_id=row_id, state=state
+        )
+        # `updated_on` is set on save, so aged afterwards.
+        ButtonFieldDispatchJob.objects.filter(id=job.id).update(
+            updated_on=now - timedelta(seconds=seconds_ago)
+        )
+
+    job_updated(1, JOB_STARTED, 119)
+    job_updated(2, JOB_STARTED, 121)
+    job_updated(3, JOB_PENDING, 121)
+    job_updated(4, JOB_PENDING, 1801)
+
+    assert service.has_click_in_flight(button_field, 1, [])
+    assert not service.has_click_in_flight(button_field, 2, [])
+    # Still waiting in a backed-up queue, well past a running click's TTL.
+    assert service.has_click_in_flight(button_field, 3, [])
+    assert not service.has_click_in_flight(button_field, 4, [])

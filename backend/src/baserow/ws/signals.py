@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.dispatch import receiver
@@ -22,7 +24,8 @@ from baserow.core.ai_provider.signals import ai_provider_updated
 from baserow.core.db import specific_iterator
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs import signals as jobs_signals
-from baserow.core.models import Application, WorkspaceUser
+from baserow.core.last_viewed.handler import LastViewedHandler
+from baserow.core.models import Application, Workspace, WorkspaceUser
 from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
     ReadApplicationOperationType,
@@ -44,13 +47,20 @@ from .tasks import (
 
 @receiver(ai_provider_updated)
 def broadcast_ai_provider_updated(
-    sender, model_availability_updated, workspace=None, **kwargs
-):
+    sender: type,
+    model_availability_updated: bool,
+    workspace: Workspace | None = None,
+    **kwargs: Any,
+) -> None:
     """
-    Schedule one server-computed realtime update after the database transaction.
+    Queue the changed scope's realtime snapshot once the transaction commits.
 
-    The task builds user-specific payloads containing every provider and enabled-model
-    snapshot that user may see, so clients never need to fetch state after the event.
+    :param sender: The service class that sent the signal.
+    :param model_availability_updated: Whether the change can alter which models
+        are available.
+    :param workspace: The workspace whose providers changed, or None for the
+        instance scope.
+    :param kwargs: The remaining signal arguments, which this receiver ignores.
     """
 
     workspace_id = workspace.id if workspace is not None else None
@@ -130,11 +140,6 @@ def workspace_created(sender, workspace, user, **kwargs):
 @receiver(signals.workspace_updated)
 def workspace_updated(sender, workspace, user, updated_fields=None, **kwargs):
     updated_fields = updated_fields or []
-    excluded_web_socket_id = (
-        None
-        if "generative_ai_models_settings" in updated_fields
-        else getattr(user, "web_socket_id", None)
-    )
     transaction.on_commit(
         lambda: broadcast_to_group.delay(
             workspace.id,
@@ -144,7 +149,7 @@ def workspace_updated(sender, workspace, user, updated_fields=None, **kwargs):
                 "workspace": WorkspaceSerializer(workspace).data,
                 "updated_fields": updated_fields,
             },
-            excluded_web_socket_id,
+            getattr(user, "web_socket_id", None),
         )
     )
 
@@ -235,11 +240,17 @@ def workspace_restored(sender, workspace_user, user, **kwargs):
         applications_qs,
         workspace=workspace_user.workspace,
     )
-    applications_qs = specific_iterator(applications_qs)
+    applications_qs = list(specific_iterator(applications_qs))
+    context = {
+        "user": workspace_user.user,
+        "last_viewed_per_application": (
+            LastViewedHandler.get_last_viewed_per_application(
+                workspace_user.user, [a.id for a in applications_qs]
+            )
+        ),
+    }
     applications = [
-        PolymorphicApplicationResponseSerializer(
-            application, context={"user": workspace_user.user}
-        ).data
+        PolymorphicApplicationResponseSerializer(application, context=context).data
         for application in applications_qs
     ]
 

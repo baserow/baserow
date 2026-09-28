@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from datetime import timedelta
 from time import monotonic
-from typing import Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -9,17 +10,24 @@ from baserow.config.celery import app
 from baserow.ws.telemetry import run_database_sync
 from baserow.ws.types import ChannelGroupMessage, PayloadMap
 
-# Instance-level provider changes can affect every workspace. Keep both the amount of
-# state resolved by one worker and the number of recipients in one channel-layer
-# message bounded. These are deliberately constants rather than deployment settings:
-# they are safety limits, not product behaviour.
-AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE = 25
+if TYPE_CHECKING:
+    from redis.lock import Lock
+
+    from baserow.core.models import Workspace
+
+# Bounds the recipient list carried by one channel-layer message.
 AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE = 250
 AI_PROVIDER_UPDATE_RENDER_LOCK_KEY = "ai_provider_update_renderer"
 AI_PROVIDER_UPDATE_RENDER_LOCK_TIMEOUT = 300
 # ASGI channel layers only guarantee messages up to 1 MB when JSON encoded. Leave
 # headroom for the recorded event id and serializer framing.
 AI_PROVIDER_UPDATE_MAX_ENVELOPE_BYTES = 900 * 1024
+
+
+class RenderedWorkspaceAIProviderUpdate(NamedTuple):
+    workspace: "Workspace"
+    base_payload: dict[str, Any]
+    provider_payload: dict[str, Any]
 
 
 def _ai_provider_refresh_marker(
@@ -66,18 +74,36 @@ def _bounded_ai_provider_payload(
     return payload if size <= AI_PROVIDER_UPDATE_MAX_ENVELOPE_BYTES else refresh_marker
 
 
-def _ai_provider_renderer_lock():
-    """Return a renewable cross-worker lock for provider snapshot rendering."""
+def _ai_provider_renderer_lock_key(workspace_id: int | None) -> str:
+    """
+    Return the render lock key of one provider scope, so only renders of the same
+    scope wait for each other.
+
+    :param workspace_id: The workspace scope, or None for the instance scope.
+    :return: The cache key of that scope's render lock.
+    """
+
+    scope = "instance" if workspace_id is None else workspace_id
+    return f"{AI_PROVIDER_UPDATE_RENDER_LOCK_KEY}:{scope}"
+
+
+def _ai_provider_renderer_lock(workspace_id: int | None) -> "Lock":
+    """
+    Return a renewable cross-worker lock for one scope's provider snapshot.
+
+    :param workspace_id: The workspace scope, or None for the instance scope.
+    :return: The not yet acquired lock.
+    """
 
     from django.core.cache import cache
 
     return cache.lock(
-        AI_PROVIDER_UPDATE_RENDER_LOCK_KEY,
+        _ai_provider_renderer_lock_key(workspace_id),
         timeout=AI_PROVIDER_UPDATE_RENDER_LOCK_TIMEOUT,
     )
 
 
-def _renew_ai_provider_renderer_lock(lock) -> None:
+def _renew_ai_provider_renderer_lock(lock: "Lock") -> None:
     """Keep ownership while rendering, recording, and sending a snapshot."""
 
     lock.reacquire()
@@ -104,14 +130,27 @@ def _ai_provider_snapshot_transaction():
     )
 
 
-def _run_ai_provider_renderer(renderer, sender, *args) -> None:
-    """Serialize one coherent provider snapshot and retain ordering through send."""
+def _run_ai_provider_renderer(
+    workspace_id: int | None,
+    renderer: Callable[..., Any],
+    sender: Callable[[Any, "Lock"], None],
+    *args: Any,
+) -> None:
+    """
+    Serialize one coherent provider snapshot and retain its scope's ordering
+    through send.
+
+    :param workspace_id: The scope to lock, or None for the instance scope.
+    :param renderer: Renders the snapshot from ``args`` and the held lock.
+    :param sender: Sends the rendered snapshot while the lock is still held.
+    :param args: The positional arguments passed to ``renderer``.
+    """
 
     from redis.exceptions import LockNotOwnedError
 
     from baserow.cachalot_patch import cachalot_disabled
 
-    lock = _ai_provider_renderer_lock()
+    lock = _ai_provider_renderer_lock(workspace_id)
     lock.acquire()
     try:
         with cachalot_disabled():
@@ -163,9 +202,12 @@ async def send_messages_to_channel_group(
     ``ChannelGroupMessage`` is accepted as well as a list, so callers that
     only have one message don't have to wrap it themselves. When event
     recording is enabled, all recordable messages (those carrying a
-    ``payload`` or ``payload_map``) are persisted in a single batch (one
-    ``bulk_create`` instead of one insert per message) and their ids are
-    injected into the inner payload(s) **before** the messages are sent.
+    ``payload`` or ``payload_map`` and not marked ``record: False``) are
+    persisted in a single batch (one ``bulk_create`` instead of one insert per
+    message) and their ids are injected into the inner payload(s) **before**
+    the messages are sent. A message that a reconnecting client can do without
+    should opt out, because every recorded event counts toward the replay
+    limit after which the client is forced to refresh.
 
     :param channel_layer: The channel layer instance to use.
     :param messages: A single ``ChannelGroupMessage`` or a list of them.
@@ -180,8 +222,11 @@ async def send_messages_to_channel_group(
         recordable = [
             channel_group_message
             for channel_group_message in messages
-            if channel_group_message.message.get("payload") is not None
-            or channel_group_message.message.get("payload_map") is not None
+            if channel_group_message.message.get("record", True)
+            and (
+                channel_group_message.message.get("payload") is not None
+                or channel_group_message.message.get("payload_map") is not None
+            )
         ]
         if recordable:
             event_ids = await run_database_sync(
@@ -207,6 +252,7 @@ def broadcast_to_users(
     payload: Dict[str, Any],
     ignore_web_socket_id: Optional[str] = None,
     send_to_all_users: bool = False,
+    record: bool = True,
 ):
     """
     Broadcasts a JSON payload the provided users.
@@ -220,6 +266,8 @@ def broadcast_to_users(
     :param send_to_all_users: If set to True all users will be sent the payload and
         the user_ids parameter will be ignored. ignore_web_socket_id however will still
         be respected.
+    :param record: Whether the event is kept for replay to reconnecting clients.
+        Pass False for events a fresh page load makes redundant anyway.
     """
 
     channel_layer = get_channel_layer()
@@ -233,6 +281,7 @@ def broadcast_to_users(
                 "payload": payload,
                 "ignore_web_socket_id": ignore_web_socket_id,
                 "send_to_all_users": send_to_all_users,
+                "record": record,
             },
         ),
     )
@@ -340,78 +389,53 @@ def broadcast_to_users_individual_payloads(
 @app.task(bind=True)
 def broadcast_ai_provider_update(
     self, workspace_id: int | None, model_availability_updated: bool
-):
+) -> None:
     """
-    Schedule or send permission-scoped AI provider state updates.
+    Send one scope's AI provider snapshot; instance changes only reach staff.
 
-    A workspace-scoped change is handled in this task, as before. An instance-scoped
-    change is fanned out into bounded workspace batches and a separate instance-admin
-    update. This prevents one Celery worker from loading every workspace/member and
-    constructing one unbounded ``payload_map``.
+    :param workspace_id: The workspace whose providers changed, or None for the
+        instance scope.
+    :param model_availability_updated: Whether the change can alter which models
+        are available.
     """
 
     from django.db import DEFAULT_DB_ALIAS
 
     from baserow.config.db_routers import set_db_alias
-    from baserow.core.models import Workspace
-    from baserow.core.utils import grouper
 
-    # This task is queued after commit. A replica can still lag behind that commit and
-    # must never be used to decide which workspaces receive its authoritative update.
+    # This task is queued after commit and a lagging replica could miss that commit.
     set_db_alias(DEFAULT_DB_ALIAS)
 
-    if workspace_id is not None:
-        _broadcast_ai_provider_workspace_updates(
-            [workspace_id], model_availability_updated
+    if workspace_id is None:
+        _run_ai_provider_renderer(
+            None,
+            _render_ai_provider_instance_update,
+            _send_ai_provider_instance_update,
+            model_availability_updated,
         )
-        return
-
-    # Instance administrators don't need to wait for every workspace id to be read and
-    # queued. Their payload is independent and is recipient-batched by its own task.
-    broadcast_ai_provider_instance_update.delay(model_availability_updated)
-
-    workspace_ids = (
-        Workspace.objects.order_by("id")
-        .values_list("id", flat=True)
-        .iterator(chunk_size=AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE)
-    )
-    for workspace_id_batch in grouper(
-        AI_PROVIDER_UPDATE_WORKSPACE_BATCH_SIZE, workspace_ids
-    ):
-        broadcast_ai_provider_workspace_update_batch.delay(
-            list(workspace_id_batch), model_availability_updated
+    else:
+        _run_ai_provider_renderer(
+            workspace_id,
+            _render_ai_provider_workspace_update,
+            _send_ai_provider_workspace_update,
+            workspace_id,
+            model_availability_updated,
         )
 
 
-@app.task(bind=True)
-def broadcast_ai_provider_workspace_update_batch(
-    self, workspace_ids: list[int], model_availability_updated: bool
-):
-    """Broadcast provider updates for one bounded batch of workspaces."""
+def _render_ai_provider_workspace_update(
+    workspace_id: int, model_availability_updated: bool, renderer_lock: "Lock"
+) -> RenderedWorkspaceAIProviderUpdate | None:
+    """
+    Render one workspace's provider snapshot: the base payload for every member
+    and the provider payload for members allowed to update the workspace.
 
-    if not workspace_ids:
-        return
-
-    _broadcast_ai_provider_workspace_updates(workspace_ids, model_availability_updated)
-
-
-def _broadcast_ai_provider_workspace_updates(
-    workspace_ids: list[int], model_availability_updated: bool
-) -> None:
-    """Render and send one bounded workspace batch without unbounded user lists."""
-
-    _run_ai_provider_renderer(
-        _render_ai_provider_workspace_updates,
-        _send_ai_provider_workspace_updates,
-        workspace_ids,
-        model_availability_updated,
-    )
-
-
-def _render_ai_provider_workspace_updates(
-    workspace_ids: list[int], model_availability_updated: bool, renderer_lock
-) -> list[tuple[Any, dict[str, Any], dict[str, Any]]]:
-    """Render coherent public and privileged payloads for a workspace batch."""
+    :param workspace_id: The workspace whose snapshot is rendered.
+    :param model_availability_updated: Whether the payloads must carry the
+        workspace's model and AI feature availability.
+    :param renderer_lock: The held render lock, renewed before rendering.
+    :return: The rendered snapshot, or None when the workspace no longer exists.
+    """
 
     from baserow.api.ai_provider.serializers import (
         AIProviderFeatureSettingSerializer,
@@ -427,174 +451,149 @@ def _render_ai_provider_workspace_updates(
     )
     from baserow.core.models import Workspace
 
-    workspaces = list(Workspace.objects.filter(id__in=workspace_ids).order_by("id"))
-    if not workspaces:
-        return []
+    workspace = Workspace.objects.filter(id=workspace_id).first()
+    if workspace is None:
+        return None
 
-    states = load_ai_provider_state(workspaces)
-    rendered = []
+    _renew_ai_provider_renderer_lock(renderer_lock)
+    workspace_key = str(workspace.id)
+    state = load_ai_provider_state([workspace])[workspace.id]
 
-    for workspace in workspaces:
-        _renew_ai_provider_renderer_lock(renderer_lock)
-        workspace_key = str(workspace.id)
-        state = states[workspace.id]
-
-        base_payload: dict[str, Any] = {
-            "type": "ai_provider_updated",
-            "model_availability_updated": model_availability_updated,
-        }
-        if model_availability_updated:
-            enabled_models = (
-                generative_ai_model_type_registry.get_enabled_models_per_type(
-                    workspace, state=state
-                )
-            )
-            ai_features = (
-                ai_provider_model_feature_type_registry.get_workspace_availability(
-                    workspace, state=state
-                )
-            )
-            base_payload["generative_ai_models_enabled_by_workspace"] = {
-                workspace_key: enabled_models
-            }
-            base_payload["ai_features_by_workspace"] = {workspace_key: ai_features}
-
-        providers = list(
-            WorkspaceAIProviderConfigSerializer(
-                AIProviderHandler.list_providers(workspace, state=state),
-                many=True,
-            ).data
+    base_payload: dict[str, Any] = {
+        "type": "ai_provider_updated",
+        "model_availability_updated": model_availability_updated,
+    }
+    if model_availability_updated:
+        enabled_models = generative_ai_model_type_registry.get_enabled_models_per_type(
+            workspace, state=state
         )
-        feature_settings = list(
-            AIProviderFeatureSettingSerializer(
-                AIProviderHandler.list_feature_settings(workspace, state=state),
-                many=True,
-                context={"workspace_id": workspace.id},
-            ).data
+        ai_features = (
+            ai_provider_model_feature_type_registry.get_workspace_availability(
+                workspace, state=state
+            )
         )
-        provider_payload = {
-            **base_payload,
-            "ai_providers_by_workspace": {workspace_key: providers},
-            "ai_provider_feature_settings_by_workspace": {
-                workspace_key: feature_settings
-            },
+        base_payload["generative_ai_models_enabled_by_workspace"] = {
+            workspace_key: enabled_models
         }
-        rendered.append((workspace, base_payload, provider_payload))
+        base_payload["ai_features_by_workspace"] = {workspace_key: ai_features}
 
-    return rendered
+    providers = list(
+        WorkspaceAIProviderConfigSerializer(
+            AIProviderHandler.list_providers(workspace, state=state),
+            many=True,
+        ).data
+    )
+    feature_settings = list(
+        AIProviderFeatureSettingSerializer(
+            AIProviderHandler.list_feature_settings(workspace, state=state),
+            many=True,
+            context={"workspace_id": workspace.id},
+        ).data
+    )
+    provider_payload = {
+        **base_payload,
+        "ai_providers_by_workspace": {workspace_key: providers},
+        "ai_provider_feature_settings_by_workspace": {workspace_key: feature_settings},
+    }
+    return RenderedWorkspaceAIProviderUpdate(workspace, base_payload, provider_payload)
 
 
-def _send_ai_provider_workspace_updates(rendered, renderer_lock) -> None:
-    """Permission-batch and send already-rendered workspace payloads."""
+def _send_ai_provider_workspace_update(
+    rendered: RenderedWorkspaceAIProviderUpdate | None, renderer_lock: "Lock"
+) -> None:
+    """
+    Send a rendered workspace snapshot, checking permissions per recipient batch.
+
+    :param rendered: The rendered snapshot, or None when the workspace is gone.
+    :param renderer_lock: The held render lock, renewed before every send.
+    """
 
     from baserow.core.handler import CoreHandler
     from baserow.core.operations import UpdateWorkspaceOperationType
     from baserow.core.utils import grouper
 
-    for workspace, base_payload, provider_payload in rendered:
-        workspace_users = (
-            workspace.workspaceuser_set.order_by("id")
-            .select_related("user")
-            .iterator(chunk_size=AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE)
-        )
-        for workspace_user_batch in grouper(
-            AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE, workspace_users
-        ):
-            _renew_ai_provider_renderer_lock(renderer_lock)
-            users = [workspace_user.user for workspace_user in workspace_user_batch]
-            permitted_user_ids = {
-                user.id
-                for user in CoreHandler().check_permission_for_multiple_actors(
-                    users,
-                    UpdateWorkspaceOperationType.type,
-                    workspace=workspace,
-                    context=workspace,
-                )
-            }
+    if rendered is None:
+        return
 
-            if base_payload["model_availability_updated"]:
-                member_user_ids = [
-                    user.id for user in users if user.id not in permitted_user_ids
-                ]
-                if member_user_ids:
-                    payload = _bounded_ai_provider_payload(
-                        member_user_ids,
-                        base_payload,
-                        _ai_provider_refresh_marker(
-                            workspace.id,
-                            True,
-                            refresh_workspace_availability=True,
-                            refresh_provider_settings=False,
-                        ),
-                    )
-                    _renew_ai_provider_renderer_lock(renderer_lock)
-                    broadcast_to_users(member_user_ids, dict(payload))
+    workspace, base_payload, provider_payload = rendered
+    workspace_users = (
+        workspace.workspaceuser_set.order_by("id")
+        .select_related("user")
+        .iterator(chunk_size=AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE)
+    )
+    for workspace_user_batch in grouper(
+        AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE, workspace_users
+    ):
+        _renew_ai_provider_renderer_lock(renderer_lock)
+        users = [workspace_user.user for workspace_user in workspace_user_batch]
+        permitted_user_ids = {
+            user.id
+            for user in CoreHandler().check_permission_for_multiple_actors(
+                users,
+                UpdateWorkspaceOperationType.type,
+                workspace=workspace,
+                context=workspace,
+            )
+        }
 
-            if permitted_user_ids:
-                sorted_user_ids = sorted(permitted_user_ids)
+        if base_payload["model_availability_updated"]:
+            member_user_ids = [
+                user.id for user in users if user.id not in permitted_user_ids
+            ]
+            if member_user_ids:
                 payload = _bounded_ai_provider_payload(
-                    sorted_user_ids,
-                    provider_payload,
+                    member_user_ids,
+                    base_payload,
                     _ai_provider_refresh_marker(
                         workspace.id,
-                        base_payload["model_availability_updated"],
-                        refresh_workspace_availability=base_payload[
-                            "model_availability_updated"
-                        ],
-                        refresh_provider_settings=True,
+                        True,
+                        refresh_workspace_availability=True,
+                        refresh_provider_settings=False,
                     ),
                 )
                 _renew_ai_provider_renderer_lock(renderer_lock)
-                broadcast_to_users(sorted_user_ids, dict(payload))
+                broadcast_to_users(member_user_ids, dict(payload))
 
-
-@app.task(bind=True)
-def broadcast_ai_provider_instance_update(self, model_availability_updated: bool):
-    """Send public instance availability and staff provider state in bounded batches."""
-
-    _run_ai_provider_renderer(
-        _render_ai_provider_instance_update,
-        _send_ai_provider_instance_update,
-        model_availability_updated,
-    )
+        if permitted_user_ids:
+            sorted_user_ids = sorted(permitted_user_ids)
+            payload = _bounded_ai_provider_payload(
+                sorted_user_ids,
+                provider_payload,
+                _ai_provider_refresh_marker(
+                    workspace.id,
+                    base_payload["model_availability_updated"],
+                    refresh_workspace_availability=base_payload[
+                        "model_availability_updated"
+                    ],
+                    refresh_provider_settings=True,
+                ),
+            )
+            _renew_ai_provider_renderer_lock(renderer_lock)
+            broadcast_to_users(sorted_user_ids, dict(payload))
 
 
 def _render_ai_provider_instance_update(
-    model_availability_updated: bool, renderer_lock
-):
-    """Render coherent public and privileged instance payloads."""
+    model_availability_updated: bool, renderer_lock: "Lock"
+) -> dict[str, Any]:
+    """
+    Render the staff-only instance provider snapshot.
+
+    :param model_availability_updated: Whether the change can alter which models
+        are available.
+    :param renderer_lock: The held render lock, renewed before rendering.
+    :return: The payload sent to every active staff user.
+    """
 
     from baserow.api.ai_provider.serializers import (
         AIProviderConfigSerializer,
         AIProviderFeatureSettingSerializer,
     )
-    from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_KUMA
     from baserow.core.ai_provider.handler import AIProviderHandler
-    from baserow.core.ai_provider.registries import (
-        ai_provider_model_feature_type_registry,
-    )
     from baserow.core.ai_provider.resolution import load_ai_provider_state
 
     _renew_ai_provider_renderer_lock(renderer_lock)
     state = load_ai_provider_state()[None]
-    public_payload = None
-    if model_availability_updated:
-        # Non-staff clients only need the Kuma availability flip, not provider state.
-        public_payload = {
-            "type": "ai_provider_updated",
-            "model_availability_updated": True,
-            "instance_ai_features": {
-                feature_type.type: {
-                    "is_enabled": feature_type.get_workspace_availability(
-                        None, state=state
-                    )["is_enabled"]
-                }
-                for feature_type in ai_provider_model_feature_type_registry.get_all()
-                if feature_type.type == AI_PROVIDER_FEATURE_KUMA
-            },
-        }
-
-    payload = {
+    return {
         "type": "ai_provider_updated",
         "model_availability_updated": model_availability_updated,
         "instance_ai_providers": list(
@@ -610,20 +609,21 @@ def _render_ai_provider_instance_update(
             ).data
         ),
     }
-    return public_payload, payload
 
 
-def _send_ai_provider_instance_update(rendered, renderer_lock) -> None:
-    """Recipient-batch and send already-rendered instance payloads."""
+def _send_ai_provider_instance_update(
+    payload: dict[str, Any], renderer_lock: "Lock"
+) -> None:
+    """
+    Recipient-batch and send the rendered instance snapshot to active staff.
+
+    :param payload: The rendered instance snapshot.
+    :param renderer_lock: The held render lock, renewed before every send.
+    """
 
     from django.contrib.auth import get_user_model
 
     from baserow.core.utils import grouper
-
-    public_payload, payload = rendered
-    if public_payload is not None:
-        _renew_ai_provider_renderer_lock(renderer_lock)
-        broadcast_to_users([], public_payload, send_to_all_users=True)
 
     staff_user_ids = (
         get_user_model()
@@ -804,6 +804,7 @@ def broadcast_application_created(
         PolymorphicApplicationResponseSerializer,
     )
     from baserow.core.handler import CoreHandler
+    from baserow.core.last_viewed.handler import LastViewedHandler
     from baserow.core.models import Application, WorkspaceUser
     from baserow.core.operations import ReadApplicationOperationType
 
@@ -831,12 +832,21 @@ def broadcast_application_created(
     ]
 
     users_in_workspace_id_map = {user.id: user for user in users_in_workspace}
+    # Payloads are per user, so the restore of a trashed application can carry
+    # the value the user had before.
+    last_viewed_per_user = LastViewedHandler.get_last_viewed_per_user_and_application(
+        [application.id], user_ids
+    )
 
     payload_map = {}
     for user_id in user_ids:
         user = users_in_workspace_id_map[user_id]
         application_serialized = PolymorphicApplicationResponseSerializer(
-            application, context={"user": user}
+            application,
+            context={
+                "user": user,
+                "last_viewed_per_application": last_viewed_per_user.get(user_id, {}),
+            },
         ).data
 
         payload_map[str(user_id)] = {

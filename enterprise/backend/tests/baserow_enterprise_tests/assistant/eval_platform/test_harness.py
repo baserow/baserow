@@ -5,10 +5,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from pydantic import BaseModel, TypeAdapter, ValidationError
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_KUMA,
@@ -17,11 +18,12 @@ from baserow.core.ai_provider.constants import (
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
-from baserow_enterprise.assistant.deps import ToolHelpers
-from baserow_enterprise.assistant.evals import registry
+from baserow_enterprise.assistant.deps import AssistantDeps, ToolHelpers
+from baserow_enterprise.assistant.evals import harness, registry
 from baserow_enterprise.assistant.evals.harness import (
     PROMPT_AGENT_TARGETS,
     PROMPT_ATTR_TARGETS,
+    EvalCaseCleanupError,
     EvalCaseTimeout,
     get_case_timeout_s,
     override_assistant_prompts,
@@ -448,6 +450,25 @@ class TestCaseTimeout:
         assert model.closed
         assert elapsed < 5, f"took {elapsed:.1f}s — it waited for the model"
 
+    def test_a_timed_out_case_tells_its_tools_to_stop(self, monkeypatch):
+        monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", "0.3")
+        self._register_scenario()
+        created: list[ToolHelpers] = []
+
+        def _recording_tool_helpers(*args, **kwargs) -> ToolHelpers:
+            created.append(ToolHelpers(*args, **kwargs))
+            return created[-1]
+
+        monkeypatch.setattr(
+            "baserow_enterprise.assistant.evals.harness.ToolHelpers",
+            _recording_tool_helpers,
+        )
+
+        with pytest.raises(EvalCaseTimeout):
+            run_case(self._case("db/hangs"), _HangingModel(threading.Event()))
+
+        assert created[0].is_cancelled
+
     def test_a_normal_case_is_untouched_by_the_budget(self):
         self._register_scenario()
 
@@ -475,6 +496,170 @@ class TestCaseTimeout:
         )
 
         assert output.answer == "still working"
+
+
+class TestCaseToolCleanup:
+    @pytest.fixture
+    def isolated_case(self, monkeypatch):
+        """Use a real agent/tool executor without creating a database scenario."""
+
+        monkeypatch.setenv("BASEROW_EVAL_CASE_TIMEOUT", "0.1")
+        monkeypatch.setattr(harness, "_cleanup_error", None)
+        monkeypatch.setattr(harness, "load_all", lambda: None)
+        monkeypatch.setattr(harness, "make_fixtures", lambda: None)
+        scenario = SimpleNamespace(user=None, workspace=None, ui_context=None)
+        monkeypatch.setattr(harness, "get_scenario", lambda _: lambda _: scenario)
+        profile = SimpleNamespace(get_settings=lambda _: {})
+        monkeypatch.setattr(harness, "resolve_assistant_model", lambda **_: profile)
+        monkeypatch.setattr(harness, "main_agent", Agent())
+
+        def configure(tool):
+            def build_context(user, workspace, helpers, *, model):
+                return SimpleNamespace(
+                    deps=AssistantDeps(
+                        user=user, workspace=workspace, tool_helpers=helpers
+                    ),
+                    model=model,
+                    toolset=FunctionToolset([tool]),
+                )
+
+            monkeypatch.setattr(harness, "build_agent_run_context", build_context)
+            return EvalCase(
+                id="db/sync-tool",
+                dataset="harness-test",
+                prompt="run the tool",
+                scenario="test",
+                checks=lambda *args: [],
+            )
+
+        return configure
+
+    @pytest.mark.parametrize("async_wrapper", [False, True])
+    def test_waits_for_running_tool_before_restoring_prompts_or_next_case(
+        self, isolated_case, async_wrapper
+    ):
+        started, release, finished = (threading.Event() for _ in range(3))
+        effects = []
+        module, attr = PROMPT_ATTR_TARGETS["kuma-builder-formula-agent"]
+        original = getattr(module, attr)
+
+        def blocked_tool(ctx: RunContext[AssistantDeps]) -> str:
+            started.set()
+            try:
+                # Model an operation already in progress between checkpoints.
+                release.wait(3)
+                effects.append(getattr(module, attr))
+                ctx.deps.tool_helpers.raise_if_cancelled()
+                effects.append("next operation")
+                return "done"
+            finally:
+                finished.set()
+
+        async def async_tool(ctx: RunContext[AssistantDeps]) -> str:
+            # search_user_docs uses this path rather than Pydantic's executor.
+            return await sync_to_async(blocked_tool)(ctx)
+
+        case = isolated_case(async_tool if async_wrapper else blocked_tool)
+        timer = threading.Timer(0.4, release.set)
+        timer.start()
+        try:
+            with pytest.raises(EvalCaseTimeout):
+                with override_assistant_prompts(
+                    {"kuma-builder-formula-agent": "CASE PROMPT"}
+                ):
+                    run_case(case, TestModel())
+
+            assert started.is_set()
+            assert finished.is_set(), "the timed-out tool outlived its case"
+            assert effects == ["CASE PROMPT"]
+            assert getattr(module, attr) is original
+            output, _ = run_case(
+                case, TestModel(custom_output_text="next case", call_tools=[])
+            )
+            assert output.answer == "next case"
+            assert effects == ["CASE PROMPT"]
+        finally:
+            release.set()
+            timer.cancel()
+            finished.wait(3)
+
+    def test_a_stuck_tool_blocks_later_cases_and_prompt_overrides(
+        self, isolated_case, monkeypatch
+    ):
+        monkeypatch.setattr(harness, "TOOL_CLEANUP_TIMEOUT_S", 0.1)
+        release, finished = threading.Event(), threading.Event()
+        module, attr = PROMPT_ATTR_TARGETS["kuma-builder-formula-agent"]
+        # The restart-only path intentionally retains this value. Restore it
+        # after the test's controlled tool has exited.
+        monkeypatch.setattr(module, attr, getattr(module, attr))
+
+        def stuck_tool() -> str:
+            try:
+                release.wait(3)
+                return "done"
+            finally:
+                finished.set()
+
+        case = isolated_case(stuck_tool)
+        began = time.monotonic()
+        try:
+            with pytest.raises(EvalCaseCleanupError, match="Restart the eval runner"):
+                with override_assistant_prompts(
+                    {"kuma-builder-formula-agent": "STUCK CASE"}
+                ):
+                    run_case(case, TestModel())
+
+            assert time.monotonic() - began < 2
+            assert not finished.is_set()
+            assert getattr(module, attr) == "STUCK CASE"
+            with pytest.raises(EvalCaseCleanupError):
+                with override_assistant_prompts(
+                    {"kuma-builder-formula-agent": "NEXT CASE"}
+                ):
+                    pytest.fail("a second case was allowed to replace prompts")
+            assert getattr(module, attr) == "STUCK CASE"
+            with patch.object(harness, "make_fixtures") as make:
+                with pytest.raises(EvalCaseCleanupError):
+                    run_case(case, TestModel(call_tools=[]))
+                make.assert_not_called()
+        finally:
+            release.set()
+            assert finished.wait(3)
+
+    def test_async_client_cleanup_also_has_a_bounded_budget(
+        self, isolated_case, monkeypatch
+    ):
+        monkeypatch.setattr(harness, "TOOL_CLEANUP_TIMEOUT_S", 0.1)
+        release = asyncio.Event()
+        cleanup_tasks = []
+
+        class StuckClosingModel(_HangingModel):
+            async def __aexit__(self, *args):
+                cleanup_tasks.append(asyncio.current_task())
+                await release.wait()
+                return await super().__aexit__(*args)
+
+        def unused_tool() -> str:
+            return "done"
+
+        case = isolated_case(unused_tool)
+        model = StuckClosingModel(threading.Event())
+        began = time.monotonic()
+        try:
+            with pytest.raises(EvalCaseCleanupError, match="Restart the eval runner"):
+                run_case(case, model)
+
+            assert time.monotonic() - began < 2
+            assert cleanup_tasks
+            assert not model.closed
+            with pytest.raises(EvalCaseCleanupError):
+                run_case(case, TestModel(call_tools=[]))
+        finally:
+            release.set()
+            harness.run_until_complete(
+                asyncio.gather(*cleanup_tasks, return_exceptions=True)
+            )
+        assert model.closed
 
 
 @pytest.mark.parametrize("value", ["", "   "])

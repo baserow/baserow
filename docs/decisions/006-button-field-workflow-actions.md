@@ -218,11 +218,10 @@ sequenceDiagram
 
 An earlier draft of this section broadcast that loading state to every open view over the
 row realtime channel, the way the AI field does. That was descoped on 2026-07-28 and now
-belongs to phase 4. Local dispatch is synchronous, so the clicking user has the outcome in
-the response, and other viewers see the row changes arrive through the normal row-update
-signals; between the two there is nothing for a concurrent viewer to watch. A broadcast
-loading state is built when external actions make a dispatch slow enough for that gap to
-be worth showing, which is also when the job/Celery pattern arrives.
+belongs to phase 4. The clicking user has the outcome in the response, or from the job
+for a click that reaches outside Baserow, and other viewers see the row changes arrive
+through the normal row-update signals. A click that runs as a job can leave a gap there,
+while an endpoint answers; showing it to other viewers is still deferred.
 
 Failure behavior matches the builder: execution stops at the first failing action, the
 rest are skipped, and the user sees an error toast. Nothing is rolled back, since
@@ -236,9 +235,13 @@ twice. Row changes made by actions fire the normal side effects (webhooks, autom
 triggers, realtime updates), the same as a manual edit; buttons add no loop guard of
 their own beyond what automation already applies to its triggers.
 
-Local row actions dispatch synchronously in the request. Slow external actions later
-move behind the existing job/Celery pattern with realtime completion, so the API treats
-"dispatched" and "completed" as separate states from the start.
+A click whose actions all stay inside Baserow runs synchronously in the request. A click
+with an action that reaches outside Baserow (an HTTP request, an email, a Slack message)
+runs as a `ButtonFieldDispatchJob` on the `export` Celery queue, so a slow endpoint holds
+a worker rather than a web process: the endpoint answers 202 with the job, and the
+browser polls it through the job store for the same results body. The job runs only the
+actions the click was accepted with, and fails with a readable message if they changed
+while it waited.
 
 ### 4. Row context and result chaining
 
@@ -256,10 +259,11 @@ Where those results live diverges, and deliberately. The builder keys them into 
 cache under a client-supplied dispatch id, because its browser dispatches one action
 at a time and a result would otherwise have to be trusted from the request body.
 Automation reads them back from workflow history, because History is a product
-feature there. A button runs its whole sequence inside one request (section 3), so
-its results are a plain dict on the dispatch context: nothing outlives the request,
-nothing is keyed by anything a caller supplies, and a fabricated result cannot be
-fed to a later action. This is the concrete payoff of the per-click endpoint.
+feature there. A button runs its whole sequence in one request, or in one job for a
+click that reaches outside Baserow (section 3), so its results are a plain dict on the
+dispatch context: nothing outlives the run, nothing is keyed by anything a caller
+supplies, and a fabricated result cannot be fed to a later action. The job keeps the
+finished click's results only for the browser to read them. This is the concrete payoff of the per-click endpoint.
 
 One consequence reaches the API. A dispatch result is serialized with
 `user_field_names`, so it is keyed by field name, while a formula path holds

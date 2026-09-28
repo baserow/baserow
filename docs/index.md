@@ -57,6 +57,8 @@ Baserow by following one the guides below:
 * [Build OpenTelemetry boards and queries](installation/otel-boards-and-queries.md):
   Configure request, endpoint, and per-user metrics boards and investigate retained
   traces.
+* [Manage AI providers](installation/ai-providers.md): Configure providers and models,
+  and how instance and workspace settings combine.
 * [Setup AI-assistant](installation/ai-assistant.md): A quick guide on how to setup the
   AI-assistant.
 

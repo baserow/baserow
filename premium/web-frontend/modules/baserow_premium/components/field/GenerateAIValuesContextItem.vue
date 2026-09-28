@@ -35,7 +35,6 @@ import GenerateAIValuesModal from '@baserow_premium/components/field/GenerateAIV
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { AIPaidFeature } from '@baserow_premium/paidFeatures'
 import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 export default {
   name: 'GenerateAIValuesContextItem',
@@ -78,11 +77,9 @@ export default {
         return false
       }
       const aIModels =
-        getEnabledModelsForAIProviderFeature(
-          this.workspace,
-          'ai_fields',
-          this.$featureFlagIsEnabled(FF_AI_PROVIDERS)
-        )[this.field.ai_generative_ai_type] || []
+        getEnabledModelsForAIProviderFeature(this.workspace, 'ai_fields')[
+          this.field.ai_generative_ai_type
+        ] || []
       return (
         this.$registry
           .get('field', this.field.type)

@@ -1,5 +1,4 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 
 /**
  * An admin type is visible in the sidebar under the admin menu item. All
@@ -217,10 +216,6 @@ export class AIProvidersAdminType extends AdminType {
 
   getOrder() {
     return 130
-  }
-
-  isVisible() {
-    return this.app.$featureFlagIsEnabled(FF_AI_PROVIDERS)
   }
 }
 

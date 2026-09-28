@@ -6,7 +6,6 @@ from typing import Iterable
 from django.db.models import Q
 
 from baserow.core.cache import local_cache
-from baserow.core.feature_flags import FF_AI_PROVIDERS, feature_flag_is_enabled
 from baserow.core.models import Workspace
 
 from .models import (
@@ -76,16 +75,6 @@ def load_ai_provider_state(
         workspace for workspace in workspaces if isinstance(workspace, Workspace)
     ]
     workspace_ids = [workspace.id for workspace in workspaces]
-
-    if not feature_flag_is_enabled(FF_AI_PROVIDERS):
-        # Nothing resolves through these tables yet, so do not read them at all.
-        return {
-            None: ScopedAIProviderState(),
-            **{
-                workspace.id: ScopedAIProviderState(workspace=workspace)
-                for workspace in workspaces
-            },
-        }
 
     scope = Q(workspace__isnull=True)
     if workspace_ids:

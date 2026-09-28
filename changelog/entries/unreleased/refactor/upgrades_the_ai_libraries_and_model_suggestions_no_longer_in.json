@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Upgrades the AI libraries, and model suggestions no longer include the retired Claude Opus 4.1",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-09-25"
+}

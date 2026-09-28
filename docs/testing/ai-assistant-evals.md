@@ -54,12 +54,17 @@ hang. Without it a single stuck case blocks the one worker indefinitely, and
 the per-request timeouts don't bound it: `max_iters` requests times the
 per-request timeout, plus retries, runs into several minutes.
 
-A timed-out case is cancelled, not abandoned — `asyncio.wait_for` on the
-agent's own event loop stops the in-flight provider call rather than leaving
-a thread burning quota. It is recorded as a failed `completed_within_timeout`
-check, so it scores 0 and counts in aggregates (a hang is a real failure, not
-a skip), the run continues with the remaining cases, and the judge is not
-asked to grade the empty answer.
+A timed-out case cancels the in-flight provider call and signals its tools to
+stop. Agent cleanup and tool operations already running share up to five
+additional seconds to finish, before prompts are restored or another case
+starts. Once cleanup finishes, the case is recorded as a failed
+`completed_within_timeout` check with score 0, the run continues, and the judge
+does not grade its empty answer.
+
+If cleanup is still running after that period, the experiment fails
+and the runner refuses further cases. In-flight threads cannot safely be
+stopped, so prompt overrides remain in place. Restart the eval runner before
+running another experiment (`just dc-dev restart assistant-eval-runner`).
 
 **Stop** is cooperative and lands at the next case boundary, because the
 worker sits inside a blocking LLM call that Python cannot interrupt. Queued

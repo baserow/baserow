@@ -17,6 +17,10 @@ export class AutomationApplicationType extends ApplicationType {
     return 'baserow-icon-automation'
   }
 
+  getIconColor() {
+    return 'yellow'
+  }
+
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automation')
