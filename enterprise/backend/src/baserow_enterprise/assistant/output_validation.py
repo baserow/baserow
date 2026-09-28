@@ -54,14 +54,19 @@ _EXPLICIT_COMPLETED_CHANGE_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+# A bare "Set up …" reads the same as an imperative how-to step.
+_BARE_CHANGE_VERBS = r"(?:created|updated|deleted|added|configured|applied|completed)"
 _BARE_COMPLETED_CHANGE_PATTERN = re.compile(
-    rf"^\s*(?:done\b[\s:—-]*)?(?:successfully\s+)?{_CHANGE_VERBS}\b|"
+    rf"^\s*(?:done\b[\s:—-]*|successfully\s+)(?:successfully\s+)?{_CHANGE_VERBS}\b|"
+    rf"^\s*{_BARE_CHANGE_VERBS}\b(?!\s+(?:on|by)\b)|"
     r"^\s*done\s*[.!]?\s*$",
     re.IGNORECASE,
 )
 _DESCRIPTIVE_CHANGE_SUBJECT_PATTERN = re.compile(
     rf"^\s*{_CHANGE_VERBS}\s+\w+\s+"
-    r"(?:is|are|isn['’]t|aren['’]t|can|may|go|goes|stay|stays|remain|remains)\b",
+    r"(?:is|are|isn['’]t|aren['’]t|can|may|go|goes|stay|stays|remain|remains|"
+    r"appear|appears|show|shows|move|moves|get|gets|will|won['’]t|"
+    r"do|don['’]t|need|needs|must|should|keep|keeps)\b",
     re.IGNORECASE,
 )
 _FENCED_CODE_PATTERN = re.compile(

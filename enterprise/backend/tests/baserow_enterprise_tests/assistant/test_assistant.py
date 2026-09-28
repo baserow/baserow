@@ -2201,8 +2201,10 @@ class TestFinalAnswerValidation:
             "The selected rows were deleted.",
             "The form view has been created.",
             "Done — set up the workflow.",
+            "Successfully set up the workflow.",
             "Done.",
             "Applied the requested configuration.",
+            "Updated rows have been saved.",
         ],
     )
     def test_common_ungrounded_completion_phrases_are_sent_back(self, claim):
@@ -2241,6 +2243,14 @@ class TestFinalAnswerValidation:
             "The table cannot have been created.",
             "> I created the Orders table.",
             '"I created the Orders table." is an example status message.',
+            "To collect feedback:\n1. Set up a form view on the Feedback table.\n"
+            "2. Share the form link.",
+            "Set up a webhook under the table's settings.",
+            "Created rows appear at the bottom of the grid.",
+            "Completed tasks move to the Done column.",
+            "Updated rows show a new timestamp.",
+            "Created on: shows when a row was added.",
+            "1. Created by — shows who created the row.",
         ],
     )
     def test_documentation_descriptions_and_code_examples_are_not_completion_claims(
