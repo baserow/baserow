@@ -3135,3 +3135,27 @@ def test_data_source_dedup_matches_the_registered_type():
         id=1, name="Existing", type="local_baserow_list_rows", table_id=5
     )
     assert ds.matches_existing(existing)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_record_selector_allows_multiple_selection(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    selector = data_fixture.create_builder_record_selector_element(
+        page=page, multiple=False
+    )
+    ctx = make_test_ctx(user, workspace, create_fake_tool_helpers())
+
+    result = update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(element_id=selector.id, label="Owners", multiple=True),
+        thought="test",
+    )
+
+    selector.refresh_from_db()
+    assert result["status"] == "ok"
+    assert selector.multiple is True
+    assert selector.label["formula"] == "'Owners'"

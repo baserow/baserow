@@ -1501,6 +1501,13 @@ def _input_text_update(el: "ElementUpdate") -> dict:
     return kwargs
 
 
+def _record_selector_update(el: "ElementUpdate") -> dict:
+    kwargs = _input_text_update(el)
+    if el.multiple is not None:
+        kwargs["multiple"] = el.multiple
+    return kwargs
+
+
 def _choice_update(el: "ElementUpdate") -> dict:
     kwargs: dict[str, Any] = {}
     if el.label is not None:
@@ -1679,7 +1686,7 @@ _TO_ORM_UPDATE: dict[str, Any] = {
     "choice": _choice_update,
     "checkbox": _checkbox_update,
     "datetime_picker": _datetime_picker_update,
-    "record_selector": _input_text_update,
+    "record_selector": _record_selector_update,
     "table": _table_update,
     "repeat": _repeat_update,
     "header": _header_update,
