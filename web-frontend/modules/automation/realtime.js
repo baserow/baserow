@@ -1,3 +1,5 @@
+import debounce from 'lodash/debounce'
+
 export const registerRealtimeEvents = (realtime) => {
   // Workflow events
   realtime.registerEvent('automation_workflow_created', ({ store }, data) => {
@@ -118,15 +120,24 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  // Run lifecycle events. The history panel only shows the selected
-  // workflow, so its entries are refetched when one of its runs starts,
-  // gets a cancellation request or resolves.
+  // Group run lifecycle bursts even when history requests complete quickly.
+  // maxWait keeps the panel updating during a continuous stream of events.
+  const refreshHistory = debounce(
+    (store, workflowId) => {
+      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
+      if (selectedWorkflow?.id === workflowId) {
+        store.dispatch('automationHistory/refreshWorkflowHistory', {
+          workflowId,
+        })
+      }
+    },
+    500,
+    { maxWait: 1000 }
+  )
   const refetchSelectedWorkflowHistory = ({ store }, data) => {
     const selectedWorkflow = store.getters['automationWorkflow/getSelected']
-    if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
-      store.dispatch('automationHistory/refreshWorkflowHistory', {
-        workflowId: data.workflow_id,
-      })
+    if (selectedWorkflow?.id === data.workflow_id) {
+      refreshHistory(store, data.workflow_id)
     }
   }
 

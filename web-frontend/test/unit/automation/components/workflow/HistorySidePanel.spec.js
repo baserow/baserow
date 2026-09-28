@@ -20,6 +20,7 @@ describe('HistorySidePanel pagination', () => {
   }))
 
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     testApp = new TestApp()
     workflow = ref({ id: 7, _: {} })
     testApp.store.commit('automationWorkflow/SET_SELECTED', {
@@ -51,12 +52,39 @@ describe('HistorySidePanel pagination', () => {
 
   afterEach(async () => {
     await testApp.afterEach()
+    vi.clearAllTimers()
+    vi.useRealTimers()
   })
 
   const mountPanel = () =>
     testApp.mount(HistorySidePanel, {
       global: { provide: { workflow } },
     })
+
+  test('hides counters until the initial history response arrives', async () => {
+    let finishLoad
+    testApp.mock.onGet('automation/workflows/7/history/').reply(
+      () =>
+        new Promise((resolve) => {
+          finishLoad = resolve
+        })
+    )
+    const wrapper = await mountPanel()
+    expect(wrapper.find('.loading').exists()).toBe(true)
+    expect(wrapper.find('.history-side-panel__counts').exists()).toBe(false)
+    expect(wrapper.find('.iconoir-cancel').exists()).toBe(true)
+    finishLoad([
+      200,
+      { count: 0, success_count: 0, fail_count: 0, results: [] },
+    ])
+    await flushPromises()
+    expect(wrapper.find('.loading').exists()).toBe(false)
+    expect(
+      wrapper
+        .findAll('.history-side-panel__counts-runs-total')
+        .map((el) => el.text())
+    ).toEqual(['0', '0'])
+  })
 
   test('paginates by 20 with global counters and resets expanded runs on navigation', async () => {
     const wrapper = await mountPanel()
@@ -95,6 +123,7 @@ describe('HistorySidePanel pagination', () => {
       'automation_workflow_dispatch_done',
     ]) {
       events[name]({ store: testApp.store }, { workflow_id: 7 })
+      await vi.advanceTimersByTimeAsync(500)
       await flushPromises()
       expect(wrapper.text()).toContain('Execution 25')
       expect(wrapper.get('.paginator input').element.value).toBe('2')
@@ -130,6 +159,7 @@ describe('HistorySidePanel pagination', () => {
       { store: testApp.store },
       { workflow_id: 7 }
     )
+    await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
     await wrapper.findAll('.paginator__button')[1].trigger('click')
     await flushPromises()
@@ -158,6 +188,7 @@ describe('HistorySidePanel pagination', () => {
       { store: testApp.store },
       { workflow_id: 7 }
     )
+    await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
     expect(wrapper.findAll('.workflow-history__header')).toHaveLength(20)
     expect(wrapper.findAll('.expandable--expanded')).toHaveLength(1)
@@ -242,6 +273,7 @@ describe('HistorySidePanel pagination', () => {
       { store: testApp.store },
       { workflow_id: 7 }
     )
+    await vi.advanceTimersByTimeAsync(500)
     testApp.mock.onGet('automation/workflows/7/history/').reply(200, {
       count: 1,
       success_count: 1,
@@ -278,9 +310,11 @@ describe('HistorySidePanel pagination', () => {
         { workflow_id: 7 }
       )
     completeRun()
+    await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
     for (let index = 0; index < 3; index++) {
       for (let event = 0; event < 5; event++) completeRun()
+      await vi.advanceTimersByTimeAsync(500)
       await flushPromises()
       expect(requests).toHaveLength(index + 1)
       requests[index]([
@@ -325,6 +359,7 @@ describe('HistorySidePanel pagination', () => {
       { store: testApp.store },
       { workflow_id: 7 }
     )
+    await vi.advanceTimersByTimeAsync(500)
     requests[0]([200, { count: 45, results: histories.slice(0, 20) }])
     await flushPromises()
     expect(requests).toHaveLength(2)
@@ -339,4 +374,26 @@ describe('HistorySidePanel pagination', () => {
     expect(wrapper.get('.paginator input').element.value).toBe('2')
     expect(content.scrollTop).toBe(300)
   })
+
+  test.each(['navigate', 'close'])(
+    'ignores scheduled realtime refreshes after %s',
+    async (action) => {
+      const wrapper = await mountPanel()
+      events.automation_workflow_dispatch_done(
+        { store: testApp.store },
+        { workflow_id: 7 }
+      )
+      if (action === 'navigate') {
+        await wrapper.findAll('.paginator__button')[1].trigger('click')
+        await flushPromises()
+        expect(wrapper.get('.paginator input').element.value).toBe('2')
+      } else {
+        wrapper.unmount()
+      }
+      const requestsBeforeRefresh = testApp.mock.history.get.length
+      await vi.advanceTimersByTimeAsync(1000)
+      await flushPromises()
+      expect(testApp.mock.history.get).toHaveLength(requestsBeforeRefresh)
+    }
+  )
 })

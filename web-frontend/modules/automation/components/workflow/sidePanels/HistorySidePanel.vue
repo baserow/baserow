@@ -13,7 +13,7 @@
 
     <div class="history-side-panel__divider"></div>
 
-    <div class="history-side-panel__counts">
+    <div v-if="history.count !== undefined" class="history-side-panel__counts">
       <div class="history-side-panel__counts-runs">
         <div class="history-side-panel__counts-runs-label">
           {{ $t('historySidePanel.successfulRuns') }}

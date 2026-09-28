@@ -59,6 +59,14 @@ const mutations = {
 }
 
 const actions = {
+  /**
+   * Fetches a page for navigation, realtime updates or a cancellation refetch.
+   * Only the current request can apply its response: navigation, panel resets
+   * and cancellation refetches invalidate earlier requests by replacing it.
+   * Returns the applied page, or undefined if the response was superseded.
+   * Realtime events received in flight queue one follow-up refresh without
+   * delaying the navigation caller or collapsing expanded history entries.
+   */
   async fetchWorkflowHistory(
     { state, commit, dispatch },
     { workflowId, page = 1, refresh = false }
