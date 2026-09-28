@@ -1385,6 +1385,8 @@ test.describe("1.7.3 Create from the floating add button with group-by", () => {
     await grid.expectRowCount(4);
     await grid.expectGroupByBanner("A", 2);
     await grid.expectGroupByBanner("B", 2);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Bob");
     await grid.expectPrimaryText(2, "Carol");
     await grid.expectPrimaryText(3, "Dan");
     await grid.expectFieldText(3, 0, "B");

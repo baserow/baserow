@@ -8948,6 +8948,7 @@ describe('Grid view store', () => {
         values: { field_1: 'c' },
       })
 
+      expect(mockServer.mock.history.post).toHaveLength(1)
       expect(
         confirmedStore.getters['grid/getAllRows'].map((r) => r.id)
       ).toEqual([1, 2])
