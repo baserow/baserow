@@ -259,6 +259,31 @@
         @delete-row="deleteRow($event)"
       />
     </Context>
+    <ButtonFloating
+      v-if="canCreateRow"
+      icon="iconoir-plus"
+      position="fixed"
+      @click="$refs.rowCreateModal.show()"
+    ></ButtonFloating>
+    <RowCreateModal
+      v-if="canCreateRow"
+      ref="rowCreateModal"
+      :database="database"
+      :table="table"
+      :view="view"
+      :visible-fields="allVisibleFields"
+      :hidden-fields="hiddenFields"
+      :show-hidden-fields="showHiddenFieldsInRowModal"
+      :all-fields-in-table="fields"
+      @toggle-hidden-fields-visibility="
+        showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
+      "
+      @created="createRow"
+      @order-fields="orderFields"
+      @toggle-field-visibility="toggleFieldVisibility"
+      @field-updated="$emit('refresh', $event)"
+      @field-deleted="$emit('refresh')"
+    ></RowCreateModal>
     <RowEditModal
       ref="rowEditModal"
       :database="database"
@@ -324,6 +349,7 @@ import GridViewFieldDragging from '@baserow/modules/database/components/view/gri
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
+import RowCreateModal from '@baserow/modules/database/components/row/RowCreateModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import {
   canRowsBeOptimisticallyUpdatedInView,
@@ -369,6 +395,7 @@ export default {
     GridViewRowDragging,
     GridRowContextItems,
     RowEditModal,
+    RowCreateModal,
   },
   mixins: [viewHelpers, gridViewHelpers, viewDecoration, copyPasteHelper],
   props: {
@@ -1177,6 +1204,22 @@ export default {
       }
 
       return null
+    },
+    async createRow({ row, callback }) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/createNewRowConfirmed',
+          {
+            view: this.view,
+            table: this.table,
+            fields: this.fields,
+            values: row,
+          }
+        )
+        callback()
+      } catch (error) {
+        callback(error)
+      }
     },
     async addRow(before = null, values = {}) {
       try {

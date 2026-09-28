@@ -519,6 +519,18 @@ exports[`GridView component with decoration > Default component with first_cell 
       <!--v-if-->
     </div>
   </teleport-stub>
+  <button
+    class="button-floating button-floating--fixed button-floating--primary button-floating--regular"
+  >
+    <i
+      class="button-floating__icon iconoir-plus"
+    />
+  </button>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
+  </teleport-stub>
   <teleport-stub
     to="body"
   >
@@ -1056,6 +1068,18 @@ exports[`GridView component with decoration > Default component with row wrapper
       <!--v-if-->
     </div>
   </teleport-stub>
+  <button
+    class="button-floating button-floating--fixed button-floating--primary button-floating--regular"
+  >
+    <i
+      class="button-floating__icon iconoir-plus"
+    />
+  </button>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
+  </teleport-stub>
   <teleport-stub
     to="body"
   >
@@ -1576,6 +1600,18 @@ exports[`GridView component with decoration > Default component with unavailable
     >
       <!--v-if-->
     </div>
+  </teleport-stub>
+  <button
+    class="button-floating button-floating--fixed button-floating--primary button-floating--regular"
+  >
+    <i
+      class="button-floating__icon iconoir-plus"
+    />
+  </button>
+  <teleport-stub
+    to="body"
+  >
+    <!--v-if-->
   </teleport-stub>
   <teleport-stub
     to="body"

@@ -1,3 +1,5 @@
+import { flushPromises } from '@vue/test-utils'
+
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
@@ -5,6 +7,8 @@ import GridViewSection from '@baserow/modules/database/components/view/grid/Grid
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import ButtonFloating from '@baserow/modules/core/components/ButtonFloating'
+import RowCreateModal from '@baserow/modules/database/components/row/RowCreateModal'
 
 describe('GridView component', () => {
   const fields = [
@@ -514,6 +518,121 @@ describe('GridView component', () => {
 
       expect(ctx.presenceFocus.reemitLastFocus).toHaveBeenCalledOnce()
       expect(ctx.presenceFocus.clearFocus).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('floating add row button', () => {
+    let testApp = null
+
+    beforeEach(() => {
+      testApp = new TestApp()
+    })
+
+    afterEach(async () => {
+      await testApp.afterEach()
+    })
+
+    const mountGrid = async ({
+      readOnly = false,
+      tableOverrides = {},
+    } = {}) => {
+      const { mockServer, store } = testApp
+      const table = { ...mockServer.createTable(), ...tableOverrides }
+      const { application } = await mockServer.createAppAndWorkspace(table)
+      const view = mockServer.createGridView(application, table, {})
+      mockServer.createFields(application, table, [
+        {
+          id: 1,
+          name: 'Name',
+          order: 0,
+          type: 'text',
+          primary: true,
+          text_default: '',
+        },
+      ])
+      await store.dispatch('field/fetchAll', { table })
+      const fields = store.getters['field/getAll']
+      const primary = store.getters['field/getPrimary']
+      mockServer.createGridRows(view, fields, [])
+      await store.dispatch('page/view/grid/fetchInitial', {
+        gridId: view.id,
+        fields,
+        primary,
+      })
+      const wrapper = await testApp.mount(GridView, {
+        props: {
+          fields,
+          view,
+          table,
+          database: application,
+          readOnly,
+          storePrefix: 'page/',
+        },
+      })
+      return { wrapper, table, view, store, mockServer }
+    }
+
+    test('opens the row create modal', async () => {
+      const { wrapper } = await mountGrid()
+
+      await wrapper.findComponent(ButtonFloating).trigger('click')
+
+      const modal = wrapper
+        .findComponent(RowCreateModal)
+        .findComponent({ name: 'Modal' })
+      expect(modal.vm.open).toBe(true)
+    })
+
+    test.each([
+      ['read-only', { readOnly: true }],
+      [
+        'one-way data sync',
+        {
+          tableOverrides: {
+            data_sync: { two_way_sync: false, synced_properties: [] },
+          },
+        },
+      ],
+    ])('is hidden for a %s grid', async (_, options) => {
+      const { wrapper } = await mountGrid(options)
+
+      expect(wrapper.findComponent(ButtonFloating).exists()).toBe(false)
+      expect(wrapper.findComponent(RowCreateModal).exists()).toBe(false)
+    })
+
+    test('creates the row with the view id and reports success to the modal', async () => {
+      const { wrapper, table, view, store, mockServer } = await mountGrid()
+      mockServer.mock.onPost(`/database/rows/table/${table.id}/`).reply(200, {
+        id: 1,
+        order: '1.00000000000000000000',
+        field_1: 'Alice',
+      })
+      const callback = vi.fn()
+
+      wrapper
+        .findComponent(RowCreateModal)
+        .vm.$emit('created', { row: { field_1: 'Alice' }, callback })
+      await flushPromises()
+
+      expect(callback).toHaveBeenCalledWith()
+      expect(mockServer.mock.history.post[0].params).toEqual({ view: view.id })
+      expect(
+        store.getters['page/view/grid/getAllRows'].map((row) => row.id)
+      ).toEqual([1])
+    })
+
+    test('passes the backend error to the modal', async () => {
+      const { wrapper, table, mockServer } = await mountGrid()
+      mockServer.mock.onPost(`/database/rows/table/${table.id}/`).reply(500)
+      const callback = vi.fn()
+
+      wrapper
+        .findComponent(RowCreateModal)
+        .vm.$emit('created', { row: { field_1: 'Alice' }, callback })
+      await flushPromises()
+
+      expect(callback).toHaveBeenCalledOnce()
+      expect(callback.mock.calls[0][0]).toBeTruthy()
     })
   })
 })
