@@ -243,6 +243,41 @@ async def test_complete_deferred_tool_preserves_domain_errors(error, expected):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mode", [AgentMode.DATABASE, AgentMode.APPLICATION, AgentMode.AUTOMATION]
+)
+async def test_docs_search_runs_in_every_mode_without_a_tool_search(mode):
+    searched = []
+    deps = SimpleNamespace(mode=mode)
+
+    def search_user_docs(question: str):
+        searched.append(question)
+        return {"answer": "Use the share button."}
+
+    def respond(messages, info):
+        if searched:
+            return ModelResponse(parts=[TextPart("Use the share button.")])
+        return ModelResponse(
+            parts=[ToolCallPart("search_user_docs", {"question": "Share a view"})]
+        )
+
+    model = FunctionModel(respond, profile={"supported_native_tools": frozenset()})
+    toolset = ModeAwareToolset(
+        InlineRefsToolset(
+            FunctionToolset([search_user_docs]), model=model, model_profile=MagicMock()
+        ),
+        deps,
+    )
+    result = await Agent(model=model, toolsets=[toolset], retries=0).run(
+        "How do I share a view?", deps=deps
+    )
+
+    assert result.output == "Use the share button."
+    assert searched == ["Share a view"]
+    assert result.usage.requests == 2
+
+
+@pytest.mark.asyncio
 async def test_unavailable_tool_group_is_absent_from_routing_and_catalog():
     def create_workflows(name: str):
         raise AssertionError("An unavailable tool must never execute")

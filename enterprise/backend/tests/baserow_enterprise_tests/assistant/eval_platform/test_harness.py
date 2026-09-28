@@ -49,7 +49,10 @@ from baserow_enterprise.assistant.model_profiles import (
 )
 from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
-from baserow_enterprise.assistant.tools.routing import mode_redirect_message
+from baserow_enterprise.assistant.tools.routing import (
+    ModeAwareToolset,
+    mode_redirect_message,
+)
 from baserow_enterprise.assistant.tools.toolset import InlineRefsToolset
 
 
@@ -134,6 +137,37 @@ def test_mode_redirect_is_not_counted_as_a_failed_tool_call():
     assert "Missing required workflow name" in hint
     assert "An unsupported completion claim" in hint
     assert "Switched to" not in hint
+
+
+def test_refused_call_to_an_unrevealed_tool_is_not_counted_as_a_failed_tool_call():
+    deps = SimpleNamespace(mode=AgentMode.DATABASE)
+
+    def create_workflows(name: str):
+        return {"created_workflows": [{"id": 1, "name": name}]}
+
+    replies = iter(
+        [
+            ToolCallPart("create_workflows", {"name": "Orders"}),
+            ToolCallPart("search_tools", {"queries": ["create_workflows"]}),
+            ToolCallPart("create_workflows", {"name": "Orders"}),
+            TextPart("Created Orders."),
+        ]
+    )
+    model = FunctionModel(
+        lambda messages, info: ModelResponse(parts=[next(replies)]),
+        profile={"supported_native_tools": frozenset()},
+    )
+    toolset = ModeAwareToolset(FunctionToolset([create_workflows]), deps)
+    result = Agent(model=model, toolsets=[toolset], retries=0).run_sync(
+        "Create a workflow", deps=deps
+    )
+
+    assert any(
+        isinstance(part, RetryPromptPart) and "not available yet" in str(part.content)
+        for message in result.all_messages()
+        for part in message.parts
+    )
+    assert count_tool_errors(result) == (0, "")
 
 
 @pytest.fixture(autouse=True)

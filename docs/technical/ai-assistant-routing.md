@@ -9,10 +9,11 @@ permissions and workspace boundaries.
 
 `AssistantToolRegistry` first filters tool groups through `can_use`. The permitted
 tools share one catalog and a routing map in `tools/routing.py`. Tools active in
-the current mode expose their full schemas. Other permitted tools are deferred
-and discoverable through the model's tool search support.
+the current mode expose their full schemas. Other permitted tools are deferred:
+pydantic-ai refuses a call to one until the model's tool search reveals it.
+`search_user_docs` is active in every mode, so docs questions skip that search.
 
-Calling a deferred tool changes the mode. If its arguments already match the
+Calling a revealed deferred tool changes the mode. If its arguments already match the
 full JSON schema, it follows the normal validated execution path immediately.
 Incomplete calls return `changed: false` with instructions to reissue the call
 using the full schema, without consuming the tool-error retry budget. Those

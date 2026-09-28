@@ -124,7 +124,8 @@ def _tool_routes() -> dict[str, _ToolRoute]:
         **_routes_for(
             (create_builders, update_builder), AgentMode.DATABASE, domain_modes
         ),
-        **_routes_for((search_user_docs,), AgentMode.EXPLAIN, explain_mode),
+        # Docs questions arrive in any mode; a deferred tool needs a tool search first.
+        **_routes_for((search_user_docs,), AgentMode.EXPLAIN, all_modes),
     }
 
 

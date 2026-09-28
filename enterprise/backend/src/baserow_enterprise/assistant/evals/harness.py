@@ -186,8 +186,9 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
 
     Inspects the pydantic-ai message history for ``RetryPromptPart`` entries,
     which indicate the LLM sent invalid arguments that failed pydantic
-    validation. Unknown-tool exploration and mode-switch redirects are excluded;
-    the latter are required routing steps, not failed tool executions.
+    validation. Unknown-tool exploration, calls refused until tool search reveals
+    the tool, and mode-switch redirects are excluded: the model recovers from
+    each without a failed tool execution.
 
     Returns ``(error_count, hint)`` suitable for a ``CheckResult`` hint.
     """
@@ -201,7 +202,11 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
             for part in msg.parts:
                 if isinstance(part, RetryPromptPart):
                     content = str(part.content)
-                    if "Unknown tool name" in content or is_mode_redirect(content):
+                    if (
+                        "Unknown tool name" in content
+                        or "is not available yet" in content
+                        or is_mode_redirect(content)
+                    ):
                         continue
                     retry_errors.append(
                         {
