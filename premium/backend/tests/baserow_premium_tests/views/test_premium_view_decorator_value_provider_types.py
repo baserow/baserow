@@ -4,6 +4,10 @@ from django.test.utils import override_settings
 import pytest
 from rest_framework.status import HTTP_400_BAD_REQUEST
 
+from baserow.contrib.database.fields.dependencies.handler import (
+    FieldDependencyHandler,
+)
+from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDecoration
@@ -694,6 +698,7 @@ def test_import_export_grid_view_conditional_color_maps_select_option_lookup_fil
         target_field_name=single_select.name,
         setup_dependencies=False,
     )
+    FieldDependencyHandler.rebuild_dependencies([lookup_field], FieldCache())
     grid_view = data_fixture.create_grid_view(table=table)
     data_fixture.create_view_decoration(
         view=grid_view,

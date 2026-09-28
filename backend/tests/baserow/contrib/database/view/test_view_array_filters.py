@@ -5,6 +5,10 @@ import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.database.fields.dependencies.handler import (
+    FieldDependencyHandler,
+)
+from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.utils.duration import parse_duration_value
@@ -3611,22 +3615,30 @@ def test_has_value_equal_filter_types_export_import_select_option_lookup(
 ):
     test_setup = setup_linked_table_and_lookup(data_fixture, target_field_factory)
     lookup_field = test_setup.lookup_field
+    FieldDependencyHandler.rebuild_dependencies([lookup_field], FieldCache())
+    opt_a, opt_b, opt_c, opt_d = [
+        data_fixture.create_select_option(field=test_setup.target_field, value=v)
+        for v in "abcd"
+    ]
     view_filter_type = view_filter_type_registry.get(filter_type_name)
-    id_mapping = {"database_field_select_options": {1: 2, 3: 4}}
+    # Mapped ids the lookup can read are used, like after a database duplicate.
+    id_mapping = {
+        "database_field_select_options": {opt_a.id: opt_b.id, opt_c.id: opt_d.id}
+    }
 
     assert view_filter_type.get_export_serialized_value("1", {}) == "1"
+    assert view_filter_type.set_import_serialized_value(
+        str(opt_a.id), id_mapping, lookup_field
+    ) == str(opt_b.id)
     assert (
-        view_filter_type.set_import_serialized_value("1", id_mapping, lookup_field)
-        == "2"
+        view_filter_type.set_import_serialized_value(
+            f"{opt_a.id},{opt_c.id}", id_mapping, lookup_field
+        )
+        == f"{opt_b.id},{opt_d.id}"
     )
-    assert (
-        view_filter_type.set_import_serialized_value("1,3", id_mapping, lookup_field)
-        == "2,4"
-    )
-    assert (
-        view_filter_type.set_import_serialized_value("1,100", id_mapping, lookup_field)
-        == "2"
-    )
+    assert view_filter_type.set_import_serialized_value(
+        f"{opt_a.id},999999", id_mapping, lookup_field
+    ) == str(opt_b.id)
     assert (
         view_filter_type.set_import_serialized_value("wrong", id_mapping, lookup_field)
         == ""
@@ -3638,6 +3650,13 @@ def test_has_value_equal_filter_types_export_import_select_option_lookup(
         view_filter_type.set_import_serialized_value(None, id_mapping, lookup_field)
         == ""
     )
+    # An id the lookup can still read is kept when the mapping points at an option
+    # it can't read, like after a table duplicate where the lookup reaches the
+    # original select field through another table.
+    id_mapping = {"database_field_select_options": {opt_a.id: 999999}}
+    assert view_filter_type.set_import_serialized_value(
+        str(opt_a.id), id_mapping, lookup_field
+    ) == str(opt_a.id)
 
 
 @pytest.mark.django_db

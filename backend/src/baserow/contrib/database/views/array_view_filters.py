@@ -4,9 +4,13 @@ from datetime import date, datetime, timedelta
 
 from django.db.models import Q
 
+from baserow.contrib.database.fields.dependencies.circular_reference_checker import (
+    get_all_field_dependencies,
+)
 from baserow.contrib.database.fields.field_filters import (
     OptionallyAnnotatedQ,
     map_ids_from_csv_string,
+    parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.field_types import FormulaFieldType
 from baserow.contrib.database.fields.filter_support.base import (
@@ -19,6 +23,7 @@ from baserow.contrib.database.fields.filter_support.base import (
     HasValueLengthIsLowerThanFilterSupport,
     get_jsonb_has_date_value_filter_expr,
 )
+from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import (
     BaserowFormulaMultipleCollaboratorsType,
@@ -147,13 +152,36 @@ class HasValueEqualViewFilterType(ComparisonHasValueFilter):
     )
 
     def set_import_serialized_value(self, value, id_mapping, field=None):
+        if field is None or not self.is_select_option_array(field):
+            return super().set_import_serialized_value(value, id_mapping, field)
+
         # When the array contains select options, the value is a list of option ids
         # that must be mapped to the newly created options, just like the filters
-        # of the single and multiple select field types do.
-        if field is not None and self.is_select_option_array(field):
-            select_option_map = id_mapping["database_field_select_options"]
-            return ",".join(map_ids_from_csv_string(value or "", select_option_map))
-        return super().set_import_serialized_value(value, id_mapping, field)
+        # of the single and multiple select field types do. The mapping can't be
+        # applied blindly though: a duplicated table's lookup can reach the
+        # original select field through another table that wasn't duplicated, in
+        # which case the original option ids are still the ones it reads.
+        readable_option_ids_cache = id_mapping.setdefault(
+            "_readable_select_option_ids", {}
+        )
+        if field.id not in readable_option_ids_cache:
+            readable_option_ids_cache[field.id] = set(
+                SelectOption.objects.filter(
+                    field_id__in=get_all_field_dependencies(field),
+                    field__trashed=False,
+                ).values_list("id", flat=True)
+            )
+        readable_option_ids = readable_option_ids_cache[field.id]
+
+        select_option_map = id_mapping["database_field_select_options"]
+        new_option_ids = []
+        for option_id in parse_ids_from_csv_string(value or ""):
+            mapped = map_ids_from_csv_string(str(option_id), select_option_map)
+            if mapped and int(mapped[0]) in readable_option_ids:
+                new_option_ids.append(mapped[0])
+            elif option_id in readable_option_ids:
+                new_option_ids.append(str(option_id))
+        return ",".join(new_option_ids)
 
 
 class HasNotValueEqualViewFilterType(
