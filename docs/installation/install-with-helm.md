@@ -209,8 +209,8 @@ The Helm `global.baserow.assistantLLMModel` setting is also deprecated, but Kuma
 environment model and provider-native credentials are not imported. Kuma keeps using
 them until you make a tested model available to Kuma and select it under
 **AI features**. Keep a verified fallback for native providers or authentication
-without an equivalent database configuration, such as Bedrock or Vertex AI. Their
-SDK credentials remain supported; see the
+without an equivalent database configuration, such as Vertex AI, or Bedrock through
+the pod's IAM role. Their SDK credentials remain supported; see the
 [fallback presets](https://baserow.io/docs/installation%2Fai-assistant#3-legacy-fallback-provider-presets).
 Retain legacy values needed by remaining consumers and the rollback window.
 

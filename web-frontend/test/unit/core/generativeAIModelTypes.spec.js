@@ -24,12 +24,55 @@ describe('Generative AI model types', () => {
     ).toEqual([
       'openai',
       'anthropic',
+      'bedrock',
       'google',
       'groq',
       'mistral',
       'ollama',
       'openrouter',
     ])
+  })
+
+  test('describes the Bedrock connection and its secret', () => {
+    const bedrock = testApp.getRegistry().get('generativeAIModel', 'bedrock')
+
+    expect(bedrock.getSettings().map((setting) => setting.key)).toEqual([
+      'api_key',
+      'access_key_id',
+      'region',
+      'models',
+    ])
+    expect(bedrock.getSetting('access_key_id').optional).toBe(true)
+    expect(bedrock.getRequiredIntegrationSettings()).toEqual([
+      'api_key',
+      'region',
+    ])
+    expect(bedrock.isIntegrationSettingsComplete({ api_key: 'secret' })).toBe(
+      false
+    )
+    expect(
+      bedrock.isIntegrationSettingsComplete({
+        api_key: 'secret',
+        region: 'eu-central-1',
+      })
+    ).toBe(true)
+    expect(bedrock.canPromptWithFiles()).toBe(true)
+    expect(bedrock.getMaxTemperature()).toBe(1)
+    expect(bedrock.getSecretFieldText()).toEqual({
+      label: 'generativeAIModelType.bedrockSecretLabel',
+      change: 'generativeAIModelType.bedrockChangeSecret',
+      updateHint: 'generativeAIModelType.bedrockSecretUpdateHint',
+    })
+  })
+
+  test('keeps the generic API key wording for other providers', () => {
+    const openai = testApp.getRegistry().get('generativeAIModel', 'openai')
+
+    expect(openai.getSecretFieldText()).toEqual({
+      label: 'aiProviderAdmin.apiKey',
+      change: 'aiProviderAdmin.changeApiKey',
+      updateHint: 'aiProviderAdmin.apiKeyUpdateHint',
+    })
   })
 
   test('marks every registered provider as a built-in provider type', () => {

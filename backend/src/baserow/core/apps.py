@@ -544,6 +544,7 @@ class CoreConfig(AppConfig):
 
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
+            BedrockGenerativeAIModelType,
             GoogleGenerativeAIModelType,
             GroqGenerativeAIModelType,
             MistralGenerativeAIModelType,
@@ -557,6 +558,7 @@ class CoreConfig(AppConfig):
 
         generative_ai_model_type_registry.register(OpenAIGenerativeAIModelType())
         generative_ai_model_type_registry.register(AnthropicGenerativeAIModelType())
+        generative_ai_model_type_registry.register(BedrockGenerativeAIModelType())
         generative_ai_model_type_registry.register(GoogleGenerativeAIModelType())
         generative_ai_model_type_registry.register(GroqGenerativeAIModelType())
         generative_ai_model_type_registry.register(MistralGenerativeAIModelType())

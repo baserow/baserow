@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from collections import Counter
+from dataclasses import dataclass
 from functools import cached_property
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
@@ -69,6 +71,15 @@ def get_known_model_names(model_name_type: Any) -> list[str]:
     return list(dict.fromkeys(names))
 
 
+@dataclass(frozen=True)
+class EmbedKindLimit:
+    """A provider cap on one kind of embedded file, such as images or documents."""
+
+    extensions: frozenset[str]
+    max_file_bytes: int
+    max_files: int
+
+
 class FileHandler:
     """Handles file processing for an AI provider.
 
@@ -86,6 +97,7 @@ class FileHandler:
     _MAX_EMBED_PAYLOAD_BYTES = 45 * 1024 * 1024  # 50 MB minus headroom
     _MAX_EMBEDS_PER_REQUEST = 500
     _INLINE_UPLOAD_THRESHOLD_BYTES = 10 * 1024  # 10 KB
+    _EMBED_KIND_LIMITS: tuple[EmbedKindLimit, ...] = ()
 
     def _has_embed_budget(
         self, file_size: int, embed_count: int, embed_payload_size: int
@@ -142,6 +154,29 @@ class FileHandler:
         return ext in self._EMBEDDABLE_EXTENSIONS and self._has_embed_budget(
             size, embed_count, embed_payload_size
         )
+
+    def _fits_embed_kind_limits(
+        self, ext: str, size: int, embedded_extensions: Counter[str]
+    ) -> bool:
+        """
+        Check the provider's per-kind caps before embedding a file.
+
+        :param ext: Lowercase file extension including the dot.
+        :param size: File size in bytes.
+        :param embedded_extensions: Files already embedded in this request, per
+            extension.
+        :return: False if a limit for this file's kind would be exceeded.
+        """
+
+        for limit in self._EMBED_KIND_LIMITS:
+            if ext not in limit.extensions:
+                continue
+            embedded = sum(
+                embedded_extensions[extension] for extension in limit.extensions
+            )
+            if size > limit.max_file_bytes or embedded >= limit.max_files:
+                return False
+        return True
 
     def _can_upload_file(self, ext: str, size: int) -> bool:
         """
@@ -234,6 +269,7 @@ class FileHandler:
 
         embed_payload_size = 0
         embed_count = 0
+        embedded_extensions: Counter[str] = Counter()
 
         for ai_file in files:
             _, ext = os.path.splitext(ai_file.name)
@@ -250,10 +286,13 @@ class FileHandler:
 
                 if self._can_embed_file(
                     ext, ai_file.size, embed_count, embed_payload_size
+                ) and self._fits_embed_kind_limits(
+                    ext, ai_file.size, embedded_extensions
                 ):
                     self._embed(ai_file)
                     embed_payload_size += ai_file.size
                     embed_count += 1
+                    embedded_extensions[ext] += 1
                     continue
 
                 if self._can_upload_file(ext, ai_file.size):

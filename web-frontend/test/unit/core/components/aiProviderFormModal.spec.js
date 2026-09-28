@@ -327,4 +327,57 @@ describe('AIProviderFormModal', () => {
     )
     expect(dispatch).not.toHaveBeenCalledWith('toast/error', expect.anything())
   })
+
+  test('labels the Bedrock secret and its connection fields', async () => {
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        providerTypes: [
+          {
+            type: 'bedrock',
+            name: 'Amazon Bedrock',
+            uses_api_key: true,
+            extra_fields: [
+              { name: 'region', required: true, allow_blank: false },
+              { name: 'access_key_id', required: false, allow_blank: true },
+            ],
+          },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+
+    const text = wrapper.text()
+    expect(text).toContain('generativeAIModelType.bedrockSecretLabel')
+    expect(text).not.toContain('aiProviderAdmin.apiKey')
+    expect(text).toContain('aiProviderAdmin.extraField_region')
+    expect(text).toContain('aiProviderAdmin.extraField_access_key_id')
+  })
+
+  test('offers to change the Bedrock secret of an existing provider', async () => {
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'bedrock',
+          extra_settings: { region: 'eu-central-1' },
+        },
+        providerTypes: [
+          {
+            type: 'bedrock',
+            name: 'Amazon Bedrock',
+            uses_api_key: true,
+            extra_fields: [
+              { name: 'region', required: true, allow_blank: false },
+              { name: 'access_key_id', required: false, allow_blank: true },
+            ],
+          },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+
+    expect(wrapper.text()).toContain(
+      'generativeAIModelType.bedrockChangeSecret'
+    )
+  })
 })

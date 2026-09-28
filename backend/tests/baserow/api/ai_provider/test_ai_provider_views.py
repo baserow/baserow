@@ -805,6 +805,15 @@ def test_provider_type_metadata_marks_required_connection_settings(
         "uses_api_key": True,
         "extra_fields": [],
     }
+    assert provider_types["bedrock"] == {
+        "type": "bedrock",
+        "name": "Amazon Bedrock",
+        "uses_api_key": True,
+        "extra_fields": [
+            {"name": "region", "required": True, "allow_blank": False},
+            {"name": "access_key_id", "required": False, "allow_blank": True},
+        ],
+    }
     assert provider_types["ollama"]["uses_api_key"] is False
     assert provider_types["ollama"]["extra_fields"] == [
         {"name": "host", "required": True, "allow_blank": False}
@@ -1322,3 +1331,74 @@ def test_model_in_use_error_names_the_model_and_the_features_using_it(
     assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_IN_USE"
     assert "glm5.2:cloud" in response.json()["detail"]
     assert "kuma" in response.json()["detail"]
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_can_be_created_without_returning_the_secret(
+    api_client, staff_headers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": "bedrock-secret-access-key",
+            "extra_settings": {
+                "region": "eu-central-1",
+                "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+            },
+            "models": [
+                {"model_identifier": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"}
+            ],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["extra_settings"] == {
+        "region": "eu-central-1",
+        "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+    }
+    assert "bedrock-secret-access-key" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_rejects_a_region_that_is_not_an_aws_region(
+    api_client, staff_headers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": "bedrock-api-key",
+            "extra_settings": {"region": "attacker.example.com"},
+            "models": [{"model_identifier": "eu.amazon.nova-pro-v1:0"}],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "region" in response.json()["detail"]
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_rejects_an_api_key_with_an_embedded_newline(
+    api_client, staff_headers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": "bedrock-secretA\nbedrock-secretB",
+            "extra_settings": {"region": "eu-central-1"},
+            "models": [{"model_identifier": "eu.amazon.nova-pro-v1:0"}],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    content = response.content.decode()
+    assert "bedrock-secretA" not in content
+    assert "bedrock-secretB" not in content

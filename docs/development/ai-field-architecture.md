@@ -12,8 +12,8 @@ providers. The architecture splits into two layers:
 
 ## Core: GenerativeAIModelType
 
-Each LLM provider (OpenAI, Anthropic, Google Gemini, Groq, Mistral, Ollama,
-OpenRouter) is a `GenerativeAIModelType` subclass registered in
+Each LLM provider (OpenAI, Anthropic, Amazon Bedrock, Google Gemini, Groq, Mistral,
+Ollama, OpenRouter) is a `GenerativeAIModelType` subclass registered in
 `generative_ai_model_type_registry`. A model type is responsible for:
 
 - **Configuration** — reading API keys and enabled models from workspace
@@ -97,8 +97,10 @@ Anthropic embeds images and uploads PDFs. Google Gemini, Mistral, Ollama, and
 OpenRouter embed supported binary content and inline small text files without a
 provider upload. Google uses a conservative 14 MiB cumulative raw-file budget so
 base64 encoding, prompts, and system instructions stay below Gemini's 20 MB inline
-image request limit. Groq does not advertise provider-level file support because
-its capabilities vary by model.
+image request limit. Amazon Bedrock sends images and documents as native Converse
+blocks, within Bedrock's per-kind limits (20 images of 3.75 MB, 5 documents of
+4.5 MB) set through `EmbedKindLimit`, and a 14 MiB total budget. Groq does not
+advertise provider-level file support because its capabilities vary by model.
 
 ## Job scheduling
 

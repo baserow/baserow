@@ -1,10 +1,15 @@
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from botocore.stub import Stubber
 from pydantic_ai import BinaryContent, TextContent, UploadedFile
 
+from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.generative_ai.bedrock import create_bedrock_runtime_client
 from baserow.core.generative_ai.generative_ai_model_types import (
     AnthropicGenerativeAIModelType,
+    BedrockGenerativeAIModelType,
     GoogleGenerativeAIModelType,
     GroqGenerativeAIModelType,
     MistralGenerativeAIModelType,
@@ -527,6 +532,11 @@ def test_google_and_groq_do_not_fall_back_to_legacy_kuma_credentials(monkeypatch
     [
         (GoogleGenerativeAIModelType(), "google", "gemini-2.5-flash"),
         (GroqGenerativeAIModelType(), "groq", "openai/gpt-oss-120b"),
+        (
+            BedrockGenerativeAIModelType(),
+            "bedrock",
+            "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        ),
     ],
 )
 def test_database_only_providers_ignore_legacy_workspace_settings(
@@ -697,3 +707,336 @@ def test_openrouter_prepare_files_unsupported_is_skipped():
     result = ai_model_type.prepare_files([ai_file])
 
     assert len(result) == 0
+
+
+# --- Bedrock ---
+
+BEDROCK_MODEL = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
+BEDROCK_CONVERSE_RESPONSE = {
+    "output": {"message": {"role": "assistant", "content": [{"text": "Hello"}]}},
+    "stopReason": "end_turn",
+    "usage": {"inputTokens": 3, "outputTokens": 1, "totalTokens": 4},
+    "metrics": {"latencyMs": 10},
+}
+
+
+def _bedrock_settings(**overrides: Any) -> dict[str, Any]:
+    return {
+        "api_key": "stored-api-key",
+        "region": "eu-central-1",
+        "access_key_id": None,
+        "models": [BEDROCK_MODEL],
+        **overrides,
+    }
+
+
+def _capture_bedrock_request(model: Any) -> dict[str, str]:
+    captured = {}
+
+    def capture(request, **kwargs):
+        authorization = request.headers["Authorization"]
+        if isinstance(authorization, bytes):
+            authorization = authorization.decode()
+        captured["authorization"] = authorization
+        captured["url"] = request.url
+        raise RuntimeError("request captured")
+
+    model.client.meta.events.register("before-send.bedrock-runtime.Converse", capture)
+    with pytest.raises(RuntimeError, match="request captured"):
+        model.client.converse(
+            modelId=BEDROCK_MODEL,
+            messages=[{"role": "user", "content": [{"text": "hi"}]}],
+        )
+    return captured
+
+
+@pytest.fixture
+def aws_environment_credentials(monkeypatch):
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+    monkeypatch.setenv("AWS_BEARER_TOKEN_BEDROCK", "environment-token")
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIAENVIRONMENTKEY01")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "environment-secret")
+    # Baserow's S3/MinIO endpoint env vars must never redirect Bedrock traffic.
+    monkeypatch.setenv("AWS_ENDPOINT_URL", "http://minio.internal:9000")
+    monkeypatch.setenv("AWS_ENDPOINT_URL_BEDROCK_RUNTIME", "http://minio.internal:9000")
+
+
+def test_bedrock_model_type_is_registered():
+    assert isinstance(
+        generative_ai_model_type_registry.get("bedrock"), BedrockGenerativeAIModelType
+    )
+
+
+def test_bedrock_sends_the_stored_api_key_as_bearer_token(aws_environment_credentials):
+    model = BedrockGenerativeAIModelType().get_ai_model(
+        BEDROCK_MODEL, settings_override=_bedrock_settings()
+    )
+
+    request = _capture_bedrock_request(model)
+
+    assert request["authorization"] == "Bearer stored-api-key"
+    assert request["url"].startswith(
+        "https://bedrock-runtime.eu-central-1.amazonaws.com/"
+    )
+
+
+def test_bedrock_signs_with_the_stored_access_key(aws_environment_credentials):
+    model = BedrockGenerativeAIModelType().get_ai_model(
+        BEDROCK_MODEL,
+        settings_override=_bedrock_settings(
+            api_key="stored-secret-access-key", access_key_id="AKIASTOREDACCESSKEY1"
+        ),
+    )
+
+    request = _capture_bedrock_request(model)
+
+    assert request["authorization"].startswith(
+        "AWS4-HMAC-SHA256 Credential=AKIASTOREDACCESSKEY1/"
+    )
+    assert request["url"].startswith(
+        "https://bedrock-runtime.eu-central-1.amazonaws.com/"
+    )
+
+
+@pytest.mark.parametrize(
+    "overrides", [{"api_key": ""}, {"region": ""}, {"api_key": None}]
+)
+def test_bedrock_never_falls_back_to_environment_credentials(
+    aws_environment_credentials, overrides
+):
+    with pytest.raises(ValueError, match="Amazon Bedrock"):
+        BedrockGenerativeAIModelType().get_ai_model(
+            BEDROCK_MODEL, settings_override=_bedrock_settings(**overrides)
+        )
+
+
+@pytest.mark.parametrize("region", ["", None])
+def test_bedrock_factory_rejects_a_blank_region_even_with_a_default_region(
+    monkeypatch, region
+):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+
+    with pytest.raises(ValueError, match="Amazon Bedrock"):
+        create_bedrock_runtime_client(region, "stored-api-key")
+
+
+def test_bedrock_client_bounds_timeouts_and_retries():
+    model = BedrockGenerativeAIModelType().get_ai_model(
+        BEDROCK_MODEL, settings_override=_bedrock_settings()
+    )
+    config = model.client.meta.config
+
+    assert config.connect_timeout == 10
+    assert config.read_timeout == 300
+    # total_max_attempts (unlike max_attempts) round-trips unchanged: 3 total attempts.
+    assert config.retries == {"mode": "standard", "total_max_attempts": 3}
+
+
+def test_bedrock_prompt_returns_the_converse_text():
+    client = create_bedrock_runtime_client("eu-central-1", "stored-api-key")
+    stubber = Stubber(client)
+    stubber.add_response("converse", BEDROCK_CONVERSE_RESPONSE)
+
+    with (
+        stubber,
+        patch(
+            "baserow.core.generative_ai.bedrock.create_bedrock_runtime_client",
+            return_value=client,
+        ),
+    ):
+        result = BedrockGenerativeAIModelType().prompt(
+            BEDROCK_MODEL, "Say hello", settings_override=_bedrock_settings()
+        )
+
+    assert result == "Hello"
+    stubber.assert_no_pending_responses()
+
+
+def test_bedrock_caps_temperature_at_one():
+    assert BedrockGenerativeAIModelType().prepare_model_settings(
+        BEDROCK_MODEL, 1.7
+    ) == {"temperature": 1}
+
+
+def test_bedrock_known_models_exclude_retired_models():
+    models = BedrockGenerativeAIModelType().get_known_models()
+
+    assert "eu.anthropic.claude-sonnet-4-5-20250929-v1:0" in models
+    assert "us.amazon.nova-pro-v1:0" in models
+    for retired in (
+        "anthropic.claude-v2",
+        "us.anthropic.claude-3-haiku-20240307-v1:0",
+        "eu.anthropic.claude-sonnet-4-20250514-v1:0",
+        "amazon.titan-text-express-v1",
+        "us.amazon.nova-premier-v1:0",
+        "cohere.command-r-plus-v1:0",
+    ):
+        assert retired not in models
+
+
+def test_bedrock_is_enabled_only_with_secret_region_and_models():
+    model_type = BedrockGenerativeAIModelType()
+
+    assert model_type.is_enabled(settings_override=_bedrock_settings()) is True
+    assert (
+        model_type.is_enabled(settings_override=_bedrock_settings(region="")) is False
+    )
+    assert (
+        model_type.is_enabled(settings_override=_bedrock_settings(models=[])) is False
+    )
+    assert (
+        model_type.is_enabled(settings_override=_bedrock_settings(api_key="")) is False
+    )
+
+
+def test_bedrock_integration_override_needs_secret_and_region():
+    model_type = BedrockGenerativeAIModelType()
+
+    assert (
+        model_type.get_atomic_settings_override(
+            {"api_key": "secret", "models": [BEDROCK_MODEL]}
+        )
+        is None
+    )
+    assert model_type.get_atomic_settings_override(
+        {"api_key": "secret", "region": "eu-central-1", "models": [BEDROCK_MODEL]}
+    ) == {
+        "api_key": "secret",
+        "models": [BEDROCK_MODEL],
+        "region": "eu-central-1",
+        "access_key_id": None,
+    }
+
+
+@pytest.mark.django_db
+def test_bedrock_instance_provider_resolves_and_signs_without_settings_override(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    AIProviderHandler.create_provider(
+        "bedrock",
+        api_key="stored-secret-access-key",
+        extra_settings={
+            "region": "eu-central-1",
+            "access_key_id": "AKIASTOREDACCESSKEY1",
+        },
+        models_data=[{"model_identifier": BEDROCK_MODEL}],
+    )
+
+    model_type = BedrockGenerativeAIModelType()
+
+    assert model_type.get_region() == "eu-central-1"
+    assert model_type.get_access_key_id() == "AKIASTOREDACCESSKEY1"
+    assert model_type.get_region(workspace) == "eu-central-1"
+    assert model_type.get_access_key_id(workspace) == "AKIASTOREDACCESSKEY1"
+
+    model = model_type.get_ai_model(BEDROCK_MODEL, workspace)
+    request = _capture_bedrock_request(model)
+
+    assert request["authorization"].startswith(
+        "AWS4-HMAC-SHA256 Credential=AKIASTOREDACCESSKEY1/"
+    )
+
+
+def test_bedrock_supports_files():
+    assert BedrockGenerativeAIModelType().supports_files is True
+
+
+def test_bedrock_prepare_files_uses_native_blocks_and_inlines_small_text():
+    files = [
+        _make_ai_file("photo.png", 1000, "image/png", b"png"),
+        _make_ai_file("report.pdf", 1000, "application/pdf", b"pdf"),
+        _make_ai_file(
+            "notes.docx",
+            1000,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            b"docx",
+        ),
+        _make_ai_file("large.csv", 20 * 1024, "text/csv", b"a,b\n1,2\n"),
+        _make_ai_file("small.txt", 10, "text/plain", b"hello"),
+        _make_ai_file(
+            "slides.pptx",
+            1000,
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            b"pptx",
+        ),
+    ]
+
+    prepared = BedrockGenerativeAIModelType().prepare_files(files)
+
+    contents = {ai_file.name: ai_file.content for ai_file in prepared}
+    assert set(contents) == {
+        "photo.png",
+        "report.pdf",
+        "notes.docx",
+        "large.csv",
+        "small.txt",
+    }
+    for name in ("photo.png", "report.pdf", "notes.docx", "large.csv"):
+        assert isinstance(contents[name], BinaryContent)
+    assert isinstance(contents["small.txt"], TextContent)
+
+
+def test_bedrock_prepare_files_respects_per_kind_limits():
+    images = [
+        _make_ai_file(f"{index}.png", 10, "image/png", b"png") for index in range(11)
+    ] + [_make_ai_file(f"{index}.jpg", 10, "image/jpeg", b"jpg") for index in range(10)]
+    documents = [
+        _make_ai_file(f"{index}.pdf", 10, "application/pdf", b"pdf")
+        for index in range(6)
+    ]
+    oversized = [
+        _make_ai_file("huge.jpg", 3_750_001, "image/jpeg", b"jpg"),
+        _make_ai_file("huge.pdf", 4_500_001, "application/pdf", b"pdf"),
+    ]
+
+    prepared = BedrockGenerativeAIModelType().prepare_files(
+        oversized + images + documents
+    )
+
+    names = [ai_file.name for ai_file in prepared]
+    image_names = [name for name in names if name.endswith((".png", ".jpg"))]
+    assert len(image_names) == 20
+    assert sum(name.endswith(".pdf") for name in names) == 5
+    assert "huge.jpg" not in names and "huge.pdf" not in names
+
+
+def test_bedrock_prepare_files_respects_total_payload_budget():
+    documents = [
+        _make_ai_file(f"{index}.pdf", 4_000_000, "application/pdf", b"pdf")
+        for index in range(4)
+    ]
+
+    prepared = BedrockGenerativeAIModelType().prepare_files(documents)
+
+    assert [ai_file.name for ai_file in prepared] == ["0.pdf", "1.pdf", "2.pdf"]
+
+
+def test_bedrock_prompt_sends_prepared_files_as_valid_converse_blocks():
+    model_type = BedrockGenerativeAIModelType()
+    prepared = model_type.prepare_files(
+        [
+            _make_ai_file("photo.png", 3, "image/png", b"png"),
+            _make_ai_file("report.pdf", 3, "application/pdf", b"pdf"),
+        ]
+    )
+    client = create_bedrock_runtime_client("eu-central-1", "stored-api-key")
+    stubber = Stubber(client)
+    stubber.add_response("converse", BEDROCK_CONVERSE_RESPONSE)
+
+    with (
+        stubber,
+        patch(
+            "baserow.core.generative_ai.bedrock.create_bedrock_runtime_client",
+            return_value=client,
+        ),
+    ):
+        result = model_type.prompt(
+            BEDROCK_MODEL,
+            "Describe the files",
+            settings_override=_bedrock_settings(),
+            content=[ai_file.content for ai_file in prepared],
+        )
+
+    assert result == "Hello"
+    stubber.assert_no_pending_responses()

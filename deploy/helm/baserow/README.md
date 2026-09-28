@@ -113,9 +113,9 @@ default through the shared backend config map and secret.
 `global.baserow.assistantLLMModel` is also deprecated but is not imported: Kuma keeps
 using it until you make a model available to Kuma and select it under
 **AI features**. Keep existing settings until the imported configuration is verified,
-including the rollback window. Bedrock and Vertex AI have no equivalent in AI
-providers; keep their environment configuration for Kuma, as described in the
-[AI assistant guide](/docs/installation/ai-assistant.md).
+including the rollback window. Vertex AI, and Bedrock through the pod's IAM role,
+have no equivalent in AI providers; keep their environment configuration for Kuma, as
+described in the [AI assistant guide](/docs/installation/ai-assistant.md).
 
 ### Enable Embeddings Service
 

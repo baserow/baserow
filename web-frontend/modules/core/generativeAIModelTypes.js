@@ -82,6 +82,16 @@ export class GenerativeAIModelType extends Registerable {
   getModelIdentifierDescription() {
     return null
   }
+
+  /** Admin form wording for the write-only secret stored as `api_key`. */
+  getSecretFieldText() {
+    const { $i18n: i18n } = this.app
+    return {
+      label: i18n.t('aiProviderAdmin.apiKey'),
+      change: i18n.t('aiProviderAdmin.changeApiKey'),
+      updateHint: i18n.t('aiProviderAdmin.apiKeyUpdateHint'),
+    }
+  }
 }
 
 /**
@@ -200,6 +210,76 @@ export class AnthropicModelType extends BuiltInGenerativeAIModelType {
 
   canPromptWithFiles() {
     return true
+  }
+
+  getMaxTemperature() {
+    return 1
+  }
+}
+
+export class BedrockModelType extends BuiltInGenerativeAIModelType {
+  static getType() {
+    return 'bedrock'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('generativeAIModelType.bedrock')
+  }
+
+  getSettings() {
+    const { $i18n: i18n } = this.app
+    return [
+      {
+        key: 'api_key',
+        label: i18n.t('generativeAIModelType.bedrockSecretLabel'),
+        description: i18n.t('generativeAIModelType.bedrockSecretDescription'),
+      },
+      {
+        key: 'access_key_id',
+        label: i18n.t('generativeAIModelType.bedrockAccessKeyIdLabel'),
+        description: i18n.t(
+          'generativeAIModelType.bedrockAccessKeyIdDescription'
+        ),
+        optional: true,
+      },
+      {
+        key: 'region',
+        label: i18n.t('generativeAIModelType.bedrockRegionLabel'),
+        description: i18n.t('generativeAIModelType.bedrockRegionDescription'),
+      },
+      modelSettings(
+        i18n.t('generativeAIModelType.bedrockModelsLabel'),
+        i18n.t('generativeAIModelType.bedrockModelsDescription')
+      ),
+    ]
+  }
+
+  getSecretFieldText() {
+    const { $i18n: i18n } = this.app
+    return {
+      label: i18n.t('generativeAIModelType.bedrockSecretLabel'),
+      change: i18n.t('generativeAIModelType.bedrockChangeSecret'),
+      updateHint: i18n.t('generativeAIModelType.bedrockSecretUpdateHint'),
+    }
+  }
+
+  getRequiredIntegrationSettings() {
+    return ['api_key', 'region']
+  }
+
+  getModelIdentifierDescription() {
+    return this.app.$i18n.t(
+      'generativeAIModelType.bedrockModelIdentifierDescription'
+    )
+  }
+
+  canPromptWithFiles() {
+    return true
+  }
+
+  getOrder() {
+    return 25
   }
 
   getMaxTemperature() {

@@ -16,6 +16,7 @@ describe('AI Agent integration model resolution', () => {
   test.each([
     'openai',
     'anthropic',
+    'bedrock',
     'google',
     'groq',
     'mistral',
@@ -27,10 +28,13 @@ describe('AI Agent integration model resolution', () => {
       const modelType = testApp
         .getRegistry()
         .get('generativeAIModel', providerType)
-      const connection =
-        providerType === 'ollama'
-          ? { host: 'http://localhost:11434' }
-          : { api_key: 'integration-key' }
+      const connections = {
+        ollama: { host: 'http://localhost:11434' },
+        bedrock: { api_key: 'integration-key', region: 'eu-central-1' },
+      }
+      const connection = connections[providerType] || {
+        api_key: 'integration-key',
+      }
       const resolve = (integrationSettings) =>
         getEffectiveAIAgentModels({
           workspaceModels: ['shared-model'],

@@ -9,7 +9,12 @@ from django.conf import settings
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.models import Workspace
 
-from .registries import FileHandler, GenerativeAIModelType, get_known_model_names
+from .registries import (
+    EmbedKindLimit,
+    FileHandler,
+    GenerativeAIModelType,
+    get_known_model_names,
+)
 
 if TYPE_CHECKING:
     from baserow_premium.fields.ai_file import AIFile
@@ -17,6 +22,17 @@ if TYPE_CHECKING:
 
 _IMAGE_EXTENSIONS = {".gif", ".jpg", ".jpeg", ".png", ".webp"}
 _TEXT_EXTENSIONS = {".csv", ".html", ".json", ".md", ".txt", ".tex"}
+_BEDROCK_DOCUMENT_EXTENSIONS = {
+    ".csv",
+    ".doc",
+    ".docx",
+    ".html",
+    ".md",
+    ".pdf",
+    ".txt",
+    ".xls",
+    ".xlsx",
+}
 _GOOGLE_DISCOVERY_EXCLUDED_MODELS = {
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
@@ -33,6 +49,29 @@ _GOOGLE_SAMPLING_SETTINGS = {"temperature", "top_p", "top_k"}
 _GOOGLE_MODEL_VERSION_PATTERN = re.compile(
     r"^gemini-(?P<major>\d+)(?:\.(?P<minor>\d+))?"
 )
+# End-of-life or legacy on Bedrock as of 2026-09 (AWS model lifecycle pages).
+_BEDROCK_DISCOVERY_EXCLUDED_MODELS = {
+    "amazon.nova-premier-v1:0",
+    "amazon.titan-text-express-v1",
+    "amazon.titan-text-lite-v1",
+    "amazon.titan-tg1-large",
+    "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "anthropic.claude-3-haiku-20240307-v1:0",
+    "anthropic.claude-3-opus-20240229-v1:0",
+    "anthropic.claude-3-sonnet-20240229-v1:0",
+    "anthropic.claude-instant-v1",
+    "anthropic.claude-opus-4-1-20250805-v1:0",
+    "anthropic.claude-opus-4-20250514-v1:0",
+    "anthropic.claude-sonnet-4-20250514-v1:0",
+    "anthropic.claude-v2",
+    "anthropic.claude-v2:1",
+    "cohere.command-light-text-v14",
+    "cohere.command-r-plus-v1:0",
+    "cohere.command-r-v1:0",
+    "cohere.command-text-v14",
+}
 
 
 def google_model_requires_default_sampling(model_name: str) -> bool:
@@ -73,6 +112,27 @@ class GoogleFileHandler(EmbedOnlyFileHandler):
     # Gemini inline image requests must stay below 20 MB including base64-encoded
     # files, prompts, and system instructions. Apply the conservative cumulative
     # raw-byte budget to PDFs too so mixed image/document requests remain safe.
+    _MAX_EMBED_PAYLOAD_BYTES = 14 * 1024 * 1024
+
+
+class BedrockFileHandler(EmbedOnlyFileHandler):
+    """Send images and documents as native Bedrock Converse content blocks."""
+
+    # https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Message.html
+    _EMBEDDABLE_EXTENSIONS = _IMAGE_EXTENSIONS | _BEDROCK_DOCUMENT_EXTENSIONS
+    _EMBED_KIND_LIMITS = (
+        EmbedKindLimit(
+            extensions=frozenset(_IMAGE_EXTENSIONS),
+            max_file_bytes=3_750_000,
+            max_files=20,
+        ),
+        EmbedKindLimit(
+            extensions=frozenset(_BEDROCK_DOCUMENT_EXTENSIONS),
+            max_file_bytes=4_500_000,
+            max_files=5,
+        ),
+    )
+    # Converse documents no request limit; InvokeModel's 20 MB less base64 overhead.
     _MAX_EMBED_PAYLOAD_BYTES = 14 * 1024 * 1024
 
 
@@ -401,6 +461,113 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
         from baserow.api.generative_ai.serializers import AnthropicSettingsSerializer
 
         return AnthropicSettingsSerializer
+
+
+class BedrockGenerativeAIModelType(GenerativeAIModelType):
+    type = "bedrock"
+    supports_legacy_workspace_settings = False
+
+    @cached_property
+    def file_handler(self) -> BedrockFileHandler:
+        return BedrockFileHandler()
+
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> Optional[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "api_key", settings_override, state=state
+        )
+        return value if configured else None
+
+    def get_region(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> Optional[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "region", settings_override, state=state
+        )
+        return value if configured else None
+
+    def get_access_key_id(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> Optional[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "access_key_id", settings_override, state=state
+        )
+        return value if configured else None
+
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        feature_type: str | None = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> list[str]:
+        configured, value = self.get_configured_setting(
+            workspace, "models", settings_override, feature_type, state
+        )
+        return value if configured else []
+
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+        state: Optional[ScopedAIProviderState] = None,
+    ) -> bool:
+        return bool(
+            self.get_region(workspace, settings_override, state)
+        ) and super().is_enabled(workspace, settings_override, state)
+
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.bedrock import BedrockConverseModel
+        from pydantic_ai.providers.bedrock import BedrockProvider
+
+        from . import bedrock
+
+        client = bedrock.create_bedrock_runtime_client(
+            self.get_region(workspace, settings_override),
+            self.get_api_key(workspace, settings_override),
+            self.get_access_key_id(workspace, settings_override),
+        )
+        return BedrockConverseModel(
+            model_name, provider=BedrockProvider(bedrock_client=client)
+        )
+
+    def get_known_models(self) -> list[str]:
+        from pydantic_ai.models.bedrock import LatestBedrockModelNames
+        from pydantic_ai.providers.bedrock import remove_bedrock_geo_prefix
+
+        return [
+            name
+            for name in get_known_model_names(LatestBedrockModelNames)
+            if remove_bedrock_geo_prefix(name) not in _BEDROCK_DISCOVERY_EXCLUDED_MODELS
+        ]
+
+    def _prepare_model_settings(
+        self, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        model_settings: dict[str, Any] = {}
+        if temperature is not None:
+            model_settings["temperature"] = min(temperature, 1)
+        return model_settings
+
+    def get_settings_serializer(self) -> type:
+        from baserow.api.generative_ai.serializers import BedrockSettingsSerializer
+
+        return BedrockSettingsSerializer
 
 
 class GoogleGenerativeAIModelType(GenerativeAIModelType):
