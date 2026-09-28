@@ -175,10 +175,10 @@ describe('Automation node types', () => {
     const registry = testApp.getRegistry()
 
     expect(
-      ['start_workflow', 'iterator', 'router'].map(
+      ['start_workflow', 'response', 'iterator', 'router', 'goto'].map(
         (type) => registry.get('node', type).group.id
       )
-    ).toEqual(['workflow', 'workflow', 'workflow'])
+    ).toEqual(['workflow', 'workflow', 'workflow', 'workflow', 'workflow'])
   })
 
   test('uses service-specific icons and images for workflow action nodes', () => {
