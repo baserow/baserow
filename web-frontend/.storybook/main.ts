@@ -1,7 +1,12 @@
 import type { StorybookConfig } from '@nuxtjs/storybook'
 import { mergeConfig } from 'vite'
+import { fileURLToPath } from 'node:url'
 
 const config: StorybookConfig = {
+  previewAnnotations: (entries = []) => [
+    fileURLToPath(new URL('./runtime-config.js', import.meta.url)),
+    ...entries,
+  ],
   stories: [
     '../stories/**/*.mdx',
     '../stories/**/*.stories.@(js|jsx|mjs|ts|tsx)',
