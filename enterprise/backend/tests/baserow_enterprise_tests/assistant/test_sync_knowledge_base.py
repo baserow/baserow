@@ -10,6 +10,7 @@ from baserow_enterprise.assistant.models import (
     KnowledgeBaseChunk,
     KnowledgeBaseDocument,
 )
+from baserow_enterprise.assistant.tasks import sync_assistant_knowledge_base
 from baserow_enterprise.assistant.tools.search_user_docs.handler import (
     KnowledgeBaseHandler,
 )
@@ -664,3 +665,12 @@ def test_failed_reindex_preserves_ready_document_and_existing_chunks(
     assert doc.content == "Existing guide."
     assert doc.status == KnowledgeBaseDocument.Status.READY
     assert list(doc.chunks.values_list("id", flat=True)) == old_ids
+
+
+def test_knowledge_base_sync_task_outlives_the_default_celery_time_limit(settings):
+    """The first re-embed after upgrading takes several minutes on CPU embedders."""
+
+    assert sync_assistant_knowledge_base.soft_time_limit == 30 * 60
+    assert (
+        sync_assistant_knowledge_base.soft_time_limit > settings.CELERY_TASK_TIME_LIMIT
+    )
