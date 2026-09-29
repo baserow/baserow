@@ -1332,6 +1332,7 @@
     "slackOk": "OK",
     "slackChannel": "Channel",
     "slackTs": "Message timestamp",
+    "smtpIntegrationIncomplete": "This SMTP integration has no server. Fill in its host before the button can send.",
     "slackTokenMissing": "This bot has no token. Add a new bot with its token, or paste one into this bot, before the button can post.",
     "slackData": "Data",
     "startWorkflowMissing": "This action's workflow can't be found. It may have been deleted, or you may not have access to it. Pick another workflow, or ask someone who can see this one.",

@@ -720,20 +720,59 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
   }
 
   /**
-   * An action set to the instance server where this installation cannot
-   * deliver. Said before the generic reconfiguration message, which the
-   * server also raises for it.
+   * Said before the generic reconfiguration message, which the server also
+   * raises for these:
+   *
+   * - set to the instance server where this installation cannot deliver, with
+   *   no integration picked yet;
+   * - set to an integration whose host is blank, which is what a workspace
+   *   import leaves, so the reader fills it in rather than looking in the
+   *   trash.
+   *
+   * Where the instance cannot deliver, an integration is what sends, so the
+   * service's own checks (integration, sender) run as for one.
    */
   getErrorMessage(workflowAction, applicationContext) {
-    if (
-      workflowAction.service?.use_instance_smtp_settings === true &&
-      this.instanceSmtp.available === false
-    ) {
+    const service = workflowAction.service
+    const instanceUnavailable = this.instanceSmtp.available === false
+    const staleInstance =
+      instanceUnavailable && service?.use_instance_smtp_settings === true
+    if (staleInstance && !service.integration_id) {
       return this.instanceSmtp.unavailable_reason === 'turned_off'
         ? this.app.$i18n.t('databaseWorkflowActionType.instanceSmtpTurnedOff')
         : this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
     }
-    return super.getErrorMessage(workflowAction, applicationContext)
+    if (this.hasIntegrationWithoutHost(service, applicationContext)) {
+      return this.app.$i18n.t(
+        'databaseWorkflowActionType.smtpIntegrationIncomplete'
+      )
+    }
+    return super.getErrorMessage(
+      staleInstance
+        ? {
+            ...workflowAction,
+            service: { ...service, use_instance_smtp_settings: false },
+          }
+        : workflowAction,
+      applicationContext
+    )
+  }
+
+  /**
+   * Quiet until the database's integrations are loaded, and when the one
+   * picked is not in the list: the endpoint filters what the reader may
+   * list, so absence says nothing.
+   */
+  hasIntegrationWithoutHost(service, applicationContext) {
+    const integrationId = service?.integration_id
+    const database = applicationContext?.database
+    if (!integrationId || !database?._integrationsLoadedOnce) {
+      return false
+    }
+    const integration = (database.integrations || []).find(
+      ({ id }) => id === integrationId
+    )
+    return Boolean(integration) && !integration.host
   }
 }
 

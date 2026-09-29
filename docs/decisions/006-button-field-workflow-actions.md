@@ -367,7 +367,10 @@ takes its bot, and its form offers the same instance/integration choice as the b
 Sharing follows the Slack action: whoever can read the integration may attach it, and
 every clicker sends through it. The type is no longer deactivated as a whole. An action
 set to the instance server where this installation cannot deliver is flagged for
-reconfiguration and refused on click instead.
+reconfiguration and refused on click instead. A click through an integration is refused
+when its host is not a public address, unless `BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS`
+is set: the same rule the HTTP request action follows through advocate, applied by the
+button because the shared SMTP service has none.
 
 **Amendment (phase 4d, September 2026).** A fourth service-backed type, start workflow,
 reuses the `CoreStartWorkflowServiceType` the builder and automation already have:
@@ -444,10 +447,11 @@ which is the opposite of the fire-and-forget shape chosen above.
 
 Each action type names the integration types it may carry in an
 `allowed_integration_types` allow-list. It is empty unless the action needs a credential
-of its own, which is why the row actions, the HTTP request, the email action and start
-workflow all carry nothing: a row action acts as the clicker, an HTTP request carries its
-own headers, email sends through the instance's own mail server, and start workflow
-reaches automation by workflow id rather than by credential. No action type lists
+of its own, which is why the row actions, the HTTP request and start workflow carry
+nothing: a row action acts as the clicker, an HTTP request carries its own headers, and
+start workflow reaches automation by workflow id rather than by credential. The Slack
+action lists its bot, and the email action lists an SMTP integration, which it uses
+wherever the instance's own mail server is not chosen or cannot send. No action type lists
 `local_baserow`, because its `authorized_user` would replace the clicker as the acting
 user, which is what this section forbids.
 

@@ -28,7 +28,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="!values.use_instance_smtp_settings"
+      v-if="!sendsThroughInstance"
       small-label
       :label="$t('smtpEmailForm.fromEmail')"
       required
@@ -41,7 +41,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="!values.use_instance_smtp_settings"
+      v-if="!sendsThroughInstance"
       small-label
       :label="$t('smtpEmailForm.fromName')"
       class="margin-bottom-2"
@@ -150,9 +150,18 @@ export default {
       required: false,
       default: null,
     },
-    // Whether this installation can send through its own server, for a caller
-    // that knows better than the saved service, or has none yet, such as a
-    // button field's action. Null reads the service.
+    // False where the service cannot carry an integration, such as a button
+    // field's actions. The instance server is then the only way to send, so
+    // neither the choice nor the dropdown is worth offering.
+    allowIntegration: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
+    // Whether this installation can send through its own server, for a
+    // caller that knows better than the saved service, such as a button
+    // field's action. False offers only an integration, without changing the
+    // stored choice until the user makes one. Null reads the service.
     instanceSmtpAvailable: {
       type: Boolean,
       required: false,
@@ -175,7 +184,11 @@ export default {
       ],
       values: {
         integration_id: null,
-        use_instance_smtp_settings: false,
+        // Where the service cannot carry an integration the instance server is
+        // the only way to send, so that is what an untouched form holds. Set
+        // here rather than after mount, or the mixin's watcher would report a
+        // change the user never made.
+        use_instance_smtp_settings: !this.allowIntegration,
         from_email: {},
         from_name: {},
         to_emails: {},
@@ -195,14 +208,26 @@ export default {
     },
     showInstanceSmtpOption() {
       if (this.instanceSmtpAvailable !== null) {
-        return this.instanceSmtpAvailable
+        return this.allowIntegration && this.instanceSmtpAvailable
       }
-      return Boolean(this.service?.instance_smtp_settings_enabled)
+      return (
+        this.allowIntegration &&
+        Boolean(this.service?.instance_smtp_settings_enabled)
+      )
     },
     showIntegrationSelector() {
       return (
-        !this.showInstanceSmtpOption || !this.values.use_instance_smtp_settings
+        this.allowIntegration &&
+        (!this.showInstanceSmtpOption || !this.sendsThroughInstance)
       )
+    },
+    // Where the instance is not offered, an integration is what sends, even
+    // if the stored choice still names the instance.
+    sendsThroughInstance() {
+      if (this.instanceSmtpAvailable === false) {
+        return false
+      }
+      return this.values.use_instance_smtp_settings
     },
     integrations() {
       if (!this.application) {
@@ -217,30 +242,6 @@ export default {
     },
     integrationType() {
       return this.$registry.get('integration', SMTPIntegrationType.getType())
-    },
-  },
-  watch: {
-    showInstanceSmtpOption() {
-      this.dropUnofferedInstanceSmtp()
-    },
-  },
-  created() {
-    // After the form mixin has copied the default values in.
-    this.dropUnofferedInstanceSmtp()
-  },
-  methods: {
-    /**
-     * A service saved while the instance could send may still say to use it.
-     * With the choice no longer offered that value would stay, hiding the
-     * from fields and making the backend drop the chosen integration.
-     */
-    dropUnofferedInstanceSmtp() {
-      if (
-        !this.showInstanceSmtpOption &&
-        this.values.use_instance_smtp_settings
-      ) {
-        this.values.use_instance_smtp_settings = false
-      }
     },
   },
 }

@@ -256,7 +256,9 @@ describe('Core SMTP email service form', () => {
     expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(false)
   })
 
-  test('a stale instance choice is dropped when the instance cannot send', async () => {
+  test('a stale instance choice offers the integration without changing it', async () => {
+    // Opening the form must not be an edit: the choice changes only when the
+    // user picks an integration, so a save of anything else keeps it.
     const stale = { use_instance_smtp_settings: true }
     const wrapper = await mountComponent({
       service: stale,
@@ -265,41 +267,35 @@ describe('Core SMTP email service form', () => {
     })
     await nextTick()
 
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
     expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(true)
     expect(
       wrapper
         .find('[placeholder="smtpEmailForm.fromEmailPlaceholder"]')
         .exists()
     ).toBe(true)
-    expect(wrapper.vm.getFormValues().use_instance_smtp_settings).toBe(false)
-    const emitted = wrapper.emitted('values-changed') || []
-    expect(emitted).toHaveLength(1)
-    expect(emitted[0][0].use_instance_smtp_settings).toBe(false)
-  })
-
-  test('the choice is dropped when the instance stops being available', async () => {
-    const service = { use_instance_smtp_settings: true }
-    const wrapper = await mountComponent({
-      service,
-      defaultValues: service,
-      props: { instanceSmtpAvailable: true },
-    })
     expect(wrapper.vm.getFormValues().use_instance_smtp_settings).toBe(true)
-
-    await wrapper.setProps({ instanceSmtpAvailable: false })
-
-    expect(wrapper.vm.getFormValues().use_instance_smtp_settings).toBe(false)
+    const changed = (wrapper.emitted('values-changed') || []).filter(
+      ([values]) => values.use_instance_smtp_settings !== true
+    )
+    expect(changed).toHaveLength(0)
   })
 
-  test('an integration form already off the instance emits nothing', async () => {
-    const service = { use_instance_smtp_settings: false }
+  test('without the new prop the form reads the service as before', async () => {
+    const stale = {
+      use_instance_smtp_settings: true,
+      instance_smtp_settings_enabled: false,
+    }
     const wrapper = await mountComponent({
-      service,
-      defaultValues: service,
-      props: { instanceSmtpAvailable: false },
+      service: stale,
+      defaultValues: stale,
     })
-    await nextTick()
 
-    expect(wrapper.emitted('values-changed') || []).toHaveLength(0)
+    expect(wrapper.find('input[type="checkbox"]').exists()).toBe(false)
+    expect(
+      wrapper
+        .find('[placeholder="smtpEmailForm.fromEmailPlaceholder"]')
+        .exists()
+    ).toBe(false)
   })
 })

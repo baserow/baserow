@@ -401,6 +401,7 @@ describe('external database workflow action types', () => {
   })
 
   afterEach(() => {
+    testApp.store.commit('settings/SET_SETTINGS', {})
     testApp.afterEach()
   })
 
@@ -568,6 +569,9 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
   })
 
   afterEach(() => {
+    // The store is shared across tests, so an unavailable instance must not
+    // leak into the next one.
+    testApp.store.commit('settings/SET_SETTINGS', {})
     testApp.afterEach()
   })
 
@@ -647,6 +651,52 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
 
     expect(emailType().getErrorMessage(action, context)).toBe(
       'serviceType.errorNoIntegrationSelected'
+    )
+  })
+
+  test('a stale instance action with an integration is checked as one', () => {
+    // The form offers only the integration, so the sender it needs is what
+    // is missing, not the instance.
+    withInstanceSmtp({ available: false, unavailable_reason: 'turned_off' })
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      service: {
+        use_instance_smtp_settings: true,
+        integration_id: 3,
+        from_email: { formula: '' },
+        to_emails: { formula: "'a'" },
+      },
+    }
+
+    expect(emailType().getErrorMessage(action, context)).toBe(
+      'serviceType.errorFromEmailMissing'
+    )
+  })
+
+  test('an integration an import left without a host says so', () => {
+    withInstanceSmtp({ available: false, unavailable_reason: 'turned_off' })
+    const action = {
+      id: 1,
+      type: 'smtp_email',
+      requires_reconfiguration: true,
+      service: {
+        use_instance_smtp_settings: false,
+        integration_id: 3,
+        from_email: { formula: "'f@example.com'" },
+        to_emails: { formula: "'a'" },
+      },
+    }
+    const database = {
+      _integrationsLoadedOnce: true,
+      integrations: [{ id: 3, type: 'smtp', host: '' }],
+    }
+
+    expect(emailType().getErrorMessage(action, { ...context, database })).toBe(
+      'databaseWorkflowActionType.smtpIntegrationIncomplete'
+    )
+    expect(en.databaseWorkflowActionType.smtpIntegrationIncomplete).toContain(
+      'host'
     )
   })
 
