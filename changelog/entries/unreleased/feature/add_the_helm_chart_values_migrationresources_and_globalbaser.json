@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add the Helm chart values migration.resources and global.baserow.applicationBuilderDomains. The ingress no longer emits a host-less rule that claimed every otherwise unmatched request; each rule now has an explicit host",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-08-07"
+}
