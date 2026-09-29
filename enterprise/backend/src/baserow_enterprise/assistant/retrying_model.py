@@ -268,13 +268,9 @@ def _make_groq(name: str, creds: dict[str, str | None]) -> Model:
     from pydantic_ai.models.groq import GroqModel
     from pydantic_ai.providers.groq import GroqProvider
 
-    from baserow_enterprise.assistant.groq_model import GroqGPTOSSModel
+    from baserow_enterprise.assistant.model_profiles import get_model_class
 
-    model_class = (
-        GroqGPTOSSModel
-        if name in {"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
-        else GroqModel
-    )
+    model_class = get_model_class(f"groq:{name}", GroqModel)
     return model_class(name, provider=GroqProvider(api_key=creds["api_key"]))
 
 

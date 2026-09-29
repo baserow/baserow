@@ -8,12 +8,12 @@ from asgiref.sync import sync_to_async
 from loguru import logger
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
-from pydantic_ai import Agent, NativeOutput, RunContext
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.model_profiles import SUBAGENT
+from baserow_enterprise.assistant.model_profiles import DOCUMENTATION
 from baserow_enterprise.assistant.models import KnowledgeBaseChunk
 
 from .handler import KnowledgeBaseHandler
@@ -275,19 +275,8 @@ async def _search_user_docs_impl(
     )
 
     model_profile = ctx.deps.tool_helpers.model_profile
-    model_settings = dict(model_profile.get_settings(SUBAGENT))
-    # Docs synthesis previously used the provider's timeout. Keep it instead of
-    # imposing the shorter action-subagent deadline on a large reasoning request.
-    model_settings.pop("timeout", None)
-    output_type = SearchDocsResult
-    if model_profile.model_string in {
-        "groq:openai/gpt-oss-120b",
-        "groq:openai/gpt-oss-20b",
-    }:
-        # This non-streaming agent has no action tools. Groq's strict native
-        # schema prevents synthesis from inventing an output tool such as `json`.
-        # Pydantic validation and the source checks below still apply.
-        output_type = NativeOutput(SearchDocsResult, strict=True)
+    model_settings = model_profile.get_settings(DOCUMENTATION)
+    output_type = model_profile.get_output_type(SearchDocsResult, DOCUMENTATION)
     available_urls = {chunk.source_document.source_url for chunk in relevant_chunks}
     # A synthesis focused on an undocumented capability can overlook useful
     # partial evidence. Reconsider the same passages once, without substituting

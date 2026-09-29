@@ -3,9 +3,10 @@ Centralized model configuration and per-model settings for all agents.
 
 Contains:
 - ``resolve_assistant_model()``: Freezes model selection for one logical request.
-- ``ResolvedAssistantModelProfile``: The frozen selection, able to build the model.
+- ``ResolvedAssistantModelProfile``: The frozen selection and role-based behavior.
 - ``check_lm_ready_or_raise()``: Cached live compatibility check of that selection.
 - ``get_model_settings(model, role)``: Per-model, per-role settings.
+- ``AssistantModelConfiguration``: Central settings, output, and adapter overrides.
 
 Usage::
 
@@ -19,7 +20,8 @@ Usage::
 """
 
 import time
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, field
 from hashlib import sha256
 from threading import Lock
 from typing import Literal
@@ -27,6 +29,8 @@ from typing import Literal
 from django.conf import settings
 
 from loguru import logger
+from pydantic import BaseModel
+from pydantic_ai import NativeOutput
 from pydantic_ai.models import Model
 from pydantic_ai.settings import ModelSettings
 
@@ -54,6 +58,7 @@ from baserow_enterprise.assistant.exceptions import (
     AssistantModelDisabledError,
     AssistantModelNotSupportedError,
 )
+from baserow_enterprise.assistant.groq_model import GroqGPTOSSModel
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.retrying_model import RetryingModel
 
@@ -69,6 +74,7 @@ _process_local_model_readiness_probe_locks: dict[str, Lock] = {}
 
 ORCHESTRATOR = "orchestrator"
 SUBAGENT = "subagent"  # database, builder, automations
+DOCUMENTATION = "documentation"  # source-backed answers without action tools
 UTILITY = "utility"  # formula, fixer (precision-oriented)
 SAMPLE = "sample"  # sample row generation (creative)
 TITLE = "title"  # title generation
@@ -78,7 +84,7 @@ SUGGESTIONS = "suggestions"  # onboarding prompt suggestions (creative)
 # Per-model profiles
 # ---------------------------------------------------------------------------
 
-# Fallback when the model isn't in _MODEL_PROFILES
+# Defaults for every model, with model-specific overrides applied below.
 _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     ORCHESTRATOR: {
         "temperature": 0.3,
@@ -95,6 +101,12 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     UTILITY: {
         "temperature": 0.1,
         "timeout": 20,
+    },
+    DOCUMENTATION: {
+        "temperature": 0.3,
+        "parallel_tool_calls": False,
+        "max_tokens": 16384,
+        # Keep the provider timeout used by documentation synthesis.
     },
     SAMPLE: {
         "temperature": 0.5,
@@ -113,9 +125,61 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     },
 }
 
-# Groq GPT-OSS rejects ``reasoning_format``; its supported effort setting is
-# applied below with an explicit provider check.
-_MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {}
+
+@dataclass(frozen=True)
+class AssistantModelConfiguration:
+    """Provider/model exceptions to the assistant's default behavior."""
+
+    settings_overrides: dict[str, ModelSettings] = field(default_factory=dict)
+    native_output_roles: frozenset[str] = frozenset()
+    model_class: type[Model] | None = None
+
+    def get_output_type(
+        self, output_type: type[BaseModel], role: str
+    ) -> type[BaseModel] | NativeOutput:
+        """Choose the role's output protocol, preserving SDK defaults otherwise."""
+
+        if role in self.native_output_roles:
+            return NativeOutput(output_type, strict=True)
+        return output_type
+
+
+_DEFAULT_MODEL_CONFIGURATION = AssistantModelConfiguration()
+_MODEL_CONFIGURATIONS: dict[str, AssistantModelConfiguration] = {
+    "groq:openai/gpt-oss-120b": AssistantModelConfiguration(
+        # Groq GPT-OSS accepts reasoning_effort, but rejects reasoning_format.
+        settings_overrides={
+            SUBAGENT: {"extra_body": {"reasoning_effort": "high"}},
+            DOCUMENTATION: {"extra_body": {"reasoning_effort": "high"}},
+        },
+        native_output_roles=frozenset({DOCUMENTATION}),
+        model_class=GroqGPTOSSModel,
+    ),
+    "groq:openai/gpt-oss-20b": AssistantModelConfiguration(
+        native_output_roles=frozenset({DOCUMENTATION}),
+        model_class=GroqGPTOSSModel,
+    ),
+}
+# Settings historically match provider plus the last model-name segment. Output
+# protocols and adapters require the exact identifier, so keep their lookup exact.
+_MODEL_SETTINGS_CONFIGURATIONS = {
+    (
+        identifier.partition(":")[0],
+        identifier.partition(":")[2].rsplit("/", 1)[-1],
+    ): configuration
+    for identifier, configuration in _MODEL_CONFIGURATIONS.items()
+}
+_PROVIDER_SETTINGS_SANITIZERS = dict.fromkeys(
+    ("google", "google-gla", "google-cloud", "google-vertex"),
+    sanitize_google_model_settings,
+)
+
+
+def get_model_class(model: str, default: type[Model]) -> type[Model]:
+    """Select an assistant adapter, or retain the provider's model class."""
+
+    configuration = _MODEL_CONFIGURATIONS.get(model, _DEFAULT_MODEL_CONFIGURATION)
+    return configuration.model_class or default
 
 
 def get_model_settings(model: str, role: str) -> ModelSettings:
@@ -130,7 +194,7 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
     operators to override it without changing code.
 
     :param model: pydantic-ai model string (e.g. ``"groq:openai/gpt-oss-120b"``).
-    :param role: One of ORCHESTRATOR, SUBAGENT, UTILITY, SAMPLE, TITLE, SUGGESTIONS.
+    :param role: The assistant agent role, such as ORCHESTRATOR or DOCUMENTATION.
     :return: A ModelSettings dict suitable for ``model_settings=`` parameter.
     """
 
@@ -140,8 +204,11 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
     provider, sep, after_provider = model.partition(":")
     model_name = after_provider.rsplit("/", 1)[-1] if sep else model
 
-    profile = _MODEL_PROFILES.get(model_name, _DEFAULT_PROFILE)
-    result = dict(profile.get(role, _DEFAULT_PROFILE.get(role, {})))
+    configuration = _MODEL_SETTINGS_CONFIGURATIONS.get(
+        (provider, model_name), _DEFAULT_MODEL_CONFIGURATION
+    )
+    result = deepcopy(_DEFAULT_PROFILE.get(role, {}))
+    result.update(deepcopy(configuration.settings_overrides.get(role, {})))
 
     # Allow the env-var-driven setting to override the orchestrator temperature.
     if role == ORCHESTRATOR:
@@ -151,13 +218,9 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
         if env_temp is not None:
             result["temperature"] = env_temp
 
-    if provider == "groq" and model_name == "gpt-oss-120b" and role == SUBAGENT:
-        # More reasoning helps distinguish documentation surfaces during synthesis.
-        # Keep the existing request, output-token, and timeout limits.
-        result["extra_body"] = {"reasoning_effort": "high"}
-
-    if provider in {"google", "google-gla", "google-cloud", "google-vertex"}:
-        result = sanitize_google_model_settings(after_provider, result)
+    sanitizer = _PROVIDER_SETTINGS_SANITIZERS.get(provider)
+    if sanitizer is not None:
+        result = sanitizer(after_provider, result)
 
     return result
 
@@ -269,6 +332,16 @@ class ResolvedAssistantModelProfile:
         """
 
         return get_model_settings(self.model_string, role)
+
+    def get_output_type(
+        self, output_type: type[BaseModel], role: str
+    ) -> type[BaseModel] | NativeOutput:
+        """Resolve a structured result's protocol without exposing model details."""
+
+        configuration = _MODEL_CONFIGURATIONS.get(
+            self.model_string, _DEFAULT_MODEL_CONFIGURATION
+        )
+        return configuration.get_output_type(output_type, role)
 
 
 def resolve_assistant_model(

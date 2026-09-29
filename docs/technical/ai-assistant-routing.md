@@ -116,15 +116,21 @@ malformed final/tool responses. The adapter preserves text, tool calls, and stor
 history; other providers and models retain their SDK mapping. Provider failures
 and malformed responses still count against the same eval limits.
 Groq GPT-OSS 120B uses high reasoning effort for documentation synthesis.
-This can increase latency and token usage. Synthesis uses the subagent output-token
-limit and keeps the provider's timeout, as before this change, instead of imposing
-the action subagent's 20-second deadline. A docs-specific deadline requires latency
+This can increase latency and token usage. The documentation role uses the same
+output-token limit as subagents and keeps the provider's timeout, as before this
+change, instead of imposing the action subagent's 20-second deadline. A
+docs-specific deadline requires latency
 measurement in a follow-up. The synthesis fallback is bounded to two calls;
 request and error limits remain in effect. Orchestration and utility roles keep
 their settings.
 Docs synthesis on Groq GPT-OSS 20B and 120B uses strict native JSON output, avoiding
 invented output-tool names. Typed result validation and retrieved-source checks
 still apply. Other models retain their existing output protocol.
+
+Model-specific output protocols, settings overrides, and legacy model adapters
+are registered together in `model_profiles.py`. Tools request settings and an
+output type from the resolved profile using their role, without inspecting model
+names. Unregistered models keep the role defaults and SDK output protocol.
 
 ## Verification
 

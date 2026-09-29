@@ -7,7 +7,11 @@ import pytest
 from pydantic_ai.models.groq import GroqModel
 from pydantic_ai.providers.groq import GroqProvider
 
-from baserow_enterprise.assistant.model_profiles import SUBAGENT
+from baserow_enterprise.assistant.model_profiles import (
+    DOCUMENTATION,
+    ResolvedAssistantModelProfile,
+    resolve_assistant_model,
+)
 from baserow_enterprise.assistant.tools.search_user_docs.tools import (
     _TOOL_QUERY_RE,
     SearchDocsResult,
@@ -89,17 +93,21 @@ async def test_docs_synthesis_uses_supported_output_protocol(
         )
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
-        profile = MagicMock(model_string=f"groq:{model_name}")
-        profile.get_settings.return_value = {}
-        profile.create_model.return_value = GroqModel(
+        profile = resolve_assistant_model(model=f"groq:{model_name}")
+        model = GroqModel(
             model_name, provider=GroqProvider(api_key="test-only", http_client=client)
         )
         ctx = make_test_ctx(user, workspace, model_profile=profile)
         chunk = MagicMock(content=answer)
         chunk.source_document = MagicMock(title="Tokens", source_url=source)
-        with patch(
-            "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
-        ) as handler:
+        with (
+            patch.object(
+                ResolvedAssistantModelProfile, "create_model", return_value=model
+            ),
+            patch(
+                "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
+            ) as handler,
+        ):
             handler.return_value.search.return_value = [chunk]
             result = await search_user_docs(
                 ctx, question="How do I create a database token?", thought="user asks"
@@ -313,8 +321,9 @@ async def test_search_user_docs_does_not_invent_source_attribution(
 async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, answer):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    profile = MagicMock()
-    profile.get_settings.return_value = {"temperature": 0.3, "timeout": 20}
+    profile = MagicMock(spec=ResolvedAssistantModelProfile)
+    profile.get_settings.return_value = {"temperature": 0.3}
+    profile.get_output_type.return_value = SearchDocsResult
     ctx = make_test_ctx(user, workspace, model_profile=profile)
     chunk = MagicMock(content="Cards can display a selected file field as their cover.")
     chunk.source_document = MagicMock(
@@ -349,13 +358,12 @@ async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, ans
     assert ctx.deps.sources == ["https://example.com/cards"]
     assert "PARTIAL MATCH" in result["reliability_note"]
     assert "Supplement with general knowledge" not in result["reliability_note"]
-    profile.get_settings.assert_called_once_with(SUBAGENT)
+    profile.get_settings.assert_called_once_with(DOCUMENTATION)
+    profile.get_output_type.assert_called_once_with(SearchDocsResult, DOCUMENTATION)
+    assert run.call_args.kwargs["output_type"] is SearchDocsResult
     assert run.call_args.kwargs["model_settings"] == {
         "temperature": 0.3,
     }
-    # Documentation retains the provider timeout used before settings were
-    # introduced here; other subagents must keep their own timeout.
-    assert profile.get_settings.return_value["timeout"] == 20
 
 
 @pytest.mark.django_db
