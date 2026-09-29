@@ -317,7 +317,7 @@
         "firstNameAttrKeyHelper": "Le prénom de l'utilisateur ou le nom complet si le « Nom » n'est pas fourni.",
         "lastNameAttrKeyHelper": "Nom de famille de l'utilisateur (facultatif). Effacez cette valeur pour fournir le nom complet via \"Prénom\".",
         "firstNameAttrKey": "Prénom",
-        "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme identifiant d'utilisateur.",
+        "emailAttrKeyHelper": "L'adresse électronique qui sera utilisée comme identifiant d'utilisateur. ",
         "lastNameAttrKey": "Nom",
         "emailVerificationNotice": "Assurez-vous que votre fournisseur d'identité exige des adresses e-mail vérifiées avant d'authentifier les utilisateurs. Baserow fait confiance à l'adresse e-mail transmise par le fournisseur."
     },
@@ -537,18 +537,18 @@
         "viewFieldLabel": "Vue",
         "notSelected": "Non sélectionnée",
         "addSeries": "Ajouter une série",
-        "series": "Série"
+        "series": "Séries"
     },
     "aggregationSeriesForm": {
         "aggregationFieldLabel": "Champ",
         "aggregationTypeLabel": "Résumé",
         "deleteSeries": "Supprimer la série",
-        "lineChart": "Ligne",
-        "barChart": "Barre",
+        "lineChart": "Courbes",
+        "barChart": "Barres",
         "chartType": "Type de graphique",
-        "pieChart": "Diagramme circulaire",
+        "pieChart": "Secteurs",
         "doughnutChart": "Graphique en anneau",
-        "polarAreaChart": "Graphique polaire"
+        "polarAreaChart": "Aire polaire"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Grouper par",
@@ -557,7 +557,7 @@
     },
     "aggregationSortByForm": {
         "none": "Aucun",
-        "ascending": "Ascendant",
+        "ascending": "Croissant",
         "descending": "Descendant",
         "sortByFieldLabel": "Trier par"
     },
