@@ -602,7 +602,14 @@ export class CoreResponseServiceType extends WorkflowActionServiceTypeMixin(
 
   getErrorMessage(params) {
     const { service } = params
-    if (service.body_type === 'json' && !service.body?.formula?.trim()) {
+    const isNoContentResponse =
+      service.status_code?.mode === 'raw' &&
+      service.status_code.formula === '204'
+    if (
+      !isNoContentResponse &&
+      service.body_type === 'json' &&
+      !service.body?.formula?.trim()
+    ) {
       return this.app.$i18n.t('serviceType.errorResponseBodyMissing')
     }
     return super.getErrorMessage(params)

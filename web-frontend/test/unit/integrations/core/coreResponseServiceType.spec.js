@@ -15,6 +15,22 @@ describe('CoreResponseServiceType', () => {
       { body_type: 'json', body: { formula: ' ' } },
       'serviceType.errorResponseBodyMissing',
     ],
+    [
+      {
+        status_code: { formula: '204', mode: 'raw' },
+        body_type: 'json',
+        body: { formula: '' },
+      },
+      null,
+    ],
+    [
+      {
+        status_code: { formula: '204', mode: 'formula' },
+        body_type: 'json',
+        body: { formula: '' },
+      },
+      'serviceType.errorResponseBodyMissing',
+    ],
     [{ body_type: 'json', body: { formula: "'{}'" } }, null],
     [{ body_type: 'text', body: { formula: '' } }, null],
     [{ body_type: 'empty', body: { formula: '' } }, null],
