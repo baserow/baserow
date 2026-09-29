@@ -2215,14 +2215,33 @@ class TestFinalAnswerValidation:
             "Done.",
             "Applied the requested configuration.",
             "Updated rows have been saved.",
+            "The Projects table was created with Name and Status fields.",
+            "Your Projects table has been created successfully with 3 fields.",
+            "The rows were added to Orders.",
+            "Your automation has been set up to send an email on new rows.",
+            "Created Orders table with 3 fields.",
+            "Added rows to Orders.",
+            "Done! Your table is ready.",
+            "The rows were added in Orders.",
+            "The table was created automatically.",
+            "Your changes were applied automatically.",
+            "The rows were added in table 2024.",
         ],
     )
-    def test_common_ungrounded_completion_phrases_are_sent_back(self, claim):
+    def test_common_completion_phrases_require_successful_tool_evidence(self, claim):
         ctx = MagicMock()
         ctx.messages = []
 
         with pytest.raises(ModelRetry, match="without a verified"):
             validate_final_answer(ctx, claim)
+
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Projects"}]},
+            {"created_tables": [{"id": 2, "name": "Projects"}]},
+            "created-table",
+        )
+        assert validate_final_answer(ctx, claim) == claim
 
     @pytest.mark.parametrize(
         "answer",
@@ -2262,7 +2281,12 @@ class TestFinalAnswerValidation:
             "Created on: shows when a row was added.",
             "1. Created by — shows who created the row.",
             "The Timeline view was added in Baserow 1.25.",
+            "The Timeline view was added in Baserow 1.25 and supports date ranges.",
+            "The Timeline view was added in version 1.25.2.",
+            "The Timeline view was added in 2024.",
+            "The Timeline view was added in 2024-06-01.",
             "Your changes were applied automatically after each edit.",
+            "Your changes were applied automatically after each edit, so there is no save button.",
             "Done! Click Save to finish.",
             "Applied filters only affect your view.",
             "Updated cells highlight briefly.",
@@ -2532,6 +2556,37 @@ class TestFinalAnswerValidation:
 
         partial = "I created the Orders table with an error."
         assert validate_final_answer(ctx, partial) == partial
+
+    @pytest.mark.parametrize("apostrophe", ["'", "’"])
+    def test_passive_partial_completion_requires_actual_changes(self, apostrophe):
+        ctx = MagicMock()
+        answer = (
+            "The Tasks table was created, but the Status field "
+            f"wasn{apostrophe}t added."
+        )
+        ctx.messages = []
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, answer)
+
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Tasks"}]},
+            {
+                "created_tables": [{"id": 2, "name": "Tasks"}],
+                "notes": ["The Status field could not be created"],
+            },
+            "partial-table",
+        )
+        assert validate_final_answer(ctx, answer) == answer
+
+        ctx.messages = _mutation_messages(
+            "create_tables",
+            {"database_id": 1, "tables": [{"name": "Tasks"}]},
+            {"created_tables": [], "errors": ["Permission denied"]},
+            "failed-table",
+        )
+        with pytest.raises(ModelRetry, match="without a verified"):
+            validate_final_answer(ctx, answer)
 
     def test_nested_empty_result_does_not_ground_success(self):
         ctx = MagicMock()

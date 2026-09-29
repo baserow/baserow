@@ -42,17 +42,28 @@ _SIMPLE_PASSIVE_SUBJECT = (
     r"(?!(?:can|could|may|might|must|shall|should|will|would|cannot|not|never)\b)"
     r"[\w-]+"
 )
+_PASSIVE_CHANGE_PREFIX = (
+    rf"^\s*(?:the|your)\s+{_SIMPLE_PASSIVE_SUBJECT}\s+"
+    r"(?:(?:has|have) been|was|were)\s+(?:successfully\s+)?"
+)
 _EXPLICIT_COMPLETED_CHANGE_PATTERNS = (
     re.compile(
         rf"^\s*I(?:'ve| have)?\s+(?:successfully\s+)?{_CHANGE_VERBS}\b",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"^\s*(?:the|your)\s+{_SIMPLE_PASSIVE_SUBJECT}\s+"
-        rf"(?:(?:has|have) been|was|were)\s+(?:successfully\s+)?"
-        rf"{_CHANGE_VERBS}(?:\s+successfully)?\s*$",
+        rf"{_PASSIVE_CHANGE_PREFIX}{_CHANGE_VERBS}\b",
         re.IGNORECASE,
     ),
+)
+# Only exempt explicit release history and recurring automatic behavior. A
+# destination ("added in Orders") or a one-off automatic change is still a claim.
+_DESCRIPTIVE_PASSIVE_CHANGE_PATTERN = re.compile(
+    rf"{_PASSIVE_CHANGE_PREFIX}(?:"
+    r"added\s+in\s+(?:(?:Baserow|version|release)\s+)?"
+    r"(?:v?\d+(?:\.\d+)+|(?:19|20)\d{2}(?:-\d{2}(?:-\d{2})?)?)|"
+    r"applied\s+automatically\s+after\s+(?:each|every)\s+(?:edit|change))\b",
+    re.IGNORECASE,
 )
 # A bare "Set up …" reads the same as an imperative how-to step.
 _BARE_CHANGE_VERBS = r"(?:created|updated|deleted|added|configured|applied|completed)"
@@ -62,7 +73,15 @@ _BARE_COMPLETED_CHANGE_PATTERN = re.compile(
     r"(?:the|a|an|your|my|our|this|that|these|those|all|both|\d+)\b|"
     r"[\"']|"
     r"\w+\s*$|"
-    r"\w+\s+(?:has|have)\s+been\s+saved\s*$)",
+    r"\w+\s+(?:to|into)\b|"
+    r"\w+\s+(?:table|database|field|view|workflow|automation|application|page)"
+    r"(?:\s*$|\s+(?:with|in|for)\b)|"
+    r"\w+\s+(?:has|have)\s+been\s+saved\s*$)|"
+    r"^\s*done\s*$",
+    re.IGNORECASE,
+)
+_INSTRUCTIONAL_DONE_PATTERN = re.compile(
+    r"^\s*done[.!]\s*(?=click\b[^.!?;\n]*\bto\s+finish\b)",
     re.IGNORECASE,
 )
 _FENCED_CODE_PATTERN = re.compile(
@@ -70,7 +89,10 @@ _FENCED_CODE_PATTERN = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 _CLAUSE_BOUNDARY = re.compile(
-    r"[.!?;\n]+|\b(?:although|but|however|though|while|yet)\b", re.IGNORECASE
+    # Keep version numbers intact for the release-history exception.
+    r"[!?;\n]+|(?<!\d)\.|\.(?!\d)|"
+    r"\b(?:although|but|however|though|while|yet)\b",
+    re.IGNORECASE,
 )
 _FAILED_WORK_PATTERN = re.compile(
     r"\b(?:errors?|failed|failure|denied|forbidden|incomplete|pending|remaining|"
@@ -155,11 +177,14 @@ def _explains_unconfigured_documentation_search(
 
 
 def _claims_completed_change(answer: str) -> bool:
+    if _DESCRIPTIVE_PASSIVE_CHANGE_PATTERN.search(answer):
+        return False
     if any(pattern.search(answer) for pattern in _EXPLICIT_COMPLETED_CHANGE_PATTERNS):
         return True
     # Require an explicit object ("Created the table", "Added 3 rows") or a
-    # short assertion ("Created Orders"). A participle followed by a noun and
-    # more prose ("Updated cells highlight briefly") is ambiguous: fail open.
+    # short assertion ("Created Orders", "Added rows to Orders"). Named resources
+    # can have trailing details ("Created Orders table with 3 fields"). Other
+    # participle subjects ("Updated cells highlight briefly") remain ambiguous.
     return bool(_BARE_COMPLETED_CHANGE_PATTERN.search(answer))
 
 
@@ -184,11 +209,10 @@ def _completion_claims(answer: str) -> list[_CompletionClaim]:
     # Examples such as a fenced "Created by = Current user" filter are not
     # claims about actions. Other guards still inspect the original answer.
     answer = _FENCED_CODE_PATTERN.sub("", answer).replace("’", "'")
+    # This specific "Done! Click … to finish" shape introduces an instruction;
+    # other standalone Done clauses still require successful mutation evidence.
+    answer = _INSTRUCTIONAL_DONE_PATTERN.sub("", answer)
     claims = []
-    # "Done! Click Save to finish" introduces instructions. Only an entire
-    # answer of "Done" is an unambiguous standalone completion claim.
-    if re.fullmatch(r"\s*done[.!]?\s*", answer, re.IGNORECASE):
-        return [_CompletionClaim(allow_partial=False)]
     # Partial results are often explained in a separate clause or sentence.
     acknowledges_errors = bool(
         _FAILED_WORK_PATTERN.search(_NO_ERROR_PATTERN.sub("", answer))
