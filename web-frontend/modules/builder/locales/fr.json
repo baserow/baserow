@@ -236,7 +236,9 @@
     "elementForms": {
         "textInputPlaceholder": "Saisissez un texte...",
         "urlInputPlaceholder": "Saisissez une URL...",
-        "invalidFormula": "La formule est invalide"
+        "invalidFormula": "La formule est invalide",
+        "formValidationTitle": "Validation du formulaire",
+        "formValidationHint": "Placez cet élément à l'intérieur d'un formulaire pour afficher les erreurs de validation avant l'envoi des données."
     },
     "imageElement": {
         "emptyState": "Aucun texte alternatif défini...",
@@ -354,9 +356,9 @@
         "addIntegration": "Ajouter une intégration",
         "noIntegrations": "Aucune intégration trouvée.",
         "selectTypeFirst": "Sélectionnez d'abord le service",
-        "servicePlaceholder": "Sélectionnez un service",
+        "servicePlaceholder": "Sélectionnez une action...",
         "errorUniqueName": "Le nom de la source de données doit être unique.",
-        "integrationPlaceholder": "Sélectionnez une intégration",
+        "integrationPlaceholder": "Sélectionnez une intégration...",
         "searchActionPlaceholder": "Rechercher des actions",
         "noActionsFound": "Aucune action trouvée",
         "actionLabel": "Action",

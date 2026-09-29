@@ -693,37 +693,86 @@ export class CoreSMTPEmailWorkflowActionType extends DatabaseExternalWorkflowAct
     return this.app.$registry.get('service', CoreSMTPEmailServiceType.getType())
   }
 
+  /** Whether this installation can deliver through its own server. */
+  get instanceSmtp() {
+    return this.app.$store.getters['settings/get']?.instance_smtp || {}
+  }
+
   /**
-   * A button's actions carry no integration (ADR 006 section 5), so the form
-   * must not offer a dropdown nothing here can fill.
+   * The form's own flag comes from a saved service and uses a looser rule, so
+   * a button tells it with the one the backend refuses a click by.
    */
   get serviceFormProps() {
-    return { allowIntegration: false }
+    return { instanceSmtpAvailable: this.instanceSmtp.available !== false }
+  }
+
+  /** Sent through an SMTP integration of the database where needed. */
+  get needsIntegration() {
+    return true
   }
 
   getNewActionValues() {
-    return { service: { use_instance_smtp_settings: true } }
+    return {
+      service: {
+        use_instance_smtp_settings: this.instanceSmtp.available !== false,
+      },
+    }
   }
 
   /**
-   * Why this installation cannot send, read from the settings the editor
-   * already has rather than from the action. An action being configured has
-   * not been saved yet and carries no service to ask, so without this the
-   * first thing to say so would be the refusal on save.
+   * Said before the generic reconfiguration message, which the server also
+   * raises for these:
    *
-   * @returns The reason in the reader's language, or null when it can send.
+   * - set to the instance server where this installation cannot deliver, with
+   *   no integration picked yet;
+   * - set to an integration whose host is blank, which is what a workspace
+   *   import leaves, so the reader fills it in rather than looking in the
+   *   trash.
+   *
+   * Where the instance cannot deliver, an integration is what sends, so the
+   * service's own checks (integration, sender) run as for one.
    */
-  isDeactivatedReason({ workspace }) {
-    const instanceSmtp =
-      this.app.$store.getters['settings/get']?.instance_smtp || {}
-    // Absent on an installation older than the flag, which is left alone: a
-    // click still says what went wrong.
-    if (instanceSmtp.available !== false) {
-      return null
+  getErrorMessage(workflowAction, applicationContext) {
+    const service = workflowAction.service
+    const instanceUnavailable = this.instanceSmtp.available === false
+    const staleInstance =
+      instanceUnavailable && service?.use_instance_smtp_settings === true
+    if (staleInstance && !service.integration_id) {
+      return this.instanceSmtp.unavailable_reason === 'turned_off'
+        ? this.app.$i18n.t('databaseWorkflowActionType.instanceSmtpTurnedOff')
+        : this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
     }
-    return instanceSmtp.unavailable_reason === 'turned_off'
-      ? this.app.$i18n.t('databaseWorkflowActionType.instanceSmtpTurnedOff')
-      : this.app.$i18n.t('databaseWorkflowActionType.noInstanceSmtp')
+    if (this.hasIntegrationWithoutHost(service, applicationContext)) {
+      return this.app.$i18n.t(
+        'databaseWorkflowActionType.smtpIntegrationIncomplete'
+      )
+    }
+    return super.getErrorMessage(
+      staleInstance
+        ? {
+            ...workflowAction,
+            service: { ...service, use_instance_smtp_settings: false },
+          }
+        : workflowAction,
+      applicationContext
+    )
+  }
+
+  /**
+   * Quiet until the database's integrations are loaded, and when the one
+   * picked is not in the list: the endpoint filters what the reader may
+   * list, so absence says nothing.
+   */
+  hasIntegrationWithoutHost(service, applicationContext) {
+    const integrationId = service?.integration_id
+    const database = applicationContext?.database
+    if (!integrationId || !database?._integrationsLoadedOnce) {
+      return false
+    }
+    const integration = (database.integrations || []).find(
+      ({ id }) => id === integrationId
+    )
+    return Boolean(integration) && !integration.host
   }
 }
 

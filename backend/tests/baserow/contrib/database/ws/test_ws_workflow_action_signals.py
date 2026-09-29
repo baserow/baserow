@@ -305,6 +305,28 @@ def test_trashing_and_restoring_an_integration_updates_the_button(
     assert message["fields"][0]["requires_reconfiguration"] is False
 
 
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_updating_an_integration_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    bot = data_fixture.create_slack_bot_integration(application=database, user=user)
+    button_field = _button_sending_through(data_fixture, user, bot)
+    other_bot = data_fixture.create_slack_bot_integration(
+        application=database, user=user
+    )
+    unrelated = _button_sending_through(data_fixture, user, other_bot)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    IntegrationService().update_integration(user, bot, name="Renamed")
+
+    [(group, _)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+    assert _button_messages(mock_broadcast_to_channel_group, unrelated) == []
+
+
 def _empty_the_trash(user, database):
     """Marks the database's trash for deletion and deletes it, as Celery does."""
 

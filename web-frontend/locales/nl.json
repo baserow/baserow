@@ -199,7 +199,8 @@
         "minChars": "Min {min} tekens.",
         "maxChars": "Max {max} tekens.",
         "higherThan": "De waarde is hoger dan {max}.",
-        "maxCharsExceeded": "Max {max} tekens (-{over})."
+        "maxCharsExceeded": "Max {max} tekens (-{over}).",
+        "maxImagesExceeded": "Max {max} afbeeldingen (verwijder {over})."
     },
     "fieldDocs": {
         "readOnly": "Dit is een alleen-lezen veld.",
@@ -236,7 +237,8 @@
         "duration": "Accepteert een tijdsduur als text in het formaat {format} of als een getal dat het totale aantal seconden weergeeft.",
         "password": "Een alleen schrijven veld dat een gehasht wachtwoord bevat. De waarde is `null` als het niet is ingesteld, of `true` als het is ingesteld. Het accepteert een tekenreeks om het in te stellen.",
         "formViewEditRow": "Een alleen-lezen veld dat een unieke, ondertekende URL genereert waarmee de rij via de gekoppelde formulierweergave kan worden bewerkt.",
-        "button": "Een knopveld. Door op de knop te klikken wordt een URL geopend die is opgebouwd uit de waarden van de rij. De cel slaat geen gegevens op en schrijfacties worden geweigerd."
+        "button": "Een knopveld. Door op de knop te klikken wordt een URL geopend die is opgebouwd uit de waarden van de rij. De cel slaat geen gegevens op en schrijfacties worden geweigerd.",
+        "longTextRichText": "Ondersteunt tekst met meerdere regels die is opgemaakt met Markdown. Om een afbeelding in te sluiten, upload je deze via het eindpunt voor het uploaden van bestanden en verwijs je naar de teruggave-naam ervan als ![alt][naam]. In de reacties wordt een tijdelijke URL toegevoegd, ![alt][naam](url), die wordt genegeerd wanneer de waarde wordt teruggestuurd. Een waarde kan naar maximaal 100 afbeeldingen verwijzen, en elke naam moet een geüploade afbeelding zijn."
     },
     "viewFilter": {
         "contains": "bevat",
@@ -480,7 +482,9 @@
         "fieldConstraintTitle": "Schending veldbeperking",
         "fieldConstraintDescription": "Kan beperking niet toepassen.",
         "fieldDataConstraintTitle": "Schending beperking veldgegevens",
-        "fieldDataConstraintDescription": "Kan de bewerking niet voltooien vanwege schending van bestaande beperkingen."
+        "fieldDataConstraintDescription": "Kan de bewerking niet voltooien vanwege schending van bestaande beperkingen.",
+        "userFileDoesNotExistTitle": "Afbeelding bestaat niet",
+        "userFileDoesNotExistDescription": "De waarde verwijst naar een afbeelding die niet meer bestaat. Verwijder deze en probeer het opnieuw."
     },
     "importerType": {
         "csv": "Een CSV-bestand importeren",

@@ -63,6 +63,12 @@
         </div>
       </li>
 
+      <component
+        :is="component"
+        v-for="(component, index) in sidebarAllWorkspacesComponents"
+        :key="'sidebarAllWorkspacesComponents' + index"
+      ></component>
+
       <li class="tree__item">
         <div class="tree__action sidebar__action">
           <a class="tree__link" @click="$refs.trashModal.show()">
@@ -87,6 +93,13 @@ export default {
   components: {
     TrashModal,
     TemplateModal,
+  },
+  computed: {
+    sidebarAllWorkspacesComponents() {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getSidebarAllWorkspacesComponents()
+      )
+    },
   },
 }
 </script>

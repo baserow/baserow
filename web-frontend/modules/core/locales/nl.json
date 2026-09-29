@@ -1617,5 +1617,9 @@
     },
     "editWorkspace": {
         "invalidNameTitle": "Werkruimtenaam niet toegestaan"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Afbeelding kan niet worden ingesloten",
+        "errorUnsupportedImageMessage": "{name} is geen ondersteund afbeeldingsformaat en is niet toegevoegd."
     }
 }

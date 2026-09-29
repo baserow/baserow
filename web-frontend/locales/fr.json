@@ -199,7 +199,8 @@
         "maxChars": "Max {max} caractères.",
         "maxCharsExceeded": "Max {max} caractères (-{over}).",
         "minChars": "Min {min} caractères.",
-        "higherThan": "La valeur est supérieure à {max}."
+        "higherThan": "La valeur est supérieure à {max}.",
+        "maxImagesExceeded": "Max {max} images (supprime {over})."
     },
     "fieldDocs": {
         "readOnly": "Ce champ est en lecture seule.",
@@ -236,7 +237,8 @@
         "duration": "Accepte une durée temporelle sous la forme d'une chaîne au format {format} ou d'un nombre représentant le nombre total de secondes.",
         "password": "Un champ en écriture seule qui contient un mot de passe haché. La valeur sera `null` s'il n'est pas défini, ou `true` s'il a été défini. Il accepte une chaîne de caractères pour le définir.",
         "formViewEditRow": "Colonne en lecture seule qui génère une URL unique et signée permettant de modifier la ligne via la vue formulaire associée.",
-        "button": "Un champ bouton. Cliquer sur le bouton ouvre une URL construite à partir des valeurs de la ligne. La cellule ne stocke aucune donnée et les écritures sont rejetées."
+        "button": "Un champ bouton. Cliquer sur le bouton ouvre une URL construite à partir des valeurs de la ligne. La cellule ne stocke aucune donnée et les écritures sont rejetées.",
+        "longTextRichText": "Accepte du texte sur plusieurs lignes au format Markdown. Pour intégrer une image, téléchargez-la via l'URL de téléchargement de fichiers et faites référence à son nom renvoyé sous la forme ![alt][nom]. Les réponses ajoutent une URL temporaire, ![alt][nom](url), qui est ignorée lorsque la valeur est renvoyée. Une valeur peut faire référence à un maximum de 100 images, et chaque nom doit correspondre à une image téléchargée."
     },
     "viewFilter": {
         "contains": "contient",
@@ -480,7 +482,9 @@
         "fieldConstraintTitle": "Violation de la contrainte de champ",
         "fieldConstraintDescription": "Impossible d'appliquer la contrainte.",
         "fieldDataConstraintTitle": "Violation des contraintes liées aux données de terrain",
-        "fieldDataConstraintDescription": "Impossible de terminer l'opération en raison d'une violation des contraintes existantes."
+        "fieldDataConstraintDescription": "Impossible de terminer l'opération en raison d'une violation des contraintes existantes.",
+        "userFileDoesNotExistTitle": "L'image n'existe pas",
+        "userFileDoesNotExistDescription": "Cette valeur fait référence à une image qui n'existe plus. Supprimez-la et réessayez."
     },
     "importerType": {
         "csv": "Importer un fichier CSV",

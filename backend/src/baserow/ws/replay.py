@@ -13,6 +13,7 @@ from django.db import DatabaseError, connection, connections, transaction
 from opentelemetry import metrics
 from opentelemetry.metrics import Observation
 
+from baserow.core.psycopg import tighten_statement_timeout
 from baserow.ws.realtime_events import (
     FIRST_CONNECT_CURSOR,
     NO_REPLAY_AVAILABLE,
@@ -271,14 +272,7 @@ def _read_replay_events(
             with connection.cursor() as cursor:
                 # Queueing, adapter cleanup and establishing the connection all
                 # consume the response budget; do not restart it at query entry.
-                timeout = f"{_remaining_timeout_ms(deadline)}ms"
-                cursor.execute(
-                    "SELECT set_config('statement_timeout', %s, true) "
-                    "WHERE current_setting('statement_timeout')::interval = "
-                    "interval '0' OR current_setting('statement_timeout')::interval "
-                    "> %s::interval",
-                    [timeout, timeout],
-                )
+                tighten_statement_timeout(cursor, _remaining_timeout_ms(deadline))
             return RealtimeEventHandler.get_replay_events_result(
                 user_id, page_group_names, last_seen_id, web_socket_id
             )

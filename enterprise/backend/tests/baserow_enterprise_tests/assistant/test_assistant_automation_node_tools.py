@@ -1,21 +1,30 @@
 import pytest
+from asgiref.sync import async_to_sync
+from pydantic import ValidationError
+from pydantic_ai import RunContext
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.usage import RunUsage
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.operations import (
+    DeleteAutomationNodeOperationType,
     UpdateAutomationNodeOperationType,
 )
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.cache import local_cache
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
 from baserow_enterprise.assistant.tools.automation.agents import (
     update_single_node_formulas,
 )
 from baserow_enterprise.assistant.tools.automation.tools import (
     add_nodes,
+    automation_toolset,
     create_workflows,
     delete_nodes,
     list_nodes,
@@ -30,23 +39,44 @@ from baserow_enterprise.assistant.tools.automation.types import (
 from baserow_enterprise.assistant.tools.automation.types.node import (
     AutomationFieldValue,
 )
+from baserow_enterprise.assistant.tools.routing import ModeAwareToolset
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
 from .utils import make_test_ctx
 
 
-@pytest.fixture(autouse=True)
-def mock_formula_generator(monkeypatch):
-    """Mock update_workflow_formulas and update_single_node_formulas to avoid LM calls."""
+def _fail_formula_generation(*args):
+    raise RuntimeError("Formula generation unavailable")
 
+
+def test_missing_required_formulas_allows_optional_fields():
+    requested = {
+        "row_id": "the row id",
+        "note": "[optional] a note",
+    }
+
+    assert automation_agents._missing_required_formulas(requested, {}) == ["row_id"]
+
+
+@pytest.fixture
+def real_formula_pass():
+    """Requesting this fixture opts a test out of mock_formula_generator."""
+
+
+@pytest.fixture(autouse=True)
+def mock_formula_generator(request, monkeypatch):
+    """Skip formula generation to avoid LM calls in tests."""
+
+    if "real_formula_pass" in request.fixturenames:
+        return
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.automation.agents.update_workflow_formulas",
-        lambda workflow, node_mapping, tool_helpers: None,
+        lambda workflow, node_mapping, tool_helpers: [],
     )
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.automation.agents.update_single_node_formulas",
-        lambda node_update, orm_node, tool_helpers: None,
+        lambda node_update, orm_node, tool_helpers: [],
     )
 
 
@@ -212,6 +242,52 @@ def test_add_node_append_to_workflow(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_add_nodes_returns_formula_errors_without_losing_nodes(
+    data_fixture, monkeypatch, real_formula_pass
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation, workflow_id = _create_test_workflow(data_fixture, user, workspace)
+    ctx = make_test_ctx(user, workspace)
+    previous_node = list_nodes(ctx, workflow_id=workflow_id, thought="inspect")[
+        "nodes"
+    ][-1]
+
+    monkeypatch.setattr(
+        automation_agents,
+        "get_generate_formulas_tool",
+        lambda _model_profile: _fail_formula_generation,
+    )
+
+    result = add_nodes(
+        ctx,
+        workflow_id=workflow_id,
+        nodes=[
+            ActionNodeCreate(
+                ref="email2",
+                label="Formula Email",
+                previous_node_ref=str(previous_node["id"]),
+                type="smtp_email",
+                to_emails="test@example.com",
+                subject="$formula: the trigger name",
+                body="Hello",
+            )
+        ],
+        thought="test formula failure",
+    )
+
+    created_node = result["created_nodes"][0]
+    assert AutomationNode.objects.filter(id=created_node["id"]).exists()
+    assert result["formula_errors"] == [
+        {
+            "node_id": created_node["id"],
+            "label": "Formula Email",
+            "error": "Formula generation unavailable",
+        }
+    ]
+
+
+@pytest.mark.django_db(transaction=True)
 def test_update_node_label(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -266,6 +342,49 @@ def test_update_node_service_config(data_fixture):
 
     assert len(result["updated_nodes"]) == 1
     assert "errors" not in result
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_nodes_returns_formula_errors_without_losing_updates(
+    data_fixture, monkeypatch, real_formula_pass
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation, workflow_id = _create_test_workflow(data_fixture, user, workspace)
+    ctx = make_test_ctx(user, workspace)
+    workflow_nodes = list_nodes(ctx, workflow_id=workflow_id, thought="inspect")[
+        "nodes"
+    ]
+    action_node = workflow_nodes[-1]
+
+    monkeypatch.setattr(
+        automation_agents,
+        "get_generate_formulas_tool",
+        lambda _model_profile: _fail_formula_generation,
+    )
+
+    result = update_nodes(
+        ctx,
+        workflow_id=workflow_id,
+        nodes=[
+            NodeUpdate(
+                node_id=action_node["id"],
+                label="Updated Email",
+                subject="$formula: the trigger name",
+            )
+        ],
+        thought="test formula failure",
+    )
+
+    refreshed = AutomationNodeService().get_node(user, action_node["id"])
+    assert refreshed.label == "Updated Email"
+    assert result["formula_errors"] == [
+        {
+            "node_id": action_node["id"],
+            "label": "Updated Email",
+            "error": "Formula generation unavailable",
+        }
+    ]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -562,6 +681,92 @@ def test_update_nodes_row_action_applies_table_and_literal_values(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_update_nodes_reports_an_omitted_required_row_id(
+    data_fixture, monkeypatch, real_formula_pass
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    status = data_fixture.create_text_field(table=table, name="Status")
+    ctx = make_test_ctx(user, workspace)
+
+    created = create_workflows(
+        ctx,
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Order Workflow",
+                trigger=TriggerNodeCreate(
+                    ref="trigger",
+                    label="Rows created",
+                    type="rows_created",
+                    rows_triggers_settings={"table_id": table.id},
+                ),
+                nodes=[
+                    ActionNodeCreate(
+                        ref="action",
+                        label="Update order",
+                        previous_node_ref="trigger",
+                        type="update_row",
+                        table_id=table.id,
+                        row_id="1",
+                        values=[
+                            AutomationFieldValue(field_id=status.id, value="Pending")
+                        ],
+                    )
+                ],
+            )
+        ],
+        thought="create workflow",
+    )
+    workflow_id = created["created_workflows"][0]["id"]
+    workflow_nodes = list_nodes(ctx, workflow_id=workflow_id, thought="inspect")[
+        "nodes"
+    ]
+    node_id = workflow_nodes[1]["id"]
+
+    def omit_row_id(formulas, context):
+        assert "row_id" in formulas
+        return {status.id: "'Processing'"}
+
+    monkeypatch.setattr(
+        automation_agents,
+        "get_generate_formulas_tool",
+        lambda _model_profile: omit_row_id,
+    )
+
+    result = update_nodes(
+        ctx,
+        workflow_id=workflow_id,
+        nodes=[
+            NodeUpdate(
+                node_id=node_id,
+                label="Process order",
+                row_id="$formula: the trigger row id",
+                values=[
+                    AutomationFieldValue(
+                        field_id=status.id,
+                        value="$formula: Processing",
+                    )
+                ],
+            )
+        ],
+        thought="update workflow",
+    )
+
+    assert result["updated_nodes"] == [{"node_id": node_id, "label": "Process order"}]
+    assert result["formula_errors"][0]["node_id"] == node_id
+    assert "row_id" in result["formula_errors"][0]["error"]
+
+    service = AutomationNode.objects.get(id=node_id).specific.service.specific
+    assert "Processing" in str(service.field_mappings.get(field_id=status.id).value)
+
+
+@pytest.mark.django_db(transaction=True)
 def test_single_node_formula_pass_accepts_a_create_payload(data_fixture, monkeypatch):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -647,15 +852,16 @@ def test_update_nodes_direct_values_require_update_permission(
         "row_id": "2",
     }
 
-    result = update_nodes(
-        make_test_ctx(user, workspace),
-        workflow_id=workflow.id,
-        nodes=[NodeUpdate(node_id=node.id, **{property_name: payload[property_name]})],
-        thought="Update the action",
-    )
+    with pytest.raises(PermissionDenied):
+        update_nodes(
+            make_test_ctx(user, workspace),
+            workflow_id=workflow.id,
+            nodes=[
+                NodeUpdate(node_id=node.id, **{property_name: payload[property_name]})
+            ],
+            thought="Update the action",
+        )
 
-    assert result["updated_nodes"] == []
-    assert len(result["errors"]) == 1
     service = AutomationNode.objects.get(id=node.id).specific.service.specific
     assert service.row_id["formula"] == "'1'"
     assert service.field_mappings.get(field=field).value["formula"] == "'Initial'"
@@ -693,3 +899,108 @@ def test_update_nodes_direct_values_refresh_test_run_clone(
     assert service.field_mappings.get(field=field).value["formula"] == (
         "'Updated'" if property_name == "values" else "'Initial'"
     )
+
+
+def _update_row_node(**overrides):
+    kwargs = {
+        "ref": "action",
+        "label": "Update row",
+        "previous_node_ref": "trigger",
+        "type": "update_row",
+        "table_id": 1,
+        "row_id": "1",
+        "values": [AutomationFieldValue(field_id=1, value="Reviewed")],
+    }
+    kwargs.update(overrides)
+    return ActionNodeCreate(**kwargs)
+
+
+def test_a_blank_row_id_cannot_satisfy_the_requirement():
+    """An update_row node with a blank row id names no row to update."""
+
+    _update_row_node()
+
+    for blank in ("", "   "):
+        with pytest.raises(ValidationError) as exc_info:
+            _update_row_node(row_id=blank)
+        assert "row_id" in str(exc_info.value)
+
+
+def test_a_row_action_without_values_is_still_allowed():
+    """Creating or clearing a row without field values is a real request."""
+
+    assert _update_row_node(values=[]).values == []
+
+
+def test_a_required_node_field_still_accepts_a_falsy_but_real_value():
+    """Rejecting every falsy value would refuse legitimate zeroes."""
+
+    assert _update_row_node(table_id=0).table_id == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_partial_delete_is_reported_when_a_later_node_is_forbidden(
+    data_fixture, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=owner)
+    allowed_workflow = data_fixture.create_automation_workflow(
+        user=owner,
+        automation=data_fixture.create_automation_application(workspace=workspace),
+    )
+    forbidden_workflow = data_fixture.create_automation_workflow(
+        user=owner,
+        automation=data_fixture.create_automation_application(workspace=workspace),
+    )
+    allowed_node = data_fixture.create_core_iterator_action_node(
+        workflow=allowed_workflow
+    )
+    forbidden_node = data_fixture.create_core_iterator_action_node(
+        workflow=forbidden_workflow
+    )
+    user = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=user, workspace=workspace, permissions="NO_ACCESS"
+    )
+    no_delete = Role.objects.create(name="Read without delete", workspace=workspace)
+    no_delete.operations.set(
+        Role.objects.get(uid="BUILDER").operations.exclude(
+            name=DeleteAutomationNodeOperationType.type
+        )
+    )
+    RoleAssignmentHandler._init = False
+    RoleAssignmentHandler().assign_role(
+        user,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=allowed_workflow.automation.application_ptr,
+    )
+    RoleAssignmentHandler().assign_role(
+        user,
+        workspace,
+        role=no_delete,
+        scope=forbidden_workflow.automation.application_ptr,
+    )
+    deps = make_test_ctx(user, workspace).deps
+    deps.mode = AgentMode.AUTOMATION
+    ctx = RunContext(
+        deps=deps, model=TestModel(), usage=RunUsage(), tool_name="delete_nodes"
+    )
+    router = ModeAwareToolset(automation_toolset, deps)
+
+    async def invoke():
+        tools = await router.get_tools(ctx)
+        return await router.call_tool(
+            "delete_nodes",
+            {"node_ids": [allowed_node.id, forbidden_node.id], "thought": "test"},
+            ctx,
+            tools["delete_nodes"],
+        )
+
+    result = async_to_sync(invoke)()
+    assert not AutomationNode.objects.filter(pk=allowed_node.id).exists()
+    assert AutomationNode.objects.filter(pk=forbidden_node.id).exists()
+    assert result["deleted_node_ids"] == [allowed_node.id]
+    assert result["errors"] == [
+        f"Permission denied for node {forbidden_node.id}; it was not deleted."
+    ]

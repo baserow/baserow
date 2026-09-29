@@ -5,57 +5,55 @@
     small-label
     required
   >
-    <Alert v-if="!defaultValues.email_address" type="warning">
-      {{ $t('inboundEmailTriggerServiceForm.notConfigured') }}
+    <FormGroup class="margin-bottom-2">
+      <RadioGroup
+        v-model="isPublishedAddress"
+        :options="addressVersions"
+        type="button"
+      >
+      </RadioGroup>
+    </FormGroup>
+
+    <a
+      v-tooltip="$t('inboundEmailTriggerServiceForm.copyAddress')"
+      class="inbound-email-trigger-service-form__copy-address"
+      tooltip-position="top"
+      @click.stop=";[copyAddressToClipboard(), $refs.addressCopied.show()]"
+    >
+      <pre><code class="inbound-email-trigger-service-form__email-address">{{ emailAddress }}</code></pre>
+      <Copied ref="addressCopied" />
+    </a>
+
+    <Alert type="info-primary" class="margin-top-1 margin-bottom-2">
+      <p>{{ $t('inboundEmailTriggerServiceForm.infoDescription') }}</p>
     </Alert>
 
-    <template v-else>
-      <FormGroup class="margin-bottom-2">
-        <RadioGroup
-          v-model="isPublishedAddress"
-          :options="addressVersions"
-          type="button"
-        >
-        </RadioGroup>
-      </FormGroup>
+    <p class="margin-bottom-1">
+      {{ $t('inboundEmailTriggerServiceForm.description') }}
+    </p>
+    <p v-if="maxMessageSizeMb" class="margin-bottom-1">
+      {{
+        $t('inboundEmailTriggerServiceForm.limits', {
+          size: maxMessageSizeMb,
+        })
+      }}
+    </p>
+    <p class="margin-bottom-1">
+      {{ $t('inboundEmailTriggerServiceForm.autoForwardTip') }}
+    </p>
+    <p>
+      {{ $t('inboundEmailTriggerServiceForm.secretWarning') }}
+    </p>
 
-      <a
-        v-tooltip="$t('inboundEmailTriggerServiceForm.copyAddress')"
-        class="inbound-email-trigger-service-form__copy-address"
-        tooltip-position="top"
-        @click.stop=";[copyAddressToClipboard(), $refs.addressCopied.show()]"
-      >
-        <pre><code class="inbound-email-trigger-service-form__email-address">{{ emailAddress }}</code></pre>
-        <Copied ref="addressCopied" />
-      </a>
-
-      <p class="margin-bottom-1">
-        {{ $t('inboundEmailTriggerServiceForm.description') }}
-      </p>
-      <p v-if="maxMessageSizeMb" class="margin-bottom-1">
-        {{
-          $t('inboundEmailTriggerServiceForm.limits', {
-            size: maxMessageSizeMb,
-          })
-        }}
-      </p>
-      <p class="margin-bottom-1">
-        {{ $t('inboundEmailTriggerServiceForm.autoForwardTip') }}
-      </p>
-      <p>
-        {{ $t('inboundEmailTriggerServiceForm.secretWarning') }}
-      </p>
-
-      <Button
-        type="secondary"
-        size="small"
-        icon="iconoir-refresh"
-        :loading="loading"
-        @click.prevent="regenerateAddress()"
-      >
-        {{ $t('inboundEmailTriggerServiceForm.regenerate') }}
-      </Button>
-    </template>
+    <Button
+      type="secondary"
+      size="small"
+      icon="iconoir-refresh"
+      :loading="regenerating"
+      @click.prevent="regenerateAddress()"
+    >
+      {{ $t('inboundEmailTriggerServiceForm.regenerate') }}
+    </Button>
   </FormGroup>
 </template>
 
@@ -66,18 +64,16 @@ import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 export default {
   name: 'CoreInboundEmailTriggerServiceForm',
   mixins: [form],
-  props: {
-    loading: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-  },
   emits: ['values-changed'],
   data() {
     return {
       allowedValues: [],
       values: {},
+      // Whether the address is being regenerated. This is the form's own
+      // state, not the node's loading flag: that flag is also set while any
+      // other change to the node is saved, such as a new label, and the
+      // button should only spin for its own request.
+      regenerating: false,
       // Like the HTTP trigger's `?test=true`, the `test-` prefixed address
       // targets the draft workflow (a test run) and the bare one the
       // published workflow. Default to the test address, as the HTTP trigger
@@ -115,10 +111,24 @@ export default {
      * The `regenerate_token` flag is deliberately not part of `values`:
      * it's a write-only request field, and keeping it in the form values
      * would re-send it on every subsequent change, regenerating the
-     * address each time. It's emitted once instead.
+     * address each time. It's emitted once instead, flagged as immediate:
+     * value changes are normally debounced to batch keystrokes, which for
+     * a button click only delays the spinner and the request. The side
+     * panel calls `onSettled` once the request has succeeded or failed,
+     * which ends the button's loading state either way.
      */
     regenerateAddress() {
-      this.$emit('values-changed', { regenerate_token: true })
+      this.regenerating = true
+      this.$emit(
+        'values-changed',
+        { regenerate_token: true },
+        {
+          immediate: true,
+          onSettled: () => {
+            this.regenerating = false
+          },
+        }
+      )
     },
   },
 }

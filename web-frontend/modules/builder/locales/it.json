@@ -284,7 +284,9 @@
     "elementForms": {
         "invalidFormula": "La formula non è valida",
         "textInputPlaceholder": "Inserisci testo...",
-        "urlInputPlaceholder": "Inserisci URL..."
+        "urlInputPlaceholder": "Inserisci URL...",
+        "formValidationTitle": "Validazione form",
+        "formValidationHint": "Posiziona questo elemento all'interno di un form per vedere errori di validazione prima di inviare i dati."
     },
     "integrationSettings": {
         "title": "Integrazioni",

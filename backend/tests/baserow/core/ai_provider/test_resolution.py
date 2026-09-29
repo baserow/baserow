@@ -21,6 +21,7 @@ from baserow.core.generative_ai.generative_ai_model_types import (
     OllamaGenerativeAIModelType,
     OpenAIGenerativeAIModelType,
     OpenRouterGenerativeAIModelType,
+    XaiGenerativeAIModelType,
 )
 
 
@@ -43,9 +44,9 @@ def test_database_provider_takes_precedence_over_environment_settings(settings):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "model_type_class",
-    [GoogleGenerativeAIModelType, GroqGenerativeAIModelType],
+    [GoogleGenerativeAIModelType, GroqGenerativeAIModelType, XaiGenerativeAIModelType],
 )
-def test_google_and_groq_have_no_environment_fallbacks(model_type_class):
+def test_database_only_providers_have_no_environment_fallbacks(model_type_class):
     model_type = model_type_class()
 
     assert model_type.get_api_key() is None

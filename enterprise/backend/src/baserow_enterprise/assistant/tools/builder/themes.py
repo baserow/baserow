@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 
 from loguru import logger
 
+from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.contrib.builder.theme.service import ThemeService
 
 # ---------------------------------------------------------------------------
@@ -93,3 +94,39 @@ def apply_theme(builder, theme_name: str, user: AbstractUser) -> bool:
         ThemeService().update_theme(user, builder, **theme_data)
 
     return theme_data
+
+
+def _current_theme_values(builder, expected: dict) -> dict:
+    """Return the builder values managed by a theme template."""
+
+    values = {}
+    for block_type in theme_config_block_registry.get_all():
+        block = getattr(builder, block_type.related_name_in_builder_model)
+        values.update(
+            {
+                name: getattr(block, name)
+                for name in block_type.allowed_fields
+                if name in expected
+            }
+        )
+    return values
+
+
+def builder_uses_theme(builder, theme_name: str) -> bool:
+    """
+    Return whether a builder matches a predefined theme.
+
+    :param builder: The builder application instance to inspect.
+    :param theme_name: The name of the theme to compare against (must be a
+        key in THEME_CATALOG).
+    :return: True when every theme-managed value on the builder equals the
+        template value.
+    """
+
+    expected = _load_theme_data(theme_name)
+    if not expected:
+        return False
+    current = _current_theme_values(builder, expected)
+    return bool(current) and all(
+        expected[name] == value for name, value in current.items()
+    )

@@ -776,6 +776,11 @@
     "rowNotMatchingSearch": "Row does not match search",
     "rowHasMoved": "Row has moved"
   },
+  "hiddenRows": {
+    "title": "Row hidden | Rows hidden",
+    "createdMessage": "The new row doesn't match the filters of this view, so it isn't shown. Ask the view's builder to set default values that match the filters. | {count} new rows don't match the filters of this view, so they aren't shown. Ask the view's builder to set default values that match the filters.",
+    "updatedMessage": "The row no longer matches the filters of this view, so it's hidden. | {count} rows no longer match the filters of this view, so they're hidden."
+  },
   "gridView": {
     "selectRow": "Select row",
     "insertRowAbove": "Insert row above",
@@ -1327,11 +1332,12 @@
     "writesToTrashedField": "This action writes to a field that is in the trash. Restore the field to run the action again.",
     "tableTrashed": "This action uses a table that is in the trash or no longer exists. Restore the table or pick another one.",
     "requiresReconfiguration": "This action points at a table, field or integration that is in the trash or gone.",
-    "noInstanceSmtp": "This Baserow instance has no SMTP server configured, so a button cannot send email.",
-    "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off, so a button cannot send email.",
+    "noInstanceSmtp": "This Baserow instance has no SMTP server configured. Choose an SMTP integration to send this email.",
+    "instanceSmtpTurnedOff": "Sending through this Baserow instance's own SMTP server is turned off. Choose an SMTP integration to send this email.",
     "slackOk": "OK",
     "slackChannel": "Channel",
     "slackTs": "Message timestamp",
+    "smtpIntegrationIncomplete": "This SMTP integration has no server. Fill in its host before the button can send.",
     "slackTokenMissing": "This bot has no token. Add a new bot with its token, or paste one into this bot, before the button can post.",
     "slackData": "Data",
     "startWorkflowMissing": "This action's workflow can't be found. It may have been deleted, or you may not have access to it. Pick another workflow, or ask someone who can see this one.",

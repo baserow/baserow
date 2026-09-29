@@ -24,6 +24,44 @@ Kuma also needs a model chosen under **AI features** in **Admin tools → AI pro
 Workspaces inherit that choice unless a workspace admin picks another model or
 disables Kuma. See [AI assistant configuration](ai-assistant.md).
 
+## Amazon Bedrock
+
+Bedrock needs a region, such as `eu-central-1`, and one of two credentials:
+
+- **IAM access key**: fill in **Access key ID** and put its secret access key in
+  **API key or secret access key**. The IAM user or role needs
+  `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream`.
+- **Bedrock API key**: leave **Access key ID** empty and paste the key. The key's
+  identity also needs `bedrock:CallWithBearerToken`. AWS recommends long-term API
+  keys only for exploration, and short-term keys expire within 12 hours, so prefer an
+  IAM access key for production.
+
+Baserow only uses the credentials entered here. It never falls back to `AWS_*`
+environment variables or the server's IAM role, and it ignores AWS endpoint settings
+such as `AWS_ENDPOINT_URL`. When you add or remove the access key ID, enter the
+secret again.
+
+Use inference profile IDs such as `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`:
+newer models reject their base model ID. AI fields can send images (JPEG, PNG, GIF,
+WebP; up to 20, 3.75 MB each) and documents (PDF, Word, Excel, CSV, text,
+Markdown; up to 5, 4.5 MB each). Whether a model reads them depends on the model:
+Claude and Amazon Nova do, text-only models such as gpt-oss return an error.
+
+Bedrock ignores per-request timeouts. A request, including **Test model**, can take
+up to 5 minutes per attempt and is tried up to 3 times before it fails.
+
+## xAI
+
+Create an API key at [console.x.ai](https://console.x.ai), then add an **xAI**
+provider and paste the key. Add the model IDs you want, such as `grok-4.3`. xAI lists
+the current IDs in its [models documentation](https://docs.x.ai/developers/models).
+
+AI fields can send JPEG and PNG images, up to 20 MB in total per request, and small
+text files. Other files, such as PDFs, are not sent: xAI only receives their names.
+
+Baserow sends requests to xAI's global endpoint, `https://api.x.ai`, where xAI does
+not guarantee which region processes them. Regional endpoints are not supported.
+
 ## Upgrading to Baserow 2.4
 
 **From Baserow 2.4, the environment variables below are no longer read.** The upgrade
@@ -48,8 +86,9 @@ There are two exceptions:
 - **Kuma's model is not imported.** Kuma keeps using
   `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` until you make a model available to Kuma and
   select it under **AI features**. Imported models are only available to AI fields and
-  AI Agent actions. Bedrock and Vertex AI can't be added in AI providers, so keep their
-  environment configuration. See [AI assistant configuration](ai-assistant.md).
+  AI Agent actions. Vertex AI, and Bedrock through the server's IAM role, can't be added
+  in AI providers, so keep their environment configuration. See
+  [AI assistant configuration](ai-assistant.md).
 - **Variables still work for a provider that isn't in AI providers**: for example one
   the upgrade skipped (the upgrade log says why), one whose variables you add after
   upgrading, or an imported provider you deleted. This fallback is deprecated: add the provider

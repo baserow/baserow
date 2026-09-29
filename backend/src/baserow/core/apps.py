@@ -544,12 +544,14 @@ class CoreConfig(AppConfig):
 
         from baserow.core.generative_ai.generative_ai_model_types import (
             AnthropicGenerativeAIModelType,
+            BedrockGenerativeAIModelType,
             GoogleGenerativeAIModelType,
             GroqGenerativeAIModelType,
             MistralGenerativeAIModelType,
             OllamaGenerativeAIModelType,
             OpenAIGenerativeAIModelType,
             OpenRouterGenerativeAIModelType,
+            XaiGenerativeAIModelType,
         )
         from baserow.core.generative_ai.registries import (
             generative_ai_model_type_registry,
@@ -557,8 +559,10 @@ class CoreConfig(AppConfig):
 
         generative_ai_model_type_registry.register(OpenAIGenerativeAIModelType())
         generative_ai_model_type_registry.register(AnthropicGenerativeAIModelType())
+        generative_ai_model_type_registry.register(BedrockGenerativeAIModelType())
         generative_ai_model_type_registry.register(GoogleGenerativeAIModelType())
         generative_ai_model_type_registry.register(GroqGenerativeAIModelType())
+        generative_ai_model_type_registry.register(XaiGenerativeAIModelType())
         generative_ai_model_type_registry.register(MistralGenerativeAIModelType())
         generative_ai_model_type_registry.register(OllamaGenerativeAIModelType())
         generative_ai_model_type_registry.register(OpenRouterGenerativeAIModelType())

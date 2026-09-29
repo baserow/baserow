@@ -431,9 +431,9 @@ class DatabaseWorkflowActionService:
         if not workflow_action_type.captures_sample_data:
             return
 
-        # The type decides: a 404 error page is still a successful dispatch
-        # and describes nothing, and a type with no status code answers this
-        # differently. Keeping it would drop the shape an earlier click learned.
+        # The type decides: a 404 error page describes nothing, and a type
+        # with no status code answers this differently. Keeping it would drop
+        # the shape an earlier click learned.
         unusable = workflow_action_type.unusable_result_reason(result)
         if unusable:
             self._remember_nothing_was_captured(workflow_action, unusable)
@@ -1076,6 +1076,23 @@ class DatabaseWorkflowActionService:
                         raise exc
                     if may_configure:
                         self._remember_result_shape(workflow_action, result)
+                    # After the result is remembered, so the editor still learns
+                    # why the click failed.
+                    failed_reason = workflow_action.get_type().failed_result_reason(
+                        result
+                    )
+                    if failed_reason:
+                        if on_action_failed:
+                            on_action_failed(positions[workflow_action.id])
+                        raise WorkflowActionDispatchError(
+                            workflow_action.id,
+                            failed_reason,
+                            positions[workflow_action.id],
+                            completed=[
+                                positions[done.workflow_action.id]
+                                for done in dispatched
+                            ],
+                        )
 
                     dispatched.append(DispatchedWorkflowAction(workflow_action, result))
 

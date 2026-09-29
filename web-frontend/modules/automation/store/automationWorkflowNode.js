@@ -347,6 +347,29 @@ const actions = {
       viaRealtime,
     })
   },
+  /**
+   * Sends an update straight away. `updateDebounced` waits half a second after
+   * the last change so keystrokes batch into one request, which for a one-shot
+   * command such as regenerating the inbound email address is only a delay
+   * before the spinner and the request. There is nothing to show optimistically
+   * either: the server produces the result, so the node is updated from its
+   * response alone and the loading flag covers the whole round trip. Pending
+   * debounced changes are left untouched so the two paths stay independent.
+   */
+  async update({ dispatch, commit }, { workflow, node, values }) {
+    commit('SET_LOADING', { node, value: true })
+    try {
+      const { data } = await AutomationWorkflowNodeService(this.$client).update(
+        node.id,
+        values
+      )
+      // As in `updateDebounced`, the id is never written back.
+      delete data.id
+      await dispatch('forceUpdate', { workflow, node, values: data })
+    } finally {
+      commit('SET_LOADING', { node, value: false })
+    }
+  },
   async updateDebounced(
     { dispatch, commit, getters },
     { workflow, node, values }

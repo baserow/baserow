@@ -20,7 +20,6 @@ const notificationData = (overrides = {}) => ({
   threshold: 80,
   usage: 8,
   limit: 10,
-  enforced: false,
   ...overrides,
 })
 
@@ -35,20 +34,9 @@ describe('ApplicationUserLimitNotification', () => {
     )
   })
 
-  test('renders the soft limit reached wording when not enforced', async () => {
+  test('renders the limit reached wording at the limit threshold', async () => {
     const wrapper = await mountNotification(
-      notificationData({ threshold: 100, usage: 10, enforced: false })
-    )
-
-    expect(wrapper.text()).toBe(
-      'My workspace has reached the application user limit of 10. ' +
-        'Please upgrade.'
-    )
-  })
-
-  test('renders the enforced limit reached wording when enforced', async () => {
-    const wrapper = await mountNotification(
-      notificationData({ threshold: 100, usage: 10, enforced: true })
+      notificationData({ threshold: 100, usage: 10 })
     )
 
     expect(wrapper.text()).toBe(

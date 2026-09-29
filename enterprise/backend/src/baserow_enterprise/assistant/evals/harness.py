@@ -21,6 +21,7 @@ from pydantic_ai._utils import (  # noqa: PLC2701
 )
 from pydantic_ai.messages import ModelRequest, ModelResponse, RetryPromptPart
 from pydantic_ai.models import Model
+from pydantic_ai.tool_manager import ToolManager
 from pydantic_ai.toolsets import WrapperToolset
 from pydantic_ai.usage import UsageLimits
 
@@ -44,6 +45,7 @@ from baserow_enterprise.assistant.tools.automation import agents as automation_a
 from baserow_enterprise.assistant.tools.builder import agents as builder_agents
 from baserow_enterprise.assistant.tools.database import agents as database_agents
 from baserow_enterprise.assistant.tools.database.agents import formula_generation_agent
+from baserow_enterprise.assistant.tools.routing import is_mode_redirect
 from baserow_enterprise.assistant.tools.search_user_docs.tools import search_docs_agent
 
 # Prompts bound into Agent singletons at import time: swapped via Agent.override.
@@ -184,8 +186,9 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
 
     Inspects the pydantic-ai message history for ``RetryPromptPart`` entries,
     which indicate the LLM sent invalid arguments that failed pydantic
-    validation.  "Unknown tool name" retries are excluded — the LLM explored a
-    non-existent tool and recovered on its own, which is acceptable.
+    validation. Unknown-tool exploration, calls refused until tool search reveals
+    the tool, and mode-switch redirects are excluded: the model recovers from
+    each without a failed tool execution.
 
     Returns ``(error_count, hint)`` suitable for a ``CheckResult`` hint.
     """
@@ -199,7 +202,11 @@ def count_tool_errors(result: Any) -> tuple[int, str]:
             for part in msg.parts:
                 if isinstance(part, RetryPromptPart):
                     content = str(part.content)
-                    if "Unknown tool name" in content:
+                    if (
+                        "Unknown tool name" in content
+                        or "is not available yet" in content
+                        or is_mode_redirect(content)
+                    ):
                         continue
                     retry_errors.append(
                         {
@@ -379,7 +386,11 @@ def run_case(
     start = time.monotonic()
     executor = _CaseExecutor()
     try:
-        with using_thread_executor(executor):
+        # Match production when a model batches dependent tool calls.
+        with (
+            using_thread_executor(executor),
+            ToolManager.parallel_execution_mode("sequential"),
+        ):
             result = run_until_complete(
                 _run_with_timeout(
                     run_agent_with_model(

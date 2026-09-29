@@ -88,10 +88,10 @@ BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE=0.3
 These presets retain compatibility for existing environment-based setups. Their
 `BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL` selector is **deprecated**; use provider
 administration and an explicit Kuma selection when the connection is representable
-there. Native Bedrock authentication and Vertex AI do not currently have an
-equivalent database provider configuration, so those paths must keep their verified
-environment fallback. Do not remove a working fallback before a replacement is
-available and tested.
+there. Vertex AI, and Bedrock through the server's IAM role or instance profile, do
+not have an equivalent database provider configuration, so those paths must keep
+their verified environment fallback. Do not remove a working fallback before a
+replacement is available and tested.
 
 Choose **one** provider block for a fallback that is still needed. pydantic-ai's
 native credential and connection variables, such as `OPENAI_API_KEY`, `GROQ_API_KEY`,
@@ -117,6 +117,10 @@ ANTHROPIC_API_KEY=your_api_key
 ```
 
 ### AWS Bedrock
+
+Bedrock with an IAM access key or a Bedrock API key can be added in
+[AI providers](https://baserow.io/docs/installation%2Fai-providers#amazon-bedrock)
+instead. Keep this fallback only for credentials that come from the server itself.
 
 pydantic-ai supports two authentication methods for Bedrock. Use whichever matches your setup.
 

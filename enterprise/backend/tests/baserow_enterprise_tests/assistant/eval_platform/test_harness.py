@@ -8,6 +8,14 @@ import pytest
 from asgiref.sync import async_to_sync, sync_to_async
 from pydantic import BaseModel, TypeAdapter, ValidationError
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    RetryPromptPart,
+    TextPart,
+    ToolCallPart,
+)
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -18,13 +26,14 @@ from baserow.core.ai_provider.constants import (
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
-from baserow_enterprise.assistant.deps import AssistantDeps, ToolHelpers
+from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps, ToolHelpers
 from baserow_enterprise.assistant.evals import harness, registry
 from baserow_enterprise.assistant.evals.harness import (
     PROMPT_AGENT_TARGETS,
     PROMPT_ATTR_TARGETS,
     EvalCaseCleanupError,
     EvalCaseTimeout,
+    count_tool_errors,
     get_case_timeout_s,
     override_assistant_prompts,
     run_case,
@@ -40,7 +49,125 @@ from baserow_enterprise.assistant.model_profiles import (
 )
 from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
+from baserow_enterprise.assistant.tools.routing import (
+    ModeAwareToolset,
+    mode_redirect_message,
+)
 from baserow_enterprise.assistant.tools.toolset import InlineRefsToolset
+
+
+@pytest.mark.django_db
+def test_harness_runs_batched_tool_calls_in_production_order(data_fixture, monkeypatch):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    registry.register_scenario("sequential-tools")(
+        lambda _: EvalScenario(user=user, workspace=workspace, ui_context=None)
+    )
+    events = []
+    state = {"ready": False}
+    agent = Agent()
+
+    @agent.tool_plain
+    async def prepare_resource():
+        events.append("prepare started")
+        await asyncio.sleep(0)
+        state["ready"] = True
+        events.append("prepare finished")
+        return "ready"
+
+    @agent.tool_plain
+    async def use_resource():
+        events.append("use resource")
+        return state["ready"]
+
+    requests = 0
+
+    def model_function(messages, info):
+        nonlocal requests
+        requests += 1
+        if requests == 1:
+            return ModelResponse(
+                parts=[
+                    ToolCallPart("prepare_resource", {}, tool_call_id="prepare"),
+                    ToolCallPart("use_resource", {}, tool_call_id="use"),
+                ]
+            )
+        return ModelResponse(parts=[TextPart("Finished")])
+
+    monkeypatch.setattr("baserow_enterprise.assistant.evals.harness.main_agent", agent)
+    case = EvalCase(
+        id="harness/sequential-tools",
+        dataset="harness-test",
+        prompt="Prepare the resource, then use it.",
+        scenario="sequential-tools",
+        checks=lambda case, scenario, output: [],
+    )
+    output, checks = run_case(case, FunctionModel(model_function))
+
+    assert events == ["prepare started", "prepare finished", "use resource"]
+    assert output.tool_calls == ["prepare_resource", "use_resource"]
+    assert output.tool_error_count == 0
+    assert all(check.passed for check in checks)
+
+
+def test_mode_redirect_is_not_counted_as_a_failed_tool_call():
+    result = SimpleNamespace(
+        all_messages=lambda: [
+            ModelRequest(
+                parts=[
+                    RetryPromptPart(
+                        content=mode_redirect_message(
+                            "create_workflows", AgentMode.AUTOMATION
+                        ),
+                        tool_name="create_workflows",
+                    ),
+                    RetryPromptPart(
+                        content="Missing required workflow name",
+                        tool_name="create_workflows",
+                    ),
+                    RetryPromptPart(content="An unsupported completion claim"),
+                ]
+            )
+        ]
+    )
+
+    count, hint = count_tool_errors(result)
+
+    assert count == 2
+    assert "Missing required workflow name" in hint
+    assert "An unsupported completion claim" in hint
+    assert "Switched to" not in hint
+
+
+def test_refused_call_to_an_unrevealed_tool_is_not_counted_as_a_failed_tool_call():
+    deps = SimpleNamespace(mode=AgentMode.DATABASE)
+
+    def create_workflows(name: str):
+        return {"created_workflows": [{"id": 1, "name": name}]}
+
+    replies = iter(
+        [
+            ToolCallPart("create_workflows", {"name": "Orders"}),
+            ToolCallPart("search_tools", {"queries": ["create_workflows"]}),
+            ToolCallPart("create_workflows", {"name": "Orders"}),
+            TextPart("Created Orders."),
+        ]
+    )
+    model = FunctionModel(
+        lambda messages, info: ModelResponse(parts=[next(replies)]),
+        profile={"supported_native_tools": frozenset()},
+    )
+    toolset = ModeAwareToolset(FunctionToolset([create_workflows]), deps)
+    result = Agent(model=model, toolsets=[toolset], retries=0).run_sync(
+        "Create a workflow", deps=deps
+    )
+
+    assert any(
+        isinstance(part, RetryPromptPart) and "not available yet" in str(part.content)
+        for message in result.all_messages()
+        for part in message.parts
+    )
+    assert count_tool_errors(result) == (0, "")
 
 
 @pytest.fixture(autouse=True)
@@ -90,17 +217,14 @@ def _noop_tool_helpers(workspace) -> ToolHelpers:
 
 @pytest.mark.django_db
 class TestBuildAgentRunContext:
-    def test_returns_deps_with_manifests_and_toolset(self):
+    def test_returns_deps_with_tool_catalog_and_toolset(self):
         fixtures = make_fixtures()
         user = fixtures.create_user()
         workspace = fixtures.create_workspace(user=user)
 
         ctx = build_agent_run_context(user, workspace, _noop_tool_helpers(workspace))
 
-        assert ctx.deps.database_manifest
-        assert ctx.deps.application_manifest
-        assert ctx.deps.automation_manifest
-        assert ctx.deps.explain_manifest
+        assert ctx.deps.tool_catalog
         assert ctx.toolset is not None
         assert ctx.deps.user is user
         assert ctx.deps.workspace is workspace
@@ -113,7 +237,7 @@ class TestBuildAgentRunContext:
         with patch.object(
             assistant_tool_registry,
             "build_toolset",
-            return_value=(toolset, "database", "application", "automation", "explain"),
+            return_value=(toolset, "- database: list_tables"),
         ) as build_toolset:
             ctx = build_agent_run_context(user, workspace, helpers)
 
@@ -151,10 +275,7 @@ class TestBuildAgentRunContext:
                     model=kwargs["model"],
                     model_profile=kwargs["model_profile"],
                 ),
-                "database",
-                "application",
-                "automation",
-                "explain",
+                "- database: list_tables",
             )
 
         with (

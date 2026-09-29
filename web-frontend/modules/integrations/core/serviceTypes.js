@@ -116,7 +116,7 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
       return this.app.$i18n.t('serviceType.errorFromEmailMissing')
     }
 
-    if (service.to_emails !== undefined && !service.to_emails.formula) {
+    if (service.to_emails !== undefined && !service.to_emails.formula?.trim()) {
       return this.app.$i18n.t('serviceType.errorToEmailsMissing')
     }
 
@@ -598,6 +598,21 @@ export class CoreResponseServiceType extends WorkflowActionServiceTypeMixin(
 
   getDataSchema(service) {
     return service.schema
+  }
+
+  getErrorMessage(params) {
+    const { service } = params
+    const isNoContentResponse =
+      service.status_code?.mode === 'raw' &&
+      service.status_code.formula === '204'
+    if (
+      !isNoContentResponse &&
+      service.body_type === 'json' &&
+      !service.body?.formula?.trim()
+    ) {
+      return this.app.$i18n.t('serviceType.errorResponseBodyMissing')
+    }
+    return super.getErrorMessage(params)
   }
 
   getOrder() {

@@ -133,7 +133,8 @@ def test_response_service_dispatch_preserves_advanced_json_body_type(data_fixtur
 
 
 @pytest.mark.django_db
-def test_response_service_dispatch_rejects_invalid_simple_json_body(data_fixture):
+@pytest.mark.parametrize("body", ["", "'{\"foo\": }'"])
+def test_response_service_dispatch_rejects_invalid_simple_json_body(data_fixture, body):
     workflow = data_fixture.create_automation_workflow()
     node = data_fixture.create_core_response_action_node(
         workflow=workflow,
@@ -142,7 +143,7 @@ def test_response_service_dispatch_rejects_invalid_simple_json_body(data_fixture
                 "200", mode=BASEROW_FORMULA_MODE_RAW
             ),
             "body_type": RESPONSE_BODY_TYPE.JSON,
-            "body": BaserowFormulaObject.create("'{\"foo\": }'"),
+            "body": BaserowFormulaObject.create(body),
         },
     )
     history = data_fixture.create_automation_workflow_history(workflow=workflow)

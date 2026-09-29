@@ -16,7 +16,7 @@
     },
     "automationHistoryGuidedTourStep": {
         "title": "Переглянути історію робочого процесу",
-        "content": "Використовуйте панель історії, щоб переглянути минулі тестові запуски та опубліковані виконання. Це зручний спосіб налагодження або підтвердження результатів."
+        "content": "Використовуйте панель історії, щоб переглядати попередні тестові запуски та опубліковані виконання. Це зручно для налагодження або перевірки результатів. Тут також можна скасувати запуск, який ще триває."
     },
     "automationPublishGuidedTourStep": {
         "title": "Опублікувати робочий процес",
@@ -110,7 +110,14 @@
         "errorShowDetails": "Показати деталі",
         "runNumber": "Запуск {n}",
         "runCount": "{n} запусків",
-        "showResult": "Показати результат"
+        "showResult": "Показати результат",
+        "statusCancelled": "Скасовано",
+        "statusSkippedBadge": "Пропущено",
+        "startedBy": "Запущено користувачем {name}",
+        "cancelRun": "Скасувати цей запуск робочого процесу",
+        "cancelling": "Скасування цього запуску. Його буде зупинено після завершення поточного вузла.",
+        "cancellationAlreadyRequestedTitle": "Запит на скасування вже надіслано",
+        "cancellationAlreadyRequested": "Хтось інший уже надіслав запит на скасування цього запуску. Його буде зупинено після завершення поточного вузла."
     },
     "nodeType": {
         "triggerDeletionError": "Тригери не можна видаляти, лише замінювати.",
@@ -143,7 +150,12 @@
         "localBaserowUpdateRowsLabel": "Масове оновлення рядків у таблиці {tableName}",
         "csvFileReaderLabel": "Прочитати файл CSV",
         "startWorkflowLabel": "Запустити {workflowName}",
-        "defaultEdgeLabelFallback": "За замовчуванням"
+        "defaultEdgeLabelFallback": "За замовчуванням",
+        "routerHistoryLabel": "{label} ({edge})",
+        "gotoNodeLabel": "Перейти до вузла",
+        "gotoNodeLabelWithDestination": "Перейти до вузла → {destination}",
+        "gotoHistoryLabel": "{label} → {destination}",
+        "responseLabel": "Відповідь"
     },
     "workflowNode": {
         "actionDelete": "Видалити",
@@ -159,13 +171,15 @@
         "moreReplace": "Замінити",
         "nodeOptions": "Параметри кроку автоматизації",
         "displayLabelDebug": "ID: {id} | Попередній: {previousNodeId} | {outputUid}",
-        "moreDuplicate": "Дублювати"
+        "moreDuplicate": "Дублювати",
+        "gotoMarkerSource": "Переходить до маркера {marker}",
+        "gotoMarkerDestination": "Місце призначення маркера {marker}"
     },
     "workflowAddNode": {
         "displayTitle": "Створити крок автоматизації"
     },
     "workflowNodeContext": {
-        "searchPlaceholderTrigger": "Пошук тригера…",
+        "searchPlaceholderTrigger": "Пошук події…",
         "searchPlaceholderActions": "Пошук дій…",
         "noResults": "Результатів не знайдено"
     },
@@ -177,7 +191,8 @@
         "coreHTTPTrigger": "HTTP-тригер",
         "coreHTTPTriggerDescription": "Отримує HTTP-запити для запуску робочих процесів",
         "coreManualTrigger": "Ручний тригер",
-        "coreManualTriggerDescription": "Запускається лише тоді, коли інша дія робочого процесу запускає цей робочий процес"
+        "coreManualTriggerDescription": "Запускається лише тоді, коли інша дія робочого процесу запускає цей робочий процес",
+        "responseLabel": "Відповідь"
     },
     "periodicTriggerServiceForm": {
         "intervalLabel": "Інтервал",
@@ -235,5 +250,8 @@
     },
     "workflowDisabledNotification": {
         "body": "Робочий процес {name} було вимкнено."
+    },
+    "lastViewedItemType": {
+        "automationWorkflow": "Робочий процес"
     }
 }

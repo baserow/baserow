@@ -733,6 +733,27 @@ export function getDefaultView(app, store, workspaceId, showRowModal) {
   })
 }
 
+/** Toasts once about rows the backend hid from the view; returns their ids. */
+export function reportHiddenRows(data, { dispatch, i18n, created }) {
+  const rowIds = new Set(data.metadata?.hidden_row_ids || [])
+  const count = rowIds.size
+  if (count === 0) {
+    return rowIds
+  }
+  const messageKey = created
+    ? 'hiddenRows.createdMessage'
+    : 'hiddenRows.updatedMessage'
+  dispatch(
+    'toast/info',
+    {
+      title: i18n.t('hiddenRows.title', { count }),
+      message: i18n.t(messageKey, { count }),
+    },
+    { root: true }
+  )
+  return rowIds
+}
+
 /*
  * Extracts the metadata from the provided data to populate the row.
  */

@@ -144,13 +144,28 @@ class DatabaseWorkflowActionType(WorkflowActionType, CustomFieldsInstanceMixin):
         Why what the action returned describes no shape, in words the editor
         can show. Only asked of a type that sets `captures_sample_data`, since
         what a failure looks like is its own: an HTTP request answers 404 with
-        an error page and still dispatches.
+        an error page rather than raising.
 
         Must say nothing about the address the action was pointed at, which is
         for whoever configured the button rather than whoever clicked it.
 
         :param result: What the action returned.
         :return: The reason, or `None` when the result describes a real shape.
+        """
+
+        return None
+
+    def failed_result_reason(self, result: DispatchResult) -> Optional[str]:
+        """
+        Why what the action returned means it failed, although its service
+        returned rather than raised. A click cannot branch on the result the
+        way an automation can, so the actions after this one must not run.
+
+        Must say nothing about the address the action was pointed at, which is
+        for whoever configured the button rather than whoever clicked it.
+
+        :param result: What the action returned.
+        :return: The reason for the clicker, or `None` when the action worked.
         """
 
         return None

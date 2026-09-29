@@ -7,26 +7,14 @@ turn down to (user prompt, final answer) and trim to a fixed window so the
 context doesn't grow unboundedly.
 """
 
-from pydantic_ai.messages import (
-    ModelMessage,
-    ModelRequest,
-    ModelResponse,
-    TextPart,
-    UserPromptPart,
+from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart
+
+from baserow_enterprise.assistant.action_memory import (
+    _has_user_prompt,
+    carry_verified_actions,
 )
 
-# The number of messages to keep in the compacted history for context.  This is
-# a simple safeguard to prevent excessively long histories from bloating the
-# context.
 MAX_HISTORY_MESSAGES = 20
-
-
-def _has_user_prompt(msg: ModelMessage) -> bool:
-    """Check if a ModelRequest contains a UserPromptPart."""
-
-    return isinstance(msg, ModelRequest) and any(
-        isinstance(p, UserPromptPart) for p in msg.parts
-    )
 
 
 def _get_final_text_response(turn: list[ModelMessage]) -> ModelResponse | None:
@@ -104,6 +92,11 @@ def compact_message_history(
     2. For each turn with intermediate tool calls, collapses to just the
        user prompt and final text answer.
     3. Trims to the last ``max_messages`` messages if still too long.
+    4. Carries verified tool outcomes into the compacted history metadata.
+
+    :param messages: The full message history to compact.
+    :param max_messages: The maximum number of messages to keep.
+    :return: The compacted history with verified outcomes attached.
     """
 
     turns = _split_into_turns(messages)
@@ -115,4 +108,4 @@ def compact_message_history(
     if len(compacted) > max_messages:
         compacted = compacted[-max_messages:]
 
-    return compacted
+    return carry_verified_actions(messages, compacted)

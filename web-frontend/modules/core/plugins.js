@@ -46,6 +46,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display additional items in the sidebar menu that
+   * is shown on pages without a workspace context, like the all workspaces page.
+   */
+  getSidebarAllWorkspacesComponents() {
+    return []
+  }
+
+  /**
    * Every registered plugin can display an additional item in the right sidebar within
    * the workspace context.
    */

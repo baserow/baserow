@@ -169,13 +169,15 @@ def build_response_with_metadata(
     serializer_class,
     updated_field_ids: list | None = None,
     cascade_update: CascadeUpdatedRows | None = None,
+    view: View | None = None,
 ) -> Response:
     """
     Helper to build view's response with optional operation metadata structure.
 
     If the request contains `include_metadata` flag, then the response should include
     `metadata` field with information about the operation performed. At the moment,
-    this includes a list of fields that have been changed.
+    this includes a list of fields that have been changed, and if the view filters
+    are enforced for the user, the ids of the rows hidden by the view filters.
     """
 
     data = {"items": rows}
@@ -190,6 +192,12 @@ def build_response_with_metadata(
                 "rows": cascade_update.updated_rows,
                 "field_ids": cascade_update.field_ids,
             }
+        if view is not None:
+            hidden_row_ids = ViewHandler().get_hidden_row_ids(
+                request.user, view, model, [row.id for row in rows]
+            )
+            if hidden_row_ids is not None:
+                data["metadata"]["hidden_row_ids"] = hidden_row_ids
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
 
@@ -1469,6 +1477,7 @@ class BatchRowsView(APIView):
             request=request,
             model=model,
             serializer_class=response_serializer_class,
+            view=view,
         )
 
     @extend_schema(
@@ -1637,6 +1646,7 @@ class BatchRowsView(APIView):
             serializer_class=response_serializer_class,
             updated_field_ids=updated_data.updated_field_ids,
             cascade_update=updated_data.cascade_update,
+            view=view,
         )
 
 

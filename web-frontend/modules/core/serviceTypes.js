@@ -98,6 +98,8 @@ export class ServiceType extends Registerable {
 
   /**
    * Whether the service is valid.
+   * Override `getErrorMessage` instead of this method so an invalid service also
+   * provides a user-facing explanation.
    * @param service - The service object.
    * @returns {boolean} - If the service is valid.
    */

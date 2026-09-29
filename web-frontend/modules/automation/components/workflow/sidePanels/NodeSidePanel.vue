@@ -30,7 +30,7 @@
       :edge-in-use-fn="nodeEdgeInUseFn"
       :destinations="gotoDestinations"
       class="margin-top-2"
-      @values-changed="handleNodeChange({ service: $event })"
+      @values-changed="handleServiceChange"
     />
 
     <div class="separator"></div>
@@ -128,9 +128,33 @@ const nodeType = computed(() => {
   return app.$registry.get('node', node.value.type)
 })
 
+/**
+ * Handles `values-changed` from the service form. Besides the changed values,
+ * a form may pass options: `immediate` skips the debounce for a one-shot
+ * command fired from a button, such as regenerating the inbound email address,
+ * and `onSettled` is called once that command has been saved, has failed or
+ * was found to change nothing, so the form can end its own loading state.
+ */
+const handleServiceChange = async (
+  values,
+  { immediate = false, onSettled = null } = {}
+) => {
+  try {
+    await handleNodeChange({ service: values, immediate })
+  } finally {
+    onSettled?.()
+  }
+}
+
+/**
+ * Applies label or service changes to the selected node. Changes are debounced
+ * so typing batches into one request; `immediate` skips that for one-shot
+ * commands, where the debounce would only delay the request.
+ */
 const handleNodeChange = async ({
   node: nodeChanges,
   service: serviceChanges,
+  immediate = false,
 }) => {
   let updatedNode = {}
   let anyChanges = false
@@ -184,11 +208,16 @@ const handleNodeChange = async ({
   }
 
   try {
-    await store.dispatch('automationWorkflowNode/updateDebounced', {
-      workflow: workflow.value,
-      node: node.value,
-      values: updatedNode,
-    })
+    await store.dispatch(
+      immediate
+        ? 'automationWorkflowNode/update'
+        : 'automationWorkflowNode/updateDebounced',
+      {
+        workflow: workflow.value,
+        node: node.value,
+        values: updatedNode,
+      }
+    )
   } catch (error) {
     notifyIf(error, 'automationWorkflow')
   }

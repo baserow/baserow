@@ -43,6 +43,28 @@ class AnthropicSettingsSerializer(GenerativeAIModelsSerializer):
     )
 
 
+class BedrockSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.RegexField(
+        r"\A\S+\Z",
+        allow_blank=True,
+        required=False,
+        help_text="A Bedrock API key, or the secret access key of `access_key_id`.",
+    )
+    region = serializers.RegexField(
+        r"\A[a-z]{2,4}(-[a-z]+)+-\d{1,2}\Z",
+        max_length=32,
+        allow_blank=True,
+        required=False,
+        help_text="The AWS region of the Bedrock runtime, for example eu-central-1.",
+    )
+    access_key_id = serializers.RegexField(
+        r"\A\w{16,128}\Z",
+        allow_blank=True,
+        required=False,
+        help_text="The IAM access key ID. Leave empty to use a Bedrock API key.",
+    )
+
+
 class GoogleSettingsSerializer(GenerativeAIModelsSerializer):
     api_key = serializers.CharField(
         allow_blank=True,
@@ -56,6 +78,14 @@ class GroqSettingsSerializer(GenerativeAIModelsSerializer):
         allow_blank=True,
         required=False,
         help_text="The Groq API key used to authenticate with the Groq API.",
+    )
+
+
+class XaiSettingsSerializer(GenerativeAIModelsSerializer):
+    api_key = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        help_text="The xAI API key used to authenticate with the xAI API.",
     )
 
 

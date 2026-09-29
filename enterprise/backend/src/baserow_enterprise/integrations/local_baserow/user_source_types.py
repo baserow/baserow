@@ -506,15 +506,23 @@ class LocalBaserowUserSourceType(UserSourceType):
         """
 
         for field in self.fields_to_configure:
+            # The related instance can be `None` even when `{field}_id` is set:
+            # `UserSourceHandler._get_user_source` caches `integration` as `None`
+            # when the integration is trashed, so never assume it resolves.
+            related_instance = (
+                getattr(user_source, field)
+                if getattr(user_source, f"{field}_id")
+                else None
+            )
             if (
-                not getattr(user_source, f"{field}_id")
+                related_instance is None
                 or (
                     field == "table"  # We need to check the hierarchy only for table
                     and TrashHandler.item_has_a_trashed_parent(
-                        getattr(user_source, field), check_item_also=True
+                        related_instance, check_item_also=True
                     )
                 )
-                or (field != "table" and getattr(user_source, field).trashed)
+                or related_instance.trashed
             ):
                 if raise_exception:
                     raise UserSourceImproperlyConfigured(
@@ -723,19 +731,20 @@ class LocalBaserowUserSourceType(UserSourceType):
         self, user_source: LocalBaserowUserSource, email: str, name: str
     ):
         """
-        Creates the user if it doesn't exist yet and refuses the sign in when the
-        workspace is over the application user limit. This covers the SSO
-        auto-provisioning path, where the row may be created before we know the
-        workspace is over the limit.
+        Refuses the sign in when the workspace is over the application user limit,
+        otherwise creates the user if it doesn't exist yet. The limit is checked
+        before the user is created: this is the SSO auto-provisioning path, and the
+        SSO views swallow the refusal inside their transaction, so a row created
+        first would be committed for a user who was never signed in and would count
+        towards the usage from then on.
         """
 
         from baserow_enterprise.application_users.usage import (
             raise_if_over_application_user_login_limit,
         )
 
-        user, created = super().get_or_create_user(user_source, email, name)
         raise_if_over_application_user_login_limit(user_source)
-        return user, created
+        return super().get_or_create_user(user_source, email, name)
 
     def authenticate(self, user_source: LocalBaserowUserSource, **kwargs):
         """

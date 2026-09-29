@@ -268,7 +268,10 @@ def _make_groq(name: str, creds: dict[str, str | None]) -> Model:
     from pydantic_ai.models.groq import GroqModel
     from pydantic_ai.providers.groq import GroqProvider
 
-    return GroqModel(name, provider=GroqProvider(api_key=creds["api_key"]))
+    from baserow_enterprise.assistant.model_profiles import get_model_class
+
+    model_class = get_model_class(f"groq:{name}", GroqModel)
+    return model_class(name, provider=GroqProvider(api_key=creds["api_key"]))
 
 
 def _make_anthropic(name: str, creds: dict[str, str | None]) -> Model:

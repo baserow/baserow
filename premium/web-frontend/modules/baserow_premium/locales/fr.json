@@ -436,7 +436,7 @@
         "data": "Données",
         "sourceFieldLabel": "Source",
         "viewFieldLabel": "Vue",
-        "notSelected": "Non sélectionné"
+        "notSelected": "Non sélectionnée"
     },
     "localBaserowGroupedAggregateRowsForm": {
         "series": "Séries",

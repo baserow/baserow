@@ -24,6 +24,7 @@ import {
   getOrderBy,
   canRowsBeOptimisticallyUpdatedInView,
   viewHasRulesThatCanMoveOrHideRows,
+  reportHiddenRows,
 } from '@baserow/modules/database/utils/view'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
@@ -4602,8 +4603,25 @@ export const actions = {
           fields: fieldsToFinalize,
         })
 
+        const hiddenRowIds = reportHiddenRows(data, {
+          dispatch,
+          i18n: $i18n,
+          created: true,
+        })
         for (let i = 0; i < data.items.length; i += 1) {
           const item = data.items[i]
+          if (hiddenRowIds.has(item.id)) {
+            const row = getters.getRow(item.id)
+            if (row) {
+              await dispatch('deletedExistingRow', {
+                view,
+                fields,
+                row,
+                ignoreSearch: true,
+              })
+            }
+            continue
+          }
           // Use the updated row in the buffer if it exists, otherwise use the populated
           // row object to update inner state.
           const row = getters.getRow(item.id) || rowsPopulated[i]
@@ -4943,15 +4961,39 @@ export const actions = {
         // Keep value updates and ordering as separate API operations. They share an
         // action group for undo/redo, but a successful update intentionally remains
         // applied if the following move fails.
-        const { data } = await RowService($client).update(
+        const { data } = await RowService($client).batchUpdate(
           table.id,
-          row.id,
-          destinationGroupRequestValues,
-          grid.id,
-          undoRedoActionGroupId
+          [{ id: row.id, ...destinationGroupRequestValues }],
+          undoRedoActionGroupId,
+          grid.id
         )
         groupUpdateCompleted = true
-        groupUpdateResponseData = data
+        groupUpdateResponseData = data.items[0]
+        const hiddenRowIds = reportHiddenRows(data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
+        if (hiddenRowIds.has(row.id)) {
+          // The optimistic move already removed it if the new value misses the search.
+          if (getters.getAllRows.some((r) => r.id === row.id)) {
+            await dispatch('deletedExistingRow', {
+              view: grid,
+              fields,
+              row,
+              ignoreSearch: true,
+            })
+          }
+          dispatch('fetchByScrollTopDelayed', {
+            scrollTop: getScrollTop(),
+            fields,
+          })
+          dispatch('fetchAllFieldAggregationData', {
+            view: grid,
+            clearGroupByAggregationLoadingPaths: true,
+          })
+          return
+        }
       }
 
       const { data } = await RowService($client).move(
@@ -5224,6 +5266,12 @@ export const actions = {
           field.id,
         ])
 
+        const hiddenRowIds = reportHiddenRows(batchResponse.data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
+
         for (const updatedRowData of updatedRows) {
           // Extract only the read-only values because we don't want to update the other
           // values that might have been updated in the meantime.
@@ -5239,6 +5287,19 @@ export const actions = {
           // update it.
           const existing = getters.getRow(rowData.id)
           if (existing === undefined) {
+            continue
+          }
+          if (hiddenRowIds.has(existing.id)) {
+            await dispatch('deletedExistingRow', {
+              view,
+              fields,
+              row: existing,
+              ignoreSearch: true,
+            })
+            await dispatch('fetchByScrollTopDelayed', {
+              scrollTop: getters.getScrollTop,
+              fields,
+            })
             continue
           }
           // Update the remaining values like formula, which depend on the backend.
@@ -5555,6 +5616,11 @@ export const actions = {
       getters.getLastGridId
     )
     const updatedRows = responseData.items
+    const hiddenRowIds = reportHiddenRows(responseData, {
+      dispatch,
+      i18n: $i18n,
+      created: false,
+    })
     // Create extra missing rows
     if (newRowsCount > 0) {
       await dispatch('createNewRows', {
@@ -5578,6 +5644,15 @@ export const actions = {
     for (const row of oldRowsInOrder) {
       // The values are the updated row returned by the response.
       const values = updatedRows.find((updatedRow) => updatedRow.id === row.id)
+      if (hiddenRowIds.has(row.id)) {
+        await dispatch('deletedExistingRow', {
+          view,
+          fields: allFieldsInTable,
+          row,
+          ignoreSearch: true,
+        })
+        continue
+      }
       // Calling the updatedExistingRow will automatically remove the row from the
       // view if it doesn't matter the filters anymore and it will also be moved to
       // the right position if changed.
@@ -6132,7 +6207,7 @@ export const actions = {
    */
   async deletedExistingRow(
     { commit, getters, dispatch, state },
-    { view, fields, row, spinGroupAggregations = false }
+    { view, fields, row, spinGroupAggregations = false, ignoreSearch = false }
   ) {
     const { $registry } = this
     row = clone(row)
@@ -6141,7 +6216,7 @@ export const actions = {
     // The lifecycle helper only evaluates filters/sortings, so the search match
     // is still gated here against the active search term.
     await dispatch('updateSearchMatchesForRow', { row, fields })
-    if (!row._.matchSearch) {
+    if (!row._.matchSearch && !ignoreSearch) {
       return
     }
 

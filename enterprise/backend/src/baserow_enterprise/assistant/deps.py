@@ -105,6 +105,20 @@ class ToolHelpers:
 
 
 @dataclass
+class ResourceChanges:
+    """Track successful resource changes within one run, across tool rebuilds."""
+
+    created_row_counts: dict[int, int] = field(default_factory=dict)
+
+    def record_created_rows(self, table_id: int, count: int) -> int:
+        """Record a successful batch and return the table's running creation total."""
+
+        total = self.created_row_counts.get(table_id, 0) + count
+        self.created_row_counts[table_id] = total
+        return total
+
+
+@dataclass
 class AssistantDeps:
     """
     Typed dependency container for the pydantic-ai agent.
@@ -127,20 +141,10 @@ class AssistantDeps:
     license_tier: "LicenseType | None" = None
     sources: list[str] = field(default_factory=list)
     dynamic_tools: list[Tool] = field(default_factory=list)
-    database_manifest: str = ""
-    application_manifest: str = ""
-    automation_manifest: str = ""
-    explain_manifest: str = ""
-    original_request: str = ""
-
-    @property
-    def active_manifest(self) -> str:
-        return {
-            AgentMode.DATABASE: self.database_manifest,
-            AgentMode.APPLICATION: self.application_manifest,
-            AgentMode.AUTOMATION: self.automation_manifest,
-            AgentMode.EXPLAIN: self.explain_manifest,
-        }[self.mode]
+    resource_changes: ResourceChanges = field(default_factory=ResourceChanges)
+    tool_catalog: str = ""
+    verified_tool_outcomes: list[dict[str, Any]] = field(default_factory=list)
+    pending_question: str | None = None
 
     def extend_sources(self, new_sources: list[str]):
         """

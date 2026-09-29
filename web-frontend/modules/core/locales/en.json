@@ -400,6 +400,18 @@
     "anthropicModelsLabel": "Enabled Models",
     "anthropicModelsDescription": "Provide a comma-separated list of [Anthropic model identifiers](https://platform.claude.com/docs/en/about-claude/models/overview) that can be used in Baserow. For example: `claude-sonnet-5,claude-opus-4-8,claude-haiku-4-5`.",
     "anthropicModelIdentifierDescription": "Enter an [Anthropic model identifier](https://platform.claude.com/docs/en/about-claude/models/overview). For example: `claude-sonnet-5`, `claude-opus-4-8`, or `claude-haiku-4-5`.",
+    "bedrock": "Amazon Bedrock",
+    "bedrockSecretLabel": "API key or secret access key",
+    "bedrockSecretDescription": "Enter an [Amazon Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html), or the secret access key of the access key ID.",
+    "bedrockChangeSecret": "Change API key or secret access key",
+    "bedrockSecretUpdateHint": "Enter a new API key or secret access key. Enter it again whenever you add or remove the access key ID.",
+    "bedrockAccessKeyIdLabel": "Access key ID",
+    "bedrockAccessKeyIdDescription": "The [IAM access key ID](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html) that belongs to the secret access key. Leave it empty to use a Bedrock API key.",
+    "bedrockRegionLabel": "Region",
+    "bedrockRegionDescription": "The AWS region to call Bedrock in, for example `eu-central-1`.",
+    "bedrockModelsLabel": "Enabled Models",
+    "bedrockModelsDescription": "Provide a comma-separated list of [Bedrock inference profile or model IDs](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html) that can be used in Baserow. For example: `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`.",
+    "bedrockModelIdentifierDescription": "Enter a [Bedrock inference profile ID](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html) such as `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`. Newer models reject their base model ID.",
     "mistral": "Mistral",
     "mistralApiKeyLabel": "API Key",
     "mistralApiKeyDescription": "Enter a Mistral API key. [Instructions on getting an API key](https://docs.mistral.ai/getting-started/quickstart/).",
@@ -430,7 +442,13 @@
     "groqApiKeyDescription": "Enter a Groq API key. [Create or view an API key](https://console.groq.com/keys).",
     "groqModelsLabel": "Enabled Models",
     "groqModelsDescription": "Provide a comma-separated list of [Groq model identifiers](https://console.groq.com/docs/models) that can be used in Baserow. For example: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
-    "groqModelIdentifierDescription": "Enter a [Groq model identifier](https://console.groq.com/docs/models). For example: `openai/gpt-oss-120b` or `openai/gpt-oss-20b`."
+    "groqModelIdentifierDescription": "Enter a [Groq model identifier](https://console.groq.com/docs/models). For example: `openai/gpt-oss-120b` or `openai/gpt-oss-20b`.",
+    "xai": "xAI",
+    "xaiApiKeyLabel": "API Key",
+    "xaiApiKeyDescription": "Enter an xAI API key. [Create or view an API key](https://console.x.ai).",
+    "xaiModelsLabel": "Enabled Models",
+    "xaiModelsDescription": "Provide a comma-separated list of [xAI model identifiers](https://docs.x.ai/developers/models) that can be used in Baserow. For example: `grok-4.3,grok-4.20-non-reasoning`.",
+    "xaiModelIdentifierDescription": "Enter an [xAI model identifier](https://docs.x.ai/developers/models). For example: `grok-4.3` or `grok-4.20-non-reasoning`."
   },
   "generativeAIWorkspaceSettings": {
     "providerTitle": "AI providers",
@@ -1121,6 +1139,8 @@
     "extraField_organization": "Organization",
     "extraField_base_url": "Base URL",
     "extraField_host": "Host",
+    "extraField_region": "Region",
+    "extraField_access_key_id": "Access key ID",
     "models": "Models",
     "addModel": "Add model",
     "removeModel": "Remove model",
@@ -1416,7 +1436,7 @@
     "autoForwardTip": "Tip: you can also add this address as an auto-forward rule in your own inbox, so the workflow runs whenever you receive an email.",
     "secretWarning": "Treat this address as a secret: anyone who knows it can start this workflow.",
     "regenerate": "Regenerate address",
-    "notConfigured": "This Baserow instance is not configured to receive inbound email. Set the BASEROW_INBOUND_EMAIL_DOMAIN environment variable to enable this trigger."
+    "infoDescription": "After you send an email, it may take up to several minutes to be received, depending on the provider."
   },
   "twoFactorAuthEmpty": {
     "title": "You have not yet enabled 2FA",

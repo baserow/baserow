@@ -1444,6 +1444,48 @@ describe('Calendar view store', () => {
       })
     })
 
+    describe('updateRowValue', () => {
+      test('removes the row hidden by the backend', async () => {
+        const dateStacks = {}
+        dateStacks['2023-01-01'] = {
+          count: 2,
+          results: [
+            { id: 10, order: '10.00', field_1: 'keep', field_2: '2023-01-01' },
+            { id: 11, order: '11.00', field_1: 'keep', field_2: '2023-01-01' },
+          ],
+        }
+        const state = Object.assign(calendarStore.state(), {
+          lastCalendarId: 1,
+          dateFieldId: 2,
+          dateStacks,
+        })
+        store.replaceState({ ...store.state, calendar: state })
+        testApp.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
+          items: [
+            { id: 10, order: '10.00', field_1: 'drop', field_2: '2023-01-01' },
+          ],
+          metadata: {
+            updated_field_ids: [1],
+            hidden_row_ids: [10],
+          },
+        })
+
+        await store.dispatch('calendar/updateRowValue', {
+          view,
+          table: { id: 1 },
+          row: store.state.calendar.dateStacks['2023-01-01'].results[0],
+          field: fields[0],
+          fields,
+          value: 'drop',
+          oldValue: 'keep',
+        })
+
+        const stack = store.state.calendar.dateStacks['2023-01-01']
+        expect(stack.count).toBe(1)
+        expect(stack.results.map((row) => row.id)).toEqual([11])
+      })
+    })
+
     describe('deletedExistingRow', () => {
       test('date and time in a set timezone', async () => {
         const dateStacks = {}

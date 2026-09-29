@@ -31,12 +31,12 @@
       required
       :label="$t('coreResponseServiceForm.bodyType')"
     >
-      <Dropdown v-model="values.body_type">
+      <Dropdown v-model="bodyType">
         <DropdownItem
-          v-for="bodyType in bodyTypes"
-          :key="bodyType.value"
-          :name="bodyType.name"
-          :value="bodyType.value"
+          v-for="responseBodyType in bodyTypes"
+          :key="responseBodyType.value"
+          :name="responseBodyType.name"
+          :value="responseBodyType.value"
         />
       </Dropdown>
     </FormGroup>
@@ -136,6 +136,27 @@ export default {
     }
   },
   computed: {
+    bodyType: {
+      get() {
+        return this.values.body_type
+      },
+      set(bodyType) {
+        if (bodyType === 'empty') {
+          this.values.body = {
+            formula: '',
+            mode: 'simple',
+            version: '0.1',
+          }
+        } else if (bodyType === 'json' && !this.values.body?.formula?.trim()) {
+          this.values.body = {
+            formula: "'{}'",
+            mode: 'simple',
+            version: '0.1',
+          }
+        }
+        this.values.body_type = bodyType
+      },
+    },
     canHaveBody() {
       const statusCode = this.values.status_code
       return statusCode?.mode !== 'raw' || statusCode.formula !== '204'

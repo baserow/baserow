@@ -9,6 +9,7 @@ import {
   getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
+  reportHiddenRows,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
@@ -434,20 +435,30 @@ export const actions = {
     { dispatch, commit, getters },
     { view, table, fields, values }
   ) {
-    const { $registry, $client } = this
+    const { $registry, $client, $i18n } = this
     const preparedRow = prepareRowForRequest(values, fields, $registry)
 
     commit('SET_CREATING', true)
-    const { data } = await RowService($client).create(
+    const { data } = await RowService($client).batchCreate(
       table.id,
-      preparedRow,
+      [preparedRow],
+      null,
       null,
       getters.getLastKanbanId
     )
     commit('SET_CREATING', false)
+    const [createdRow] = data.items
+    const hiddenRowIds = reportHiddenRows(data, {
+      dispatch,
+      i18n: $i18n,
+      created: true,
+    })
+    if (hiddenRowIds.has(createdRow.id)) {
+      return
+    }
     return await dispatch('createdNewRow', {
       view,
-      values: data,
+      values: createdRow,
       fields,
     })
   },
@@ -744,7 +755,7 @@ export const actions = {
     if (row === null) {
       return
     }
-    const { $client, $registry } = this
+    const { $client, $registry, $i18n } = this
     // Bundle the value update and the move into a single undo/redo step.
     const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
     // When the view has one or more sortings the vertical position of cards is
@@ -806,14 +817,22 @@ export const actions = {
     // If the stack has changed, the value needs to be updated with the backend.
     if (originalStackId !== currentStackId) {
       try {
-        const { data } = await RowService($client).update(
+        const { data } = await RowService($client).batchUpdate(
           table.id,
-          row.id,
-          newValuesForUpdate,
-          getters.getLastKanbanId,
-          undoRedoActionGroupId
+          [{ id: row.id, ...newValuesForUpdate }],
+          undoRedoActionGroupId,
+          getters.getLastKanbanId
         )
-        commit('UPDATE_ROW', { row, values: data })
+        const hiddenRowIds = reportHiddenRows(data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
+        if (hiddenRowIds.has(row.id)) {
+          await dispatch('deletedExistingRow', { view, row, fields })
+          return
+        }
+        commit('UPDATE_ROW', { row, values: data.items[0] })
       } catch (error) {
         // If for whatever reason updating the value fails, we need to undo the
         // things that have changed in the store.
@@ -944,7 +963,7 @@ export const actions = {
     { commit, dispatch, getters },
     { view, table, row, field, fields, value, oldValue }
   ) {
-    const { $client, $registry } = this
+    const { $client, $registry, $i18n } = this
     const { newRowValues, oldRowValues, updateRequestValues } =
       prepareNewOldAndUpdateRequestValues(
         row,
@@ -984,6 +1003,15 @@ export const actions = {
           null,
           getters.getLastKanbanId
         )
+        const hiddenRowIds = reportHiddenRows(data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
+        if (hiddenRowIds.has(row.id)) {
+          await dispatch('deletedExistingRow', { view, row, fields })
+          return
+        }
         const updatedFieldIds = data.metadata?.updated_field_ids || []
 
         const readOnlyData = extractChangedFields(

@@ -373,8 +373,27 @@ def test_local_baserow_token_auth(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_local_baserow_token_auth_with_trashed_integration(api_client, data_fixture):
+    data = populate_local_baserow_test_data(data_fixture)
+    integration = data["user_source"].integration
+    integration.trashed = True
+    integration.save()
+
+    response = api_client.post(
+        reverse(
+            "api:user_sources:token_auth",
+            kwargs={"user_source_id": data["user_source"].id},
+        ),
+        {"email": "test@baserow.io", "password": "super not secret"},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_SOURCE_IMPROPERLY_CONFIGURED"
+
+
+@pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(

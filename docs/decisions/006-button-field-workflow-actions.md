@@ -224,7 +224,9 @@ through the normal row-update signals. A click that runs as a job can leave a ga
 while an endpoint answers; showing it to other viewers is still deferred.
 
 Failure behavior matches the builder: execution stops at the first failing action, the
-rest are skipped, and the user sees an error toast. Nothing is rolled back, since
+rest are skipped, and the user sees an error toast. Unlike the builder, an HTTP request
+answered with an error status, a timeout included, counts as failing: an automation can
+branch on the status, a click cannot. Nothing is rolled back, since
 sequences can contain irreversible effects (an email cannot be unsent). Retries,
 on-error action stacks, and per-click run history are out of scope, and so is rate
 limiting until external action types arrive.
@@ -350,12 +352,25 @@ credentials on the action to lend to anybody. It also makes
 `BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS` a switch for the
 feature: with it off, or with no mail server configured, the editor offers the action
 disabled and says which of the two it is. An installation that wants per-action
-credentials is the revisit trigger for attaching an integration here.
+credentials is the revisit trigger for attaching an integration here. It fired; see the follow-up below.
 
 **Amendment (phase 4c, September 2026).** External integrations attach on the database
 application itself, which the generic integration API already supports once the
 application type declares `supports_integrations`. The Slack action is the first to use
 this.
+
+**Amendment (phase 4b follow-up, September 2026).** The revisit trigger above fired:
+SaaS turns off `BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS`, which
+left the email action unusable there. The email action now also accepts an
+`SMTPIntegrationType` integration attached on the database, the way the Slack action
+takes its bot, and its form offers the same instance/integration choice as the builder.
+Sharing follows the Slack action: whoever can read the integration may attach it, and
+every clicker sends through it. The type is no longer deactivated as a whole. An action
+set to the instance server where this installation cannot deliver is flagged for
+reconfiguration and refused on click instead. A click through an integration is refused
+when its host is not a public address, unless `BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS`
+is set: the same rule the HTTP request action follows through advocate, applied by the
+button because the shared SMTP service has none.
 
 **Amendment (phase 4d, September 2026).** A fourth service-backed type, start workflow,
 reuses the `CoreStartWorkflowServiceType` the builder and automation already have:
@@ -432,10 +447,11 @@ which is the opposite of the fire-and-forget shape chosen above.
 
 Each action type names the integration types it may carry in an
 `allowed_integration_types` allow-list. It is empty unless the action needs a credential
-of its own, which is why the row actions, the HTTP request, the email action and start
-workflow all carry nothing: a row action acts as the clicker, an HTTP request carries its
-own headers, email sends through the instance's own mail server, and start workflow
-reaches automation by workflow id rather than by credential. No action type lists
+of its own, which is why the row actions, the HTTP request and start workflow carry
+nothing: a row action acts as the clicker, an HTTP request carries its own headers, and
+start workflow reaches automation by workflow id rather than by credential. The Slack
+action lists its bot, and the email action lists an SMTP integration, which it uses
+wherever the instance's own mail server is not chosen or cannot send. No action type lists
 `local_baserow`, because its `authorized_user` would replace the clicker as the acting
 user, which is what this section forbids.
 
@@ -578,7 +594,8 @@ the natural place to narrow this further when it is wanted.
   a table that is trashed or in a trashed database or workspace. The cell renders a
   disabled button with a warning. An action whose integration is trashed, or that has
   none while its service needs one, puts the button in the same state, and so does an
-  update row action left without a row id, which the dispatch refuses on every click.
+  update row action left without a row id or an email without recipients, which the
+  dispatch refuses on every click. A workspace export leaves an email without them.
   Each action carries its own `requires_reconfiguration`, and the field's flag is
   whether any action has it, so the editor names every action behind the state,
   including a trashed table or integration it can't see in its own lists. Not every

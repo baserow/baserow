@@ -48,7 +48,7 @@ generated_formula: {
 **Task:**
 
 You are given:
-* **fields_to_resolve** — a dictionary where each key is a field name and each value contains instructions to generate a formula.
+* **fields_to_resolve** — a dictionary where each key identifies a field (a name, or a field ID whose value describes the field) and each value contains instructions to generate a formula.
 * **context** — a dictionary containing the available data.
 * **context_metadata** — a dictionary describing the structure and types within the context.
 * **feedback** — optional information with reported formula errors from previous runs.
@@ -56,7 +56,7 @@ You are given:
 **Goal:**
 Generate a dictionary called **generated_formula**, where:
 
-* Keys are the field names from **fields_to_resolve**.
+* Keys are copied exactly from **fields_to_resolve**, including field IDs such as `892`.
 * Values are valid formulas that can be used in the automation node.
 
 **Rules:**

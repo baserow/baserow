@@ -4,6 +4,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.cache import cache
 
 import pytest
+from requests import exceptions as request_exceptions
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.signals import rows_created
@@ -25,6 +26,10 @@ from baserow.contrib.database.workflow_actions.service import (
 )
 from baserow.core.action.signals import action_done
 from baserow.core.exceptions import PermissionException
+from tests.baserow.contrib.database.workflow_actions.test_sample_data_capture import (
+    _http_action,
+    mock_advocate_request,
+)
 
 
 def _table_with_name(data_fixture, user, name="People"):
@@ -101,6 +106,94 @@ def test_a_failure_keeps_the_completed_actions_and_skips_the_rest(data_fixture):
         "reads [] the sequence has been wrapped in a transaction, which ADR 006 "
         "section 3 forbids."
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "answer,reason",
+    [
+        ({"status_code": 500}, "the request was answered with status 500"),
+        ({"status_code": 404}, "the request was answered with status 404"),
+        (
+            {"raise_exception": request_exceptions.Timeout()},
+            "the request timed out or was answered with status 504",
+        ),
+    ],
+)
+def test_an_endpoint_answering_an_error_fails_the_click_and_skips_the_rest(
+    data_fixture, answer, reason
+):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _create_row_action(data_fixture, button_field, table, name_field, "first")
+    http = _http_action(data_fixture, button_field)
+    _create_row_action(data_fixture, button_field, table, name_field, "third")
+
+    with (
+        mock_advocate_request({"nope": True}, **answer),
+        pytest.raises(WorkflowActionDispatchError) as exc,
+    ):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    assert exc.value.workflow_action_id == http.id
+    assert exc.value.position == 2
+    assert exc.value.completed == (1,)
+    assert str(exc.value) == f"Action 1 ran before action 2 failed: {reason}"
+    created = [
+        getattr(r, f"field_{name_field.id}")
+        for r in table.get_model().objects.exclude(id=row.id)
+    ]
+    assert created == ["first"]
+
+
+@pytest.mark.django_db
+def test_a_row_field_named_status_code_does_not_fail_the_click(data_fixture):
+    """Only an HTTP action's answer can fail a click. A row action returns the
+    row, whose fields are named by whoever built the table."""
+
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    status_field = data_fixture.create_number_field(table=table, name="status_code")
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    first = _create_row_action(data_fixture, button_field, table, name_field, "first")
+    first.service.specific.field_mappings.create(
+        field=status_field, value="'404'", enabled=True
+    )
+    _create_row_action(data_fixture, button_field, table, name_field, "second")
+
+    DatabaseWorkflowActionService().dispatch_workflow_actions(user, button_field, row)
+
+    created = [
+        getattr(r, f"field_{name_field.id}")
+        for r in table.get_model().objects.exclude(id=row.id).order_by("id")
+    ]
+    assert created == ["first", "second"]
+
+
+@pytest.mark.django_db
+def test_an_endpoint_answering_a_success_lets_the_rest_run(data_fixture):
+    user = data_fixture.create_user()
+    table, name_field = _table_with_name(data_fixture, user)
+    button_field = data_fixture.create_button_field(table=table, label="Go")
+    row = table.get_model().objects.create()
+    _http_action(data_fixture, button_field)
+    _create_row_action(data_fixture, button_field, table, name_field, "second")
+
+    with mock_advocate_request({"ok": True}, status_code=201):
+        DatabaseWorkflowActionService().dispatch_workflow_actions(
+            user, button_field, row
+        )
+
+    created = [
+        getattr(r, f"field_{name_field.id}")
+        for r in table.get_model().objects.exclude(id=row.id)
+    ]
+    assert created == ["second"]
 
 
 @pytest.mark.django_db

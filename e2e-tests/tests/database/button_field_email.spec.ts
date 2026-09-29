@@ -95,7 +95,7 @@ test.describe("Button field, email action", () => {
     });
   });
 
-  test("the email form offers no integration, because a button has none", async ({
+  test("the email form offers the instance server or an SMTP integration", async ({
     page,
   }) => {
     await gridFor(page, g.user);
@@ -104,10 +104,17 @@ test.describe("Button field, email action", () => {
 
     const form = page.locator(".button-field-action-list__form").first();
     await expect(form).toContainText("To Emails");
-    // Both belong to the integration branch of the shared form: a button's
-    // actions send through the instance and nothing else.
-    await expect(form).not.toContainText("Use the instance SMTP server");
+    await expect(form).toContainText("Use the instance SMTP server");
+    const instance = form.locator(".checkbox", {
+      hasText: "Use the instance SMTP server",
+    });
+    // The e2e stack has an instance mail server, so it is on by default.
+    await expect(instance.locator(".checkbox__native")).toBeChecked();
     await expect(form).not.toContainText("From Email");
+
+    await instance.click();
+    await expect(form).toContainText("Integration");
+    await expect(form).toContainText("From Email");
   });
 
   test("a click sends the email, carrying values from the row", async ({
@@ -142,7 +149,7 @@ test.describe("Button field, email action", () => {
   test("a saved email action sends through the instance, with no integration", async () => {
     const actions = await listWorkflowActions(
       g.user,
-      g.fieldByName["MailChain"],
+      g.fieldByName["MailChain"]
     );
     const email = actions.find((action) => action.type === "smtp_email");
 
@@ -161,7 +168,7 @@ test.describe("Button field, email action", () => {
     await grid.fieldCellAt(0, MAIL_CHAIN_FIELD_INDEX).locator("button").click();
 
     await expect(grid.fieldCellAt(0, STATUS_FIELD_INDEX)).toHaveText(
-      "after the email",
+      "after the email"
     );
     // The row being written only says the sequence carried on. Whether the
     // send before it reached anything is a question for the catcher.

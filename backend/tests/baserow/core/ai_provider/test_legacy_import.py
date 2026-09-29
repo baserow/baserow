@@ -380,7 +380,8 @@ def test_partial_legacy_settings_survive_the_import(
     "legacy_values",
     [
         {
-            "api_key": "k" * 600,
+            "api_key": "k"
+            * (AIProviderConfig._meta.get_field("api_key").max_length + 1),
             "models": ["gpt-4o"],
             "base_url": "https://workspace.example/v1",
         },

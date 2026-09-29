@@ -28,11 +28,13 @@ from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     CoreStartWorkflowWorkflowAction,
     EventTypes,
+    RefreshDataSourceWorkflowAction,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     CreateRowWorkflowActionType,
     DeleteRowWorkflowActionType,
     NotificationWorkflowActionType,
+    RefreshDataSourceWorkflowActionType,
     UpdateRowWorkflowActionType,
 )
 from baserow.contrib.database.fields.field_constraints import (
@@ -168,6 +170,88 @@ def test_create_notification_workflow_action(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["type"] == workflow_action_type
     assert response_json["element_id"] == element.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("with_data_source", [False, True])
+def test_create_refresh_data_source_workflow_action(
+    api_client, data_fixture, with_data_source
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_button_element(page=page)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    workflow_action_type = RefreshDataSourceWorkflowActionType.type
+
+    payload = {"type": workflow_action_type, "event": "click", "element_id": element.id}
+    if with_data_source:
+        payload["data_source_id"] = data_source.id
+
+    url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        payload,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json["type"] == workflow_action_type
+    assert response_json["element_id"] == element.id
+    expected_data_source_id = data_source.id if with_data_source else None
+    assert response_json["data_source_id"] == expected_data_source_id
+
+    workflow_action = RefreshDataSourceWorkflowAction.objects.get(
+        id=response_json["id"]
+    )
+    assert workflow_action.data_source_id == expected_data_source_id
+
+
+@pytest.mark.django_db
+def test_update_refresh_data_source_workflow_action(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    workflow_action = data_fixture.create_workflow_action(
+        RefreshDataSourceWorkflowAction, page=page
+    )
+
+    url = reverse(
+        "api:builder:workflow_action:item",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.patch(
+        url,
+        {"data_source_id": data_source.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json["data_source_id"] == data_source.id
+
+    workflow_action.refresh_from_db()
+    assert workflow_action.data_source_id == data_source.id
+
+    response = api_client.patch(
+        url,
+        {"data_source_id": None},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert response_json["data_source_id"] is None
+
+    workflow_action.refresh_from_db()
+    assert workflow_action.data_source_id is None
 
 
 @pytest.mark.django_db

@@ -105,8 +105,8 @@ describe('ButtonFieldActionList', () => {
     expect(slack.props('image')).toMatch(/svg/)
   })
 
-  test('a type this instance cannot run is offered but not choosable', async () => {
-    // Otherwise the only thing saying so is the refusal on save.
+  test('email stays choosable where the instance cannot send', async () => {
+    // It can send through an SMTP integration instead.
     testApp.store.commit('settings/SET_SETTINGS', {
       instance_smtp: { available: false, unavailable_reason: 'no_server' },
     })
@@ -117,12 +117,7 @@ describe('ButtonFieldActionList', () => {
       .findAllComponents({ name: 'DropdownItem' })
     const email = items.find((item) => item.props('value') === 'smtp_email')
 
-    expect(email.props('disabled')).toBe(true)
-    expect(email.props('description')).toBe(
-      'databaseWorkflowActionType.noInstanceSmtp'
-    )
-    // Every other type is left alone.
-    expect(items[0].props('disabled')).toBe(false)
+    expect(email.props('disabled')).toBe(false)
 
     testApp.store.commit('settings/SET_SETTINGS', {})
   })

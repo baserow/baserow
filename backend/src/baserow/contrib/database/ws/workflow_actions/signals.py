@@ -226,6 +226,14 @@ def button_integration_created(sender, integration, **kwargs):
         _broadcast_dependent_buttons(integration_ids=[integration.id])
 
 
+# A renamed or reconfigured integration changes what a button's editor shows
+# for it, so the buttons using it are sent again.
+@receiver(integration_signals.integration_updated)
+def button_integration_updated(sender, integration, **kwargs):
+    if _in_a_database(integration.application):
+        _broadcast_dependent_buttons(integration_ids=[integration.id])
+
+
 # The `button_fields_depending_on` argument for each trash item type whose
 # permanent deletion can change a button's reconfigure state. A table takes the
 # link fields to it in other tables with it, and their mappings. A service

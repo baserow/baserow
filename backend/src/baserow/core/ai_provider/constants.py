@@ -39,6 +39,12 @@ AI_PROVIDER_TYPES = {
         "uses_api_key": True,
         "extra_settings": (),
     },
+    "bedrock": {
+        "name": "Amazon Bedrock",
+        "uses_api_key": True,
+        "extra_settings": ("region", "access_key_id"),
+        "required_extra_settings": ("region",),
+    },
     "google": {
         "name": "Google Gemini",
         "uses_api_key": True,
@@ -46,6 +52,11 @@ AI_PROVIDER_TYPES = {
     },
     "groq": {
         "name": "Groq",
+        "uses_api_key": True,
+        "extra_settings": (),
+    },
+    "xai": {
+        "name": "xAI",
         "uses_api_key": True,
         "extra_settings": (),
     },

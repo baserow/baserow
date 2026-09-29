@@ -197,7 +197,8 @@
         "higherThan": "Wert ist höher als {max}.",
         "maxChars": "Maximal {max} Zeichen.",
         "maxCharsExceeded": "Max. {max} Zeichen (-{over}).",
-        "minChars": "Mindestens {min} Zeichen."
+        "minChars": "Mindestens {min} Zeichen.",
+        "maxImagesExceeded": "Max {max} Bilder ({über} entfernen)."
     },
     "fieldDocs": {
         "readOnly": "Dies ist ein schreibgeschütztes Feld.",
@@ -234,7 +235,8 @@
         "autonumber": "Ein schreibgeschütztes Feld, das bei jeder neuen Zeile automatisch eine Zahl hochzählt.",
         "password": "Ein schreibgeschütztes Feld, das ein gehashtes Passwort enthält. Der Wert ist `null`, wenn es nicht gesetzt ist, oder `true`, wenn es gesetzt wurde. Es akzeptiert eine Zeichenkette, um es zu setzen.",
         "formViewEditRow": "Ein schreibgeschütztes Feld, das eine eindeutige, signierte URL erzeugt, mit der die Zeile über die verknüpfte Formularansicht bearbeitet werden kann.",
-        "button": "Ein Button-Feld. Ein Klick auf den Button öffnet eine URL, die aus den Werten der Zeile erstellt wird. Die Zelle speichert keine Daten und Schreibvorgänge werden abgelehnt."
+        "button": "Ein Button-Feld. Ein Klick auf den Button öffnet eine URL, die aus den Werten der Zeile erstellt wird. Die Zelle speichert keine Daten und Schreibvorgänge werden abgelehnt.",
+        "longTextRichText": "Akzeptiert mehrzeiligen Text im Markdown-Format. Um ein Bild einzubinden, laden Sie es über den Endpunkt zum Hochladen von Dateien hoch und verweisen Sie auf den zurückgegebenen Namen im Format ![alt][name]. Die Antworten enthalten eine temporäre URL, ![alt][name](url), die beim Zurücksenden des Werts ignoriert wird. Ein Wert kann auf bis zu 100 Bilder verweisen, und jeder Name muss ein hochgeladenes Bild sein."
     },
     "fieldConstraint": {
         "uniqueWithEmpty": "Eindeutig mit leeren Werten"
@@ -489,7 +491,9 @@
         "fieldConstraintTitle": "Verletzung der Feldeinschränkung",
         "fieldConstraintDescription": "Einschränkung kann nicht angewendet werden.",
         "fieldDataConstraintTitle": "Verletzung der Felddateneinschränkung",
-        "fieldDataConstraintDescription": "Vorgang kann aufgrund von Verletzungen bestehender Einschränkungen nicht abgeschlossen werden."
+        "fieldDataConstraintDescription": "Vorgang kann aufgrund von Verletzungen bestehender Einschränkungen nicht abgeschlossen werden.",
+        "userFileDoesNotExistTitle": "Das Bild existiert nicht",
+        "userFileDoesNotExistDescription": "Der Wert verweist auf ein Bild, das nicht mehr vorhanden ist. Entfernen Sie es und versuchen Sie es erneut."
     },
     "importerType": {
         "csv": "Importieren einer CSV-Datei",

@@ -805,6 +805,21 @@ def test_provider_type_metadata_marks_required_connection_settings(
         "uses_api_key": True,
         "extra_fields": [],
     }
+    assert provider_types["bedrock"] == {
+        "type": "bedrock",
+        "name": "Amazon Bedrock",
+        "uses_api_key": True,
+        "extra_fields": [
+            {"name": "region", "required": True, "allow_blank": False},
+            {"name": "access_key_id", "required": False, "allow_blank": True},
+        ],
+    }
+    assert provider_types["xai"] == {
+        "type": "xai",
+        "name": "xAI",
+        "uses_api_key": True,
+        "extra_fields": [],
+    }
     assert provider_types["ollama"]["uses_api_key"] is False
     assert provider_types["ollama"]["extra_fields"] == [
         {"name": "host", "required": True, "allow_blank": False}
@@ -1168,6 +1183,7 @@ def test_testing_an_unknown_saved_model_returns_not_found(api_client, staff_head
         ("google", "gemini-2.5-flash"),
         ("groq", "openai/gpt-oss-120b"),
         ("mistral", "mistral-large-latest"),
+        ("xai", "grok-4.3"),
     ],
 )
 def test_model_discovery_returns_pydantic_ai_known_models(
@@ -1222,6 +1238,87 @@ def test_groq_model_discovery_excludes_non_chat_models(api_client, staff_headers
     )
     assert "llama-3.1-8b-instant" not in response.json()["models"]
     assert "llama-3.3-70b-versatile" not in response.json()["models"]
+
+
+@pytest.mark.django_db
+def test_xai_model_discovery_keeps_only_current_grok_4_models(
+    api_client, staff_headers
+) -> None:
+    response = api_client.get(
+        reverse("api:ai_provider:discover_models"),
+        {"provider_type": "xai"},
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    models = response.json()["models"]
+    assert "grok-4.3" in models
+    assert "grok-4.20-non-reasoning" in models
+    assert all(model.startswith("grok-4.") for model in models)
+    assert not any("multi-agent" in model for model in models)
+    for retired_or_unverified in (
+        "grok-4",
+        "grok-4-latest",
+        "grok-4-0709",
+        "grok-4-1-fast-reasoning",
+        "grok-4-fast-non-reasoning",
+        "grok-3",
+        "grok-3-mini",
+        "grok-code-fast-1",
+    ):
+        assert retired_or_unverified not in models
+
+
+@pytest.mark.django_db
+def test_xai_provider_create_and_update_never_return_the_api_key(
+    api_client, staff_headers
+) -> None:
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "xai",
+            "api_key": "xai-secret",
+            "models": [
+                {"model_identifier": "grok-4.3"},
+                {"model_identifier": "grok-4.7"},
+            ],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["provider_type"] == "xai"
+    assert response.json()["extra_settings"] == {}
+    assert [model["model_identifier"] for model in response.json()["models"]] == [
+        "grok-4.3",
+        "grok-4.7",
+    ]
+    assert "xai-secret" not in response.content.decode()
+    provider = AIProviderConfig.objects.get(provider_type="xai")
+    assert provider.api_key == "xai-secret"
+
+    item_url = reverse("api:ai_provider:item", kwargs={"provider_id": provider.id})
+    response = api_client.patch(
+        item_url, {"api_key": "xai-rotated"}, format="json", **staff_headers
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert "api_key" not in response.json()
+    assert "xai-rotated" not in response.content.decode()
+    provider.refresh_from_db()
+    assert provider.api_key == "xai-rotated"
+
+    response = api_client.patch(
+        item_url,
+        {"extra_settings": {"base_url": "https://attacker.example.com/v1"}},
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    provider.refresh_from_db()
+    assert provider.extra_settings == {}
 
 
 @pytest.mark.django_db
@@ -1322,3 +1419,113 @@ def test_model_in_use_error_names_the_model_and_the_features_using_it(
     assert response.json()["error"] == "ERROR_AI_PROVIDER_MODEL_IN_USE"
     assert "glm5.2:cloud" in response.json()["detail"]
     assert "kuma" in response.json()["detail"]
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_can_be_created_without_returning_the_secret(
+    api_client, staff_headers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": "bedrock-secret-access-key",
+            "extra_settings": {
+                "region": "eu-central-1",
+                "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+            },
+            "models": [
+                {"model_identifier": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"}
+            ],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["extra_settings"] == {
+        "region": "eu-central-1",
+        "access_key_id": "AKIAIOSFODNN7EXAMPLE",
+    }
+    assert "bedrock-secret-access-key" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_rejects_a_region_that_is_not_an_aws_region(
+    api_client, staff_headers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": "bedrock-api-key",
+            "extra_settings": {"region": "attacker.example.com"},
+            "models": [{"model_identifier": "eu.amazon.nova-pro-v1:0"}],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "region" in response.json()["detail"]
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_rejects_an_api_key_with_an_embedded_newline(
+    api_client, staff_headers
+):
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": "bedrock-secretA\nbedrock-secretB",
+            "extra_settings": {"region": "eu-central-1"},
+            "models": [{"model_identifier": "eu.amazon.nova-pro-v1:0"}],
+        },
+        format="json",
+        **staff_headers,
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    content = response.content.decode()
+    assert "bedrock-secretA" not in content
+    assert "bedrock-secretB" not in content
+    assert "api_key" in response.json()["detail"]
+
+
+@pytest.mark.django_db
+def test_bedrock_provider_accepts_short_term_api_keys_up_to_4096_characters(
+    api_client, staff_headers
+):
+    # Short-term Bedrock API keys are presigned URLs of about 2,500 characters.
+    short_term_key = "bedrock-api-key-" + "a" * 2524
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "bedrock",
+            "api_key": short_term_key,
+            "extra_settings": {"region": "eu-central-1"},
+            "models": [{"model_identifier": "eu.amazon.nova-pro-v1:0"}],
+        },
+        format="json",
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_201_CREATED
+    provider = AIProviderConfig.objects.get(provider_type="bedrock")
+    assert provider.api_key == short_term_key
+
+    item_url = reverse("api:ai_provider:item", kwargs={"provider_id": provider.id})
+    longest_key = "k" * 4096
+    response = api_client.patch(
+        item_url, {"api_key": longest_key}, format="json", **staff_headers
+    )
+    assert response.status_code == HTTP_200_OK
+    provider.refresh_from_db()
+    assert provider.api_key == longest_key
+
+    response = api_client.patch(
+        item_url, {"api_key": "k" * 4097}, format="json", **staff_headers
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    provider.refresh_from_db()
+    assert provider.api_key == longest_key

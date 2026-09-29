@@ -199,7 +199,8 @@
         "invalidDuration": "Formato non valido ({durationFormat}).",
         "maxChars": "Max {max} caratteri.",
         "maxCharsExceeded": "Max {max} caratteri (-{over}).",
-        "minChars": "Min {min} caratteri."
+        "minChars": "Min {min} caratteri.",
+        "maxImagesExceeded": "Massimo {max} immagini (rimuovi {over})."
     },
     "fieldDocs": {
         "readOnly": "Questo è un campo di sola lettura.",
@@ -236,7 +237,8 @@
         "autonumber": "Un campo in sola lettura che assegna un numero crescente ad ogni nuova riga automaticamente.",
         "password": "Un campo di sola scrittura che contiene una password cifrata. Il valore sarà `null` se non compilata, altrimenti `true`. Accetta una stringa.",
         "formViewEditRow": "Un campo di sola lettura che genera un URL univoco e firmato che consente di modificare la riga tramite la vista modulo collegata.",
-        "button": "Un campo pulsante. Cliccando il pulsante si apre un URL costruito a partire dai valori della riga. La cella non memorizza dati e le scritture vengono rifiutate."
+        "button": "Un campo pulsante. Cliccando il pulsante si apre un URL costruito a partire dai valori della riga. La cella non memorizza dati e le scritture vengono rifiutate.",
+        "longTextRichText": "Accetta testo multilinea formattato con Markdown. Per incorporare un'immagine, caricala tramite l'endpoint di caricamento file e fai riferimento al suo nome restituito come ![alt][nome]. Le risposte aggiungono un URL temporaneo, ![alt][nome](url), che viene ignorato quando il valore viene inviato. Un valore può fare riferimento a un massimo di 100 immagini e ogni nome deve corrispondere a un'immagine caricata."
     },
     "viewFilter": {
         "contains": "contiene",
@@ -480,7 +482,9 @@
         "fieldConstraintTitle": "Violazione del vincolo di campo",
         "fieldConstraintDescription": "Impossibile applicare la limitazione.",
         "fieldDataConstraintTitle": "Violazione della limitazione dei dati di campo",
-        "fieldDataConstraintDescription": "Impossibile completare l'operazione a causa della violazione delle limitazini esistenti."
+        "fieldDataConstraintDescription": "Impossibile completare l'operazione a causa della violazione delle limitazini esistenti.",
+        "userFileDoesNotExistTitle": "L'immagine non esiste",
+        "userFileDoesNotExistDescription": "L'immagine non esiste. Rimuovila e prova di nuovo."
     },
     "importerType": {
         "csv": "Importa un file CSV",

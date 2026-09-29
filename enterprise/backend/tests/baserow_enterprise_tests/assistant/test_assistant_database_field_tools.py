@@ -31,6 +31,7 @@ def test_update_field_name(data_fixture):
 
     assert result["updated_fields"][0]["name"] == "New Name"
     assert result["updated_fields"][0]["id"] == field.id
+    assert result["changed"] is True
 
     # Verify in DB
     refreshed = FieldHandler().get_field(field.id)
@@ -102,6 +103,7 @@ def test_update_field_no_changes(data_fixture):
     )
 
     assert result["updated_fields"][0]["name"] == "Unchanged"
+    assert result["changed"] is False
 
 
 @pytest.mark.django_db

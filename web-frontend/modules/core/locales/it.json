@@ -1597,5 +1597,9 @@
     "mcpEndpointForm": {
         "nameLabel": "Nome",
         "workspaceLabel": "Progetto"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "L'immagine non può essere inserita",
+        "errorUnsupportedImageMessage": "{name} non è un'immagine supportata e non può essere aggiunta."
     }
 }

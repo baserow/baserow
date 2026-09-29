@@ -1554,6 +1554,33 @@ def test_local_baserow_user_source_authentication_is_configured(
         setattr(user_source, field, prev_field)
 
 
+@pytest.mark.django_db
+def test_local_baserow_user_source_is_configured_with_trashed_integration(
+    data_fixture,
+):
+    """
+    When the integration is trashed, `UserSourceHandler` still loads the user source
+    but caches its `integration` as `None` while `integration_id` stays set. The user
+    source must then be reported as misconfigured instead of raising an
+    `AttributeError`.
+    """
+
+    data = populate_local_baserow_test_data(data_fixture)
+    integration = data["user_source"].integration
+    integration.trashed = True
+    integration.save()
+
+    user_source = UserSourceHandler().get_user_source(data["user_source"].id)
+    assert user_source.integration_id == integration.id
+    assert user_source.integration is None
+
+    user_source_type = LocalBaserowUserSourceType()
+    assert user_source_type.is_configured(user_source) is False
+
+    with pytest.raises(UserSourceImproperlyConfigured):
+        user_source_type.is_configured(user_source, raise_exception=True)
+
+
 @pytest.fixture(autouse=True)
 def role_field_id_test_fixture(data_fixture):
     """Fixture to help test the role_field_id."""
@@ -2610,7 +2637,6 @@ def mark_over_limit_since(user_source, since):
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -2633,7 +2659,6 @@ def test_local_baserow_user_source_authentication_refused_over_application_user_
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -2659,7 +2684,6 @@ def test_local_baserow_user_source_authentication_allowed_within_application_use
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(
@@ -2682,15 +2706,13 @@ def test_local_baserow_user_source_get_or_create_user_refused_over_application_u
             user_source, email="new@baserow.io", name="New user"
         )
 
-    # The limit is deliberately checked after the user row is created (the SSO
-    # auto-provisioning path may create it before the limit is known), so the row
-    # exists even though the sign in was refused.
-    assert UserModel.objects.count() == count_before + 1
+    # The refused user must not be created, it would otherwise count towards the
+    # usage without ever having signed in.
+    assert UserModel.objects.count() == count_before
 
 
 @pytest.mark.django_db
 @override_settings(
-    BASEROW_APPLICATION_USER_LIMIT_ENFORCED=True,
     BASEROW_APPLICATION_USER_LIMIT_GRACE_PERIOD_HOURS=1,
 )
 @patch(

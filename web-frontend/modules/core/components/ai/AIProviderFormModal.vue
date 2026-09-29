@@ -31,7 +31,7 @@
 
     <FormGroup
       v-if="selectedType && selectedType.uses_api_key"
-      :label="$t('aiProviderAdmin.apiKey')"
+      :label="secretFieldText.label"
       small-label
       required
       class="margin-bottom-2"
@@ -39,7 +39,7 @@
       <template v-if="provider && !apiKeyEditing">
         <div class="ai-provider-form__secret-status">
           <Button type="secondary" size="small" @click="apiKeyEditing = true">
-            {{ $t('aiProviderAdmin.changeApiKey') }}
+            {{ secretFieldText.change }}
           </Button>
         </div>
       </template>
@@ -50,7 +50,7 @@
           autocomplete="off"
         />
         <div v-if="provider" class="ai-provider-form__hint">
-          {{ $t('aiProviderAdmin.apiKeyUpdateHint') }}
+          {{ secretFieldText.updateHint }}
         </div>
       </template>
       <template v-if="settingDescription('api_key')" #helper>
@@ -199,6 +199,15 @@ export default {
     },
     modelIdentifierDescription() {
       return this.selectedModelType?.getModelIdentifierDescription() || ''
+    },
+    secretFieldText() {
+      return (
+        this.selectedModelType?.getSecretFieldText() || {
+          label: this.$t('aiProviderAdmin.apiKey'),
+          change: this.$t('aiProviderAdmin.changeApiKey'),
+          updateHint: this.$t('aiProviderAdmin.apiKeyUpdateHint'),
+        }
+      )
     },
     discoveryUnavailable() {
       return this.discoveryFailed || !this.discoverySupported
