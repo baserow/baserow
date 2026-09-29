@@ -65,7 +65,8 @@
     },
     "sidebar": {
         "viewAPI": "Переглянути документацію API",
-        "createTable": "Нова таблиця"
+        "createTable": "Нова таблиця",
+        "adminContentCategory": "Вміст"
     },
     "sidebarItem": {
         "exportTable": "Експортувати таблицю",
@@ -480,7 +481,8 @@
         "filterTypeNotFound": "Тип фільтра несумісний.",
         "noCompatibleFilterTypesErrorTitle": "Немає сумісних типів фільтрів",
         "noCompatibleFilterTypesErrorMessage": "Жодне з ваших полів не має сумісних типів фільтрів",
-        "addFilterGroup": "Додати групу фільтрів"
+        "addFilterGroup": "Додати групу фільтрів",
+        "copyFromView": "Копіювати з іншого представлення"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "зображення",
@@ -579,7 +581,8 @@
         "deleteView": "Видалити представлення",
         "toPersonal": "Зробити особистим",
         "toCollaborative": "Зробити спільним",
-        "defaultRowValues": "Значення рядка за замовчуванням"
+        "defaultRowValues": "Значення рядка за замовчуванням",
+        "copyConfiguration": "Копіювати конфігурацію з представлення"
     },
     "deleteViewModal": {
         "title": "Видалити {name}",
@@ -610,7 +613,9 @@
         "hideField": "Приховати поле",
         "dataSyncField": "Поле доступне лише для читання та є частиною синхронізації даних таблиці.",
         "dataSyncFieldTwoWaySync": "Поле синхронізовано із синхронізацією даних таблиці.",
-        "noWriteValues": "Зміни цього поля обмежені."
+        "noWriteValues": "Зміни цього поля обмежені.",
+        "groupByField": "Групувати за",
+        "ungroupByField": "Не групувати за"
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "Рядок не відповідає фільтрам",
@@ -638,7 +643,8 @@
         "tooManyItemsTitle": "Забагато елементів",
         "tooManyItemsDescription": "Неможливо оновити більше ніж {limit} рядків одночасно, тому оновлено лише перші.",
         "AIValuesGenerationErrorTitle": "Не вдалося згенерувати значення ШІ",
-        "AIValuesGenerationErrorMessage": "Перевірте свій API_KEY та обрану модель."
+        "AIValuesGenerationErrorMessage": "Перевірте свій API_KEY та обрану модель.",
+        "promptBroken": "Запит сформовано неправильно. Перш ніж генерувати значення, його потрібно виправити."
     },
     "gridViewFieldFile": {
         "dropHere": "Перетягніть сюди",
@@ -695,7 +701,7 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "Документація API бази даних {name}",
-        "back": "Назад до панелі керування",
+        "back": "Назад до огляду",
         "openDatabase": "відкрити базу даних"
     },
     "apiDocsComponent": {
@@ -739,7 +745,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Поділіться посиланням на вашу базу",
-        "airtableShareLinkDescription": "Щоб імпортувати вашу базу Airtable, вам потрібне спільне посилання на всю базу. У Airtable відкрийте базу та натисніть кнопку «Поділитися» у правому верхньому куті. Потім оберіть опцію «Поділитися через посилання». У модальному вікні спільного доступу перейдіть на вкладку «Поділитися публічно», а потім натисніть «Увімкнути спільне посилання на базу». Скопіюйте публічне посилання та вставте його у поле нижче.",
+        "airtableShareLinkDescription": "Щоб імпортувати вашу базу Airtable, вам потрібне спільне посилання на всю базу. В Airtable відкрийте свою базу та натисніть кнопку Share у верхньому правому куті. Потім виберіть опцію Share via link. У вікні спільного доступу відкрийте вкладку Share publicly, а потім натисніть Enable shared base link. Скопіюйте публічне посилання та вставте його в поле нижче. Також можна використати посилання на публічно доступне представлення — у такому разі воно буде імпортоване як база даних, що містить лише цю таблицю.",
         "airtableShareLinkBeta": "Ця функція імпортує більшість даних, але є несумісності. Тому буде додано таблицю «Звіт імпорту Airtable», що містить перелік елементів, які не були імпортовані або імпортовані частково.",
         "airtableShareLinkPaste": "Вставте посилання тут",
         "importButtonLabel": "Імпорт з Airtable",
@@ -760,9 +766,14 @@
         "skipFilesHelper": "База Airtable з великою кількістю файлів може сповільнити імпорт. Увімкнення цієї опції пропускає імпорт файлів.",
         "useSession": "Автентифікація сесії",
         "useSessionHelper": "Використовуйте це, якщо публічно поширена база вимагає автентифікації.",
-        "sessionDescription": "Якщо імпорт відповідає «База Airtable вимагає автентифікації», то можливо, що налаштування організації в Airtable забороняють доступ до бази без попередньої автентифікації. Для цього потрібно вручну отримати сесію та підпис. Відвідайте URL публічно поширеної бази у браузері та увійдіть, якщо потрібно. Натисніть на меню програми у верхньому правому куті -> «Інші інструменти» -> «Інструменти розробника». Відкрийте вкладку «Application» (у Firefox «Storage») та натисніть на «https://airtable.com». Тепер знайдіть значення cookie «__Host-airtable-session» та «__Host-airtable-session.sig» і вставте їх у поля нижче.",
+        "sessionDescription": "Якщо імпорт не вдається, оскільки база потребує автентифікації, можливо, налаштування організації в Airtable не дозволяють отримати доступ до бази без попередньої автентифікації. У такому разі потрібно вручну отримати дані сеансу та підпис. Відкрийте URL-адресу публічно доступної бази у браузері та ввійдіть в обліковий запис, якщо потрібно. Відкрийте меню браузера у верхньому правому куті → «Інші інструменти» → «Інструменти розробника». Відкрийте вкладку «Application» (у Firefox — «Сховище») і натисніть «https://airtable.com». Знайдіть значення файлів cookie \"__Host-airtable-session\" і \"__Host-airtable-session.sig\" та вставте їх у відповідні поля нижче.",
         "sessionLabel": "Cookie сесії (__Host-airtable-session)",
-        "sessionSignatureLabel": "Cookie підпису сесії (__Host-airtable-session.sig)"
+        "sessionSignatureLabel": "Cookie підпису сесії (__Host-airtable-session.sig)",
+        "errorRequiresAuthenticationTitle": "Потрібна автентифікація",
+        "errorRequiresAuthenticationDescription": "Цю базу можна імпортувати лише з додатковою автентифікацією. Опцію «Автентифікація сеансу» нижче ввімкнено для вас. Дотримуйтеся інструкцій, щоб скопіювати значення файлів cookie \"__Host-airtable-session\" і \"__Host-airtable-session.sig\" у відповідні поля, а потім спробуйте ще раз.",
+        "errorBaseNotPublicTitle": "Не вдалося отримати доступ до бази",
+        "errorBaseNotPublicDescription": "Airtable не повернув публічно доступну базу за цим посиланням. Відкрийте посилання у браузері, щоб перевірити, чи завантажується потрібна база та чи правильно скопійовано повну URL-адресу, а потім спробуйте ще раз.",
+        "openSharedLink": "Відкрити посилання"
     },
     "chooseSingleSelectField": {
         "addSelectField": "Додати поле одиничного вибору",
@@ -958,7 +969,10 @@
         "hiddenFieldWarning": "Один або кілька параметрів групування посилаються на приховані поля, які не будуть видимі для редакторів і ролей нижчого рівня.",
         "maxGroupBysReached": "Можна групувати не більш ніж за {count} полями.",
         "collapseAllGroups": "Згорнути все",
-        "expandAllGroups": "Розгорнути все"
+        "expandAllGroups": "Розгорнути все",
+        "layout": "Макет групування",
+        "layoutSection": "Розділи",
+        "layoutColumn": "Стовпці"
     },
     "viewGroupBy": {
         "groupBy": "Групувати | Групувати за 1 полем | Групувати за {count} полями"
@@ -1018,7 +1032,11 @@
         "passwordDeleted": "Пароль видалено"
     },
     "dataProviderTypes": {
-        "fieldsName": "Поля"
+        "fieldsName": "Поля",
+        "rowName": "Вибраний рядок",
+        "rowId": "ID рядка",
+        "previousActionName": "Попередня дія",
+        "previousActionRowId": "ID"
     },
     "userMentionInRichTextFieldNotification": {
         "title": "{sender} згадав вас у полі {fieldName} рядка {rowId} у {tableName}",
@@ -1161,7 +1179,8 @@
     "configureDataSyncModal": {
         "title": "Синхронізація даних",
         "syncedFields": "Синхронізовані поля",
-        "syncSettings": "Налаштування синхронізації"
+        "syncSettings": "Налаштування синхронізації",
+        "syncHistory": "Історія синхронізації"
     },
     "configureDataSyncVisibleFields": {
         "title": "Змінити синхронізовані поля",
@@ -1251,5 +1270,152 @@
         "emptyValue": "(Порожньо)",
         "expandGroup": "Розгорнути групу",
         "collapseGroup": "Згорнути групу"
+    },
+    "adminType": {
+        "databaseViews": "Представлення"
+    },
+    "viewsAdmin": {
+        "title": "Представлення"
+    },
+    "viewsAdminTable": {
+        "allViews": "Усі представлення",
+        "onlyPublic": "Лише публічно доступні представлення",
+        "name": "Представлення",
+        "type": "Тип",
+        "table": "Таблиця",
+        "database": "База даних",
+        "workspace": "Робоча область",
+        "public": "Публічно доступне",
+        "passwordProtected": "Пароль",
+        "ownedBy": "Власник",
+        "createdOn": "Створено",
+        "allWorkspaces": "Усі робочі простори"
+    },
+    "viewsAdminRotateSlugModal": {
+        "title": "Оновити URL-адресу",
+        "refreshWarning": "Ви впевнені, що хочете оновити URL-адресу {viewName}? Після оновлення буде згенеровано нову URL-адресу, і доступ до представлення за старою URL-адресою буде неможливий. Усі, хто має стару URL-адресу, більше не зможуть отримати доступ до представлення.",
+        "generateNewURL": "Згенерувати нову URL-адресу"
+    },
+    "viewsAdminContext": {
+        "copyPublicUrl": "Скопіювати публічну URL-адресу",
+        "openPublicView": "Відкрити публічне представлення в новій вкладці",
+        "filterWorkspace": "Фільтрувати за робочою областю",
+        "rotateSlug": "Оновити slug",
+        "makePrivate": "Зробити приватним",
+        "makePublic": "Зробити публічним",
+        "publicUrlCopiedTitle": "Публічну URL-адресу скопійовано",
+        "publicUrlCopiedMessage": "Публічну URL-адресу представлення скопійовано в буфер обміну."
+    },
+    "copyViewConfigurationModal": {
+        "title": "Копіювати конфігурацію до {name}",
+        "sourceView": "Копіювати з представлення",
+        "selectAll": "Вибрати все",
+        "clearAll": "Очистити все",
+        "copy": "Копіювати конфігурацію"
+    },
+    "copyViewConfigurationOption": {
+        "fieldVisibility": "Видимість полів",
+        "fieldOrder": "Порядок полів",
+        "fieldWidths": "Ширина полів",
+        "viewSettings": "Налаштування ({settings})",
+        "viewSettingsRowHeightSize": "висота рядка",
+        "viewSettingsFrozenColumnCount": "заморожені стовпці",
+        "viewSettingsRowIdentifierType": "ідентифікатор рядка",
+        "viewSettingsGroupByLayout": "макет групування",
+        "filters": "Фільтри",
+        "sorts": "Сортування",
+        "groupBys": "Групування",
+        "decorations": "Декорації",
+        "defaultRowValues": "Значення рядків за замовчуванням"
+    },
+    "formViewFooterLinks": {
+        "reportAbuse": "Повідомити про порушення правил"
+    },
+    "publicViewMenu": {
+        "reportAbuse": "Повідомити про порушення правил",
+        "moreOptions": "Інші параметри"
+    },
+    "templateOnboardingCancelModal": {
+        "title": "Виберіть шаблон, щоб почати",
+        "description": "Щоб пропустити ознайомлення, виберіть один із наведених нижче шаблонів. Почати з шаблону — найкращий спосіб познайомитися з Baserow, адже він автоматично налаштовує таблиці, поля та приклади даних. Ви завжди зможете змінити або видалити їх пізніше.",
+        "continue": "Використати цей шаблон"
+    },
+    "dataSyncRuns": {
+        "title": "Історія синхронізації",
+        "description": "Найновіші запуски синхронізації цієї таблиці, незалежно від того, хто або що їх запустило.",
+        "previousRuns": "Попередні запуски",
+        "noRuns": "Цю таблицю ще не синхронізували.",
+        "triggerManual": "Вручну",
+        "triggerPeriodic": "Періодично",
+        "byUser": "від {name}",
+        "duration": "{seconds}"
+    },
+    "fieldButtonSubForm": {
+        "label": "Назва",
+        "labelPlaceholder": "Відкрити",
+        "unresolvedReferenceTitle": "Не вдалося зберегти дію",
+        "unresolvedReferenceMessage": "Дія використовує результат дії, яка не виконується перед нею. Перемістіть її назад або видаліть посилання, а потім знову збережіть."
+    },
+    "databaseWorkflowActionWithService": {
+        "nothingCapturedYet": "Натисніть цю кнопку в рядку, щоб отримати відповідь кінцевої точки, а наступні дії могли використовувати її поля. Інші дії цієї кнопки також виконуються.",
+        "payloadModalTitle": "Отримано відповідь для {actionLabel}",
+        "payloadModalSubTitle": "JSON навантаження"
+    },
+    "databaseWorkflowActionType": {
+        "openUrl": "Відкрити URL-адресу",
+        "sendEmail": "Надіслати електронний лист",
+        "deleteRow": "Видалити рядок",
+        "noUrl": "Введіть URL-адресу, яку потрібно відкрити.",
+        "staleReference": "Ця дія використовує результат дії, яка більше не виконується перед нею.",
+        "unreadableReference": "Ця дія використовує результат дії, яка більше його не повертає.",
+        "writesToTrashedField": "Ця дія записує дані в поле, яке перебуває в кошику. Відновіть поле, щоб знову виконати дію.",
+        "tableTrashed": "Ця дія використовує таблицю, яка перебуває в кошику або більше не існує. Відновіть таблицю або виберіть іншу.",
+        "requiresReconfiguration": "Ця дія посилається на таблицю, поле або інтеграцію, які перебувають у кошику або більше не існують.",
+        "noInstanceSmtp": "У цьому інстансі Baserow не налаштовано SMTP-сервер, тому кнопка не може надсилати електронні листи.",
+        "instanceSmtpTurnedOff": "Надсилання через власний SMTP-сервер цього інстансу Baserow вимкнено, тому кнопка не може надсилати електронні листи.",
+        "slackOk": "OK",
+        "slackChannel": "Канал",
+        "slackTs": "Час надсилання повідомлення",
+        "slackTokenMissing": "Цей бот не має токена. Додайте нового бота з його токеном або вставте токен у цього бота, перш ніж кнопка зможе публікувати повідомлення.",
+        "slackData": "Дані",
+        "startWorkflowMissing": "Не вдалося знайти робочий процес для цієї дії. Можливо, його видалено або у вас немає до нього доступу. Виберіть інший робочий процес або зверніться до користувача, який має до нього доступ.",
+        "startWorkflowUnpublished": "Цей робочий процес ще не опубліковано. Опублікуйте його, перш ніж кнопка зможе його запустити.",
+        "startWorkflowNotLive": "Цей робочий процес призупинено або вимкнено. Відновіть його, перш ніж кнопка зможе його запустити."
+    },
+    "openUrlWorkflowActionForm": {
+        "url": "URL-адреса",
+        "urlPlaceholder": "URL-адреса...",
+        "openIn": "Відкрити в",
+        "sameTab": "У цій самій вкладці",
+        "newTab": "Нова вкладка"
+    },
+    "openUrlWorkflowAction": {
+        "invalidUrlTitle": "Не вдалося відкрити URL-адресу",
+        "invalidUrlMessage": "Не вдалося визначити URL-адресу для цього рядка або використовується заборонений протокол."
+    },
+    "buttonFieldActionList": {
+        "actions": "Дії",
+        "addAction": "Додати дію",
+        "chooseAction": "Виберіть дію…",
+        "searchActions": "Пошук дій",
+        "misconfigured": "Принаймні одна дія налаштована неправильно",
+        "toggleAction": "Показати або приховати цю дію",
+        "moveAction": "Перемістити дію, використовуйте клавіші зі стрілками, щоб змінити порядок"
+    },
+    "buttonField": {
+        "dispatchErrorTitle": "Не вдалося виконати дії",
+        "dispatchErrorMessage": "Щось пішло не так під час виконання дій кнопки. Спробуйте ще раз.",
+        "rateLimitedTitle": "Забагато натискань",
+        "rateLimitedMessage": "Цю кнопку натискали надто часто. Зачекайте трохи й спробуйте ще раз.",
+        "requiresReconfiguration": "Цю кнопку потрібно переналаштувати, перш ніж її можна буде натиснути.",
+        "noPermission": "У вас немає дозволу натискати цю кнопку.",
+        "stillRunningTitle": "Все ще виконується",
+        "stillRunningMessage": "Дії кнопки все ще можуть виконуватися у фоновому режимі."
+    },
+    "rowEditFieldButtonField": {
+        "createRowBefore": "Дії можна виконати після створення рядка."
+    },
+    "lastViewedItemType": {
+        "databaseView": "Представлення {name}"
     }
 }
