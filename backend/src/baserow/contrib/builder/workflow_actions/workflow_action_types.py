@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any, Dict, Generator, Union
 
 from django.contrib.auth.models import AbstractUser
@@ -69,7 +70,20 @@ from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class ActiveDataSourceIdField(serializers.IntegerField):
-    def get_attribute(self, instance: RefreshDataSourceWorkflowAction):
+    """
+    Serializes the `data_source_id` of a `RefreshDataSourceWorkflowAction`, but
+    returns `None` if the related data source has been trashed.
+    """
+
+    def get_attribute(self, instance: Union[RefreshDataSourceWorkflowAction, Mapping]):
+        if isinstance(instance, Mapping):
+            # `validate_data` returns `serializer.data` for a serializer without
+            # an instance, which calls `to_representation` with the validated
+            # request body (a dict) rather than a model instance. In that case
+            # there is no related data source to inspect, so fall back to the
+            # default lookup which supports mappings.
+            return super().get_attribute(instance)
+
         data_source = instance.data_source
         return data_source.id if data_source and not data_source.trashed else None
 
