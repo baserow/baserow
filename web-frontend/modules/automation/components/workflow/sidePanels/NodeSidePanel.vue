@@ -30,10 +30,7 @@
       :edge-in-use-fn="nodeEdgeInUseFn"
       :destinations="gotoDestinations"
       class="margin-top-2"
-      @values-changed="
-        (values, options) =>
-          handleNodeChange({ service: values, immediate: options?.immediate })
-      "
+      @values-changed="handleServiceChange"
     />
 
     <div class="separator"></div>
@@ -132,11 +129,27 @@ const nodeType = computed(() => {
 })
 
 /**
+ * Handles `values-changed` from the service form. Besides the changed values,
+ * a form may pass options: `immediate` skips the debounce for a one-shot
+ * command fired from a button, such as regenerating the inbound email address,
+ * and `onSettled` is called once that command has been saved, has failed or
+ * was found to change nothing, so the form can end its own loading state.
+ */
+const handleServiceChange = async (
+  values,
+  { immediate = false, onSettled = null } = {}
+) => {
+  try {
+    await handleNodeChange({ service: values, immediate })
+  } finally {
+    onSettled?.()
+  }
+}
+
+/**
  * Applies label or service changes to the selected node. Changes are debounced
  * so typing batches into one request; `immediate` skips that for one-shot
- * commands a form fires from a button, such as regenerating the inbound email
- * address, where the debounce would only delay the spinner and the request. A
- * form asks for it through the second argument of `values-changed`.
+ * commands, where the debounce would only delay the request.
  */
 const handleNodeChange = async ({
   node: nodeChanges,

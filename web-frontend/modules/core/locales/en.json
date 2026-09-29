@@ -1416,7 +1416,7 @@
     "autoForwardTip": "Tip: you can also add this address as an auto-forward rule in your own inbox, so the workflow runs whenever you receive an email.",
     "secretWarning": "Treat this address as a secret: anyone who knows it can start this workflow.",
     "regenerate": "Regenerate address",
-    "notConfigured": "This Baserow instance is not configured to receive inbound email. Set the BASEROW_INBOUND_EMAIL_DOMAIN environment variable to enable this trigger."
+    "infoDescription": "After you send an email, it may take up to several minutes to be received, depending on the provider."
   },
   "twoFactorAuthEmpty": {
     "title": "You have not yet enabled 2FA",
