@@ -36,8 +36,9 @@ button_fields_updated = Signal()
 
 # Once per click that reached the dispatch view with an existing button field,
 # refused clicks included, with what became of it: `outcome`, the
-# `failed_position` when an action failed, `error_status_count` for the actions
-# whose endpoint answered with an error status, and `duration_ms`. Not sent for
+# `failed_position` when an action failed, `error_status_count` and
+# `duration_ms`. An HTTP action answered with an error status fails the click
+# rather than being counted in `error_status_count`. Not sent for
 # a click refused before the view's own body, by the concurrent request
 # throttle for instance, which answers the same 429 as the button budget.
 button_field_dispatched = ObservingSignal()

@@ -82,8 +82,8 @@ def capture_button_field_dispatched(
             "field_id": field.id,
             "outcome": str(outcome),
             "failed_position": failed_position,
-            # `completed` says Baserow ran the sequence, not that every
-            # endpoint an action reached accepted what it sent.
+            # An HTTP action answered with an error status fails the click,
+            # so it is not counted here.
             "error_status_count": error_status_count,
             "duration_ms": round(duration_ms),
             "action_types": [type_.type for type_ in types],

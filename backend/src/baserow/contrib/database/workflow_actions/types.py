@@ -16,8 +16,8 @@ class DatabaseWorkflowActionDict(WorkflowActionDict):
 class DispatchOutcome(StrEnum):
     """What became of a button click, as analytics and metrics report it."""
 
-    # Baserow ran the sequence. An action whose endpoint answered with an
-    # error status is counted by `error_status_count`, not here.
+    # Baserow ran the sequence. An HTTP action answered with an error
+    # status fails the click instead.
     COMPLETED = "completed"
     FAILED = "failed"
     THROTTLED = "throttled"

@@ -269,8 +269,8 @@ class ButtonFieldDispatchJobType(JobType):
             send_dispatched(DispatchOutcome.ERROR, next(iter(failed_positions), None))
             raise
 
-        # An endpoint that answered with an error status is a completed
-        # action; counted so the click's event says so.
+        # An HTTP action answered with an error status fails the click, so
+        # it never reaches this count.
         error_status_count = sum(
             1
             for dispatched in dispatch.dispatched

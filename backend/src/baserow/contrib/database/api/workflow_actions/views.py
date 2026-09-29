@@ -587,8 +587,7 @@ class DispatchDatabaseWorkflowActionsView(APIView):
                 workflow_actions=workflow_actions,
                 outcome=outcome,
                 failed_position=failed_position,
-                # Only a click that reaches outside Baserow can get an error
-                # status back, and the job counts those itself.
+                # This view runs no action; the job sends its own count.
                 error_status_count=0,
                 duration_ms=(perf_counter() - started) * 1000,
             )
