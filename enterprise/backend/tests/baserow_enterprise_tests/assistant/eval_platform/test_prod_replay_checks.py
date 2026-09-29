@@ -111,6 +111,8 @@ def test_onboarding_check_requires_the_requested_tables_with_rows(
             database=scenario.refs["database"], name=name
         )
         primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+        data_fixture.create_text_field(table=table, name="Owner")
+        data_fixture.create_date_field(table=table, name="Deadline")
         if row_count:
             RowHandler().force_create_rows(
                 scenario.user,
@@ -121,6 +123,74 @@ def test_onboarding_check_requires_the_requested_tables_with_rows(
     checks = _check_project_tracker_onboarding(None, scenario, _output())
 
     assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "owner, deadline, expected",
+    [
+        ("field", "field", True),
+        ("alias_field", "alias_field", True),
+        ("missing", "field", False),
+        ("field", "missing", False),
+        ("missing", "missing", False),
+        ("linked_table", "linked_table", True),
+        ("unlinked_table", "field", False),
+        ("field", "unlinked_table", False),
+        ("unrelated_field", "field", False),
+        ("field", "unrelated_field", False),
+    ],
+)
+def test_onboarding_check_requires_owner_and_deadline_representation(
+    data_fixture, owner, deadline, expected
+):
+    scenario = _project_tracker_onboarding_scenario(data_fixture)
+    database = scenario.refs["database"]
+    tracker_tables = []
+    for name in ("Projects", "Milestones"):
+        table = data_fixture.create_database_table(database=database, name=name)
+        primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+        RowHandler().force_create_rows(
+            scenario.user, table, [{primary.db_column: f"Example {name}"}]
+        )
+        tracker_tables.append(table)
+
+    for tracker, name, alias, representation in (
+        (tracker_tables[0], "Owner", "Assignee", owner),
+        (tracker_tables[1], "Deadline", "Due Date", deadline),
+    ):
+        if representation == "missing":
+            continue
+        if representation in {"field", "alias_field"}:
+            factory = (
+                data_fixture.create_text_field
+                if name == "Owner"
+                else data_fixture.create_date_field
+            )
+            factory(
+                table=tracker, name=alias if representation == "alias_field" else name
+            )
+            continue
+        table = data_fixture.create_database_table(
+            database=database,
+            name="Unrelated" if representation == "unrelated_field" else name + "s",
+        )
+        primary = data_fixture.create_text_field(table=table, name="Name", primary=True)
+        RowHandler().force_create_rows(
+            scenario.user, table, [{primary.db_column: "Example"}]
+        )
+        if representation == "linked_table":
+            data_fixture.create_link_row_field(
+                table=tracker, link_row_table=table, name="Related records"
+            )
+        elif representation == "unrelated_field":
+            data_fixture.create_text_field(table=table, name=name)
+
+    checks = _check_project_tracker_onboarding(None, scenario, _output())
+
+    assert _failed(checks) == (
+        set() if expected else {"tracker represents owners and deadlines"}
+    )
 
 
 @pytest.mark.django_db
@@ -185,8 +255,12 @@ def test_impossible_formula_check_rejects_a_broken_formula(
     [
         (None, set()),
         ("fewer_rows", {"30 employees created"}),
+        ("blank_full_name", {"every row has valid typed values"}),
+        ("blank_team", {"every row has valid typed values"}),
+        ("blank_phone", {"every row has valid typed values"}),
         ("blank_level", {"every row has valid typed values"}),
         ("blank_start_date", {"every row has valid typed values"}),
+        ("blank_notes", {"every row has valid typed values"}),
         ("blank_score", {"every row has valid typed values"}),
     ],
 )
@@ -201,18 +275,24 @@ def test_employee_rows_check_requires_valid_typed_values(data_fixture, defect, f
             fields["Phone"].db_column: "555-0100",
             fields["Level"].db_column: level.id,
             fields["Start Date"].db_column: "2025-01-15",
+            fields["Notes"].db_column: "Sample employee",
             fields["Performance Score"].db_column: 4,
         }
         for i in range(30)
     ]
     if defect == "fewer_rows":
         rows = rows[:29]
-    elif defect == "blank_level":
-        rows[3][fields["Level"].db_column] = None
-    elif defect == "blank_start_date":
-        rows[5][fields["Start Date"].db_column] = None
-    elif defect == "blank_score":
-        rows[7][fields["Performance Score"].db_column] = None
+    elif defect is not None:
+        omitted_field = {
+            "blank_full_name": "Full Name",
+            "blank_team": "Team",
+            "blank_phone": "Phone",
+            "blank_level": "Level",
+            "blank_start_date": "Start Date",
+            "blank_notes": "Notes",
+            "blank_score": "Performance Score",
+        }[defect]
+        rows[3].pop(fields[omitted_field].db_column)
     RowHandler().force_create_rows(scenario.user, scenario.refs["table"], rows)
 
     checks = _check_fake_rows_into_typed_fields(None, scenario, _output())

@@ -24,7 +24,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from baserow.contrib.database.fields.models import FormulaField
+from baserow.contrib.database.fields.models import FormulaField, LinkRowField
 from baserow.contrib.database.models import Table
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.models import (
@@ -101,7 +101,15 @@ ORDER_FORM_FIELDS = ("Customer", "Price")
 REQUESTED_TRACKER_TABLES = ("Projects", "Milestones")
 SHIPMENT_ISO_WEEKS = {"2026-01-01": 1, "2026-06-15": 25, "2027-01-01": 53}
 REQUESTED_EMPLOYEE_COUNT = 30
-REQUIRED_EMPLOYEE_FIELDS = ("Full Name", "Level", "Start Date", "Performance Score")
+REQUIRED_EMPLOYEE_FIELDS = (
+    "Full Name",
+    "Team",
+    "Phone",
+    "Level",
+    "Start Date",
+    "Notes",
+    "Performance Score",
+)
 SIGNED_TRANSACTIONS = (
     ("T-1", "Credit", 100),
     ("T-2", "Debit", 40),
@@ -309,24 +317,50 @@ def _check_project_tracker_onboarding(
     """Regression: 'Tool name conflicts with existing tool: create_rows_in_table_N'."""
 
     database = scenario.refs["database"]
-    rows_by_table = {
-        table.name: table.get_model().objects.count()
-        for table in Table.objects.filter(database=database)
+    tables = list(Table.objects.filter(database=database).prefetch_related("field_set"))
+    rows_by_table = {table.name: table.get_model().objects.count() for table in tables}
+    singular_names = {
+        name.strip().casefold().removesuffix("s") for name in rows_by_table
     }
-    singular_names = {name.strip().lower().removesuffix("s") for name in rows_by_table}
+    requested_names = {
+        name.casefold().removesuffix("s") for name in REQUESTED_TRACKER_TABLES
+    }
+    tracker_ids = {
+        table.id
+        for table in tables
+        if table.name.strip().casefold().removesuffix("s") in requested_names
+    }
+    # Owners and deadlines can be fields or related tables. An unrelated table
+    # with the right name does not make them part of the project tracker.
+    related_ids = set(tracker_ids)
+    table_ids = {table.id for table in tables}
+    for source_id, target_id in LinkRowField.objects.filter(
+        table_id__in=table_ids, link_row_table_id__in=table_ids
+    ).values_list("table_id", "link_row_table_id"):
+        if source_id in tracker_ids or target_id in tracker_ids:
+            related_ids.update((source_id, target_id))
+    schema_names = {
+        name.strip().casefold().removesuffix("s")
+        for table in tables
+        if table.id in related_ids
+        for name in [table.name, *(field.name for field in table.field_set.all())]
+    }
     return [
         CheckResult(
             "Projects and Milestones tables created",
-            all(
-                name.lower().removesuffix("s") in singular_names
-                for name in REQUESTED_TRACKER_TABLES
-            ),
+            requested_names <= singular_names,
             hint=f"tables: {sorted(rows_by_table)}",
         ),
         CheckResult(
             "every table has example rows",
             bool(rows_by_table) and all(rows_by_table.values()),
             hint=f"rows per table: {rows_by_table}",
+        ),
+        CheckResult(
+            "tracker represents owners and deadlines",
+            bool(schema_names & {"owner", "assignee"})
+            and bool(schema_names & {"deadline", "due date"}),
+            hint=f"tracker schema names: {sorted(schema_names)}",
         ),
         CheckResult(
             "no tool name conflict leaked",
