@@ -10,7 +10,7 @@ import {
   getFilters,
   getRowSortFunction,
   matchSearchFilters,
-  reportRowsNotVisibleInView,
+  reportHiddenRows,
 } from '@baserow/modules/database/utils/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
@@ -567,12 +567,12 @@ export const actions = {
     )
     commit('SET_CREATING', false)
     const [createdRow] = data.items
-    const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+    const hiddenRowIds = reportHiddenRows(data, {
       dispatch,
       i18n: $i18n,
       created: true,
     })
-    if (rowIdsNotVisible.has(createdRow.id)) {
+    if (hiddenRowIds.has(createdRow.id)) {
       return
     }
     return await dispatch('createdNewRow', {
@@ -898,12 +898,12 @@ export const actions = {
           null,
           getters.getLastCalendarId
         )
-        const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+        const hiddenRowIds = reportHiddenRows(data, {
           dispatch,
           i18n: $i18n,
           created: false,
         })
-        if (rowIdsNotVisible.has(row.id)) {
+        if (hiddenRowIds.has(row.id)) {
           await dispatch('deletedExistingRow', { view, row, fields })
           return
         }

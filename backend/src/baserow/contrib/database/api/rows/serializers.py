@@ -256,15 +256,15 @@ def get_batch_operation_metadata_serializer(row_serializer_class):
             required=False,
             help_text="A list of field ids that has been changed during the operation",
         ),
-        "row_ids_not_visible_in_view": serializers.ListField(
+        "hidden_row_ids": serializers.ListField(
             child=serializers.IntegerField(required=True),
             allow_empty=True,
             allow_null=False,
             read_only=True,
             required=False,
-            help_text="The ids of the rows that are not visible in the provided "
-            "`view` after the operation. Only included if the view filters are "
-            "enforced for the user, like in a restricted view.",
+            help_text="The ids of the rows hidden by the filters of the provided `view` "
+            "after the operation. Only included if the view filters are enforced "
+            "for the user, like in a restricted view.",
         ),
     }
     serializer_cls = type(

@@ -1445,7 +1445,7 @@ describe('Calendar view store', () => {
     })
 
     describe('updateRowValue', () => {
-      test('removes the row not visible in view according to backend', async () => {
+      test('removes the row hidden by the backend', async () => {
         const dateStacks = {}
         dateStacks['2023-01-01'] = {
           count: 2,
@@ -1466,7 +1466,7 @@ describe('Calendar view store', () => {
           ],
           metadata: {
             updated_field_ids: [1],
-            row_ids_not_visible_in_view: [10],
+            hidden_row_ids: [10],
           },
         })
 

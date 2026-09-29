@@ -3586,7 +3586,7 @@ def test_editor_on_restricted_view_can_redo_delete_rows(restricted_view_editor_s
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_editor_batch_update_response_includes_rows_not_visible_in_view(
+def test_editor_batch_update_response_includes_hidden_rows(
     api_client, enterprise_data_fixture, restricted_view_editor_setup
 ):
     admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
@@ -3616,12 +3616,12 @@ def test_editor_batch_update_response_includes_rows_not_visible_in_view(
         HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
     )
     assert response.status_code == HTTP_200_OK
-    assert response.json()["metadata"]["row_ids_not_visible_in_view"] == [row_1.id]
+    assert response.json()["metadata"]["hidden_row_ids"] == [row_1.id]
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_editor_batch_create_response_includes_rows_not_visible_in_view(
+def test_editor_batch_create_response_includes_hidden_rows(
     api_client, enterprise_data_fixture, restricted_view_editor_setup
 ):
     admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
@@ -3643,14 +3643,14 @@ def test_editor_batch_create_response_includes_rows_not_visible_in_view(
     )
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
-    assert response_json["metadata"]["row_ids_not_visible_in_view"] == [
+    assert response_json["metadata"]["hidden_row_ids"] == [
         response_json["items"][1]["id"]
     ]
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_batch_update_response_excludes_rows_not_visible_in_view_if_not_enforced(
+def test_batch_update_response_excludes_hidden_rows_if_not_enforced(
     api_client, enterprise_data_fixture, restricted_view_editor_setup
 ):
     admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
@@ -3671,7 +3671,7 @@ def test_batch_update_response_excludes_rows_not_visible_in_view_if_not_enforced
         HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(admin)}",
     )
     assert response.status_code == HTTP_200_OK
-    assert "row_ids_not_visible_in_view" not in response.json()["metadata"]
+    assert "hidden_row_ids" not in response.json()["metadata"]
 
     response = api_client.patch(
         f"{url}?include_metadata=true",
@@ -3680,7 +3680,7 @@ def test_batch_update_response_excludes_rows_not_visible_in_view_if_not_enforced
         HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(admin)}",
     )
     assert response.status_code == HTTP_200_OK
-    assert "row_ids_not_visible_in_view" not in response.json()["metadata"]
+    assert "hidden_row_ids" not in response.json()["metadata"]
 
 
 @pytest.mark.django_db
@@ -3705,7 +3705,7 @@ def test_editor_batch_update_reports_row_hidden_by_dependant_formula_filter(
         HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
     )
     assert response.status_code == HTTP_200_OK
-    assert response.json()["metadata"]["row_ids_not_visible_in_view"] == [row.id]
+    assert response.json()["metadata"]["hidden_row_ids"] == [row.id]
 
 
 @pytest.mark.django_db
@@ -3744,12 +3744,12 @@ def test_batch_update_response_ignores_restricted_view_of_another_table(
         HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(editor)}",
     )
     assert response.status_code == HTTP_200_OK
-    assert "row_ids_not_visible_in_view" not in response.json()["metadata"]
+    assert "hidden_row_ids" not in response.json()["metadata"]
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_get_row_ids_not_visible_in_view_returns_hidden_ids_in_input_order(
+def test_get_hidden_row_ids_returns_hidden_ids_in_input_order(
     enterprise_data_fixture, restricted_view_editor_setup
 ):
     admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
@@ -3769,19 +3769,19 @@ def test_get_row_ids_not_visible_in_view_returns_hidden_ids_in_input_order(
         .created_rows
     )
 
-    row_ids_not_visible = ViewHandler().get_row_ids_not_visible_in_view(
+    hidden_row_ids = ViewHandler().get_hidden_row_ids(
         editor,
         view,
         table.get_model(),
         [drop_2.id, keep_1.id, drop_1.id, keep_2.id],
     )
 
-    assert row_ids_not_visible == [drop_2.id, drop_1.id]
+    assert hidden_row_ids == [drop_2.id, drop_1.id]
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_get_row_ids_not_visible_in_view_returns_none_if_filters_not_enforced(
+def test_get_hidden_row_ids_returns_none_if_filters_not_enforced(
     enterprise_data_fixture, restricted_view_editor_setup
 ):
     admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
@@ -3791,16 +3791,14 @@ def test_get_row_ids_not_visible_in_view_returns_none_if_filters_not_enforced(
     row = RowHandler().create_row(admin, table, values={name_field.db_column: "drop"})
 
     assert (
-        ViewHandler().get_row_ids_not_visible_in_view(
-            admin, view, table.get_model(), [row.id]
-        )
+        ViewHandler().get_hidden_row_ids(admin, view, table.get_model(), [row.id])
         is None
     )
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_get_row_ids_not_visible_in_view_returns_none_for_another_table(
+def test_get_hidden_row_ids_returns_none_for_another_table(
     enterprise_data_fixture, restricted_view_editor_setup
 ):
     admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
@@ -3811,7 +3809,7 @@ def test_get_row_ids_not_visible_in_view_returns_none_for_another_table(
     other_row = RowHandler().create_row(admin, other_table)
 
     assert (
-        ViewHandler().get_row_ids_not_visible_in_view(
+        ViewHandler().get_hidden_row_ids(
             editor, view, other_table.get_model(), [other_row.id]
         )
         is None
@@ -3820,7 +3818,7 @@ def test_get_row_ids_not_visible_in_view_returns_none_for_another_table(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_get_row_ids_not_visible_in_view_returns_empty_if_filters_disabled(
+def test_get_hidden_row_ids_returns_empty_if_filters_disabled(
     enterprise_data_fixture, restricted_view_editor_setup
 ):
     admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
@@ -3832,8 +3830,6 @@ def test_get_row_ids_not_visible_in_view_returns_empty_if_filters_disabled(
     row = RowHandler().create_row(admin, table, values={name_field.db_column: "drop"})
 
     assert (
-        ViewHandler().get_row_ids_not_visible_in_view(
-            editor, view, table.get_model(), [row.id]
-        )
+        ViewHandler().get_hidden_row_ids(editor, view, table.get_model(), [row.id])
         == []
     )

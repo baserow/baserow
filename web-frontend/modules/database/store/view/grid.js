@@ -24,7 +24,7 @@ import {
   getOrderBy,
   canRowsBeOptimisticallyUpdatedInView,
   viewHasRulesThatCanMoveOrHideRows,
-  reportRowsNotVisibleInView,
+  reportHiddenRows,
 } from '@baserow/modules/database/utils/view'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
@@ -4590,14 +4590,14 @@ export const actions = {
           fields: fieldsToFinalize,
         })
 
-        const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+        const hiddenRowIds = reportHiddenRows(data, {
           dispatch,
           i18n: $i18n,
           created: true,
         })
         for (let i = 0; i < data.items.length; i += 1) {
           const item = data.items[i]
-          if (rowIdsNotVisible.has(item.id)) {
+          if (hiddenRowIds.has(item.id)) {
             const row = getters.getRow(item.id)
             if (row) {
               await dispatch('deletedExistingRow', {
@@ -4932,12 +4932,12 @@ export const actions = {
         )
         groupUpdateCompleted = true
         groupUpdateResponseData = data.items[0]
-        const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+        const hiddenRowIds = reportHiddenRows(data, {
           dispatch,
           i18n: $i18n,
           created: false,
         })
-        if (rowIdsNotVisible.has(row.id)) {
+        if (hiddenRowIds.has(row.id)) {
           // The optimistic move already removed it if the new value misses the search.
           if (getters.getAllRows.some((r) => r.id === row.id)) {
             await dispatch('deletedExistingRow', {
@@ -5229,10 +5229,11 @@ export const actions = {
           field.id,
         ])
 
-        const rowIdsNotVisible = reportRowsNotVisibleInView(
-          batchResponse.data,
-          { dispatch, i18n: $i18n, created: false }
-        )
+        const hiddenRowIds = reportHiddenRows(batchResponse.data, {
+          dispatch,
+          i18n: $i18n,
+          created: false,
+        })
 
         for (const updatedRowData of updatedRows) {
           // Extract only the read-only values because we don't want to update the other
@@ -5251,7 +5252,7 @@ export const actions = {
           if (existing === undefined) {
             continue
           }
-          if (rowIdsNotVisible.has(existing.id)) {
+          if (hiddenRowIds.has(existing.id)) {
             await dispatch('deletedExistingRow', {
               view,
               fields,
@@ -5578,7 +5579,7 @@ export const actions = {
       getters.getLastGridId
     )
     const updatedRows = responseData.items
-    const rowIdsNotVisible = reportRowsNotVisibleInView(responseData, {
+    const hiddenRowIds = reportHiddenRows(responseData, {
       dispatch,
       i18n: $i18n,
       created: false,
@@ -5606,7 +5607,7 @@ export const actions = {
     for (const row of oldRowsInOrder) {
       // The values are the updated row returned by the response.
       const values = updatedRows.find((updatedRow) => updatedRow.id === row.id)
-      if (rowIdsNotVisible.has(row.id)) {
+      if (hiddenRowIds.has(row.id)) {
         await dispatch('deletedExistingRow', {
           view,
           fields: allFieldsInTable,

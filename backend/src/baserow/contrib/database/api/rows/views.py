@@ -177,7 +177,7 @@ def build_response_with_metadata(
     If the request contains `include_metadata` flag, then the response should include
     `metadata` field with information about the operation performed. At the moment,
     this includes a list of fields that have been changed, and if the view filters
-    are enforced for the user, the ids of the rows that are not visible in the view.
+    are enforced for the user, the ids of the rows hidden by the view filters.
     """
 
     data = {"items": rows}
@@ -193,11 +193,11 @@ def build_response_with_metadata(
                 "field_ids": cascade_update.field_ids,
             }
         if view is not None:
-            row_ids_not_visible = ViewHandler().get_row_ids_not_visible_in_view(
+            hidden_row_ids = ViewHandler().get_hidden_row_ids(
                 request.user, view, model, [row.id for row in rows]
             )
-            if row_ids_not_visible is not None:
-                data["metadata"]["row_ids_not_visible_in_view"] = row_ids_not_visible
+            if hidden_row_ids is not None:
+                data["metadata"]["hidden_row_ids"] = hidden_row_ids
     response_serializer = serializer_class(data)
     return Response(response_serializer.data)
 

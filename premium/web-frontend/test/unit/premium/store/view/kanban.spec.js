@@ -209,7 +209,7 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[0].id).toBe(11)
   })
 
-  test('updateRowValue removes the row not visible in view according to backend', async () => {
+  test('updateRowValue removes the row hidden by the backend', async () => {
     const stacks = {}
     stacks['1'] = {
       count: 2,
@@ -230,7 +230,7 @@ describe('Kanban view store', () => {
     ]
     testApp.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
       items: [{ id: 10, order: '10.00', field_1: { id: 1 }, field_2: 'drop' }],
-      metadata: { updated_field_ids: [2], row_ids_not_visible_in_view: [10] },
+      metadata: { updated_field_ids: [2], hidden_row_ids: [10] },
     })
 
     await store.dispatch('kanban/updateRowValue', {
@@ -249,7 +249,7 @@ describe('Kanban view store', () => {
     )
   })
 
-  test('createNewRow does not add the row not visible in view according to backend', async () => {
+  test('createNewRow does not add the row hidden by the backend', async () => {
     const stacks = {}
     stacks['1'] = {
       count: 1,
@@ -267,7 +267,7 @@ describe('Kanban view store', () => {
     ]
     testApp.mock.onPost('/database/rows/table/1/batch/').reply(200, {
       items: [{ id: 11, order: '11.00', field_1: { id: 1 }, field_2: 'b' }],
-      metadata: { updated_field_ids: [2], row_ids_not_visible_in_view: [11] },
+      metadata: { updated_field_ids: [2], hidden_row_ids: [11] },
     })
 
     await store.dispatch('kanban/createNewRow', {
@@ -598,7 +598,7 @@ describe('Kanban view store', () => {
           items: [{ id: 5, order: '5.00', field_1: { id: 1 }, field_2: 'new' }],
           metadata: {
             updated_field_ids: [1],
-            row_ids_not_visible_in_view: [5],
+            hidden_row_ids: [5],
           },
         })
       testApp.mock
@@ -626,8 +626,8 @@ describe('Kanban view store', () => {
       expect(store.state.kanban.stacks.null.count).toBe(1)
       expect(store.getters['kanban/getDraggingRow']).toBeNull()
       expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
-        title: 'rowsNotVisibleInView.title - 1',
-        message: 'rowsNotVisibleInView.updatedMessage - 1',
+        title: 'hiddenRows.title - 1',
+        message: 'hiddenRows.updatedMessage - 1',
       })
     })
 

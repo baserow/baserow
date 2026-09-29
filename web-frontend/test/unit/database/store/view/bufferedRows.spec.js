@@ -2048,7 +2048,7 @@ describe('Buffered rows view store helper', () => {
     expect(rowsInStore[11]).toBe(null)
   })
 
-  test('created row not visible in view according to backend is not added', async () => {
+  test('created row hidden by the backend is not added', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -2073,7 +2073,7 @@ describe('Buffered rows view store helper', () => {
     const dispatchSpy = vi.spyOn(store, 'dispatch')
     testApp.mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
       items: [{ id: 2, order: '2.00000000000000000000', field_1: 'b' }],
-      metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [2] },
+      metadata: { updated_field_ids: [1], hidden_row_ids: [2] },
     })
 
     await store.dispatch('test/createNewRow', {
@@ -2085,12 +2085,12 @@ describe('Buffered rows view store helper', () => {
 
     expect(store.getters['test/getRows'].map((row) => row.id)).toEqual([1])
     expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
-      title: 'rowsNotVisibleInView.title - 1',
-      message: 'rowsNotVisibleInView.createdMessage - 1',
+      title: 'hiddenRows.title - 1',
+      message: 'hiddenRows.createdMessage - 1',
     })
   })
 
-  test('updated row not visible in view according to backend is removed', async () => {
+  test('updated row hidden by the backend is removed', async () => {
     const view = {
       id: 1,
       filters_disabled: false,
@@ -2119,7 +2119,7 @@ describe('Buffered rows view store helper', () => {
       .onPatch('/database/rows/table/1/batch/')
       .reply(200, {
         items: [{ id: 1, order: '1.00000000000000000000', field_1: 'drop' }],
-        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [1] },
+        metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
       })
 
     await store.dispatch('test/updatePreparedRowValues', {

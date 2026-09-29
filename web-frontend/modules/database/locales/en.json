@@ -776,7 +776,7 @@
     "rowNotMatchingSearch": "Row does not match search",
     "rowHasMoved": "Row has moved"
   },
-  "rowsNotVisibleInView": {
+  "hiddenRows": {
     "title": "Row hidden | Rows hidden",
     "createdMessage": "The new row doesn't match the filters of this view, so it isn't shown. Ask the view's builder to set default values that match the filters. | {count} new rows don't match the filters of this view, so they aren't shown. Ask the view's builder to set default values that match the filters.",
     "updatedMessage": "The row no longer matches the filters of this view, so it's hidden. | {count} rows no longer match the filters of this view, so they're hidden."

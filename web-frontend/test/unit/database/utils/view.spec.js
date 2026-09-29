@@ -4,7 +4,7 @@ import {
   createFiltersTree,
   getOrderBy,
   matchSearchFilters,
-  reportRowsNotVisibleInView,
+  reportHiddenRows,
   serializeGroupBys,
 } from '@baserow/modules/database/utils/view'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -389,17 +389,17 @@ describe('serializeGroupBys', () => {
   })
 })
 
-describe('reportRowsNotVisibleInView', () => {
+describe('reportHiddenRows', () => {
   const i18n = { t: (key, { count }) => `${key} - ${count}` }
 
   it('returns the hidden row ids and shows one toast', () => {
     const dispatch = vi.fn()
     const data = {
       items: [],
-      metadata: { row_ids_not_visible_in_view: [1, 2] },
+      metadata: { hidden_row_ids: [1, 2] },
     }
 
-    const hidden = reportRowsNotVisibleInView(data, {
+    const hidden = reportHiddenRows(data, {
       dispatch,
       i18n,
       created: true,
@@ -410,8 +410,8 @@ describe('reportRowsNotVisibleInView', () => {
     expect(dispatch).toHaveBeenCalledWith(
       'toast/info',
       {
-        title: 'rowsNotVisibleInView.title - 2',
-        message: 'rowsNotVisibleInView.createdMessage - 2',
+        title: 'hiddenRows.title - 2',
+        message: 'hiddenRows.createdMessage - 2',
       },
       { root: true }
     )
@@ -419,15 +419,15 @@ describe('reportRowsNotVisibleInView', () => {
 
   it('uses the updated message for updated rows', () => {
     const dispatch = vi.fn()
-    const data = { items: [], metadata: { row_ids_not_visible_in_view: [1] } }
+    const data = { items: [], metadata: { hidden_row_ids: [1] } }
 
-    reportRowsNotVisibleInView(data, { dispatch, i18n, created: false })
+    reportHiddenRows(data, { dispatch, i18n, created: false })
 
     expect(dispatch).toHaveBeenCalledWith(
       'toast/info',
       {
-        title: 'rowsNotVisibleInView.title - 1',
-        message: 'rowsNotVisibleInView.updatedMessage - 1',
+        title: 'hiddenRows.title - 1',
+        message: 'hiddenRows.updatedMessage - 1',
       },
       { root: true }
     )
@@ -436,7 +436,7 @@ describe('reportRowsNotVisibleInView', () => {
   it('does nothing when the backend reports no hidden rows', () => {
     const dispatch = vi.fn()
 
-    const hidden = reportRowsNotVisibleInView(
+    const hidden = reportHiddenRows(
       { items: [], metadata: {} },
       { dispatch, i18n, created: false }
     )

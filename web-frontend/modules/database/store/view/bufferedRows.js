@@ -10,7 +10,7 @@ import {
   getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
-  reportRowsNotVisibleInView,
+  reportHiddenRows,
 } from '@baserow/modules/database/utils/view'
 import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
@@ -716,12 +716,12 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       )
       commit('SET_CREATING', false)
       const [createdRow] = data.items
-      const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+      const hiddenRowIds = reportHiddenRows(data, {
         dispatch,
         i18n: $i18n,
         created: true,
       })
-      if (rowIdsNotVisible.has(createdRow.id)) {
+      if (hiddenRowIds.has(createdRow.id)) {
         return
       }
       return await dispatch('afterNewRowCreated', {
@@ -834,7 +834,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
               .concat(data.metadata?.cascade_update?.field_ids || [])
           )
 
-          const rowIdsNotVisible = reportRowsNotVisibleInView(data, {
+          const hiddenRowIds = reportHiddenRows(data, {
             dispatch,
             i18n: $i18n,
             created: false,
@@ -848,7 +848,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
             if (rowToUpdate === undefined) {
               continue
             }
-            if (rowIdsNotVisible.has(rowToUpdate.id)) {
+            if (hiddenRowIds.has(rowToUpdate.id)) {
               await dispatch('afterExistingRowDeleted', {
                 view,
                 fields,

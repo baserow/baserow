@@ -1911,7 +1911,7 @@ class ViewHandler:
         filter_builder = self.get_filter_builder(view, model)
         return filter_builder.apply_to_queryset(queryset)
 
-    def get_row_ids_not_visible_in_view(
+    def get_hidden_row_ids(
         self,
         user: AbstractUser,
         view: View,
@@ -1928,7 +1928,7 @@ class ViewHandler:
         :param view: The view where to check the visibility of the rows.
         :param model: The generated model of the table the rows belong to.
         :param row_ids: The ids of the rows to check.
-        :return: The ids of the rows that are not visible in the view, in the order
+        :return: The ids of the rows hidden by the view filters, in the order
             of `row_ids`, or `None` if the view doesn't belong to the table of the
             model or if the view filters are not enforced for the user.
         """

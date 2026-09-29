@@ -1174,7 +1174,7 @@ describe('Grid view store', () => {
     expect(row1).toBeUndefined()
   })
 
-  describe('rows not visible in the view according to the backend', () => {
+  describe('rows hidden by the backend', () => {
     // A restricted view hides its filters, so the backend reports the hidden rows.
     const fields = [
       {
@@ -1243,19 +1243,19 @@ describe('Grid view store', () => {
       return restrictedStore
     }
     const updatedToast = {
-      title: 'rowsNotVisibleInView.title - 1',
-      message: 'rowsNotVisibleInView.updatedMessage - 1',
+      title: 'hiddenRows.title - 1',
+      message: 'hiddenRows.updatedMessage - 1',
     }
     const createdToast = {
-      title: 'rowsNotVisibleInView.title - 1',
-      message: 'rowsNotVisibleInView.createdMessage - 1',
+      title: 'hiddenRows.title - 1',
+      message: 'hiddenRows.createdMessage - 1',
     }
 
     test('updateRowValue removes the row', async () => {
       const restrictedStore = createRestrictedStore()
       mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
         items: [{ id: 1, order: '1.00', field_1: 'drop' }],
-        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [1] },
+        metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
       })
 
       const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
@@ -1276,14 +1276,14 @@ describe('Grid view store', () => {
       expect(restrictedStore.getters['grid/getCount']).toBe(1)
     })
 
-    test('updateDataIntoCells removes only the rows not visible', async () => {
+    test('updateDataIntoCells removes only the hidden rows', async () => {
       const restrictedStore = createRestrictedStore()
       mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
         items: [
           { id: 1, order: '1.00', field_1: 'drop' },
           { id: 2, order: '2.00', field_1: 'keep' },
         ],
-        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [1] },
+        metadata: { updated_field_ids: [1], hidden_row_ids: [1] },
       })
 
       const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
@@ -1309,7 +1309,7 @@ describe('Grid view store', () => {
       const restrictedStore = createRestrictedStore()
       mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
         items: [{ id: 3, order: '3.00', field_1: '' }],
-        metadata: { updated_field_ids: [], row_ids_not_visible_in_view: [3] },
+        metadata: { updated_field_ids: [], hidden_row_ids: [3] },
       })
 
       const dispatchSpy = vi.spyOn(restrictedStore, 'dispatch')
@@ -1333,7 +1333,7 @@ describe('Grid view store', () => {
       })
       mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
         items: [{ id: 3, order: '3.00', field_1: '' }],
-        metadata: { updated_field_ids: [], row_ids_not_visible_in_view: [3] },
+        metadata: { updated_field_ids: [], hidden_row_ids: [3] },
       })
 
       await restrictedStore.dispatch('grid/createNewRows', {
@@ -1464,7 +1464,7 @@ describe('Grid view store', () => {
       const groupedStore = createGroupedStore()
       mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
         items: [{ id: 10, order: '1.00', field_1: 'B' }],
-        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [10] },
+        metadata: { updated_field_ids: [1], hidden_row_ids: [10] },
       })
       const dispatchSpy = vi.spyOn(groupedStore, 'dispatch')
 
@@ -1487,8 +1487,8 @@ describe('Grid view store', () => {
       expect(groupedStore.state.grid.groupBy.treeNodes[0].row_count).toBe(0)
       expect(groupedStore.state.grid.groupBy.treeNodes[1].row_count).toBe(2)
       expect(dispatchSpy).toHaveBeenCalledWith('toast/info', {
-        title: 'rowsNotVisibleInView.title - 1',
-        message: 'rowsNotVisibleInView.updatedMessage - 1',
+        title: 'hiddenRows.title - 1',
+        message: 'hiddenRows.updatedMessage - 1',
       })
       expect(fetchByScrollTopDelayed).toHaveBeenCalled()
       expect(fetchAllFieldAggregationData).toHaveBeenLastCalledWith(
@@ -1524,7 +1524,7 @@ describe('Grid view store', () => {
       groupedStore.state.grid.groupBy.treeNodes[0].row_count = 2
       mockServer.mock.onPatch('/database/rows/table/1/batch/').reply(200, {
         items: [{ id: 10, order: '1.00', field_1: 'B' }],
-        metadata: { updated_field_ids: [1], row_ids_not_visible_in_view: [10] },
+        metadata: { updated_field_ids: [1], hidden_row_ids: [10] },
       })
 
       await moveRow10ToGroupB(groupedStore)
