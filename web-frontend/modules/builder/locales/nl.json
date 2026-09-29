@@ -359,7 +359,9 @@
     "elementForms": {
         "textInputPlaceholder": "Voer tekst in...",
         "urlInputPlaceholder": "Voer url in...",
-        "invalidFormula": "De formule is ongeldig"
+        "invalidFormula": "De formule is ongeldig",
+        "formValidationTitle": "Formuliervalidatie",
+        "formValidationHint": "Plaats dit element in een formulier om validatiefouten weer te geven voordat de gegevens worden verzonden."
     },
     "dnsStatus": {
         "hostHeader": "Host",
