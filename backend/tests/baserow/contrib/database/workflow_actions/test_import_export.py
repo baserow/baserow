@@ -3,6 +3,7 @@ from io import BytesIO
 import pytest
 
 from baserow.contrib.database.fields.actions import UpdateFieldActionType
+from baserow.contrib.database.fields.field_types import ButtonFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import ButtonField
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -1078,6 +1079,19 @@ def test_a_workspace_export_strips_the_key_and_still_imports(data_fixture):
     assert imported_service.url["formula"] == "'http://example.notexist/'"
 
 
+def _requires_reconfiguration(button_field):
+    """Reads the flag the way the field serializer does, annotated."""
+
+    return (
+        ButtonFieldType()
+        .enhance_field_queryset_for_serialization(
+            ButtonField.objects.filter(id=button_field.id), None
+        )
+        .get()
+        .requires_reconfiguration
+    )
+
+
 def _button_that_sends_email(data_fixture, table, name_field, button_name="btn"):
     """A button whose email names a field of its own table in every formula."""
 
@@ -1306,7 +1320,84 @@ def test_an_email_action_is_imported_even_where_it_cannot_send(data_fixture, set
     (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
 
     assert action.specific.get_type().type == "smtp_email"
-    assert action.specific.get_type().is_deactivated(imported_workspace) is True
+    assert _requires_reconfiguration(imported_button) is True
+
+
+def _button_that_sends_through_smtp(data_fixture, table, name_field):
+    smtp = data_fixture.create_smtp_integration(
+        application=table.database,
+        host="mail.example.org",
+        password="pw",  # nosec
+    )
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_core_smtp_email_service(
+        integration=smtp,
+        use_instance_smtp_settings=False,
+        from_email="'from@example.com'",
+        to_emails=f"get('row.field_{name_field.id}')",
+    )
+    data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field, service=service
+    )
+    return button_field, smtp
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_email_through_an_integration_survives_a_duplicate(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _, smtp = _button_that_sends_through_smtp(data_fixture, table, name_field)
+
+    config = ImportExportConfig(
+        include_permission_data=False, exclude_sensitive_data=False
+    )
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_table = imported[0].table_set.get(name=table.name)
+    imported_button = imported_table.field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=imported_button)
+    service = action.specific.service.specific
+    (imported_smtp,) = imported[0].integrations.all()
+
+    assert imported_smtp.id != smtp.id
+    assert service.integration_id == imported_smtp.id
+    assert service.use_instance_smtp_settings is False
+    assert imported_smtp.specific.host == "mail.example.org"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_workspace_export_leaves_the_email_integration_needing_reconfiguring(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _button_that_sends_through_smtp(data_fixture, table, name_field)
+
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    imported, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_table = imported[0].table_set.get(name=table.name)
+    imported_button = imported_table.field_set.get(name="btn").specific
+    (imported_smtp,) = imported[0].integrations.all()
+
+    assert imported_smtp.specific.host == ""
+    assert _requires_reconfiguration(imported_button) is True
 
 
 def _button_that_posts_to_slack(data_fixture, table, name_field, button_name="btn"):
