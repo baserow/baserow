@@ -616,6 +616,17 @@ def _results_json() -> bytes:
                 if run_count is None:
                     run_count = totals.get("run_count")
                 expected_run_count = node.get("expectedRunCount")
+                repetitions = node.get("repetitions") or 1
+                # Phoenix freezes the case population when creating an experiment;
+                # today's registry may contain a different set of cases.
+                case_count = (
+                    expected_run_count // repetitions
+                    if expected_run_count is not None
+                    and expected_run_count > 0
+                    and repetitions > 0
+                    and expected_run_count % repetitions == 0
+                    else None
+                )
                 annotation_summaries = node.get("annotationSummaries", [])
                 score_counts = {
                     summary["annotationName"]: summary.get("scoreCount") or 0
@@ -647,6 +658,8 @@ def _results_json() -> bytes:
                         "git_label": git_label or None,
                         "notes": metadata.get("notes"),
                         "settings": _settings_label(metadata),
+                        "imported_baseline": bool(metadata.get("baseline")),
+                        "evaluator_source_hash": metadata.get("evaluator_source_hash"),
                         "scores": {
                             s["annotationName"]: s["meanScore"]
                             for s in annotation_summaries
@@ -654,10 +667,11 @@ def _results_json() -> bytes:
                         },
                         "run_count": run_count,
                         "expected_run_count": expected_run_count,
+                        "case_count": case_count,
                         "dataset_version_id": (node.get("datasetVersion") or {}).get(
                             "id"
                         ),
-                        "repetitions": node.get("repetitions") or 1,
+                        "repetitions": repetitions,
                         "scored_run_count": scored_run_count,
                         "score_counts": score_counts,
                         "complete": bool(expected_run_count)

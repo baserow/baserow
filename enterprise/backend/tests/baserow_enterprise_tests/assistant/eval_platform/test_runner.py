@@ -405,6 +405,81 @@ class TestResultsEndpoint:
         )
 
     @pytest.mark.parametrize(
+        "name, metadata, imported, source_hash",
+        [
+            (
+                "renamed historical run",
+                {"baseline": True, "evaluator_source_hash": "old-checks"},
+                True,
+                "old-checks",
+            ),
+            ("baseline", {}, False, None),
+            (
+                "candidate",
+                {"baseline": False, "evaluator_source_hash": "current-checks"},
+                False,
+                "current-checks",
+            ),
+        ],
+    )
+    def test_results_json_preserves_comparison_provenance(
+        self, monkeypatch, name, metadata, imported, source_hash
+    ):
+        _register_case("database/list-tables")
+        monkeypatch.setattr(runner, "_dataset_ids", {"kuma-database": "ds-node-1"})
+        monkeypatch.setattr(
+            runner,
+            "_experiment_summaries",
+            lambda node_id: [{"id": "exp-1", "name": name, "metadata": metadata}],
+        )
+
+        _status, _headers, body = _call_wsgi(
+            runner.make_wsgi_app(), "GET", "/results.json"
+        )
+
+        experiment = json.loads(body)["datasets"][0]["experiments"][0]
+        assert experiment["imported_baseline"] is imported
+        assert experiment["evaluator_source_hash"] == source_hash
+
+    @pytest.mark.parametrize(
+        "expected_runs, repetitions, expected_cases",
+        [
+            (2, 1, 2),
+            (6, 3, 2),
+            (2, None, 2),
+            (None, 1, None),
+            (0, 1, None),
+            (3, 2, None),
+            (-2, 1, None),
+            (2, -1, None),
+        ],
+    )
+    def test_results_json_counts_recorded_cases_instead_of_current_registry(
+        self, monkeypatch, expected_runs, repetitions, expected_cases
+    ):
+        _register_case("database/current-case")
+        monkeypatch.setattr(runner, "_dataset_ids", {"kuma-database": "ds-node-1"})
+        monkeypatch.setattr(
+            runner,
+            "_experiment_summaries",
+            lambda node_id: [
+                {
+                    "id": "exp-1",
+                    "expectedRunCount": expected_runs,
+                    "repetitions": repetitions,
+                }
+            ],
+        )
+
+        _status, _headers, body = _call_wsgi(
+            runner.make_wsgi_app(), "GET", "/results.json"
+        )
+
+        dataset = json.loads(body)["datasets"][0]
+        assert dataset["case_count"] == 1
+        assert dataset["experiments"][0]["case_count"] == expected_cases
+
+    @pytest.mark.parametrize(
         ("score_counts", "scored_run_count"),
         [
             ({"checklist": 1, "passed": 2}, 1),
@@ -520,8 +595,7 @@ class TestResultsEndpoint:
         assert "time and cost shown per pass" in page
 
     def test_results_tab_compares_only_the_same_case_population(self):
-        """A baseline captured before cases were added, removed or edited ran a
-        different dataset version, so its means are not comparable."""
+        """Different recorded populations must not receive baseline deltas."""
 
         _register_case("database/list-tables")
         app = runner.make_wsgi_app()
@@ -529,12 +603,26 @@ class TestResultsEndpoint:
         _status, _headers, body = _call_wsgi(app, "GET", "/")
 
         page = body.decode("utf-8")
-        assert (
-            "var comparable = experimentComplete && baseline && baseline.complete &&\n"
-            "          experiment.dataset_version_id === baseline.dataset_version_id;"
-            in page
+        assert "experiment.dataset_version_id === baseline.dataset_version_id" in page
+
+    def test_results_tab_rejects_imported_or_unverified_comparisons(self):
+        """Imports carry today's Phoenix version, not their original population."""
+
+        _register_case("database/list-tables")
+        _status, _headers, body = _call_wsgi(runner.make_wsgi_app(), "GET", "/")
+        renderer = js_source.function_body(
+            js_source.inline_script(body.decode("utf-8")), "renderResults"
         )
-        assert "baseline ran a different case set" in page
+
+        assert "(experiment && experiment.imported_baseline)" in renderer
+        assert "(baseline && baseline.imported_baseline)" in renderer
+        assert "!importedBaseline" in renderer
+        assert "experiment.dataset_version_id &&" in renderer
+        assert "experiment.evaluator_source_hash &&" in renderer
+        assert (
+            "experiment.evaluator_source_hash === baseline.evaluator_source_hash"
+            in renderer
+        )
 
     def test_results_tab_requires_full_metric_coverage_on_both_sides(self):
         """answer_quality only compares when the judge scored every run in both
@@ -580,6 +668,25 @@ class TestResultsPageScript:
         renderer = js_source.function_body(script, "renderResults")
 
         assert re.search(r"\b(?:var|let|const)\s+totals\b", renderer)
+
+    def test_overall_row_has_a_cell_for_each_descriptive_column(self, script):
+        renderer = js_source.function_body(script, "renderResults")
+        header = re.search(r"(\[\"Dataset\"[^\n]+\])\.concat\(METRICS\)", renderer)
+        total = re.search(
+            r'\[("Overall \(comparable cases\)"[^\n]+)\]\.forEach', renderer
+        )
+        assert header and total
+
+        leading_cells = js_source.call_arguments(f"columns({total[1]})", "columns")
+
+        assert len(leading_cells[0]) == len(json.loads(header[1]))
+
+    def test_overall_uses_each_experiments_recorded_population(self, script):
+        renderer = js_source.function_body(script, "renderResults")
+
+        assert "dataset.case_count" not in renderer
+        assert "experiment.case_count" in renderer
+        assert "experiment.case_count === baseline.case_count" in renderer
 
     def test_results_renderer_clears_the_pane_before_appending_anything(self, script):
         renderer = js_source.function_body(script, "renderResults")

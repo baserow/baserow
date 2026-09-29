@@ -86,7 +86,7 @@ all** when an error is going to sink every remaining case anyway.
 A selection spanning several datasets fans out to one experiment per dataset,
 and the Results tab groups experiments by name. Leaving **Experiment name**
 blank generates one shared `run-<timestamp>-<id>` name for the whole fan-out,
-so the Results tab compares every dataset against the baseline in one view.
+so the Results tab shows every dataset in one view.
 Type a name instead to group runs yourself — reusing a name across separate
 submissions merges them into one group.
 
@@ -98,8 +98,21 @@ mandatory scores. Incomplete datasets show no baseline deltas and are excluded
 from the overall row; that prevents a stopped, skipped, or partially logged run
 from looking like a quality, latency, or cost improvement.
 
+Automatic baseline comparisons require complete live experiments with matching
+dataset versions, recorded case counts, and check implementation hashes
+(`evaluator_source_hash`). Imported baseline snapshots remain available for
+individual inspection, but show no automatic deltas or Overall comparisons:
+the importer uses the current Phoenix dataset version, which cannot establish
+that the historical cases and checks match.
+To enable automatic deltas, run a fresh experiment named `baseline` with the same
+cases and checks as the candidate.
+
+Overall weights scores by each experiment's recorded case count (expected runs
+divided by repetitions), not today's registry. It includes only comparable
+datasets and the cases covered by each metric.
+
 Repetition counts may differ between the run and the baseline. Scores are means,
-so a `--runs 3` experiment compares directly with a single-pass baseline; time
+so a `--runs 3` experiment can compare with a compatible single-pass baseline; time
 and cost are totals, so both sides are divided by their repetitions and shown
 per pass over the dataset. The model cell notes the two counts whenever they are
 not both 1.
