@@ -1485,5 +1485,9 @@
     },
     "editWorkspace": {
         "invalidNameTitle": "Workspace-Name nicht zulässig"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Das Bild kann nicht eingebettet werden",
+        "errorUnsupportedImageMessage": "{name} ist kein unterstütztes Bild und wurde nicht hinzugefügt."
     }
 }
