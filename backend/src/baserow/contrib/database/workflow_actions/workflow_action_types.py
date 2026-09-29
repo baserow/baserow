@@ -27,6 +27,7 @@ from baserow.contrib.database.workflow_actions.registries import (
     DatabaseWorkflowActionType,
 )
 from baserow.contrib.database.workflow_actions.types import DatabaseWorkflowActionDict
+from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreSMTPEmailServiceType,
@@ -49,7 +50,6 @@ from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
-from baserow.core.models import Workspace
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -707,6 +707,20 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
     type = "smtp_email"
     model_class = CoreSMTPEmailWorkflowAction
     service_type = CoreSMTPEmailServiceType.type
+    # Sent through the installation's own server or an SMTP integration of the
+    # field's database, like the Slack action's bot (ADR 006 section 5).
+    allowed_integration_types = [SMTPIntegrationType.type]
+
+    INSTANCE_SMTP_UNAVAILABLE = {
+        CoreSMTPEmailServiceType.INSTANCE_SMTP_TURNED_OFF: (
+            "Sending through this Baserow instance's own SMTP server is turned "
+            "off. Choose an SMTP integration to send this email."
+        ),
+        CoreSMTPEmailServiceType.INSTANCE_SMTP_NO_SERVER: (
+            "This Baserow instance has no SMTP server configured. Choose an "
+            "SMTP integration to send this email."
+        ),
+    }
 
     def prepare_values(
         self,
@@ -715,65 +729,48 @@ class CoreSMTPEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
         instance: Optional[WorkflowAction] = None,
     ) -> Dict[str, Any]:
         """
-        A database action carries no integration (ADR 006 section 5), so the
-        instance server is the only thing it can send through. Pinned here
-        rather than in the form, or an API client could store an action that
-        can never send. Written into what the base is about to save, so the
-        service is not saved a second time for it.
+        The service type drops the instance server while it cannot send. An
+        edit that does not make the choice keeps the one already stored, or
+        the action would be left with nothing to send through once sending is
+        back.
         """
 
-        values["service"] = {
-            **(values.get("service") or {}),
-            "use_instance_smtp_settings": True,
-        }
+        service_values = values.get("service") or {}
+        keeps_the_instance = (
+            instance is not None
+            and "use_instance_smtp_settings" not in service_values
+            and "integration_id" not in service_values
+            and instance.service.specific.use_instance_smtp_settings
+        )
         values = super().prepare_values(values, user, instance)
 
-        # The service type drops the pin while the instance cannot send, and
-        # an update is not refused the way a create is. Left that way, the
-        # action would fail on every click once sending is back. Only a write
-        # in that case: the ordinary one is a single save above.
         service = values["service"]
-        if not service.use_instance_smtp_settings:
+        if keeps_the_instance and not service.use_instance_smtp_settings:
             service.use_instance_smtp_settings = True
             service.save(update_fields=["use_instance_smtp_settings"])
         return values
 
-    # What each reason the service gives means for a button, in the words the
-    # API answers a refusal with.
-    DEACTIVATED_REASONS = {
-        CoreSMTPEmailServiceType.INSTANCE_SMTP_TURNED_OFF: (
-            "Sending through this Baserow instance's own SMTP server is turned "
-            "off, so a button cannot send email."
-        ),
-        CoreSMTPEmailServiceType.INSTANCE_SMTP_NO_SERVER: (
-            "This Baserow instance has no SMTP server configured, so a button "
-            "cannot send email."
-        ),
-    }
-
-    def is_deactivated(self, workspace: Workspace) -> bool:
+    def raise_if_misconfigured(self, workflow_action: WorkflowAction) -> None:
         """
-        A database action carries no integration, so the instance SMTP server
-        is the only way it can send. Without one, refuse it up front rather
-        than failing on every click.
+        Refuses an action set to the instance server when this installation
+        cannot deliver through it. The service's own check is looser: a
+        backend that only prints the message would report it as sent.
 
-        :param workspace: The workspace the button field belongs to.
-        :return: True when this installation cannot send at all.
+        :param workflow_action: The action to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When it cannot
+            send.
         """
 
-        return self.get_deactivated_reason(workspace) is not None
+        super().raise_if_misconfigured(workflow_action)
 
-    def get_deactivated_reason(self, workspace: Workspace) -> Optional[str]:
-        """
-        Which of the two ways to be unable to send this installation is in.
-
-        :param workspace: The workspace the button field belongs to.
-        :return: The reason in words, or `None` when it can send.
-        """
-
+        if not workflow_action.service.specific.use_instance_smtp_settings:
+            return
         service_type = service_type_registry.get(self.service_type)
         reason = service_type.instance_smtp_unavailable_reason()
-        return self.DEACTIVATED_REASONS.get(reason)
+        if reason is not None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                self.INSTANCE_SMTP_UNAVAILABLE[reason]
+            )
 
 
 class SlackWriteMessageWorkflowActionType(DatabaseWorkflowServiceActionType):

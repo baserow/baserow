@@ -55,8 +55,12 @@ def _unusable_integration_by_action_model() -> dict[
             continue
         service_type = service_type_registry.get(action_type.service_type)
         condition = Q(integration__trashed=True)
-        # Asked of a new service, as the query can't ask each one.
-        if service_type.requires_integration(service_type.model_class()):
+        # Asked of a new service, as the query can't ask each one. The email
+        # action decides per service whether it needs one.
+        if (
+            action_type.model_class is not CoreSMTPEmailWorkflowAction
+            and service_type.requires_integration(service_type.model_class())
+        ):
             condition |= Q(integration__isnull=True)
         unusable[action_type.model_class] = condition
     return unusable

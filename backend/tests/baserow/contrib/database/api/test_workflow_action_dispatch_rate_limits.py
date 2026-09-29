@@ -10,7 +10,6 @@ from rest_framework.status import (
     HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
-    HTTP_403_FORBIDDEN,
     HTTP_409_CONFLICT,
     HTTP_429_TOO_MANY_REQUESTS,
 )
@@ -75,14 +74,15 @@ def _add_row_action(data_fixture, button_field, table):
 
 def _add_email_action(data_fixture, user, button_field):
     """
-    Created through the service so the type pins the instance server on it,
-    the way a real editor does.
+    Created through the service, the way a real editor does, sending through
+    the instance server.
     """
 
     action = DatabaseWorkflowActionService().create_workflow_action(
         user,
         database_workflow_action_type_registry.get("smtp_email"),
         button_field,
+        service={"use_instance_smtp_settings": True},
     )
     service = action.service.specific
     service.to_emails = "'someone@example.com'"
@@ -370,7 +370,7 @@ def test_a_button_carrying_more_requests_than_the_budget_is_refused(
 
 
 @pytest.mark.django_db
-def test_a_click_refused_by_a_deactivated_type_spends_nothing(
+def test_a_click_refused_before_it_runs_spends_nothing(
     api_client, data_fixture, settings
 ):
     """
@@ -385,13 +385,13 @@ def test_a_click_refused_by_a_deactivated_type_spends_nothing(
     table, button_field, row = _button(data_fixture, user)
     _add_email_action(data_fixture, user, button_field)
 
-    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
     refused = _click(api_client, token, button_field, row)
-    assert refused.status_code == HTTP_403_FORBIDDEN
-    assert refused.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+    assert refused.status_code == HTTP_400_BAD_REQUEST
+    assert refused.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
 
     # The budget is intact, so the one external click it allows is still there.
-    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
     with patch("django.core.mail.EmailMultiAlternatives.send", return_value=1):
         assert _click(api_client, token, button_field, row).status_code == (
             HTTP_202_ACCEPTED

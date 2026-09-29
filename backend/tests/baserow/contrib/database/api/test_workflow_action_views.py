@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
 import pytest
@@ -699,44 +701,47 @@ def test_naming_the_service_type_the_action_already_uses_is_accepted(
     assert response.json()["service"]["table_id"] == table.id
 
 
-def _no_smtp(settings):
-    """An instance that keeps a backend which never delivers."""
+def _deactivated(type_name: str):
+    """Makes one action type deactivated, the way a missing licence would."""
 
-    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
-    settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    action_type = database_workflow_action_type_registry.get(type_name)
+    return patch.multiple(
+        action_type,
+        is_deactivated=lambda workspace: True,
+        get_deactivated_reason=lambda workspace: "Not available here.",
+    )
 
 
 @pytest.mark.django_db
 def test_creating_a_deactivated_type_is_refused_with_its_reason(
-    api_client, data_fixture, settings
+    api_client, data_fixture
 ):
-    _no_smtp(settings)
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
 
-    response = api_client.post(
-        reverse(
-            "api:database:workflow_actions:list",
-            kwargs={"field_id": button_field.id},
-        ),
-        {"type": "smtp_email"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with _deactivated("http_request"):
+        response = api_client.post(
+            reverse(
+                "api:database:workflow_actions:list",
+                kwargs={"field_id": button_field.id},
+            ),
+            {"type": "http_request"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_403_FORBIDDEN, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
     # The reason is what the editor shows, so it travels rather than a code.
-    assert "SMTP" in response.json()["detail"]
+    assert response.json()["detail"] == "Not available here."
     assert DatabaseWorkflowAction.objects.count() == 0
 
 
 @pytest.mark.django_db
 def test_swapping_to_a_deactivated_type_is_refused_with_its_reason(
-    api_client, data_fixture, settings
+    api_client, data_fixture
 ):
-    _no_smtp(settings)
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     button_field = data_fixture.create_button_field(table=table)
@@ -744,31 +749,63 @@ def test_swapping_to_a_deactivated_type_is_refused_with_its_reason(
         LocalBaserowCreateRowWorkflowAction, field=button_field
     )
 
-    response = api_client.patch(
-        reverse(
-            "api:database:workflow_actions:item",
-            kwargs={"workflow_action_id": action.id},
-        ),
-        {"type": "smtp_email"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    with _deactivated("http_request"):
+        response = api_client.patch(
+            reverse(
+                "api:database:workflow_actions:item",
+                kwargs={"workflow_action_id": action.id},
+            ),
+            {"type": "http_request"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
     assert response.status_code == HTTP_403_FORBIDDEN, response.json()
     assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+    assert response.json()["detail"] == "Not available here."
     action.refresh_from_db()
     assert action.get_type().type == "local_baserow_create_row"
 
 
 @pytest.mark.django_db
 def test_clicking_a_button_carrying_a_deactivated_type_is_refused(
-    api_client, data_fixture, settings
+    api_client, data_fixture
 ):
     """
-    An instance can stop being able to send after the action was configured, so
-    the click is refused as a whole rather than failing part way through it.
+    A type can be deactivated after the action was configured, so the click is
+    refused as a whole rather than failing part way through it.
     """
 
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    button_field = data_fixture.create_button_field(table=table)
+    row = table.get_model().objects.create()
+    DatabaseWorkflowActionService().create_workflow_action(
+        user,
+        database_workflow_action_type_registry.get("http_request"),
+        button_field,
+    )
+
+    with _deactivated("http_request"):
+        response = api_client.post(
+            reverse(
+                "api:database:workflow_actions:dispatch",
+                kwargs={"field_id": button_field.id},
+            ),
+            {"row_id": row.id},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_403_FORBIDDEN, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+    assert response.json()["detail"] == "Not available here."
+
+
+@pytest.mark.django_db
+def test_clicking_an_instance_email_the_instance_cannot_send_is_refused(
+    api_client, data_fixture, settings
+):
     settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = True
     settings.CELERY_EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     user, token = data_fixture.create_user_and_token()
@@ -779,9 +816,10 @@ def test_clicking_a_button_carrying_a_deactivated_type_is_refused(
         user,
         database_workflow_action_type_registry.get("smtp_email"),
         button_field,
+        service={"use_instance_smtp_settings": True, "to_emails": "'a@b.c'"},
     )
 
-    _no_smtp(settings)
+    settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = False
     response = api_client.post(
         reverse(
             "api:database:workflow_actions:dispatch",
@@ -792,8 +830,9 @@ def test_clicking_a_button_carrying_a_deactivated_type_is_refused(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_403_FORBIDDEN, response.json()
-    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_TYPE_DEACTIVATED"
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json()["error"] == "ERROR_WORKFLOW_ACTION_DISPATCH_FAILED"
+    assert "turned off" in response.json()["detail"]
 
 
 @pytest.mark.django_db
