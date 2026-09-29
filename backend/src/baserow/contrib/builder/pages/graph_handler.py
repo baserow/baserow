@@ -57,7 +57,10 @@ class PageGraphHandler(BaseGraphHandler):
         `south` insert would have put it), followed by that element's previous
         default successors. The outputs of one element are merged in sorted
         order. A reference to an element without a graph entry is dropped, like
-        a dangling reference. The graph is persisted when anything was merged.
+        a dangling reference, and so is one that would close a loop (two
+        outputs sharing a head, an element referencing itself, a chain leading
+        back into what was already folded), like the converging and cycle
+        strips would. The graph is persisted when anything was merged.
 
         :return: The `(element_id, output)` pairs that were merged.
         """
@@ -65,10 +68,15 @@ class PageGraphHandler(BaseGraphHandler):
         self._lock_instance_for_update()
 
         merged: List[tuple[int, str]] = []
+        # Every element whose outputs were folded plus every id the fold has
+        # placed on a default chain so far. A stray reference leading back into
+        # them would close a loop, so it is dropped instead.
+        placed_ids: set[str] = set()
         for point_id in sorted(
             {pid for pid, _ in self.find_non_default_next_edge_pairs(self.graph)}
         ):
             point_key = str(point_id)
+            placed_ids.add(point_key)
             next_dict = self.graph[point_key]["next"]
             insert_after = point_key
             for output in sorted(o for o in next_dict if o != ""):
@@ -77,6 +85,9 @@ class PageGraphHandler(BaseGraphHandler):
                     if str(head) not in self.graph:
                         continue
                     chain = self._walk_chain_ids(head, set())
+                    if placed_ids.intersection(chain):
+                        continue
+                    placed_ids.update(chain)
                     # The walk follows `next` ids whether or not they are keyed
                     # (an exported orphan can be referenced without having an
                     # entry). Only a keyed point can carry the successors, so

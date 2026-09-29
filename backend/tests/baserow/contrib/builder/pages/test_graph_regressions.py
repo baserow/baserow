@@ -1376,3 +1376,37 @@ def test_merge_non_default_next_edges_drops_unkeyed_chain_tail(data_fixture):
         str(e2.id): {"next": {"": [e3.id]}},
         str(e3.id): {},
     }
+
+
+@pytest.mark.django_db
+def test_merge_non_default_next_edges_drops_references_that_would_close_a_loop(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+    e3 = ElementService().create_element(user, heading, page=page)
+
+    # Two outputs of e1 share the head e2, and a third output points back at
+    # e1 itself. Folding them naively would write e2 -> e2 and e1 -> e1.
+    page.graph = {
+        "0": e1.id,
+        str(e1.id): {"next": {"0": [e2.id], "1": [e2.id], "2": [e1.id]}},
+        str(e2.id): {"next": {"": [e3.id]}},
+        str(e3.id): {},
+    }
+    page.save(update_fields=["graph"])
+
+    merged = page.get_graph().merge_non_default_next_edges()
+
+    assert merged == [(e1.id, "0"), (e1.id, "1"), (e1.id, "2")]
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e2.id]}},
+        str(e2.id): {"next": {"": [e3.id]}},
+        str(e3.id): {},
+    }

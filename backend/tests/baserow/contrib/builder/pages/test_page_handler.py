@@ -966,3 +966,38 @@ def test_import_elements_survives_unkeyed_element_in_non_default_output_chain(
         str(i3): {"next": {"": [i4]}},
         str(i4): {},
     }
+
+
+@pytest.mark.django_db
+def test_import_elements_folds_two_non_default_outputs_sharing_a_head(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    first = data_fixture.create_builder_text_element(page=page)
+    second = data_fixture.create_builder_text_element(page=page)
+    serialized = [
+        element_type_registry.get_by_model(element).export_serialized(element)
+        for element in (first, second)
+    ]
+
+    # Both stray outputs of `first` reference `second`; folding the second
+    # one must not point `second` at itself.
+    new_page = data_fixture.create_builder_page(
+        builder=page.builder,
+        graph={
+            "0": first.id,
+            str(first.id): {"next": {"0": [second.id], "1": [second.id]}},
+            str(second.id): {},
+        },
+    )
+
+    [imported_first, imported_second] = PageHandler().import_elements(
+        new_page, serialized, {}
+    )
+
+    new_page.refresh_from_db(fields=["graph"])
+    assert new_page.graph == {
+        "0": imported_first.id,
+        str(imported_first.id): {"next": {"": [imported_second.id]}},
+        str(imported_second.id): {},
+    }
