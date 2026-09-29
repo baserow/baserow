@@ -506,15 +506,23 @@ class LocalBaserowUserSourceType(UserSourceType):
         """
 
         for field in self.fields_to_configure:
+            # The related instance can be `None` even when `{field}_id` is set:
+            # `UserSourceHandler._get_user_source` caches `integration` as `None`
+            # when the integration is trashed, so never assume it resolves.
+            related_instance = (
+                getattr(user_source, field)
+                if getattr(user_source, f"{field}_id")
+                else None
+            )
             if (
-                not getattr(user_source, f"{field}_id")
+                related_instance is None
                 or (
                     field == "table"  # We need to check the hierarchy only for table
                     and TrashHandler.item_has_a_trashed_parent(
-                        getattr(user_source, field), check_item_also=True
+                        related_instance, check_item_also=True
                     )
                 )
-                or (field != "table" and getattr(user_source, field).trashed)
+                or related_instance.trashed
             ):
                 if raise_exception:
                     raise UserSourceImproperlyConfigured(

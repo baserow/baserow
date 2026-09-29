@@ -1554,6 +1554,33 @@ def test_local_baserow_user_source_authentication_is_configured(
         setattr(user_source, field, prev_field)
 
 
+@pytest.mark.django_db
+def test_local_baserow_user_source_is_configured_with_trashed_integration(
+    data_fixture,
+):
+    """
+    When the integration is trashed, `UserSourceHandler` still loads the user source
+    but caches its `integration` as `None` while `integration_id` stays set. The user
+    source must then be reported as misconfigured instead of raising an
+    `AttributeError`.
+    """
+
+    data = populate_local_baserow_test_data(data_fixture)
+    integration = data["user_source"].integration
+    integration.trashed = True
+    integration.save()
+
+    user_source = UserSourceHandler().get_user_source(data["user_source"].id)
+    assert user_source.integration_id == integration.id
+    assert user_source.integration is None
+
+    user_source_type = LocalBaserowUserSourceType()
+    assert user_source_type.is_configured(user_source) is False
+
+    with pytest.raises(UserSourceImproperlyConfigured):
+        user_source_type.is_configured(user_source, raise_exception=True)
+
+
 @pytest.fixture(autouse=True)
 def role_field_id_test_fixture(data_fixture):
     """Fixture to help test the role_field_id."""
