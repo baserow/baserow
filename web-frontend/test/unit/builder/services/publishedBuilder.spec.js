@@ -1,6 +1,8 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
+import PublishedBuilderService, {
+  fetchPublicBuilder,
+} from '@baserow/modules/builder/services/publishedBuilder'
 
 const makeClient = () => ({
   get: vi.fn(),
@@ -8,6 +10,29 @@ const makeClient = () => ({
 })
 
 describe('PublishedBuilderService', () => {
+  test.each([
+    [
+      { mode: 'preview', builderId: 42, domain: 'ignored.example.com' },
+      'builder/preview/42/current/',
+    ],
+    [
+      { builderId: 42, domain: 'ignored.example.com' },
+      'builder/domains/published/by_id/42/',
+    ],
+    [
+      { domain: 'example.com' },
+      'builder/domains/published/by_name/example.com/',
+    ],
+  ])('fetches a Builder from its route identifiers', async (params, url) => {
+    const client = makeClient()
+    client.get.mockResolvedValue({ data: { id: 42 } })
+
+    await expect(fetchPublicBuilder(client, params)).resolves.toEqual({
+      id: 42,
+    })
+    expect(client.get).toHaveBeenCalledWith(url)
+  })
+
   test('uses published routes without a preview builder', () => {
     const client = makeClient()
     const service = PublishedBuilderService(client)

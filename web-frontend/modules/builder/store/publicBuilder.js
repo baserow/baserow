@@ -1,4 +1,4 @@
-import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
+import { fetchPublicBuilder } from '@baserow/modules/builder/services/publishedBuilder'
 
 const state = () => ({
   pageMode: 'public',
@@ -14,27 +14,21 @@ const actions = {
   setPageMode({ commit }, mode) {
     commit('SET_PAGE_MODE', mode)
   },
-  async fetchById({ dispatch }, { builderId }) {
-    const { $client } = this
-    const { data } = await PublishedBuilderService($client).fetchById(builderId)
+  async fetch({ dispatch }, params) {
+    const data = await fetchPublicBuilder(this.$client, params)
 
     return await dispatch('application/forceCreate', data, { root: true })
+  },
+  async fetchById({ dispatch }, { builderId }) {
+    return await dispatch('fetch', { builderId })
   },
 
   async fetchPreview({ dispatch }, { builderId }) {
-    const { $client } = this
-    const { data } =
-      await PublishedBuilderService($client).fetchPreview(builderId)
-
-    return await dispatch('application/forceCreate', data, { root: true })
+    return await dispatch('fetch', { mode: 'preview', builderId })
   },
 
   async fetchByDomain({ dispatch }, { domain }) {
-    const { $client } = this
-    const { data } =
-      await PublishedBuilderService($client).fetchByDomain(domain)
-
-    return await dispatch('application/forceCreate', data, { root: true })
+    return await dispatch('fetch', { domain })
   },
 }
 
