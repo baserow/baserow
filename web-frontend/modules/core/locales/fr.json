@@ -818,7 +818,7 @@
         "openaiApiKeyLabel": "Clé API",
         "openaiApiKeyDescription": "Saisissez une clé API OpenAI si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API] (https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "openaiModelsLabel": "Modèles activés",
-        "openaiModelsDescription": "Fournir une liste de [modèles OpenAI] (https://platform.openai.com/docs/models/continuous-model-upgrades) séparés par des virgules qui peuvent être utilisés dans Baserow. (par exemple `gpt-3.5-turbo,gpt-4`)",
+        "openaiModelsDescription": "Fournir une liste de [modèles OpenAI] (https://platform.openai.com/docs/models/continuous-model-upgrades) séparés par des virgules qui peuvent être utilisés dans Baserow. Par exemple `gpt-3.5-turbo,gpt-4`.",
         "openaiModelIdentifierDescription": "Saisissez un [identifiant de modèle OpenAI](https://developers.openai.com/api/docs/models). Par exemple : `gpt-5.6`, `gpt-5.6-terra` ou `gpt-5.6-luna`.",
         "ollamaHostLabel": "Hôte",
         "ollamaHostDescription": "Indiquez le nom d'hôte de votre serveur [Ollama] (https://ollama.com/). Celui-ci s'exécute généralement localement sur votre propre serveur.",
@@ -827,13 +827,13 @@
         "ollamaModelIdentifierDescription": "Saisissez l'identifiant d'un [modèle installé dans Ollama](https://ollama.com/library). Par exemple : `gemma3`, `qwen3` ou `llama3.3`.",
         "anthropicApiKeyLabel": "Clé d'API",
         "anthropicModelsLabel": "Modèles activés",
-        "anthropicModelsDescription": "Fournissez une liste de [modèles Anthropic](https://docs.anthropic.com/en/docs/about-claude/models) séparés par des virgules que vous souhaitez utilisés dans Baserow. (e.g. `claude-3-5-sonnet-20241022,claude-3-opus-20240229`)",
+        "anthropicModelsDescription": "Fournissez une liste de [modèles Anthropic](https://docs.anthropic.com/en/docs/about-claude/models) séparés par des virgules que vous souhaitez utilisés dans Baserow. Par exemple : `claude-3-5-sonnet-20241022,claude-3-opus-20240229`.",
         "anthropicModelIdentifierDescription": "Saisissez un [identifiant de modèle Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview). Par exemple : `claude-sonnet-5`, `claude-opus-4-8` ou `claude-haiku-4-5`.",
         "mistral": "Mistral",
         "mistralApiKeyLabel": "Clé d'API",
         "mistralApiKeyDescription": "Fournissez une clé API Mistral si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.mistral.ai/getting-started/quickstart/).",
         "mistralModelsLabel": "Modèles activés",
-        "mistralModelsDescription": "Fournissez une liste de [modèles Mistral] (https://docs.mistral.ai/getting-started/models/models_overview/) séparés par des virgules qui vous souhaitez utiliser dans Baserow. (par exemple : `mistral-large-latest,mistral-small-latest`)",
+        "mistralModelsDescription": "Fournissez une liste de [modèles Mistral] (https://docs.mistral.ai/getting-started/models/models_overview/) séparés par des virgules qui vous souhaitez utiliser dans Baserow. Par exemple : `mistral-large-latest,mistral-small-latest`.",
         "mistralModelIdentifierDescription": "Saisissez un [identifiant de modèle Mistral](https://docs.mistral.ai/models/). Par exemple : `mistral-large-latest`, `mistral-medium-latest` ou `mistral-small-latest`.",
         "anthropic": "Anthropic",
         "anthropicApiKeyDescription": "Fournissez une clé API Anthropic si vous souhaitez activer l'intégration. [Instructions sur l'obtention d'une clé API](https://docs.anthropic.com/en/api/getting-started).",
@@ -1616,5 +1616,9 @@
         "invalidNameTitle": "Nom d'agent non autorisé",
         "lastActive": "Dernière activité",
         "workspaceRole": "Rôle dans le projet"
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "L'image ne peut pas être intégrée",
+        "errorUnsupportedImageMessage": "{name} n'est pas un type d'image pris en charge et n'a pas été ajouté."
     }
 }
