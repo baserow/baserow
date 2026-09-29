@@ -29,6 +29,12 @@ def is_deadlock_error(exc: OperationalError) -> bool:
     return isinstance(exc.__cause__, errors.DeadlockDetected)
 
 
+def is_query_canceled_error(exc: Exception) -> bool:
+    return isinstance(exc, OperationalError) and isinstance(
+        exc.__cause__, errors.QueryCanceled
+    )
+
+
 def is_unique_violation_error(exc: Exception) -> bool:
     return isinstance(exc, IntegrityError) and isinstance(
         exc.__cause__, errors.UniqueViolation

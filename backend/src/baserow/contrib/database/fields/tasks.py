@@ -6,7 +6,7 @@ from typing import Optional, Type
 from uuid import uuid4
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import OperationalError, connection, transaction
 from django.db.models import OuterRef, Q, QuerySet, Subquery
 
 from celery import chord, group
@@ -25,6 +25,7 @@ from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.views.handler import ViewSubscriptionHandler
 from baserow.contrib.database.views.models import View, ViewSubscription
 from baserow.core.models import Workspace
+from baserow.core.psycopg import is_query_canceled_error
 from baserow.core.telemetry.utils import add_baserow_trace_attrs, baserow_trace
 
 tracer = trace.get_tracer(__name__)
@@ -57,6 +58,10 @@ WHERE current_setting('statement_timeout')::interval = interval '0'
    OR current_setting('statement_timeout')::interval > %s::interval
 """.strip()
 
+# Django runs these to end a nested atomic block. They must run even after the
+# deadline or a failed query, or the transaction can't be cleaned up.
+_SAVEPOINT_SQL_PREFIXES = ("SAVEPOINT", "RELEASE SAVEPOINT", "ROLLBACK TO SAVEPOINT")
+
 
 class PeriodicFieldUpdateTimeBudgetExceeded(SoftTimeLimitExceeded):
     """
@@ -79,21 +84,33 @@ def _ensure_time_left(deadline: float) -> int:
 
 def _statement_deadline(deadline: float):
     """
-    A `connection.execute_wrapper` that stops each query from running past the
-    deadline. Postgres applies statement_timeout per statement, so it is lowered
-    again before every query in a transaction. Queries outside a transaction can't
-    get a local timeout, so they are only checked before they start.
+    A `connection.execute_wrapper` that stops each query in a transaction from
+    running past the deadline. Postgres applies statement_timeout per statement, so it
+    is lowered again before every query. Queries outside a transaction are left alone:
+    they can't get a local timeout, and they include on_commit hooks for data that is
+    already committed.
     """
 
     def wrapper(execute, sql, params, many, context):
-        time_left_ms = _ensure_time_left(deadline)
-        if context["connection"].in_atomic_block:
-            timeout = f"{time_left_ms}ms"
-            # The raw cursor skips this wrapper, so it doesn't recurse.
-            context["cursor"].cursor.execute(
-                _TIGHTEN_STATEMENT_TIMEOUT_SQL, [timeout, timeout]
-            )
-        return execute(sql, params, many, context)
+        db = context["connection"]
+        if (
+            not db.in_atomic_block
+            or db.needs_rollback
+            or (isinstance(sql, str) and sql.startswith(_SAVEPOINT_SQL_PREFIXES))
+        ):
+            return execute(sql, params, many, context)
+
+        timeout = f"{_ensure_time_left(deadline)}ms"
+        # A separate cursor skips this wrapper, and works when the query uses a named
+        # cursor, which can only execute once.
+        with db.wrap_database_errors, db.connection.cursor() as cursor:
+            cursor.execute(_TIGHTEN_STATEMENT_TIMEOUT_SQL, [timeout, timeout])
+        try:
+            return execute(sql, params, many, context)
+        except OperationalError as exc:
+            if is_query_canceled_error(exc) and deadline - time.monotonic() < 1:
+                raise PeriodicFieldUpdateTimeBudgetExceeded() from exc
+            raise
 
     return wrapper
 
