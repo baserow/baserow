@@ -162,24 +162,26 @@ def _seed_builder(
         page=page, name="Orders", table=table, integration=integration
     )
 
-    fx.create_builder_heading_element(page=page, value="'Welcome'", level=1)
-    fx.create_builder_text_element(page=page, value="'Some body copy'")
-    fx.create_builder_image_element(page=page)
-    fx.create_builder_link_element(page=page, value="'Go to docs'")
-    fx.create_builder_table_element(page=page, data_source=data_source)
-    fx.create_builder_menu_element_items(page=page)
+    fx.create_builder_heading_element(user=user, page=page, value="'Welcome'", level=1)
+    fx.create_builder_text_element(user=user, page=page, value="'Some body copy'")
+    fx.create_builder_image_element(user=user, page=page)
+    fx.create_builder_link_element(user=user, page=page, value="'Go to docs'")
+    fx.create_builder_table_element(user=user, page=page, data_source=data_source)
+    fx.create_builder_menu_element_items(user=user, page=page)
 
     # Containers with children exercise parent_element_id / place_in_container.
-    column = fx.create_builder_column_element(page=page, column_amount=2)
+    column = fx.create_builder_column_element(user=user, page=page, column_amount=2)
     fx.create_builder_text_element(
+        user=user,
         page=page,
         value="'In a column'",
         position=GraphPointPosition.CHILD,
         reference_element=column,
         place_in_container="0",
     )
-    form_container = fx.create_builder_form_container_element(page=page)
+    form_container = fx.create_builder_form_container_element(user=user, page=page)
     fx.create_builder_input_text_element(
+        user=user,
         page=page,
         label="'Your name'",
         position=GraphPointPosition.CHILD,
@@ -187,6 +189,7 @@ def _seed_builder(
         place_in_container="0",
     )
     fx.create_builder_choice_element(
+        user=user,
         page=page,
         label="'Pick one'",
         position=GraphPointPosition.CHILD,
@@ -194,6 +197,7 @@ def _seed_builder(
         place_in_container="0",
     )
     fx.create_builder_checkbox_element(
+        user=user,
         page=page,
         label="'Agree'",
         position=GraphPointPosition.CHILD,
@@ -201,6 +205,7 @@ def _seed_builder(
         place_in_container="0",
     )
     button = fx.create_builder_button_element(
+        user=user,
         page=page,
         value="'Submit'",
         position=GraphPointPosition.CHILD,
@@ -209,7 +214,9 @@ def _seed_builder(
     )
 
     # Shared-page elements are merged into list_elements as page_name="[shared]".
-    fx.create_builder_heading_element(page=builder.shared_page, value="'Header'")
+    fx.create_builder_heading_element(
+        user=user, page=builder.shared_page, value="'Header'"
+    )
 
     fx.create_notification_workflow_action(page=page, element=button, event="click")
     upsert_service = fx.create_local_baserow_upsert_row_service(
