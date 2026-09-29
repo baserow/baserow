@@ -3,6 +3,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import {
   resolveApplicationRoute,
   resolveBuilderPagePath,
+  resolveSafeNextPath,
 } from '@baserow/modules/builder/utils/routing'
 
 const createBuilderRouter = () =>
@@ -48,5 +49,19 @@ describe('resolveBuilderPagePath', () => {
     [['products', '42'], 'products/42'],
   ])('normalizes %s', (path, expected) => {
     expect(resolveBuilderPagePath(path)).toBe(expected)
+  })
+})
+
+describe('resolveSafeNextPath', () => {
+  test.each([
+    ['/products', '/products'],
+    ['%2Fbuilder%2Fpreview%2F2%2Fproducts', '/builder/preview/2/products'],
+    ['https%3A%2F%2Fevil.example', null],
+    ['%2F%2Fevil.example', null],
+    ['%2F%5Cevil.example', null],
+    ['%', null],
+    [undefined, null],
+  ])('resolves %s to %s', (next, expected) => {
+    expect(resolveSafeNextPath(next)).toBe(expected)
   })
 })

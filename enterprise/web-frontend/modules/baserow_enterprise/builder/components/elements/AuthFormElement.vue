@@ -30,7 +30,10 @@
 import form from '@baserow/modules/core/mixins/form'
 import error from '@baserow/modules/core/mixins/error'
 import element from '@baserow/modules/builder/mixins/element'
-import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
+import {
+  consumeLoginError,
+  getLoginError,
+} from '@baserow/modules/builder/utils/auth'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { mapActions } from 'vuex'
 
@@ -112,8 +115,13 @@ export default {
       )
     },
   },
-  mounted() {
+  created() {
     this.showLoginErrorFromQueryParams()
+  },
+  mounted() {
+    if (!this.isEditMode && this.selectedUserSource) {
+      consumeLoginError(this.$registry, [this.selectedUserSource])
+    }
   },
   watch: {
     userSource: {
@@ -157,11 +165,16 @@ export default {
       if (this.isEditMode || !this.selectedUserSource) {
         return
       }
-      const message = consumeLoginError(this.$registry, [
-        this.selectedUserSource,
-      ])
-      if (message) {
-        this.showError(this.$t('loginError.title'), message)
+      const origin = import.meta.client
+        ? window.location.origin
+        : 'http://builder.internal'
+      const error = getLoginError(
+        this.$registry,
+        [this.selectedUserSource],
+        new URL(this.$route.fullPath, origin)
+      )
+      if (error) {
+        this.showError(this.$t('loginError.title'), error.message)
       }
     },
     async beforeLogin() {
