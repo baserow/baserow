@@ -221,12 +221,20 @@ def reused_workflow_report(
     else:
         structure_steps = ""
 
+    authorization_steps = (
+        "Reuse does not authorize modifying existing workflows. Before changing "
+        "or reapplying any nodes, if the user has not already authorized these "
+        "changes to these existing workflows, call ask_user to explain the "
+        "differences and confirm whether to modify them or create separate "
+        "workflows with different names, then stop. Only after that authorization, "
+        "follow the mutation steps below. "
+    )
     if not unverified:
         if structure_steps:
-            report["next_steps"] = structure_steps.strip()
+            report["next_steps"] = authorization_steps + structure_steps.strip()
         return report
 
-    report["next_steps"] = structure_steps + (
+    configuration_steps = (
         "Node labels and types alone do not verify trigger or action "
         "configuration of the reused_workflows. Compare the request with "
         "identical verified prior create_workflows arguments; otherwise "
@@ -236,4 +244,5 @@ def reused_workflow_report(
         "prior arguments are absent, report that exact limitation and do "
         "not claim the workflow is complete."
     )
+    report["next_steps"] = authorization_steps + structure_steps + configuration_steps
     return report

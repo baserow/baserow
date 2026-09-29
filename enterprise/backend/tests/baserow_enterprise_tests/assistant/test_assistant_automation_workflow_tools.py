@@ -361,6 +361,11 @@ def test_create_workflows_reuses_exact_names_and_does_not_navigate_when_all_reus
     assert conflict["requested_nodes"][0]["type"] == "periodic"
     assert "actual_nodes" not in conflict
     assert "configuration_unverified_reused_workflows" not in first
+    assert "ask_user" in first["next_steps"]
+    assert first["next_steps"].index("ask_user") < first["next_steps"].index(
+        "add_nodes"
+    )
+    assert "Only after that authorization" in first["next_steps"]
     assert "add_nodes" in first["next_steps"]
     assert "trigger" in first["next_steps"]
     assert automation.workflows.count() == 2
@@ -451,6 +456,13 @@ def test_create_workflows_does_not_treat_matching_structure_as_matching_config(
     assert [(w["id"], w["name"]) for w in second["reused_workflows"]] == [
         (workflow_id, "Process Orders")
     ]
+    assert "ask_user" in second["next_steps"]
+    assert "already authorized" in second["next_steps"]
+    assert "then stop" in second["next_steps"]
+    assert second["next_steps"].index("ask_user") < second["next_steps"].index(
+        "update_nodes"
+    )
+    assert "Only after that authorization" in second["next_steps"]
     assert "update_nodes" in second["next_steps"]
     assert "trigger" in second["next_steps"]
     assert "complete" in second["next_steps"]

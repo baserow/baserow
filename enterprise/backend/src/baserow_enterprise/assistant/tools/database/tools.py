@@ -32,7 +32,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
-from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.deps import AssistantDeps, ResourceChanges
 from baserow_enterprise.assistant.tools.shared import (
     raise_if_permission_denied,
     require_payload,
@@ -1207,6 +1207,7 @@ def _build_row_tools(
     tool_helpers: "ToolHelpers",
     table: Table,
     field_ids: list[int] | None = None,
+    resource_changes: ResourceChanges | None = None,
 ) -> dict[str, Tool]:
     """
     Build pydantic-ai Tool objects for row CRUD on a single table.
@@ -1221,12 +1222,15 @@ def _build_row_tools(
     :param table: The table to build row tools for.
     :param field_ids: If given, only include these field IDs in the
         create model (useful for excluding reverse link_row fields).
+    :param resource_changes: Successful changes shared for the current run so
+        rebuilding tools after a schema change preserves the running count.
     """
 
     row_model_for_create = get_create_row_model(table, field_ids=field_ids)
     row_model_for_update = get_update_row_model(table)
     link_row_hints = get_link_row_hints(row_model_for_create)
-    total_rows_created = 0
+    if resource_changes is None:
+        resource_changes = ResourceChanges()
 
     @return_permission_error(f"create_rows_in_table_{table.id}")
     def _create_rows(
@@ -1235,7 +1239,6 @@ def _build_row_tools(
     ) -> dict[str, Any]:
         """Create new rows in the specified table."""
 
-        nonlocal total_rows_created
         require_payload(f"create_rows_in_table_{table.id}", "rows", rows)
 
         tool_helpers.update_status(
@@ -1247,7 +1250,9 @@ def _build_row_tools(
         with transaction.atomic():
             orm_rows = CreateRowsActionType.do(user, table, validated_rows)
 
-        total_rows_created += len(orm_rows)
+        total_rows_created = resource_changes.record_created_rows(
+            table.id, len(orm_rows)
+        )
         return {
             "created_row_ids": [r.id for r in orm_rows],
             "total_rows_created": total_rows_created,
@@ -1266,7 +1271,7 @@ def _build_row_tools(
             f"for more rows, call this tool again with the next batch. When the user "
             f"asks for N rows, the batches must add up to exactly N. "
             f"RETURNS: Created row IDs and total_rows_created, the rows created in "
-            f"this table so far; use it to reach a requested count exactly. "
+            f"this table during this run; use it to reach a requested count exactly. "
             f"DO NOT USE: For other tables — each table has its own create tool. "
             f"HOW: Fill EVERY field including ALL link_row (relationship) fields. Never skip a field unless data is genuinely unavailable."
             f"{link_row_hints}"
@@ -1385,7 +1390,11 @@ def _refresh_row_tools(ctx: RunContext[AssistantDeps]) -> None:
     for table in tables:
         try:
             row_tools = _build_row_tools(
-                ctx.deps.user, ctx.deps.workspace, ctx.deps.tool_helpers, table
+                ctx.deps.user,
+                ctx.deps.workspace,
+                ctx.deps.tool_helpers,
+                table,
+                resource_changes=ctx.deps.resource_changes,
             )
         except Exception:
             # Raising would fail a field change that already succeeded.
@@ -1452,7 +1461,13 @@ def load_row_tools(
 
     new_tools: list[Tool] = []
     for table in tables:
-        table_tools = _build_row_tools(user, workspace, tool_helpers, table)
+        table_tools = _build_row_tools(
+            user,
+            workspace,
+            tool_helpers,
+            table,
+            resource_changes=ctx.deps.resource_changes,
+        )
 
         if "create" in operations:
             new_tools.append(table_tools["create"])

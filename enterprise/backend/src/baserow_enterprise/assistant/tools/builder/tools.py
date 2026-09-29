@@ -831,6 +831,8 @@ def update_element(
     - default_value: "$formula: the current user's email"
     - Inside a collection, descriptions use current_record for that collection's row.
       For intentional fixed-row access, supply an explicit runtime expression.
+    - Switching a link/image to a generated URL applies only if that URL succeeds.
+      Independent changes can still apply; updated_fields lists only saved changes.
 
     ## Menu Items
     - To add/replace menu items on a menu element, set menu_items with the full list.
@@ -864,11 +866,13 @@ def update_element(
                 "Previous formula values were retained. Do not retry the denied operation."
             ]
 
+    dependent_fields = element.get_formula_dependent_fields(element_type)
     updated_fields = []
     for field in element.get_updated_field_names():
         formula_field = (
             "value" if element_type == "button" and field == "label" else field
         )
+        formula_field = dependent_fields.get(field, formula_field)
         if formula_field not in formulas or formula_field in applied_formulas:
             updated_fields.append(field)
     result = {

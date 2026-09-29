@@ -352,8 +352,10 @@ async def test_search_user_docs_preserves_cited_partial_answer(data_fixture, ans
     profile.get_settings.assert_called_once_with(SUBAGENT)
     assert run.call_args.kwargs["model_settings"] == {
         "temperature": 0.3,
-        "timeout": 20,
     }
+    # Documentation retains the provider timeout used before settings were
+    # introduced here; other subagents must keep their own timeout.
+    assert profile.get_settings.return_value["timeout"] == 20
 
 
 @pytest.mark.django_db

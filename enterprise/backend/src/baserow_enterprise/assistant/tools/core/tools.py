@@ -264,10 +264,10 @@ def ask_user(
     """\
     Ask the user for a requirement you cannot look up, then stop.
 
-    WHEN to use: A change request refers to existing data, fields, or users no list_* tool result matches, or a new build never says what it is for.
+    WHEN to use: A change request refers to existing data, fields, or users no list_* tool result matches, a new build never says what it is for, or reusing an exact-name resource would require changes to that existing resource the user has not authorized.
     WHAT it does: Records the question; you deliver it as your final answer.
     RETURNS: Instructions for delivering the question.
-    DO NOT USE when: The user asks a product/how-to question (answer it using search_user_docs), a sensible first version can be built with defaults (see `<intent>`), a list_* tool can answer it, or you only want permission to continue.
+    DO NOT USE when: The user asks a product/how-to question (answer it using search_user_docs), a sensible first version can be built with defaults (see `<intent>`), a list_* tool can answer it, or you only want permission to continue work already authorized.
     Before asking about a CTA destination, inspect the app's pages: use an existing Home page as the default and state that choice. Draft presentation copy yourself.
     Before asking for a tool prerequisite, inspect its schema with search_tools. Never ask for an integration ID that the workflow tool does not accept; it handles integration references itself.
     """

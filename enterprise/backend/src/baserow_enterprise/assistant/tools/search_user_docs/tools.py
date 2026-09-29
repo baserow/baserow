@@ -275,7 +275,10 @@ async def _search_user_docs_impl(
     )
 
     model_profile = ctx.deps.tool_helpers.model_profile
-    model_settings = model_profile.get_settings(SUBAGENT)
+    model_settings = dict(model_profile.get_settings(SUBAGENT))
+    # Docs synthesis previously used the provider's timeout. Keep it instead of
+    # imposing the shorter action-subagent deadline on a large reasoning request.
+    model_settings.pop("timeout", None)
     output_type = SearchDocsResult
     if model_profile.model_string in {
         "groq:openai/gpt-oss-120b",

@@ -558,9 +558,12 @@ def update_element(
             f"Unsupported properties for {element_type}: {', '.join(unsupported)}. "
             f"No changes were applied. {guidance}"
         )
-    # Generated values are applied only after validation. Do not replace an
-    # existing value with the creation placeholder if formula generation fails.
-    for field in element_update.get_formulas_to_update(element, None, element_type):
+    # Save generated values and their source switches together after validation,
+    # so failed generation preserves the existing link/image behavior.
+    deferred_fields = set(
+        element_update.get_formulas_to_update(element, None, element_type)
+    ) | set(element_update.get_formula_dependent_fields(element_type))
+    for field in deferred_fields:
         kwargs.pop(field, None)
     if kwargs:
         element = UpdateElementActionType.do(user, element, kwargs)

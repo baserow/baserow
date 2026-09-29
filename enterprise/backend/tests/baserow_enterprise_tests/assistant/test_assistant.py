@@ -2195,6 +2195,8 @@ class TestFinalAnswerValidation:
         [
             "Created the Orders table.",
             "I created the Orders table.",
+            "I’ve created the Tasks table.",
+            "Added 3 rows.",
             "The table was created.",
             "Your table has been created.",
             "The Restaurant database has been created successfully.",
@@ -2251,6 +2253,14 @@ class TestFinalAnswerValidation:
             "Updated rows show a new timestamp.",
             "Created on: shows when a row was added.",
             "1. Created by — shows who created the row.",
+            "The Timeline view was added in Baserow 1.25.",
+            "Your changes were applied automatically after each edit.",
+            "Done! Click Save to finish.",
+            "Applied filters only affect your view.",
+            "Updated cells highlight briefly.",
+            "Updated values sync in real time.",
+            "Deleted rows disappear from the view.",
+            "Created rows inherit the view's filters.",
         ],
     )
     def test_documentation_descriptions_and_code_examples_are_not_completion_claims(
@@ -2463,6 +2473,8 @@ class TestFinalAnswerValidation:
         "answer",
         [
             "I created the Process Orders workflow with errors.",
+            "I’ve created the Process Orders workflow, but its action wasn’t added.",
+            "I created the Process Orders workflow, but its actions weren’t added.",
             "I created the Process Orders workflow, but the action failed.",
             "I created the Process Orders workflow. The action could not be configured.",
             "I created the Process Orders workflow. Permission to configure its action was denied.",

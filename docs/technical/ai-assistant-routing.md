@@ -21,6 +21,9 @@ pending calls remain visible until reissued, and routing-only results are
 excluded from verified action memory. Tool execution is sequential so later calls
 see earlier results and mode changes. Dynamic row tools stay available in every
 mode once loaded and are refreshed when their table schema changes.
+Loaded row-tool creation totals are per table and per user turn, and survive these
+refreshes. `AssistantDeps.resource_changes` owns this runtime tracking separately
+from persisted action memory.
 
 When adding a tool, register it in its domain's tool functions and ensure the
 routing map assigns it an owner. A mode switch never grants permissions or makes
@@ -35,6 +38,9 @@ characters. Large values are truncated, and row writes keep row IDs and counts
 instead of cell values, while request fingerprints use the full arguments to
 distinguish similar requests. The ledger reaches the model as data it must not
 follow as instructions.
+An individually oversized outcome can evict earlier outcomes and retain only
+status flags, losing resource IDs. Improving that compaction is follow-up work;
+tools can rediscover resources from their current state.
 
 The ledger provides prior resource IDs and partial or failed outcomes to the
 model. It is bounded context, not an audit log or an idempotency guarantee. Old
@@ -52,6 +58,8 @@ success claims, printed tool calls, false mode limitations, and unnecessary
 handoffs. They do not verify every named resource, interpret all languages, or
 prove that every part of a request succeeded. Persisted-state checks and trace
 review remain necessary when evaluating task completion.
+Ambiguous descriptions fail open: a historical passive sentence or a participle
+such as "Updated cells highlight briefly" is not enough to assert a new change.
 
 ## Reuse and clarification
 
@@ -59,6 +67,10 @@ Creation tools reconcile exact-name matches within the authorized parent scope.
 They return existing resource IDs and report conflicting definitions or requested
 settings that remain unapplied. Reuse does not silently overwrite an existing
 resource. It also does not prevent duplicates across concurrent agent runs.
+When requested creation differs from an existing table, application theme, or
+workflow, Kuma reports the difference and asks before modifying that existing
+resource unless the user has already authorized those changes. Verified no-op
+reuse and explicitly authorized continuation do not need another confirmation.
 
 Product questions use documentation without requiring example tables or fields to
 exist. Inspection requests use read tools. For changes, missing user-owned data
@@ -84,6 +96,9 @@ updates reject unsupported properties before applying changes, retain existing
 formula values when generation fails, and report any separately committed updates
 as partial. Buttons navigate through click actions; links store their destination
 directly and can use button styling.
+Switching a link to a generated custom URL or an image to a generated URL source
+is saved together with the validated formula. Failed generation preserves the
+previous active destination or image source; independent changes can still apply.
 
 Knowledge-base synchronization indexes overlapping passages, including document
 titles, instead of embedding whole pages that exceed the embedding model's input
@@ -101,8 +116,11 @@ malformed final/tool responses. The adapter preserves text, tool calls, and stor
 history; other providers and models retain their SDK mapping. Provider failures
 and malformed responses still count against the same eval limits.
 Groq GPT-OSS 120B uses high reasoning effort for documentation synthesis.
-This can increase latency and token usage; output-token, timeout, request, and
-error limits remain unchanged. Orchestration, other models, and utility roles keep
+This can increase latency and token usage. Synthesis uses the subagent output-token
+limit and keeps the provider's timeout, as before this change, instead of imposing
+the action subagent's 20-second deadline. A docs-specific deadline requires latency
+measurement in a follow-up. The synthesis fallback is bounded to two calls;
+request and error limits remain in effect. Orchestration and utility roles keep
 their settings.
 Docs synthesis on Groq GPT-OSS 20B and 120B uses strict native JSON output, avoiding
 invented output-tool names. Typed result validation and retrieved-source checks

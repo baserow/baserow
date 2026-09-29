@@ -65,7 +65,103 @@ def test_create_rows_reports_the_running_total_across_batches(data_fixture):
         return tool.function(**arguments)
 
     assert create(2)["total_rows_created"] == 2
+    with pytest.raises(ModelRetry, match="Nothing was changed"):
+        create(0)
     assert create(3)["total_rows_created"] == 5
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "refresh", ["create_field", "update_field", "delete_field", "reload"]
+)
+def test_create_rows_preserves_running_total_when_tools_are_refreshed(
+    data_fixture, refresh
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    notes = data_fixture.create_text_field(table=table, name="Notes")
+    ctx = make_test_ctx(user, table.database.workspace)
+    load_row_tools(ctx, [table.id], ["create"], thought="Prepare row creation")
+
+    row_values = {"Notes": ""}
+
+    def create(count):
+        tool = ctx.deps.dynamic_tools[0]
+        arguments = tool.function_schema.validator.validate_python(
+            {
+                "rows": [{"Name": f"Row {i}", **row_values} for i in range(count)],
+                "thought": "Add",
+            }
+        )
+        return tool.function(**arguments)
+
+    assert create(20)["total_rows_created"] == 20
+    original_tool = ctx.deps.dynamic_tools[0]
+    if refresh == "create_field":
+        create_fields(
+            ctx,
+            table_id=table.id,
+            fields=[FieldItemCreate(name="Status", type="text")],
+            thought="Add a status field",
+        )
+        row_values["Status"] = "Reviewed"
+    elif refresh == "update_field":
+        update_fields(
+            ctx,
+            fields=[FieldItemUpdate(field_id=notes.id, name="Details")],
+            thought="Rename notes",
+        )
+        row_values = {"Details": ""}
+    elif refresh == "delete_field":
+        delete_fields(ctx, field_ids=[notes.id], thought="Drop notes")
+        row_values = {}
+    else:
+        load_row_tools(ctx, [table.id], ["create"], thought="Reload row creation")
+
+    assert ctx.deps.dynamic_tools[0] is not original_tool
+    result = create(10)
+
+    assert table.get_model().objects.count() == 30
+    assert result["total_rows_created"] == 30
+
+
+@pytest.mark.django_db
+def test_create_rows_running_totals_are_scoped_to_table_and_run(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    tables = [
+        data_fixture.create_database_table(user=user, database=database)
+        for _ in range(2)
+    ]
+    for table in tables:
+        data_fixture.create_text_field(table=table, name="Name", primary=True)
+    ctx = make_test_ctx(user, database.workspace)
+    load_row_tools(ctx, [table.id for table in tables], ["create"], thought="Prepare")
+
+    def create(ctx, table, count):
+        tool = dynamic_toolset(ctx).tools[f"create_rows_in_table_{table.id}"]
+        arguments = tool.function_schema.validator.validate_python(
+            {"rows": [{"Name": f"Row {i}"} for i in range(count)], "thought": "Add"}
+        )
+        return tool.function(**arguments)
+
+    assert create(ctx, tables[0], 2)["total_rows_created"] == 2
+    assert create(ctx, tables[1], 3)["total_rows_created"] == 3
+    create_fields(
+        ctx,
+        table_id=tables[1].id,
+        fields=[FieldItemCreate(name="Notes", type="text")],
+        thought="Change another table's schema",
+    )
+    assert create(ctx, tables[0], 1)["total_rows_created"] == 3
+
+    next_ctx = make_test_ctx(user, database.workspace)
+    load_row_tools(next_ctx, [tables[0].id], ["create"], thought="Prepare next run")
+
+    assert create(next_ctx, tables[0], 4)["total_rows_created"] == 4
+    assert tables[0].get_model().objects.count() == 7
+    assert tables[1].get_model().objects.count() == 3
 
 
 @pytest.mark.django_db
@@ -143,6 +239,8 @@ def test_invalid_link_values_do_not_silently_clear_relationships(
     result = tool.function(**arguments)
     row_ids = result[f"{operation}d_row_ids"]
     assert len(row_ids) == 2
+    if operation == "create":
+        assert result["total_rows_created"] == 2
     for row in model.objects.filter(id__in=row_ids):
         assert list(getattr(row, link.db_column).values_list("id", flat=True)) == [
             linked_row.id
@@ -617,6 +715,7 @@ def test_dynamic_row_tool_returns_permission_denied_result(data_fixture, monkeyp
         f"create_rows_in_table_{table.id} stopped because permission was denied."
     )
     assert "Do not retry or claim" in result["next_steps"]
+    assert ctx.deps.resource_changes.created_row_counts == {}
 
 
 @pytest.mark.django_db(transaction=True)

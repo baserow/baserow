@@ -1925,6 +1925,23 @@ class ElementUpdate(BaseModel):
         fn = _GET_UPDATE_FORMULAS.get(element_type)
         return fn(self, orm_element, context) if fn else {}
 
+    def get_formula_dependent_fields(self, element_type: str) -> dict[str, str]:
+        """Map source switches to the generated formulas they must be saved with."""
+
+        if (
+            element_type == "link"
+            and self.navigation_type == "custom"
+            and needs_formula(self.navigate_to_url)
+        ):
+            return {"navigation_type": "navigate_to_url"}
+        if (
+            element_type == "image"
+            and self.image_source_type == "url"
+            and needs_formula(self.image_url)
+        ):
+            return {"image_source_type": "image_url"}
+        return {}
+
     def get_updated_field_names(self) -> list[str]:
         """Return names of fields that were explicitly set (non-None)."""
 

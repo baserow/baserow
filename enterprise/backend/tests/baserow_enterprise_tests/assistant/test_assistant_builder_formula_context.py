@@ -331,6 +331,92 @@ def test_partial_generated_update_reports_only_saved_fields(repeated_rows, monke
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("element_type", ["link", "image"])
+@pytest.mark.parametrize("succeeds", [True, False])
+@pytest.mark.parametrize("with_independent_change", [True, False])
+def test_generated_url_update_applies_source_type_only_with_valid_formula(
+    data_fixture, monkeypatch, element_type, succeeds, with_independent_change
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    ctx = make_test_ctx(user, workspace)
+    original_formula = "'https://example.com/original'"
+    generated_formula = "'https://example.com/generated'"
+    if element_type == "link":
+        destination = data_fixture.create_builder_page(builder=builder)
+        element = data_fixture.create_builder_link_element(
+            page=page,
+            navigation_type="page",
+            navigate_to_page_id=destination.id,
+            navigate_to_url=formula_object(original_formula),
+            value=formula_object("'Original'"),
+        )
+        source_field, old_source, new_source = "navigation_type", "page", "custom"
+        formula_field, caption_field = "navigate_to_url", "value"
+    else:
+        uploaded_file = data_fixture.create_user_file(is_image=True)
+        element = data_fixture.create_builder_image_element(
+            page=page,
+            image_source_type="upload",
+            image_file=uploaded_file,
+            image_url=formula_object(original_formula),
+            alt_text=formula_object("'Original'"),
+        )
+        source_field, old_source, new_source = "image_source_type", "upload", "url"
+        formula_field, caption_field = "image_url", "alt_text"
+
+    requested = {
+        source_field: new_source,
+        formula_field: "$formula: the destination URL",
+    }
+    generated = {formula_field: generated_formula if succeeds else "get('missing.id')"}
+    if with_independent_change:
+        requested.update(
+            visibility="logged-in",
+            **{caption_field: "$formula: the caption"},
+        )
+        generated[caption_field] = "'Updated caption'"
+    monkeypatch.setattr(
+        shared_agents,
+        "run_agent_sync_with_model",
+        lambda *a, **kw: SimpleNamespace(
+            output=shared_agents.FormulaGeneratorOutput(generated_formulas=generated)
+        ),
+    )
+
+    result = update_element(
+        ctx,
+        page_id=page.id,
+        element=ElementUpdate(element_id=element.id, **requested),
+        thought="Switch to a generated URL and update the caption.",
+    )
+
+    element.refresh_from_db()
+    assert getattr(element, source_field) == (new_source if succeeds else old_source)
+    assert getattr(element, formula_field)["formula"] == (
+        generated_formula if succeeds else original_formula
+    )
+    if element_type == "link":
+        assert element.navigate_to_page_id == destination.id
+    else:
+        assert element.image_file_id == uploaded_file.id
+    assert element.visibility == ("logged-in" if with_independent_change else "all")
+    assert getattr(element, caption_field)["formula"] == (
+        "'Updated caption'" if with_independent_change else "'Original'"
+    )
+    expected_fields = {source_field, formula_field} if succeeds else set()
+    if with_independent_change:
+        expected_fields.update(("visibility", caption_field))
+    assert set(result["updated_fields"]) == expected_fields
+    assert result["status"] == (
+        "ok" if succeeds else "partial" if with_independent_change else "error"
+    )
+    assert bool(result.get("errors")) is not succeeds
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("succeeds", [True, False])
 def test_button_formula_label_alias_reports_saved_value(
     repeated_rows, monkeypatch, succeeds

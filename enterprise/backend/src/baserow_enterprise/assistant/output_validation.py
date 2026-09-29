@@ -50,7 +50,7 @@ _EXPLICIT_COMPLETED_CHANGE_PATTERNS = (
     re.compile(
         rf"^\s*(?:the|your)\s+{_SIMPLE_PASSIVE_SUBJECT}\s+"
         rf"(?:(?:has|have) been|was|were)\s+(?:successfully\s+)?"
-        rf"{_CHANGE_VERBS}\b",
+        rf"{_CHANGE_VERBS}(?:\s+successfully)?\s*$",
         re.IGNORECASE,
     ),
 )
@@ -58,15 +58,11 @@ _EXPLICIT_COMPLETED_CHANGE_PATTERNS = (
 _BARE_CHANGE_VERBS = r"(?:created|updated|deleted|added|configured|applied|completed)"
 _BARE_COMPLETED_CHANGE_PATTERN = re.compile(
     rf"^\s*(?:done\b[\s:—-]*|successfully\s+)(?:successfully\s+)?{_CHANGE_VERBS}\b|"
-    rf"^\s*{_BARE_CHANGE_VERBS}\b(?!\s+(?:on|by)\b)|"
-    r"^\s*done\s*[.!]?\s*$",
-    re.IGNORECASE,
-)
-_DESCRIPTIVE_CHANGE_SUBJECT_PATTERN = re.compile(
-    rf"^\s*{_CHANGE_VERBS}\s+\w+\s+"
-    r"(?:is|are|isn['’]t|aren['’]t|can|may|go|goes|stay|stays|remain|remains|"
-    r"appear|appears|show|shows|move|moves|get|gets|will|won['’]t|"
-    r"do|don['’]t|need|needs|must|should|keep|keeps)\b",
+    rf"^\s*{_BARE_CHANGE_VERBS}\s+(?:"
+    r"(?:the|a|an|your|my|our|this|that|these|those|all|both|\d+)\b|"
+    r"[\"']|"
+    r"\w+\s*$|"
+    r"\w+\s+(?:has|have)\s+been\s+saved\s*$)",
     re.IGNORECASE,
 )
 _FENCED_CODE_PATTERN = re.compile(
@@ -161,12 +157,10 @@ def _explains_unconfigured_documentation_search(
 def _claims_completed_change(answer: str) -> bool:
     if any(pattern.search(answer) for pattern in _EXPLICIT_COMPLETED_CHANGE_PATTERNS):
         return True
-    # "Deleted rows go to the trash" describes a category of rows; the
-    # participle is part of the subject, not a claim that this agent deleted it.
-    return bool(
-        _BARE_COMPLETED_CHANGE_PATTERN.search(answer)
-        and not _DESCRIPTIVE_CHANGE_SUBJECT_PATTERN.search(answer)
-    )
+    # Require an explicit object ("Created the table", "Added 3 rows") or a
+    # short assertion ("Created Orders"). A participle followed by a noun and
+    # more prose ("Updated cells highlight briefly") is ambiguous: fail open.
+    return bool(_BARE_COMPLETED_CHANGE_PATTERN.search(answer))
 
 
 def _defers_action_without_blocker(
@@ -189,8 +183,12 @@ def _defers_action_without_blocker(
 def _completion_claims(answer: str) -> list[_CompletionClaim]:
     # Examples such as a fenced "Created by = Current user" filter are not
     # claims about actions. Other guards still inspect the original answer.
-    answer = _FENCED_CODE_PATTERN.sub("", answer)
+    answer = _FENCED_CODE_PATTERN.sub("", answer).replace("’", "'")
     claims = []
+    # "Done! Click Save to finish" introduces instructions. Only an entire
+    # answer of "Done" is an unambiguous standalone completion claim.
+    if re.fullmatch(r"\s*done[.!]?\s*", answer, re.IGNORECASE):
+        return [_CompletionClaim(allow_partial=False)]
     # Partial results are often explained in a separate clause or sentence.
     acknowledges_errors = bool(
         _FAILED_WORK_PATTERN.search(_NO_ERROR_PATTERN.sub("", answer))
@@ -271,7 +269,12 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
     # Completing one substep does not make an explicit continuation optional.
     # Ordinary offers of new work after a grounded completion still pass.
     if not asked and _defers_action_without_blocker(
-        answer, continuation_only=bool(claims)
+        answer,
+        continuation_only=bool(claims)
+        or (
+            ctx is not None
+            and any(item.completed for item in get_mutation_evidence(ctx.messages))
+        ),
     ):
         raise ModelRetry(
             "Do not hand an executable action back to the user by saying you are "

@@ -317,10 +317,14 @@ def reused_table_report(
         "next_steps": (
             "Exact-name tables were reused, but their actual schemas in "
             "reused_tables do not satisfy the request."
-            f"{missing_hint} Call create_fields with each table id and its "
-            "missing_fields payload; use update_fields for supported field settings. "
+            f"{missing_hint} Reuse does not authorize modifying existing tables. "
+            "If the user has not already authorized the reported changes to these "
+            "existing tables, call ask_user to explain the differences and confirm "
+            "whether to modify them or create separate tables with different names, "
+            "then stop. Only after that authorization, call create_fields with "
+            "each table id and its missing_fields payload; use update_fields for "
+            "supported field settings. "
             "Field types and link/lookup relations cannot be changed in place. Do "
-            "not claim completion until every mismatch is resolved or accurately "
-            "reported as unsupported."
+            "not claim completion while mismatches remain; report them accurately."
         ),
     }

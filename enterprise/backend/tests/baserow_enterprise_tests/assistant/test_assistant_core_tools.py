@@ -2,7 +2,10 @@ import pytest
 from pydantic_ai import ModelRetry
 
 from baserow.test_utils.helpers import AnyInt
-from baserow_enterprise.assistant.tools.builder.themes import apply_theme
+from baserow_enterprise.assistant.tools.builder.themes import (
+    apply_theme,
+    builder_uses_theme,
+)
 from baserow_enterprise.assistant.tools.core.tools import (
     create_builders,
     list_builders,
@@ -150,7 +153,7 @@ def test_create_builders_only_reuses_the_same_name_and_type(data_fixture):
 
 
 @pytest.mark.django_db
-def test_reused_application_reports_an_unapplied_requested_theme(data_fixture):
+def test_reused_application_requires_authorization_before_applying_theme(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     existing = data_fixture.create_builder_application(
@@ -174,7 +177,14 @@ def test_reused_application_reports_an_unapplied_requested_theme(data_fixture):
             "requested_theme": "eclipse",
         }
     ]
-    assert "set_theme" in result["next_steps"]
+    existing.refresh_from_db()
+    assert builder_uses_theme(existing, "baserow")
+    steps = result["next_steps"]
+    assert "ask_user" in steps
+    assert "already authorized" in steps
+    assert "then stop" in steps
+    assert steps.index("ask_user") < steps.index("set_theme")
+    assert "Only after that authorization" in steps
 
 
 @pytest.mark.django_db

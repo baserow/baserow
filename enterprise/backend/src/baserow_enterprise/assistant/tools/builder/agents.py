@@ -705,9 +705,19 @@ def update_single_element_formulas(
                                     formula,
                                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                                 )
+                        dependent_fields = element_update.get_formula_dependent_fields(
+                            element_type
+                        )
+                        for dependent_field, formula_field in dependent_fields.items():
+                            if formula_field in kwargs:
+                                kwargs[dependent_field] = getattr(
+                                    element_update, dependent_field
+                                )
                         if kwargs:
                             UpdateElementActionType.do(user, orm_element, kwargs)
-                            applied.extend(kwargs)
+                            applied.extend(
+                                field for field in kwargs if field in formulas
+                            )
                     missing = set(formulas) - set(applied)
                     if missing:
                         errors.append(

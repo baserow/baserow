@@ -663,6 +663,51 @@ def test_reused_table_resolves_an_omitted_relation_target_from_the_database(
 
 
 @pytest.mark.django_db
+def test_reused_table_requires_authorization_before_reconciling_schema(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    contacts = data_fixture.create_database_table(database=database, name="Contacts")
+    primary = data_fixture.create_text_field(
+        table=contacts, name="Full name", primary=True
+    )
+    row = contacts.get_model().objects.create(
+        order=1, **{primary.db_column: "Alice Smith"}
+    )
+
+    result = create_tables(
+        make_test_ctx(user, workspace),
+        database_id=database.id,
+        tables=[
+            TableItemCreate(
+                name="Contacts",
+                primary_field_name="Name",
+                fields=[
+                    FieldItemCreate(name="Email", type="text"),
+                    FieldItemCreate(name="Phone", type="text"),
+                ],
+            )
+        ],
+        add_sample_rows=False,
+        thought="create a Contacts table",
+    )
+
+    assert result["created_tables"] == []
+    conflict = result["incomplete_reused_tables"][0]
+    assert conflict["primary_field_mismatch"]["actual_name"] == "Full name"
+    assert [field["name"] for field in conflict["missing_fields"]] == ["Email", "Phone"]
+    assert list(contacts.field_set.values_list("name", flat=True)) == ["Full name"]
+    row.refresh_from_db()
+    assert getattr(row, primary.db_column) == "Alice Smith"
+    steps = result["next_steps"]
+    assert "ask_user" in steps
+    assert "already authorized" in steps
+    assert "then stop" in steps
+    assert steps.index("ask_user") < steps.index("create_fields")
+    assert "Only after that authorization" in steps
+
+
+@pytest.mark.django_db
 def test_create_tables_reports_missing_fields_on_a_reused_table(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -732,6 +777,7 @@ def test_create_tables_reports_missing_fields_on_a_reused_table(data_fixture):
     mismatch = result["incomplete_reused_tables"][0]["field_mismatches"][0]
     assert mismatch["name"] == "Status"
     assert [option["value"] for option in mismatch["missing_options"]] == ["Processing"]
+    assert "ask_user" in result["next_steps"]
     assert "update_fields" in result["next_steps"]
 
 

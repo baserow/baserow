@@ -64,8 +64,13 @@ def reused_builder_report(
         "unapplied_reused_builder_themes": pending_themes,
         "next_steps": (
             "These applications already existed, so their requested themes were "
-            "not applied. Call set_theme with each returned id and requested_theme "
-            "before claiming completion."
+            "not applied. Reuse does not authorize changing existing applications. "
+            "If the user has not already authorized these theme changes to these "
+            "existing applications, call ask_user to explain the difference and "
+            "confirm whether to change their themes or create separate applications "
+            "with different names, then stop. Only after that authorization, call "
+            "set_theme with each returned id and requested_theme. Report any "
+            "unapplied theme without claiming it was applied."
         ),
     }
 
