@@ -255,4 +255,51 @@ describe('Core SMTP email service form', () => {
     expect(wrapper.find('input[type="checkbox"]').exists()).toBe(true)
     expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(false)
   })
+
+  test('a stale instance choice is dropped when the instance cannot send', async () => {
+    const stale = { use_instance_smtp_settings: true }
+    const wrapper = await mountComponent({
+      service: stale,
+      defaultValues: stale,
+      props: { instanceSmtpAvailable: false },
+    })
+    await nextTick()
+
+    expect(wrapper.findComponent(IntegrationDropdownStub).exists()).toBe(true)
+    expect(
+      wrapper
+        .find('[placeholder="smtpEmailForm.fromEmailPlaceholder"]')
+        .exists()
+    ).toBe(true)
+    expect(wrapper.vm.getFormValues().use_instance_smtp_settings).toBe(false)
+    const emitted = wrapper.emitted('values-changed') || []
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0][0].use_instance_smtp_settings).toBe(false)
+  })
+
+  test('the choice is dropped when the instance stops being available', async () => {
+    const service = { use_instance_smtp_settings: true }
+    const wrapper = await mountComponent({
+      service,
+      defaultValues: service,
+      props: { instanceSmtpAvailable: true },
+    })
+    expect(wrapper.vm.getFormValues().use_instance_smtp_settings).toBe(true)
+
+    await wrapper.setProps({ instanceSmtpAvailable: false })
+
+    expect(wrapper.vm.getFormValues().use_instance_smtp_settings).toBe(false)
+  })
+
+  test('an integration form already off the instance emits nothing', async () => {
+    const service = { use_instance_smtp_settings: false }
+    const wrapper = await mountComponent({
+      service,
+      defaultValues: service,
+      props: { instanceSmtpAvailable: false },
+    })
+    await nextTick()
+
+    expect(wrapper.emitted('values-changed') || []).toHaveLength(0)
+  })
 })

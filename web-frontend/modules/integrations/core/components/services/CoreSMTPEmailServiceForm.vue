@@ -219,5 +219,29 @@ export default {
       return this.$registry.get('integration', SMTPIntegrationType.getType())
     },
   },
+  watch: {
+    showInstanceSmtpOption() {
+      this.dropUnofferedInstanceSmtp()
+    },
+  },
+  created() {
+    // After the form mixin has copied the default values in.
+    this.dropUnofferedInstanceSmtp()
+  },
+  methods: {
+    /**
+     * A service saved while the instance could send may still say to use it.
+     * With the choice no longer offered that value would stay, hiding the
+     * from fields and making the backend drop the chosen integration.
+     */
+    dropUnofferedInstanceSmtp() {
+      if (
+        !this.showInstanceSmtpOption &&
+        this.values.use_instance_smtp_settings
+      ) {
+        this.values.use_instance_smtp_settings = false
+      }
+    },
+  },
 }
 </script>
