@@ -1,6 +1,6 @@
 # Changelog
 
-## Released 2.3.4
+## Released 2.4.0
 
 ### Bug fixes
 * [Database] Fixed a bug where column resizes and other field option changes weren't shown to other users in real time [#5827](https://github.com/baserow/baserow/issues/5827)

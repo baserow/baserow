@@ -133,7 +133,7 @@ You can specify a particular Baserow version by updating your `config.yaml`:
 ```yaml
 global:
   baserow:
-    image: 2.3.4
+    image: 2.4.0
 ```
 
 Or specify the chart version directly:
